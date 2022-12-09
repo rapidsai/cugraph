@@ -19,8 +19,14 @@ from .common.read_utils import get_chunksize
 from .common.read_utils import get_n_workers
 from .community.louvain import louvain
 from .community.triangle_count import triangle_count
+from .community.egonet import ego_graph
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
+from .sampling.random_walks import random_walks
 from .centrality.eigenvector_centrality import eigenvector_centrality
 from .cores.core_number import core_number
+from .cores.k_core import k_core
+from .link_prediction.jaccard import jaccard
+from .link_prediction.sorensen import sorensen
+from .link_prediction.overlap import overlap

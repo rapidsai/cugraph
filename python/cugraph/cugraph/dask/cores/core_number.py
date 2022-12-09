@@ -17,11 +17,8 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import warnings
 
-from pylibcugraph import (ResourceHandle,
-                          core_number as pylibcugraph_core_number
-                          )
+from pylibcugraph import ResourceHandle, core_number as pylibcugraph_core_number
 
 
 def convert_to_cudf(cp_arrays):
@@ -36,23 +33,16 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def _call_plc_core_number(sID,
-                          mg_graph_x,
-                          dt_x,
-                          do_expensive_check
-                          ):
+def _call_plc_core_number(sID, mg_graph_x, dt_x, do_expensive_check):
     return pylibcugraph_core_number(
-        resource_handle=ResourceHandle(
-            Comms.get_handle(sID).getHandle()
-        ),
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         degree_type=dt_x,
-        do_expensive_check=do_expensive_check
+        do_expensive_check=do_expensive_check,
     )
 
 
-def core_number(input_graph,
-                degree_type=None):
+def core_number(input_graph, degree_type="bidirectional"):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -67,12 +57,10 @@ def core_number(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    degree_type: str
+    degree_type: str, (default="bidirectional")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
-        This option is currently ignored in this release, and setting it will
-        result in a warning.
 
 
     Returns
@@ -89,17 +77,11 @@ def core_number(input_graph,
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if degree_type is not None:
-        warning_msg = (
-            "The 'degree_type' parameter is ignored in this release.")
-        warnings.warn(warning_msg, Warning)
-
-    # FIXME: enable this check once 'degree_type' is supported
-    """
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(f"'degree_type' must be either incoming, "
-                         f"outgoing or bidirectional, got: {degree_type}")
-    """
+        raise ValueError(
+            f"'degree_type' must be either incoming, "
+            f"outgoing or bidirectional, got: {degree_type}"
+        )
 
     # Initialize dask client
     client = input_graph._client
@@ -121,9 +103,7 @@ def core_number(input_graph,
 
     wait(result)
 
-    cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in result]
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
 
     wait(cudf_result)
 
@@ -131,8 +111,7 @@ def core_number(input_graph,
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release())
-         for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

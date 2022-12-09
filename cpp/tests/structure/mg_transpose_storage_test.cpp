@@ -23,6 +23,7 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
@@ -67,7 +68,7 @@ class Tests_MGTransposeStorage
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, transpose_storage_usecase.test_weighted, true);
 
@@ -81,16 +82,30 @@ class Tests_MGTransposeStorage
 
     // 2. run MG transpose storage
 
+    auto mg_graph_number_of_vertices = mg_graph.number_of_vertices();
+    auto mg_graph_number_of_edges    = mg_graph.number_of_edges();
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_clock.start();
     }
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, !store_transposed, true>
-      mg_storage_transposed_graph(*handle_);
-    std::tie(mg_storage_transposed_graph, *d_mg_renumber_map_labels) =
-      mg_graph.transpose_storage(*handle_, std::move(*d_mg_renumber_map_labels));
+    cugraph::graph_t<vertex_t, edge_t, !store_transposed, true> mg_storage_transposed_graph(
+      *handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, true>,
+                               weight_t>>
+      mg_storage_transposed_edge_weights{std::nullopt};
+    std::tie(
+      mg_storage_transposed_graph, mg_storage_transposed_edge_weights, d_mg_renumber_map_labels) =
+      cugraph::transpose_graph_storage(
+        *handle_,
+        std::move(mg_graph),
+        std::move(mg_edge_weights),
+        d_mg_renumber_map_labels
+          ? std::optional<rmm::device_uvector<vertex_t>>{std::move(*d_mg_renumber_map_labels)}
+          : std::nullopt);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -105,9 +120,16 @@ class Tests_MGTransposeStorage
     if (transpose_storage_usecase.check_correctness) {
       // 3-1. decompress MG results
 
-      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] =
-        mg_storage_transposed_graph.decompress_to_edgelist(
-          *handle_, d_mg_renumber_map_labels, false);
+      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
+        *handle_,
+        mg_storage_transposed_graph.view(),
+        mg_storage_transposed_edge_weights
+          ? std::make_optional((*mg_storage_transposed_edge_weights).view())
+          : std::nullopt,
+        d_mg_renumber_map_labels
+          ? std::make_optional<raft::device_span<vertex_t const>>(
+              (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size())
+          : std::nullopt);
 
       // 3-2. aggregate MG results
 
@@ -124,20 +146,27 @@ class Tests_MGTransposeStorage
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+        std::optional<
+          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                   weight_t>>
+          sg_edge_weights{std::nullopt};
+        std::tie(sg_graph, sg_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             *handle_, input_usecase, transpose_storage_usecase.test_weighted, false);
 
         // 3-4. decompress SG results
 
-        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] =
-          sg_graph.decompress_to_edgelist(*handle_, std::nullopt, false);
+        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
+          *handle_,
+          sg_graph.view(),
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
         // 3-5. compare
 
-        ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
-        ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
+        ASSERT_TRUE(mg_graph_number_of_vertices == sg_graph.number_of_vertices());
+        ASSERT_TRUE(mg_graph_number_of_edges == sg_graph.number_of_edges());
 
         auto h_mg_aggregate_srcs    = cugraph::test::to_host(*handle_, d_mg_aggregate_srcs);
         auto h_mg_aggregate_dsts    = cugraph::test::to_host(*handle_, d_mg_aggregate_dsts);

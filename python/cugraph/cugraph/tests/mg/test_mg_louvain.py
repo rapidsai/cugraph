@@ -18,6 +18,7 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.testing import utils
+
 # from cugraph.dask.common.mg_utils import is_single_gpu
 
 try:
@@ -41,8 +42,7 @@ except ImportError:
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS_ASYMMETRIC = [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate-asymmetric.csv"]
+DATASETS_ASYMMETRIC = [utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"]
 
 
 ###############################################################################
@@ -50,10 +50,11 @@ DATASETS_ASYMMETRIC = [
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-@pytest.fixture(scope="module",
-                params=DATASETS_ASYMMETRIC,
-                ids=[f"dataset={d.as_posix()}"
-                     for d in DATASETS_ASYMMETRIC])
+@pytest.fixture(
+    scope="module",
+    params=DATASETS_ASYMMETRIC,
+    ids=[f"dataset={d.as_posix()}" for d in DATASETS_ASYMMETRIC],
+)
 def daskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
@@ -74,14 +75,15 @@ def daskGraphFromDataset(request, dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
     return dg
 
 
-@pytest.fixture(scope="module",
-                params=utils.DATASETS_UNDIRECTED,
-                ids=[f"dataset={d.as_posix()}"
-                     for d in utils.DATASETS_UNDIRECTED])
+@pytest.fixture(
+    scope="module",
+    params=utils.DATASETS_UNDIRECTED,
+    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNDIRECTED],
+)
 def uddaskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
@@ -102,7 +104,7 @@ def uddaskGraphFromDataset(request, dask_client):
     )
 
     dg = cugraph.Graph(directed=False)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
     return dg
 
 

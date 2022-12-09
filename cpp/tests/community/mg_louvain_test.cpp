@@ -87,30 +87,29 @@ class Tests_MGLouvain
                           int rank,
                           weight_t mg_modularity)
   {
-    auto sg_graph =
-      std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(handle);
+    cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+      sg_edge_weights{std::nullopt};
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle_->get_stream());
     weight_t sg_modularity{-1.0};
 
     if (rank == 0) {
       // Create initial SG graph, renumbered according to the MNMG renumber map
 
-      auto [d_edgelist_srcs,
-            d_edgelist_dsts,
-            d_edgelist_weights,
-            d_vertices,
-            number_of_vertices,
-            is_symmetric] =
-        input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
-                                                                                            true);
+      auto [d_edgelist_srcs, d_edgelist_dsts, d_edgelist_weights, d_vertices, is_symmetric] =
+        input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, true, false, false);
 
-      d_clustering_v.resize(d_vertices.size(), handle_->get_stream());
+      EXPECT_TRUE(d_vertices.has_value())
+        << "This test expects d_vertices are defined and d_vertices elements are consecutive "
+           "integers starting from 0.";
+      d_clustering_v.resize((*d_vertices).size(), handle_->get_stream());
 
       // renumber using d_renumber_map_gathered_v
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
         handle, d_edgelist_srcs, d_edgelist_dsts, d_renumber_map_gathered_v);
 
-      std::tie(*sg_graph, std::ignore, std::ignore) =
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
         cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
           handle,
           std::move(d_vertices),
@@ -125,25 +124,37 @@ class Tests_MGLouvain
     std::for_each(
       thrust::make_counting_iterator<size_t>(0),
       thrust::make_counting_iterator<size_t>(dendrogram.num_levels()),
-      [&dendrogram, &sg_graph, &d_clustering_v, &sg_modularity, &handle, resolution, rank](
-        size_t i) {
+      [&dendrogram,
+       &sg_graph,
+       &sg_edge_weights,
+       &d_clustering_v,
+       &sg_modularity,
+       &handle,
+       resolution,
+       rank](size_t i) {
         auto d_dendrogram_gathered_v = cugraph::test::device_gatherv(
           handle, dendrogram.get_level_ptr_nocheck(i), dendrogram.get_level_size_nocheck(i));
 
         if (rank == 0) {
-          auto graph_view = sg_graph->view();
+          auto sg_graph_view = sg_graph.view();
+          auto sg_edge_weight_view =
+            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-          d_clustering_v.resize(graph_view.number_of_vertices(), handle_->get_stream());
+          d_clustering_v.resize(sg_graph_view.number_of_vertices(), handle_->get_stream());
 
-          std::tie(std::ignore, sg_modularity) =
-            cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
+          std::tie(std::ignore, sg_modularity) = cugraph::louvain(handle,
+                                                                  sg_graph_view,
+                                                                  sg_edge_weight_view,
+                                                                  d_clustering_v.data(),
+                                                                  size_t{1},
+                                                                  resolution);
 
           EXPECT_TRUE(
             cugraph::test::renumbered_vectors_same(handle, d_clustering_v, d_dendrogram_gathered_v))
             << "(i = " << i << "), sg_modularity = " << sg_modularity;
 
-          sg_graph =
-            cugraph::test::coarsen_graph(handle, graph_view, d_dendrogram_gathered_v.data());
+          std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::coarsen_graph(
+            handle, sg_graph_view, sg_edge_weight_view, d_dendrogram_gathered_v.data(), false);
         }
       });
 
@@ -168,7 +179,7 @@ class Tests_MGLouvain
       hr_clock.start();
     }
 
-    auto [mg_graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, true);
 
@@ -181,6 +192,8 @@ class Tests_MGLouvain
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -188,8 +201,12 @@ class Tests_MGLouvain
       hr_clock.start();
     }
 
-    auto [dendrogram, mg_modularity] = cugraph::louvain(
-      *handle_, mg_graph_view, louvain_usecase.max_level_, louvain_usecase.resolution_);
+    auto [dendrogram, mg_modularity] =
+      cugraph::louvain<vertex_t, edge_t, weight_t, true>(*handle_,
+                                                         mg_graph_view,
+                                                         mg_edge_weight_view,
+                                                         louvain_usecase.max_level_,
+                                                         louvain_usecase.resolution_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

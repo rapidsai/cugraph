@@ -258,7 +258,7 @@ class Tests_CoarsenGraph
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, input_usecase, coarsen_graph_usecase.test_weighted, renumber);
 
@@ -270,6 +270,8 @@ class Tests_CoarsenGraph
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     if (graph_view.number_of_vertices() == 0) { return; }
 
@@ -294,8 +296,8 @@ class Tests_CoarsenGraph
       hr_clock.start();
     }
 
-    auto [coarse_graph, coarse_vertices_to_labels] =
-      cugraph::coarsen_graph(handle, graph_view, d_labels.begin());
+    auto [coarse_graph, coarse_edge_weights, coarse_vertices_to_labels] =
+      cugraph::coarsen_graph(handle, graph_view, edge_weight_view, d_labels.begin(), true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -309,19 +311,29 @@ class Tests_CoarsenGraph
         cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
       auto h_org_indices =
         cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
-      auto h_org_weights =
-        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().weights());
+      auto h_org_weights = cugraph::test::to_host(
+        handle,
+        edge_weight_view
+          ? std::make_optional(raft::device_span<weight_t const>(
+              (*edge_weight_view).value_firsts()[0], (*edge_weight_view).edge_counts()[0]))
+          : std::nullopt);
 
       auto coarse_graph_view = coarse_graph.view();
+      auto coarse_edge_weight_view =
+        coarse_edge_weights ? std::make_optional((*coarse_edge_weights).view()) : std::nullopt;
 
       auto h_coarse_offsets =
         cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().offsets());
       auto h_coarse_indices =
         cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().indices());
-      auto h_coarse_weights =
-        cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().weights());
+      auto h_coarse_weights = cugraph::test::to_host(
+        handle,
+        coarse_edge_weight_view ? std::make_optional(raft::device_span<weight_t const>(
+                                    (*coarse_edge_weight_view).value_firsts()[0],
+                                    (*coarse_edge_weight_view).edge_counts()[0]))
+                                : std::nullopt);
 
-      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, coarse_vertices_to_labels);
+      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, *coarse_vertices_to_labels);
 
       check_coarsened_graph_results(
         h_org_offsets.data(),

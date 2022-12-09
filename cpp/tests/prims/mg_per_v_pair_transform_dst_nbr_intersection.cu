@@ -95,7 +95,9 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
 
@@ -195,8 +197,8 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         (*d_mg_renumber_map_labels).data(),
         h_vertex_partition_range_lasts);
 
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(*handle_);
-      std::tie(unrenumbered_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
+      std::tie(unrenumbered_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           *handle_, input_usecase, false, false);
 

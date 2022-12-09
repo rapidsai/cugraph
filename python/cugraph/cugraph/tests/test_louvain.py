@@ -17,9 +17,10 @@ import time
 import pytest
 
 import cugraph
+import cupy
+import cudf
 from cugraph.testing import utils
-from cugraph.experimental.datasets import (
-    DATASETS_UNDIRECTED, karate_asymmetric)
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,9 +36,11 @@ with warnings.catch_warnings():
 try:
     import community
 except ModuleNotFoundError:
-    pytest.exit("community module not found\n"
-                "The python-louvain module needs to be installed\n"
-                "please run `pip install python-louvain`")
+    pytest.exit(
+        "community module not found\n"
+        "The python-louvain module needs to be installed\n"
+        "please run `pip install python-louvain`"
+    )
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -52,8 +55,8 @@ def setup_function():
 
 def cugraph_call(graph_file, edgevals=False, directed=False):
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(
-            directed=directed), ignore_weights=not edgevals)
+        create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
+    )
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
@@ -79,41 +82,15 @@ def networkx_call(M):
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
-def test_louvain_with_edgevals(graph_file):
+def test_louvain(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     cu_parts, cu_mod = cugraph_call(graph_file, edgevals=True)
     nx_parts = networkx_call(M)
-    # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr="weight", create_using=nx.Graph()
-    )
-
-    cu_parts = cu_parts.to_pandas()
-    cu_map = dict(zip(cu_parts["vertex"], cu_parts["partition"]))
-
-    assert set(nx_parts.keys()) == set(cu_map.keys())
-
-    cu_mod_nx = community.modularity(cu_map, Gnx)
-    nx_mod = community.modularity(nx_parts, Gnx)
-
-    assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (0.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < 0.0001
-
-
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
-def test_louvain(graph_file):
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-    cu_parts, cu_mod = cugraph_call(graph_file)
-    nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr="weight", create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
 
     cu_parts = cu_parts.to_pandas()
@@ -131,4 +108,43 @@ def test_louvain(graph_file):
 
 def test_louvain_directed_graph():
     with pytest.raises(ValueError):
-        cugraph_call(karate_asymmetric, directed=True)
+        cugraph_call(karate_asymmetric, edgevals=True, directed=True)
+
+
+@pytest.mark.parametrize("is_weighted", [True, False])
+def test_louvain_csr_graph(is_weighted):
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+
+    M = cupy.sparse.coo_matrix(
+        (df["wgt"].to_cupy(), (df["src"].to_cupy(), df["dst"].to_cupy()))
+    )
+    M = M.tocsr()
+
+    offsets = cudf.Series(M.indptr)
+    indices = cudf.Series(M.indices)
+    weights = cudf.Series(M.data)
+    G_csr = cugraph.Graph()
+    G_coo = karate.get_graph()
+
+    if not is_weighted:
+        weights = None
+
+    G_csr.from_cudf_adjlist(offsets, indices, weights)
+
+    assert G_csr.is_weighted() is is_weighted
+
+    louvain_csr, mod_csr = cugraph.louvain(G_csr)
+    louvain_coo, mod_coo = cugraph.louvain(G_coo)
+    louvain_csr = louvain_csr.sort_values("vertex").reset_index(drop=True)
+    result_louvain = (
+        louvain_coo.sort_values("vertex")
+        .reset_index(drop=True)
+        .rename(columns={"partition": "partition_coo"})
+    )
+    result_louvain["partition_csr"] = louvain_csr["partition"]
+
+    parition_diffs = result_louvain.query("partition_csr != partition_coo")
+
+    assert len(parition_diffs) == 0
+    assert mod_csr == mod_coo

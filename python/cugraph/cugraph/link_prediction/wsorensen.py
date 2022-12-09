@@ -54,13 +54,13 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID
-        df['destination'] : cudf.Series
-            The destination vertex ID
+         df['first'] : cudf.Series
+            The first vertex ID of each pair.
+        df['second'] : cudf.Series
+            The second vertex ID of each pair.
         df['sorensen_coeff'] : cudf.Series
-            The computed weighted Sorensen coefficient between the source and
-            destination vertices.
+            The computed weighted Sorensen coefficient between the first and the
+            second vertex ID.
 
     Examples
     --------
@@ -93,22 +93,17 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     if input_graph.renumbered:
         vertex_size = input_graph.vertex_column_size()
         if vertex_size == 1:
-            weights = input_graph.add_internal_vertex_id(
-                weights, 'vertex', 'vertex'
-            )
+            weights = input_graph.add_internal_vertex_id(weights, "vertex", "vertex")
         else:
             cols = weights.columns[:vertex_size].to_list()
-            weights = input_graph.add_internal_vertex_id(
-                weights, 'vertex', cols
-            )
-    jaccard_weights = weights['weight']
+            weights = input_graph.add_internal_vertex_id(weights, "vertex", cols)
+    jaccard_weights = weights["weight"]
     df = jaccard_wrapper.jaccard(input_graph, jaccard_weights, vertex_pair)
-    df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
-    df.rename(
-        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
+    df.jaccard_coeff = (2 * df.jaccard_coeff) / (1 + df.jaccard_coeff)
+    df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
 
     if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+        df = input_graph.unrenumber(df, "first")
+        df = input_graph.unrenumber(df, "second")
 
     return df

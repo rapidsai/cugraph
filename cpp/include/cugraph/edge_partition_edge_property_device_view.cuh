@@ -16,15 +16,8 @@
 
 #pragma once
 
-#include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/edge_property.hpp>
 
-#include <raft/core/device_span.hpp>
-
-#include <thrust/binary_search.h>
-#include <thrust/distance.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/optional.h>
 
@@ -45,6 +38,8 @@ class edge_partition_edge_property_device_view_t {
   {
     value_first_ = view.value_firsts()[partition_idx];
   }
+
+  __host__ __device__ ValueIterator value_first() { return value_first_; }
 
   __device__ ValueIterator get_iter(edge_t offset) const { return value_first_ + offset; }
 

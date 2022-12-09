@@ -64,7 +64,9 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, true, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
         *handle_, input_usecase, false, true);
 
@@ -78,7 +80,8 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
     // 2. run hits
 
-    auto mg_graph_view      = mg_graph.view();
+    auto mg_graph_view = mg_graph.view();
+
     auto maximum_iterations = 200;
     weight_t tolerance      = 1e-8;
     rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.local_vertex_partition_range_size(),
@@ -158,8 +161,8 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             *handle_, input_usecase, false, false);
 

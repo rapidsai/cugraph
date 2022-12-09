@@ -40,47 +40,30 @@ namespace detail {
 
 template <typename key_t,
           typename vertex_t,
-          typename weight_t,
           typename src_value_t,
           typename dst_value_t,
+          typename e_value_t,
           typename EdgeOp,
           typename Enable = void>
 struct edge_op_result_type;
 
 template <typename key_t,
           typename vertex_t,
-          typename weight_t,
           typename src_value_t,
           typename dst_value_t,
+          typename e_value_t,
           typename EdgeOp>
 struct edge_op_result_type<
   key_t,
   vertex_t,
-  weight_t,
   src_value_t,
   dst_value_t,
+  e_value_t,
   EdgeOp,
   std::enable_if_t<
-    std::is_invocable_v<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>>> {
+    std::is_invocable_v<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t, e_value_t>>> {
   using type =
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>::type;
-};
-
-template <typename key_t,
-          typename vertex_t,
-          typename weight_t,
-          typename src_value_t,
-          typename dst_value_t,
-          typename EdgeOp>
-struct edge_op_result_type<
-  key_t,
-  vertex_t,
-  weight_t,
-  src_value_t,
-  dst_value_t,
-  EdgeOp,
-  std::enable_if_t<std::is_invocable_v<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>>> {
-  using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>::type;
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t, e_value_t>::type;
 };
 
 template <typename vertex_t,
@@ -146,40 +129,28 @@ template <typename GraphViewType,
           typename key_t,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp>
 struct evaluate_edge_op {
   using vertex_type    = typename GraphViewType::vertex_type;
-  using weight_type    = typename GraphViewType::weight_type;
   using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
   using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
+  using e_value_type   = typename EdgePartitionEdgeValueInputWrapper::value_type;
   using result_type    = typename detail::
-    edge_op_result_type<key_t, vertex_type, weight_type, src_value_type, dst_value_type, EdgeOp>::
+    edge_op_result_type<key_t, vertex_type, src_value_type, dst_value_type, e_value_type, EdgeOp>::
       type;
 
   template <typename K  = key_t,
             typename V  = vertex_type,
-            typename W  = weight_type,
             typename SV = src_value_type,
             typename DV = dst_value_type,
+            typename EV = e_value_type,
             typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, W, SV, DV>,
-                              typename std::invoke_result<E, K, V, W, SV, DV>::type>
-  compute(K s, V d, W w, SV sv, DV dv, E e) const
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV, EV>,
+                              typename std::invoke_result<E, K, V, SV, DV, EV>::type>
+  compute(K s, V d, SV sv, DV dv, EV ev, E e) const
   {
-    return e(s, d, w, sv, dv);
-  }
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename W  = weight_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV>,
-                              typename std::invoke_result<E, K, V, SV, DV>::type>
-  compute(K s, V d, W w, SV sv, DV dv, E e) const
-  {
-    return e(s, d, sv, dv);
+    return e(s, d, sv, dv, ev);
   }
 };
 
@@ -189,7 +160,6 @@ template <typename GraphViewType,
           typename IntersectionOp>
 struct evaluate_intersection_op {
   using vertex_type = typename GraphViewType::vertex_type;
-  using weight_type = typename GraphViewType::weight_type;
   using result_type = typename detail::
     intersection_op_result_type<vertex_type, src_value_t, dst_value_t, IntersectionOp>::type;
 
@@ -210,40 +180,28 @@ template <typename GraphViewType,
           typename key_t,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
   using vertex_type    = typename GraphViewType::vertex_type;
-  using weight_type    = typename GraphViewType::weight_type;
   using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
   using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
+  using e_value_type   = typename EdgePartitionEdgeValueInputWrapper::value_type;
 
   EdgeOp e_op{};
 
   template <typename K  = key_t,
             typename V  = vertex_type,
-            typename W  = weight_type,
             typename SV = src_value_type,
             typename DV = dst_value_type,
+            typename EV = e_value_type,
             typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, W, SV, DV>, T> operator()(
-    K s, V d, W w, SV sv, DV dv) const
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV, EV>, T> operator()(
+    K s, V d, SV sv, DV dv, EV ev) const
   {
-    return e_op(s, d, w, sv, dv) ? T{1} : T{0};
-  }
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV>, T> operator()(K s,
-                                                                                  V d,
-                                                                                  SV sv,
-                                                                                  DV dv) const
-  {
-    return e_op(s, d, sv, dv) ? T{1} : T{0};
+    return e_op(s, d, sv, dv, ev) ? T{1} : T{0};
   }
 };
 

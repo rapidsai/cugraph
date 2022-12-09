@@ -14,10 +14,11 @@
 import cudf
 from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_edge_score_to_dictionary,
-                               renumber_vertex_pair,
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_edge_score_to_dictionary,
+    renumber_vertex_pair,
+)
 
 
 def sorensen(input_graph, vertex_pair=None):
@@ -57,10 +58,10 @@ def sorensen(input_graph, vertex_pair=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified)
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified)
+        df['second'] : cudf.Series
+            The second vertex ID of each pair (will be identical to second if
             specified)
         df['sorensen_coeff'] : cudf.Series
             The computed Sorensen coefficient between the source and
@@ -82,12 +83,11 @@ def sorensen(input_graph, vertex_pair=None):
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
-    df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
-    df.rename(
-        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
+    df.jaccard_coeff = (2 * df.jaccard_coeff) / (1 + df.jaccard_coeff)
+    df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
     if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+        df = input_graph.unrenumber(df, "first")
+        df = input_graph.unrenumber(df, "second")
 
     return df
 
@@ -120,13 +120,13 @@ def sorensen_coefficient(G, ebunch=None):
         pairs.
 
         df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified)
+            The source vertex ID (will be identical to first if specified).
         df['destination'] : cudf.Series
             The destination vertex ID (will be identical to second if
-            specified)
+            specified).
         df['sorensen_coeff'] : cudf.Series
-            The computed sorensen coefficient between the source and
-            destination vertices
+            The computed sorensen coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
@@ -145,9 +145,8 @@ def sorensen_coefficient(G, ebunch=None):
     df = sorensen(G, vertex_pair)
 
     if isNx is True:
-        df = df_edge_score_to_dictionary(df,
-                                         k="sorensen_coeff",
-                                         src="source",
-                                         dst="destination")
+        df = df_edge_score_to_dictionary(
+            df, k="sorensen_coeff", src="first", dst="second"
+        )
 
     return df

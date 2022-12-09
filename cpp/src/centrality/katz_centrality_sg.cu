@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,76 +19,88 @@ namespace cugraph {
 
 // SG instantiation
 
-template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
-                              float const* betas,
-                              float* katz_centralities,
-                              float alpha,
-                              float beta,
-                              float epsilon,
-                              size_t max_iterations,
-                              bool has_initial_guess,
-                              bool normalize,
-                              bool do_expensive_check);
+template void katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, true, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  float const* betas,
+  float* katz_centralities,
+  float alpha,
+  float beta,
+  float epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
 
-template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
-                              double const* betas,
-                              double* katz_centralities,
-                              double alpha,
-                              double beta,
-                              double epsilon,
-                              size_t max_iterations,
-                              bool has_initial_guess,
-                              bool normalize,
-                              bool do_expensive_check);
+template void katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, true, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  double const* betas,
+  double* katz_centralities,
+  double alpha,
+  double beta,
+  double epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
 
-template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
-                              float const* betas,
-                              float* katz_centralities,
-                              float alpha,
-                              float beta,
-                              float epsilon,
-                              size_t max_iterations,
-                              bool has_initial_guess,
-                              bool normalize,
-                              bool do_expensive_check);
+template void katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, true, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  float const* betas,
+  float* katz_centralities,
+  float alpha,
+  float beta,
+  float epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
 
-template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
-                              double const* betas,
-                              double* katz_centralities,
-                              double alpha,
-                              double beta,
-                              double epsilon,
-                              size_t max_iterations,
-                              bool has_initial_guess,
-                              bool normalize,
-                              bool do_expensive_check);
+template void katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, true, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  double const* betas,
+  double* katz_centralities,
+  double alpha,
+  double beta,
+  double epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
 
-template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
-                              float const* betas,
-                              float* katz_centralities,
-                              float alpha,
-                              float beta,
-                              float epsilon,
-                              size_t max_iterations,
-                              bool has_initial_guess,
-                              bool normalize,
-                              bool do_expensive_check);
+template void katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  float const* betas,
+  float* katz_centralities,
+  float alpha,
+  float beta,
+  float epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
 
-template void katz_centrality(raft::handle_t const& handle,
-                              graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
-                              double const* betas,
-                              double* katz_centralities,
-                              double alpha,
-                              double beta,
-                              double epsilon,
-                              size_t max_iterations,
-                              bool has_initial_guess,
-                              bool normalize,
-                              bool do_expensive_check);
+template void katz_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, true, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  double const* betas,
+  double* katz_centralities,
+  double alpha,
+  double beta,
+  double epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check);
 
 }  // namespace cugraph

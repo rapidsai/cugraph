@@ -137,10 +137,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> shrink_ex
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   vertex_t const* distances,
   vertex_t const* predecessors,
   vertex_t const* destinations,
@@ -217,12 +217,12 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                       detail::decrement_position{});
 
     if constexpr (multi_gpu) {
-      current_frontier = collect_values_for_vertices(handle.get_comms(),
-                                                     current_frontier.begin(),
-                                                     current_frontier.end(),
-                                                     predecessors,
-                                                     h_vertex_partition_range_lasts,
-                                                     handle.get_stream());
+      current_frontier = collect_values_for_int_vertices(handle.get_comms(),
+                                                         current_frontier.begin(),
+                                                         current_frontier.end(),
+                                                         predecessors,
+                                                         h_vertex_partition_range_lasts,
+                                                         handle.get_stream());
     } else {
       thrust::transform(handle.get_thrust_policy(),
                         current_frontier.begin(),

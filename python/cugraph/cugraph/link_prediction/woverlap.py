@@ -58,13 +58,13 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID
-        df['destination'] : cudf.Series
-            The destination vertex ID
+         df['first'] : cudf.Series
+            The first vertex ID of each pair.
+        df['second'] : cudf.Series
+            The second vertex ID of each pair.
         df['overlap_coeff'] : cudf.Series
-            The computed weighted Overlap coefficient between the source and
-            destination vertices.
+            The computed weighted Overlap coefficient between the first and the
+            second vertex ID.
 
     Examples
     --------
@@ -95,23 +95,19 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     if input_graph.renumbered:
         vertex_size = input_graph.vertex_column_size()
         if vertex_size == 1:
-            weights = input_graph.add_internal_vertex_id(
-                weights, 'vertex', 'vertex'
-            )
+            weights = input_graph.add_internal_vertex_id(weights, "vertex", "vertex")
         else:
             cols = weights.columns[:vertex_size].to_list()
-            weights = input_graph.add_internal_vertex_id(
-                weights, 'vertex', cols
-            )
+            weights = input_graph.add_internal_vertex_id(weights, "vertex", cols)
 
-    overlap_weights = weights['weight']
+    overlap_weights = weights["weight"]
 
-    overlap_weights = overlap_weights.astype('float32')
+    overlap_weights = overlap_weights.astype("float32")
 
     df = overlap_wrapper.overlap(input_graph, overlap_weights, vertex_pair)
 
     if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+        df = input_graph.unrenumber(df, "first")
+        df = input_graph.unrenumber(df, "second")
 
     return df

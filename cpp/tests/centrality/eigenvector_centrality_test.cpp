@@ -127,7 +127,7 @@ class Tests_EigenvectorCentrality
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, input_usecase, eigenvector_usecase.test_weighted, renumber);
 
@@ -139,6 +139,8 @@ class Tests_EigenvectorCentrality
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     weight_t constexpr epsilon{1e-6};
 
@@ -153,6 +155,7 @@ class Tests_EigenvectorCentrality
     d_centralities =
       cugraph::eigenvector_centrality(handle,
                                       graph_view,
+                                      edge_weight_view,
                                       std::optional<raft::device_span<weight_t const>>{},
                                       epsilon,
                                       eigenvector_usecase.max_iterations,
@@ -166,7 +169,11 @@ class Tests_EigenvectorCentrality
     }
 
     if (eigenvector_usecase.check_correctness) {
-      auto [dst_v, src_v, opt_wgt_v] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+      auto [dst_v, src_v, opt_wgt_v] = cugraph::decompress_to_edgelist(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
       auto h_src     = cugraph::test::to_host(handle, src_v);
       auto h_dst     = cugraph::test::to_host(handle, dst_v);

@@ -161,7 +161,7 @@ class Tests_PageRank
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, input_usecase, pagerank_usecase.test_weighted, renumber);
 
@@ -173,6 +173,8 @@ class Tests_PageRank
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     std::optional<std::vector<vertex_t>> h_personalization_vertices{std::nullopt};
     std::optional<std::vector<result_t>> h_personalization_values{std::nullopt};
@@ -238,6 +240,7 @@ class Tests_PageRank
     cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       graph_view,
+      edge_weight_view,
       std::nullopt,
       d_personalization_vertices
         ? std::optional<vertex_t const*>{(*d_personalization_vertices).data()}
@@ -261,20 +264,32 @@ class Tests_PageRank
     }
 
     if (pagerank_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, true, false> unrenumbered_graph(handle);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        unrenumbered_edge_weights{std::nullopt};
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             handle, input_usecase, pagerank_usecase.test_weighted, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      auto unrenumbered_edge_weight_view =
+        renumber
+          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
+                                       : std::nullopt)
+          : edge_weight_view;
 
       auto h_offsets = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
       auto h_indices = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().indices());
       auto h_weights = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().weights());
+        handle,
+        unrenumbered_edge_weights ? std::make_optional<raft::device_span<weight_t const>>(
+                                      (*unrenumbered_edge_weights).view().value_firsts()[0],
+                                      (*unrenumbered_edge_weights).view().edge_counts()[0])
+                                  : std::nullopt);
 
       std::optional<std::vector<vertex_t>> h_unrenumbered_personalization_vertices{std::nullopt};
       std::optional<std::vector<result_t>> h_unrenumbered_personalization_values{std::nullopt};
@@ -398,17 +413,16 @@ TEST_P(Tests_PageRank_Rmat, CheckInt64Int64FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_PageRank_File,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(PageRank_Usecase{0.0, false},
-                      PageRank_Usecase{0.5, false},
-                      PageRank_Usecase{0.0, true},
-                      PageRank_Usecase{0.5, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+INSTANTIATE_TEST_SUITE_P(file_test,
+                         Tests_PageRank_File,
+                         ::testing::Combine(
+                           // enable correctness checks
+                           ::testing::Values(PageRank_Usecase{0.0, false},
+                                             PageRank_Usecase{0.5, false},
+                                             PageRank_Usecase{0.0, true},
+                                             PageRank_Usecase{0.5, true}),
+                           ::testing::Values(cugraph::test::File_Usecase("karate.csv"),
+                                             cugraph::test::File_Usecase("dolphins.csv"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

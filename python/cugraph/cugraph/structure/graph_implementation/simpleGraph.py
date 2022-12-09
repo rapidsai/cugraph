@@ -23,45 +23,42 @@ import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
+from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          )
+from pylibcugraph import (
+    ResourceHandle,
+    GraphProperties,
+    SGGraph,
+)
 
 
 # FIXME: Change to consistent camel case naming
 class simpleGraphImpl:
-    edgeWeightCol = 'weights'
-    edgeIdCol = 'edge_id'
-    edgeTypeCol = 'edge_type'
+    edgeWeightCol = "weights"
+    edgeIdCol = "edge_id"
+    edgeTypeCol = "edge_type"
+    srcCol = "src"
+    dstCol = "dst"
 
     class EdgeList:
         def __init__(self, source, destination, edge_attr=None):
             self.edgelist_df = cudf.DataFrame()
-            self.edgelist_df["src"] = source
-            self.edgelist_df["dst"] = destination
+            self.edgelist_df[simpleGraphImpl.srcCol] = source
+            self.edgelist_df[simpleGraphImpl.dstCol] = destination
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
                 if isinstance(edge_attr, (list, tuple)):
                     if len(edge_attr) == 3:
-                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = (
-                            edge_attr[0]
-                        )
-                        self.edgelist_df[simpleGraphImpl.edgeIdCol] = (
-                            edge_attr[1]
-                        )
-                        self.edgelist_df[simpleGraphImpl.edgeTypeCol] = (
-                            edge_attr[2]
-                        )
+                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr[0]
+                        self.edgelist_df[simpleGraphImpl.edgeIdCol] = edge_attr[1]
+                        self.edgelist_df[simpleGraphImpl.edgeTypeCol] = edge_attr[2]
                     elif len(edge_attr) == 1:
-                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = (
-                            edge_attr[0]
-                        )
+                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr[0]
                     else:
-                        raise ValueError('Illegal # of arguments provided'
-                                         'for edge_attr')
+                        raise ValueError(
+                            "Illegal # of arguments provided" "for edge_attr"
+                        )
                 else:
                     self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr
 
@@ -77,7 +74,7 @@ class simpleGraphImpl:
 
     class Properties:
         def __init__(self, properties):
-            self.multi_edge = getattr(properties, 'multi_edge', False)
+            self.multi_edge = getattr(properties, "multi_edge", False)
             self.directed = properties.directed
             self.renumbered = False
             self.self_loop = None
@@ -141,22 +138,26 @@ class simpleGraphImpl:
                 edge_attr = [edge_attr]
             if not (set(edge_attr).issubset(set(input_df.columns))):
                 raise ValueError(
-                    "edge_attr column name not found in input."
-                    "Recheck the edge_attr parameter")
+                    f"edge_attr column {edge_attr} not found in input."
+                    "Recheck the edge_attr parameter"
+                )
             self.properties.weighted = True
             df_columns += edge_attr
 
             if len(edge_attr) != 1 and len(edge_attr) != 3:
-                raise ValueError(f'Invalid number of edge attributes '
-                                 f'passed. {edge_attr}')
+                raise ValueError(
+                    f"Invalid number of edge attributes " f"passed. {edge_attr}"
+                )
 
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
-            if(len(edge_attr) == 3 and not self.properties.directed):
-                raise ValueError('User-provided edge ids and edge '
-                                 'types are not permitted for an '
-                                 'undirected graph.')
+            if len(edge_attr) == 3 and not self.properties.directed:
+                raise ValueError(
+                    "User-provided edge ids and edge "
+                    "types are not permitted for an "
+                    "undirected graph."
+                )
 
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
@@ -166,21 +167,18 @@ class simpleGraphImpl:
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
                 raise ValueError(
-                    "cudf dataFrame edge list is too big "
-                    "to fit in a single GPU"
+                    "cudf dataFrame edge list is too big " "to fit in a single GPU"
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
                 raise ValueError(
-                    "dask_cudf dataFrame edge list is too big "
-                    "to fit in a single GPU"
+                    "dask_cudf dataFrame edge list is too big " "to fit in a single GPU"
                 )
             elist = input_df.compute().reset_index(drop=True)
         else:
             raise TypeError(
-                "input should be a cudf.DataFrame or "
-                "a dask_cudf dataFrame"
+                "input should be a cudf.DataFrame or " "a dask_cudf dataFrame"
             )
 
         # Renumbering
@@ -189,8 +187,11 @@ class simpleGraphImpl:
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
-                elist, source, destination, store_transposed=False,
-                legacy_renum_only=legacy_renum_only
+                elist,
+                source,
+                destination,
+                store_transposed=False,
+                legacy_renum_only=legacy_renum_only,
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
@@ -202,11 +203,10 @@ class simpleGraphImpl:
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
-            elif (elist[source].dtype not in [np.int32, np.int64] or
-                  elist[destination].dtype not in [np.int32, np.int64]):
-                raise ValueError(
-                    "set renumber to True for non integer columns ids"
-                )
+            elif elist[source].dtype not in [np.int32, np.int64] or elist[
+                destination
+            ].dtype not in [np.int32, np.int64]:
+                raise ValueError("set renumber to True for non integer columns ids")
 
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise the inital dataframe will be returned. Duplicated edges
@@ -214,9 +214,13 @@ class simpleGraphImpl:
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
         if edge_attr is not None:
             source_col, dest_col, value_col = symmetrize(
-                elist, source, destination, edge_attr,
+                elist,
+                source,
+                destination,
+                edge_attr,
                 multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed)
+                symmetrize=not self.properties.directed,
+            )
             if isinstance(value_col, cudf.DataFrame):
                 value_dict = {}
                 for i in value_col.columns:
@@ -225,26 +229,31 @@ class simpleGraphImpl:
         else:
             value_col = None
             source_col, dest_col = symmetrize(
-                elist, source, destination, multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed)
+                elist,
+                source,
+                destination,
+                multi=self.properties.multi_edge,
+                symmetrize=not self.properties.directed,
+            )
 
         if isinstance(value_col, dict):
             value_col = [value_col[ea] for ea in edge_attr]
 
-        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
-                                                 value_col)
+        self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
         if self.batch_enabled:
             self._replicate_edgelist()
 
         self._make_plc_graph(
-            value_col=value_col,
-            store_transposed=store_transposed,
-            renumber=renumber
+            value_col=value_col, store_transposed=store_transposed, renumber=renumber
         )
 
-    def to_pandas_edgelist(self, source='src', destination='dst',
-                           weight='weights'):
+    def to_pandas_edgelist(
+        self,
+        source="src",
+        destination="dst",
+        weight="weights",
+    ):
         """
         Returns the graph edge list as a Pandas DataFrame.
 
@@ -264,11 +273,22 @@ class simpleGraphImpl:
 
         gdf = self.view_edge_list()
         if self.properties.weighted:
-            gdf.rename(columns={'src': source, 'dst': destination,
-                       'weight': weight}, inplace=True)
+            gdf.rename(
+                columns={
+                    simpleGraphImpl.srcCol: source,
+                    simpleGraphImpl.dstCol: destination,
+                    "weight": weight,
+                },
+                inplace=True,
+            )
         else:
-            gdf.rename(columns={'src': source,
-                       'dst': destination}, inplace=True)
+            gdf.rename(
+                columns={
+                    simpleGraphImpl.srcCol: source,
+                    simpleGraphImpl.dstCol: destination,
+                },
+                inplace=True,
+            )
         return gdf.to_pandas()
 
     def to_pandas_adjacency(self):
@@ -279,8 +299,7 @@ class simpleGraphImpl:
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
         if self.properties.renumbered:
-            nodes = self.renumber_map.implementation.df['0'].\
-                    values_host.tolist()
+            nodes = self.renumber_map.implementation.df["0"].values_host.tolist()
         pdf.columns = nodes
         pdf.index = nodes
         return pdf
@@ -295,9 +314,9 @@ class simpleGraphImpl:
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
         for i in range(0, elen):
-            np_array[df['src'].iloc[i], df['dst'].iloc[i]] = (
-                df[self.edgeWeightCol].iloc[i]
-            )
+            np_array[
+                df[simpleGraphImpl.srcCol].iloc[i], df[simpleGraphImpl.dstCol].iloc[i]
+            ] = df[self.edgeWeightCol].iloc[i]
         return np_array
 
     def to_numpy_matrix(self):
@@ -344,11 +363,19 @@ class simpleGraphImpl:
         edgelist_df = self.edgelist.edgelist_df
 
         if self.properties.renumbered:
-            edgelist_df = self.renumber_map.unrenumber(edgelist_df, "src")
-            edgelist_df = self.renumber_map.unrenumber(edgelist_df, "dst")
+            edgelist_df = self.renumber_map.unrenumber(
+                edgelist_df, simpleGraphImpl.srcCol
+            )
+            edgelist_df = self.renumber_map.unrenumber(
+                edgelist_df, simpleGraphImpl.dstCol
+            )
 
+        # FIXME: revisit this approach
         if not self.properties.directed:
-            edgelist_df = edgelist_df[edgelist_df["src"] <= edgelist_df["dst"]]
+            edgelist_df = edgelist_df[
+                edgelist_df[simpleGraphImpl.srcCol]
+                <= edgelist_df[simpleGraphImpl.dstCol]
+            ]
             edgelist_df = edgelist_df.reset_index(drop=True)
             self.properties.edge_count = len(edgelist_df)
 
@@ -362,9 +389,21 @@ class simpleGraphImpl:
         # no longer used.
         self.edgelist = None
 
-    def __from_adjlist(self, offset_col, index_col, value_col=None):
-        self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col,
-                                               value_col)
+    def __from_adjlist(
+        self,
+        offset_col,
+        index_col,
+        value_col=None,
+        renumber=True,
+        store_transposed=False,
+    ):
+
+        self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col, value_col)
+        if value_col is not None:
+            self.properties.weighted = True
+        self._make_plc_graph(
+            value_col=value_col, store_transposed=store_transposed, renumber=renumber
+        )
 
         if self.batch_enabled:
             self._replicate_adjlist()
@@ -397,8 +436,7 @@ class simpleGraphImpl:
         """
 
         if self.adjlist is None:
-            if self.transposedadjlist is not None and\
-             self.properties.directed is False:
+            if self.transposedadjlist is not None and self.properties.directed is False:
                 off, ind, vals = (
                     self.transposedadjlist.offsets,
                     self.transposedadjlist.indices,
@@ -476,8 +514,10 @@ class simpleGraphImpl:
         comms = Comms.get_comms()
 
         if client is None or comms is None:
-            raise RuntimeError("MG Batch needs a Dask Client and the "
-                               "Communicator needs to be initialized.")
+            raise RuntimeError(
+                "MG Batch needs a Dask Client and the "
+                "Communicator needs to be initialized."
+            )
 
         self.batch_enabled = True
 
@@ -541,7 +581,7 @@ class simpleGraphImpl:
     def _replicate_transposed_adjlist(self):
         self.batch_transposed_adjlists = True
 
-    def get_two_hop_neighbors(self):
+    def get_two_hop_neighbors(self, start_vertices=None):
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
@@ -557,7 +597,28 @@ class simpleGraphImpl:
                 is defined by only one column
         """
 
-        df = graph_primtypes_wrapper.get_two_hop_neighbors(self)
+        if isinstance(start_vertices, int):
+            start_vertices = [start_vertices]
+
+        if isinstance(start_vertices, list):
+            start_vertices = cudf.Series(start_vertices)
+
+        if self.properties.renumbered is True:
+            if start_vertices is not None:
+                start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
+                start_vertices_type = self.edgelist.edgelist_df["src"].dtype
+                start_vertices = start_vertices.astype(start_vertices_type)
+        do_expensive_check = False
+        first, second = pylibcugraph_get_two_hop_neighbors(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            start_vertices=start_vertices,
+            do_expensive_check=do_expensive_check,
+        )
+
+        df = cudf.DataFrame()
+        df["first"] = first
+        df["second"] = second
 
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "first")
@@ -573,10 +634,11 @@ class simpleGraphImpl:
             if self.adjlist is not None:
                 self.properties.node_count = len(self.adjlist.offsets) - 1
             elif self.transposedadjlist is not None:
-                self.properties.node_count = len(
-                    self.transposedadjlist.offsets) - 1
+                self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
-                df = self.edgelist.edgelist_df[["src", "dst"]]
+                df = self.edgelist.edgelist_df[
+                    [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
+                ]
                 self.properties.node_count = df.max().max() + 1
             else:
                 raise RuntimeError("Graph is Empty")
@@ -601,8 +663,8 @@ class simpleGraphImpl:
                 if self.properties.directed is False:
                     self.properties.edge_count = len(
                         self.edgelist.edgelist_df[
-                            self.edgelist.edgelist_df["src"]
-                            >= self.edgelist.edgelist_df["dst"]
+                            self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
+                            >= self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
                         ]
                     )
                 else:
@@ -610,8 +672,7 @@ class simpleGraphImpl:
             elif self.adjlist is not None:
                 self.properties.edge_count = len(self.adjlist.indices)
             elif self.transposedadjlist is not None:
-                self.properties.edge_count = len(
-                    self.transposedadjlist.indices)
+                self.properties.edge_count = len(self.transposedadjlist.indices)
             else:
                 raise ValueError("Graph is Empty")
         return self.properties.edge_count
@@ -784,13 +845,12 @@ class simpleGraphImpl:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df[df['vertex'].isin(vertex_subset)]
+            df = df[df["vertex"].isin(vertex_subset)]
 
         return df
 
     def _degree(self, vertex_subset, direction=Direction.ALL):
-        vertex_col, degree_col = graph_primtypes_wrapper._degree(self,
-                                                                 direction)
+        vertex_col, degree_col = graph_primtypes_wrapper._degree(self, direction)
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
         df["degree"] = degree_col
@@ -799,30 +859,27 @@ class simpleGraphImpl:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df[df['vertex'].isin(vertex_subset)]
+            df = df[df["vertex"].isin(vertex_subset)]
 
         return df
 
-    def _make_plc_graph(self,
-                        value_col=None,
-                        store_transposed=False,
-                        renumber=True):
+    def _make_plc_graph(self, value_col=None, store_transposed=False, renumber=True):
         """
-            Parameters
-            ----------
-            value_col : cudf.DataFrame or tuple[cudf.DataFrame]
-                If a single dataframe is provided, this is assumed
-                to contain the edge weight values.
-                If a tuple of dataframes is provided, then it is
-                assumed to contain edge weights, edge ids, and
-                edge types, in that order.
-            store_transposed : bool (default=False)
-                Whether to store the graph in a transposed
-                format.  Required by some algorithms.
-            renumber : bool (default=True)
-                Whether to renumber the vertices of the graph.
-                Required if inputted vertex ids are not of
-                int32 or int64 type.
+        Parameters
+        ----------
+        value_col : cudf.DataFrame or tuple[cudf.DataFrame]
+            If a single dataframe is provided, this is assumed
+            to contain the edge weight values.
+            If a tuple of dataframes is provided, then it is
+            assumed to contain edge weights, edge ids, and
+            edge types, in that order.
+        store_transposed : bool (default=False)
+            Whether to store the graph in a transposed
+            format.  Required by some algorithms.
+        renumber : bool (default=True)
+            Whether to renumber the vertices of the graph.
+            Required if inputted vertex ids are not of
+            int32 or int64 type.
         """
 
         if value_col is None:
@@ -835,13 +892,37 @@ class simpleGraphImpl:
             elif len(value_col) == 1:
                 weight_col, id_col, type_col = value_col[0], None, None
         else:
-            raise ValueError(f'Illegal value col {type(value_col)}')
+            raise ValueError(f"Illegal value col {type(value_col)}")
 
-        if weight_col is None:
-            weight_col = cudf.Series(
-                cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
-            )
+        graph_props = GraphProperties(
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed,
+        )
+
+        if self.edgelist is not None:
+            input_array_format = "COO"
+            src_or_offset_array = self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
+            dst_or_index_array = self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
+            if weight_col is None:
+                # Some algos require the graph to be weighted
+                weight_col = cudf.Series(
+                    cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
+                )
+        elif self.adjlist is not None:
+            input_array_format = "CSR"
+            src_or_offset_array = self.adjlist.offsets
+            dst_or_index_array = self.adjlist.indices
+            if weight_col is None:
+                # Some algos require the graph to be weighted
+                weight_col = cudf.Series(
+                    cupy.ones(len(self.adjlist.indices), dtype="float32")
+                )
         else:
+            raise TypeError(
+                "Edges need to be represented in either in COO or CSR format."
+            )
+
+        if weight_col is not None:
             weight_t = weight_col.dtype
 
             if weight_t == "int32":
@@ -849,22 +930,18 @@ class simpleGraphImpl:
             if weight_t == "int64":
                 weight_col = weight_col.astype("float64")
 
-        graph_props = GraphProperties(
-            is_multigraph=self.properties.multi_edge,
-            is_symmetric=not self.properties.directed
-        )
-
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
             graph_properties=graph_props,
-            src_array=self.edgelist.edgelist_df['src'],
-            dst_array=self.edgelist.edgelist_df['dst'],
+            src_or_offset_array=src_or_offset_array,
+            dst_or_index_array=dst_or_index_array,
             weight_array=weight_col,
             edge_id_array=id_col,
             edge_type_array=type_col,
             store_transposed=store_transposed,
             renumber=renumber,
-            do_expensive_check=False
+            do_expensive_check=True,
+            input_array_format=input_array_format,
         )
 
     def to_directed(self, DiG, store_transposed=False):
@@ -883,9 +960,7 @@ class simpleGraphImpl:
         DiG.transposedadjlist = self.transposedadjlist
 
         if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
-            value_col = (
-                self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
-            )
+            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
         else:
             value_col = None
 
@@ -908,18 +983,20 @@ class simpleGraphImpl:
             df = self.edgelist.edgelist_df
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
-                    df, 'src', 'dst', simpleGraphImpl.edgeWeightCol
+                    df,
+                    simpleGraphImpl.srcCol,
+                    simpleGraphImpl.dstCol,
+                    simpleGraphImpl.edgeWeightCol,
                 )
             else:
-                source_col, dest_col = symmetrize(df, 'src', "dst")
+                source_col, dest_col = symmetrize(
+                    df, simpleGraphImpl.srcCol, simpleGraphImpl.dstCol
+                )
                 value_col = None
-            G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
-                                                  value_col)
+            G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
         if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
-            value_col = (
-                self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
-            )
+            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
         else:
             value_col = None
 
@@ -933,7 +1010,9 @@ class simpleGraphImpl:
             tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
             return tmp[0] is not cudf.NA and tmp[0] >= 0
         else:
-            df = self.edgelist.edgelist_df[["src", "dst"]]
+            df = self.edgelist.edgelist_df[
+                [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
+            ]
             return (df == n).any().any()
 
     def has_edge(self, u, v):
@@ -941,17 +1020,19 @@ class simpleGraphImpl:
         Returns True if the graph contains the edge (u,v).
         """
         if self.properties.renumbered:
-            tmp = cudf.DataFrame({"src": [u, v]})
-            tmp = tmp.astype({"src": "int"})
+            tmp = cudf.DataFrame({simpleGraphImpl.srcCol: [u, v]})
+            tmp = tmp.astype({simpleGraphImpl.srcCol: "int"})
             tmp = self.renumber_map.add_internal_vertex_id(
-                tmp, "id", "src", preserve_order=True
+                tmp, "id", simpleGraphImpl.srcCol, preserve_order=True
             )
 
             u = tmp["id"][0]
             v = tmp["id"][1]
 
         df = self.edgelist.edgelist_df
-        return ((df["src"] == u) & (df["dst"] == v)).any()
+        return (
+            (df[simpleGraphImpl.srcCol] == u) & (df[simpleGraphImpl.dstCol] == v)
+        ).any()
 
     def has_self_loop(self):
         """
@@ -960,7 +1041,7 @@ class simpleGraphImpl:
         # Detect self loop
         if self.properties.self_loop is None:
             elist = self.edgelist.edgelist_df
-            if (elist["src"] == elist["dst"]).any():
+            if (elist[simpleGraphImpl.srcCol] == elist[simpleGraphImpl.dstCol]).any():
                 self.properties.self_loop = True
             else:
                 self.properties.self_loop = False
@@ -972,7 +1053,7 @@ class simpleGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        return self.view_edge_list()[["src", "dst"]]
+        return self.view_edge_list()[[simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]]
 
     def nodes(self):
         """
@@ -991,7 +1072,9 @@ class simpleGraphImpl:
                 else:
                     return df[df.columns[0]]
             else:
-                return cudf.concat([df["src"], df["dst"]]).unique()
+                return cudf.concat(
+                    [df[simpleGraphImpl.srcCol], df[simpleGraphImpl.dstCol]]
+                ).unique()
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 
@@ -1005,7 +1088,9 @@ class simpleGraphImpl:
             n = node[0]
 
         df = self.edgelist.edgelist_df
-        neighbors = df[df["src"] == n]["dst"].reset_index(drop=True)
+        neighbors = df[df[simpleGraphImpl.srcCol] == n][
+            simpleGraphImpl.dstCol
+        ].reset_index(drop=True)
         if self.properties.renumbered:
             # FIXME:  Multi-column vertices
             return self.renumber_map.from_internal_vertex_id(neighbors)["0"]
