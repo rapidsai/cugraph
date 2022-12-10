@@ -97,11 +97,10 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
 
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_int_vertices_and_values_by_gpu_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& d_vertices,
-  rmm::device_uvector<value_t>&& d_values,
-  std::vector<vertex_t> const& vertex_partition_range_lasts)
+shuffle_int_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
+                                          rmm::device_uvector<vertex_t>&& d_vertices,
+                                          rmm::device_uvector<value_t>&& d_values,
+                                          std::vector<vertex_t> const& vertex_partition_range_lasts)
 {
   // add values...
   //    should we do it this way?
@@ -184,21 +183,17 @@ shuffle_ext_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
                                           rmm::device_uvector<int64_t>&& d_vertices,
                                           rmm::device_uvector<double>&& d_values);
 
-template
-std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-shuffle_int_vertices_and_values_by_gpu_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int32_t>&& d_vertices,
-  rmm::device_uvector<int32_t>&& d_values,
-  std::vector<int32_t> const& vertex_partition_range_lasts);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+shuffle_int_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
+                                          rmm::device_uvector<int32_t>&& d_vertices,
+                                          rmm::device_uvector<int32_t>&& d_values,
+                                          std::vector<int32_t> const& vertex_partition_range_lasts);
 
-template
-std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
-shuffle_int_vertices_and_values_by_gpu_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<int64_t>&& d_vertices,
-  rmm::device_uvector<int32_t>&& d_values,
-  std::vector<int64_t> const& vertex_partition_range_lasts);
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
+shuffle_int_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
+                                          rmm::device_uvector<int64_t>&& d_vertices,
+                                          rmm::device_uvector<int32_t>&& d_values,
+                                          std::vector<int64_t> const& vertex_partition_range_lasts);
 
 }  // namespace detail
 }  // namespace cugraph

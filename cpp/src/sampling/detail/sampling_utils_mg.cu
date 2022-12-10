@@ -94,13 +94,12 @@ gather_one_hop_edgelist(
   std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
   bool do_expensive_check);
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, false, true> const& graph_view,
@@ -113,13 +112,12 @@ gather_one_hop_edgelist(
   std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
   bool do_expensive_check);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<float>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
@@ -150,13 +148,12 @@ gather_one_hop_edgelist(
   std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
   bool do_expensive_check);
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, false, true> const& graph_view,
@@ -169,13 +166,12 @@ gather_one_hop_edgelist(
   std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
   bool do_expensive_check);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<double>>,
-           std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, true> const& graph_view,
@@ -260,17 +256,19 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(raft::handle_t const& handle,
-             graph_view_t<int32_t, int32_t, false, true> const& graph_view,
-             std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
-             std::optional<edge_property_view_t<
-               int32_t,
-               thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>> edge_id_type_view,
-             raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-             size_t fanout,
-             bool with_replacement);
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<int32_t,
+                         thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<int32_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -278,17 +276,19 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(raft::handle_t const& handle,
-             graph_view_t<int32_t, int64_t, false, true> const& graph_view,
-             std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-             std::optional<edge_property_view_t<
-               int64_t,
-               thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>> edge_id_type_view,
-             raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-             size_t fanout,
-             bool with_replacement);
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<int64_t,
+                         thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<int32_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -296,17 +296,19 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(raft::handle_t const& handle,
-             graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-             std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-             std::optional<edge_property_view_t<
-               int64_t,
-               thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>> edge_id_type_view,
-             raft::random::RngState& rng_state,
-             rmm::device_uvector<int64_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-             size_t fanout,
-             bool with_replacement);
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<int64_t,
+                         thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<int64_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -314,17 +316,19 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(raft::handle_t const& handle,
-             graph_view_t<int32_t, int32_t, false, true> const& graph_view,
-             std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
-             std::optional<edge_property_view_t<
-               int32_t,
-               thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>> edge_id_type_view,
-             raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-             size_t fanout,
-             bool with_replacement);
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<int32_t,
+                         thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<int32_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -332,17 +336,19 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(raft::handle_t const& handle,
-             graph_view_t<int32_t, int64_t, false, true> const& graph_view,
-             std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-             std::optional<edge_property_view_t<
-               int64_t,
-               thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>> edge_id_type_view,
-             raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-             size_t fanout,
-             bool with_replacement);
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<int64_t,
+                         thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<int32_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -350,17 +356,19 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(raft::handle_t const& handle,
-             graph_view_t<int64_t, int64_t, false, true> const& graph_view,
-             std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-             std::optional<edge_property_view_t<
-               int64_t,
-               thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>> edge_id_type_view,
-             raft::random::RngState& rng_state,
-             rmm::device_uvector<int64_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-             size_t fanout,
-             bool with_replacement);
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<int64_t,
+                         thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<int64_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 }  // namespace detail
 }  // namespace cugraph

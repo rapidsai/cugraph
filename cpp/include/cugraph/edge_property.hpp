@@ -139,8 +139,8 @@ auto view_concat(edge_property_view_t<edge_t, Ts> const&... views)
       thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...));
   }
 
-  return edge_property_view_t<edge_t, concat_value_iterator>(
-    edge_partition_concat_value_firsts, first_view.edge_counts());
+  return edge_property_view_t<edge_t, concat_value_iterator>(edge_partition_concat_value_firsts,
+                                                             first_view.edge_counts());
 }
 
 }  // namespace cugraph

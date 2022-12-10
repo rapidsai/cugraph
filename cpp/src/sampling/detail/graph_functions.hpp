@@ -170,7 +170,9 @@ sample_edges(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
+  std::optional<
+    edge_property_view_t<edge_t,
+                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
     edge_id_type_view,
   raft::random::RngState& rng_state,
   rmm::device_uvector<vertex_t> const& active_majors,

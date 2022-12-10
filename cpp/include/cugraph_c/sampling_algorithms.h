@@ -229,10 +229,10 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
  * @param [in]  start        Device array of start vertices for the sampling
- * @param [in]  label        Device array of start labels for the sampling.  The labels associated with
- *                           each start vertex will be included in the output associated with results
- *                           that were derived from that start vertex.  We only support label of type INT32.
- *                           If label is NULL, the return data will not be labeled.
+ * @param [in]  label        Device array of start labels for the sampling.  The labels associated
+ * with each start vertex will be included in the output associated with results that were derived
+ * from that start vertex.  We only support label of type INT32. If label is NULL, the return data
+ * will not be labeled.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
  * @param [in]  with_replacement
