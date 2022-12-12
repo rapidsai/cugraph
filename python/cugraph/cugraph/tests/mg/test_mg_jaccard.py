@@ -129,14 +129,14 @@ def test_dask_jaccard(dask_client, benchmark, input_expected_output):
 
     result_jaccard = (
         result_jaccard.compute()
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
         .rename(columns={"jaccard_coeff": "mg_cugraph_jaccard_coeff"})
     )
 
     expected_output = (
         input_expected_output["sg_cugraph_results"]
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
 
@@ -176,7 +176,7 @@ def test_dask_weighted_jaccard():
         legacy_renum_only=True,
         store_transposed=True,
     )
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         dcg.jaccard(dg)
 
     dg = cugraph.Graph(directed=False)

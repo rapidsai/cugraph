@@ -19,10 +19,10 @@ cmdclass = versioneer.get_cmdclass()
 install_requires = [
     "cugraph-service-client",
     "cugraph",
-    "cupy >=9.5.0,<12.0.0a0",
+    "cupy-cuda11x",
     "numpy",
     "ucx-py",
-    "distributed >=2022.9.2",
+    "distributed ==2022.11.1",
     "dask-cuda",
     "thriftpy2",
 ]
