@@ -1,0 +1,10 @@
+{
+  "type": "Scheduler",
+  "id": "Scheduler-b6a3f574-8a14-4782-bcc2-a304a5bd799f",
+  "address": "ucx://172.17.0.2:8786",
+  "services": {
+    "dashboard": 8787
+  },
+  "started": 1670858961.8985891,
+  "workers": {}
+}

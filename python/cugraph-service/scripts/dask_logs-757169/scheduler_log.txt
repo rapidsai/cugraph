@@ -1,0 +1,45 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=ucx
+            --scheduler-file /work/cugraph/python/cugraph-service/scripts/dask-scheduler.json
+            "
+/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2022-12-10 20:37:08,693 - distributed.scheduler - INFO - -----------------------------------------------
+/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/node.py:183: UserWarning: Port 8787 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 45673 instead
+  warnings.warn(
+2022-12-10 20:37:13,748 - distributed.scheduler - INFO - State start
+2022-12-10 20:37:13,761 - distributed.scheduler - INFO - -----------------------------------------------
+2022-12-10 20:37:22,382 - distributed.scheduler - INFO -   Scheduler at:     ucx://172.17.0.2:8786
+2022-12-10 20:37:22,382 - distributed.scheduler - INFO -   dashboard at:                    :45673
+2022-12-10 20:37:31,521 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-10 20:37:39,937 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.57s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-10 20:37:48,485 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.62s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-10 20:38:04,505 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 15.64s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-10 20:38:12,592 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.73s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-10 20:38:20,624 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.76s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-10 20:38:21,737 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://172.17.0.2:43155', status: init, memory: 0, processing: 0>
+2022-12-10 20:38:21,769 - distributed.scheduler - INFO - Starting worker compute stream, ucx://172.17.0.2:43155
+2022-12-10 20:38:21,769 - distributed.core - INFO - Starting established connection to ucx://:8786
+2022-12-10 20:38:21,770 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://172.17.0.2:34393', status: init, memory: 0, processing: 0>
+2022-12-10 20:38:21,770 - distributed.scheduler - INFO - Starting worker compute stream, ucx://172.17.0.2:34393
+2022-12-10 20:38:21,771 - distributed.core - INFO - Starting established connection to ucx://:8786
+2022-12-10 20:38:26,209 - distributed.scheduler - INFO - Receive client connection: Client-98dcee72-78ca-11ed-9d5d-0242ac110002
+2022-12-10 20:38:26,210 - distributed.core - INFO - Starting established connection to ucx://:8786
+2022-12-10 20:38:26,233 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-12-10 20:40:38,952 - distributed.scheduler - INFO - Remove client Client-98dcee72-78ca-11ed-9d5d-0242ac110002
+2022-12-10 20:40:38,953 - distributed.core - INFO - Received 'close-stream' from ucx://:8786; closing.
+2022-12-10 20:40:38,954 - distributed.scheduler - INFO - Remove client Client-98dcee72-78ca-11ed-9d5d-0242ac110002
+2022-12-10 20:40:38,955 - distributed.scheduler - INFO - Close client connection: Client-98dcee72-78ca-11ed-9d5d-0242ac110002
+2022-12-12 15:26:53,986 - distributed._signals - INFO - Received signal SIGINT (2)
+2022-12-12 15:26:53,987 - distributed.scheduler - INFO - Scheduler closing...
+2022-12-12 15:26:53,988 - distributed.core - INFO - Connection to ucx://:8786 has been closed.
+2022-12-12 15:26:53,988 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://172.17.0.2:34393', status: running, memory: 0, processing: 0>
+2022-12-12 15:26:53,988 - distributed.core - INFO - Removing comms to ucx://172.17.0.2:34393
+2022-12-12 15:26:53,988 - distributed.core - INFO - Connection to ucx://:8786 has been closed.
+2022-12-12 15:26:53,988 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://172.17.0.2:43155', status: running, memory: 0, processing: 0>
+2022-12-12 15:26:53,988 - distributed.core - INFO - Removing comms to ucx://172.17.0.2:43155
+2022-12-12 15:26:53,989 - distributed.scheduler - INFO - Lost all workers
+2022-12-12 15:26:53,989 - distributed.scheduler - INFO - Scheduler closing all comms
+2022-12-12 15:26:53,992 - distributed.scheduler - INFO - Stopped scheduler at 'ucx://172.17.0.2:8786'
+2022-12-12 15:26:53,992 - distributed.scheduler - INFO - End scheduler

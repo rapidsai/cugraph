@@ -115,9 +115,9 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=False,
+        enable_tcp_over_ucx=True,
         enable_infiniband=False,
-        enable_nvlink=False,
+        enable_nvlink=True,
         enable_rdmacm=False,
         net_devices=None,
     )
