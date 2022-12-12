@@ -2,7 +2,24 @@
 cugraph API Reference
 ~~~~~~~~~~~~~~~~~~~~~
 
-cugraph
+.. toctree::
+    :maxdepth: 2
+    :caption: API Documentation
 
-.. automodule:: cugraph
-    :members:
+    structure
+    graph_implementation
+    property_graph
+    centrality
+    community
+    components
+    cores
+    layout
+    linear_assignment
+    link_analysis
+    link_prediction
+    sampling
+    traversal
+    tree
+    generator
+    helper_functions
+    dask-cugraph.rst
