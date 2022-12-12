@@ -1,6 +1,6 @@
-~~~~~~~~~~~
-cugraph_pyg
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
+cugraph-pyg API Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 cugraph-pyg
 

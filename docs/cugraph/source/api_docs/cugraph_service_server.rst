@@ -1,9 +1,13 @@
-~~~~~~~~~~~~~~~~~~~~~~
-cugraph_service_server
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+cugraph-service-server API Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+cugraph-service
 
-.. currentmodule:: cugraph-service.server
+.. currentmodule:: cugraph-service
 
 .. autosummary::
    :toctree: api/
+
+   cugraph_service_server.cugraph_handler
+

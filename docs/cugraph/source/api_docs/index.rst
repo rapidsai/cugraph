@@ -8,7 +8,7 @@ This page provides a list of all publicly accessible modules, methods and classe
     :maxdepth: 2
     :caption: Python API Documentation
 
-    structure.rst
+    cugraph_top.rst
     pylibcugraph.rst
     cugraph_dgl.rst
     cugraph_pyg.rst

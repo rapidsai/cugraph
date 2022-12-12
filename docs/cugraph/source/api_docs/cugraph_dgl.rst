@@ -1,6 +1,6 @@
-~~~~~~~~~~~
-cugraph_dgl
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+cugraph-dgl API Refrerence
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 cugraph-dgl
 
