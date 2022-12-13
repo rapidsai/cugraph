@@ -2378,3 +2378,29 @@ def bench_add_edges_cyber(gpubenchmark, N):
         assert len(df) == len(cyber_df)
 
     gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_rows", [10_000, 100_000, 1_000_000, 10_000_000])
+@pytest.mark.parametrize("n_feats", [32, 64, 128])
+def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
+    from cugraph.experimental import PropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+
+    def func():
+        pG = PropertyGraph()
+        pG.add_edge_data(
+            df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+        )
+
+    gpubenchmark(func)
