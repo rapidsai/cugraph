@@ -38,6 +38,7 @@ export HOME=$WORKSPACE
 cd $WORKSPACE
 export GIT_DESCRIBE_TAG=`git describe --tags`
 export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
+export MINOR_VERSION=23.02
 unset GIT_DESCRIBE_TAG
 
 # ucx-py version
@@ -92,7 +93,8 @@ gpuci_mamba_retry install -c rapidsai-nightly/label/testing -y \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
       "py" \
-      rapids-pytest-benchmark
+      rapids-pytest-benchmark \
+      "libcusparse<12.0"
 
 # https://docs.rapids.ai/maintainers/depmgmt/
 # gpuci_mamba_retry remove --force rapids-build-env rapids-notebook-env
