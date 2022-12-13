@@ -13,9 +13,6 @@ cmake_version:
 doxygen_version:
   - ">=1.8.11"
 
-boost_cpp_version:
-  - ">=1.66"
-
 nccl_version:
   - ">=2.9.9"
 
