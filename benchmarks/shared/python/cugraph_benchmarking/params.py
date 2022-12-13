@@ -124,29 +124,29 @@ for nc in _num_clients:
     )
 
 # Parameters for Graph generation fixture
-# graph_obj_fixture_params = gen_fixture_params(
-#     (sg, karate),
-#     (sg, rmat["16_16"]),
-#     (sg, rmat["18_16"]),
-#     (sg, rmat["20_16"]),
-#     (sg, rmat["25_16"]),
-#     (sg, rmat["26_16"]),
-#     (snmg, rmat["26_16"]),
-#     (snmg, rmat["27_16"]),
-#     (snmg, rmat["28_16"]),
-#     (mnmg, rmat["29_16"]),
-#     (mnmg, rmat["30_16"]),
-# )
 graph_obj_fixture_params = gen_fixture_params(
     (sg, karate),
-    (sg, rmat["16_4"]),
-    (sg, rmat["18_4"]),
-    (sg, rmat["20_4"]),
-    (sg, rmat["25_4"]),
-    (sg, rmat["26_4"]),
-    (snmg, rmat["26_4"]),
-    (snmg, rmat["27_4"]),
-    (snmg, rmat["28_4"]),
-    (mnmg, rmat["29_4"]),
-    (mnmg, rmat["30_4"]),
+    (sg, rmat["16_16"]),
+    (sg, rmat["18_16"]),
+    (sg, rmat["20_16"]),
+    (sg, rmat["25_16"]),
+    (sg, rmat["26_16"]),
+    (snmg, rmat["26_16"]),
+    (snmg, rmat["27_16"]),
+    (snmg, rmat["28_16"]),
+    (mnmg, rmat["29_16"]),
+    (mnmg, rmat["30_16"]),
 )
+# graph_obj_fixture_params = gen_fixture_params(
+#     (sg, karate),
+#     (sg, rmat["16_4"]),
+#     (sg, rmat["18_4"]),
+#     (sg, rmat["20_4"]),
+#     (sg, rmat["25_4"]),
+#     (sg, rmat["26_4"]),
+#     (snmg, rmat["26_4"]),
+#     (snmg, rmat["27_4"]),
+#     (snmg, rmat["28_4"]),
+#     (mnmg, rmat["29_4"]),
+#     (mnmg, rmat["30_4"]),
+# )

@@ -83,9 +83,8 @@ import time
 ################################################################################
 # Benchmarks
 @pytest.mark.parametrize("num_clients", params.num_clients.values())
-def bench_cgs_client_scaling(gpubenchmark,
-                             running_server_for_sampling_with_graph,
-                             num_clients):
+def bench_cgs_client_scaling_individual_time(running_server_for_sampling_with_graph,
+                                             num_clients):
 
     graph_id = running_server_for_sampling_with_graph
 
@@ -99,8 +98,38 @@ def bench_cgs_client_scaling(gpubenchmark,
     sampling_function = setup_sampling_client(host, port, graph_id)
     [t.start() for t in threads]
 
-    st = time.time()
-    #results = gpubenchmark(sampling_function, None)
+    # FIXME: this benchmark is not using a benchmark fixture because the
+    # benchmark fixture runs the function multiple times (even when warmup is
+    # disabled), and by the time the last run is started, most of the other
+    # clients have completed. This results in result that look as if multiple
+    # clients do not affect the run time.
+    #
+    # Use the benchmark fixture once it can be run in a way where each run is
+    # timed with other running clients.
+    st = time.perf_counter_ns()
     results = sampling_function(None)
-    print(f"TIME: {time.time()-st}s")
+    print(f"TIME: {(time.perf_counter_ns() - st) / 1e9}s")
     assert len(results.sources) > 1000
+
+    [t.join() for t in threads]
+
+
+@pytest.mark.parametrize("num_clients", params.num_clients.values())
+def bench_cgs_client_scaling_total_time(gpubenchmark,
+                                        running_server_for_sampling_with_graph,
+                                        num_clients):
+
+    graph_id = running_server_for_sampling_with_graph
+
+    # start n-1 clients running a sampling request in parallel, then run and
+    # benchmark the last one separately.
+    threads = []
+    for _ in range(num_clients):
+        sampling_function = setup_sampling_client(host, port, graph_id)
+        threads.append(Thread(target=sampling_function, args=[None]))
+
+    def func():
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+
+    gpubenchmark(func)
