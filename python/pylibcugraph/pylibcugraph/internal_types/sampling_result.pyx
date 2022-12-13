@@ -23,6 +23,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
     cugraph_sample_result_get_index,
+    cugraph_sample_result_get_edge_weight,
     cugraph_sample_result_free,
 )
 from pylibcugraph.utils cimport (
