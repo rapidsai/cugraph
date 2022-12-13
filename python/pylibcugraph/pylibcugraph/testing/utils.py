@@ -16,22 +16,11 @@ from pathlib import Path
 from itertools import product
 
 import pytest
-import cudf
-
 
 RAPIDS_DATASET_ROOT_DIR = os.getenv(
     "RAPIDS_DATASET_ROOT_DIR", os.path.join(os.path.dirname(__file__), "../datasets")
 )
 RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
-
-
-def read_csv_file(csv_file, weights_dtype="float32"):
-    return cudf.read_csv(
-        csv_file,
-        delimiter=" ",
-        dtype=["int32", "int32", weights_dtype],
-        header=None,
-    )
 
 
 def gen_fixture_params(*param_values):
