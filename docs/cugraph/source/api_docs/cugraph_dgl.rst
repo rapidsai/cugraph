@@ -12,3 +12,5 @@ Methods
    :toctree: api/
 
    cugraph_dgl.cugraph_storage_from_heterograph
+   cugraph_dgl.cugraph_storage.CuGraphStorage.__init__
+   cugraph_dgl.cugraph_storage.CuGraphStorage
