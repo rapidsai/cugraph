@@ -101,7 +101,7 @@ def get_uniform_neighbor_sample_args(
     # Create the start_list on the server, since generating a list of actual
     # IDs requires unrenumbering steps that cannot be easily done remotely.
     start_list = G._client.call_extension(
-        "gen_vertex_list", G._graph_id, num_start_verts, seed
+        "gen_vertex_list", G._graph_id, num_start_verts
     )
 
     return {

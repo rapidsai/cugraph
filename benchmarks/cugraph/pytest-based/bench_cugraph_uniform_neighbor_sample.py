@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import pytest
 import numpy as np
 import cupy as cp
@@ -41,6 +40,8 @@ from cugraph.experimental import datasets
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 
 from cugraph_benchmarking import params
+from cugraph_benchmarking.timer import TimerContext
+
 
 _seed = 42
 
@@ -86,7 +87,7 @@ def create_graph(graph_data):
             source="src",
             destination="dst",
             edge_attr="weight",
-            renumber=True,
+            legacy_renum_only=True,
         )
 
     else:
@@ -178,35 +179,9 @@ def get_uniform_neighbor_sample_args(
     #    num_start_verts = batch_size
     num_start_verts = batch_size
 
-    # Create the list of starting vertices by picking num_start_verts random
-    # ints between 0 and num_verts, then map those to actual vertex IDs.  Since
-    # the randomly-chosen IDs may not map to actual IDs, keep trying until
-    # num_start_verts have been picked, or max_tries is reached.
-    """
-    assert G.renumbered
-    start_list_set = set()
-    max_tries = 10000
-    try_num = 0
-    while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
-        internal_vertex_ids_start_list = rng.choice(
-            num_verts, size=num_start_verts, replace=False
-        )
-        start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
-        start_list_df = G.unrenumber(start_list_df, "vid")
-
-        if G.is_multi_gpu():
-            start_list_series = start_list_df.compute()["vid"]
-        else:
-            start_list_series = start_list_df["vid"]
-
-        start_list_series.dropna(inplace=True)
-        start_list_set.update(set(start_list_series.values_host.tolist()))
-        try_num += 1
-
-    start_list = list(start_list_set)
-    start_list = start_list[:num_start_verts]
-    assert len(start_list) == num_start_verts
-    """
+    # Create the list of starting vertices by simply picking the first
+    # num_start_verts vertices in the edgelist. This will likely result in
+    # duplicates.
     srcs = G.edgelist.edgelist_df["src"]
     start_list = srcs[:num_start_verts].compute()
 
@@ -231,29 +206,24 @@ def graph_objs(request):
     if gpu_config not in ["SG", "SNMG", "MNMG"]:
         raise RuntimeError(f"got unexpected gpu_config value: {gpu_config}")
 
-    print("creating graph...")
-    st = time.perf_counter_ns()
-    if gpu_config == "SG":
-        G = create_graph(graph_data)
-        uns_func = uniform_neighbor_sample
-    else:
-        (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
-        uns_func = uniform_neighbor_sample_mg
-        def uns_func(*args, **kwargs):
-            print("running sampling...")
-            st = time.perf_counter_ns()
-            result_ddf = uniform_neighbor_sample_mg(*args, **kwargs)
-            print(f"done running sampling, took {((time.perf_counter_ns() - st) / 1e9)}s")
-            print("dask compute() results...")
-            st = time.perf_counter_ns()
-            result_df = result_ddf.compute()
-            sources = result_df["sources"].to_cupy()
-            destinations = result_df["destinations"].to_cupy()
-            indices = result_df["indices"].to_cupy()
-            print(f"done dask compute() results, took {((time.perf_counter_ns() - st) / 1e9)}s")
-            return (sources, destinations, indices)
+    with TimerContext("creating graph"):
+        if gpu_config == "SG":
+            G = create_graph(graph_data)
+            uns_func = uniform_neighbor_sample
+        else:
+            (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
+            uns_func = uniform_neighbor_sample_mg
+            def uns_func(*args, **kwargs):
+                with TimerContext("sampling"):
+                    result_ddf = uniform_neighbor_sample_mg(*args, **kwargs)
 
-    print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
+                with TimerContext("dask compute() results"):
+                    result_df = result_ddf.compute()
+                    sources = result_df["sources"].to_cupy()
+                    destinations = result_df["destinations"].to_cupy()
+                    indices = result_df["indices"].to_cupy()
+
+                return (sources, destinations, indices)
 
     yield (G, uns_func)
 

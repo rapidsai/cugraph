@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import numpy as np
-import cudf
 import dask_cudf
 
 import cugraph
@@ -32,7 +31,7 @@ def create_property_graph_from_builtin_dataset(dataset_name, mg=False, server=No
     dataset_obj = getattr(datasets, dataset_name)
     edgelist_df = dataset_obj.get_edgelist(fetch=True)
 
-    if mg and (server is not None) and server.is_multi_gpu():
+    if mg and (server is not None) and server.is_multi_gpu:
         G = MGPropertyGraph()
         edgelist_df = dask_cudf.from_cudf(edgelist_df)
     else:
@@ -54,8 +53,14 @@ def create_graph_from_rmat_generator(
     mg=False,
     server=None,
 ):
-    if mg and (server is not None) and server.is_multi_gpu:
-        is_mg = True
+    if mg:
+        if (server is not None) and server.is_multi_gpu:
+            is_mg = True
+        else:
+            raise RuntimeError(
+                f"{mg=} was specified but the server is not indicating "
+                "it is MG-capable."
+            )
     else:
         is_mg = False
 
@@ -85,51 +90,45 @@ def create_graph_from_rmat_generator(
     G = cugraph.Graph(directed=True)
     if is_mg:
         G.from_dask_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="weight"
+            edgelist_df,
+            source="src",
+            destination="dst",
+            edge_attr="weight",
+            legacy_renum_only=True,
         )
     else:
         G.from_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="weight"
+            edgelist_df,
+            source="src",
+            destination="dst",
+            edge_attr="weight",
+            legacy_renum_only=True,
         )
 
     return G
 
 
 # General-purpose extensions
-def gen_vertex_list(graph_id, num_start_verts, seed, server=None):
+def gen_vertex_list(graph_id, num_verts_to_return, server=None):
     """
-    Create the list of starting vertices by picking num_start_verts random ints
-    between 0 and num_verts, then map those to actual vertex IDs.  Since the
-    randomly-chosen IDs may not map to actual IDs, keep trying until
-    num_start_verts have been picked, or max_tries is reached.
+    Returns a list of num_verts_to_return vertex IDs from the Graph referenced
+    by graph_id.
     """
-    rng = np.random.default_rng(seed)
-
     G = server.get_graph(graph_id)
-    assert G.renumbered
-    num_verts = G.number_of_vertices()
 
-    start_list_set = set()
-    max_tries = 10000
-    try_num = 0
-    while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
-        internal_vertex_ids_start_list = rng.choice(
-            num_verts, size=num_start_verts, replace=False
+    if not (isinstance(G, cugraph.Graph)):
+        raise TypeError(
+            f"{graph_id=} must refer to a cugraph.Graph instance, " f"got: {type(G)}"
         )
-        start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
-        start_list_df = G.unrenumber(start_list_df, "vid")
 
-        if G.is_multi_gpu():
-            start_list_series = start_list_df.compute()["vid"]
-        else:
-            start_list_series = start_list_df["vid"]
+    # Create the list of starting vertices by simply picking the first
+    # num_verts_to_return vertices in the edgelist. This will likely result in
+    # duplicates.
+    srcs = G.edgelist.edgelist_df["src"]
+    start_list = srcs[:num_verts_to_return]
 
-        start_list_series.dropna(inplace=True)
-        start_list_set.update(set(start_list_series.values_host.tolist()))
-        try_num += 1
+    # Attempt to automatically handle a dask Series
+    if hasattr(start_list, "compute"):
+        start_list = start_list.compute()
 
-    start_list = list(start_list_set)
-    start_list = start_list[:num_start_verts]
-    assert len(start_list) == num_start_verts
-
-    return start_list
+    return start_list.to_cupy()
