@@ -81,9 +81,10 @@ def call_algo(sg_algo_func, G, **kwargs):
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
             # Convert DataFrame into CuPy arrays for returning to the client
-            sources = result_ddf["sources"].compute().to_cupy()
-            destinations = result_ddf["destinations"].compute().to_cupy()
-            indices = result_ddf["indices"].compute().to_cupy()
+            result_df = result_ddf.compute()
+            sources = result_df["sources"].to_cupy()
+            destinations = result_df["destinations"].to_cupy()
+            indices = result_df["indices"].to_cupy()
         else:
             possible_args = [
                 "start_list",
@@ -1000,6 +1001,7 @@ class CugraphHandler:
         result_host,
         result_port,
     ):
+        print("SERVER: running uns", flush=True)
         try:
             G = self._get_graph(graph_id)
             if isinstance(G, (MGPropertyGraph, PropertyGraph)):

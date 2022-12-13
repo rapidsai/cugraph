@@ -144,7 +144,7 @@ def create_mg_graph(graph_data):
             source="src",
             destination="dst",
             edge_attr="weight",
-            renumber=True,
+            legacy_renum_only=True,
         )
 
     else:
@@ -170,17 +170,19 @@ def get_uniform_neighbor_sample_args(
         raise ValueError(f"got unexpected value {with_replacement=}")
 
     rng = np.random.default_rng(seed)
-    num_verts = G.number_of_vertices()
+    #num_verts = G.number_of_vertices()
 
-    if batch_size > num_verts:
-        num_start_verts = int(num_verts * 0.25)
-    else:
-        num_start_verts = batch_size
+    #if batch_size > num_verts:
+    #    num_start_verts = int(num_verts * 0.25)
+    #else:
+    #    num_start_verts = batch_size
+    num_start_verts = batch_size
 
     # Create the list of starting vertices by picking num_start_verts random
     # ints between 0 and num_verts, then map those to actual vertex IDs.  Since
     # the randomly-chosen IDs may not map to actual IDs, keep trying until
     # num_start_verts have been picked, or max_tries is reached.
+    """
     assert G.renumbered
     start_list_set = set()
     max_tries = 10000
@@ -204,9 +206,12 @@ def get_uniform_neighbor_sample_args(
     start_list = list(start_list_set)
     start_list = start_list[:num_start_verts]
     assert len(start_list) == num_start_verts
+    """
+    srcs = G.edgelist.edgelist_df["src"]
+    start_list = srcs[:num_start_verts].compute()
 
     return {
-        "start_list": list(start_list),
+        "start_list": start_list,
         "fanout": fanout,
         "with_replacement": with_replacement,
     }
@@ -241,9 +246,10 @@ def graph_objs(request):
             print(f"done running sampling, took {((time.perf_counter_ns() - st) / 1e9)}s")
             print("dask compute() results...")
             st = time.perf_counter_ns()
-            sources = result_ddf["sources"].compute().to_cupy()
-            destinations = result_ddf["destinations"].compute().to_cupy()
-            indices = result_ddf["indices"].compute().to_cupy()
+            result_df = result_ddf.compute()
+            sources = result_df["sources"].to_cupy()
+            destinations = result_df["destinations"].to_cupy()
+            indices = result_df["indices"].to_cupy()
             print(f"done dask compute() results, took {((time.perf_counter_ns() - st) / 1e9)}s")
             return (sources, destinations, indices)
 
@@ -279,6 +285,7 @@ def bench_cugraph_uniform_neighbor_sample(
         fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
     )
+    """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}
     if isinstance(result, tuple):
         dt = str(result[0].dtype)
@@ -287,3 +294,4 @@ def bench_cugraph_uniform_neighbor_sample(
         dt = str(result.sources.dtype)
         llen = len(result.sources)
     print(f"\nresult list len: {llen} (x3), dtype={dt}, total bytes={3*llen*dtmap[dt]}")
+    """

@@ -92,6 +92,10 @@ def start_server_subprocess(
         args += ["--start-local-cuda-cluster"]
 
     try:
+        print(
+            f"Starting server subprocess using:\n\"{' '.join(args)}\"\n",
+            flush=True,
+        )
         server_process = subprocess.Popen(
             args,
             env=env_dict,
@@ -107,7 +111,7 @@ def start_server_subprocess(
         server_process.tempdir = tempdir_object
 
         print(
-            "\nLaunched cugraph_service server, waiting for it to start...",
+            "Launched cugraph_service server, waiting for it to start...",
             end="",
             flush=True,
         )
@@ -162,5 +166,54 @@ def ensure_running_server(
             start_local_cuda_cluster=start_local_cuda_cluster,
             dask_scheduler_file=dask_scheduler_file,
         )
+
+    return (client, server_process)
+
+
+def ensure_running_server_for_sampling(
+    host=defaults.host,
+    port=defaults.port,
+    dask_scheduler_file=None,
+    start_local_cuda_cluster=False,
+):
+    """
+    Returns a tuple containing a Popen object for the running cugraph-service
+    server subprocess, and a client object connected to it.  If a server was
+    detected already running, the Popen object will be None.
+    """
+    (client, server_process) = ensure_running_server(
+        host, port, dask_scheduler_file, start_local_cuda_cluster
+    )
+
+    # Ensure the extensions needed for these benchmarks are loaded
+    required_graph_creation_extension_module = "benchmark_server_extension"
+    server_data = client.get_server_info()
+    # .stem excludes .py extensions, so it can match a python module name
+    loaded_graph_creation_extension_modules = [
+        Path(m).stem for m in server_data["graph_creation_extensions"]
+    ]
+    if (
+        required_graph_creation_extension_module
+        not in loaded_graph_creation_extension_modules
+    ):
+        modules_loaded = client.load_graph_creation_extensions(
+            "cugraph_service_server.testing.benchmark_server_extension"
+        )
+        if len(modules_loaded) < 1:
+            raise RuntimeError(
+                "failed to load graph creation extension "
+                f"{required_graph_creation_extension_module}"
+            )
+
+    loaded_extension_modules = [Path(m).stem for m in server_data["extensions"]]
+    if required_graph_creation_extension_module not in loaded_extension_modules:
+        modules_loaded = client.load_extensions(
+            "cugraph_service_server.testing.benchmark_server_extension"
+        )
+        if len(modules_loaded) < 1:
+            raise RuntimeError(
+                "failed to load extension "
+                f"{required_graph_creation_extension_module}"
+            )
 
     return (client, server_process)

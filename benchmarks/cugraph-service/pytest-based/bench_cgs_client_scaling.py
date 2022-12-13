@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from threading import Thread
+
 import pytest
 
 from cugraph_service_client import (
@@ -24,14 +26,33 @@ from cugraph_benchmarking import params
 
 host = defaults.host
 port = defaults.port
+graph_scale = 26
+edge_factor = 4
+batch_size = 100
+seed = 42
+with_replacement = False
 
 @pytest.fixture(scope="module")
-def running_server(request):
-    (_, server_process) = utils.ensure_running_server(host=host,
-                                                      port=port,
-                                                      dask_scheduler_file=None,
-                                                      start_local_cuda_cluster=True)
-    yield
+def running_server_for_sampling_with_graph(request):
+    (client, server_process) = (
+        utils.ensure_running_server_for_sampling(host=host,
+                                                 port=port,
+                                                 dask_scheduler_file=None,
+                                                 start_local_cuda_cluster=True)
+    )
+    num_edges = (2**graph_scale) * edge_factor
+    gid = client.call_graph_creation_extension(
+        "create_graph_from_rmat_generator",
+        scale=graph_scale,
+        num_edges=num_edges,
+        seed=seed,
+        mg=False,
+    )
+
+    yield gid
+
+    client.delete_graph(gid)
+
     if server_process is not None:
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
@@ -39,19 +60,47 @@ def running_server(request):
         print("done.", flush=True)
 
 
-def start_sampling_thread():
+def setup_sampling_client(host, port, graph_id):
     client = CugraphServiceClient(host, port)
+    fanout_vals = [10, 25]
+    start_list = client.call_extension(
+        "gen_vertex_list", graph_id, batch_size, seed
+    )
 
+    def sampling_function(result_device):
+        return client.uniform_neighbor_sample(
+            start_list,
+            fanout_vals,
+            with_replacement,
+            graph_id=graph_id,
+            result_device=result_device,
+        )
+
+    return sampling_function
+
+import time
 
 ################################################################################
 # Benchmarks
 @pytest.mark.parametrize("num_clients", params.num_clients.values())
-def bench_cgs_client_scaling(running_server, num_clients):
+def bench_cgs_client_scaling(gpubenchmark,
+                             running_server_for_sampling_with_graph,
+                             num_clients):
+
+    graph_id = running_server_for_sampling_with_graph
 
     # start n-1 clients running a sampling request in parallel, then run and
     # benchmark the last one separately.
     threads = []
     for _ in range(num_clients - 1):
-        threads.append(start_sampling_thread())
+        sampling_function = setup_sampling_client(host, port, graph_id)
+        threads.append(Thread(target=sampling_function, args=[None]))
 
-    nth_client = CugraphServiceClient()
+    sampling_function = setup_sampling_client(host, port, graph_id)
+    [t.start() for t in threads]
+
+    st = time.time()
+    #results = gpubenchmark(sampling_function, None)
+    results = sampling_function(None)
+    print(f"TIME: {time.time()-st}s")
+    assert len(results.sources) > 1000

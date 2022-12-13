@@ -48,7 +48,7 @@ def create_remote_graph(graph_data, is_mg, client):
 
     The server extension is part of the
     "cugraph_service_server.testing.benchmark_server_extension" and is loaded
-    in the ensure_running_service_for_sampling() helper.
+    in the ensure_running_server_for_sampling() helper.
     """
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
@@ -111,50 +111,6 @@ def get_uniform_neighbor_sample_args(
     }
 
 
-def ensure_running_service_for_sampling(dask_scheduler_file=None,
-                                        start_local_cuda_cluster=False):
-    """
-    Returns a tuple containing a Popen object for the running cugraph-service
-    server subprocess, and a client object connected to it.  If a server was
-    detected already running, the Popen object will be None.
-    """
-    (client, server_process) = utils.ensure_running_server(
-        dask_scheduler_file, start_local_cuda_cluster)
-
-    # Ensure the extensions needed for these benchmarks are loaded
-    required_graph_creation_extension_module = "benchmark_server_extension"
-    server_data = client.get_server_info()
-    # .stem excludes .py extensions, so it can match a python module name
-    loaded_graph_creation_extension_modules = [
-        Path(m).stem for m in server_data["graph_creation_extensions"]
-    ]
-    if (
-        required_graph_creation_extension_module
-        not in loaded_graph_creation_extension_modules
-    ):
-        modules_loaded = client.load_graph_creation_extensions(
-            "cugraph_service_server.testing.benchmark_server_extension"
-        )
-        if len(modules_loaded) < 1:
-            raise RuntimeError(
-                "failed to load graph creation extension "
-                f"{required_graph_creation_extension_module}"
-            )
-
-    loaded_extension_modules = [Path(m).stem for m in server_data["extensions"]]
-    if required_graph_creation_extension_module not in loaded_extension_modules:
-        modules_loaded = client.load_extensions(
-            "cugraph_service_server.testing.benchmark_server_extension"
-        )
-        if len(modules_loaded) < 1:
-            raise RuntimeError(
-                "failed to load extension "
-                f"{required_graph_creation_extension_module}"
-            )
-
-    return (server_process, client)
-
-
 def remote_uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=True):
     """
     Calls uniform_neighbor_sample() on the server using the client assigned to
@@ -182,18 +138,18 @@ def remote_graph_objs(request):
 
     # Ensure the appropriate server is running
     if gpu_config == "SG":
-        (server_process, cgs_client) = ensure_running_service_for_sampling()
+        (cgs_client, server_process) = utils.ensure_running_server_for_sampling()
         is_mg = False
 
     elif gpu_config == "SNMG":
         dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
         if dask_scheduler_file is None:
-            (server_process, cgs_client) = ensure_running_service_for_sampling(
+            (cgs_client, server_process) = utils.ensure_running_server_for_sampling(
                 start_local_cuda_cluster=True
             )
         else:
             assert Path(dask_scheduler_file).exists()
-            (server_process, cgs_client) = ensure_running_service_for_sampling(
+            (cgs_client, server_process) = utils.ensure_running_server_for_sampling(
                 dask_scheduler_file=dask_scheduler_file
             )
         is_mg = True
