@@ -130,8 +130,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           rmm::device_uvector<edge_t>(edge_ids_->size_, handle_.get_stream());
 
         raft::copy<edge_t>(edgelist_edge_ids.data(),
-                           edge_type_ids_->as_type<edge_t>(),
-                           edge_type_ids_->size_,
+                           edge_ids_->as_type<edge_t>(),
+                           edge_ids_->size_,
                            handle_.get_stream());
 
         edgelist_edge_tuple =
@@ -478,6 +478,9 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
     weight_type = data_type_id_t::FLOAT32;
   }
 
+  // FIXME:  The combination of edge_ids != nullptr, edge_type_ids == nullptr
+  //         logically should be valid, but the code will currently break if
+  //         that is that is specified
   CAPI_EXPECTS(
     (edge_type_ids == nullptr && edge_ids == nullptr) ||
       (edge_type_ids != nullptr && edge_ids != nullptr),
