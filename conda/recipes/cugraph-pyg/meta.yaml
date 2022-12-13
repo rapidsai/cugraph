@@ -7,6 +7,7 @@
 {% set py_version = environ.get('CONDA_PY', 38) %}
 {% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
 {% set cuda_major = cuda_version.split('.')[0] %}
+
 package:
   name: cugraph-pyg
   version: {{ version }}

@@ -7,6 +7,7 @@
 {% set py_version = environ.get('CONDA_PY', 38) %}
 {% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
 {% set cuda_major = cuda_version.split('.')[0] %}
+
 package:
   name: pylibcugraph
   version: {{ version }}
@@ -19,6 +20,17 @@ build:
   string: cuda{{ cuda_major }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
     - PARALLEL_LEVEL
+    - CMAKE_GENERATOR
+    - CMAKE_C_COMPILER_LAUNCHER
+    - CMAKE_CXX_COMPILER_LAUNCHER
+    - CMAKE_CUDA_COMPILER_LAUNCHER
+    - SCCACHE_S3_KEY_PREFIX=pylibcugraph-aarch64 # [aarch64]
+    - SCCACHE_S3_KEY_PREFIX=pylibcugraph-linux64 # [linux64]
+    - SCCACHE_BUCKET
+    - SCCACHE_REGION
+    - SCCACHE_IDLE_TIMEOUT
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
   preserve_egg_dir: True
@@ -35,9 +47,9 @@ requirements:
     - cython>=0.29,<0.30
     - scikit-build>=0.13.1
     - libcugraph={{ version }}
-    - libraft-headers={{ minor_version }}
-    - libraft-distance {{ minor_version }}
-    - pylibraft {{ minor_version}}
+    - libraft-headers {{ minor_version }}.*
+    - libraft-distance {{ minor_version }}.*
+    - pylibraft {{ minor_version}}.*
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*

@@ -23,9 +23,11 @@ build:
     - CMAKE_CUDA_COMPILER_LAUNCHER
     - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64 # [aarch64]
     - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64 # [linux64]
-    - SCCACHE_BUCKET=rapids-sccache
-    - SCCACHE_REGION=us-west-2
-    - SCCACHE_IDLE_TIMEOUT=32768
+    - SCCACHE_BUCKET
+    - SCCACHE_REGION
+    - SCCACHE_IDLE_TIMEOUT
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
 
 requirements:
   build:
@@ -33,16 +35,16 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('cuda') }} {{ cuda_version }}
+    - ninja
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
     - doxygen {{ doxygen_version }}
     - cudatoolkit {{ cuda_version }}.*
-    - libraft-headers {{ minor_version }}
-    - libraft-distance {{ minor_version }}
+    - libraft-headers {{ minor_version }}.*
+    - libraft-distance {{ minor_version }}.*
     - libcugraphops {{ minor_version }}.*
     - librmm {{ minor_version }}.*
     - libcudf {{ minor_version }}.*
-    - boost-cpp {{ boost_cpp_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
     - gtest {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
@@ -62,12 +64,12 @@ outputs:
         - cmake {{ cmake_version }}
       run:
         - cudatoolkit {{ cuda_spec }}
-        - libraft-headers {{ minor_version }}
-        - libraft-distance {{ minor_version }}
-        - librmm {{ minor_version }}
+        - libraft-headers {{ minor_version }}.*
+        - libraft-distance {{ minor_version }}.*
+        - librmm {{ minor_version }}.*
         - nccl {{ nccl_version }}
         - ucx-proc=*=gpu
-        - libcugraphops {{ minor_version }}
+        - libcugraphops {{ minor_version }}.*
         - libcusolver {{ libcusolver_version }}
     about:
       home: https://rapids.ai/
@@ -88,8 +90,8 @@ outputs:
       run:
         - {{ pin_subpackage('libcugraph', exact=True) }}
         - cudatoolkit {{ cuda_spec }}
-        - libcudf {{ minor_version }}
-        - librmm {{ minor_version }}
+        - libcudf {{ minor_version }}.*
+        - librmm {{ minor_version }}.*
     about:
       home: https://rapids.ai/
       license: Apache-2.0
