@@ -16,18 +16,18 @@ Basics
    :caption: Basic cuGraph Information:
 
 General CuGraph Information
-  - [Latest News]()
-  - [Blogs and Presentation]()
-  - [How-to Guides]()
-  - [Performance]()
+  - `CuGraph Intro <./basics/cugraph_intro.md>`_
+  - `Blogs and Presentation <./basics/cugraph_blogs.rst>`_
+  - `How-to Guides <./basics/coming_soon.md>`_
+  - `Performance  <./basics/coming_soon.md>`_
 
 CuGraph Development and Contributing
-  - [Getting cuGraph Packages]()
-  - [Contributing to cuGraph]()
-  - [CuGraph Development Guide]()
+  - `Getting cuGraph Packages <./basics/coming_soon.md>`_
+  - `Contributing to cuGraph <./basics/coming_soon.md>`_
+  - `CuGraph Development Guide <./basics/coming_soon.md>`_
 
 Algorithms
-  - [Current list of algorithms]()
+  - `Current list of algorithms <./basics/coming_soon.md>`_
   
   
 
@@ -35,14 +35,12 @@ API
 ###
 .. toctree::
    :maxdepth: 2
-   :caption: Python API:
 
    api_docs/index.rst
 
 
 .. toctree::
    :maxdepth: 2
-   :caption: C/C++ API:
 
    api_docs/c_and_cpp.rst
 

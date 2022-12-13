@@ -173,7 +173,14 @@ class Graph:
             legacy_renum_only=legacy_renum_only,
         )
 
-    def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
+    def from_cudf_adjlist(
+        self,
+        offset_col,
+        index_col,
+        value_col=None,
+        renumber=True,
+        store_transposed=False,
+    ):
         """
         Initialize a graph from the adjacency list. It is an error to call this
         method on an initialized Graph object. The passed offset_col and
@@ -202,6 +209,14 @@ class Graph:
             gdf_column of size E (E: number of edges).  The gdf column contains
             the weight value for each edge.  The expected type of
             the gdf_column element is floating point number.
+
+        renumber : bool, optional (default=True)
+            Indicate whether or not to renumber the source and destination
+            vertex IDs.
+
+        store_transposed : bool, optional (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms.
 
         Examples
         --------
