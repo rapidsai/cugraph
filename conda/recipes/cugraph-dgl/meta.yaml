@@ -3,7 +3,7 @@
 # Usage:
 #   conda build -c rapidsai -c conda-forge -c nvidia .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
-{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 
 package:
   name: cugraph-dgl
@@ -35,7 +35,7 @@ tests:                                 # [linux64]
     - cugraph_dgl                      # [linux64]
 
 about:
-  home: http://rapids.ai/
+  home: https://rapids.ai/
   license: Apache-2.0
   license_file: ../../../LICENSE
   summary: cuGraph library

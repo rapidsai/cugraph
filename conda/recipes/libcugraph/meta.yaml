@@ -4,7 +4,7 @@
 #   conda build -c rapidsai -c conda-forge -c nvidia .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
-{% set cuda_version = '.'.join(environ.get('CUDA', '11.5').split('.')[:2]) %}
+{% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
 {% set cuda_major = cuda_version.split('.')[0] %}
 {% set cuda_spec = ">=" + cuda_major ~ ",<" + (cuda_major | int + 1) ~ ".0a0" %} # i.e. >=11,<12.0a0
 
@@ -17,7 +17,6 @@ source:
 build:
   script_env:
     - PARALLEL_LEVEL
-    - VERSION_SUFFIX
     - CMAKE_GENERATOR
     - CMAKE_C_COMPILER_LAUNCHER
     - CMAKE_CXX_COMPILER_LAUNCHER
@@ -71,7 +70,7 @@ outputs:
         - libcugraphops {{ minor_version }}
         - libcusolver {{ libcusolver_version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph library
@@ -92,7 +91,7 @@ outputs:
         - libcudf {{ minor_version }}
         - librmm {{ minor_version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph_etl library
@@ -114,7 +113,7 @@ outputs:
         - gtest {{ gtest_version }}
         - gmock {{ gtest_version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph test & benchmark executables
