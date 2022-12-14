@@ -11,6 +11,10 @@ files:
       - cudatoolkit
       - doc
       - python_build
+  test_cpp:
+    output: none
+    includes:
+      - cudatoolkit
 channels:
   - rapidsai
   - rapidsai-nightly
