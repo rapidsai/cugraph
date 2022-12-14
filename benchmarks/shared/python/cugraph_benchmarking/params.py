@@ -76,7 +76,7 @@ karate = pytest.param(
 
 # RMAT-generated graph options
 _rmat_scales = range(16, 31)
-_rmat_edgefactors = [4, 16, 32]
+_rmat_edgefactors = [4, 8, 16, 32]
 rmat = {}
 for scale in _rmat_scales:
     for edgefactor in _rmat_edgefactors:
@@ -125,17 +125,15 @@ for nc in _num_clients:
 
 # Parameters for Graph generation fixture
 graph_obj_fixture_params = gen_fixture_params(
-    (sg, karate),
-    (sg, rmat["16_16"]),
-    (sg, rmat["18_16"]),
     (sg, rmat["20_16"]),
-    (sg, rmat["25_16"]),
-    (sg, rmat["26_16"]),
+    (sg, rmat["24_16"]),
+    (snmg, rmat["24_16"]),
+    (snmg, rmat["25_16"]),
+    (snmg, rmat["26_8"]),
     (snmg, rmat["26_16"]),
     (snmg, rmat["27_16"]),
-    (snmg, rmat["28_16"]),
+    (mnmg, rmat["28_16"]),
     (mnmg, rmat["29_16"]),
-    (mnmg, rmat["30_16"]),
 )
 # graph_obj_fixture_params = gen_fixture_params(
 #     (sg, karate),

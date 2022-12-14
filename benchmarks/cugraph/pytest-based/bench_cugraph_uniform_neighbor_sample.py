@@ -170,13 +170,16 @@ def get_uniform_neighbor_sample_args(
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
-    rng = np.random.default_rng(seed)
-    #num_verts = G.number_of_vertices()
-
-    #if batch_size > num_verts:
-    #    num_start_verts = int(num_verts * 0.25)
-    #else:
-    #    num_start_verts = batch_size
+    # Get the number of starting vertices (batch size) based on the graph size
+    # in order to support small graphs.  However, current benchmarks will never
+    # have graphs smaller than the batch size, so this is commented out.
+    # Uncomment if smaller graphs are being used.
+    #
+    # num_verts = G.number_of_vertices()
+    # if batch_size > num_verts:
+    #     num_start_verts = int(num_verts * 0.25)
+    # else:
+    #     num_start_verts = batch_size
     num_start_verts = batch_size
 
     # Create the list of starting vertices by simply picking the first
@@ -212,7 +215,18 @@ def graph_objs(request):
             uns_func = uniform_neighbor_sample
         else:
             (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
-            uns_func = uniform_neighbor_sample_mg
+            # The default uniform_neighbor_sample MG function returns a
+            # dask_cudf DataFrame, which must be evaluated (.compute()) in
+            # order to get usable results.
+            # Uncomment to benchmark with a dask_cudf DataFrame
+            #
+            # uns_func = uniform_neighbor_sample_mg
+
+            # This function calls the MG uniform_neighbor_sample function, then
+            # calls .compute() on the resulting dask_cudf DataFrame in order to
+            # return usable results.
+            # Uncomment this to benchmark with results available to client
+            #
             def uns_func(*args, **kwargs):
                 with TimerContext("sampling"):
                     result_ddf = uniform_neighbor_sample_mg(*args, **kwargs)
@@ -243,9 +257,10 @@ def bench_cugraph_uniform_neighbor_sample(
 ):
     (G, uniform_neighbor_sample_func) = graph_objs
 
-    uns_args = get_uniform_neighbor_sample_args(
-        G, _seed, batch_size, fanout, with_replacement
-    )
+    with TimerContext("computing sampling args"):
+        uns_args = get_uniform_neighbor_sample_args(
+            G, _seed, batch_size, fanout, with_replacement
+        )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
     result = gpubenchmark(

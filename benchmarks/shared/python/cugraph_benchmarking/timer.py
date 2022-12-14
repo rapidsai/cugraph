@@ -26,7 +26,7 @@ class TimerContext:
         if self.__start_msg:
             output = self.__start_msg
         else:
-            output = f"STARTING {self.__label or '...'}"
+            output = f"STARTING {self.__label}... "
         self.__handle.write(output)
         self.__handle.flush()
         self.__start_time = time.perf_counter_ns()

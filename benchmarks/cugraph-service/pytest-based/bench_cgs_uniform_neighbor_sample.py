@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import os
 from pathlib import Path
 
@@ -37,6 +36,7 @@ from cugraph_service_client import RemoteGraph
 from cugraph_service_server.testing import utils
 
 from cugraph_benchmarking import params
+from cugraph_benchmarking.timer import TimerContext
 
 _seed = 42
 
@@ -91,12 +91,17 @@ def get_uniform_neighbor_sample_args(
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
-    num_verts = G.number_of_vertices()
-
-    if batch_size > num_verts:
-        num_start_verts = int(num_verts * 0.25)
-    else:
-        num_start_verts = batch_size
+    # Get the number of starting vertices (batch size) based on the graph size
+    # in order to support small graphs.  However, current benchmarks will never
+    # have graphs smaller than the batch size, so this is commented out.
+    # Uncomment if smaller graphs are being used.
+    #
+    # num_verts = G.number_of_vertices()
+    # if batch_size > num_verts:
+    #     num_start_verts = int(num_verts * 0.25)
+    # else:
+    #     num_start_verts = batch_size
+    num_start_verts = batch_size
 
     # Create the start_list on the server, since generating a list of actual
     # IDs requires unrenumbering steps that cannot be easily done remotely.
@@ -157,10 +162,8 @@ def remote_graph_objs(request):
     else:
         raise NotImplementedError(f"{gpu_config=}")
 
-    print("creating graph...")
-    st = time.perf_counter_ns()
-    G = create_remote_graph(graph_data, is_mg, cgs_client)
-    print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
+    with TimerContext("creating graph"):
+        G = create_remote_graph(graph_data, is_mg, cgs_client)
 
     uns_func = remote_uniform_neighbor_sample
 
@@ -186,9 +189,10 @@ def bench_cgs_uniform_neighbor_sample(
 ):
     (G, uniform_neighbor_sample_func) = remote_graph_objs
 
-    uns_args = get_uniform_neighbor_sample_args(
-        G, _seed, batch_size, fanout, with_replacement
-    )
+    with TimerContext("computing sampling args"):
+        uns_args = get_uniform_neighbor_sample_args(
+            G, _seed, batch_size, fanout, with_replacement
+        )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
     result = gpubenchmark(
@@ -198,7 +202,9 @@ def bench_cgs_uniform_neighbor_sample(
         fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
     )
+    """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}
     dt = str(result.sources.dtype)
     llen = len(result.sources)
     print(f"\nresult list len: {llen} (x3), dtype={dt}, total bytes={3*llen*dtmap[dt]}")
+    """
