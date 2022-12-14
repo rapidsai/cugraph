@@ -17,6 +17,8 @@ import time
 import pytest
 
 import cugraph
+import cupy
+import cudf
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
 
@@ -107,3 +109,42 @@ def test_louvain(graph_file):
 def test_louvain_directed_graph():
     with pytest.raises(ValueError):
         cugraph_call(karate_asymmetric, edgevals=True, directed=True)
+
+
+@pytest.mark.parametrize("is_weighted", [True, False])
+def test_louvain_csr_graph(is_weighted):
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+
+    M = cupy.sparse.coo_matrix(
+        (df["wgt"].to_cupy(), (df["src"].to_cupy(), df["dst"].to_cupy()))
+    )
+    M = M.tocsr()
+
+    offsets = cudf.Series(M.indptr)
+    indices = cudf.Series(M.indices)
+    weights = cudf.Series(M.data)
+    G_csr = cugraph.Graph()
+    G_coo = karate.get_graph()
+
+    if not is_weighted:
+        weights = None
+
+    G_csr.from_cudf_adjlist(offsets, indices, weights)
+
+    assert G_csr.is_weighted() is is_weighted
+
+    louvain_csr, mod_csr = cugraph.louvain(G_csr)
+    louvain_coo, mod_coo = cugraph.louvain(G_coo)
+    louvain_csr = louvain_csr.sort_values("vertex").reset_index(drop=True)
+    result_louvain = (
+        louvain_coo.sort_values("vertex")
+        .reset_index(drop=True)
+        .rename(columns={"partition": "partition_coo"})
+    )
+    result_louvain["partition_csr"] = louvain_csr["partition"]
+
+    parition_diffs = result_louvain.query("partition_csr != partition_coo")
+
+    assert len(parition_diffs) == 0
+    assert mod_csr == mod_coo

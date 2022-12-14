@@ -38,7 +38,7 @@ FilesToCheck = [
     re.compile(r"[.]flake8[.]cython$"),
     re.compile(r"meta[.]yaml$")
 ]
-ExemptFiles = []
+ExemptFiles = ['versioneer.py']
 
 # this will break starting at year 10000, which is probably OK :)
 CheckSimple = re.compile(

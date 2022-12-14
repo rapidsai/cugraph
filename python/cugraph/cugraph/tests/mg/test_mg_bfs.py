@@ -134,7 +134,7 @@ def test_dask_bfs_invalid_start(dask_client, directed):
 
 
 # @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+#     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_bfs_multi_column_depthlimit(dask_client, directed):

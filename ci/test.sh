@@ -41,7 +41,6 @@ if hasArg "--quick"; then
     DOWNLOAD_MODE="--subset"
     GTEST_FILTER="--gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*:*huge*"
 else
-    echo "Running all tests..."
     # FIXME: do we still need to always filter these tests?
     GTEST_FILTER="--gtest_filter=-hibench_test/Tests_MGSpmv_hibench.CheckFP32_hibench*"
 fi
@@ -63,25 +62,27 @@ fi
 # EXITCODE for the script.
 set +e
 
-if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
-    echo "WARNING: skipping C++ tests on Pascal GPU arch."
-elif hasArg "libcugraph"; then
-    echo "C++ gtests for cuGraph (single-GPU only)..."
-    for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
-        test_name=$(basename $gt)
-        echo "Running gtest $test_name"
-        ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
-        echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
-    done
-    # FIXME: the C API tests do not generate XML, so CI systems will not show
-    # them in the GUI. Failing C API tests will still fail CI though, and the
-    # output will appear in logs.
-    for ct in "${CONDA_PREFIX}/bin/gtests/libcugraph_c/"CAPI_*_TEST; do
-        test_name=$(basename $ct)
-        echo "Running C API test $test_name"
-        ${ct}
-        echo "Ran C API test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
-    done
+if hasArg "libcugraph"; then
+    if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
+        echo "WARNING: skipping C++ tests on Pascal GPU arch."
+    else
+        echo "C++ gtests for cuGraph (single-GPU only)..."
+        for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
+            test_name=$(basename $gt)
+            echo "Running gtest $test_name"
+            ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
+            echo "Ran gtest $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+        done
+        # FIXME: the C API tests do not generate XML, so CI systems will not show
+        # them in the GUI. Failing C API tests will still fail CI though, and the
+        # output will appear in logs.
+        for ct in "${CONDA_PREFIX}/bin/gtests/libcugraph_c/"CAPI_*_TEST; do
+            test_name=$(basename $ct)
+            echo "Running C API test $test_name"
+            ${ct}
+            echo "Ran C API test $test_name : return code was: $?, test script exit code is now: $EXITCODE"
+        done
+    fi
 fi
 
 if hasArg "pylibcugraph"; then
@@ -109,6 +110,15 @@ if hasArg "cugraph-service"; then
     cd ${CUGRAPH_ROOT}/python/cugraph-service
     pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-service-pytests.xml --benchmark-disable -k "not mg" ./tests
     echo "Ran Python pytest for cugraph-service : return code was: $?, test script exit code is now: $EXITCODE"
+fi
+
+if hasArg "cugraph-pyg"; then
+    echo "Python pytest for cugraph_pyg (single-GPU only)..."
+    conda list
+    cd ${CUGRAPH_ROOT}/python/cugraph-pyg/cugraph_pyg
+    # rmat is not tested because of MG testing
+    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph_pyg --cov-report=xml:${WORKSPACE}/python/cugraph_pyg/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/int --ignore=tests/generators --benchmark-disable
+    echo "Ran Python pytest for cugraph_pyg : return code was: $?, test script exit code is now: $EXITCODE"
 fi
 
 echo "Test script exiting with value: $EXITCODE"

@@ -127,6 +127,7 @@ def simple_unweighted_input_expected_output(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
@@ -212,6 +213,7 @@ def test_uniform_neighbor_sample_simple(input_combo):
             )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_uniform_neighbor_sample_tree(directed):
 
@@ -272,6 +274,7 @@ def test_uniform_neighbor_sample_tree(directed):
     assert set(start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
 
 
+@pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
     test_data = simple_unweighted_input_expected_output
 

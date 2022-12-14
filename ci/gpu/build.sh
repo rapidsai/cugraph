@@ -114,7 +114,7 @@ conda list --show-channel-urls
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
-    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph cugraph-service-server cugraph-service-client
+    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph cugraph-service-server cugraph-service-client cugraph-pyg
 else
     gpuci_logger "Installing libcugraph-tests"
     gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} libcugraph libcugraph_etl libcugraph-tests
@@ -132,8 +132,21 @@ else
     gpuci_logger "cugraph-service"
     gpuci_conda_retry mambabuild conda/recipes/cugraph-service --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
 
-    gpuci_logger "Installing pylibcugraph, cugraph, and cugraph-service from build / artifact dirs"
-    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --strict-channel-priority pylibcugraph cugraph cugraph-service-server cugraph-service-client
+    gpuci_logger "Building and installing cugraph-pyg..."
+    gpuci_conda_retry mambabuild conda/recipes/cugraph-pyg --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+
+    #gpuci_logger "Installing pylibcugraph, cugraph, cugraph-pyg and cugraph-service from build / artifact dirs"
+    #gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} pylibcugraph cugraph cugraph-pyg cugraph-service-server cugraph-service-client
+    gpuci_logger "Installing pylibcugraph from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} pylibcugraph
+    gpuci_logger "Installing cugraph from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph
+    gpuci_logger "Installing cugraph-pyg from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph-pyg
+    gpuci_logger "Installing cugraph-service-server from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph-service-server
+    gpuci_logger "Installing cugraph-service-client from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph-service-client
 fi
 
 ################################################################################
@@ -145,6 +158,7 @@ fnames=()
 run_libcugraph_tests="true"
 run_pylibcugraph_tests="true"
 run_cugraph_tests="true"
+run_cugraph_pyg_tests="true"
 run_service_tests="true"
 run_nb_tests="true"
 
@@ -164,6 +178,7 @@ if [ "$BUILD_MODE" == "pull-request" ]; then
     run_libcugraph_tests="false"
     run_pylibcugraph_tests="false"
     run_cugraph_tests="false"
+    run_cugraph_pyg_tests="false"
     run_service_tests="false"
     run_nb_tests="false"
 fi
@@ -180,6 +195,9 @@ do
    if [[ "$fname" == *"python/cugraph/"* ]]; then
       run_cugraph_tests="true"
    fi
+   if [[ "$fname" == *"python/cugraph-pyg/"* ]]; then
+      run_cugraph_pyg_tests="true"
+   fi
    if [[ "$fname" == *"python/cugraph-service/"* ]]; then
       run_service_tests="true"
    fi
@@ -192,6 +210,7 @@ gpuci_logger "Summary of CI tests to be executed"
 gpuci_logger "Run libcugraph tests=$run_libcugraph_tests"
 gpuci_logger "Run pylibcugraph tests=$run_pylibcugraph_tests"
 gpuci_logger "Run cugraph tests=$run_cugraph_tests"
+gpuci_logger "Run cugraph-pyg tests=$run_cugraph_pyg_tests"
 gpuci_logger "Run cugraph-service tests=$run_service_tests"
 gpuci_logger "Run notebook tests=$run_nb_tests"
 
@@ -199,6 +218,8 @@ TEST_SCRIPT_ARGS=""
 DATASET_OPTION="--skip-download"
 NOTEBOOK_TEST_MODE="ci"
 
+# note the if-elif blocks here and the hierarchy of dependencies and how they
+# determine tests to run
 if [[ $run_libcugraph_tests == "true" ]]; then
     TEST_SCRIPT_ARGS="libcugraph pylibcugraph cugraph cugraph-service"
     run_nb_tests="true"
@@ -212,6 +233,11 @@ elif [[ $run_cugraph_tests == "true" ]]; then
 elif [[ $run_service_tests == "true" ]]; then
     # Add NB tests once there are NBs that use cugraph-service
     TEST_SCRIPT_ARGS="cugraph-servce"
+fi
+# special case: cugraph-pyg adds to any existing tests
+if [[ $run_cugraph_pyg_tests == "true" ]]; then
+    TEST_SCRIPT_ARGS="$TEST_SCRIPT_ARGS cugraph-pyg"
+    run_nb_tests="true"
 fi
 
 ################################################################################

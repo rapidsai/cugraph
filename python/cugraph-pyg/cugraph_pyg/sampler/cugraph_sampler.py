@@ -22,7 +22,7 @@ except ModuleNotFoundError:
             "or cuGraph-Service to be installed."
         )
 
-from cugraph.gnn.pyg_extensions.loader.dispatch import call_cugraph_algorithm
+from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
 
 import cudf
 
