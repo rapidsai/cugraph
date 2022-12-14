@@ -32,10 +32,12 @@ rapids-mamba-retry install \
 rapids-logger "Check GPU usage"
 nvidia-smi
 
-set +e
+# Download datasets
+./datasets/get_test_data.sh
 
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
+set +e
 
 # TODO: exit code handling is too verbose. Find a cleaner solution.
 
@@ -48,6 +50,18 @@ for gt in "$CONDA_PREFIX"/bin/gtests/libcugraph/* ; do
     if (( ${exitcode} != 0 )); then
         SUITEERROR=${exitcode}
         echo "FAILED: GTest ${gt}"
+    fi
+done
+
+for ct in "$CONDA_PREFIX"/bin/gtests/libcugraph_c/CAPI_*_TEST ; do
+    test_name=$(basename ${ct})
+    echo "Running C API test $test_name"
+    ${ct}
+
+    exitcode=$?
+    if (( ${exitcode} != 0 )); then
+        SUITEERROR=${exitcode}
+        echo "FAILED: C API test ${ct}"
     fi
 done
 

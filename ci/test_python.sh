@@ -39,12 +39,30 @@ nvidia-smi
 
 set +e
 
+rapids-logger "pytest pylibcugraph"
+pushd python/pylibcugraph/pylibcugraph
+pytest \
+  --cache-clear \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+  --cov-config=../../.coveragerc \
+  --cov=pylibcugraph \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
+  --cov-report=term \
+  tests
+exitcode=$?
+
+if (( ${exitcode} != 0 )); then
+    SUITEERROR=${exitcode}
+    echo "FAILED: 1 or more tests in pylibcugraph"
+fi
+popd
+
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 pytest \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
-  --cov-config=../.coveragerc \
+  --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
@@ -56,5 +74,9 @@ if (( ${exitcode} != 0 )); then
     echo "FAILED: 1 or more tests in cugraph"
 fi
 popd
+
+# TODO: benchmarks
+# TODO: cugraph_pyg
+# TODO: cugraph-service
 
 exit ${SUITEERROR}
