@@ -47,3 +47,16 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_sample_result_t** result,
         cugraph_error_t** error
     )
+
+    cdef cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
+        const cugraph_resource_handle_t* handle,
+        const cugraph_type_erased_device_array_view_t* srcs,
+        const cugraph_type_erased_device_array_view_t* dsts,
+        const cugraph_type_erased_device_array_view_t* edge_id,
+        const cugraph_type_erased_device_array_view_t* edge_type,
+        const cugraph_type_erased_device_array_view_t* weight,
+        const cugraph_type_erased_device_array_view_t* hop,
+        const cugraph_type_erased_device_array_view_t* label,
+        cugraph_sample_result_t** result,
+        cugraph_error_t** error
+    )

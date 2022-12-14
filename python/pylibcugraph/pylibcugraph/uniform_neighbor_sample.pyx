@@ -161,28 +161,17 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    if with_edge_properties or batch_id_list is not None:
-        error_code = cugraph_uniform_neighbor_sample_with_edge_properties(
-            c_resource_handle_ptr,
-            c_graph_ptr,
-            start_ptr,
-            <cugraph_type_erased_device_array_view_t*>NULL if batch_id_list is None else batch_id_ptr,
-            fan_out_ptr,
-            with_replacement,
-            do_expensive_check,
-            &result_ptr,
-            &error_ptr)
-    else:
-        error_code = cugraph_uniform_neighbor_sample(
-            c_resource_handle_ptr,
-            c_graph_ptr,
-            start_ptr,
-            fan_out_ptr,
-            with_replacement,
-            do_expensive_check,
-            &result_ptr,
-            &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
+    error_code = cugraph_uniform_neighbor_sample_with_edge_properties(
+        c_resource_handle_ptr,
+        c_graph_ptr,
+        start_ptr,
+        <cugraph_type_erased_device_array_view_t*>NULL if batch_id_list is None else batch_id_ptr,
+        fan_out_ptr,
+        with_replacement,
+        do_expensive_check,
+        &result_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample_with_edge_properties")
 
     # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()
