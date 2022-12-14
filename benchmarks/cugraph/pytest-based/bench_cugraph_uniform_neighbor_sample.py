@@ -186,7 +186,12 @@ def get_uniform_neighbor_sample_args(
     # num_start_verts vertices in the edgelist. This will likely result in
     # duplicates.
     srcs = G.edgelist.edgelist_df["src"]
-    start_list = srcs[:num_start_verts].compute()
+    start_list = srcs[:num_start_verts]
+
+    # Attempt to automatically handle a dask Series
+    if hasattr(start_list, "compute"):
+        start_list = start_list.compute()
+
 
     return {
         "start_list": start_list,
