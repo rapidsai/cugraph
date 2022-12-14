@@ -26,7 +26,7 @@ class TimerContext:
         if self.__start_msg:
             output = self.__start_msg
         else:
-            output = f"STARTING {self.__text or '...'}"
+            output = f"STARTING {self.__label or '...'}"
         self.__handle.write(output)
         self.__handle.flush()
         self.__start_time = time.perf_counter_ns()
@@ -34,7 +34,9 @@ class TimerContext:
     def __exit__(self, exc_type, exc_value, traceback):
         end_time = time.perf_counter_ns()
         run_time = (end_time - self.__start_time) / 1e9
-        output = f"DONE {self.__text}, runtime was: {run_time}s\n"
-
+        if self.__end_msg:
+            output = self.__end_msg + f"{run_time}s\n"
+        else:
+            output = f"DONE {self.__label}, runtime was: {run_time}s\n"
         self.__handle.write(output)
         self.__handle.flush()

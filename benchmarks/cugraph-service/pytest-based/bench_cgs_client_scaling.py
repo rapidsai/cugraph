@@ -28,8 +28,8 @@ from cugraph_benchmarking.timer import TimerContext
 
 _host = defaults.host
 _port = defaults.port
-_graph_scale = 26
-_edge_factor = 4
+_graph_scale = 24
+_edge_factor = 16
 _batch_size = 100
 _with_replacement = False
 _rng_seed = 42
