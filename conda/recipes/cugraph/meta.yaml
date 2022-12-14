@@ -59,6 +59,11 @@ requirements:
     - libraft-headers {{ minor_version }}.*
     - setuptools
     - versioneer
+    # TODO: The following dependencies should be fulfilled transitively by
+    # raft, once the GitHub Actions migration is complete. After migrating
+    # raft, remove the lines below.
+    - libcublas-dev {{ libcublas_version }}
+    - libcublas {{ libcublas_version }}
   run:
     - python x.x
     - pylibcugraph={{ version }}
@@ -77,6 +82,11 @@ requirements:
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - cuda-python >=11.7.1,<12.0
+    # TODO: The following dependencies should be fulfilled transitively by
+    # raft, once the GitHub Actions migration is complete. After migrating
+    # raft, remove the lines below.
+    - libcublas-dev {{ libcublas_version }}
+    - libcublas {{ libcublas_version }}
 
 tests:                                 # [linux64]
   requirements:                        # [linux64]
