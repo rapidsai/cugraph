@@ -36,7 +36,7 @@ requirements:
     - numba>=0.56.2
     - numpy
     - pytorch
-    - cudatoolkit=11.6
+    - cudatoolkit {{ cuda_version }}.*
     # - pyg (uncomment once pyg 2.2 is released)
 
 tests:                                 # [linux64]
