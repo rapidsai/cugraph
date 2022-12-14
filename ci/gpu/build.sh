@@ -186,6 +186,15 @@ fi
 # this will not do anything if the 'fnames' array is empty
 for fname in "${fnames[@]}"
 do
+   if [[ "$fname" == *"ci/"* ]]; then
+      run_libcugraph_tests="true"
+   fi
+   if [[ "$fname" == *"conda/"* ]]; then
+      run_libcugraph_tests="true"
+   fi
+   if [[ "$fname" == *"datasets/"* ]]; then
+      run_libcugraph_tests="true"
+   fi
    if [[ "$fname" == *"cpp/"* && "$fname" != *"cpp/docs/"* && "$fname" != *"cpp/doxygen/"* ]]; then
       run_libcugraph_tests="true"
    fi
