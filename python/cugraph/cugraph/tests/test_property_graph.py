@@ -1750,7 +1750,9 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key])
         assert len(df) == stop - start + 1
-        assert (df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))).all()
+        assert (
+            df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))
+        ).all()
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
             expected = cur._constructor(sorted(x for x, *args in data[key][1]))
