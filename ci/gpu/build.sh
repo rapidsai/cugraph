@@ -230,22 +230,20 @@ NOTEBOOK_TEST_MODE="ci"
 # note the if-elif blocks here and the hierarchy of dependencies and how they
 # determine tests to run
 if [[ $run_libcugraph_tests == "true" ]]; then
-    TEST_SCRIPT_ARGS="libcugraph pylibcugraph cugraph cugraph-service"
+    TEST_SCRIPT_ARGS="libcugraph pylibcugraph cugraph cugraph-service cugraph-pyg"
     run_nb_tests="true"
     DATASET_OPTION=""
 elif [[ $run_pylibcugraph_tests == "true" ]]; then
-    TEST_SCRIPT_ARGS="pylibcugraph cugraph cugraph-service"
+    TEST_SCRIPT_ARGS="pylibcugraph cugraph cugraph-service cugraph-pyg"
     run_nb_tests="true"
 elif [[ $run_cugraph_tests == "true" ]]; then
-    TEST_SCRIPT_ARGS="cugraph cugraph-service"
+    TEST_SCRIPT_ARGS="cugraph cugraph-service cugraph-pyg"
     run_nb_tests="true"
 elif [[ $run_service_tests == "true" ]]; then
     # Add NB tests once there are NBs that use cugraph-service
-    TEST_SCRIPT_ARGS="cugraph-servce"
-fi
-# special case: cugraph-pyg adds to any existing tests
-if [[ $run_cugraph_pyg_tests == "true" ]]; then
-    TEST_SCRIPT_ARGS="$TEST_SCRIPT_ARGS cugraph-pyg"
+    TEST_SCRIPT_ARGS="cugraph-servce cugraph-pyg"
+elif [[ $run_cugraph_pyg_tests == "true" ]]; then
+    TEST_SCRIPT_ARGS="cugraph-pyg"
     run_nb_tests="true"
 fi
 
