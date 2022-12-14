@@ -19,8 +19,20 @@ nccl_version:
 gtest_version:
   - "=1.10.0"
 
+cuda_profiler_api_version:
+  - ">=11.4.240,<12"
+
+libcublas_version:
+  - ">=11.7.3.1,<12"
+
+libcurand_version:
+  - ">=10.2.7.107,<10.3.1.50"
+
 libcusolver_version:
-  - ">=11.2.1"
+  - ">=11.2.1,<11.4.2.57"
+
+libcusparse_version:
+  - ">=11.6.0.43,<12"
 
 sysroot_version:
   - "2.17"
