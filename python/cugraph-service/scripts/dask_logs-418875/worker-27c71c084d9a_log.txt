@@ -1,0 +1,116 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=12G
+             --local-directory=/tmp/
+             --scheduler-file=/work/cugraph/python/cugraph-service/scripts/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2022-12-14 17:45:26,433 - distributed.nanny - INFO -         Start Nanny at: 'tcp://172.17.0.2:43537'
+2022-12-14 17:45:26,443 - distributed.nanny - INFO -         Start Nanny at: 'tcp://172.17.0.2:39503'
+2022-12-14 17:45:27,537 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-12-14 17:45:27,537 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-12-14 17:45:27,548 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-12-14 17:45:27,548 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-12-14 17:45:35,499 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-12-14 17:45:35,503 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-12-14 17:45:51,725 - distributed.worker - INFO -       Start worker at:     tcp://172.17.0.2:44823
+2022-12-14 17:45:51,725 - distributed.worker - INFO -          Listening to:     tcp://172.17.0.2:44823
+2022-12-14 17:45:51,725 - distributed.worker - INFO -          dashboard at:           172.17.0.2:39563
+2022-12-14 17:45:51,725 - distributed.worker - INFO -       Start worker at:     tcp://172.17.0.2:42183
+2022-12-14 17:45:51,725 - distributed.worker - INFO - Waiting to connect to:      tcp://172.17.0.2:8786
+2022-12-14 17:45:51,725 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:45:51,725 - distributed.worker - INFO -          Listening to:     tcp://172.17.0.2:42183
+2022-12-14 17:45:51,725 - distributed.worker - INFO -               Threads:                          1
+2022-12-14 17:45:51,725 - distributed.worker - INFO -          dashboard at:           172.17.0.2:46241
+2022-12-14 17:45:51,725 - distributed.worker - INFO -                Memory:                  31.31 GiB
+2022-12-14 17:45:51,725 - distributed.worker - INFO - Waiting to connect to:      tcp://172.17.0.2:8786
+2022-12-14 17:45:51,725 - distributed.worker - INFO -       Local Directory: /tmp/dask-worker-space/worker-p2pk96ex
+2022-12-14 17:45:51,725 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:45:51,725 - distributed.worker - INFO -               Threads:                          1
+2022-12-14 17:45:51,725 - distributed.worker - INFO -                Memory:                  31.31 GiB
+2022-12-14 17:45:51,725 - distributed.worker - INFO -       Local Directory: /tmp/dask-worker-space/worker-8tfb_u90
+2022-12-14 17:45:51,725 - distributed.worker - INFO - Starting Worker plugin RMMSetup-fe9bf907-3b96-438c-aea6-f45fd8b7a4e3
+2022-12-14 17:45:51,726 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-284cfc9d-5e47-4ab5-8e1c-4757b8381541
+2022-12-14 17:45:51,726 - distributed.worker - INFO - Starting Worker plugin PreImport-8b375407-b7c3-474f-bebd-02026a3f1e32
+2022-12-14 17:45:51,726 - distributed.worker - INFO - Starting Worker plugin RMMSetup-c13788a1-0b0e-4b32-9eed-273646ea2067
+2022-12-14 17:45:51,793 - distributed.worker - INFO - Starting Worker plugin PreImport-73462260-3ffa-45b9-98c8-91b5f775dd94
+2022-12-14 17:45:51,793 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-06caabd1-ddc2-4531-889b-b89aedfa63c2
+2022-12-14 17:45:51,793 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:45:51,794 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:45:51,833 - distributed.worker - INFO -         Registered to:      tcp://172.17.0.2:8786
+2022-12-14 17:45:51,834 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:45:51,835 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:8786
+2022-12-14 17:45:51,836 - distributed.worker - INFO -         Registered to:      tcp://172.17.0.2:8786
+2022-12-14 17:45:51,836 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:45:51,837 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:8786
+2022-12-14 17:45:57,210 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-12-14 17:45:57,213 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-12-14 17:46:57,680 - distributed.core - INFO - Event loop was unresponsive in Worker for 59.87s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:46:57,680 - distributed.core - INFO - Event loop was unresponsive in Worker for 59.86s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:46:57,680 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.83s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:46:57,684 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.83s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:46:57,912 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-12-14 17:46:57,912 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-12-14 17:47:58,585 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.74s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:47:58,588 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.74s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:48:58,598 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.75s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:48:58,600 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.75s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:49:03,174 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-12-14 17:49:03,182 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-12-14 17:49:06,587 - distributed.core - INFO - Event loop was unresponsive in Worker for 128.45s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:49:06,587 - distributed.core - INFO - Event loop was unresponsive in Worker for 128.45s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:49:19,909 - distributed.core - INFO - Event loop was unresponsive in Worker for 3.87s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:50:10,724 - distributed.core - INFO - Event loop was unresponsive in Worker for 3.39s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:50:45,185 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.35s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:51:14,153 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.90s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:51:20,786 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-12-14 17:51:20,786 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-12-14 17:53:19,394 - distributed.nanny - INFO - Closing Nanny at 'tcp://172.17.0.2:43537'. Reason: nanny-close
+2022-12-14 17:53:19,394 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-12-14 17:53:19,394 - distributed.nanny - INFO - Closing Nanny at 'tcp://172.17.0.2:39503'. Reason: nanny-close
+2022-12-14 17:53:19,394 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-12-14 17:53:22,596 - distributed.nanny - WARNING - Worker process still alive after 3.199995727539063 seconds, killing
+2022-12-14 17:53:22,596 - distributed.nanny - WARNING - Worker process still alive after 3.199995269775391 seconds, killing
+2022-12-14 17:53:23,519 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.9/asyncio/tasks.py", line 490, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/nanny.py", line 603, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/nanny.py", line 388, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/nanny.py", line 835, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/process.py", line 316, in join
+    await asyncio.wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.9/asyncio/tasks.py", line 492, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2022-12-14 17:53:23,520 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.9/asyncio/tasks.py", line 490, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/nanny.py", line 603, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/nanny.py", line 388, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/nanny.py", line 835, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/process.py", line 316, in join
+    await asyncio.wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.9/asyncio/tasks.py", line 492, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2022-12-14 17:53:23,521 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=419445 parent=419101 started daemon>
+2022-12-14 17:53:23,521 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=419442 parent=419101 started daemon>
+2022-12-14 17:53:23,724 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 419445 exit status was already read will report exitcode 255
+2022-12-14 17:53:23,793 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 419442 exit status was already read will report exitcode 255

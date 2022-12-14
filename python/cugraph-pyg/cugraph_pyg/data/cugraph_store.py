@@ -601,11 +601,13 @@ class EXPERIMENTAL__CuGraphStore:
         noi = self.__graph.get_vertex_data(
             nodes_of_interest.values_host if self._is_delayed else nodes_of_interest
         )
+        if self._is_delayed:
+            noi = noi.persist()
         noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
 
         noi_index = {}
         for t_code, t in enumerate(noi_types):
-            noi_t = noi[noi[self.__graph.type_col_name].cat.codes == t_code]
+            noi_t = noi[noi[self.__graph.type_col_name].cat.codes == t_code].persist()
             # noi_t should be sorted since the input nodes of interest were
 
             if len(noi_t) > 0:
@@ -620,7 +622,9 @@ class EXPERIMENTAL__CuGraphStore:
                         noi_t[self.__graph.vertex_col_name].to_dlpack()
                     )
                 )
+            del noi_t
 
+        del noi
         return noi_index
 
     def _get_renumbered_edge_groups_from_sample(self, sampling_results, noi_index):
@@ -672,6 +676,9 @@ class EXPERIMENTAL__CuGraphStore:
             ),
             columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
         )
+        if self._is_delayed:
+            eoi = eoi.persist()
+
         eoi_types = eoi[self.__graph.type_col_name].cat.categories.values_host
 
         row_dict = {}
@@ -681,6 +688,8 @@ class EXPERIMENTAL__CuGraphStore:
             src_type, edge_type, dst_type = t_pyg_type
 
             eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes == t_code]
+            if self._is_delayed:
+                eoi_t = eoi_t.persist()
 
             if len(eoi_t) > 0:
                 eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
@@ -702,7 +711,9 @@ class EXPERIMENTAL__CuGraphStore:
 
                 dst = self.searchsorted(dst_id_table, destinations)
                 col_dict[t_pyg_type] = dst
+            del eoi_t
 
+        del eoi
         return row_dict, col_dict
 
     def put_tensor(self, tensor, attr):

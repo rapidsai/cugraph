@@ -1,0 +1,80 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --enable-tcp-over-ucx
+                --enable-nvlink
+                --disable-infiniband
+                --disable-rdmacm
+                --rmm-pool-size=12G
+                --rmm-maximum-pool-size=12G
+                --local-directory=/tmp/
+                --scheduler-file=/work/cugraph/python/cugraph-service/scripts/dask-scheduler.json
+                --memory-limit=auto
+                --device-memory-limit=auto
+                --enable-jit-unspill
+                "
+2022-12-14 17:38:26,388 - distributed.nanny - INFO -         Start Nanny at: 'ucx://172.17.0.2:44187'
+2022-12-14 17:38:26,402 - distributed.nanny - INFO -         Start Nanny at: 'ucx://172.17.0.2:35277'
+2022-12-14 17:38:27,469 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-12-14 17:38:27,469 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-12-14 17:38:27,486 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-12-14 17:38:27,486 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-12-14 17:39:01,148 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-12-14 17:39:01,150 - distributed.worker - INFO -       Start worker at:     ucx://172.17.0.2:32879
+2022-12-14 17:39:01,150 - distributed.worker - INFO -          Listening to:     ucx://172.17.0.2:32879
+2022-12-14 17:39:01,150 - distributed.worker - INFO -          dashboard at:           172.17.0.2:39665
+2022-12-14 17:39:01,150 - distributed.worker - INFO - Waiting to connect to:      ucx://172.17.0.2:8786
+2022-12-14 17:39:01,150 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:39:01,150 - distributed.worker - INFO -               Threads:                          1
+2022-12-14 17:39:01,150 - distributed.worker - INFO -                Memory:                  31.31 GiB
+2022-12-14 17:39:01,150 - distributed.worker - INFO -       Local Directory: /tmp/dask-worker-space/worker-thwz8eo0
+2022-12-14 17:39:01,150 - distributed.worker - INFO - Starting Worker plugin PreImport-a7e26aef-2645-41fc-ba98-3dac8ecbe0ee
+2022-12-14 17:39:01,150 - distributed.worker - INFO - Starting Worker plugin RMMSetup-18bfccb0-3366-4f93-a5a2-00b9605e32d3
+2022-12-14 17:39:01,158 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-22d5494d-0b1d-46b5-a101-edf24cf645eb
+2022-12-14 17:39:01,158 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:39:01,159 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-12-14 17:39:01,161 - distributed.worker - INFO -       Start worker at:     ucx://172.17.0.2:42825
+2022-12-14 17:39:01,161 - distributed.worker - INFO -          Listening to:     ucx://172.17.0.2:42825
+2022-12-14 17:39:01,161 - distributed.worker - INFO -          dashboard at:           172.17.0.2:34385
+2022-12-14 17:39:01,161 - distributed.worker - INFO - Waiting to connect to:      ucx://172.17.0.2:8786
+2022-12-14 17:39:01,161 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:39:01,161 - distributed.worker - INFO -               Threads:                          1
+2022-12-14 17:39:01,161 - distributed.worker - INFO -                Memory:                  31.31 GiB
+2022-12-14 17:39:01,161 - distributed.worker - INFO -       Local Directory: /tmp/dask-worker-space/worker-o38n9gn3
+2022-12-14 17:39:01,161 - distributed.worker - INFO - Starting Worker plugin RMMSetup-1a304713-3f75-4379-adbf-a4cff53fc65a
+2022-12-14 17:39:01,169 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-e14e16d7-73fd-4ed9-a849-24cab8adab78
+2022-12-14 17:39:01,169 - distributed.worker - INFO - Starting Worker plugin PreImport-9d6e1ef5-215e-422a-bde1-6e132b608a4f
+2022-12-14 17:39:01,169 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:39:01,243 - distributed.worker - INFO -         Registered to:      ucx://172.17.0.2:8786
+2022-12-14 17:39:01,243 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:39:01,244 - distributed.core - INFO - Starting established connection to ucx://172.17.0.2:8786
+2022-12-14 17:39:01,245 - distributed.worker - INFO -         Registered to:      ucx://172.17.0.2:8786
+2022-12-14 17:39:01,245 - distributed.worker - INFO - -------------------------------------------------
+2022-12-14 17:39:01,246 - distributed.core - INFO - Starting established connection to ucx://172.17.0.2:8786
+2022-12-14 17:40:43,035 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.80s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:40:43,036 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.78s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:40:43,037 - distributed.core - INFO - Event loop was unresponsive in Worker for 59.79s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:40:43,037 - distributed.core - INFO - Event loop was unresponsive in Worker for 59.79s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:41:43,905 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:41:43,905 - distributed.core - INFO - Event loop was unresponsive in Nanny for 59.65s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:41:43,908 - distributed.core - INFO - Event loop was unresponsive in Worker for 59.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:41:43,908 - distributed.core - INFO - Event loop was unresponsive in Worker for 59.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:41:50,052 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-12-14 17:41:50,052 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-12-14 17:41:50,195 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-12-14 17:41:50,196 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-12-14 17:41:54,990 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-12-14 17:41:55,052 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-12-14 17:41:57,680 - distributed.core - INFO - Event loop was unresponsive in Worker for 7.25s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:41:57,680 - distributed.core - INFO - Event loop was unresponsive in Worker for 7.24s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:43:55,412 - distributed.core - INFO - Event loop was unresponsive in Worker for 12.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:44:02,458 - distributed.core - INFO - Event loop was unresponsive in Worker for 7.05s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:44:44,501 - distributed.nanny - INFO - Closing Nanny at 'ucx://172.17.0.2:44187'. Reason: nanny-close
+2022-12-14 17:44:44,501 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-12-14 17:44:44,501 - distributed.nanny - INFO - Closing Nanny at 'ucx://172.17.0.2:35277'. Reason: nanny-close
+2022-12-14 17:44:44,501 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-12-14 17:44:44,503 - distributed.core - INFO - Connection to ucx://172.17.0.2:8786 has been closed.
+2022-12-14 17:44:44,503 - distributed.core - INFO - Connection to ucx://172.17.0.2:8786 has been closed.
+2022-12-14 17:44:44,503 - distributed.worker - INFO - Stopping worker at ucx://172.17.0.2:42825. Reason: worker-handle-scheduler-connection-broken
+2022-12-14 17:44:44,503 - distributed.worker - INFO - Stopping worker at ucx://172.17.0.2:32879. Reason: worker-handle-scheduler-connection-broken
+2022-12-14 17:44:47,703 - distributed.nanny - WARNING - Worker process still alive after 3.1999951171875 seconds, killing
+2022-12-14 17:44:47,703 - distributed.nanny - WARNING - Worker process still alive after 3.199996795654297 seconds, killing
+2022-12-14 17:44:48,030 - distributed.nanny - INFO - Worker process 414898 was killed by signal 9
+2022-12-14 17:44:48,081 - distributed.nanny - INFO - Worker process 414895 was killed by signal 9

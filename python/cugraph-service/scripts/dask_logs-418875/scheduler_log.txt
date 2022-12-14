@@ -1,0 +1,48 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --scheduler-file /work/cugraph/python/cugraph-service/scripts/dask-scheduler.json
+                "
+/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2022-12-14 17:44:49,291 - distributed.scheduler - INFO - -----------------------------------------------
+2022-12-14 17:44:49,827 - distributed.scheduler - INFO - State start
+2022-12-14 17:44:49,836 - distributed.scheduler - INFO - -----------------------------------------------
+2022-12-14 17:44:49,837 - distributed.scheduler - INFO -   Scheduler at:     tcp://172.17.0.2:8786
+2022-12-14 17:44:49,837 - distributed.scheduler - INFO -   dashboard at:                     :8787
+2022-12-14 17:45:02,326 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 8.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:10,354 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.54s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:18,382 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.56s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:26,406 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.59s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:35,285 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.97s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:43,522 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.70s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:51,554 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.74s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:45:51,818 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://172.17.0.2:42183', status: init, memory: 0, processing: 0>
+2022-12-14 17:45:51,833 - distributed.scheduler - INFO - Starting worker compute stream, tcp://172.17.0.2:42183
+2022-12-14 17:45:51,834 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:57776
+2022-12-14 17:45:51,835 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://172.17.0.2:44823', status: init, memory: 0, processing: 0>
+2022-12-14 17:45:51,836 - distributed.scheduler - INFO - Starting worker compute stream, tcp://172.17.0.2:44823
+2022-12-14 17:45:51,836 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:57786
+2022-12-14 17:45:57,201 - distributed.scheduler - INFO - Receive client connection: Client-2a07ce9f-7bd7-11ed-a4ee-0242ac110002
+2022-12-14 17:45:57,201 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:57806
+2022-12-14 17:45:57,665 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-12-14 17:46:57,907 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 60.71s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:46:57,910 - distributed.comm.tcp - INFO - Connection from tcp://172.17.0.2:57818 closed before handshake completed
+2022-12-14 17:47:58,585 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 59.77s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:48:58,599 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 59.76s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-12-14 17:53:13,763 - distributed.scheduler - INFO - Remove client Client-2a07ce9f-7bd7-11ed-a4ee-0242ac110002
+2022-12-14 17:53:13,764 - distributed.core - INFO - Received 'close-stream' from tcp://172.17.0.2:57806; closing.
+2022-12-14 17:53:13,765 - distributed.scheduler - INFO - Remove client Client-2a07ce9f-7bd7-11ed-a4ee-0242ac110002
+2022-12-14 17:53:13,765 - distributed.scheduler - INFO - Close client connection: Client-2a07ce9f-7bd7-11ed-a4ee-0242ac110002
+2022-12-14 17:53:19,378 - distributed._signals - INFO - Received signal SIGINT (2)
+2022-12-14 17:53:19,378 - distributed.scheduler - INFO - Scheduler closing...
+2022-12-14 17:53:19,378 - distributed.scheduler - INFO - Scheduler closing all comms
+2022-12-14 17:53:19,379 - distributed.core - INFO - Connection to tcp://172.17.0.2:57776 has been closed.
+2022-12-14 17:53:19,379 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://172.17.0.2:42183', status: running, memory: 0, processing: 0>
+2022-12-14 17:53:19,379 - distributed.core - INFO - Removing comms to tcp://172.17.0.2:42183
+2022-12-14 17:53:19,379 - distributed.core - INFO - Connection to tcp://172.17.0.2:57786 has been closed.
+2022-12-14 17:53:19,380 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://172.17.0.2:44823', status: running, memory: 0, processing: 0>
+2022-12-14 17:53:19,380 - distributed.core - INFO - Removing comms to tcp://172.17.0.2:44823
+2022-12-14 17:53:19,380 - distributed.scheduler - INFO - Lost all workers
+2022-12-14 17:53:19,380 - distributed.scheduler - ERROR - broadcast to tcp://172.17.0.2:42183 failed: CommClosedError: ConnectionPool closing.
+2022-12-14 17:53:19,380 - distributed.scheduler - ERROR - broadcast to tcp://172.17.0.2:44823 failed: CommClosedError: ConnectionPool closing.
+2022-12-14 17:53:19,386 - distributed.scheduler - INFO - Stopped scheduler at 'tcp://172.17.0.2:8786'
+2022-12-14 17:53:19,386 - distributed.scheduler - INFO - End scheduler

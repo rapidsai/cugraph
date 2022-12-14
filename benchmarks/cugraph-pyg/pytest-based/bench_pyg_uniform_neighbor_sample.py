@@ -41,6 +41,9 @@ from cugraph.generators import rmat
 from cugraph.experimental import datasets, PropertyGraph, MGPropertyGraph
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 
+from cugraph_pyg.sampler import CuGraphSampler
+from cugraph_pyg.data import to_pyg
+
 from cugraph_benchmarking import params
 
 _seed = 42
@@ -115,9 +118,9 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=True,
+        enable_tcp_over_ucx=False,
         enable_infiniband=False,
-        enable_nvlink=True,
+        enable_nvlink=False,
         enable_rdmacm=False,
         net_devices=None,
     )
@@ -243,10 +246,7 @@ def get_uniform_neighbor_sample_args(
 
 
 
-def get_sampler(G, num_neighbors, with_replacement, directed, edge_types):
-    from cugraph_pyg.sampler import CuGraphSampler
-    from cugraph_pyg.data import to_pyg
-    data = to_pyg(G, renumber_vertices=False)
+def get_sampler(data, num_neighbors, with_replacement, directed, edge_types):
     sampler = CuGraphSampler(
         data, 
         method='uniform_neighbor',        
@@ -283,7 +283,8 @@ def graph_objs(request):
     G.renumber_edges_by_type()
     print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
-    yield G
+    data = to_pyg(G, renumber_vertices=False)
+    yield (G, data)
 
     if dask_client is not None:
         stop_dask_client(dask_client, dask_cluster)
@@ -291,6 +292,7 @@ def graph_objs(request):
 ################################################################################
 # Benchmarks
 @pytest.mark.parametrize("batch_size", params.batch_sizes.values())
+#@pytest.mark.parametrize('batch_size', [100, 500, 1000])
 #@pytest.mark.parametrize("fanout", [params.fanout_10_25, params.fanout_5_10_15])
 @pytest.mark.parametrize("fanout", [params.fanout_10_25])
 @pytest.mark.parametrize(
@@ -299,14 +301,14 @@ def graph_objs(request):
 def bench_cugraph_uniform_neighbor_sample(
     gpubenchmark, graph_objs, batch_size, fanout, with_replacement
 ):
-    G = graph_objs
+    G, data = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
         G, _seed, batch_size, fanout, with_replacement
     )
 
     sampler = get_sampler(
-        G,
+        data,
         num_neighbors=uns_args['fanout'],
         with_replacement=uns_args["with_replacement"],
         directed=True,
@@ -320,13 +322,14 @@ def bench_cugraph_uniform_neighbor_sample(
         uns_func,
         ix=uns_args["start_list"],
     )
-    noi_index, row_dict, col_dict, _ = result['out']
+    
+    # noi_index, row_dict, col_dict, _ = result['out']
 
-    dtmap = {torch.int32: 32 // 8, torch.int64: 64 // 8}
-    bytes = 0
-    llen = 0
-    for d in noi_index, row_dict, col_dict:
-        for x in d.values():
-            llen += len(x)
-            bytes += len(x) * dtmap[x.dtype]
-    print(f"\nresult list len: {llen} (x3), total bytes={bytes}")
+    # dtmap = {torch.int32: 32 // 8, torch.int64: 64 // 8}
+    # bytes = 0
+    # llen = 0
+    # for d in noi_index, row_dict, col_dict:
+    #    for x in d.values():
+    #        llen += len(x)
+    #        bytes += len(x) * dtmap[x.dtype]
+    # print(f"\nresult list len: {llen} (x3), total bytes={bytes}")
