@@ -39,23 +39,24 @@ requirements:
     - ninja
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
-    - doxygen {{ doxygen_version }}
-    - cudatoolkit {{ cuda_version }}.*
-    - libraft-headers {{ minor_version }}.*
-    - libraft-distance {{ minor_version }}.*
-    - libcugraphops {{ minor_version }}.*
-    - librmm {{ minor_version }}.*
-    - libcudf {{ minor_version }}.*
-    - nccl {{ nccl_version }}
-    - ucx-proc=*=gpu
-    - gtest {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
-    - gmock {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
+    - cuda-nvtx {{ cuda_version }}.*
     - cuda-profiler-api {{ cuda_profiler_api_version }}
-    - libcurand-dev {{ libcurand_version }}
-    - libcurand {{ libcurand_version }}
+    - cudatoolkit {{ cuda_version }}.*
+    - doxygen {{ doxygen_version }}
+    - gmock {{ gtest_version }}
+    - gtest {{ gtest_version }}
     - libcublas {{ libcublas_version }}
+    - libcudf {{ minor_version }}.*
+    - libcugraphops {{ minor_version }}.*
+    - libcurand {{ libcurand_version }}
+    - libcurand-dev {{ libcurand_version }}
     - libcusolver {{ libcusolver_version }}
     - libcusparse {{ libcusparse_version }}
+    - libraft-distance {{ minor_version }}.*
+    - libraft-headers {{ minor_version }}.*
+    - librmm {{ minor_version }}.*
+    - nccl {{ nccl_version }}
+    - ucx-proc=*=gpu
     # TODO: The following dependencies should be fulfilled transitively by
     # raft, once the GitHub Actions migration is complete. After migrating
     # raft, remove the lines below.
@@ -77,13 +78,13 @@ outputs:
         - cmake {{ cmake_version }}
       run:
         - cudatoolkit {{ cuda_spec }}
-        - libraft-headers {{ minor_version }}.*
+        - libcugraphops {{ minor_version }}.*
+        - libcusolver {{ libcusolver_version }}
         - libraft-distance {{ minor_version }}.*
+        - libraft-headers {{ minor_version }}.*
         - librmm {{ minor_version }}.*
         - nccl {{ nccl_version }}
         - ucx-proc=*=gpu
-        - libcugraphops {{ minor_version }}.*
-        - libcusolver {{ libcusolver_version }}
     about:
       home: https://rapids.ai/
       license: Apache-2.0
@@ -125,8 +126,8 @@ outputs:
         - {{ pin_subpackage('libcugraph', exact=True) }}
         - {{ pin_subpackage('libcugraph_etl', exact=True) }}
         - cudatoolkit {{ cuda_spec }}
-        - gtest {{ gtest_version }}
         - gmock {{ gtest_version }}
+        - gtest {{ gtest_version }}
     about:
       home: https://rapids.ai/
       license: Apache-2.0
