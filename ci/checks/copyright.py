@@ -24,13 +24,11 @@ import git
 FilesToCheck = [
     re.compile(r"[.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$"),
     re.compile(r"CMakeLists[.]txt$"),
-    re.compile(r"CMakeLists_standalone[.]txt$"),
     re.compile(r"setup[.]cfg$"),
     re.compile(r"[.]flake8[.]cython$"),
     re.compile(r"meta[.]yaml$"),
 ]
 ExemptFiles = [
-    re.compile(r"cpp/include/cudf_test/cxxopts.hpp"),
     re.compile(r"versioneer[.]py"),
 ]
 
