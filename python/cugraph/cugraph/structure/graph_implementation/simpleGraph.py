@@ -389,8 +389,21 @@ class simpleGraphImpl:
         # no longer used.
         self.edgelist = None
 
-    def __from_adjlist(self, offset_col, index_col, value_col=None):
+    def __from_adjlist(
+        self,
+        offset_col,
+        index_col,
+        value_col=None,
+        renumber=True,
+        store_transposed=False,
+    ):
+
         self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col, value_col)
+        if value_col is not None:
+            self.properties.weighted = True
+        self._make_plc_graph(
+            value_col=value_col, store_transposed=store_transposed, renumber=renumber
+        )
 
         if self.batch_enabled:
             self._replicate_adjlist()
@@ -881,12 +894,35 @@ class simpleGraphImpl:
         else:
             raise ValueError(f"Illegal value col {type(value_col)}")
 
-        if weight_col is None:
-            # Some algos require the graph to be weighted
-            weight_col = cudf.Series(
-                cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
-            )
+        graph_props = GraphProperties(
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed,
+        )
+
+        if self.edgelist is not None:
+            input_array_format = "COO"
+            src_or_offset_array = self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
+            dst_or_index_array = self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
+            if weight_col is None:
+                # Some algos require the graph to be weighted
+                weight_col = cudf.Series(
+                    cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
+                )
+        elif self.adjlist is not None:
+            input_array_format = "CSR"
+            src_or_offset_array = self.adjlist.offsets
+            dst_or_index_array = self.adjlist.indices
+            if weight_col is None:
+                # Some algos require the graph to be weighted
+                weight_col = cudf.Series(
+                    cupy.ones(len(self.adjlist.indices), dtype="float32")
+                )
         else:
+            raise TypeError(
+                "Edges need to be represented in either in COO or CSR format."
+            )
+
+        if weight_col is not None:
             weight_t = weight_col.dtype
 
             if weight_t == "int32":
@@ -894,22 +930,18 @@ class simpleGraphImpl:
             if weight_t == "int64":
                 weight_col = weight_col.astype("float64")
 
-        graph_props = GraphProperties(
-            is_multigraph=self.properties.multi_edge,
-            is_symmetric=not self.properties.directed,
-        )
-
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
             graph_properties=graph_props,
-            src_or_offset_array=self.edgelist.edgelist_df[simpleGraphImpl.srcCol],
-            dst_or_index_array=self.edgelist.edgelist_df[simpleGraphImpl.dstCol],
+            src_or_offset_array=src_or_offset_array,
+            dst_or_index_array=dst_or_index_array,
             weight_array=weight_col,
             edge_id_array=id_col,
             edge_type_array=type_col,
             store_transposed=store_transposed,
             renumber=renumber,
-            do_expensive_check=False,
+            do_expensive_check=True,
+            input_array_format=input_array_format,
         )
 
     def to_directed(self, DiG, store_transposed=False):

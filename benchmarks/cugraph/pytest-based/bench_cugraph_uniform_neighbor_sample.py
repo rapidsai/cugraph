@@ -33,7 +33,7 @@ except ImportError:
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
 from cugraph import (
-    Graph,
+    MultiGraph,
     uniform_neighbor_sample,
 )
 from cugraph.generators import rmat
@@ -50,7 +50,7 @@ def create_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     # FIXME: need to consider directed/undirected?
-    G = Graph(directed=True)
+    G = MultiGraph(directed=True)
 
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
@@ -107,7 +107,7 @@ def create_mg_graph(graph_data):
         net_devices=None,
     )
     # FIXME: need to consider directed/undirected?
-    G = Graph(directed=True)
+    G = MultiGraph(directed=True)
 
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
