@@ -131,6 +131,7 @@ graph_obj_fixture_params = gen_fixture_params(
     (sg, rmat["16_4"]),
     (sg, rmat["18_4"]),
     (sg, rmat["20_4"]),
+    (sg, rmat["24_4"]),
     (sg, rmat["25_4"]),
     (sg, rmat["26_4"]),
     (snmg, rmat["26_4"]),
