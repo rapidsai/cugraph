@@ -455,8 +455,7 @@ extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_
 
   // copy weights to new device array
   cugraph_type_erased_device_array_t* new_device_weight_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, weight, &new_device_weight_ptr, error);
+  error_code = cugraph_type_erased_device_array_create_from_view(handle, weight, &new_device_weight_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
   
   device_array_unique_ptr_t new_device_weight(new_device_weight_ptr,
@@ -464,8 +463,7 @@ extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_
 
   // copy edge ids to new device array
   cugraph_type_erased_device_array_t* new_device_edge_id_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, edge_id, &new_device_edge_id_ptr, error);
+  error_code = cugraph_type_erased_device_array_create_from_view(handle, edge_id, &new_device_edge_id_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
   
   device_array_unique_ptr_t new_device_edge_id(new_device_edge_id_ptr,
@@ -473,16 +471,14 @@ extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_
 
   // copy edge types to new device array
   cugraph_type_erased_device_array_t* new_device_edge_type_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, edge_type, &new_device_edge_type_ptr, error);
+  error_code = cugraph_type_erased_device_array_create_from_view(handle, edge_type, &new_device_edge_type_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
 
   device_array_unique_ptr_t new_device_edge_type(new_device_edge_type_ptr,
                                                &cugraph_type_erased_device_array_free);
   // copy hop ids to new device array
   cugraph_type_erased_device_array_t* new_device_hop_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, hop, &new_device_hop_ptr, error);
+  error_code = cugraph_type_erased_device_array_create_from_view(handle, hop, &new_device_hop_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
 
   device_array_unique_ptr_t new_device_hop(new_device_hop_ptr,
@@ -490,11 +486,10 @@ extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_
 
   // copy labels to new device array
   cugraph_type_erased_device_array_t* new_device_label_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, label, &new_device_label_ptr, error);
+  error_code = cugraph_type_erased_device_array_create_from_view(handle, label, &new_device_label_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
 
-  device_array_unique_ptr_t new_device_hop(new_device_label_ptr,
+  device_array_unique_ptr_t new_device_label(new_device_label_ptr,
                                               &cugraph_type_erased_device_array_free);
 
   // create new cugraph_sample_result_t
@@ -503,15 +498,20 @@ extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_
       new_device_srcs.release()),
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
       new_device_dsts.release()),
-    nullptr,
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_weights.release()),
-    nullptr,
+      new_device_edge_id.release()),
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_counts.release())});
+      new_device_edge_type.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_weight.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_hop.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_label.release())
+  });
 
   return CUGRAPH_SUCCESS;
-  }
+}
 
 extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
   const cugraph_resource_handle_t* handle,
@@ -597,7 +597,6 @@ extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
   delete internal_pointer->src_;
   delete internal_pointer->dst_;
-  delete internal_pointer->label_;
   delete internal_pointer->edge_id_;
   delete internal_pointer->edge_type_;
   delete internal_pointer->wgt_;
