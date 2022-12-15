@@ -437,7 +437,8 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
     M_edge_type[src[i]][dst[i]] = edge_types[i];
   }
 
-  printf("entering assertions\n");
+  printf("\nentering assertions\n");
+  printf("label array size: %d\n", cugraph_type_erased_device_array_view_size(result_label));
 
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
