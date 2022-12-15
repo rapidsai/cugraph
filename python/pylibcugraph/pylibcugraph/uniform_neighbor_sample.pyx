@@ -147,7 +147,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             <void*>cai_start_ptr,
             len(start_list),
             get_c_type_from_numpy_type(start_list.dtype))
-    cdef cugraph_type_erased_device_array_view_t* batch_id_ptr
+    cdef cugraph_type_erased_device_array_view_t* batch_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if batch_id_list is not None:
         batch_id_ptr = \
             cugraph_type_erased_device_array_view_create(
@@ -165,13 +165,19 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         c_resource_handle_ptr,
         c_graph_ptr,
         start_ptr,
-        <cugraph_type_erased_device_array_view_t*>NULL if batch_id_list is None else batch_id_ptr,
+        batch_id_ptr,
         fan_out_ptr,
         with_replacement,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample_with_edge_properties")
+
+    # Free the two input arrays that are no longer needed.
+    cugraph_type_erased_device_array_view_free(start_ptr)
+    cugraph_type_erased_host_array_view_free(fan_out_ptr)
+    if batch_id_list is not None:
+        cugraph_type_erased_device_array_view_free(batch_id_ptr)
 
     # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()
@@ -180,11 +186,20 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     # Get cupy "views" of the individual arrays to return. These each increment
     # the refcount on the SamplingResult instance which will keep the data alive
     # until all references are removed and the GC runs.
-    cupy_sources = result.get_sources()
-    cupy_destinations = result.get_destinations()
-    cupy_indices = result.get_indices()
+    if with_edge_properties:
+        cupy_sources = result.get_sources()
+        cupy_destinations = result.get_destinations()
+        cupy_edge_weights = result.get_edge_weights()
+        cupy_edge_ids = result.get_edge_ids()
+        cupy_edge_types = result.get_edge_types()
+        cupy_batch_ids = result.get_batch_ids()
+        cupy_hop_ids = result.get_hop_ids()
 
-    cugraph_type_erased_device_array_view_free(start_ptr)
-    cugraph_type_erased_host_array_view_free(fan_out_ptr)
+        return (cupy_sources, cupy_destinations, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_hop_ids)
 
-    return (cupy_sources, cupy_destinations, cupy_indices)
+    else:
+        cupy_sources = result.get_sources()
+        cupy_destinations = result.get_destinations()
+        cupy_indices = result.get_indices()
+
+        return (cupy_sources, cupy_destinations, cupy_indices)
