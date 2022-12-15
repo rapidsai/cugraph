@@ -21,6 +21,7 @@ import cugraph.dask as dcg
 import cugraph
 from cugraph.testing import utils
 from cugraph.dask import uniform_neighbor_sample
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -48,9 +49,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = utils.DATASETS_UNDIRECTED + [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
-]
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
@@ -75,7 +74,7 @@ def input_combo(request):
 
     indices_type = parameters["indices_type"]
 
-    input_data_path = parameters["graph_file"]
+    input_data_path = parameters["graph_file"].get_path()
     directed = parameters["directed"]
 
     chunksize = dcg.get_chunksize(input_data_path)
@@ -204,7 +203,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "small_tree.csv").as_posix()
+    input_data_path = small_tree.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -327,7 +326,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
 def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
-    input_data_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+    input_data_path = email_Eu_core.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
