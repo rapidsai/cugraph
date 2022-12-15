@@ -11,10 +11,12 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
+
 add_subdirectory(components)
 add_subdirectory(raft/common)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
+
 set(cython_sources
     bfs.pyx
     core_number.pyx
@@ -23,6 +25,7 @@ set(cython_sources
     graph_properties.pyx
     graphs.pyx
     hits.pyx
+    k_core.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
     overlap_coefficients.pyx
@@ -40,7 +43,7 @@ set(cython_sources
     utils.pyx
     weakly_connected_components.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
   CXX

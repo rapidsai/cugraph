@@ -22,6 +22,7 @@ build:
     - PARALLEL_LEVEL
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
+  preserve_egg_dir: True
 
 requirements:
   build:
@@ -37,12 +38,14 @@ requirements:
     - libcugraph={{ version }}
     - libraft-headers={{ minor_version }}
     - libraft-distance {{ minor_version }}
+    - pylibraft {{ minor_version}}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - rmm {{ minor_version }}.*
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools<=65.2.0
+    - cudf {{ minor_version }}.*
+    - setuptools
+    - versioneer
   run:
     - python x.x
     - libcugraph={{ version }}

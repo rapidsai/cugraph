@@ -46,7 +46,7 @@ def cugraph_call(benchmark_callable, graph_file, pairs):
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap_w, G, weights, pairs)
 
-    df = df.sort_values(by=["source", "destination"])
+    df = df.sort_values(by=["first", "second"])
     return df["overlap_coeff"].to_numpy()
 
 
@@ -154,6 +154,6 @@ def test_woverlap_multi_column(graph_file):
     df_exp = cugraph.overlap_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
-    expected = df_exp.sort_values("source").reset_index()
+    actual = df_res.sort_values("0_first").reset_index()
+    expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
