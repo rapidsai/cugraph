@@ -22,7 +22,7 @@ install_requires = [
     "cupy-cuda11x",
     "numpy",
     "ucx-py",
-    "distributed ==2022.11.1",
+    "distributed >=2022.12.0",
     "dask-cuda",
     "thriftpy2",
 ]
