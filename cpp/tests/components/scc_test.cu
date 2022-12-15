@@ -13,15 +13,15 @@
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
-
-#include <rmm/device_vector.hpp>
 
 #include <components/legacy/scc_matrix.cuh>
 #include <converters/legacy/COOtoCSR.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
+
 #include <rmm/device_vector.hpp>
 
 #include <cuda_profiler_api.h>
@@ -144,8 +144,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     IndexT m, k, nnz;
     MM_typecode mc;
 
-    HighResClock hr_clock;
-    double time_tmp;
+    HighResTimer hr_timer{};
 
     FILE* fpin = fopen(param.get_matrix_file().c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file().c_str() << ") failure.";
@@ -190,11 +189,11 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
     size_t count = 0;
 
     if (cugraph::test::g_perf) {
-      hr_clock.start();
+      hr_timer.start("SCC");
       cugraph::connected_components(
         G, cugraph::cugraph_cc_t::CUGRAPH_STRONG, d_labels.data().get());
       cudaDeviceSynchronize();
-      hr_clock.stop(&time_tmp);
+      auto time_tmp = hr_timer.stop();
       strongly_cc_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
