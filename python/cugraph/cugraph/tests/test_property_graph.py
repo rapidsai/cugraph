@@ -1752,8 +1752,7 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         if isinstance(df, cudf.DataFrame):
             df = df.to_pandas()
         assert len(df) == stop - start + 1
-        # print(df["_VERTEX_"].tolist())
-        # print(list(range(start, stop + 1)))
+
         assert df["_VERTEX_"].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
@@ -1873,9 +1872,10 @@ def test_add_data_noncontiguous(df_type):
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_vertex_ids_different_type(df_type):
-    """Getting the number of vertices requires combining vertex ids from multiples columns.
+    """Getting the number of vertices requires combining vertex ids from
+    multiple columns.
 
-    This tests ensures combining these columns works even if they are different types.
+    This test ensures combining these columns works even if they are different types.
     """
     from cugraph.experimental import PropertyGraph
 
@@ -2382,5 +2382,31 @@ def bench_add_edges_cyber(gpubenchmark, N):
             pG.add_edge_data(df, ("srcip", "dstip"))
         df = pG.get_edge_data()
         assert len(df) == len(cyber_df)
+
+    gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_rows", [10_000, 100_000, 1_000_000, 10_000_000])
+@pytest.mark.parametrize("n_feats", [32, 64, 128])
+def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
+    from cugraph.experimental import PropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+
+    def func():
+        pG = PropertyGraph()
+        pG.add_edge_data(
+            df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+        )
 
     gpubenchmark(func)
