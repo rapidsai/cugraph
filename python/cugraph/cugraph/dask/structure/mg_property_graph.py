@@ -578,8 +578,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(vertex_ids, self.__series_type):
-                    vertex_ids = cudf.Series(vertex_ids)
+                elif not isinstance(
+                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
+                    vertex_ids = list(vertex_ids)
                 df = df.loc[vertex_ids]
 
             if types is not None:
@@ -1675,6 +1677,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
     @staticmethod
     def _create_vector_properties_partition(df, vector_properties):
+        # Make each vector contigous and 1-d
         new_cols = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
