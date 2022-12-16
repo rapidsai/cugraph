@@ -2410,7 +2410,7 @@ def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
     gpubenchmark(func)
 
 
-# @pytest.mark.slow
+@pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])
 def bench_get_vector_features(gpubenchmark, n_rows, n_feats):
