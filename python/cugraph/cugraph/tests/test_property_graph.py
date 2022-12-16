@@ -2410,10 +2410,9 @@ def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
     gpubenchmark(func)
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])
-def bench_get_vector_features(gpubenchmark, n_rows, n_feats):
+def bench_get_vector_features_cp_array(benchmark, n_rows, n_feats):
     from cugraph.experimental import PropertyGraph
 
     df = cudf.DataFrame(
@@ -2430,5 +2429,26 @@ def bench_get_vector_features(gpubenchmark, n_rows, n_feats):
     pG.add_edge_data(
         df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
     )
+    benchmark(pG.get_edge_data, edge_ids=cp.arange(0, 100_000))
 
-    gpubenchmark(pG.get_edge_data, edge_ids=cp.arange(0, 100_000))
+
+@pytest.mark.parametrize("n_rows", [1_000_000])
+@pytest.mark.parametrize("n_feats", [128])
+def bench_get_vector_features_cudf_series(benchmark, n_rows, n_feats):
+    from cugraph.experimental import PropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+    )
+    benchmark(pG.get_edge_data, edge_ids=cudf.Series(cp.arange(0, 100_000)))
