@@ -11,15 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from importlib import import_module
 import numpy as np
 
 
 def _get_backend_lib_ar(ar):
     return type(ar).__module__
-
-
-def _is_vector_feature(col):
-    return type(col.dtype).__name__ == "ListDtype"
 
 
 def _convert_ar_to_numpy(ar):
@@ -42,6 +39,24 @@ def _convert_ar_to_numpy(ar):
     return ar
 
 
+def _convert_ar_list_to_dlpack(ar_ls):
+    lib_name = _get_backend_lib_ar(ar_ls[0])
+    lib = import_module(lib_name)
+    ar_ls = [lib.atleast_2d(ar) for ar in ar_ls]
+    stacked_ar = lib.hstack(ar_ls)
+    if lib_name == "torch":
+        cap = lib.utils.dlpack.to_dlpack(stacked_ar)
+    elif lib_name == "cupy":
+        cap = stacked_ar.toDlpack()
+    elif lib_name == "numpy":
+        # handle numpy case
+        cap = stacked_ar
+    else:
+        raise NotImplementedError(f"{lib_name=} is not yet supported")
+
+    return cap
+
+
 class CuFeatureStorage:
     """
     Storage for node/edge feature data.
@@ -50,14 +65,14 @@ class CuFeatureStorage:
     def __init__(
         self,
         pg,
-        column,
+        columns,
         storage_type,
         backend_lib="torch",
         indices_offset=0,
         types_to_fetch=None,
     ):
         self.pg = pg
-        self.column = column
+        self.columns = columns
 
         if backend_lib == "torch":
             from torch.utils.dlpack import from_dlpack
@@ -116,36 +131,35 @@ class CuFeatureStorage:
             import cupy as cp
 
             indices = cp.asarray(indices)
+            if type(self.pg).__name__ == "MGPropertyGraph":
+                # dask_cudf loc breaks if we provide cudf series/cupy array
+                # https://github.com/rapidsai/cudf/issues/11877
+                indices = indices.get()
+            else:
+                import cudf
+
+                indices = cudf.Series(indices)
+
             indices = indices + self.indices_offset
 
         if self.storage_type == "node":
             result = self.pg.get_vertex_data(
-                vertex_ids=indices, columns=[self.column], types=self.types_to_fetch
+                vertex_ids=indices, columns=self.columns, types=self.types_to_fetch
             )
         else:
             result = self.pg.get_edge_data(
-                edge_ids=indices, columns=[self.column], types=self.types_to_fetch
+                edge_ids=indices, columns=self.columns, types=self.types_to_fetch
             )
-
         if type(result).__name__ == "DataFrame":
-            if _is_vector_feature(result[self.column]):
-                if self.storage_type == "node":
-                    result = self.pg.vertex_vector_property_to_array(
-                        result, self.column
-                    )
-                else:
-                    result = self.pg.edge_vector_property_to_array(result, self.column)
-            else:
-                result = result[self.column].values
-
+            result = result[self.columns]
             if hasattr(result, "compute"):
                 result = result.compute()
             if len(result) == 0:
                 raise ValueError(f"{indices=} not found in FeatureStorage")
-            cap = result.toDlpack()
+            cap = result.to_dlpack()
         else:
             # When backend is not dataframe(pandas, cuDF) we return lists
-            result = result[self.column]
+            result = result[-len(self.columns) :]
             cap = _convert_ar_to_numpy(result)
 
         if type(cap).__name__ == "PyCapsule":
@@ -157,8 +171,4 @@ class CuFeatureStorage:
             if type(tensor).__module__ == "torch":
                 # Can only transfer to different device for pytorch
                 tensor = tensor.to(device)
-
-        if tensor.shape[1] == 1:
-            tensor = tensor.squeeze()
-
         return tensor
