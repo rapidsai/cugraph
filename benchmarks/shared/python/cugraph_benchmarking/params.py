@@ -21,22 +21,22 @@ from pylibcugraph.testing.utils import gen_fixture_params
 
 # FIXME: omitting soc-twitter-2010.csv due to OOM error on some workstations.
 undirected_datasets = [
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv",
+    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv",
                  marks=[pytest.mark.tiny, pytest.mark.undirected]),
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR)/"csv/undirected/hollywood.csv",
+    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/undirected/hollywood.csv",
                  marks=[pytest.mark.small, pytest.mark.undirected]),
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR)/"csv/undirected/europe_osm.csv",
+    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/undirected/europe_osm.csv",
                  marks=[pytest.mark.undirected]),
     # pytest.param("../datasets/csv/undirected/soc-twitter-2010.csv",
     #              marks=[pytest.mark.undirected]),
 ]
 
 directed_datasets = [
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR)/"csv/directed/cit-Patents.csv",
+    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/directed/cit-Patents.csv",
                  marks=[pytest.mark.small, pytest.mark.directed]),
     pytest.param(Path(
-        utils.RAPIDS_DATASET_ROOT_DIR)/"csv/directed/soc-LiveJournal1.csv",
-                 marks=[pytest.mark.directed]),
+        utils.RAPIDS_DATASET_ROOT_DIR) / "csv/directed/soc-LiveJournal1.csv",
+        marks=[pytest.mark.directed]),
 ]
 
 managed_memory = [
@@ -80,10 +80,11 @@ _rmat_edgefactors = [4, 8, 16, 32]
 rmat = {}
 for scale in _rmat_scales:
     for edgefactor in _rmat_edgefactors:
-        rmat[f"{scale}_{edgefactor}"] = (
-            pytest.param({"scale": scale, "edgefactor": edgefactor},
-                         id=f"dataset=rmat_{scale}_{edgefactor}",
-            )
+        rmat[f"{scale}_{edgefactor}"] = pytest.param(
+            {"scale": scale,
+             "edgefactor": edgefactor,
+             },
+            id=f"dataset=rmat_{scale}_{edgefactor}",
         )
 
 # sampling algos length of start list
@@ -93,11 +94,10 @@ _batch_sizes = [100, 500, 1000, 2500, 5000,
                 90000, 100000]
 batch_sizes = {}
 for bs in _batch_sizes:
-    batch_sizes[bs] = (
-        pytest.param(bs,
-                     id=f"batch_size={bs}",
-                     marks=[getattr(pytest.mark, f"batch_size_{bs}")],
-        )
+    batch_sizes[bs] = pytest.param(
+        bs,
+        id=f"batch_size={bs}",
+        marks=[getattr(pytest.mark, f"batch_size_{bs}")],
     )
 
 # sampling algos fanout size
@@ -120,7 +120,7 @@ for nc in _num_clients:
         pytest.param(nc,
                      id=f"num_clients={nc}",
                      marks=[getattr(pytest.mark, f"num_clients_{nc}")],
-        )
+                     )
     )
 
 # Parameters for Graph generation fixture
