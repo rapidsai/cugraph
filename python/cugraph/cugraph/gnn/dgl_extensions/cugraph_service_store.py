@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import defaultdict
 from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 from functools import cached_property
 from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
@@ -52,12 +51,6 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             raise ValueError("graph must be a RemoteGraph")
 
         BaseCuGraphStore.__init__(self, graph)
-        # dict to map column names corresponding to edge features
-        # of each type
-        self.edata_feat_col_d = defaultdict(list)
-        # dict to map column names corresponding to node features
-        # of each type
-        self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
     def add_node_data(

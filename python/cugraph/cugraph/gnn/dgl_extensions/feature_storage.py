@@ -135,6 +135,8 @@ class CuFeatureStorage:
                     )
                 else:
                     result = self.pg.edge_vector_property_to_array(result, self.column)
+                if result.ndim == 2 and result.shape[1] == 1:
+                    result = result.squeeze(1)
             else:
                 result = result[self.column].values
 
@@ -157,8 +159,4 @@ class CuFeatureStorage:
             if type(tensor).__module__ == "torch":
                 # Can only transfer to different device for pytorch
                 tensor = tensor.to(device)
-
-        if tensor.shape[1] == 1:
-            tensor = tensor.squeeze()
-
         return tensor

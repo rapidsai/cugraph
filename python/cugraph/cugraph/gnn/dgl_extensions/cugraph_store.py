@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import defaultdict
 
 from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 
@@ -20,7 +19,9 @@ from cugraph.gnn.dgl_extensions.utils.find_edges import find_edges
 from cugraph.gnn.dgl_extensions.utils.node_subgraph import node_subgraph
 from cugraph.gnn.dgl_extensions.utils.add_data import (
     add_edge_data_from_parquet,
+    add_edge_data_from_dataframe,
     add_node_data_from_parquet,
+    add_node_data_from_dataframe,
 )
 from cugraph.gnn.dgl_extensions.utils.sampling import (
     sample_pg,
@@ -48,10 +49,6 @@ class CuGraphStore(BaseCuGraphStore):
         super().__init__(graph)
         # dict to map column names corresponding to edge features
         # of each type
-        self.edata_feat_col_d = defaultdict(list)
-        # dict to map column names corresponding to node features
-        # of each type
-        self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
     def add_node_data(
@@ -90,36 +87,14 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        if contains_vector_features:
-            if feat_name is None:
-                raise ValueError(
-                    "feature name must be provided when wrapping"
-                    + " multiple columns under a single feature name"
-                    + " or a feature map"
-                )
-            elif isinstance(feat_name, dict):
-                self.gdata.add_vertex_data(
-                    df,
-                    vertex_col_name=node_col_name,
-                    type_name=ntype,
-                    vector_properties=feat_name,
-                )
-            else:
-                self.gdata.add_vertex_data(
-                    df,
-                    vertex_col_name=node_col_name,
-                    type_name=ntype,
-                    vector_property=feat_name,
-                )
-        else:
-            if feat_name is not None:
-                raise ValueError(
-                    f"feat_name {feat_name} is only valid when "
-                    "wrapping multiple columns under feature names"
-                )
-            self.gdata.add_vertex_data(
-                df, vertex_col_name=node_col_name, type_name=ntype
-            )
+        add_node_data_from_dataframe(
+            df=df,
+            node_col_name=node_col_name,
+            ntype=ntype,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
+            pG=self.gdata,
+        )
         self.__clear_cached_properties()
 
     def add_edge_data(
@@ -157,38 +132,16 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        if contains_vector_features:
-            if feat_name is None:
-                raise ValueError(
-                    "feature name must be provided when wrapping"
-                    + " multiple columns under a single feature name"
-                    + " or a feature map"
-                )
-            elif isinstance(feat_name, dict):
-                self.gdata.add_edge_data(
-                    df,
-                    vertex_col_names=node_col_names,
-                    type_name=canonical_etype,
-                    vector_properties=feat_name,
-                )
-            else:
-                self.gdata.add_edge_data(
-                    df,
-                    vertex_col_names=node_col_names,
-                    type_name=canonical_etype,
-                    vector_property=feat_name,
-                )
-        else:
-            if feat_name is not None:
-                raise ValueError(
-                    f"feat_name {feat_name} is only valid when "
-                    "wrapping multiple columns under feature names"
-                )
-            self.gdata.add_edge_data(
-                df, vertex_col_names=node_col_names, type_name=canonical_etype
-            )
 
         # Clear properties if set as data has changed
+        add_edge_data_from_dataframe(
+            df=df,
+            node_col_names=node_col_names,
+            canonical_etype=canonical_etype,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
+            pG=self.gdata,
+        )
         self.__clear_cached_properties()
 
     def add_node_data_from_parquet(
@@ -235,9 +188,9 @@ class CuGraphStore(BaseCuGraphStore):
             node_col_name=node_col_name,
             node_offset=node_offset,
             ntype=ntype,
-            pG=self.gdata,
             feat_name=feat_name,
             contains_vector_features=contains_vector_features,
+            pG=self.gdata,
         )
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
@@ -292,9 +245,9 @@ class CuGraphStore(BaseCuGraphStore):
             canonical_etype=canonical_etype,
             src_offset=src_offset,
             dst_offset=dst_offset,
-            pG=self.gdata,
             feat_name=feat_name,
             contains_vector_features=contains_vector_features,
+            pG=self.gdata,
         )
         self.__clear_cached_properties()
 
