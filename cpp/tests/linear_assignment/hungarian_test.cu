@@ -9,11 +9,11 @@
  *
  */
 
-#include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -372,7 +372,7 @@ void random_test(int32_t num_rows, int32_t num_cols, int32_t upper_bound, int re
   }
 
   std::cout << "cost = " << r << std::endl;
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 
 
   for (int i = 0 ; i < num_cols ; ++i)

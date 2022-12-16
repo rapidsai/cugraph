@@ -14,10 +14,11 @@
 import gc
 
 import pytest
-
 import cudf
-import cugraph
+from pylibcugraph.testing.utils import gen_fixture_params_product
 import networkx as nx
+
+import cugraph
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
@@ -35,7 +36,7 @@ def setup_function():
 datasets = DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing"]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (degree_type, "degree_type"),
 )
@@ -79,16 +80,12 @@ def test_core_number(input_combo):
         drop=True
     )
 
-    warning_msg = "The 'degree_type' parameter is ignored in this release."
-
-    # FIXME: Remove this warning test once 'degree_type' is supported"
-    with pytest.warns(Warning, match=warning_msg):
-        core_number_results = (
-            cugraph.core_number(G, degree_type)
-            .sort_values("vertex")
-            .reset_index(drop=True)
-            .rename(columns={"core_number": "cugraph_core_number"})
-        )
+    core_number_results = (
+        cugraph.core_number(G, degree_type)
+        .sort_values("vertex")
+        .reset_index(drop=True)
+        .rename(columns={"core_number": "cugraph_core_number"})
+    )
 
     # Compare the nx core number results with cugraph
     core_number_results["nx_core_number"] = nx_core_number_results["core_number"]
@@ -113,10 +110,7 @@ def test_core_number_invalid_input(input_combo):
     with pytest.raises(ValueError):
         cugraph.core_number(G)
 
-    # FIXME: enable this check once 'degree_type' is supported
-    """
     invalid_degree_type = "invalid"
     G = input_combo["G"]
     with pytest.raises(ValueError):
-        experimental_core_number(G, invalid_degree_type)
-    """
+        cugraph.core_number(G, invalid_degree_type)
