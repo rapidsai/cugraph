@@ -42,7 +42,6 @@ from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 from cugraph_benchmarking import params
 from cugraph_benchmarking.timer import TimerContext
 
-
 _seed = 42
 
 

@@ -135,6 +135,7 @@ graph_obj_fixture_params = gen_fixture_params(
     (mnmg, rmat["28_16"]),
     (mnmg, rmat["29_16"]),
 )
+# Uncomment the following test combinations for use with experiments/local dev
 # graph_obj_fixture_params = gen_fixture_params(
 #     (sg, karate),
 #     (sg, rmat["16_4"]),

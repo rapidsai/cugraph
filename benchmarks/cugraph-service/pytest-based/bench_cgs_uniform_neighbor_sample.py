@@ -48,7 +48,7 @@ def create_remote_graph(graph_data, is_mg, client):
 
     The server extension is part of the
     "cugraph_service_server.testing.benchmark_server_extension" and is loaded
-    in the ensure_running_server_for_sampling() helper.
+    in the ensure_running_server_for_sampling() utility.
     """
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
