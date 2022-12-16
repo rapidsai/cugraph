@@ -577,7 +577,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                df = df.loc[vertex_ids]
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(f"vertex_ids needs to be a list-like type compatible with DataFrame.loc[], got {type(vertex_ids)}")
 
             if types is not None:
                 if isinstance(types, str):
