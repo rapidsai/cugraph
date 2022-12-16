@@ -512,7 +512,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associated edges.
+        Can contain additional vertices that will not have associatede edges.
 
         Parameters
         ----------

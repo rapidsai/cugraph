@@ -1677,6 +1677,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
     @staticmethod
     def _create_vector_properties_partition(df, vector_properties):
+        # Make each vector contigous and 1-d
         new_cols = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
