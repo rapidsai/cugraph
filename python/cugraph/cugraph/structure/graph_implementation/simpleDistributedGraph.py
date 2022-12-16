@@ -334,7 +334,19 @@ class simpleDistributedGraphImpl:
         """
         if self.properties.node_count is None:
             if self.edgelist is not None:
-                ddf = self.edgelist.edgelist_df[["src", "dst"]]
+                if self.renumbered is True:
+                    src_col_name = self.renumber_map.renumbered_src_col_name
+                    dst_col_name = self.renumber_map.renumbered_dst_col_name
+                # FIXME: from_dask_cudf_edgelist() currently requires
+                # renumber=True for MG, so this else block will not be
+                # used. Should this else block be removed and added back when
+                # the restriction is removed?
+                else:
+                    src_col_name = "src"
+                    dst_col_name = "dst"
+
+                ddf = self.edgelist.edgelist_df[[src_col_name, dst_col_name]]
+                # ddf = self.edgelist.edgelist_df[["src", "dst"]]
                 self.properties.node_count = ddf.max().max().compute() + 1
             else:
                 raise RuntimeError("Graph is Empty")
@@ -851,7 +863,19 @@ class simpleDistributedGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        return self.view_edge_list()[["src", "dst"]]
+        if self.renumbered is True:
+            src_col_name = self.renumber_map.renumbered_src_col_name
+            dst_col_name = self.renumber_map.renumbered_dst_col_name
+            # FIXME: from_dask_cudf_edgelist() currently requires
+            # renumber=True for MG, so this else block will not be
+            # used. Should this else block be removed and added back when
+            # the restriction is removed?
+        else:
+            src_col_name = "src"
+            dst_col_name = "dst"
+
+        # return self.view_edge_list()[["src", "dst"]]
+        return self.view_edge_list()[[src_col_name, dst_col_name]]
 
     def nodes(self):
         """
