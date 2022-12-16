@@ -32,27 +32,39 @@ except ImportError:
 import cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.testing import utils
+from pylibcugraph.testing import gen_fixture_params_product
 from cugraph.utilities.utils import is_device_version_less_than
 import rmm
 
-from .params import FIXTURE_PARAMS
+from cugraph_benchmarking.params import (
+    directed_datasets,
+    undirected_datasets,
+    managed_memory,
+    pool_allocator,
+)
+
+fixture_params = gen_fixture_params_product(
+    (directed_datasets + undirected_datasets, "ds"),
+    (managed_memory, "mm"),
+    (pool_allocator, "pa"))
 
 ###############################################################################
 # Helpers
 def createGraph(csvFileName, graphType=None):
     """
-    Helper function to create a Graph or DiGraph based on csvFileName.
+    Helper function to create a Graph (directed or undirected) based on
+    csvFileName.
     """
     if graphType is None:
-        # There's potential value in verifying that a DiGraph can be created
-        # from a undirected dataset, and a Graph from a directed. (For now?) do
-        # not include those combinations to keep benchmark runtime and
-        # complexity lower, and assume tests have coverage to verify
-        # correctness for those combinations.
+        # There's potential value in verifying that a directed graph can be
+        # created from a undirected dataset, and an undirected from a directed
+        # dataset. (For now?) do not include those combinations to keep
+        # benchmark runtime and complexity lower, and assume tests have
+        # coverage to verify correctness for those combinations.
         if "directed" in csvFileName.parts:
-            graphType = cugraph.structure.graph_classes.DiGraph
+            graphType = cugraph.Graph(directed=True)
         else:
-            graphType = cugraph.structure.graph_classes.Graph
+            graphType = cugraph.Graph()
 
     return cugraph.from_cudf_edgelist(
         utils.read_csv_file(csvFileName),
@@ -93,7 +105,7 @@ def reinitRMM(managed_mem, pool_alloc):
 # For benchmarks, the operations performed in fixtures are not measured as part
 # of the benchmark.
 @pytest.fixture(scope="module",
-                params=FIXTURE_PARAMS)
+                params=fixture_params)
 def edgelistCreated(request):
     """
     Returns a new edgelist created from a CSV, which is specified as part of
@@ -111,7 +123,7 @@ def edgelistCreated(request):
 
 
 @pytest.fixture(scope="module",
-                params=FIXTURE_PARAMS)
+                params=fixture_params)
 def graphWithAdjListComputed(request):
     """
     Create a Graph obj from the CSV file in param, compute the adjacency list
@@ -127,11 +139,11 @@ def graphWithAdjListComputed(request):
 
 
 @pytest.fixture(scope="module",
-                params=FIXTURE_PARAMS)
+                params=fixture_params)
 def anyGraphWithAdjListComputed(request):
     """
-    Create a Graph (or DiGraph) obj based on the param, compute the adjacency
-    list and return it.
+    Create a Graph (directed or undirected) obj based on the param, compute the
+    adjacency list and return it.
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
     csvFileName = request.param[0]
@@ -143,11 +155,11 @@ def anyGraphWithAdjListComputed(request):
 
 
 @pytest.fixture(scope="module",
-                params=FIXTURE_PARAMS)
+                params=fixture_params)
 def anyGraphWithTransposedAdjListComputed(request):
     """
-    Create a Graph (or DiGraph) obj based on the param, compute the transposed
-    adjacency list and return it.
+    Create a Graph (directed or undirected) obj based on the param, compute the
+    transposed adjacency list and return it.
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
     csvFileName = request.param[0]
@@ -169,9 +181,9 @@ def bench_create_graph(gpubenchmark, edgelistCreated):
                  renumber=False)
 
 
-# Creating DiGraphs on small datasets runs in micro-seconds, which results in
-# thousands of rounds before the default threshold is met, so lower the
-# max_time for this benchmark.
+# Creating directed Graphs on small datasets runs in micro-seconds, which
+# results in thousands of rounds before the default threshold is met, so lower
+# the max_time for this benchmark.
 @pytest.mark.ETL
 @pytest.mark.benchmark(
     warmup=True,
@@ -182,7 +194,7 @@ def bench_create_digraph(gpubenchmark, edgelistCreated):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelistCreated,
                  source="0", destination="1",
-                 create_using=cugraph.structure.graph_classes.DiGraph,
+                 create_using=cugraph.Graph(directed=True),
                  renumber=False)
 
 

@@ -11,16 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.dask as dcg
 import gc
 import pytest
-import cugraph
-import dask_cudf
-from cugraph.dask.common.mg_utils import is_single_gpu
 
-# from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing import utils
+import dask_cudf
 from cudf.testing.testing import assert_frame_equal, assert_series_equal
+from pylibcugraph.testing import gen_fixture_params_product
+
+import cugraph
+import cugraph.dask as dcg
+from cugraph.testing import utils
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 
 # =============================================================================
@@ -45,7 +46,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
 ]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     (SEEDS, "seeds"),

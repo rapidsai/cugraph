@@ -20,7 +20,7 @@ import numpy as np
 import cudf
 import cupy as cp
 from cudf.testing import assert_frame_equal, assert_series_equal
-from cugraph.experimental.datasets import cyber
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -46,7 +46,7 @@ except ImportError:
 
 import cugraph
 from cugraph.generators import rmat
-from cugraph.testing import utils
+from cugraph.experimental.datasets import cyber
 
 
 def type_is_categorical(pG):
@@ -228,7 +228,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="function", params=df_types_fixture_params)
