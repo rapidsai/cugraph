@@ -11,16 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 import gc
 
 import pytest
-
 import cudf
+import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
 import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
-import dask_cudf
-import random
 
 
 # =============================================================================
@@ -34,7 +35,7 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([True, False], "start_list"),
 )
