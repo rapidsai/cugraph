@@ -912,7 +912,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                     df = df.loc[edge_ids]
                 except TypeError:
                     raise TypeError(
-                        "vertex_ids needs to be a list-like type "
+                        "edge_ids needs to be a list-like type "
                         f"compatible with DataFrame.loc[], got {type(edge_ids)}"
                     )
 
