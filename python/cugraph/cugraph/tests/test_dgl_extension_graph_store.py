@@ -21,6 +21,8 @@ import cupy as cp
 from cugraph.gnn import CuGraphStore
 from cugraph.experimental.datasets import DATASETS
 
+from tempfile import TemporaryDirectory
+
 
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_no_graph(graph_file):
@@ -402,7 +404,7 @@ def test_get_node_storage_ntypes():
     df = cudf.DataFrame({"node_ids": node_ser, "feat": feat_ser})
     gs.add_node_data(df, "node_ids", ntype="nt.b")
 
-    # g All indices from a single ntype
+    # All indices from a single ntype
     output_ar = gs.get_node_storage(key="feat", ntype="nt.a").fetch([1, 2, 3])
     cp.testing.assert_array_equal(cp.asarray([1, 1, 1], dtype=cp.float32), output_ar)
 
@@ -841,6 +843,82 @@ def test_add_node_data_vector_feats():
     out_vec = gs.get_node_storage("vec3").fetch([1, 2])
     exp_vec = cp.asarray([18, 17])
     cp.testing.assert_array_equal(out_vec, exp_vec)
+
+
+def test_add_node_data_vector_feats_from_parquet():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["vec1_1"] = [10, 20, 30]
+    df["vec1_2"] = [15, 25, 35]
+    df["vec2_1"] = [19, 29, 39]
+    df["vec3"] = [18, 17, 16]
+    tmpd = TemporaryDirectory()
+    fp = f"{tmpd.name}/vector_features.parquet"
+    df.to_parquet(fp)
+    gs.add_node_data_from_parquet(
+        file_path=fp,
+        node_col_name="node_id",
+        feat_name={
+            "vec1": ["vec1_1", "vec1_2"],
+            "vec2": ["vec2_1"],
+            "vec3": ["vec3"],
+        },
+        contains_vector_features=True,
+    )
+
+    out_vec = gs.get_node_storage("vec1").fetch([1, 2])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec2").fetch([1, 2])
+    exp_vec = cp.asarray([19, 29])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec3").fetch([1, 2])
+    exp_vec = cp.asarray([18, 17])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    tmpd.cleanup()
+
+
+def test_add_edge_data_vector_feats_from_parquet():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["src"] = [1, 2, 3]
+    df["dst"] = [2, 1, 3]
+    df["vec1_1"] = [10, 20, 30]
+    df["vec1_2"] = [15, 25, 35]
+    df["vec2_1"] = [19, 29, 39]
+    df["vec3"] = [18, 17, 16]
+    tmpd = TemporaryDirectory()
+    fp = f"{tmpd.name}/edge_features.parquet"
+    df.to_parquet(fp)
+    gs.add_edge_data_from_parquet(
+        file_path=fp,
+        node_col_names=["src", "dst"],
+        feat_name={
+            "vec1": ["vec1_1", "vec1_2"],
+            "vec2": ["vec2_1"],
+            "vec3": ["vec3"],
+        },
+        contains_vector_features=True,
+    )
+    out_vec = gs.get_edge_storage("vec1").fetch([0, 1])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_edge_storage("vec2").fetch([0, 1])
+    exp_vec = cp.asarray([19, 29])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_edge_storage("vec3").fetch([0, 1])
+    exp_vec = cp.asarray([18, 17])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    tmpd.cleanup()
 
 
 @pytest.mark.cugraph_ops
