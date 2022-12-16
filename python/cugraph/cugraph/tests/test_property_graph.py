@@ -20,7 +20,7 @@ import numpy as np
 import cudf
 import cupy as cp
 from cudf.testing import assert_frame_equal, assert_series_equal
-from cugraph.experimental.datasets import cyber
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -46,7 +46,7 @@ except ImportError:
 
 import cugraph
 from cugraph.generators import rmat
-from cugraph.testing import utils
+from cugraph.experimental.datasets import cyber
 
 
 def type_is_categorical(pG):
@@ -228,7 +228,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="function", params=df_types_fixture_params)
@@ -1750,11 +1750,13 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key])
         assert len(df) == stop - start + 1
-        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+        assert (
+            df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))
+        ).all()
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
-            expected = sorted(x for x, *args in data[key][1])
-            assert (cur == expected).all()
+            expected = cur._constructor(sorted(x for x, *args in data[key][1]))
+            assert (cur.values == expected.values).all()
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
@@ -1792,7 +1794,9 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key])
         assert len(df) == stop - start + 1
-        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        actual = df[pG.edge_id_col_name]
+        expected = actual._constructor(range(start, stop + 1))
+        assert (actual == expected).all()
         if prev_id_column is not None:
             assert prev_id_column in df.columns
 
@@ -1866,9 +1870,10 @@ def test_add_data_noncontiguous(df_type):
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_vertex_ids_different_type(df_type):
-    """Getting the number of vertices requires combining vertex ids from multiples columns.
+    """Getting the number of vertices requires combining vertex ids from
+    multiple columns.
 
-    This tests ensures combining these columns works even if they are different types.
+    This test ensures combining these columns works even if they are different types.
     """
     from cugraph.experimental import PropertyGraph
 

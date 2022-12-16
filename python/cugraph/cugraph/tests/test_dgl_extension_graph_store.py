@@ -117,6 +117,7 @@ def test_workflow(graph_file):
     assert len(ego_edge_list) > 0
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbors(graph_file):
     cu_M = graph_file.get_edgelist().rename(
@@ -139,6 +140,7 @@ def test_sample_neighbors(graph_file):
     assert len(parents_list) > 0
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
     cu_M = graph_file.get_edgelist().rename(
@@ -422,6 +424,7 @@ def test_get_edge_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, relationship_t)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_ds1(dataset1_CuGraphStore):
     node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
     gs = dataset1_CuGraphStore
@@ -432,6 +435,7 @@ def test_sampling_gs_heterogeneous_ds1(dataset1_CuGraphStore):
     assert len(src_ser) != 0
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_ds1_neg_one_fanout(dataset1_CuGraphStore):
     node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
     gs = dataset1_CuGraphStore
@@ -442,6 +446,7 @@ def test_sampling_gs_heterogeneous_ds1_neg_one_fanout(dataset1_CuGraphStore):
     assert len(src_ser) != 0
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_out_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -491,6 +496,7 @@ def test_sampling_homogeneous_gs_out_dir():
         assert_correct_eids(df, sample_edge_id_df)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_in_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -585,6 +591,7 @@ def create_gs_heterogeneous_dgl_eg():
     return gs
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_in_dir():
     gs = create_gs_heterogeneous_dgl_eg()
     # DGL expected_output from
@@ -643,6 +650,7 @@ def test_sampling_gs_heterogeneous_in_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_out_dir():
     gs = create_gs_heterogeneous_dgl_eg()
     # DGL expected_output from
@@ -712,6 +720,7 @@ def test_sampling_gs_heterogeneous_out_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     gs = create_gs_heterogeneous_dgl_eg()
     # Test against DGLs output
@@ -834,6 +843,7 @@ def test_add_node_data_vector_feats():
     cp.testing.assert_array_equal(out_vec, exp_vec)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_with_out_of_index_seed():
     pg = PropertyGraph()
     gs = CuGraphStore(pg)

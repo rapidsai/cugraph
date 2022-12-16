@@ -17,7 +17,6 @@
 #include <sampling/random_walks_check.hpp>
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -26,6 +25,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <gtest/gtest.h>
 
@@ -115,13 +115,13 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
   void run_current_test(tuple_t const& param)
   {
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     auto [randomwalks_usecase, input_usecase] = param;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
     bool renumber{true};
@@ -131,9 +131,8 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
@@ -148,7 +147,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Random walks");
     }
 
     if (randomwalks_usecase.expect_throw()) {
@@ -170,9 +169,8 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-        double elapsed_time{0.0};
-        hr_clock.stop(&elapsed_time);
-        std::cout << "RandomWalks took " << elapsed_time * 1e-6 << " s.\n";
+        hr_timer.stop();
+        hr_timer.display_and_clear(std::cout);
       }
 
       if (randomwalks_usecase.check_correctness) {

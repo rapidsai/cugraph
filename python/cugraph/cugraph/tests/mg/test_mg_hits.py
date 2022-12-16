@@ -11,11 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.dask as dcg
 import gc
 import pytest
-import cugraph
+
 import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
+import cugraph
+import cugraph.dask as dcg
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing import utils
@@ -41,7 +44,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
 ]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([50], "max_iter"),
     ([1.0e-6], "tol"),

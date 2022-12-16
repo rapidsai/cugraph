@@ -14,11 +14,12 @@
 import gc
 
 import pytest
+import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
-import dask_cudf
 
 
 # =============================================================================
@@ -32,9 +33,9 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
-degree_type = ["incoming", "outgoing"]
+degree_type = ["incoming", "outgoing", "bidirectional"]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (degree_type, "degree_type"),
 )
@@ -106,11 +107,8 @@ def test_sg_core_number(dask_client, benchmark, input_expected_output):
     sg_core_number_results = None
     G = input_expected_output["SGGraph"]
     degree_type = input_expected_output["degree_type"]
-    warning_msg = "The 'degree_type' parameter is ignored in this release."
 
-    # FIXME: Remove this warning test once 'degree_type' is supported"
-    with pytest.warns(Warning, match=warning_msg):
-        sg_core_number_results = benchmark(cugraph.core_number, G, degree_type)
+    sg_core_number_results = benchmark(cugraph.core_number, G, degree_type)
     assert sg_core_number_results is not None
 
 
@@ -119,11 +117,7 @@ def test_core_number(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     degree_type = input_expected_output["degree_type"]
 
-    warning_msg = "The 'degree_type' parameter is ignored in this release."
-
-    # FIXME: Remove this warning test once 'degree_type' is supported"
-    with pytest.warns(Warning, match=warning_msg):
-        result_core_number = benchmark(dcg.core_number, dg, degree_type)
+    result_core_number = benchmark(dcg.core_number, dg, degree_type)
 
     result_core_number = (
         result_core_number.drop_duplicates()
@@ -167,13 +161,7 @@ def test_core_number_invalid_input(input_expected_output):
         legacy_renum_only=True,
     )
 
-    with pytest.raises(ValueError):
-        dcg.core_number(dg)
-
-    # FIXME: enable this check once 'degree_type' is supported
-    """
     invalid_degree_type = 3
     dg = input_expected_output["MGGraph"]
     with pytest.raises(ValueError):
-        cugraph.core_number(dg, invalid_degree_type)
-    """
+        dcg.core_number(dg, invalid_degree_type)

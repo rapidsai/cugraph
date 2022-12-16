@@ -16,6 +16,7 @@ import random
 import pytest
 import cudf
 import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 import cugraph
@@ -52,7 +53,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
 ]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
@@ -124,6 +125,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]
@@ -199,6 +201,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
             )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
@@ -257,6 +260,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     assert set(start_list).issubset(set(result_nbr_vertices))
 
 
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
         {
@@ -291,6 +295,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     assert sorted(actual_dst) == sorted(expected_dst)
 
 
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
     # This ensures that the starts are properly distributed

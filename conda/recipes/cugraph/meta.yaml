@@ -45,8 +45,8 @@ requirements:
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - libraft-headers {{ minor_version }}
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools<=65.2.0
+    - setuptools
+    - versioneer
   run:
     - python x.x
     - pylibcugraph={{ version }}
@@ -56,10 +56,11 @@ requirements:
     - raft-dask {{ minor_version }}
     - pylibraft {{ minor_version }}
     - cudf={{ minor_version }}
+    - cupy >=9.5.0,<12.0.0a0
     - dask-cudf {{ minor_version }}
     - dask-cuda {{ minor_version }}
-    - dask>=2022.9.2
-    - distributed>=2022.9.2
+    - dask>=2022.12.0
+    - distributed>=2022.12.0
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
