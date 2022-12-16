@@ -37,7 +37,9 @@ setup(
     ],
     author="NVIDIA Corporation",
     url="https://github.com/rapidsai/cugraph",
-    packages=find_packages(include=["cugraph_service_server"]),
+    packages=find_packages(
+        include=["cugraph_service_server", "cugraph_service_server.*"]
+    ),
     entry_points={
         "console_scripts": [
             "cugraph-service-server=cugraph_service_server.__main__:main"

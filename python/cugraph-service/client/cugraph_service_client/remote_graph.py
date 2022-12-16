@@ -15,6 +15,7 @@
 import numpy as np
 import importlib
 
+from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client.remote_graph_utils import (
     _transform_to_backend_dtype,
     _transform_to_backend_dtype_1d,
@@ -65,6 +66,12 @@ class RemoteGraph:
         self.__edge_categorical_dtype = None
 
     def __del__(self):
+        # Assume if a connection cannot be opened that the service is already
+        # stopped and the delete call can be skipped.
+        try:
+            self.__client.open()
+        except CugraphServiceError:
+            return
         self.__client.delete_graph(self.__graph_id)
 
     def is_remote(self):
@@ -144,10 +151,10 @@ class RemoteGraph:
         destination vertex, and edge type.
 
         """
+        # default edge props include src, dst, edge ID, and edge type
         np_edges = self.__client.get_graph_edge_data(
             -1,
             graph_id=self.__graph_id,
-            property_keys=[self.src_col_name, self.dst_col_name],
         )
 
         # Convert edge type to numeric if necessary
@@ -219,6 +226,9 @@ class RemoteGraph:
         """
         return self.__client.get_num_vertices(type, include_edge_data, self.__graph_id)
 
+    def number_of_vertices(self):
+        return self.get_num_vertices(type=None, include_edge_data=True)
+
     def get_num_edges(self, type=None):
         """Return the number of all edges or edges of a given type.
 
@@ -233,6 +243,9 @@ class RemoteGraph:
         PropertyGraph.get_num_vertices
         """
         return self.__client.get_num_edges(type, self.__graph_id)
+
+    def number_of_edges(self):
+        return self.get_num_edges(type=None)
 
     def get_vertices(self, selection=None, backend="cudf"):
         """

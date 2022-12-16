@@ -18,8 +18,8 @@ from pathlib import Path
 import pytest
 import cupy as cp
 
+from cugraph_service_server.testing import utils
 from . import data
-from . import utils
 
 
 ###############################################################################
