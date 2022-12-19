@@ -18,65 +18,11 @@ from pathlib import Path
 import pytest
 
 from . import data
-from . import utils
 
 
 ###############################################################################
 # fixtures
-
-
-@pytest.fixture(scope="module")
-def server():
-    """
-    Start a cugraph_service server, stop it when done with the fixture.
-    """
-    from cugraph_service_client import CugraphServiceClient
-    from cugraph_service_client.exceptions import CugraphServiceError
-
-    host = "localhost"
-    port = 9090
-    client = CugraphServiceClient(host, port)
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-        yield
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = utils.start_server_subprocess(host=host, port=port)
-
-        # yield control to the tests, cleanup on return
-        yield
-
-        # tests are done, now stop the server
-        print("\nTerminating server...", end="", flush=True)
-        server_process.terminate()
-        server_process.wait(timeout=60)
-        print("done.", flush=True)
-
-
-@pytest.fixture(scope="function")
-def client(server):
-    """
-    Creates a client instance to the running server, closes the client when the
-    fixture is no longer used by tests.
-    """
-    from cugraph_service_client import CugraphServiceClient, defaults
-
-    client = CugraphServiceClient(defaults.host, defaults.port)
-
-    for gid in client.get_graph_ids():
-        client.delete_graph(gid)
-
-    # FIXME: should this fixture always unconditionally unload all extensions?
-    # client.unload_graph_creation_extensions()
-
-    # yield control to the tests, cleanup on return
-    yield client
-
-    client.close()
+# The fixtures used in these tests are defined here and in conftest.py
 
 
 @pytest.fixture(scope="function")
@@ -556,3 +502,15 @@ def test_create_property_graph(client):
 
     del pG
     assert set(client.get_graph_ids()) == old_ids
+
+
+def test_get_server_info(client_with_graph_creation_extension_loaded):
+    """
+    Ensures the server meta-data from get_server_info() is correct. This
+    includes information about loaded extensions, so the fixture which
+    pre-loads extensions into the server is used.
+    """
+    client = client_with_graph_creation_extension_loaded
+    meta_data = client.get_server_info()
+    assert isinstance(meta_data["num_gpus"], int)
+    assert Path(meta_data["graph_creation_extensions"][0]).exists()

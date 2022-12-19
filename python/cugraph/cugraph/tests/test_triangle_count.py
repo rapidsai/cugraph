@@ -12,11 +12,12 @@
 # limitations under the License.
 
 import gc
-
-import pytest
 import random
 
+import pytest
 import cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
 import cugraph
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
@@ -45,7 +46,7 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = DATASETS_UNDIRECTED
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([True, False], "edgevals"),
     ([True, False], "start_list"),
