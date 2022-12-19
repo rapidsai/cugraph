@@ -938,9 +938,14 @@ def test_renumber_vertices_edges_dtypes(dask_client):
     )
 
     pG = MGPropertyGraph()
-    pG.add_vertex_data(vertex_df, vertex_col_name="v", property_columns=["p"])
+    pG.add_vertex_data(
+        vertex_df, vertex_col_name="v", property_columns=["p"], type_name="vt1"
+    )
     pG.add_edge_data(
-        edgelist_df, vertex_col_names=["src", "dst"], edge_id_col_name="eid"
+        edgelist_df,
+        vertex_col_names=["src", "dst"],
+        edge_id_col_name="eid",
+        type_name="et1",
     )
 
     pG.renumber_vertices_by_type()
@@ -949,7 +954,7 @@ def test_renumber_vertices_edges_dtypes(dask_client):
 
     pG.renumber_edges_by_type()
     ed = pG.get_edge_data()
-    assert ed.index.dtype == cp.int32
+    assert ed[pG.edge_id_col_name].dtype == cp.int32
 
 
 def test_add_data_noncontiguous(dask_client):
