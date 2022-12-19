@@ -356,6 +356,7 @@ class EXPERIMENTAL__CuGraphStore:
             self.__offsets["stop"] -= 1
             self.__offsets["type"] = np.array(self.__graph.vertex_types)
 
+        # FIXME: https://github.com/rapidsai/cugraph/issues/3058
         self.__graph.renumber_edges_by_type()
 
     @property
