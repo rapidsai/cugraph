@@ -26,14 +26,17 @@ SUITEERROR=0
 rapids-print-env
 
 rapids-mamba-retry install \
-  -c "${CPP_CHANNEL}" \
-  libcugraph libcugraph_etl libcugraph-tests
+    -c "${CPP_CHANNEL}" \
+    libcugraph libcugraph_etl libcugraph-tests
 
 rapids-logger "Check GPU usage"
 nvidia-smi
 
-# Download datasets
-./datasets/get_test_data.sh
+# RAPIDS_DATASET_ROOT_DIR is used by test scripts
+export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
+pushd "${RAPIDS_DATASET_ROOT_DIR}"
+./get_test_data.sh
+popd
 
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
