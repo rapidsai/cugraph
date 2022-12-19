@@ -598,7 +598,9 @@ class EXPERIMENTAL__MGPropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            return df.reset_index()
+            df_out = df.reset_index().persist()
+            df_out.index = df_out.index.astype(df.index.dtype)
+            return df_out
 
         return None
 
@@ -933,7 +935,9 @@ class EXPERIMENTAL__MGPropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            return df.reset_index()
+            df_out = df.reset_index().persist()
+            df_out.index = df_out.index.astype(df.index.dtype)
+            return df_out
 
         return None
 
@@ -1305,6 +1309,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             ].astype(cat_dtype)
 
         df = self.__vertex_prop_dataframe
+        index_dtype = df.index.dtype
         if self.__edge_prop_dataframe is not None:
             # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
             cat_dtype = df.dtypes[self.type_col_name]
@@ -1349,6 +1354,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
+        df[self.vertex_col_name] = df[self.vertex_col_name].astype(index_dtype)
         self.__vertex_prop_dataframe = (
             df.persist().set_index(self.vertex_col_name, sorted=True).persist()
         )
@@ -1387,6 +1393,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                 f"Can't save previous IDs to existing column {prev_id_column!r}"
             )
         df = self.__edge_prop_dataframe
+        index_dtype = df.index.dtype
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         cat_dtype = df.dtypes[self.type_col_name]
@@ -1403,6 +1410,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         df[self.edge_id_col_name] = 1
         df[self.edge_id_col_name] = df[self.edge_id_col_name].cumsum() - 1
+        df[self.edge_id_col_name] = df[self.edge_id_col_name].astype(index_dtype)
         self.__edge_prop_dataframe = (
             df.persist().set_index(self.edge_id_col_name, sorted=True).persist()
         )

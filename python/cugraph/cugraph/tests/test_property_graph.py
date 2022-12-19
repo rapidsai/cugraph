@@ -1806,6 +1806,36 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
 
 
+def test_renumber_vertices_edges_dtypes():
+    from cugraph.experimental import PropertyGraph
+
+    edgelist_df = cudf.DataFrame(
+        {
+            "src": cp.array([0, 5, 2, 3, 4, 3], dtype="int32"),
+            "dst": cp.array([2, 4, 4, 5, 1, 2], dtype="int32"),
+            "eid": cp.array([8, 7, 5, 2, 9, 1], dtype="int32"),
+        }
+    )
+
+    vertex_df = cudf.DataFrame(
+        {"v": cp.array([0, 1, 2, 3, 4, 5], dtype="int32"), "p": [5, 10, 15, 20, 25, 30]}
+    )
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(vertex_df, vertex_col_name="v", property_columns=["p"])
+    pG.add_edge_data(
+        edgelist_df, vertex_col_names=["src", "dst"], edge_id_col_name="eid"
+    )
+
+    pG.renumber_vertices_by_type()
+    vd = pG.get_vertex_data()
+    assert vd.index.dtype == cp.int32
+
+    pG.renumber_edges_by_type()
+    ed = pG.get_edge_data()
+    assert ed.index.dtype == cp.int32
+
+
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_add_data_noncontiguous(df_type):
     from cugraph.experimental import PropertyGraph
