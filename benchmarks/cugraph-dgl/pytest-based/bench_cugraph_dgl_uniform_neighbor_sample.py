@@ -11,34 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+import dask_cudf
+
 
 import time
+import os
 import pytest
 import numpy as np
 import cupy as cp
-from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
-import dask_cudf
-
-# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
-# fixture will be available automatically. Check that this fixture is available
-# by trying to import rapids_pytest_benchmark, and if that fails, set
-# "gpubenchmark" to the standard "benchmark" fixture provided by
+# Facing issues with rapids-pytest-benchmark plugin
 # pytest-benchmark.
-try:
-    import rapids_pytest_benchmark  # noqa: F401
-except ImportError:
-    import pytest_benchmark
-
-    gpubenchmark = pytest_benchmark.plugin.benchmark
-
+import pytest_benchmark
+benchmark = pytest_benchmark.plugin.benchmark
 
 from cugraph.generators import rmat
 from cugraph.experimental import datasets
 from cugraph_benchmarking import params
 from cugraph_dgl import CuGraphStorage
+from cugraph.dask.comms import comms as Comms
 import dgl
 import torch
-from dask.distributed import performance_report
+import rmm
 _seed = 42
 
 
@@ -47,10 +42,7 @@ def create_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """    
     print("Initalize Pool on client")
-    import rmm
-    rmm.reinitialize(pool_allocator = True, initial_pool_size = 10e8)
-
-
+    rmm.reinitialize(pool_allocator=True)
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
         ds = getattr(datasets, graph_data)
@@ -87,7 +79,8 @@ def create_graph(graph_data):
 
     gs = CuGraphStorage(num_nodes_dict=num_nodes_dict, single_gpu=True)
     gs.add_edge_data(edgelist_df,   
-                    node_col_names=['src','dst'],
+                    # reverse to make same graph as cugraph
+                    node_col_names=['dst', 'src'],
                     canonical_etype=['_N', 'connects', '_N'])
 
     return gs
@@ -98,13 +91,15 @@ def create_mg_graph(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated.
     """
-    (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=False,
-        enable_infiniband=False,
-        enable_nvlink=False,
-        enable_rdmacm=False,
-        net_devices=None,
-    )
+    ## Reserving GPU 0 for client(trainer/service project)
+    n_devices = os.getenv('DASK_NUM_WORKERS', 4)
+    n_devices = int(n_devices)
+
+    visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
+    cluster = LocalCUDACluster(protocol='tcp', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    rmm.reinitialize(pool_allocator=True)
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
         ds = getattr(datasets, graph_data)
@@ -144,10 +139,9 @@ def create_mg_graph(graph_data):
 
     gs = CuGraphStorage(num_nodes_dict=num_nodes_dict,  single_gpu=False)
     gs.add_edge_data(edgelist_df,   
-                    node_col_names=['src','dst'],
+                    node_col_names=['dst', 'src'],
                     canonical_etype=['_N', 'C', '_N'])
-    rmat_str = str(graph_data['scale'])+"-"+str(graph_data['edgefactor'])
-    return (gs, client, cluster,  rmat_str)
+    return (gs, client, cluster)
 
 
 
@@ -204,13 +198,14 @@ def graph_objs(request):
     if gpu_config == "SG":
         G = create_graph(graph_data)
     else:
-        (G, dask_client, dask_cluster, rmat_str) = create_mg_graph(graph_data)
+        (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
     print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
-    yield G,rmat_str
+    yield G
 
     if dask_client is not None:
-        stop_dask_client(dask_client, dask_cluster)
+        dask_client.shutdown()
+        dask_cluster.close()
 
 
 
@@ -222,25 +217,28 @@ def graph_objs(request):
     "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
 def bench_cugraph_dgl_uniform_neighbor_sample(
-    gpubenchmark, graph_objs, batch_size, fanout, with_replacement
+    benchmark, graph_objs, batch_size, fanout, with_replacement
 ):
-    G,rmat_str = graph_objs
+    G = graph_objs
     uns_args = get_uniform_neighbor_sample_args(
         G, _seed, batch_size, fanout, with_replacement
     )
+
+    # Reverse to match cugraph
+    # DGL does from dst to src
+    fanout_val = uns_args['fanout']
+    fanout_val.reverse()
     sampler = dgl.dataloading.NeighborSampler(uns_args["fanout"])
     sampler_f = sampler.sample_blocks
     
     # Warmup
     _ = sampler_f(g=G, seed_nodes=uns_args["seed_nodes"])
-    with performance_report(filename=f"dask-report-8GPUS-{rmat_str}-{batch_size}.html"):
-        # print(f"\n{uns_args}")
-        result_seed_nodes, output_nodes, blocks  = gpubenchmark(
-            sampler_f,
-            g=G,
-            seed_nodes=uns_args["seed_nodes"],
-        )
-
+    # print(f"\n{uns_args}")
+    result_seed_nodes, output_nodes, blocks  = benchmark(
+        sampler_f,
+        g=G,
+        seed_nodes=uns_args["seed_nodes"],
+    )
     dt = str(result_seed_nodes.dtype)
     llen = len(result_seed_nodes)
     print(f"\nresult list len: {llen} , dtype={dt}")
