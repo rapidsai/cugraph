@@ -948,7 +948,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
 
-            df_out = df.reset_index().persist()
+            df_out = df.reset_index()
 
             # Preserve the dtype (edge id type) to avoid cugraph algorithms
             # throwing errors due to a dtype mismatch
