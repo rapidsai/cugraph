@@ -43,28 +43,28 @@ requirements:
     - cmake {{ cmake_version }}
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
-    - cudatoolkit={{ cuda_version }}
-    - cudf={{ minor_version }}
-    - cython>=0.29,<0.30
-    - libcugraph={{ version }}
-    - libraft-distance={{ minor_version }}
-    - libraft-headers={{ minor_version }}
-    - pylibraft={{ minor_version}}
+    - cudatoolkit ={{ cuda_version }}
+    - cudf ={{ minor_version }}
+    - cython >=0.29,<0.30
+    - libcugraph ={{ version }}
+    - libraft-distance ={{ minor_version }}
+    - libraft-headers ={{ minor_version }}
+    - pylibraft ={{ minor_version}}
     - python x.x
-    - rmm={{ minor_version }}
-    - scikit-build>=0.13.1
+    - rmm ={{ minor_version }}
+    - scikit-build >=0.13.1
     - setuptools
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
     - versioneer
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
-    - libcugraph={{ version }}
+    - libcugraph ={{ version }}
     - python x.x
 
 tests:                                 # [linux64]
   requirements:                        # [linux64]
-    - cudatoolkit={{ cuda_version }}   # [linux64]
+    - cudatoolkit ={{ cuda_version }}   # [linux64]
   imports:                             # [linux64]
     - pylibcugraph                     # [linux64]
 
