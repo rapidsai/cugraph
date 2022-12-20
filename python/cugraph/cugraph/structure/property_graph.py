@@ -1254,7 +1254,7 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            df_out = df.reset_index()
+            df_out = df.reset_index(drop=True)
 
             # Preserve the dtype (edge id type) to avoid cugraph algorithms
             # throwing errors due to a dtype mismatch
