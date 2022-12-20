@@ -58,9 +58,9 @@ requirements:
     - ucx-py {{ ucx_py_version }}
     - versioneer
   run:
-    - python x.x
-    - libcugraph={{ version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    - libcugraph={{ version }}
+    - python x.x
 
 tests:                                 # [linux64]
   requirements:                        # [linux64]
