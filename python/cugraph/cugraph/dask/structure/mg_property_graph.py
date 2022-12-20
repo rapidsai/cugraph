@@ -600,6 +600,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                 df = df[[self.type_col_name] + columns]
             df_out = df.reset_index()
 
+            # Preserve the dtype (vertex id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
             index_dtype = self.__vertex_prop_dataframe.index.dtype
             if df_out.index.dtype != index_dtype:
                 df_out.index = df_out.index.astype(index_dtype)
@@ -949,6 +951,8 @@ class EXPERIMENTAL__MGPropertyGraph:
 
             df_out = df.reset_index().persist()
 
+            # Preserve the dtype (edge id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
             index_dtype = self.__edge_prop_dataframe.index.dtype
             if df_out.index.dtype != index_dtype:
                 df_out.index = df_out.index.astype(index_dtype)
