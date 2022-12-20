@@ -850,7 +850,7 @@ class EXPERIMENTAL__PropertyGraph:
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
 
-            df_out = df.reset_index()
+            df_out = df.reset_index(drop=True)
 
             # Preserve the dtype (vertex id type) to avoid cugraph algorithms
             # throwing errors due to a dtype mismatch
