@@ -39,22 +39,22 @@ requirements:
     - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
-    - cuda-nvtx {{ cuda_version }}.*
+    - cuda-nvtx={{ cuda_version }}
     - cuda-profiler-api {{ cuda_profiler_api_version }}
-    - cudatoolkit {{ cuda_version }}.*
+    - cudatoolkit={{ cuda_version }}
     - doxygen {{ doxygen_version }}
     - gmock {{ gtest_version }}
     - gtest {{ gtest_version }}
     - libcublas {{ libcublas_version }}
-    - libcudf {{ minor_version }}.*
-    - libcugraphops {{ minor_version }}.*
+    - libcudf={{ minor_version }}
+    - libcugraphops={{ minor_version }}
     - libcurand {{ libcurand_version }}
     - libcurand-dev {{ libcurand_version }}
     - libcusolver {{ libcusolver_version }}
     - libcusparse {{ libcusparse_version }}
-    - libraft-distance {{ minor_version }}.*
-    - libraft-headers {{ minor_version }}.*
-    - librmm {{ minor_version }}.*
+    - libraft-distance={{ minor_version }}
+    - libraft-headers={{ minor_version }}
+    - librmm={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
     # TODO: The following dependencies should be fulfilled transitively by
@@ -78,11 +78,11 @@ outputs:
         - cmake {{ cmake_version }}
       run:
         - cudatoolkit {{ cuda_spec }}
-        - libcugraphops {{ minor_version }}.*
+        - libcugraphops={{ minor_version }}
         - libcusolver {{ libcusolver_version }}
-        - libraft-distance {{ minor_version }}.*
-        - libraft-headers {{ minor_version }}.*
-        - librmm {{ minor_version }}.*
+        - libraft-distance={{ minor_version }}
+        - libraft-headers={{ minor_version }}
+        - librmm={{ minor_version }}
         - nccl {{ nccl_version }}
         - ucx-proc=*=gpu
     about:
@@ -104,8 +104,8 @@ outputs:
       run:
         - {{ pin_subpackage('libcugraph', exact=True) }}
         - cudatoolkit {{ cuda_spec }}
-        - libcudf {{ minor_version }}.*
-        - librmm {{ minor_version }}.*
+        - libcudf={{ minor_version }}
+        - librmm={{ minor_version }}
     about:
       home: https://rapids.ai/
       license: Apache-2.0
