@@ -948,7 +948,11 @@ class EXPERIMENTAL__MGPropertyGraph:
                 ]
 
             df_out = df.reset_index().persist()
-            df_out.index = df_out.index.astype(self.__edge_prop_dataframe.index.dtype)
+
+            index_dtype = self.__edge_prop_dataframe.index.dtype
+            if df_out.index.dtype != index_dtype:
+                df_out.index = df_out.index.astype(index_dtype)
+
             return df_out
 
         return None
