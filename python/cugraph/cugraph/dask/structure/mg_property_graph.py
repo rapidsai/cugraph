@@ -598,8 +598,12 @@ class EXPERIMENTAL__MGPropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            df_out = df.reset_index().persist()
-            df_out.index = df_out.index.astype(df.index.dtype)
+            df_out = df.reset_index()
+
+            index_dtype = self.__vertex_prop_dataframe.index.dtype
+            if df_out.index.dtype != index_dtype:
+                df_out.index = df_out.index.astype(index_dtype)
+
             return df_out
 
         return None
