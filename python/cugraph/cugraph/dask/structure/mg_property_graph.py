@@ -603,8 +603,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Preserve the dtype (vertex id type) to avoid cugraph algorithms
             # throwing errors due to a dtype mismatch
             index_dtype = self.__vertex_prop_dataframe.index.dtype
-            if df_out.index.dtype != index_dtype:
-                df_out.index = df_out.index.astype(index_dtype)
+            df_out.index = df_out.index.astype(index_dtype)
 
             return df_out
 
