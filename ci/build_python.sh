@@ -9,9 +9,9 @@ export CMAKE_GENERATOR=Ninja
 
 rapids-print-env
 
-rapids-logger "Begin py build"
-
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
+
+rapids-logger "Begin py build"
 
 # TODO: Remove `--no-test` flags once importing on a CPU
 # node works correctly
