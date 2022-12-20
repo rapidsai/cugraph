@@ -15,77 +15,20 @@
 import importlib
 import random
 
-
 import pytest
-
-from . import data, utils
-
-import cudf
-import cupy
 import pandas as pd
 import numpy as np
-
+import cupy
+import cudf
 import cugraph
 from cugraph.experimental import PropertyGraph
+
 from cugraph_service_client import RemoteGraph
+from . import data
 
 ###############################################################################
 # fixtures
-
-
-@pytest.fixture(scope="module")
-def server():
-    """
-    Start a cugraph_service server, stop it when done with the fixture.
-    """
-    from cugraph_service_client import CugraphServiceClient
-    from cugraph_service_client.exceptions import CugraphServiceError
-
-    host = "localhost"
-    port = 9090
-    client = CugraphServiceClient(host, port)
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-        yield
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = utils.start_server_subprocess(host=host, port=port)
-
-        # yield control to the tests, cleanup on return
-        yield
-
-        # tests are done, now stop the server
-        print("\nTerminating server...", end="", flush=True)
-        server_process.terminate()
-        server_process.wait(timeout=60)
-        print("done.", flush=True)
-
-
-@pytest.fixture(scope="function")
-def client(server):
-    """
-    Creates a client instance to the running server, closes the client when the
-    fixture is no longer used by tests.
-    """
-    from cugraph_service_client import CugraphServiceClient, defaults
-
-    client = CugraphServiceClient(defaults.host, defaults.port)
-
-    for gid in client.get_graph_ids():
-        client.delete_graph(gid)
-
-    # FIXME: should this fixture always unconditionally unload all extensions?
-    # client.unload_graph_creation_extensions()
-
-    # yield control to the tests
-    yield client
-
-    # tests are done, now stop the server
-    client.close()
+# The fixtures used in these tests are defined here and in conftest.py
 
 
 @pytest.fixture(scope="function")
@@ -795,3 +738,47 @@ def test_remote_graph_neighbor_sample_implicit_subgraph(
     assert (res_local["sources"] == res_remote["sources"]).all()
     assert (res_local["destinations"] == res_remote["destinations"]).all()
     assert (res_local["indices"] == res_remote["indices"]).all()
+
+
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
+def test_remote_graph_renumber_vertices(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    re_local = pG.renumber_vertices_by_type()
+    re_remote = rpG.renumber_vertices_by_type()
+
+    assert re_local == re_remote
+
+    for k in range(len(re_remote)):
+        start = re_remote["start"][k]
+        stop = re_remote["stop"][k]
+        for i in range(start, stop + 1):
+            assert (
+                rpG.get_vertex_data(vertex_ids=[i])[rpG.type_col_name][0]
+                == re_remote.index[k]
+            )
+
+
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
+def test_remote_graph_renumber_edges(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    re_local = pG.renumber_edges_by_type()
+    re_remote = rpG.renumber_edges_by_type()
+
+    assert re_local == re_remote
+
+    for k in range(len(re_remote)):
+        start = re_remote["start"][k]
+        stop = re_remote["stop"][k]
+        for i in range(start, stop + 1):
+            assert (
+                rpG.get_edge_data(edge_ids=[i])[rpG.type_col_name][0]
+                == re_remote.index[k]
+            )

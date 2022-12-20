@@ -16,10 +16,11 @@ import random
 import pytest
 import cudf
 import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 import cugraph
-from cugraph.testing import utils
+
 from cugraph.dask import uniform_neighbor_sample
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
@@ -51,7 +52,7 @@ IS_DIRECTED = [True, False]
 
 datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),

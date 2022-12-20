@@ -20,8 +20,7 @@ except ModuleNotFoundError:
         from cugraph.utilities.utils import import_optional
     except ModuleNotFoundError:
         raise ModuleNotFoundError(
-            "cuGraph extensions for PyG require cuGraph"
-            "or cuGraph-Service to be installed."
+            "cuGraph-PyG requires cuGraph or cuGraph-Service to be installed."
         )
 
 _transform_to_backend_dtype_1d = import_optional(

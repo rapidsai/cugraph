@@ -21,11 +21,11 @@ import cupy as cp
 import numpy as np
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cupy.testing import assert_array_equal
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 from cugraph.experimental.datasets import cyber
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.testing import utils
+from cugraph.experimental.datasets import netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -165,7 +165,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="module", params=df_types_fixture_params)
@@ -178,7 +178,7 @@ def net_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"
+    netscience_csv = netscience.get_path()
     source_col_name = "src"
     dest_col_name = "dst"
 
@@ -368,7 +368,7 @@ def net_MGPropertyGraph(dask_client):
     """
     from cugraph.experimental import MGPropertyGraph
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
+    input_data_path = str(netscience.get_path())
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -864,7 +864,7 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
-        df = pG.get_vertex_data(types=[key]).compute()
+        df = pG.get_vertex_data(types=[key]).compute().to_pandas()
         assert len(df) == stop - start + 1
         assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
         if prev_id_column is not None:
@@ -903,7 +903,7 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
-        df = pG.get_edge_data(types=[key]).compute()
+        df = pG.get_edge_data(types=[key]).compute().to_pandas()
         assert len(df) == stop - start + 1
         assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
         if prev_id_column is not None:
@@ -911,6 +911,50 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
 
     empty_pG = MGPropertyGraph()
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
+
+
+def test_renumber_vertices_edges_dtypes(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    edgelist_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": cp.array([0, 5, 2, 3, 4, 3], dtype="int32"),
+                "dst": cp.array([2, 4, 4, 5, 1, 2], dtype="int32"),
+                "eid": cp.array([8, 7, 5, 2, 9, 1], dtype="int32"),
+            }
+        ),
+        npartitions=2,
+    )
+
+    vertex_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "v": cp.array([0, 1, 2, 3, 4, 5], dtype="int32"),
+                "p": [5, 10, 15, 20, 25, 30],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+    pG.add_vertex_data(
+        vertex_df, vertex_col_name="v", property_columns=["p"], type_name="vt1"
+    )
+    pG.add_edge_data(
+        edgelist_df,
+        vertex_col_names=["src", "dst"],
+        edge_id_col_name="eid",
+        type_name="et1",
+    )
+
+    pG.renumber_vertices_by_type()
+    vd = pG.get_vertex_data()
+    assert vd.index.dtype == cp.int32
+
+    pG.renumber_edges_by_type()
+    ed = pG.get_edge_data()
+    assert ed[pG.edge_id_col_name].dtype == cp.int32
 
 
 def test_add_data_noncontiguous(dask_client):
