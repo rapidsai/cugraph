@@ -50,7 +50,6 @@ requirements:
     - libcugraph ={{ version }}
     - libraft-distance ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
-    - libraft-headers ={{ minor_version }}
     - pylibraft ={{ minor_version}}
     - python x.x
     - raft-dask ={{ minor_version }}
