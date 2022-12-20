@@ -35,6 +35,9 @@ requirements:
     - numba>=0.56.2
     - numpy
     - pytorch
+    # TODO: Determine if `cudatoolkit` is a necessary runtime dependency for this package.
+    # If so, the version spec may need to be changed to `11.0>=,<12.0` to match the rest of our packages.
+    # If not, we should remove `cudatoolkit` and update the version string above accordingly.
     - cudatoolkit {{ cuda_version }}.*
     # - pyg (uncomment once pyg 2.2 is released)
 
