@@ -23,8 +23,8 @@ outputs:
     script: install_cugraph-service-client.sh
     requirements:
       host:
-        - python x.x
         - pip
+        - python x.x
         # FIXME: this pin can be removed once we move to the GitHub Actions build process
         - setuptools<=65.2.0
       run:
@@ -42,22 +42,22 @@ outputs:
     script: install_cugraph-service-server.sh
     requirements:
       host:
-        - python x.x
         - pip
+        - python x.x
         # FIXME: this pin can be removed once we move to the GitHub Actions build process
         - setuptools<=65.2.0
       run:
-        - python x.x
-        - thriftpy2 >=0.4.15
         - {{ pin_compatible('cugraph-service-client', exact=True) }}
         - {{ pin_compatible('cugraph', exact=True) }}
-        - cupy >=9.5.0,<12.0.0a0
-        - numpy
-        - ucx-py {{ ucx_py_version }}
-        - distributed >=2022.12.0
-        - dask-cuda {{ minor_version }}.*
         - cudf {{ minor_version }}.*
+        - cupy >=9.5.0,<12.0.0a0
+        - dask-cuda {{ minor_version }}.*
         - dask-cudf {{ minor_version }}.*
+        - distributed >=2022.12.0
+        - numpy
+        - python x.x
+        - thriftpy2 >=0.4.15
+        - ucx-py {{ ucx_py_version }}
 
 tests:                                 # [linux64]
   imports:                             # [linux64]

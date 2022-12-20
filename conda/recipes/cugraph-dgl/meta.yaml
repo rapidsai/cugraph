@@ -22,13 +22,13 @@ requirements:
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
     - setuptools<=65.2.0
   run:
-    - python x.x
+    - cudatoolkit =11.6
     - cugraph={{ version }}
+    - dgl-cuda11.6 >=0.9
     - numba >=0.56.2
     - numpy
-    - dgl-cuda11.6 >=0.9
+    - python x.x
     - pytorch
-    - cudatoolkit =11.6
 
 tests:                                 # [linux64]
   imports:                             # [linux64]
