@@ -590,8 +590,6 @@ class EXPERIMENTAL__CuGraphStore:
             selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
-            print(query)
-            print(self.__graph.edge_id_col_name)
             sg = self.__graph.extract_subgraph(
                 selection=selection,
                 edge_weight_property=self.__graph.edge_id_col_name,
