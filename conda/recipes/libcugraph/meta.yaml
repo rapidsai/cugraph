@@ -79,7 +79,6 @@ outputs:
       run:
         - cudatoolkit {{ cuda_spec }}
         - libcugraphops ={{ minor_version }}
-        - libcusolver {{ libcusolver_version }}
         - libraft-distance ={{ minor_version }}
         - libraft-headers ={{ minor_version }}
         - librmm ={{ minor_version }}
