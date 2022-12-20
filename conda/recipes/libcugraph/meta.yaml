@@ -45,24 +45,21 @@ requirements:
     - doxygen {{ doxygen_version }}
     - gmock {{ gtest_version }}
     - gtest {{ gtest_version }}
-    - libcublas {{ libcublas_version }}
+    - libcublas {{ libcublas_host_version }}
+    - libcublas-dev {{ libcublas_host_version }}
     - libcudf ={{ minor_version }}
     - libcugraphops ={{ minor_version }}
-    - libcurand {{ libcurand_version }}
-    - libcurand-dev {{ libcurand_version }}
-    - libcusolver {{ libcusolver_version }}
-    - libcusparse {{ libcusparse_version }}
+    - libcurand {{ libcurand_host_version }}
+    - libcurand-dev {{ libcurand_host_version }}
+    - libcusolver {{ libcusolver_host_version }}
+    - libcusolver-dev {{ libcusolver_host_version }}
+    - libcusparse {{ libcusparse_host_version }}
+    - libcusparse-dev {{ libcusparse_host_version }}
     - libraft-distance ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
-    # TODO: The following dependencies should be fulfilled transitively by
-    # raft, once the GitHub Actions migration is complete. After migrating
-    # raft, remove the lines below.
-    - libcublas-dev {{ libcublas_version }}
-    - libcusolver-dev {{ libcusolver_version }}
-    - libcusparse-dev {{ libcusparse_version }}
 
 outputs:
   - name: libcugraph
