@@ -4,7 +4,7 @@
 #   conda build -c rapidsai -c conda-forge -c nvidia .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
-{% set py_version = environ.get('CONDA_PY', 38) %}
+{% set py_version = environ['CONDA_PY'] %}
 {% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
 {% set cuda_major = cuda_version.split('.')[0] %}
 
@@ -70,9 +70,10 @@ requirements:
     - libcugraph ={{ version }}
     - python x.x
 
+# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
 tests:                                 # [linux64]
   requirements:                        # [linux64]
-    - cudatoolkit ={{ cuda_version }}   # [linux64]
+    - cudatoolkit ={{ cuda_version }}  # [linux64]
   imports:                             # [linux64]
     - pylibcugraph                     # [linux64]
 
