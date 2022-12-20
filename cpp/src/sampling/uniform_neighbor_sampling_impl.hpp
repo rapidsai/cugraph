@@ -230,6 +230,7 @@ uniform_neighbor_sample_impl(
     d_result_hop.resize(new_sz, handle.get_stream());
     if (d_result_weight) d_result_weight->resize(new_sz, handle.get_stream());
     if (d_result_edge_type) d_result_edge_type->resize(new_sz, handle.get_stream());
+    if (d_result_label) d_result_label->resize(new_sz, handle.get_stream());
 
     raft::copy(
       d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());
