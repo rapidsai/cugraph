@@ -11,24 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import gc
+import random
 
 import pytest
-import cugraph.dask as dcg
-import dask_cudf
-from cugraph.testing import utils
-import cugraph
-import random
 import cupy
-
-from pylibcugraph import bfs as pylibcugraph_bfs
-from pylibcugraph import ResourceHandle
-
-from cugraph.dask.traversal.bfs import convert_to_cudf
-
-import cugraph.dask.comms.comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
 from dask.distributed import wait
 import cudf
+import dask_cudf
+from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import ResourceHandle
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
+import cugraph
+import cugraph.dask as dcg
+from cugraph.testing import utils
+from cugraph.dask.traversal.bfs import convert_to_cudf
+import cugraph.dask.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
 
 
 # =============================================================================
@@ -45,7 +44,7 @@ IS_DIRECTED = [True, False]
 
 datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([True, False], "legacy_renum_only"),

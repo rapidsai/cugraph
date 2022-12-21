@@ -15,6 +15,8 @@
  */
 #pragma once
 
+//#define TIMING
+
 #include <utilities/graph_utils.cuh>
 
 #include <cugraph/algorithms.hpp>
@@ -23,6 +25,9 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
@@ -35,8 +40,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>
-
-#include <utilities/high_res_timer.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -196,7 +199,7 @@ extract(raft::handle_t const& handle,
 
 #ifdef TIMING
   hr_timer.stop();
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 #endif
 
   // extract

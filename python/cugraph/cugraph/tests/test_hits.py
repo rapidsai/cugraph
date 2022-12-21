@@ -17,6 +17,7 @@ import pytest
 import networkx as nx
 import pandas as pd
 import cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
 from cugraph.testing import utils
@@ -34,7 +35,7 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = DATASETS_UNDIRECTED + [email_Eu_core]
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([50], "max_iter"),
     ([1.0e-6], "tol"),

@@ -54,13 +54,13 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID
-        df['destination'] : cudf.Series
-            The destination vertex ID
+         df['first'] : cudf.Series
+            The first vertex ID of each pair.
+        df['second'] : cudf.Series
+            The second vertex ID of each pair.
         df['sorensen_coeff'] : cudf.Series
-            The computed weighted Sorensen coefficient between the source and
-            destination vertices.
+            The computed weighted Sorensen coefficient between the first and the
+            second vertex ID.
 
     Examples
     --------
@@ -103,7 +103,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
 
     if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+        df = input_graph.unrenumber(df, "first")
+        df = input_graph.unrenumber(df, "second")
 
     return df

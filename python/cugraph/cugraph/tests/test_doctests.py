@@ -167,7 +167,17 @@ class TestDoctests:
         with contextlib.redirect_stdout(doctest_stdout):
             runner.run(docstring)
             results = runner.summarize()
-        assert not results.failed, (
-            f"{results.failed} of {results.attempted} doctests failed for "
-            f"{docstring.name}:\n{doctest_stdout.getvalue()}"
-        )
+        try:
+            assert not results.failed, (
+                f"{results.failed} of {results.attempted} doctests failed for "
+                f"{docstring.name}:\n{doctest_stdout.getvalue()}"
+            )
+        except AssertionError:
+            # If some failed but all the failures were due to lack of
+            # cugraph-ops support, we can skip.
+            out = doctest_stdout.getvalue()
+            if ("CUGRAPH_UNKNOWN_ERROR" in out and "unimplemented" in out) or (
+                "built with NO_CUGRAPH_OPS" in out
+            ):
+                pytest.skip("Doctest requires cugraph-ops support.")
+            raise
