@@ -15,7 +15,11 @@ import cudf
 import numpy as np
 
 import cugraph
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import (
+    import_optional,
+    MissingModule,
+    create_list_series_from_2d_ar,
+)
 
 pd = import_optional("pandas")
 
@@ -845,7 +849,9 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            return df.reset_index()
+            df_out = df.reset_index()
+            df_out.index = df_out.index.astype(df.index.dtype)
+            return df_out
         return None
 
     def add_edge_data(
@@ -1241,7 +1247,9 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            return df.reset_index()
+            df_out = df.reset_index()
+            df_out.index = df_out.index.astype(df.index.dtype)
+            return df_out
 
         return None
 
@@ -1888,7 +1896,9 @@ class EXPERIMENTAL__PropertyGraph:
                 TCN
             ].astype(cat_dtype)
 
+        index_dtype = self.__vertex_prop_dataframe.index.dtype
         df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
+        df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
             self.__edge_prop_dataframe[self.src_col_name] = self.__edge_prop_dataframe[
@@ -1975,12 +1985,14 @@ class EXPERIMENTAL__PropertyGraph:
             )
 
         df = self.__edge_prop_dataframe
+        index_dtype = df.index.dtype
         if prev_id_column is None:
             df = df.sort_values(by=TCN, ignore_index=True)
         else:
             df = df.sort_values(by=TCN)
             df.index.name = prev_id_column
             df.reset_index(inplace=True)
+        df.index = df.index.astype(index_dtype)
         df.index.name = self.edge_id_col_name
         self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
@@ -2091,16 +2103,20 @@ class EXPERIMENTAL__PropertyGraph:
         for key, columns in vector_properties.items():
             vector_property_lengths[key] = len(columns)
 
-    def _create_vector_properties(self, df, vector_properties):
-        # Make each vector contigous and 1-d
+    @staticmethod
+    def _create_vector_properties(df, vector_properties):
         vectors = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
-            vectors[key] = [
-                np.squeeze(vec, 0)
-                for vec in np.split(np.ascontiguousarray(values, like=values), len(df))
-            ]
-        # Create all vectors before assigning in case column names are reused
+            if isinstance(df, cudf.DataFrame):
+                vectors[key] = create_list_series_from_2d_ar(values, index=df.index)
+            else:
+                vectors[key] = [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        np.ascontiguousarray(values, like=values), len(df)
+                    )
+                ]
         for key, vec in vectors.items():
             df[key] = vec
 

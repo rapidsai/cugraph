@@ -180,6 +180,31 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_get_index(
             cugraph_sample_result_t* result
         )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_weight(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_id(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_type(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_hop(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_start_labels(
+            cugraph_sample_result_t* result
+        )
 
     cdef void \
         cugraph_sample_result_free(

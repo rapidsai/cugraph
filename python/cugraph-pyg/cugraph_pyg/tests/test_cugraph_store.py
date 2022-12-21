@@ -482,7 +482,7 @@ def test_get_x(graph):
 def test_get_x_with_pre_renumber(graph):
     pG = graph
     pG.renumber_vertices_by_type()
-    feature_store, graph_store = to_pyg(pG, backend="cupy", renumber_vertices=False)
+    feature_store, graph_store = to_pyg(pG, backend="cupy", renumber_graph=False)
 
     vertex_types = pG.vertex_types
     for vertex_type in vertex_types:

@@ -16,22 +16,11 @@ from pathlib import Path
 from itertools import product
 
 import pytest
-import cudf
-
 
 RAPIDS_DATASET_ROOT_DIR = os.getenv(
     "RAPIDS_DATASET_ROOT_DIR", os.path.join(os.path.dirname(__file__), "../datasets")
 )
 RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
-
-
-def read_csv_file(csv_file, weights_dtype="float32"):
-    return cudf.read_csv(
-        csv_file,
-        delimiter=" ",
-        dtype=["int32", "int32", weights_dtype],
-        header=None,
-    )
 
 
 def gen_fixture_params(*param_values):
@@ -53,6 +42,28 @@ def gen_fixture_params(*param_values):
                          pytest.param(True, marks=[pytest.mark.B_good], id="B=True")),
                        )
 
+<<<<<<< HEAD
+def gen_fixture_params(*param_values):
+    """
+    Returns a list of pytest.param objects suitable for use as fixture
+    parameters created by merging the values in each tuple into individual
+    pytest.param objects.
+
+    Each tuple can contain multiple values or pytest.param objects. If pytest.param
+    objects are given, the marks and ids are also merged.
+
+    If ids is specicified, it must either be a list of string ids for each
+    combination passed in, or a callable that accepts a list of values and
+    returns a string.
+
+    gen_fixture_params( (pytest.param(True, marks=[pytest.mark.A_good], id="A=True"),
+                         pytest.param(False, marks=[pytest.mark.B_bad], id="B=False")),
+                        (pytest.param(False, marks=[pytest.mark.A_bad], id="A=False"),
+                         pytest.param(True, marks=[pytest.mark.B_good], id="B=True")),
+                       )
+
+=======
+>>>>>>> python-sampling-edge-info
     results in fixture param combinations:
 
     True, False  - marks=[A_good, B_bad]  - id="A=True,B=False"

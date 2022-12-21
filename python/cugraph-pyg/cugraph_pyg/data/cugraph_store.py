@@ -93,7 +93,7 @@ class CuGraphEdgeAttr:
         return cls(*args, **kwargs)
 
 
-def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_vertices=None):
+def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_graph=None):
     """
         Returns the PyG wrappers for the provided PropertyGraph or
         MGPropertyGraph.
@@ -102,7 +102,7 @@ def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_vertices=None):
     ----------
     G : PropertyGraph or MGPropertyGraph
         The graph to produce PyG wrappers for.
-    renumber_vertices: bool
+    renumber_graph: bool
         Should usually be set to True.  If True, the vertices in the
         provided property graph will be renumbered so that they are
         contiguous by type.  If the vertices are already contiguously
@@ -114,7 +114,7 @@ def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_vertices=None):
         Wrappers for the provided property graph.
     """
     store = EXPERIMENTAL__CuGraphStore(
-        G, backend=backend, renumber_vertices=renumber_vertices
+        G, backend=backend, renumber_graph=renumber_graph
     )
     return (store, store)
 
@@ -204,7 +204,7 @@ class EXPERIMENTAL__CuGraphStore:
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
 
-    def __init__(self, G, backend="torch", renumber_vertices=None):
+    def __init__(self, G, backend="torch", renumber_graph=None):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
@@ -217,9 +217,9 @@ class EXPERIMENTAL__CuGraphStore:
         backend : ('torch', 'cupy')
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
-        renumber_vertices : bool
-            If True, will renumber vertices to have contiguous vertex ids per
-            vertex type.  If False, will not renumber vertices.  If not
+        renumber_graph : bool
+            If True, will renumber vertices and edges to have contiguous
+            ids per type.  If False, will not renumber vertices.  If not
             specified, will renumber and raise a warning.
         """
 
@@ -264,7 +264,7 @@ class EXPERIMENTAL__CuGraphStore:
         # Must be called after __infer_x_and_y_tensors to
         # avoid adding the old vertex id as a property when
         # users do not specify it.
-        self.__renumber_vertices(renumber_vertices)
+        self.__renumber_graph(renumber_graph)
 
         self.__edge_types_to_attrs = {}
         for edge_type in self.__graph.edge_types:
@@ -305,58 +305,75 @@ class EXPERIMENTAL__CuGraphStore:
 
             self._edge_attr_cls = CuGraphEdgeAttr
 
-    def __renumber_vertices(self, renumber_vertices):
+    def __renumber_graph(self, renumber_graph):
         """
-        Renumbers the vertices in this store's property graph
+        Renumbers the vertices and edges in this store's property graph
         and sets the vertex offsets.
-        If renumber_vertices is False, then renumber_vertices_by_type()
-        is not called and the offsets are inferred from vertex counts.
+        If renumber_graph is False, then renumber_vertices_by_type()
+        and renumber_edges_by_type()
+        are not called and the offsets are inferred from vertex counts.
 
-        If renumber_vertices is None, it defaults to True, warns the
+        If renumber_graph is None, it defaults to True, warns the
         user of this default behavior, and saves the current ids as
         <vertex_col>_old.
 
-        If renumber_vertices is True, it calls renumber_vertices_by_type(),
-        overwriting the current vertex ids without saving them.
+        If renumber_graph is True, it calls renumber_vertices_by_type()
+        and renumber_edges_by_type(),
+        overwriting the current vertex and edge ids without saving them.
         """
         self.__old_vertex_col_name = None
+        self.__old_edge_col_name = None
 
-        if renumber_vertices is None:
-            renumber_vertices = True
+        if renumber_graph is None:
+            renumber_graph = True
             self.__old_vertex_col_name = f"{self.__graph.vertex_col_name}_old"
+            self.__old_edge_col_name = f"{self.__graph.edge_id_col_name}_old"
             warnings.warn(
-                f"renumber_vertices not specified; renumbering by default "
-                f"and saving as {self.__old_vertex_col_name}"
+                f"renumber_graph not specified; renumbering by default "
+                f"and saving as {self.__old_vertex_col_name} "
+                f"and {self.__old_edge_col_name}"
             )
 
-        if renumber_vertices:
+        if renumber_graph:
             if self.is_remote and self.backend == "torch":
-                self.__offsets = self.__graph.renumber_vertices_by_type(
+                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
                     prev_id_column=self.__old_vertex_col_name,
                     backend="torch:cuda" if torch.has_cuda else "torch",
                 )
             else:
-                self.__offsets = self.__graph.renumber_vertices_by_type(
+                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
                     prev_id_column=self.__old_vertex_col_name
                 )
+
+            # FIXME: https://github.com/rapidsai/cugraph/issues/3059
+            # Currently renumbering edges is required if renumbering vertices or else
+            # there is a dask partitioning issue.
+            self.__graph.renumber_edges_by_type(prev_id_column=self.__old_edge_col_name)
+
         else:
-            self.__offsets = {}
-            self.__offsets["stop"] = [
+            self.__vertex_type_offsets = {}
+            self.__vertex_type_offsets["stop"] = [
                 self.__graph.get_num_vertices(vt) for vt in self.__graph.vertex_types
             ]
             if self.__backend == "cupy":
-                self.__offsets["stop"] = cupy.array(self.__offsets["stop"])
+                self.__vertex_type_offsets["stop"] = cupy.array(
+                    self.__vertex_type_offsets["stop"]
+                )
             else:
-                self.__offsets["stop"] = torch.tensor(self.__offsets["stop"])
+                self.__vertex_type_offsets["stop"] = torch.tensor(
+                    self.__vertex_type_offsets["stop"]
+                )
                 if torch.has_cuda:
-                    self.__offsets["stop"] = self.__offsets["stop"].cuda()
+                    self.__vertex_type_offsets["stop"] = self.__vertex_type_offsets[
+                        "stop"
+                    ].cuda()
 
-            cumsum = self.__offsets["stop"].cumsum(0)
-            self.__offsets["start"] = self.__offsets["stop"] - cumsum
-            self.__offsets["stop"] -= 1
-            self.__offsets["type"] = np.array(self.__graph.vertex_types)
-
-        self.__graph.renumber_edges_by_type()
+            cumsum = self.__vertex_type_offsets["stop"].cumsum(0)
+            self.__vertex_type_offsets["start"] = (
+                self.__vertex_type_offsets["stop"] - cumsum
+            )
+            self.__vertex_type_offsets["stop"] -= 1
+            self.__vertex_type_offsets["type"] = np.array(self.__graph.vertex_types)
 
     @property
     def _old_vertex_col_name(self):
@@ -365,6 +382,14 @@ class EXPERIMENTAL__CuGraphStore:
         the original vertex ids were stored, if this store did its own renumbering.
         """
         return self.__old_vertex_col_name
+
+    @property
+    def _old_edge_col_name(self):
+        """
+        Returns the name of the new property in the wrapped property graph where
+        the original edge ids were stored, if this store did its own renumbering.
+        """
+        return self.__old_edge_col_name
 
     @property
     def _edge_types_to_attrs(self):
@@ -403,8 +428,8 @@ class EXPERIMENTAL__CuGraphStore:
         else:
             ix = cupy.array()
         for vtype in vtypes:
-            start = self.__offsets["start"][vtype]
-            stop = self.__offsets["stop"][vtype]
+            start = self.__vertex_type_offsets["start"][vtype]
+            stop = self.__vertex_type_offsets["stop"][vtype]
             ix = self.concatenate(ix, self.arange(start, stop + 1, 1))
 
         return self.from_dlpack(ix.to_dlpack())

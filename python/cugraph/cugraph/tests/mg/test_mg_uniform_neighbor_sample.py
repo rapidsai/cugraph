@@ -20,8 +20,9 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 import cugraph
-from cugraph.testing import utils
+
 from cugraph.dask import uniform_neighbor_sample
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -49,9 +50,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = utils.DATASETS_UNDIRECTED + [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
-]
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
@@ -76,7 +75,7 @@ def input_combo(request):
 
     indices_type = parameters["indices_type"]
 
-    input_data_path = parameters["graph_file"]
+    input_data_path = parameters["graph_file"].get_path()
     directed = parameters["directed"]
 
     chunksize = dcg.get_chunksize(input_data_path)
@@ -205,7 +204,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "small_tree.csv").as_posix()
+    input_data_path = small_tree.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -320,6 +319,70 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     assert len(output_df.compute()) == 3
 
 
+@pytest.mark.cugraph_ops
+def test_uniform_neighbor_sample_edge_properties():
+    edgelist_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2],
+                "dst": [1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4],
+                "eid": cudf.Series(
+                    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dtype="int64"
+                ),
+                "etp": cudf.Series([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0], dtype="int32"),
+                "w": [0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11],
+            }
+        ),
+        npartitions=2,
+    )
+
+    start_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "seed": cudf.Series([0, 4], dtype="int32"),
+                "batch": cudf.Series([0, 1], dtype="int32"),
+            }
+        )
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"]
+    )
+
+    sampling_results = uniform_neighbor_sample(
+        G,
+        start_list=start_df["seed"],
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        batch_id_list=start_df["batch"],
+    ).compute()
+
+    edgelist_df.set_index("eid")
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["w"].values_host.tolist()
+        == sampling_results["weight"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["etp"].values_host.tolist()
+        == sampling_results["edge_type"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["src"].values_host.tolist()
+        == sampling_results["sources"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["dst"].values_host.tolist()
+        == sampling_results["destinations"].values_host.tolist()
+    )
+
+    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
+        2 * 2 * 2
+    )
+    # FIXME test the batch id values once that is fixed in C++
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
@@ -328,7 +391,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
 def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
-    input_data_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+    input_data_path = email_Eu_core.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
