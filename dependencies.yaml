@@ -12,6 +12,7 @@ files:
       - cudatoolkit
       - doc
       - python_build
+      - test_python
   checks:
     output: none
     includes:
@@ -21,6 +22,12 @@ files:
     output: none
     includes:
       - cudatoolkit
+  test_python:
+    output: none
+    includes:
+      - cudatoolkit
+      - py_version
+      - test_python
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -115,10 +122,7 @@ dependencies:
           - notebook>=0.5.0
           - py
           - pylibraft=23.02.*
-          - pytest
-          - pytest-cov
           - raft-dask=23.02.*
-          - rapids-pytest-benchmark
           - rmm=23.02.*
           - scikit-build>=0.13.1
           - scikit-learn>=0.23.1
@@ -138,3 +142,10 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
+  test_python:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - pytest
+          - pytest-cov
+          - rapids-pytest-benchmark
