@@ -17,7 +17,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
