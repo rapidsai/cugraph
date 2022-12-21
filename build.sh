@@ -175,11 +175,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
 fi
 if hasArg --pydevelop; then
-<<<<<<< HEAD
-    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation -e ."
-=======
     PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e ."
->>>>>>> python-sampling-edge-info
 fi
 
 # If clean or uninstall targets given, run them prior to any other steps
