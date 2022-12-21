@@ -120,7 +120,6 @@ dependencies:
           - nccl>=2.9.9
           - networkx>=2.5.1
           - notebook>=0.5.0
-          - py
           - pylibraft=23.02.*
           - raft-dask=23.02.*
           - rmm=23.02.*
@@ -146,6 +145,7 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
+          - py
           - pytest
           - pytest-cov
           - rapids-pytest-benchmark
