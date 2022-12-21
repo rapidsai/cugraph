@@ -36,6 +36,7 @@ dependencies:
 - nvcc_linux-64=11.5
 - openmpi
 - pip
+- pre-commit
 - py
 - pydata-sphinx-theme
 - pylibraft=23.02.*

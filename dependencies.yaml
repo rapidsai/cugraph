@@ -6,11 +6,17 @@ files:
       cuda: ["11.5"]
       arch: [x86_64]
     includes:
+      - checks
       - common_build
       - cpp_build
       - cudatoolkit
       - doc
       - python_build
+  checks:
+    output: none
+    includes:
+      - checks
+      - py_version
   test_cpp:
     output: none
     includes:
@@ -22,6 +28,11 @@ channels:
   - conda-forge
   - nvidia
 dependencies:
+  checks:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - pre-commit
   cudatoolkit:
     specific:
       - output_types: [conda]
