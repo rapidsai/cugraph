@@ -41,6 +41,7 @@ requirements:
     - {{ compiler('cuda') }} {{ cuda_version }}
     - {{ compiler('cxx') }}
     - cmake {{ cmake_version }}
+    - ninja
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
     - cudatoolkit ={{ cuda_version }}
