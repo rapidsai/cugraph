@@ -32,6 +32,7 @@ import cupy as cp
 import ucp
 import cudf
 import dask_cudf
+import rmm
 from cugraph import (
     batched_ego_graphs,
     uniform_neighbor_sample,
@@ -383,12 +384,10 @@ class CugraphHandler:
 
     def initialize_dask_client(
         self,
+        protocol=None,
+        rmm_pool_size=None,
+        CUDA_VISIBLE_DEVICES=None,
         dask_scheduler_file=None,
-        enable_tcp_over_ucx=False,
-        enable_infiniband=False,
-        enable_nvlink=False,
-        enable_rdmacm=False,
-        net_devices=None,
     ):
         """
         Initialize a dask client to be used for MG operations.
@@ -402,11 +401,15 @@ class CugraphHandler:
             tempdir_object = tempfile.TemporaryDirectory()
             cluster = LocalCUDACluster(
                 local_directory=tempdir_object.name,
-                enable_tcp_over_ucx=enable_tcp_over_ucx,
-                enable_infiniband=enable_infiniband,
-                enable_nvlink=enable_nvlink,
-                enable_rdmacm=enable_rdmacm,
+                protocol=protocol,
+                rmm_pool_size=rmm_pool_size,
+                CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES,
             )
+            # Reinitialize the client to use RMM pool allocator if cluster is
+            # using it.
+            if rmm_pool_size is not None:
+                rmm.reinitialize(pool_allocator=True)
+
             self.__dask_client = Client(cluster)
             self.__dask_client.wait_for_workers(len(get_visible_devices()))
 

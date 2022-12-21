@@ -17,14 +17,17 @@ import versioneer
 cmdclass = versioneer.get_cmdclass()
 
 install_requires = [
-    "cugraph-service-client",
+    "cudf",
     "cugraph",
+    "cugraph-service-client",
     "cupy-cuda11x",
-    "numpy",
-    "ucx-py",
-    "distributed >=2022.12.0",
     "dask-cuda",
+    "dask-cudf",
+    "distributed >=2022.12.0",
+    "numpy",
+    "rmm",
     "thriftpy2",
+    "ucx-py",
 ]
 
 setup(

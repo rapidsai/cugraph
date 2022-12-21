@@ -18,6 +18,7 @@ import cupy as cp
 from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 import cudf
 import dask_cudf
+import rmm
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -52,6 +53,8 @@ def create_graph(graph_data):
     # FIXME: need to consider directed/undirected?
     G = MultiGraph(directed=True)
 
+    rmm.reinitialize(pool_allocator=True)
+
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
         ds = getattr(datasets, graph_data)
@@ -59,7 +62,7 @@ def create_graph(graph_data):
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
         G.from_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt", renumber=True
+            edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renum_only=True
         )
 
     # Assume dictionary contains RMAT params
@@ -100,12 +103,16 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=False,
-        enable_infiniband=False,
-        enable_nvlink=False,
-        enable_rdmacm=False,
-        net_devices=None,
+        # enable_tcp_over_ucx=True,
+        # enable_infiniband=False,
+        # enable_nvlink=True,
+        # enable_rdmacm=False,
+        protocol="ucx",
+        rmm_pool_size="28GB",
+        CUDA_VISIBLE_DEVICES="1,2,3,4,5,6,7",  # let 0 be used by benchmark process
     )
+    rmm.reinitialize(pool_allocator=True)
+
     # FIXME: need to consider directed/undirected?
     G = MultiGraph(directed=True)
 
@@ -117,7 +124,7 @@ def create_mg_graph(graph_data):
         # for G.from_cudf_edgelist()
         edgelist_df = dask_cudf.from_cudf(edgelist_df)
         G.from_dask_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt", renumber=True
+            edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renumber=True
         )
 
     # Assume dictionary contains RMAT params
@@ -185,12 +192,13 @@ def get_uniform_neighbor_sample_args(
     # num_start_verts vertices in the edgelist. This will likely result in
     # duplicates.
     srcs = G.edgelist.edgelist_df["src"]
-    start_list = srcs[:num_start_verts]
+    start_list = srcs.head(num_start_verts)
 
     # Attempt to automatically handle a dask Series
     if hasattr(start_list, "compute"):
         start_list = start_list.compute()
 
+    assert len(start_list) == num_start_verts
 
     return {
         "start_list": start_list,

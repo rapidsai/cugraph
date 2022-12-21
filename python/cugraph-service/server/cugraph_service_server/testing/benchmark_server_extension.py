@@ -125,10 +125,12 @@ def gen_vertex_list(graph_id, num_verts_to_return, server=None):
     # num_verts_to_return vertices in the edgelist. This will likely result in
     # duplicates.
     srcs = G.edgelist.edgelist_df["src"]
-    start_list = srcs[:num_verts_to_return]
+    start_list = srcs.head(num_verts_to_return)
 
     # Attempt to automatically handle a dask Series
     if hasattr(start_list, "compute"):
         start_list = start_list.compute()
+
+    assert len(start_list) == num_verts_to_return
 
     return start_list.to_cupy()
