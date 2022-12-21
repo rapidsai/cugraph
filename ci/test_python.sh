@@ -75,8 +75,60 @@ if (( ${exitcode} != 0 )); then
 fi
 popd
 
-# TODO: benchmarks
-# TODO: cugraph_pyg
-# TODO: cugraph-service
+rapids-logger "pytest cugraph benchmarks"
+pushd benchmarks
+pytest \
+  --capture=no \
+  --verbose \
+  -m "managedmem_on and poolallocator_on and tiny" \
+  --benchmark-disable
+exitcode=$?
+
+if (( ${exitcode} != 0 )); then
+    SUITEERROR=${exitcode}
+    echo "FAILED: 1 or more tests in cugraph benchmarks"
+fi
+popd
+
+rapids-logger "pytest cugraph_pyg (single GPU)"
+pushd python/cugraph-pyg/cugraph_pyg
+# rmat is not tested because of multi-GPU testing
+pytest \
+  --cache-clear \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
+  --cov-config=../../.coveragerc \
+  --cov=cugraph_pyg \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
+  --cov-report=term \
+  .
+exitcode=$?
+
+if (( ${exitcode} != 0 )); then
+    SUITEERROR=${exitcode}
+    echo "FAILED: 1 or more tests in cugraph-pyg"
+fi
+popd
+
+rapids-logger "pytest cugraph-service (single GPU)"
+pushd python/cugraph-service
+pytest \
+  --capture=no \
+  --verbose \
+  --cache-clear \
+  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+  --cov-config=../.coveragerc \
+  --cov=cugraph_service \
+  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
+  --cov-report=term \
+  --benchmark-disable \
+  -k "not mg" \
+  tests
+exitcode=$?
+
+if (( ${exitcode} != 0 )); then
+    SUITEERROR=${exitcode}
+    echo "FAILED: 1 or more tests in cugraph-service"
+fi
+popd
 
 exit ${SUITEERROR}
