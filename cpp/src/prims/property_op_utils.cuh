@@ -18,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/comms/comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>
 
