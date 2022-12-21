@@ -5,8 +5,6 @@
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set py_version = environ['CONDA_PY'] %}
-{% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
-{% set cuda_major = cuda_version.split('.')[0] %}
 
 package:
   name: cugraph-pyg
@@ -17,7 +15,7 @@ source:
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
-  string: cuda{{ cuda_major }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+  string: py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
     - PARALLEL_LEVEL
   preserve_egg_dir: True
@@ -32,12 +30,11 @@ requirements:
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
     - setuptools <=65.2.0
   run:
-    - cudatoolkit ={{ cuda_version }}
     - distributed >=2022.12.0
     - numba >=0.56.2
     - numpy
+    - pytorch <=1.12
     # - pyg (uncomment once pyg 2.2 is released)
-    - pytorch
 
 # TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
 tests:                                 # [linux64]
