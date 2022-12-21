@@ -172,7 +172,8 @@ def test_neighbor_sample(basic_property_graph_1):
     base_df = base_df.sort_values(cols)
     base_df = base_df.reset_index().drop("index", axis=1)
 
-    numbering = noi_groups[""]
+    print(noi_groups)
+    numbering = noi_groups["t1"]
     renumber_df = cudf.Series(range(len(numbering)), index=numbering)
 
     combined_df[pG.src_col_name] = renumber_df.loc[
