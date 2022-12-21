@@ -294,9 +294,9 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7};
   weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
   int32_t edge_types[] = {7, 6, 5, 4, 3, 2, 1, 0};
-  vertex_t start[]     = {2};
-  int32_t label[]      = {42};
-  int fan_out[]        = {-1};
+  vertex_t start[]     = {2, 2};
+  int32_t label[]      = {42, 42};
+  int fan_out[]        = {2,2};
 
   // Create graph
   int test_ret_value              = 0;
@@ -439,6 +439,7 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
 
   printf("\nentering assertions\n");
   printf("label array size: %d\n", cugraph_type_erased_device_array_view_size(result_label));
+  printf("label ix 0: %d\n", h_label[0]);
 
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,

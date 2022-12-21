@@ -326,5 +326,26 @@ def test_uniform_neighbor_sample_edge_properties():
         with_edge_properties=True,
         batch_id_list=start_df["batch"],
     )
-    print(sampling_results)
-    raise ValueError("asdf")
+
+    edgelist_df.set_index("eid")
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["w"].values_host.tolist()
+        == sampling_results["weight"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["etp"].values_host.tolist()
+        == sampling_results["edge_type"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["src"].values_host.tolist()
+        == sampling_results["sources"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["dst"].values_host.tolist()
+        == sampling_results["destinations"].values_host.tolist()
+    )
+
+    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
+        2 * 2 * 2
+    )
+    # FIXME test the batch id values once that is fixed in C++

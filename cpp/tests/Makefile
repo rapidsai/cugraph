@@ -57,13 +57,33 @@ RM = /opt/conda/envs/rapids/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /work/cugraph/cpp/tests
+CMAKE_SOURCE_DIR = /work/cugraph/cpp
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /work/cugraph/cpp/tests
+CMAKE_BINARY_DIR = /work/cugraph/cpp
 
 #=============================================================================
 # Targets provided globally by CMake.
+
+# Special rule for the target package
+package: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool..."
+	cd /work/cugraph/cpp && /opt/conda/envs/rapids/bin/cpack --config ./CPackConfig.cmake
+.PHONY : package
+
+# Special rule for the target package
+package/fast: package
+.PHONY : package/fast
+
+# Special rule for the target package_source
+package_source:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool for source..."
+	cd /work/cugraph/cpp && /opt/conda/envs/rapids/bin/cpack --config ./CPackSourceConfig.cmake /work/cugraph/cpp/CPackSourceConfig.cmake
+.PHONY : package_source
+
+# Special rule for the target package_source
+package_source/fast: package_source
+.PHONY : package_source/fast
 
 # Special rule for the target test
 test:
@@ -97,7 +117,7 @@ rebuild_cache/fast: rebuild_cache
 
 # Special rule for the target list_install_components
 list_install_components:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"testing\""
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\" \"testing\""
 .PHONY : list_install_components
 
 # Special rule for the target list_install_components
@@ -142,14 +162,14 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /work/cugraph/cpp/tests/CMakeFiles /work/cugraph/cpp/tests//CMakeFiles/progress.marks
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /work/cugraph/cpp/tests/CMakeFiles 0
+	cd /work/cugraph/cpp && $(CMAKE_COMMAND) -E cmake_progress_start /work/cugraph/cpp/CMakeFiles /work/cugraph/cpp/tests//CMakeFiles/progress.marks
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /work/cugraph/cpp/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 clean
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/clean
 .PHONY : clean
 
 # The main clean target
@@ -158,1800 +178,2904 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 preinstall
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 preinstall
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	$(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /work/cugraph/cpp && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
-#=============================================================================
-# Target rules for targets named cugraphtestutil
+# Convenience name for target.
+tests/CMakeFiles/cugraphtestutil.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/cugraphtestutil.dir/rule
+.PHONY : tests/CMakeFiles/cugraphtestutil.dir/rule
 
-# Build rule for target.
-cugraphtestutil: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 cugraphtestutil
+# Convenience name for target.
+cugraphtestutil: tests/CMakeFiles/cugraphtestutil.dir/rule
 .PHONY : cugraphtestutil
 
 # fast build rule for target.
 cugraphtestutil/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/build
 .PHONY : cugraphtestutil/fast
 
-#=============================================================================
-# Target rules for targets named GRAPH_GENERATORS_TEST
+# Convenience name for target.
+tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/rule
 
-# Build rule for target.
-GRAPH_GENERATORS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 GRAPH_GENERATORS_TEST
+# Convenience name for target.
+GRAPH_GENERATORS_TEST: tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/rule
 .PHONY : GRAPH_GENERATORS_TEST
 
 # fast build rule for target.
 GRAPH_GENERATORS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make CMakeFiles/GRAPH_GENERATORS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/build
 .PHONY : GRAPH_GENERATORS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named ERDOS_RENYI_GENERATOR_TEST
+# Convenience name for target.
+tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/rule
+.PHONY : tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/rule
 
-# Build rule for target.
-ERDOS_RENYI_GENERATOR_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 ERDOS_RENYI_GENERATOR_TEST
+# Convenience name for target.
+ERDOS_RENYI_GENERATOR_TEST: tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/rule
 .PHONY : ERDOS_RENYI_GENERATOR_TEST
 
 # fast build rule for target.
 ERDOS_RENYI_GENERATOR_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build
 .PHONY : ERDOS_RENYI_GENERATOR_TEST/fast
 
-#=============================================================================
-# Target rules for targets named LEGACY_BETWEENNESS_TEST
+# Convenience name for target.
+tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/rule
 
-# Build rule for target.
-LEGACY_BETWEENNESS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 LEGACY_BETWEENNESS_TEST
+# Convenience name for target.
+LEGACY_BETWEENNESS_TEST: tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/rule
 .PHONY : LEGACY_BETWEENNESS_TEST
 
 # fast build rule for target.
 LEGACY_BETWEENNESS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build.make CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build
 .PHONY : LEGACY_BETWEENNESS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named LEGACY_EDGE_BETWEENNESS_TEST
+# Convenience name for target.
+tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/rule
 
-# Build rule for target.
-LEGACY_EDGE_BETWEENNESS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 LEGACY_EDGE_BETWEENNESS_TEST
+# Convenience name for target.
+LEGACY_EDGE_BETWEENNESS_TEST: tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/rule
 .PHONY : LEGACY_EDGE_BETWEENNESS_TEST
 
 # fast build rule for target.
 LEGACY_EDGE_BETWEENNESS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build.make CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build
 .PHONY : LEGACY_EDGE_BETWEENNESS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named LEGACY_BFS_TEST
+# Convenience name for target.
+tests/CMakeFiles/LEGACY_BFS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/LEGACY_BFS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/LEGACY_BFS_TEST.dir/rule
 
-# Build rule for target.
-LEGACY_BFS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 LEGACY_BFS_TEST
+# Convenience name for target.
+LEGACY_BFS_TEST: tests/CMakeFiles/LEGACY_BFS_TEST.dir/rule
 .PHONY : LEGACY_BFS_TEST
 
 # fast build rule for target.
 LEGACY_BFS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEGACY_BFS_TEST.dir/build.make CMakeFiles/LEGACY_BFS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BFS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BFS_TEST.dir/build
 .PHONY : LEGACY_BFS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named LOUVAIN_TEST
+# Convenience name for target.
+tests/CMakeFiles/LOUVAIN_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/LOUVAIN_TEST.dir/rule
+.PHONY : tests/CMakeFiles/LOUVAIN_TEST.dir/rule
 
-# Build rule for target.
-LOUVAIN_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 LOUVAIN_TEST
+# Convenience name for target.
+LOUVAIN_TEST: tests/CMakeFiles/LOUVAIN_TEST.dir/rule
 .PHONY : LOUVAIN_TEST
 
 # fast build rule for target.
 LOUVAIN_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LOUVAIN_TEST.dir/build.make CMakeFiles/LOUVAIN_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LOUVAIN_TEST.dir/build.make tests/CMakeFiles/LOUVAIN_TEST.dir/build
 .PHONY : LOUVAIN_TEST/fast
 
-#=============================================================================
-# Target rules for targets named LEIDEN_TEST
+# Convenience name for target.
+tests/CMakeFiles/LEIDEN_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/LEIDEN_TEST.dir/rule
+.PHONY : tests/CMakeFiles/LEIDEN_TEST.dir/rule
 
-# Build rule for target.
-LEIDEN_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 LEIDEN_TEST
+# Convenience name for target.
+LEIDEN_TEST: tests/CMakeFiles/LEIDEN_TEST.dir/rule
 .PHONY : LEIDEN_TEST
 
 # fast build rule for target.
 LEIDEN_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEIDEN_TEST.dir/build.make CMakeFiles/LEIDEN_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEIDEN_TEST.dir/build.make tests/CMakeFiles/LEIDEN_TEST.dir/build
 .PHONY : LEIDEN_TEST/fast
 
-#=============================================================================
-# Target rules for targets named ECG_TEST
+# Convenience name for target.
+tests/CMakeFiles/ECG_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/ECG_TEST.dir/rule
+.PHONY : tests/CMakeFiles/ECG_TEST.dir/rule
 
-# Build rule for target.
-ECG_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 ECG_TEST
+# Convenience name for target.
+ECG_TEST: tests/CMakeFiles/ECG_TEST.dir/rule
 .PHONY : ECG_TEST
 
 # fast build rule for target.
 ECG_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ECG_TEST.dir/build.make CMakeFiles/ECG_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ECG_TEST.dir/build.make tests/CMakeFiles/ECG_TEST.dir/build
 .PHONY : ECG_TEST/fast
 
-#=============================================================================
-# Target rules for targets named BALANCED_TEST
+# Convenience name for target.
+tests/CMakeFiles/BALANCED_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/BALANCED_TEST.dir/rule
+.PHONY : tests/CMakeFiles/BALANCED_TEST.dir/rule
 
-# Build rule for target.
-BALANCED_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 BALANCED_TEST
+# Convenience name for target.
+BALANCED_TEST: tests/CMakeFiles/BALANCED_TEST.dir/rule
 .PHONY : BALANCED_TEST
 
 # fast build rule for target.
 BALANCED_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BALANCED_TEST.dir/build.make CMakeFiles/BALANCED_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BALANCED_TEST.dir/build.make tests/CMakeFiles/BALANCED_TEST.dir/build
 .PHONY : BALANCED_TEST/fast
 
-#=============================================================================
-# Target rules for targets named EGO_TEST
+# Convenience name for target.
+tests/CMakeFiles/EGO_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/EGO_TEST.dir/rule
+.PHONY : tests/CMakeFiles/EGO_TEST.dir/rule
 
-# Build rule for target.
-EGO_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 EGO_TEST
+# Convenience name for target.
+EGO_TEST: tests/CMakeFiles/EGO_TEST.dir/rule
 .PHONY : EGO_TEST
 
 # fast build rule for target.
 EGO_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EGO_TEST.dir/build.make CMakeFiles/EGO_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EGO_TEST.dir/build.make tests/CMakeFiles/EGO_TEST.dir/build
 .PHONY : EGO_TEST/fast
 
-#=============================================================================
-# Target rules for targets named LEGACY_FA2_TEST
+# Convenience name for target.
+tests/CMakeFiles/LEGACY_FA2_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/LEGACY_FA2_TEST.dir/rule
+.PHONY : tests/CMakeFiles/LEGACY_FA2_TEST.dir/rule
 
-# Build rule for target.
-LEGACY_FA2_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 LEGACY_FA2_TEST
+# Convenience name for target.
+LEGACY_FA2_TEST: tests/CMakeFiles/LEGACY_FA2_TEST.dir/rule
 .PHONY : LEGACY_FA2_TEST
 
 # fast build rule for target.
 LEGACY_FA2_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEGACY_FA2_TEST.dir/build.make CMakeFiles/LEGACY_FA2_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_FA2_TEST.dir/build.make tests/CMakeFiles/LEGACY_FA2_TEST.dir/build
 .PHONY : LEGACY_FA2_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CONNECT_TEST
+# Convenience name for target.
+tests/CMakeFiles/CONNECT_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CONNECT_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CONNECT_TEST.dir/rule
 
-# Build rule for target.
-CONNECT_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CONNECT_TEST
+# Convenience name for target.
+CONNECT_TEST: tests/CMakeFiles/CONNECT_TEST.dir/rule
 .PHONY : CONNECT_TEST
 
 # fast build rule for target.
 CONNECT_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CONNECT_TEST.dir/build.make CMakeFiles/CONNECT_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CONNECT_TEST.dir/build.make tests/CMakeFiles/CONNECT_TEST.dir/build
 .PHONY : CONNECT_TEST/fast
 
-#=============================================================================
-# Target rules for targets named SCC_TEST
+# Convenience name for target.
+tests/CMakeFiles/SCC_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/SCC_TEST.dir/rule
+.PHONY : tests/CMakeFiles/SCC_TEST.dir/rule
 
-# Build rule for target.
-SCC_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 SCC_TEST
+# Convenience name for target.
+SCC_TEST: tests/CMakeFiles/SCC_TEST.dir/rule
 .PHONY : SCC_TEST
 
 # fast build rule for target.
 SCC_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SCC_TEST.dir/build.make CMakeFiles/SCC_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SCC_TEST.dir/build.make tests/CMakeFiles/SCC_TEST.dir/build
 .PHONY : SCC_TEST/fast
 
-#=============================================================================
-# Target rules for targets named HUNGARIAN_TEST
+# Convenience name for target.
+tests/CMakeFiles/HUNGARIAN_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/HUNGARIAN_TEST.dir/rule
+.PHONY : tests/CMakeFiles/HUNGARIAN_TEST.dir/rule
 
-# Build rule for target.
-HUNGARIAN_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 HUNGARIAN_TEST
+# Convenience name for target.
+HUNGARIAN_TEST: tests/CMakeFiles/HUNGARIAN_TEST.dir/rule
 .PHONY : HUNGARIAN_TEST
 
 # fast build rule for target.
 HUNGARIAN_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/HUNGARIAN_TEST.dir/build.make CMakeFiles/HUNGARIAN_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HUNGARIAN_TEST.dir/build.make tests/CMakeFiles/HUNGARIAN_TEST.dir/build
 .PHONY : HUNGARIAN_TEST/fast
 
-#=============================================================================
-# Target rules for targets named MST_TEST
+# Convenience name for target.
+tests/CMakeFiles/MST_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/MST_TEST.dir/rule
+.PHONY : tests/CMakeFiles/MST_TEST.dir/rule
 
-# Build rule for target.
-MST_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 MST_TEST
+# Convenience name for target.
+MST_TEST: tests/CMakeFiles/MST_TEST.dir/rule
 .PHONY : MST_TEST
 
 # fast build rule for target.
 MST_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MST_TEST.dir/build.make CMakeFiles/MST_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MST_TEST.dir/build.make tests/CMakeFiles/MST_TEST.dir/build
 .PHONY : MST_TEST/fast
 
-#=============================================================================
-# Target rules for targets named STREAM_TEST
+# Convenience name for target.
+tests/CMakeFiles/STREAM_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/STREAM_TEST.dir/rule
+.PHONY : tests/CMakeFiles/STREAM_TEST.dir/rule
 
-# Build rule for target.
-STREAM_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 STREAM_TEST
+# Convenience name for target.
+STREAM_TEST: tests/CMakeFiles/STREAM_TEST.dir/rule
 .PHONY : STREAM_TEST
 
 # fast build rule for target.
 STREAM_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/STREAM_TEST.dir/build.make CMakeFiles/STREAM_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/STREAM_TEST.dir/build.make tests/CMakeFiles/STREAM_TEST.dir/build
 .PHONY : STREAM_TEST/fast
 
-#=============================================================================
-# Target rules for targets named GENERATE_RMAT_TEST
+# Convenience name for target.
+tests/CMakeFiles/GENERATE_RMAT_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/GENERATE_RMAT_TEST.dir/rule
+.PHONY : tests/CMakeFiles/GENERATE_RMAT_TEST.dir/rule
 
-# Build rule for target.
-GENERATE_RMAT_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 GENERATE_RMAT_TEST
+# Convenience name for target.
+GENERATE_RMAT_TEST: tests/CMakeFiles/GENERATE_RMAT_TEST.dir/rule
 .PHONY : GENERATE_RMAT_TEST
 
 # fast build rule for target.
 GENERATE_RMAT_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GENERATE_RMAT_TEST.dir/build.make CMakeFiles/GENERATE_RMAT_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GENERATE_RMAT_TEST.dir/build.make tests/CMakeFiles/GENERATE_RMAT_TEST.dir/build
 .PHONY : GENERATE_RMAT_TEST/fast
 
-#=============================================================================
-# Target rules for targets named GRAPH_MASK_TEST
+# Convenience name for target.
+tests/CMakeFiles/GRAPH_MASK_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/GRAPH_MASK_TEST.dir/rule
+.PHONY : tests/CMakeFiles/GRAPH_MASK_TEST.dir/rule
 
-# Build rule for target.
-GRAPH_MASK_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 GRAPH_MASK_TEST
+# Convenience name for target.
+GRAPH_MASK_TEST: tests/CMakeFiles/GRAPH_MASK_TEST.dir/rule
 .PHONY : GRAPH_MASK_TEST
 
 # fast build rule for target.
 GRAPH_MASK_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_MASK_TEST.dir/build.make CMakeFiles/GRAPH_MASK_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_MASK_TEST.dir/build.make tests/CMakeFiles/GRAPH_MASK_TEST.dir/build
 .PHONY : GRAPH_MASK_TEST/fast
 
-#=============================================================================
-# Target rules for targets named SYMMETRIZE_TEST
+# Convenience name for target.
+tests/CMakeFiles/SYMMETRIZE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/SYMMETRIZE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/SYMMETRIZE_TEST.dir/rule
 
-# Build rule for target.
-SYMMETRIZE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 SYMMETRIZE_TEST
+# Convenience name for target.
+SYMMETRIZE_TEST: tests/CMakeFiles/SYMMETRIZE_TEST.dir/rule
 .PHONY : SYMMETRIZE_TEST
 
 # fast build rule for target.
 SYMMETRIZE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SYMMETRIZE_TEST.dir/build.make CMakeFiles/SYMMETRIZE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SYMMETRIZE_TEST.dir/build.make tests/CMakeFiles/SYMMETRIZE_TEST.dir/build
 .PHONY : SYMMETRIZE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named TRANSPOSE_TEST
+# Convenience name for target.
+tests/CMakeFiles/TRANSPOSE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/TRANSPOSE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/TRANSPOSE_TEST.dir/rule
 
-# Build rule for target.
-TRANSPOSE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 TRANSPOSE_TEST
+# Convenience name for target.
+TRANSPOSE_TEST: tests/CMakeFiles/TRANSPOSE_TEST.dir/rule
 .PHONY : TRANSPOSE_TEST
 
 # fast build rule for target.
 TRANSPOSE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_TEST.dir/build.make CMakeFiles/TRANSPOSE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_TEST.dir/build
 .PHONY : TRANSPOSE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named TRANSPOSE_STORAGE_TEST
+# Convenience name for target.
+tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/rule
 
-# Build rule for target.
-TRANSPOSE_STORAGE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 TRANSPOSE_STORAGE_TEST
+# Convenience name for target.
+TRANSPOSE_STORAGE_TEST: tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/rule
 .PHONY : TRANSPOSE_STORAGE_TEST
 
 # fast build rule for target.
 TRANSPOSE_STORAGE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build
 .PHONY : TRANSPOSE_STORAGE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named WEIGHT_SUM_TEST
+# Convenience name for target.
+tests/CMakeFiles/WEIGHT_SUM_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/WEIGHT_SUM_TEST.dir/rule
+.PHONY : tests/CMakeFiles/WEIGHT_SUM_TEST.dir/rule
 
-# Build rule for target.
-WEIGHT_SUM_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 WEIGHT_SUM_TEST
+# Convenience name for target.
+WEIGHT_SUM_TEST: tests/CMakeFiles/WEIGHT_SUM_TEST.dir/rule
 .PHONY : WEIGHT_SUM_TEST
 
 # fast build rule for target.
 WEIGHT_SUM_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEIGHT_SUM_TEST.dir/build.make CMakeFiles/WEIGHT_SUM_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEIGHT_SUM_TEST.dir/build.make tests/CMakeFiles/WEIGHT_SUM_TEST.dir/build
 .PHONY : WEIGHT_SUM_TEST/fast
 
-#=============================================================================
-# Target rules for targets named DEGREE_TEST
+# Convenience name for target.
+tests/CMakeFiles/DEGREE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/DEGREE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/DEGREE_TEST.dir/rule
 
-# Build rule for target.
-DEGREE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 DEGREE_TEST
+# Convenience name for target.
+DEGREE_TEST: tests/CMakeFiles/DEGREE_TEST.dir/rule
 .PHONY : DEGREE_TEST
 
 # fast build rule for target.
 DEGREE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/DEGREE_TEST.dir/build.make CMakeFiles/DEGREE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/DEGREE_TEST.dir/build.make tests/CMakeFiles/DEGREE_TEST.dir/build
 .PHONY : DEGREE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+# Convenience name for target.
+tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/rule
+.PHONY : tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/rule
 
-# Build rule for target.
-COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+# Convenience name for target.
+COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST: tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/rule
 .PHONY : COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
 
 # fast build rule for target.
 COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build
 .PHONY : COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST/fast
 
-#=============================================================================
-# Target rules for targets named COARSEN_GRAPH_TEST
+# Convenience name for target.
+tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/rule
+.PHONY : tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/rule
 
-# Build rule for target.
-COARSEN_GRAPH_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 COARSEN_GRAPH_TEST
+# Convenience name for target.
+COARSEN_GRAPH_TEST: tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/rule
 .PHONY : COARSEN_GRAPH_TEST
 
 # fast build rule for target.
 COARSEN_GRAPH_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make CMakeFiles/COARSEN_GRAPH_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/build
 .PHONY : COARSEN_GRAPH_TEST/fast
 
-#=============================================================================
-# Target rules for targets named INDUCED_SUBGRAPH_TEST
+# Convenience name for target.
+tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/rule
+.PHONY : tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/rule
 
-# Build rule for target.
-INDUCED_SUBGRAPH_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 INDUCED_SUBGRAPH_TEST
+# Convenience name for target.
+INDUCED_SUBGRAPH_TEST: tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/rule
 .PHONY : INDUCED_SUBGRAPH_TEST
 
 # fast build rule for target.
 INDUCED_SUBGRAPH_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build
 .PHONY : INDUCED_SUBGRAPH_TEST/fast
 
-#=============================================================================
-# Target rules for targets named BFS_TEST
+# Convenience name for target.
+tests/CMakeFiles/BFS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/BFS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/BFS_TEST.dir/rule
 
-# Build rule for target.
-BFS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 BFS_TEST
+# Convenience name for target.
+BFS_TEST: tests/CMakeFiles/BFS_TEST.dir/rule
 .PHONY : BFS_TEST
 
 # fast build rule for target.
 BFS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BFS_TEST.dir/build.make CMakeFiles/BFS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BFS_TEST.dir/build.make tests/CMakeFiles/BFS_TEST.dir/build
 .PHONY : BFS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named EXTRACT_BFS_PATHS_TEST
+# Convenience name for target.
+tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/rule
 
-# Build rule for target.
-EXTRACT_BFS_PATHS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 EXTRACT_BFS_PATHS_TEST
+# Convenience name for target.
+EXTRACT_BFS_PATHS_TEST: tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/rule
 .PHONY : EXTRACT_BFS_PATHS_TEST
 
 # fast build rule for target.
 EXTRACT_BFS_PATHS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build.make CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build.make tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build
 .PHONY : EXTRACT_BFS_PATHS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named MSBFS_TEST
+# Convenience name for target.
+tests/CMakeFiles/MSBFS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/MSBFS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/MSBFS_TEST.dir/rule
 
-# Build rule for target.
-MSBFS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 MSBFS_TEST
+# Convenience name for target.
+MSBFS_TEST: tests/CMakeFiles/MSBFS_TEST.dir/rule
 .PHONY : MSBFS_TEST
 
 # fast build rule for target.
 MSBFS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MSBFS_TEST.dir/build.make CMakeFiles/MSBFS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MSBFS_TEST.dir/build.make tests/CMakeFiles/MSBFS_TEST.dir/build
 .PHONY : MSBFS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named SSSP_TEST
+# Convenience name for target.
+tests/CMakeFiles/SSSP_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/SSSP_TEST.dir/rule
+.PHONY : tests/CMakeFiles/SSSP_TEST.dir/rule
 
-# Build rule for target.
-SSSP_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 SSSP_TEST
+# Convenience name for target.
+SSSP_TEST: tests/CMakeFiles/SSSP_TEST.dir/rule
 .PHONY : SSSP_TEST
 
 # fast build rule for target.
 SSSP_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SSSP_TEST.dir/build.make CMakeFiles/SSSP_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SSSP_TEST.dir/build.make tests/CMakeFiles/SSSP_TEST.dir/build
 .PHONY : SSSP_TEST/fast
 
-#=============================================================================
-# Target rules for targets named HITS_TEST
+# Convenience name for target.
+tests/CMakeFiles/HITS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/HITS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/HITS_TEST.dir/rule
 
-# Build rule for target.
-HITS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 HITS_TEST
+# Convenience name for target.
+HITS_TEST: tests/CMakeFiles/HITS_TEST.dir/rule
 .PHONY : HITS_TEST
 
 # fast build rule for target.
 HITS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/HITS_TEST.dir/build.make CMakeFiles/HITS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HITS_TEST.dir/build.make tests/CMakeFiles/HITS_TEST.dir/build
 .PHONY : HITS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named PAGERANK_TEST
+# Convenience name for target.
+tests/CMakeFiles/PAGERANK_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/PAGERANK_TEST.dir/rule
+.PHONY : tests/CMakeFiles/PAGERANK_TEST.dir/rule
 
-# Build rule for target.
-PAGERANK_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 PAGERANK_TEST
+# Convenience name for target.
+PAGERANK_TEST: tests/CMakeFiles/PAGERANK_TEST.dir/rule
 .PHONY : PAGERANK_TEST
 
 # fast build rule for target.
 PAGERANK_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/PAGERANK_TEST.dir/build.make CMakeFiles/PAGERANK_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/PAGERANK_TEST.dir/build.make tests/CMakeFiles/PAGERANK_TEST.dir/build
 .PHONY : PAGERANK_TEST/fast
 
-#=============================================================================
-# Target rules for targets named KATZ_CENTRALITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/rule
 
-# Build rule for target.
-KATZ_CENTRALITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 KATZ_CENTRALITY_TEST
+# Convenience name for target.
+KATZ_CENTRALITY_TEST: tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/rule
 .PHONY : KATZ_CENTRALITY_TEST
 
 # fast build rule for target.
 KATZ_CENTRALITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make CMakeFiles/KATZ_CENTRALITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/build
 .PHONY : KATZ_CENTRALITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named EIGENVECTOR_CENTRALITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/rule
 
-# Build rule for target.
-EIGENVECTOR_CENTRALITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 EIGENVECTOR_CENTRALITY_TEST
+# Convenience name for target.
+EIGENVECTOR_CENTRALITY_TEST: tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/rule
 .PHONY : EIGENVECTOR_CENTRALITY_TEST
 
 # fast build rule for target.
 EIGENVECTOR_CENTRALITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build
 .PHONY : EIGENVECTOR_CENTRALITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named BETWEENNESS_CENTRALITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/rule
 
-# Build rule for target.
-BETWEENNESS_CENTRALITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 BETWEENNESS_CENTRALITY_TEST
+# Convenience name for target.
+BETWEENNESS_CENTRALITY_TEST: tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/rule
 .PHONY : BETWEENNESS_CENTRALITY_TEST
 
 # fast build rule for target.
 BETWEENNESS_CENTRALITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build
 .PHONY : BETWEENNESS_CENTRALITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named EDGE_BETWEENNESS_CENTRALITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/rule
 
-# Build rule for target.
-EDGE_BETWEENNESS_CENTRALITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 EDGE_BETWEENNESS_CENTRALITY_TEST
+# Convenience name for target.
+EDGE_BETWEENNESS_CENTRALITY_TEST: tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/rule
 .PHONY : EDGE_BETWEENNESS_CENTRALITY_TEST
 
 # fast build rule for target.
 EDGE_BETWEENNESS_CENTRALITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build
 .PHONY : EDGE_BETWEENNESS_CENTRALITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named WEAKLY_CONNECTED_COMPONENTS_TEST
+# Convenience name for target.
+tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule
 
-# Build rule for target.
-WEAKLY_CONNECTED_COMPONENTS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 WEAKLY_CONNECTED_COMPONENTS_TEST
+# Convenience name for target.
+WEAKLY_CONNECTED_COMPONENTS_TEST: tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule
 .PHONY : WEAKLY_CONNECTED_COMPONENTS_TEST
 
 # fast build rule for target.
 WEAKLY_CONNECTED_COMPONENTS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build
 .PHONY : WEAKLY_CONNECTED_COMPONENTS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named SIMILARITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/SIMILARITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/SIMILARITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/SIMILARITY_TEST.dir/rule
 
-# Build rule for target.
-SIMILARITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 SIMILARITY_TEST
+# Convenience name for target.
+SIMILARITY_TEST: tests/CMakeFiles/SIMILARITY_TEST.dir/rule
 .PHONY : SIMILARITY_TEST
 
 # fast build rule for target.
 SIMILARITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SIMILARITY_TEST.dir/build.make CMakeFiles/SIMILARITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SIMILARITY_TEST.dir/build.make tests/CMakeFiles/SIMILARITY_TEST.dir/build
 .PHONY : SIMILARITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named RANDOM_WALKS_TEST
+# Convenience name for target.
+tests/CMakeFiles/RANDOM_WALKS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/RANDOM_WALKS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/RANDOM_WALKS_TEST.dir/rule
 
-# Build rule for target.
-RANDOM_WALKS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 RANDOM_WALKS_TEST
+# Convenience name for target.
+RANDOM_WALKS_TEST: tests/CMakeFiles/RANDOM_WALKS_TEST.dir/rule
 .PHONY : RANDOM_WALKS_TEST
 
 # fast build rule for target.
 RANDOM_WALKS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RANDOM_WALKS_TEST.dir/build.make CMakeFiles/RANDOM_WALKS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/RANDOM_WALKS_TEST.dir/build
 .PHONY : RANDOM_WALKS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named UNIFORM_NEIGHBOR_SAMPLING_TEST
+# Convenience name for target.
+tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/rule
+.PHONY : tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/rule
 
-# Build rule for target.
-UNIFORM_NEIGHBOR_SAMPLING_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 UNIFORM_NEIGHBOR_SAMPLING_TEST
+# Convenience name for target.
+UNIFORM_NEIGHBOR_SAMPLING_TEST: tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/rule
 .PHONY : UNIFORM_NEIGHBOR_SAMPLING_TEST
 
 # fast build rule for target.
 UNIFORM_NEIGHBOR_SAMPLING_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build.make CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build.make tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build
 .PHONY : UNIFORM_NEIGHBOR_SAMPLING_TEST/fast
 
-#=============================================================================
-# Target rules for targets named RENUMBERING_TEST
+# Convenience name for target.
+tests/CMakeFiles/RENUMBERING_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/RENUMBERING_TEST.dir/rule
+.PHONY : tests/CMakeFiles/RENUMBERING_TEST.dir/rule
 
-# Build rule for target.
-RENUMBERING_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 RENUMBERING_TEST
+# Convenience name for target.
+RENUMBERING_TEST: tests/CMakeFiles/RENUMBERING_TEST.dir/rule
 .PHONY : RENUMBERING_TEST
 
 # fast build rule for target.
 RENUMBERING_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RENUMBERING_TEST.dir/build.make CMakeFiles/RENUMBERING_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RENUMBERING_TEST.dir/build.make tests/CMakeFiles/RENUMBERING_TEST.dir/build
 .PHONY : RENUMBERING_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CORE_NUMBER_TEST
+# Convenience name for target.
+tests/CMakeFiles/CORE_NUMBER_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CORE_NUMBER_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CORE_NUMBER_TEST.dir/rule
 
-# Build rule for target.
-CORE_NUMBER_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CORE_NUMBER_TEST
+# Convenience name for target.
+CORE_NUMBER_TEST: tests/CMakeFiles/CORE_NUMBER_TEST.dir/rule
 .PHONY : CORE_NUMBER_TEST
 
 # fast build rule for target.
 CORE_NUMBER_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CORE_NUMBER_TEST.dir/build.make CMakeFiles/CORE_NUMBER_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CORE_NUMBER_TEST.dir/build
 .PHONY : CORE_NUMBER_TEST/fast
 
-#=============================================================================
-# Target rules for targets named K_CORE_TEST
+# Convenience name for target.
+tests/CMakeFiles/K_CORE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/K_CORE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/K_CORE_TEST.dir/rule
 
-# Build rule for target.
-K_CORE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 K_CORE_TEST
+# Convenience name for target.
+K_CORE_TEST: tests/CMakeFiles/K_CORE_TEST.dir/rule
 .PHONY : K_CORE_TEST
 
 # fast build rule for target.
 K_CORE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_CORE_TEST.dir/build.make CMakeFiles/K_CORE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_CORE_TEST.dir/build.make tests/CMakeFiles/K_CORE_TEST.dir/build
 .PHONY : K_CORE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named TRIANGLE_COUNT_TEST
+# Convenience name for target.
+tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/rule
+.PHONY : tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/rule
 
-# Build rule for target.
-TRIANGLE_COUNT_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 TRIANGLE_COUNT_TEST
+# Convenience name for target.
+TRIANGLE_COUNT_TEST: tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/rule
 .PHONY : TRIANGLE_COUNT_TEST
 
 # fast build rule for target.
 TRIANGLE_COUNT_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/TRIANGLE_COUNT_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/build
 .PHONY : TRIANGLE_COUNT_TEST/fast
 
-#=============================================================================
-# Target rules for targets named K_HOP_NBRS_TEST
+# Convenience name for target.
+tests/CMakeFiles/K_HOP_NBRS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/K_HOP_NBRS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/K_HOP_NBRS_TEST.dir/rule
 
-# Build rule for target.
-K_HOP_NBRS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 K_HOP_NBRS_TEST
+# Convenience name for target.
+K_HOP_NBRS_TEST: tests/CMakeFiles/K_HOP_NBRS_TEST.dir/rule
 .PHONY : K_HOP_NBRS_TEST
 
 # fast build rule for target.
 K_HOP_NBRS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_HOP_NBRS_TEST.dir/build.make CMakeFiles/K_HOP_NBRS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_HOP_NBRS_TEST.dir/build.make tests/CMakeFiles/K_HOP_NBRS_TEST.dir/build
 .PHONY : K_HOP_NBRS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named cugraph_c_testutil
+# Convenience name for target.
+tests/CMakeFiles/cugraph_c_testutil.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/cugraph_c_testutil.dir/rule
+.PHONY : tests/CMakeFiles/cugraph_c_testutil.dir/rule
 
-# Build rule for target.
-cugraph_c_testutil: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 cugraph_c_testutil
+# Convenience name for target.
+cugraph_c_testutil: tests/CMakeFiles/cugraph_c_testutil.dir/rule
 .PHONY : cugraph_c_testutil
 
 # fast build rule for target.
 cugraph_c_testutil/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraph_c_testutil.dir/build.make CMakeFiles/cugraph_c_testutil.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraph_c_testutil.dir/build.make tests/CMakeFiles/cugraph_c_testutil.dir/build
 .PHONY : cugraph_c_testutil/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_CREATE_GRAPH_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/rule
 
-# Build rule for target.
-CAPI_CREATE_GRAPH_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_CREATE_GRAPH_TEST
+# Convenience name for target.
+CAPI_CREATE_GRAPH_TEST: tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/rule
 .PHONY : CAPI_CREATE_GRAPH_TEST
 
 # fast build rule for target.
 CAPI_CREATE_GRAPH_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build
 .PHONY : CAPI_CREATE_GRAPH_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_PAGERANK_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/rule
 
-# Build rule for target.
-CAPI_PAGERANK_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_PAGERANK_TEST
+# Convenience name for target.
+CAPI_PAGERANK_TEST: tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/rule
 .PHONY : CAPI_PAGERANK_TEST
 
 # fast build rule for target.
 CAPI_PAGERANK_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make CMakeFiles/CAPI_PAGERANK_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/build
 .PHONY : CAPI_PAGERANK_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_KATZ_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_KATZ_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_KATZ_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_KATZ_TEST.dir/rule
 
-# Build rule for target.
-CAPI_KATZ_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_KATZ_TEST
+# Convenience name for target.
+CAPI_KATZ_TEST: tests/CMakeFiles/CAPI_KATZ_TEST.dir/rule
 .PHONY : CAPI_KATZ_TEST
 
 # fast build rule for target.
 CAPI_KATZ_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_KATZ_TEST.dir/build.make CMakeFiles/CAPI_KATZ_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_KATZ_TEST.dir/build.make tests/CMakeFiles/CAPI_KATZ_TEST.dir/build
 .PHONY : CAPI_KATZ_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_EIGENVECTOR_CENTRALITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/rule
 
-# Build rule for target.
-CAPI_EIGENVECTOR_CENTRALITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_EIGENVECTOR_CENTRALITY_TEST
+# Convenience name for target.
+CAPI_EIGENVECTOR_CENTRALITY_TEST: tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/rule
 .PHONY : CAPI_EIGENVECTOR_CENTRALITY_TEST
 
 # fast build rule for target.
 CAPI_EIGENVECTOR_CENTRALITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build
 .PHONY : CAPI_EIGENVECTOR_CENTRALITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_BETWEENNESS_CENTRALITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/rule
 
-# Build rule for target.
-CAPI_BETWEENNESS_CENTRALITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_BETWEENNESS_CENTRALITY_TEST
+# Convenience name for target.
+CAPI_BETWEENNESS_CENTRALITY_TEST: tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/rule
 .PHONY : CAPI_BETWEENNESS_CENTRALITY_TEST
 
 # fast build rule for target.
 CAPI_BETWEENNESS_CENTRALITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build
 .PHONY : CAPI_BETWEENNESS_CENTRALITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_HITS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_HITS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_HITS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_HITS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_HITS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_HITS_TEST
+# Convenience name for target.
+CAPI_HITS_TEST: tests/CMakeFiles/CAPI_HITS_TEST.dir/rule
 .PHONY : CAPI_HITS_TEST
 
 # fast build rule for target.
 CAPI_HITS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_HITS_TEST.dir/build.make CMakeFiles/CAPI_HITS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_HITS_TEST.dir/build.make tests/CMakeFiles/CAPI_HITS_TEST.dir/build
 .PHONY : CAPI_HITS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_BFS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_BFS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_BFS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_BFS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_BFS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_BFS_TEST
+# Convenience name for target.
+CAPI_BFS_TEST: tests/CMakeFiles/CAPI_BFS_TEST.dir/rule
 .PHONY : CAPI_BFS_TEST
 
 # fast build rule for target.
 CAPI_BFS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BFS_TEST.dir/build.make CMakeFiles/CAPI_BFS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BFS_TEST.dir/build.make tests/CMakeFiles/CAPI_BFS_TEST.dir/build
 .PHONY : CAPI_BFS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_SSSP_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_SSSP_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_SSSP_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_SSSP_TEST.dir/rule
 
-# Build rule for target.
-CAPI_SSSP_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_SSSP_TEST
+# Convenience name for target.
+CAPI_SSSP_TEST: tests/CMakeFiles/CAPI_SSSP_TEST.dir/rule
 .PHONY : CAPI_SSSP_TEST
 
 # fast build rule for target.
 CAPI_SSSP_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SSSP_TEST.dir/build.make CMakeFiles/CAPI_SSSP_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SSSP_TEST.dir/build.make tests/CMakeFiles/CAPI_SSSP_TEST.dir/build
 .PHONY : CAPI_SSSP_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_EXTRACT_PATHS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_EXTRACT_PATHS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_EXTRACT_PATHS_TEST
+# Convenience name for target.
+CAPI_EXTRACT_PATHS_TEST: tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/rule
 .PHONY : CAPI_EXTRACT_PATHS_TEST
 
 # fast build rule for target.
 CAPI_EXTRACT_PATHS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build
 .PHONY : CAPI_EXTRACT_PATHS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_NODE2VEC_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/rule
 
-# Build rule for target.
-CAPI_NODE2VEC_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_NODE2VEC_TEST
+# Convenience name for target.
+CAPI_NODE2VEC_TEST: tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/rule
 .PHONY : CAPI_NODE2VEC_TEST
 
 # fast build rule for target.
 CAPI_NODE2VEC_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make CMakeFiles/CAPI_NODE2VEC_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/build
 .PHONY : CAPI_NODE2VEC_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST
+# Convenience name for target.
+CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST: tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/rule
 .PHONY : CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST
 
 # fast build rule for target.
 CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build
 .PHONY : CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST
+# Convenience name for target.
+CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST: tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/rule
 .PHONY : CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST
 
 # fast build rule for target.
 CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build
 .PHONY : CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/rule
 
-# Build rule for target.
-CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST
+# Convenience name for target.
+CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST: tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/rule
 .PHONY : CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST
 
 # fast build rule for target.
 CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build
 .PHONY : CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_RANDOM_WALKS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_RANDOM_WALKS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_RANDOM_WALKS_TEST
+# Convenience name for target.
+CAPI_RANDOM_WALKS_TEST: tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/rule
 .PHONY : CAPI_RANDOM_WALKS_TEST
 
 # fast build rule for target.
 CAPI_RANDOM_WALKS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build
 .PHONY : CAPI_RANDOM_WALKS_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_TRIANGLE_COUNT_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/rule
 
-# Build rule for target.
-CAPI_TRIANGLE_COUNT_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_TRIANGLE_COUNT_TEST
+# Convenience name for target.
+CAPI_TRIANGLE_COUNT_TEST: tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/rule
 .PHONY : CAPI_TRIANGLE_COUNT_TEST
 
 # fast build rule for target.
 CAPI_TRIANGLE_COUNT_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build
 .PHONY : CAPI_TRIANGLE_COUNT_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_LOUVAIN_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/rule
 
-# Build rule for target.
-CAPI_LOUVAIN_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_LOUVAIN_TEST
+# Convenience name for target.
+CAPI_LOUVAIN_TEST: tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/rule
 .PHONY : CAPI_LOUVAIN_TEST
 
 # fast build rule for target.
 CAPI_LOUVAIN_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make CMakeFiles/CAPI_LOUVAIN_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/build
 .PHONY : CAPI_LOUVAIN_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_CORE_NUMBER_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/rule
 
-# Build rule for target.
-CAPI_CORE_NUMBER_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_CORE_NUMBER_TEST
+# Convenience name for target.
+CAPI_CORE_NUMBER_TEST: tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/rule
 .PHONY : CAPI_CORE_NUMBER_TEST
 
 # fast build rule for target.
 CAPI_CORE_NUMBER_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build
 .PHONY : CAPI_CORE_NUMBER_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_SIMILARITY_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/rule
 
-# Build rule for target.
-CAPI_SIMILARITY_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_SIMILARITY_TEST
+# Convenience name for target.
+CAPI_SIMILARITY_TEST: tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/rule
 .PHONY : CAPI_SIMILARITY_TEST
 
 # fast build rule for target.
 CAPI_SIMILARITY_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make CMakeFiles/CAPI_SIMILARITY_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/build
 .PHONY : CAPI_SIMILARITY_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_K_CORE_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_K_CORE_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_K_CORE_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_K_CORE_TEST.dir/rule
 
-# Build rule for target.
-CAPI_K_CORE_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_K_CORE_TEST
+# Convenience name for target.
+CAPI_K_CORE_TEST: tests/CMakeFiles/CAPI_K_CORE_TEST.dir/rule
 .PHONY : CAPI_K_CORE_TEST
 
 # fast build rule for target.
 CAPI_K_CORE_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_K_CORE_TEST.dir/build.make CMakeFiles/CAPI_K_CORE_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_K_CORE_TEST.dir/build.make tests/CMakeFiles/CAPI_K_CORE_TEST.dir/build
 .PHONY : CAPI_K_CORE_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_INDUCED_SUBGRAPH_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/rule
 
-# Build rule for target.
-CAPI_INDUCED_SUBGRAPH_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_INDUCED_SUBGRAPH_TEST
+# Convenience name for target.
+CAPI_INDUCED_SUBGRAPH_TEST: tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/rule
 .PHONY : CAPI_INDUCED_SUBGRAPH_TEST
 
 # fast build rule for target.
 CAPI_INDUCED_SUBGRAPH_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build
 .PHONY : CAPI_INDUCED_SUBGRAPH_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_EGONET_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_EGONET_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_EGONET_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_EGONET_TEST.dir/rule
 
-# Build rule for target.
-CAPI_EGONET_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_EGONET_TEST
+# Convenience name for target.
+CAPI_EGONET_TEST: tests/CMakeFiles/CAPI_EGONET_TEST.dir/rule
 .PHONY : CAPI_EGONET_TEST
 
 # fast build rule for target.
 CAPI_EGONET_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EGONET_TEST.dir/build.make CMakeFiles/CAPI_EGONET_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EGONET_TEST.dir/build.make tests/CMakeFiles/CAPI_EGONET_TEST.dir/build
 .PHONY : CAPI_EGONET_TEST/fast
 
-#=============================================================================
-# Target rules for targets named CAPI_TWO_HOP_NEIGHBORS_TEST
+# Convenience name for target.
+tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/rule:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/rule
+.PHONY : tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/rule
 
-# Build rule for target.
-CAPI_TWO_HOP_NEIGHBORS_TEST: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CAPI_TWO_HOP_NEIGHBORS_TEST
+# Convenience name for target.
+CAPI_TWO_HOP_NEIGHBORS_TEST: tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/rule
 .PHONY : CAPI_TWO_HOP_NEIGHBORS_TEST
 
 # fast build rule for target.
 CAPI_TWO_HOP_NEIGHBORS_TEST/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build
 .PHONY : CAPI_TWO_HOP_NEIGHBORS_TEST/fast
 
-# target to build an object file
-c_api/betweenness_centrality_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/c_api/betweenness_centrality_test.o
+c_api/betweenness_centrality_test.o: c_api/betweenness_centrality_test.c.o
 .PHONY : c_api/betweenness_centrality_test.o
 
-# target to preprocess a source file
-c_api/betweenness_centrality_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/c_api/betweenness_centrality_test.i
+# target to build an object file
+c_api/betweenness_centrality_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/c_api/betweenness_centrality_test.c.o
+.PHONY : c_api/betweenness_centrality_test.c.o
+
+c_api/betweenness_centrality_test.i: c_api/betweenness_centrality_test.c.i
 .PHONY : c_api/betweenness_centrality_test.i
 
-# target to generate assembly for a file
-c_api/betweenness_centrality_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/c_api/betweenness_centrality_test.s
+# target to preprocess a source file
+c_api/betweenness_centrality_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/c_api/betweenness_centrality_test.c.i
+.PHONY : c_api/betweenness_centrality_test.c.i
+
+c_api/betweenness_centrality_test.s: c_api/betweenness_centrality_test.c.s
 .PHONY : c_api/betweenness_centrality_test.s
 
-# target to build an object file
-c_api/bfs_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BFS_TEST.dir/build.make CMakeFiles/CAPI_BFS_TEST.dir/c_api/bfs_test.o
+# target to generate assembly for a file
+c_api/betweenness_centrality_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_BETWEENNESS_CENTRALITY_TEST.dir/c_api/betweenness_centrality_test.c.s
+.PHONY : c_api/betweenness_centrality_test.c.s
+
+c_api/bfs_test.o: c_api/bfs_test.c.o
 .PHONY : c_api/bfs_test.o
 
-# target to preprocess a source file
-c_api/bfs_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BFS_TEST.dir/build.make CMakeFiles/CAPI_BFS_TEST.dir/c_api/bfs_test.i
+# target to build an object file
+c_api/bfs_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BFS_TEST.dir/build.make tests/CMakeFiles/CAPI_BFS_TEST.dir/c_api/bfs_test.c.o
+.PHONY : c_api/bfs_test.c.o
+
+c_api/bfs_test.i: c_api/bfs_test.c.i
 .PHONY : c_api/bfs_test.i
 
-# target to generate assembly for a file
-c_api/bfs_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_BFS_TEST.dir/build.make CMakeFiles/CAPI_BFS_TEST.dir/c_api/bfs_test.s
+# target to preprocess a source file
+c_api/bfs_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BFS_TEST.dir/build.make tests/CMakeFiles/CAPI_BFS_TEST.dir/c_api/bfs_test.c.i
+.PHONY : c_api/bfs_test.c.i
+
+c_api/bfs_test.s: c_api/bfs_test.c.s
 .PHONY : c_api/bfs_test.s
 
-# target to build an object file
-c_api/core_number_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/c_api/core_number_test.o
+# target to generate assembly for a file
+c_api/bfs_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_BFS_TEST.dir/build.make tests/CMakeFiles/CAPI_BFS_TEST.dir/c_api/bfs_test.c.s
+.PHONY : c_api/bfs_test.c.s
+
+c_api/core_number_test.o: c_api/core_number_test.c.o
 .PHONY : c_api/core_number_test.o
 
-# target to preprocess a source file
-c_api/core_number_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/c_api/core_number_test.i
+# target to build an object file
+c_api/core_number_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/c_api/core_number_test.c.o
+.PHONY : c_api/core_number_test.c.o
+
+c_api/core_number_test.i: c_api/core_number_test.c.i
 .PHONY : c_api/core_number_test.i
 
-# target to generate assembly for a file
-c_api/core_number_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/c_api/core_number_test.s
+# target to preprocess a source file
+c_api/core_number_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/c_api/core_number_test.c.i
+.PHONY : c_api/core_number_test.c.i
+
+c_api/core_number_test.s: c_api/core_number_test.c.s
 .PHONY : c_api/core_number_test.s
 
-# target to build an object file
-c_api/create_graph_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/c_api/create_graph_test.o
+# target to generate assembly for a file
+c_api/core_number_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CAPI_CORE_NUMBER_TEST.dir/c_api/core_number_test.c.s
+.PHONY : c_api/core_number_test.c.s
+
+c_api/create_graph_test.o: c_api/create_graph_test.c.o
 .PHONY : c_api/create_graph_test.o
 
-# target to preprocess a source file
-c_api/create_graph_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/c_api/create_graph_test.i
+# target to build an object file
+c_api/create_graph_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/c_api/create_graph_test.c.o
+.PHONY : c_api/create_graph_test.c.o
+
+c_api/create_graph_test.i: c_api/create_graph_test.c.i
 .PHONY : c_api/create_graph_test.i
 
-# target to generate assembly for a file
-c_api/create_graph_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/c_api/create_graph_test.s
+# target to preprocess a source file
+c_api/create_graph_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/c_api/create_graph_test.c.i
+.PHONY : c_api/create_graph_test.c.i
+
+c_api/create_graph_test.s: c_api/create_graph_test.c.s
 .PHONY : c_api/create_graph_test.s
 
-# target to build an object file
-c_api/egonet_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EGONET_TEST.dir/build.make CMakeFiles/CAPI_EGONET_TEST.dir/c_api/egonet_test.o
+# target to generate assembly for a file
+c_api/create_graph_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_CREATE_GRAPH_TEST.dir/c_api/create_graph_test.c.s
+.PHONY : c_api/create_graph_test.c.s
+
+c_api/egonet_test.o: c_api/egonet_test.c.o
 .PHONY : c_api/egonet_test.o
 
-# target to preprocess a source file
-c_api/egonet_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EGONET_TEST.dir/build.make CMakeFiles/CAPI_EGONET_TEST.dir/c_api/egonet_test.i
+# target to build an object file
+c_api/egonet_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EGONET_TEST.dir/build.make tests/CMakeFiles/CAPI_EGONET_TEST.dir/c_api/egonet_test.c.o
+.PHONY : c_api/egonet_test.c.o
+
+c_api/egonet_test.i: c_api/egonet_test.c.i
 .PHONY : c_api/egonet_test.i
 
-# target to generate assembly for a file
-c_api/egonet_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EGONET_TEST.dir/build.make CMakeFiles/CAPI_EGONET_TEST.dir/c_api/egonet_test.s
+# target to preprocess a source file
+c_api/egonet_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EGONET_TEST.dir/build.make tests/CMakeFiles/CAPI_EGONET_TEST.dir/c_api/egonet_test.c.i
+.PHONY : c_api/egonet_test.c.i
+
+c_api/egonet_test.s: c_api/egonet_test.c.s
 .PHONY : c_api/egonet_test.s
 
-# target to build an object file
-c_api/eigenvector_centrality_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/c_api/eigenvector_centrality_test.o
+# target to generate assembly for a file
+c_api/egonet_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EGONET_TEST.dir/build.make tests/CMakeFiles/CAPI_EGONET_TEST.dir/c_api/egonet_test.c.s
+.PHONY : c_api/egonet_test.c.s
+
+c_api/eigenvector_centrality_test.o: c_api/eigenvector_centrality_test.c.o
 .PHONY : c_api/eigenvector_centrality_test.o
 
-# target to preprocess a source file
-c_api/eigenvector_centrality_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/c_api/eigenvector_centrality_test.i
+# target to build an object file
+c_api/eigenvector_centrality_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/c_api/eigenvector_centrality_test.c.o
+.PHONY : c_api/eigenvector_centrality_test.c.o
+
+c_api/eigenvector_centrality_test.i: c_api/eigenvector_centrality_test.c.i
 .PHONY : c_api/eigenvector_centrality_test.i
 
-# target to generate assembly for a file
-c_api/eigenvector_centrality_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/c_api/eigenvector_centrality_test.s
+# target to preprocess a source file
+c_api/eigenvector_centrality_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/c_api/eigenvector_centrality_test.c.i
+.PHONY : c_api/eigenvector_centrality_test.c.i
+
+c_api/eigenvector_centrality_test.s: c_api/eigenvector_centrality_test.c.s
 .PHONY : c_api/eigenvector_centrality_test.s
 
-# target to build an object file
-c_api/extract_paths_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/c_api/extract_paths_test.o
+# target to generate assembly for a file
+c_api/eigenvector_centrality_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/CAPI_EIGENVECTOR_CENTRALITY_TEST.dir/c_api/eigenvector_centrality_test.c.s
+.PHONY : c_api/eigenvector_centrality_test.c.s
+
+c_api/extract_paths_test.o: c_api/extract_paths_test.c.o
 .PHONY : c_api/extract_paths_test.o
 
-# target to preprocess a source file
-c_api/extract_paths_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/c_api/extract_paths_test.i
+# target to build an object file
+c_api/extract_paths_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/c_api/extract_paths_test.c.o
+.PHONY : c_api/extract_paths_test.c.o
+
+c_api/extract_paths_test.i: c_api/extract_paths_test.c.i
 .PHONY : c_api/extract_paths_test.i
 
-# target to generate assembly for a file
-c_api/extract_paths_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/c_api/extract_paths_test.s
+# target to preprocess a source file
+c_api/extract_paths_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/c_api/extract_paths_test.c.i
+.PHONY : c_api/extract_paths_test.c.i
+
+c_api/extract_paths_test.s: c_api/extract_paths_test.c.s
 .PHONY : c_api/extract_paths_test.s
 
-# target to build an object file
-c_api/hits_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_HITS_TEST.dir/build.make CMakeFiles/CAPI_HITS_TEST.dir/c_api/hits_test.o
+# target to generate assembly for a file
+c_api/extract_paths_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/build.make tests/CMakeFiles/CAPI_EXTRACT_PATHS_TEST.dir/c_api/extract_paths_test.c.s
+.PHONY : c_api/extract_paths_test.c.s
+
+c_api/hits_test.o: c_api/hits_test.c.o
 .PHONY : c_api/hits_test.o
 
-# target to preprocess a source file
-c_api/hits_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_HITS_TEST.dir/build.make CMakeFiles/CAPI_HITS_TEST.dir/c_api/hits_test.i
+# target to build an object file
+c_api/hits_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_HITS_TEST.dir/build.make tests/CMakeFiles/CAPI_HITS_TEST.dir/c_api/hits_test.c.o
+.PHONY : c_api/hits_test.c.o
+
+c_api/hits_test.i: c_api/hits_test.c.i
 .PHONY : c_api/hits_test.i
 
-# target to generate assembly for a file
-c_api/hits_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_HITS_TEST.dir/build.make CMakeFiles/CAPI_HITS_TEST.dir/c_api/hits_test.s
+# target to preprocess a source file
+c_api/hits_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_HITS_TEST.dir/build.make tests/CMakeFiles/CAPI_HITS_TEST.dir/c_api/hits_test.c.i
+.PHONY : c_api/hits_test.c.i
+
+c_api/hits_test.s: c_api/hits_test.c.s
 .PHONY : c_api/hits_test.s
 
-# target to build an object file
-c_api/induced_subgraph_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/c_api/induced_subgraph_test.o
+# target to generate assembly for a file
+c_api/hits_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_HITS_TEST.dir/build.make tests/CMakeFiles/CAPI_HITS_TEST.dir/c_api/hits_test.c.s
+.PHONY : c_api/hits_test.c.s
+
+c_api/induced_subgraph_test.o: c_api/induced_subgraph_test.c.o
 .PHONY : c_api/induced_subgraph_test.o
 
-# target to preprocess a source file
-c_api/induced_subgraph_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/c_api/induced_subgraph_test.i
+# target to build an object file
+c_api/induced_subgraph_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/c_api/induced_subgraph_test.c.o
+.PHONY : c_api/induced_subgraph_test.c.o
+
+c_api/induced_subgraph_test.i: c_api/induced_subgraph_test.c.i
 .PHONY : c_api/induced_subgraph_test.i
 
-# target to generate assembly for a file
-c_api/induced_subgraph_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/c_api/induced_subgraph_test.s
+# target to preprocess a source file
+c_api/induced_subgraph_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/c_api/induced_subgraph_test.c.i
+.PHONY : c_api/induced_subgraph_test.c.i
+
+c_api/induced_subgraph_test.s: c_api/induced_subgraph_test.c.s
 .PHONY : c_api/induced_subgraph_test.s
 
-# target to build an object file
-c_api/k_core_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_K_CORE_TEST.dir/build.make CMakeFiles/CAPI_K_CORE_TEST.dir/c_api/k_core_test.o
+# target to generate assembly for a file
+c_api/induced_subgraph_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/CAPI_INDUCED_SUBGRAPH_TEST.dir/c_api/induced_subgraph_test.c.s
+.PHONY : c_api/induced_subgraph_test.c.s
+
+c_api/k_core_test.o: c_api/k_core_test.c.o
 .PHONY : c_api/k_core_test.o
 
-# target to preprocess a source file
-c_api/k_core_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_K_CORE_TEST.dir/build.make CMakeFiles/CAPI_K_CORE_TEST.dir/c_api/k_core_test.i
+# target to build an object file
+c_api/k_core_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_K_CORE_TEST.dir/build.make tests/CMakeFiles/CAPI_K_CORE_TEST.dir/c_api/k_core_test.c.o
+.PHONY : c_api/k_core_test.c.o
+
+c_api/k_core_test.i: c_api/k_core_test.c.i
 .PHONY : c_api/k_core_test.i
 
-# target to generate assembly for a file
-c_api/k_core_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_K_CORE_TEST.dir/build.make CMakeFiles/CAPI_K_CORE_TEST.dir/c_api/k_core_test.s
+# target to preprocess a source file
+c_api/k_core_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_K_CORE_TEST.dir/build.make tests/CMakeFiles/CAPI_K_CORE_TEST.dir/c_api/k_core_test.c.i
+.PHONY : c_api/k_core_test.c.i
+
+c_api/k_core_test.s: c_api/k_core_test.c.s
 .PHONY : c_api/k_core_test.s
 
-# target to build an object file
-c_api/katz_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_KATZ_TEST.dir/build.make CMakeFiles/CAPI_KATZ_TEST.dir/c_api/katz_test.o
+# target to generate assembly for a file
+c_api/k_core_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_K_CORE_TEST.dir/build.make tests/CMakeFiles/CAPI_K_CORE_TEST.dir/c_api/k_core_test.c.s
+.PHONY : c_api/k_core_test.c.s
+
+c_api/katz_test.o: c_api/katz_test.c.o
 .PHONY : c_api/katz_test.o
 
-# target to preprocess a source file
-c_api/katz_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_KATZ_TEST.dir/build.make CMakeFiles/CAPI_KATZ_TEST.dir/c_api/katz_test.i
+# target to build an object file
+c_api/katz_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_KATZ_TEST.dir/build.make tests/CMakeFiles/CAPI_KATZ_TEST.dir/c_api/katz_test.c.o
+.PHONY : c_api/katz_test.c.o
+
+c_api/katz_test.i: c_api/katz_test.c.i
 .PHONY : c_api/katz_test.i
 
-# target to generate assembly for a file
-c_api/katz_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_KATZ_TEST.dir/build.make CMakeFiles/CAPI_KATZ_TEST.dir/c_api/katz_test.s
+# target to preprocess a source file
+c_api/katz_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_KATZ_TEST.dir/build.make tests/CMakeFiles/CAPI_KATZ_TEST.dir/c_api/katz_test.c.i
+.PHONY : c_api/katz_test.c.i
+
+c_api/katz_test.s: c_api/katz_test.c.s
 .PHONY : c_api/katz_test.s
 
-# target to build an object file
-c_api/louvain_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make CMakeFiles/CAPI_LOUVAIN_TEST.dir/c_api/louvain_test.o
+# target to generate assembly for a file
+c_api/katz_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_KATZ_TEST.dir/build.make tests/CMakeFiles/CAPI_KATZ_TEST.dir/c_api/katz_test.c.s
+.PHONY : c_api/katz_test.c.s
+
+c_api/louvain_test.o: c_api/louvain_test.c.o
 .PHONY : c_api/louvain_test.o
 
-# target to preprocess a source file
-c_api/louvain_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make CMakeFiles/CAPI_LOUVAIN_TEST.dir/c_api/louvain_test.i
+# target to build an object file
+c_api/louvain_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/c_api/louvain_test.c.o
+.PHONY : c_api/louvain_test.c.o
+
+c_api/louvain_test.i: c_api/louvain_test.c.i
 .PHONY : c_api/louvain_test.i
 
-# target to generate assembly for a file
-c_api/louvain_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make CMakeFiles/CAPI_LOUVAIN_TEST.dir/c_api/louvain_test.s
+# target to preprocess a source file
+c_api/louvain_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/c_api/louvain_test.c.i
+.PHONY : c_api/louvain_test.c.i
+
+c_api/louvain_test.s: c_api/louvain_test.c.s
 .PHONY : c_api/louvain_test.s
 
-# target to build an object file
-c_api/node2vec_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make CMakeFiles/CAPI_NODE2VEC_TEST.dir/c_api/node2vec_test.o
+# target to generate assembly for a file
+c_api/louvain_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/build.make tests/CMakeFiles/CAPI_LOUVAIN_TEST.dir/c_api/louvain_test.c.s
+.PHONY : c_api/louvain_test.c.s
+
+c_api/node2vec_test.o: c_api/node2vec_test.c.o
 .PHONY : c_api/node2vec_test.o
 
-# target to preprocess a source file
-c_api/node2vec_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make CMakeFiles/CAPI_NODE2VEC_TEST.dir/c_api/node2vec_test.i
+# target to build an object file
+c_api/node2vec_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/c_api/node2vec_test.c.o
+.PHONY : c_api/node2vec_test.c.o
+
+c_api/node2vec_test.i: c_api/node2vec_test.c.i
 .PHONY : c_api/node2vec_test.i
 
-# target to generate assembly for a file
-c_api/node2vec_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make CMakeFiles/CAPI_NODE2VEC_TEST.dir/c_api/node2vec_test.s
+# target to preprocess a source file
+c_api/node2vec_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/c_api/node2vec_test.c.i
+.PHONY : c_api/node2vec_test.c.i
+
+c_api/node2vec_test.s: c_api/node2vec_test.c.s
 .PHONY : c_api/node2vec_test.s
 
-# target to build an object file
-c_api/pagerank_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make CMakeFiles/CAPI_PAGERANK_TEST.dir/c_api/pagerank_test.o
+# target to generate assembly for a file
+c_api/node2vec_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/build.make tests/CMakeFiles/CAPI_NODE2VEC_TEST.dir/c_api/node2vec_test.c.s
+.PHONY : c_api/node2vec_test.c.s
+
+c_api/pagerank_test.o: c_api/pagerank_test.c.o
 .PHONY : c_api/pagerank_test.o
 
-# target to preprocess a source file
-c_api/pagerank_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make CMakeFiles/CAPI_PAGERANK_TEST.dir/c_api/pagerank_test.i
+# target to build an object file
+c_api/pagerank_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/c_api/pagerank_test.c.o
+.PHONY : c_api/pagerank_test.c.o
+
+c_api/pagerank_test.i: c_api/pagerank_test.c.i
 .PHONY : c_api/pagerank_test.i
 
-# target to generate assembly for a file
-c_api/pagerank_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make CMakeFiles/CAPI_PAGERANK_TEST.dir/c_api/pagerank_test.s
+# target to preprocess a source file
+c_api/pagerank_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/c_api/pagerank_test.c.i
+.PHONY : c_api/pagerank_test.c.i
+
+c_api/pagerank_test.s: c_api/pagerank_test.c.s
 .PHONY : c_api/pagerank_test.s
 
-# target to build an object file
-c_api/sg_random_walks_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/c_api/sg_random_walks_test.o
+# target to generate assembly for a file
+c_api/pagerank_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/build.make tests/CMakeFiles/CAPI_PAGERANK_TEST.dir/c_api/pagerank_test.c.s
+.PHONY : c_api/pagerank_test.c.s
+
+c_api/sg_random_walks_test.o: c_api/sg_random_walks_test.c.o
 .PHONY : c_api/sg_random_walks_test.o
 
-# target to preprocess a source file
-c_api/sg_random_walks_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/c_api/sg_random_walks_test.i
+# target to build an object file
+c_api/sg_random_walks_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/c_api/sg_random_walks_test.c.o
+.PHONY : c_api/sg_random_walks_test.c.o
+
+c_api/sg_random_walks_test.i: c_api/sg_random_walks_test.c.i
 .PHONY : c_api/sg_random_walks_test.i
 
-# target to generate assembly for a file
-c_api/sg_random_walks_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/c_api/sg_random_walks_test.s
+# target to preprocess a source file
+c_api/sg_random_walks_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/c_api/sg_random_walks_test.c.i
+.PHONY : c_api/sg_random_walks_test.c.i
+
+c_api/sg_random_walks_test.s: c_api/sg_random_walks_test.c.s
 .PHONY : c_api/sg_random_walks_test.s
 
-# target to build an object file
-c_api/similarity_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make CMakeFiles/CAPI_SIMILARITY_TEST.dir/c_api/similarity_test.o
+# target to generate assembly for a file
+c_api/sg_random_walks_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/CAPI_RANDOM_WALKS_TEST.dir/c_api/sg_random_walks_test.c.s
+.PHONY : c_api/sg_random_walks_test.c.s
+
+c_api/similarity_test.o: c_api/similarity_test.c.o
 .PHONY : c_api/similarity_test.o
 
-# target to preprocess a source file
-c_api/similarity_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make CMakeFiles/CAPI_SIMILARITY_TEST.dir/c_api/similarity_test.i
+# target to build an object file
+c_api/similarity_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/c_api/similarity_test.c.o
+.PHONY : c_api/similarity_test.c.o
+
+c_api/similarity_test.i: c_api/similarity_test.c.i
 .PHONY : c_api/similarity_test.i
 
-# target to generate assembly for a file
-c_api/similarity_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make CMakeFiles/CAPI_SIMILARITY_TEST.dir/c_api/similarity_test.s
+# target to preprocess a source file
+c_api/similarity_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/c_api/similarity_test.c.i
+.PHONY : c_api/similarity_test.c.i
+
+c_api/similarity_test.s: c_api/similarity_test.c.s
 .PHONY : c_api/similarity_test.s
 
-# target to build an object file
-c_api/sssp_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SSSP_TEST.dir/build.make CMakeFiles/CAPI_SSSP_TEST.dir/c_api/sssp_test.o
+# target to generate assembly for a file
+c_api/similarity_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/build.make tests/CMakeFiles/CAPI_SIMILARITY_TEST.dir/c_api/similarity_test.c.s
+.PHONY : c_api/similarity_test.c.s
+
+c_api/sssp_test.o: c_api/sssp_test.c.o
 .PHONY : c_api/sssp_test.o
 
-# target to preprocess a source file
-c_api/sssp_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SSSP_TEST.dir/build.make CMakeFiles/CAPI_SSSP_TEST.dir/c_api/sssp_test.i
+# target to build an object file
+c_api/sssp_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SSSP_TEST.dir/build.make tests/CMakeFiles/CAPI_SSSP_TEST.dir/c_api/sssp_test.c.o
+.PHONY : c_api/sssp_test.c.o
+
+c_api/sssp_test.i: c_api/sssp_test.c.i
 .PHONY : c_api/sssp_test.i
 
-# target to generate assembly for a file
-c_api/sssp_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_SSSP_TEST.dir/build.make CMakeFiles/CAPI_SSSP_TEST.dir/c_api/sssp_test.s
+# target to preprocess a source file
+c_api/sssp_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SSSP_TEST.dir/build.make tests/CMakeFiles/CAPI_SSSP_TEST.dir/c_api/sssp_test.c.i
+.PHONY : c_api/sssp_test.c.i
+
+c_api/sssp_test.s: c_api/sssp_test.c.s
 .PHONY : c_api/sssp_test.s
 
-# target to build an object file
-c_api/strongly_connected_components_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/c_api/strongly_connected_components_test.o
+# target to generate assembly for a file
+c_api/sssp_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_SSSP_TEST.dir/build.make tests/CMakeFiles/CAPI_SSSP_TEST.dir/c_api/sssp_test.c.s
+.PHONY : c_api/sssp_test.c.s
+
+c_api/strongly_connected_components_test.o: c_api/strongly_connected_components_test.c.o
 .PHONY : c_api/strongly_connected_components_test.o
 
-# target to preprocess a source file
-c_api/strongly_connected_components_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/c_api/strongly_connected_components_test.i
+# target to build an object file
+c_api/strongly_connected_components_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/c_api/strongly_connected_components_test.c.o
+.PHONY : c_api/strongly_connected_components_test.c.o
+
+c_api/strongly_connected_components_test.i: c_api/strongly_connected_components_test.c.i
 .PHONY : c_api/strongly_connected_components_test.i
 
-# target to generate assembly for a file
-c_api/strongly_connected_components_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/c_api/strongly_connected_components_test.s
+# target to preprocess a source file
+c_api/strongly_connected_components_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/c_api/strongly_connected_components_test.c.i
+.PHONY : c_api/strongly_connected_components_test.c.i
+
+c_api/strongly_connected_components_test.s: c_api/strongly_connected_components_test.c.s
 .PHONY : c_api/strongly_connected_components_test.s
 
-# target to build an object file
-c_api/test_utils.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraph_c_testutil.dir/build.make CMakeFiles/cugraph_c_testutil.dir/c_api/test_utils.o
+# target to generate assembly for a file
+c_api/strongly_connected_components_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST.dir/c_api/strongly_connected_components_test.c.s
+.PHONY : c_api/strongly_connected_components_test.c.s
+
+c_api/test_utils.o: c_api/test_utils.cpp.o
 .PHONY : c_api/test_utils.o
 
-# target to preprocess a source file
-c_api/test_utils.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraph_c_testutil.dir/build.make CMakeFiles/cugraph_c_testutil.dir/c_api/test_utils.i
+# target to build an object file
+c_api/test_utils.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraph_c_testutil.dir/build.make tests/CMakeFiles/cugraph_c_testutil.dir/c_api/test_utils.cpp.o
+.PHONY : c_api/test_utils.cpp.o
+
+c_api/test_utils.i: c_api/test_utils.cpp.i
 .PHONY : c_api/test_utils.i
 
-# target to generate assembly for a file
-c_api/test_utils.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraph_c_testutil.dir/build.make CMakeFiles/cugraph_c_testutil.dir/c_api/test_utils.s
+# target to preprocess a source file
+c_api/test_utils.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraph_c_testutil.dir/build.make tests/CMakeFiles/cugraph_c_testutil.dir/c_api/test_utils.cpp.i
+.PHONY : c_api/test_utils.cpp.i
+
+c_api/test_utils.s: c_api/test_utils.cpp.s
 .PHONY : c_api/test_utils.s
 
-# target to build an object file
-c_api/triangle_count_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/c_api/triangle_count_test.o
+# target to generate assembly for a file
+c_api/test_utils.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraph_c_testutil.dir/build.make tests/CMakeFiles/cugraph_c_testutil.dir/c_api/test_utils.cpp.s
+.PHONY : c_api/test_utils.cpp.s
+
+c_api/triangle_count_test.o: c_api/triangle_count_test.c.o
 .PHONY : c_api/triangle_count_test.o
 
-# target to preprocess a source file
-c_api/triangle_count_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/c_api/triangle_count_test.i
+# target to build an object file
+c_api/triangle_count_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/c_api/triangle_count_test.c.o
+.PHONY : c_api/triangle_count_test.c.o
+
+c_api/triangle_count_test.i: c_api/triangle_count_test.c.i
 .PHONY : c_api/triangle_count_test.i
 
-# target to generate assembly for a file
-c_api/triangle_count_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/c_api/triangle_count_test.s
+# target to preprocess a source file
+c_api/triangle_count_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/c_api/triangle_count_test.c.i
+.PHONY : c_api/triangle_count_test.c.i
+
+c_api/triangle_count_test.s: c_api/triangle_count_test.c.s
 .PHONY : c_api/triangle_count_test.s
 
-# target to build an object file
-c_api/two_hop_neighbors_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/c_api/two_hop_neighbors_test.o
+# target to generate assembly for a file
+c_api/triangle_count_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/CAPI_TRIANGLE_COUNT_TEST.dir/c_api/triangle_count_test.c.s
+.PHONY : c_api/triangle_count_test.c.s
+
+c_api/two_hop_neighbors_test.o: c_api/two_hop_neighbors_test.c.o
 .PHONY : c_api/two_hop_neighbors_test.o
 
-# target to preprocess a source file
-c_api/two_hop_neighbors_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/c_api/two_hop_neighbors_test.i
+# target to build an object file
+c_api/two_hop_neighbors_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/c_api/two_hop_neighbors_test.c.o
+.PHONY : c_api/two_hop_neighbors_test.c.o
+
+c_api/two_hop_neighbors_test.i: c_api/two_hop_neighbors_test.c.i
 .PHONY : c_api/two_hop_neighbors_test.i
 
-# target to generate assembly for a file
-c_api/two_hop_neighbors_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/c_api/two_hop_neighbors_test.s
+# target to preprocess a source file
+c_api/two_hop_neighbors_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/c_api/two_hop_neighbors_test.c.i
+.PHONY : c_api/two_hop_neighbors_test.c.i
+
+c_api/two_hop_neighbors_test.s: c_api/two_hop_neighbors_test.c.s
 .PHONY : c_api/two_hop_neighbors_test.s
 
-# target to build an object file
-c_api/uniform_neighbor_sample_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/c_api/uniform_neighbor_sample_test.o
+# target to generate assembly for a file
+c_api/two_hop_neighbors_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/build.make tests/CMakeFiles/CAPI_TWO_HOP_NEIGHBORS_TEST.dir/c_api/two_hop_neighbors_test.c.s
+.PHONY : c_api/two_hop_neighbors_test.c.s
+
+c_api/uniform_neighbor_sample_test.o: c_api/uniform_neighbor_sample_test.c.o
 .PHONY : c_api/uniform_neighbor_sample_test.o
 
-# target to preprocess a source file
-c_api/uniform_neighbor_sample_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/c_api/uniform_neighbor_sample_test.i
+# target to build an object file
+c_api/uniform_neighbor_sample_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/c_api/uniform_neighbor_sample_test.c.o
+.PHONY : c_api/uniform_neighbor_sample_test.c.o
+
+c_api/uniform_neighbor_sample_test.i: c_api/uniform_neighbor_sample_test.c.i
 .PHONY : c_api/uniform_neighbor_sample_test.i
 
-# target to generate assembly for a file
-c_api/uniform_neighbor_sample_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/c_api/uniform_neighbor_sample_test.s
+# target to preprocess a source file
+c_api/uniform_neighbor_sample_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/c_api/uniform_neighbor_sample_test.c.i
+.PHONY : c_api/uniform_neighbor_sample_test.c.i
+
+c_api/uniform_neighbor_sample_test.s: c_api/uniform_neighbor_sample_test.c.s
 .PHONY : c_api/uniform_neighbor_sample_test.s
 
-# target to build an object file
-c_api/weakly_connected_components_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/c_api/weakly_connected_components_test.o
+# target to generate assembly for a file
+c_api/uniform_neighbor_sample_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/build.make tests/CMakeFiles/CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST.dir/c_api/uniform_neighbor_sample_test.c.s
+.PHONY : c_api/uniform_neighbor_sample_test.c.s
+
+c_api/weakly_connected_components_test.o: c_api/weakly_connected_components_test.c.o
 .PHONY : c_api/weakly_connected_components_test.o
 
-# target to preprocess a source file
-c_api/weakly_connected_components_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/c_api/weakly_connected_components_test.i
+# target to build an object file
+c_api/weakly_connected_components_test.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/c_api/weakly_connected_components_test.c.o
+.PHONY : c_api/weakly_connected_components_test.c.o
+
+c_api/weakly_connected_components_test.i: c_api/weakly_connected_components_test.c.i
 .PHONY : c_api/weakly_connected_components_test.i
 
-# target to generate assembly for a file
-c_api/weakly_connected_components_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/c_api/weakly_connected_components_test.s
+# target to preprocess a source file
+c_api/weakly_connected_components_test.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/c_api/weakly_connected_components_test.c.i
+.PHONY : c_api/weakly_connected_components_test.c.i
+
+c_api/weakly_connected_components_test.s: c_api/weakly_connected_components_test.c.s
 .PHONY : c_api/weakly_connected_components_test.s
 
-# target to build an object file
-centrality/betweenness_centrality_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/centrality/betweenness_centrality_test.o
+# target to generate assembly for a file
+c_api/weakly_connected_components_test.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST.dir/c_api/weakly_connected_components_test.c.s
+.PHONY : c_api/weakly_connected_components_test.c.s
+
+centrality/betweenness_centrality_test.o: centrality/betweenness_centrality_test.cpp.o
 .PHONY : centrality/betweenness_centrality_test.o
 
-# target to preprocess a source file
-centrality/betweenness_centrality_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/centrality/betweenness_centrality_test.i
+# target to build an object file
+centrality/betweenness_centrality_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/centrality/betweenness_centrality_test.cpp.o
+.PHONY : centrality/betweenness_centrality_test.cpp.o
+
+centrality/betweenness_centrality_test.i: centrality/betweenness_centrality_test.cpp.i
 .PHONY : centrality/betweenness_centrality_test.i
 
-# target to generate assembly for a file
-centrality/betweenness_centrality_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/centrality/betweenness_centrality_test.s
+# target to preprocess a source file
+centrality/betweenness_centrality_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/centrality/betweenness_centrality_test.cpp.i
+.PHONY : centrality/betweenness_centrality_test.cpp.i
+
+centrality/betweenness_centrality_test.s: centrality/betweenness_centrality_test.cpp.s
 .PHONY : centrality/betweenness_centrality_test.s
 
+# target to generate assembly for a file
+centrality/betweenness_centrality_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/BETWEENNESS_CENTRALITY_TEST.dir/centrality/betweenness_centrality_test.cpp.s
+.PHONY : centrality/betweenness_centrality_test.cpp.s
+
+centrality/betweenness_centrality_validate.o: centrality/betweenness_centrality_validate.cu.o
+.PHONY : centrality/betweenness_centrality_validate.o
+
 # target to build an object file
-centrality/edge_betweenness_centrality_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/centrality/edge_betweenness_centrality_test.o
+centrality/betweenness_centrality_validate.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/centrality/betweenness_centrality_validate.cu.o
+.PHONY : centrality/betweenness_centrality_validate.cu.o
+
+centrality/betweenness_centrality_validate.i: centrality/betweenness_centrality_validate.cu.i
+.PHONY : centrality/betweenness_centrality_validate.i
+
+# target to preprocess a source file
+centrality/betweenness_centrality_validate.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/centrality/betweenness_centrality_validate.cu.i
+.PHONY : centrality/betweenness_centrality_validate.cu.i
+
+centrality/betweenness_centrality_validate.s: centrality/betweenness_centrality_validate.cu.s
+.PHONY : centrality/betweenness_centrality_validate.s
+
+# target to generate assembly for a file
+centrality/betweenness_centrality_validate.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/centrality/betweenness_centrality_validate.cu.s
+.PHONY : centrality/betweenness_centrality_validate.cu.s
+
+centrality/edge_betweenness_centrality_test.o: centrality/edge_betweenness_centrality_test.cpp.o
 .PHONY : centrality/edge_betweenness_centrality_test.o
 
-# target to preprocess a source file
-centrality/edge_betweenness_centrality_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/centrality/edge_betweenness_centrality_test.i
+# target to build an object file
+centrality/edge_betweenness_centrality_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/centrality/edge_betweenness_centrality_test.cpp.o
+.PHONY : centrality/edge_betweenness_centrality_test.cpp.o
+
+centrality/edge_betweenness_centrality_test.i: centrality/edge_betweenness_centrality_test.cpp.i
 .PHONY : centrality/edge_betweenness_centrality_test.i
 
-# target to generate assembly for a file
-centrality/edge_betweenness_centrality_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/centrality/edge_betweenness_centrality_test.s
+# target to preprocess a source file
+centrality/edge_betweenness_centrality_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/centrality/edge_betweenness_centrality_test.cpp.i
+.PHONY : centrality/edge_betweenness_centrality_test.cpp.i
+
+centrality/edge_betweenness_centrality_test.s: centrality/edge_betweenness_centrality_test.cpp.s
 .PHONY : centrality/edge_betweenness_centrality_test.s
 
-# target to build an object file
-centrality/eigenvector_centrality_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/centrality/eigenvector_centrality_test.o
+# target to generate assembly for a file
+centrality/edge_betweenness_centrality_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EDGE_BETWEENNESS_CENTRALITY_TEST.dir/centrality/edge_betweenness_centrality_test.cpp.s
+.PHONY : centrality/edge_betweenness_centrality_test.cpp.s
+
+centrality/eigenvector_centrality_test.o: centrality/eigenvector_centrality_test.cpp.o
 .PHONY : centrality/eigenvector_centrality_test.o
 
-# target to preprocess a source file
-centrality/eigenvector_centrality_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/centrality/eigenvector_centrality_test.i
+# target to build an object file
+centrality/eigenvector_centrality_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/centrality/eigenvector_centrality_test.cpp.o
+.PHONY : centrality/eigenvector_centrality_test.cpp.o
+
+centrality/eigenvector_centrality_test.i: centrality/eigenvector_centrality_test.cpp.i
 .PHONY : centrality/eigenvector_centrality_test.i
 
-# target to generate assembly for a file
-centrality/eigenvector_centrality_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/centrality/eigenvector_centrality_test.s
+# target to preprocess a source file
+centrality/eigenvector_centrality_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/centrality/eigenvector_centrality_test.cpp.i
+.PHONY : centrality/eigenvector_centrality_test.cpp.i
+
+centrality/eigenvector_centrality_test.s: centrality/eigenvector_centrality_test.cpp.s
 .PHONY : centrality/eigenvector_centrality_test.s
 
-# target to build an object file
-centrality/katz_centrality_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make CMakeFiles/KATZ_CENTRALITY_TEST.dir/centrality/katz_centrality_test.o
+# target to generate assembly for a file
+centrality/eigenvector_centrality_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/EIGENVECTOR_CENTRALITY_TEST.dir/centrality/eigenvector_centrality_test.cpp.s
+.PHONY : centrality/eigenvector_centrality_test.cpp.s
+
+centrality/katz_centrality_test.o: centrality/katz_centrality_test.cpp.o
 .PHONY : centrality/katz_centrality_test.o
 
-# target to preprocess a source file
-centrality/katz_centrality_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make CMakeFiles/KATZ_CENTRALITY_TEST.dir/centrality/katz_centrality_test.i
+# target to build an object file
+centrality/katz_centrality_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/centrality/katz_centrality_test.cpp.o
+.PHONY : centrality/katz_centrality_test.cpp.o
+
+centrality/katz_centrality_test.i: centrality/katz_centrality_test.cpp.i
 .PHONY : centrality/katz_centrality_test.i
 
-# target to generate assembly for a file
-centrality/katz_centrality_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make CMakeFiles/KATZ_CENTRALITY_TEST.dir/centrality/katz_centrality_test.s
+# target to preprocess a source file
+centrality/katz_centrality_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/centrality/katz_centrality_test.cpp.i
+.PHONY : centrality/katz_centrality_test.cpp.i
+
+centrality/katz_centrality_test.s: centrality/katz_centrality_test.cpp.s
 .PHONY : centrality/katz_centrality_test.s
 
+# target to generate assembly for a file
+centrality/katz_centrality_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/build.make tests/CMakeFiles/KATZ_CENTRALITY_TEST.dir/centrality/katz_centrality_test.cpp.s
+.PHONY : centrality/katz_centrality_test.cpp.s
+
+centrality/legacy/betweenness_centrality_test.o: centrality/legacy/betweenness_centrality_test.cu.o
+.PHONY : centrality/legacy/betweenness_centrality_test.o
+
 # target to build an object file
-community/balanced_edge_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BALANCED_TEST.dir/build.make CMakeFiles/BALANCED_TEST.dir/community/balanced_edge_test.o
+centrality/legacy/betweenness_centrality_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/centrality/legacy/betweenness_centrality_test.cu.o
+.PHONY : centrality/legacy/betweenness_centrality_test.cu.o
+
+centrality/legacy/betweenness_centrality_test.i: centrality/legacy/betweenness_centrality_test.cu.i
+.PHONY : centrality/legacy/betweenness_centrality_test.i
+
+# target to preprocess a source file
+centrality/legacy/betweenness_centrality_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/centrality/legacy/betweenness_centrality_test.cu.i
+.PHONY : centrality/legacy/betweenness_centrality_test.cu.i
+
+centrality/legacy/betweenness_centrality_test.s: centrality/legacy/betweenness_centrality_test.cu.s
+.PHONY : centrality/legacy/betweenness_centrality_test.s
+
+# target to generate assembly for a file
+centrality/legacy/betweenness_centrality_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BETWEENNESS_TEST.dir/centrality/legacy/betweenness_centrality_test.cu.s
+.PHONY : centrality/legacy/betweenness_centrality_test.cu.s
+
+centrality/legacy/edge_betweenness_centrality_test.o: centrality/legacy/edge_betweenness_centrality_test.cu.o
+.PHONY : centrality/legacy/edge_betweenness_centrality_test.o
+
+# target to build an object file
+centrality/legacy/edge_betweenness_centrality_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/centrality/legacy/edge_betweenness_centrality_test.cu.o
+.PHONY : centrality/legacy/edge_betweenness_centrality_test.cu.o
+
+centrality/legacy/edge_betweenness_centrality_test.i: centrality/legacy/edge_betweenness_centrality_test.cu.i
+.PHONY : centrality/legacy/edge_betweenness_centrality_test.i
+
+# target to preprocess a source file
+centrality/legacy/edge_betweenness_centrality_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/centrality/legacy/edge_betweenness_centrality_test.cu.i
+.PHONY : centrality/legacy/edge_betweenness_centrality_test.cu.i
+
+centrality/legacy/edge_betweenness_centrality_test.s: centrality/legacy/edge_betweenness_centrality_test.cu.s
+.PHONY : centrality/legacy/edge_betweenness_centrality_test.s
+
+# target to generate assembly for a file
+centrality/legacy/edge_betweenness_centrality_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/build.make tests/CMakeFiles/LEGACY_EDGE_BETWEENNESS_TEST.dir/centrality/legacy/edge_betweenness_centrality_test.cu.s
+.PHONY : centrality/legacy/edge_betweenness_centrality_test.cu.s
+
+community/balanced_edge_test.o: community/balanced_edge_test.cpp.o
 .PHONY : community/balanced_edge_test.o
 
-# target to preprocess a source file
-community/balanced_edge_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BALANCED_TEST.dir/build.make CMakeFiles/BALANCED_TEST.dir/community/balanced_edge_test.i
+# target to build an object file
+community/balanced_edge_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BALANCED_TEST.dir/build.make tests/CMakeFiles/BALANCED_TEST.dir/community/balanced_edge_test.cpp.o
+.PHONY : community/balanced_edge_test.cpp.o
+
+community/balanced_edge_test.i: community/balanced_edge_test.cpp.i
 .PHONY : community/balanced_edge_test.i
 
-# target to generate assembly for a file
-community/balanced_edge_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BALANCED_TEST.dir/build.make CMakeFiles/BALANCED_TEST.dir/community/balanced_edge_test.s
+# target to preprocess a source file
+community/balanced_edge_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BALANCED_TEST.dir/build.make tests/CMakeFiles/BALANCED_TEST.dir/community/balanced_edge_test.cpp.i
+.PHONY : community/balanced_edge_test.cpp.i
+
+community/balanced_edge_test.s: community/balanced_edge_test.cpp.s
 .PHONY : community/balanced_edge_test.s
 
-# target to build an object file
-community/ecg_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ECG_TEST.dir/build.make CMakeFiles/ECG_TEST.dir/community/ecg_test.o
+# target to generate assembly for a file
+community/balanced_edge_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BALANCED_TEST.dir/build.make tests/CMakeFiles/BALANCED_TEST.dir/community/balanced_edge_test.cpp.s
+.PHONY : community/balanced_edge_test.cpp.s
+
+community/ecg_test.o: community/ecg_test.cpp.o
 .PHONY : community/ecg_test.o
 
-# target to preprocess a source file
-community/ecg_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ECG_TEST.dir/build.make CMakeFiles/ECG_TEST.dir/community/ecg_test.i
+# target to build an object file
+community/ecg_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ECG_TEST.dir/build.make tests/CMakeFiles/ECG_TEST.dir/community/ecg_test.cpp.o
+.PHONY : community/ecg_test.cpp.o
+
+community/ecg_test.i: community/ecg_test.cpp.i
 .PHONY : community/ecg_test.i
 
-# target to generate assembly for a file
-community/ecg_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ECG_TEST.dir/build.make CMakeFiles/ECG_TEST.dir/community/ecg_test.s
+# target to preprocess a source file
+community/ecg_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ECG_TEST.dir/build.make tests/CMakeFiles/ECG_TEST.dir/community/ecg_test.cpp.i
+.PHONY : community/ecg_test.cpp.i
+
+community/ecg_test.s: community/ecg_test.cpp.s
 .PHONY : community/ecg_test.s
 
-# target to build an object file
-community/egonet_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EGO_TEST.dir/build.make CMakeFiles/EGO_TEST.dir/community/egonet_test.o
+# target to generate assembly for a file
+community/ecg_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ECG_TEST.dir/build.make tests/CMakeFiles/ECG_TEST.dir/community/ecg_test.cpp.s
+.PHONY : community/ecg_test.cpp.s
+
+community/egonet_test.o: community/egonet_test.cpp.o
 .PHONY : community/egonet_test.o
 
-# target to preprocess a source file
-community/egonet_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EGO_TEST.dir/build.make CMakeFiles/EGO_TEST.dir/community/egonet_test.i
+# target to build an object file
+community/egonet_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EGO_TEST.dir/build.make tests/CMakeFiles/EGO_TEST.dir/community/egonet_test.cpp.o
+.PHONY : community/egonet_test.cpp.o
+
+community/egonet_test.i: community/egonet_test.cpp.i
 .PHONY : community/egonet_test.i
 
-# target to generate assembly for a file
-community/egonet_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/EGO_TEST.dir/build.make CMakeFiles/EGO_TEST.dir/community/egonet_test.s
+# target to preprocess a source file
+community/egonet_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EGO_TEST.dir/build.make tests/CMakeFiles/EGO_TEST.dir/community/egonet_test.cpp.i
+.PHONY : community/egonet_test.cpp.i
+
+community/egonet_test.s: community/egonet_test.cpp.s
 .PHONY : community/egonet_test.s
 
+# target to generate assembly for a file
+community/egonet_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EGO_TEST.dir/build.make tests/CMakeFiles/EGO_TEST.dir/community/egonet_test.cpp.s
+.PHONY : community/egonet_test.cpp.s
+
+community/egonet_validate.o: community/egonet_validate.cu.o
+.PHONY : community/egonet_validate.o
+
 # target to build an object file
-community/leiden_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEIDEN_TEST.dir/build.make CMakeFiles/LEIDEN_TEST.dir/community/leiden_test.o
+community/egonet_validate.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/community/egonet_validate.cu.o
+.PHONY : community/egonet_validate.cu.o
+
+community/egonet_validate.i: community/egonet_validate.cu.i
+.PHONY : community/egonet_validate.i
+
+# target to preprocess a source file
+community/egonet_validate.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/community/egonet_validate.cu.i
+.PHONY : community/egonet_validate.cu.i
+
+community/egonet_validate.s: community/egonet_validate.cu.s
+.PHONY : community/egonet_validate.s
+
+# target to generate assembly for a file
+community/egonet_validate.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/community/egonet_validate.cu.s
+.PHONY : community/egonet_validate.cu.s
+
+community/leiden_test.o: community/leiden_test.cpp.o
 .PHONY : community/leiden_test.o
 
-# target to preprocess a source file
-community/leiden_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEIDEN_TEST.dir/build.make CMakeFiles/LEIDEN_TEST.dir/community/leiden_test.i
+# target to build an object file
+community/leiden_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEIDEN_TEST.dir/build.make tests/CMakeFiles/LEIDEN_TEST.dir/community/leiden_test.cpp.o
+.PHONY : community/leiden_test.cpp.o
+
+community/leiden_test.i: community/leiden_test.cpp.i
 .PHONY : community/leiden_test.i
 
-# target to generate assembly for a file
-community/leiden_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LEIDEN_TEST.dir/build.make CMakeFiles/LEIDEN_TEST.dir/community/leiden_test.s
+# target to preprocess a source file
+community/leiden_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEIDEN_TEST.dir/build.make tests/CMakeFiles/LEIDEN_TEST.dir/community/leiden_test.cpp.i
+.PHONY : community/leiden_test.cpp.i
+
+community/leiden_test.s: community/leiden_test.cpp.s
 .PHONY : community/leiden_test.s
 
-# target to build an object file
-community/louvain_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LOUVAIN_TEST.dir/build.make CMakeFiles/LOUVAIN_TEST.dir/community/louvain_test.o
+# target to generate assembly for a file
+community/leiden_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEIDEN_TEST.dir/build.make tests/CMakeFiles/LEIDEN_TEST.dir/community/leiden_test.cpp.s
+.PHONY : community/leiden_test.cpp.s
+
+community/louvain_test.o: community/louvain_test.cpp.o
 .PHONY : community/louvain_test.o
 
-# target to preprocess a source file
-community/louvain_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LOUVAIN_TEST.dir/build.make CMakeFiles/LOUVAIN_TEST.dir/community/louvain_test.i
+# target to build an object file
+community/louvain_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LOUVAIN_TEST.dir/build.make tests/CMakeFiles/LOUVAIN_TEST.dir/community/louvain_test.cpp.o
+.PHONY : community/louvain_test.cpp.o
+
+community/louvain_test.i: community/louvain_test.cpp.i
 .PHONY : community/louvain_test.i
 
-# target to generate assembly for a file
-community/louvain_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/LOUVAIN_TEST.dir/build.make CMakeFiles/LOUVAIN_TEST.dir/community/louvain_test.s
+# target to preprocess a source file
+community/louvain_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LOUVAIN_TEST.dir/build.make tests/CMakeFiles/LOUVAIN_TEST.dir/community/louvain_test.cpp.i
+.PHONY : community/louvain_test.cpp.i
+
+community/louvain_test.s: community/louvain_test.cpp.s
 .PHONY : community/louvain_test.s
 
-# target to build an object file
-community/triangle_count_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/TRIANGLE_COUNT_TEST.dir/community/triangle_count_test.o
+# target to generate assembly for a file
+community/louvain_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LOUVAIN_TEST.dir/build.make tests/CMakeFiles/LOUVAIN_TEST.dir/community/louvain_test.cpp.s
+.PHONY : community/louvain_test.cpp.s
+
+community/triangle_count_test.o: community/triangle_count_test.cpp.o
 .PHONY : community/triangle_count_test.o
 
-# target to preprocess a source file
-community/triangle_count_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/TRIANGLE_COUNT_TEST.dir/community/triangle_count_test.i
+# target to build an object file
+community/triangle_count_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/community/triangle_count_test.cpp.o
+.PHONY : community/triangle_count_test.cpp.o
+
+community/triangle_count_test.i: community/triangle_count_test.cpp.i
 .PHONY : community/triangle_count_test.i
 
-# target to generate assembly for a file
-community/triangle_count_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make CMakeFiles/TRIANGLE_COUNT_TEST.dir/community/triangle_count_test.s
+# target to preprocess a source file
+community/triangle_count_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/community/triangle_count_test.cpp.i
+.PHONY : community/triangle_count_test.cpp.i
+
+community/triangle_count_test.s: community/triangle_count_test.cpp.s
 .PHONY : community/triangle_count_test.s
 
+# target to generate assembly for a file
+community/triangle_count_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/build.make tests/CMakeFiles/TRIANGLE_COUNT_TEST.dir/community/triangle_count_test.cpp.s
+.PHONY : community/triangle_count_test.cpp.s
+
+components/con_comp_test.o: components/con_comp_test.cu.o
+.PHONY : components/con_comp_test.o
+
 # target to build an object file
-components/weakly_connected_components_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/components/weakly_connected_components_test.o
+components/con_comp_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CONNECT_TEST.dir/build.make tests/CMakeFiles/CONNECT_TEST.dir/components/con_comp_test.cu.o
+.PHONY : components/con_comp_test.cu.o
+
+components/con_comp_test.i: components/con_comp_test.cu.i
+.PHONY : components/con_comp_test.i
+
+# target to preprocess a source file
+components/con_comp_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CONNECT_TEST.dir/build.make tests/CMakeFiles/CONNECT_TEST.dir/components/con_comp_test.cu.i
+.PHONY : components/con_comp_test.cu.i
+
+components/con_comp_test.s: components/con_comp_test.cu.s
+.PHONY : components/con_comp_test.s
+
+# target to generate assembly for a file
+components/con_comp_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CONNECT_TEST.dir/build.make tests/CMakeFiles/CONNECT_TEST.dir/components/con_comp_test.cu.s
+.PHONY : components/con_comp_test.cu.s
+
+components/scc_test.o: components/scc_test.cu.o
+.PHONY : components/scc_test.o
+
+# target to build an object file
+components/scc_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SCC_TEST.dir/build.make tests/CMakeFiles/SCC_TEST.dir/components/scc_test.cu.o
+.PHONY : components/scc_test.cu.o
+
+components/scc_test.i: components/scc_test.cu.i
+.PHONY : components/scc_test.i
+
+# target to preprocess a source file
+components/scc_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SCC_TEST.dir/build.make tests/CMakeFiles/SCC_TEST.dir/components/scc_test.cu.i
+.PHONY : components/scc_test.cu.i
+
+components/scc_test.s: components/scc_test.cu.s
+.PHONY : components/scc_test.s
+
+# target to generate assembly for a file
+components/scc_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SCC_TEST.dir/build.make tests/CMakeFiles/SCC_TEST.dir/components/scc_test.cu.s
+.PHONY : components/scc_test.cu.s
+
+components/weakly_connected_components_test.o: components/weakly_connected_components_test.cpp.o
 .PHONY : components/weakly_connected_components_test.o
 
-# target to preprocess a source file
-components/weakly_connected_components_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/components/weakly_connected_components_test.i
+# target to build an object file
+components/weakly_connected_components_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/components/weakly_connected_components_test.cpp.o
+.PHONY : components/weakly_connected_components_test.cpp.o
+
+components/weakly_connected_components_test.i: components/weakly_connected_components_test.cpp.i
 .PHONY : components/weakly_connected_components_test.i
 
-# target to generate assembly for a file
-components/weakly_connected_components_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/components/weakly_connected_components_test.s
+# target to preprocess a source file
+components/weakly_connected_components_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/components/weakly_connected_components_test.cpp.i
+.PHONY : components/weakly_connected_components_test.cpp.i
+
+components/weakly_connected_components_test.s: components/weakly_connected_components_test.cpp.s
 .PHONY : components/weakly_connected_components_test.s
 
-# target to build an object file
-cores/core_number_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CORE_NUMBER_TEST.dir/build.make CMakeFiles/CORE_NUMBER_TEST.dir/cores/core_number_test.o
+# target to generate assembly for a file
+components/weakly_connected_components_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/build.make tests/CMakeFiles/WEAKLY_CONNECTED_COMPONENTS_TEST.dir/components/weakly_connected_components_test.cpp.s
+.PHONY : components/weakly_connected_components_test.cpp.s
+
+cores/core_number_test.o: cores/core_number_test.cpp.o
 .PHONY : cores/core_number_test.o
 
-# target to preprocess a source file
-cores/core_number_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CORE_NUMBER_TEST.dir/build.make CMakeFiles/CORE_NUMBER_TEST.dir/cores/core_number_test.i
+# target to build an object file
+cores/core_number_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CORE_NUMBER_TEST.dir/cores/core_number_test.cpp.o
+.PHONY : cores/core_number_test.cpp.o
+
+cores/core_number_test.i: cores/core_number_test.cpp.i
 .PHONY : cores/core_number_test.i
 
-# target to generate assembly for a file
-cores/core_number_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/CORE_NUMBER_TEST.dir/build.make CMakeFiles/CORE_NUMBER_TEST.dir/cores/core_number_test.s
+# target to preprocess a source file
+cores/core_number_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CORE_NUMBER_TEST.dir/cores/core_number_test.cpp.i
+.PHONY : cores/core_number_test.cpp.i
+
+cores/core_number_test.s: cores/core_number_test.cpp.s
 .PHONY : cores/core_number_test.s
 
-# target to build an object file
-cores/k_core_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_CORE_TEST.dir/build.make CMakeFiles/K_CORE_TEST.dir/cores/k_core_test.o
+# target to generate assembly for a file
+cores/core_number_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/CORE_NUMBER_TEST.dir/build.make tests/CMakeFiles/CORE_NUMBER_TEST.dir/cores/core_number_test.cpp.s
+.PHONY : cores/core_number_test.cpp.s
+
+cores/k_core_test.o: cores/k_core_test.cpp.o
 .PHONY : cores/k_core_test.o
 
-# target to preprocess a source file
-cores/k_core_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_CORE_TEST.dir/build.make CMakeFiles/K_CORE_TEST.dir/cores/k_core_test.i
+# target to build an object file
+cores/k_core_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_CORE_TEST.dir/build.make tests/CMakeFiles/K_CORE_TEST.dir/cores/k_core_test.cpp.o
+.PHONY : cores/k_core_test.cpp.o
+
+cores/k_core_test.i: cores/k_core_test.cpp.i
 .PHONY : cores/k_core_test.i
 
-# target to generate assembly for a file
-cores/k_core_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_CORE_TEST.dir/build.make CMakeFiles/K_CORE_TEST.dir/cores/k_core_test.s
+# target to preprocess a source file
+cores/k_core_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_CORE_TEST.dir/build.make tests/CMakeFiles/K_CORE_TEST.dir/cores/k_core_test.cpp.i
+.PHONY : cores/k_core_test.cpp.i
+
+cores/k_core_test.s: cores/k_core_test.cpp.s
 .PHONY : cores/k_core_test.s
 
+# target to generate assembly for a file
+cores/k_core_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_CORE_TEST.dir/build.make tests/CMakeFiles/K_CORE_TEST.dir/cores/k_core_test.cpp.s
+.PHONY : cores/k_core_test.cpp.s
+
+cores/k_core_validate.o: cores/k_core_validate.cu.o
+.PHONY : cores/k_core_validate.o
+
 # target to build an object file
-generators/erdos_renyi_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/generators/erdos_renyi_test.o
+cores/k_core_validate.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/cores/k_core_validate.cu.o
+.PHONY : cores/k_core_validate.cu.o
+
+cores/k_core_validate.i: cores/k_core_validate.cu.i
+.PHONY : cores/k_core_validate.i
+
+# target to preprocess a source file
+cores/k_core_validate.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/cores/k_core_validate.cu.i
+.PHONY : cores/k_core_validate.cu.i
+
+cores/k_core_validate.s: cores/k_core_validate.cu.s
+.PHONY : cores/k_core_validate.s
+
+# target to generate assembly for a file
+cores/k_core_validate.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/cores/k_core_validate.cu.s
+.PHONY : cores/k_core_validate.cu.s
+
+generators/erdos_renyi_test.o: generators/erdos_renyi_test.cpp.o
 .PHONY : generators/erdos_renyi_test.o
 
-# target to preprocess a source file
-generators/erdos_renyi_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/generators/erdos_renyi_test.i
+# target to build an object file
+generators/erdos_renyi_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/generators/erdos_renyi_test.cpp.o
+.PHONY : generators/erdos_renyi_test.cpp.o
+
+generators/erdos_renyi_test.i: generators/erdos_renyi_test.cpp.i
 .PHONY : generators/erdos_renyi_test.i
 
-# target to generate assembly for a file
-generators/erdos_renyi_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/generators/erdos_renyi_test.s
+# target to preprocess a source file
+generators/erdos_renyi_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/generators/erdos_renyi_test.cpp.i
+.PHONY : generators/erdos_renyi_test.cpp.i
+
+generators/erdos_renyi_test.s: generators/erdos_renyi_test.cpp.s
 .PHONY : generators/erdos_renyi_test.s
 
-# target to build an object file
-generators/generate_rmat_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GENERATE_RMAT_TEST.dir/build.make CMakeFiles/GENERATE_RMAT_TEST.dir/generators/generate_rmat_test.o
+# target to generate assembly for a file
+generators/erdos_renyi_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/build.make tests/CMakeFiles/ERDOS_RENYI_GENERATOR_TEST.dir/generators/erdos_renyi_test.cpp.s
+.PHONY : generators/erdos_renyi_test.cpp.s
+
+generators/generate_rmat_test.o: generators/generate_rmat_test.cpp.o
 .PHONY : generators/generate_rmat_test.o
 
-# target to preprocess a source file
-generators/generate_rmat_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GENERATE_RMAT_TEST.dir/build.make CMakeFiles/GENERATE_RMAT_TEST.dir/generators/generate_rmat_test.i
+# target to build an object file
+generators/generate_rmat_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GENERATE_RMAT_TEST.dir/build.make tests/CMakeFiles/GENERATE_RMAT_TEST.dir/generators/generate_rmat_test.cpp.o
+.PHONY : generators/generate_rmat_test.cpp.o
+
+generators/generate_rmat_test.i: generators/generate_rmat_test.cpp.i
 .PHONY : generators/generate_rmat_test.i
 
-# target to generate assembly for a file
-generators/generate_rmat_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GENERATE_RMAT_TEST.dir/build.make CMakeFiles/GENERATE_RMAT_TEST.dir/generators/generate_rmat_test.s
+# target to preprocess a source file
+generators/generate_rmat_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GENERATE_RMAT_TEST.dir/build.make tests/CMakeFiles/GENERATE_RMAT_TEST.dir/generators/generate_rmat_test.cpp.i
+.PHONY : generators/generate_rmat_test.cpp.i
+
+generators/generate_rmat_test.s: generators/generate_rmat_test.cpp.s
 .PHONY : generators/generate_rmat_test.s
 
-# target to build an object file
-generators/generators_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make CMakeFiles/GRAPH_GENERATORS_TEST.dir/generators/generators_test.o
+# target to generate assembly for a file
+generators/generate_rmat_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GENERATE_RMAT_TEST.dir/build.make tests/CMakeFiles/GENERATE_RMAT_TEST.dir/generators/generate_rmat_test.cpp.s
+.PHONY : generators/generate_rmat_test.cpp.s
+
+generators/generators_test.o: generators/generators_test.cpp.o
 .PHONY : generators/generators_test.o
 
-# target to preprocess a source file
-generators/generators_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make CMakeFiles/GRAPH_GENERATORS_TEST.dir/generators/generators_test.i
+# target to build an object file
+generators/generators_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/generators/generators_test.cpp.o
+.PHONY : generators/generators_test.cpp.o
+
+generators/generators_test.i: generators/generators_test.cpp.i
 .PHONY : generators/generators_test.i
 
-# target to generate assembly for a file
-generators/generators_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make CMakeFiles/GRAPH_GENERATORS_TEST.dir/generators/generators_test.s
+# target to preprocess a source file
+generators/generators_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/generators/generators_test.cpp.i
+.PHONY : generators/generators_test.cpp.i
+
+generators/generators_test.s: generators/generators_test.cpp.s
 .PHONY : generators/generators_test.s
 
+# target to generate assembly for a file
+generators/generators_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/build.make tests/CMakeFiles/GRAPH_GENERATORS_TEST.dir/generators/generators_test.cpp.s
+.PHONY : generators/generators_test.cpp.s
+
+layout/legacy/force_atlas2_test.o: layout/legacy/force_atlas2_test.cu.o
+.PHONY : layout/legacy/force_atlas2_test.o
+
 # target to build an object file
-link_analysis/hits_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/HITS_TEST.dir/build.make CMakeFiles/HITS_TEST.dir/link_analysis/hits_test.o
+layout/legacy/force_atlas2_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_FA2_TEST.dir/build.make tests/CMakeFiles/LEGACY_FA2_TEST.dir/layout/legacy/force_atlas2_test.cu.o
+.PHONY : layout/legacy/force_atlas2_test.cu.o
+
+layout/legacy/force_atlas2_test.i: layout/legacy/force_atlas2_test.cu.i
+.PHONY : layout/legacy/force_atlas2_test.i
+
+# target to preprocess a source file
+layout/legacy/force_atlas2_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_FA2_TEST.dir/build.make tests/CMakeFiles/LEGACY_FA2_TEST.dir/layout/legacy/force_atlas2_test.cu.i
+.PHONY : layout/legacy/force_atlas2_test.cu.i
+
+layout/legacy/force_atlas2_test.s: layout/legacy/force_atlas2_test.cu.s
+.PHONY : layout/legacy/force_atlas2_test.s
+
+# target to generate assembly for a file
+layout/legacy/force_atlas2_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_FA2_TEST.dir/build.make tests/CMakeFiles/LEGACY_FA2_TEST.dir/layout/legacy/force_atlas2_test.cu.s
+.PHONY : layout/legacy/force_atlas2_test.cu.s
+
+linear_assignment/hungarian_test.o: linear_assignment/hungarian_test.cu.o
+.PHONY : linear_assignment/hungarian_test.o
+
+# target to build an object file
+linear_assignment/hungarian_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HUNGARIAN_TEST.dir/build.make tests/CMakeFiles/HUNGARIAN_TEST.dir/linear_assignment/hungarian_test.cu.o
+.PHONY : linear_assignment/hungarian_test.cu.o
+
+linear_assignment/hungarian_test.i: linear_assignment/hungarian_test.cu.i
+.PHONY : linear_assignment/hungarian_test.i
+
+# target to preprocess a source file
+linear_assignment/hungarian_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HUNGARIAN_TEST.dir/build.make tests/CMakeFiles/HUNGARIAN_TEST.dir/linear_assignment/hungarian_test.cu.i
+.PHONY : linear_assignment/hungarian_test.cu.i
+
+linear_assignment/hungarian_test.s: linear_assignment/hungarian_test.cu.s
+.PHONY : linear_assignment/hungarian_test.s
+
+# target to generate assembly for a file
+linear_assignment/hungarian_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HUNGARIAN_TEST.dir/build.make tests/CMakeFiles/HUNGARIAN_TEST.dir/linear_assignment/hungarian_test.cu.s
+.PHONY : linear_assignment/hungarian_test.cu.s
+
+link_analysis/hits_test.o: link_analysis/hits_test.cpp.o
 .PHONY : link_analysis/hits_test.o
 
-# target to preprocess a source file
-link_analysis/hits_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/HITS_TEST.dir/build.make CMakeFiles/HITS_TEST.dir/link_analysis/hits_test.i
+# target to build an object file
+link_analysis/hits_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HITS_TEST.dir/build.make tests/CMakeFiles/HITS_TEST.dir/link_analysis/hits_test.cpp.o
+.PHONY : link_analysis/hits_test.cpp.o
+
+link_analysis/hits_test.i: link_analysis/hits_test.cpp.i
 .PHONY : link_analysis/hits_test.i
 
-# target to generate assembly for a file
-link_analysis/hits_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/HITS_TEST.dir/build.make CMakeFiles/HITS_TEST.dir/link_analysis/hits_test.s
+# target to preprocess a source file
+link_analysis/hits_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HITS_TEST.dir/build.make tests/CMakeFiles/HITS_TEST.dir/link_analysis/hits_test.cpp.i
+.PHONY : link_analysis/hits_test.cpp.i
+
+link_analysis/hits_test.s: link_analysis/hits_test.cpp.s
 .PHONY : link_analysis/hits_test.s
 
-# target to build an object file
-link_analysis/pagerank_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/PAGERANK_TEST.dir/build.make CMakeFiles/PAGERANK_TEST.dir/link_analysis/pagerank_test.o
+# target to generate assembly for a file
+link_analysis/hits_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/HITS_TEST.dir/build.make tests/CMakeFiles/HITS_TEST.dir/link_analysis/hits_test.cpp.s
+.PHONY : link_analysis/hits_test.cpp.s
+
+link_analysis/pagerank_test.o: link_analysis/pagerank_test.cpp.o
 .PHONY : link_analysis/pagerank_test.o
 
-# target to preprocess a source file
-link_analysis/pagerank_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/PAGERANK_TEST.dir/build.make CMakeFiles/PAGERANK_TEST.dir/link_analysis/pagerank_test.i
+# target to build an object file
+link_analysis/pagerank_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/PAGERANK_TEST.dir/build.make tests/CMakeFiles/PAGERANK_TEST.dir/link_analysis/pagerank_test.cpp.o
+.PHONY : link_analysis/pagerank_test.cpp.o
+
+link_analysis/pagerank_test.i: link_analysis/pagerank_test.cpp.i
 .PHONY : link_analysis/pagerank_test.i
 
-# target to generate assembly for a file
-link_analysis/pagerank_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/PAGERANK_TEST.dir/build.make CMakeFiles/PAGERANK_TEST.dir/link_analysis/pagerank_test.s
+# target to preprocess a source file
+link_analysis/pagerank_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/PAGERANK_TEST.dir/build.make tests/CMakeFiles/PAGERANK_TEST.dir/link_analysis/pagerank_test.cpp.i
+.PHONY : link_analysis/pagerank_test.cpp.i
+
+link_analysis/pagerank_test.s: link_analysis/pagerank_test.cpp.s
 .PHONY : link_analysis/pagerank_test.s
 
-# target to build an object file
-link_prediction/similarity_compare.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/link_prediction/similarity_compare.o
+# target to generate assembly for a file
+link_analysis/pagerank_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/PAGERANK_TEST.dir/build.make tests/CMakeFiles/PAGERANK_TEST.dir/link_analysis/pagerank_test.cpp.s
+.PHONY : link_analysis/pagerank_test.cpp.s
+
+link_prediction/similarity_compare.o: link_prediction/similarity_compare.cpp.o
 .PHONY : link_prediction/similarity_compare.o
 
-# target to preprocess a source file
-link_prediction/similarity_compare.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/link_prediction/similarity_compare.i
+# target to build an object file
+link_prediction/similarity_compare.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/link_prediction/similarity_compare.cpp.o
+.PHONY : link_prediction/similarity_compare.cpp.o
+
+link_prediction/similarity_compare.i: link_prediction/similarity_compare.cpp.i
 .PHONY : link_prediction/similarity_compare.i
 
-# target to generate assembly for a file
-link_prediction/similarity_compare.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/link_prediction/similarity_compare.s
+# target to preprocess a source file
+link_prediction/similarity_compare.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/link_prediction/similarity_compare.cpp.i
+.PHONY : link_prediction/similarity_compare.cpp.i
+
+link_prediction/similarity_compare.s: link_prediction/similarity_compare.cpp.s
 .PHONY : link_prediction/similarity_compare.s
 
-# target to build an object file
-link_prediction/similarity_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SIMILARITY_TEST.dir/build.make CMakeFiles/SIMILARITY_TEST.dir/link_prediction/similarity_test.o
+# target to generate assembly for a file
+link_prediction/similarity_compare.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/link_prediction/similarity_compare.cpp.s
+.PHONY : link_prediction/similarity_compare.cpp.s
+
+link_prediction/similarity_test.o: link_prediction/similarity_test.cpp.o
 .PHONY : link_prediction/similarity_test.o
 
-# target to preprocess a source file
-link_prediction/similarity_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SIMILARITY_TEST.dir/build.make CMakeFiles/SIMILARITY_TEST.dir/link_prediction/similarity_test.i
+# target to build an object file
+link_prediction/similarity_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SIMILARITY_TEST.dir/build.make tests/CMakeFiles/SIMILARITY_TEST.dir/link_prediction/similarity_test.cpp.o
+.PHONY : link_prediction/similarity_test.cpp.o
+
+link_prediction/similarity_test.i: link_prediction/similarity_test.cpp.i
 .PHONY : link_prediction/similarity_test.i
 
-# target to generate assembly for a file
-link_prediction/similarity_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SIMILARITY_TEST.dir/build.make CMakeFiles/SIMILARITY_TEST.dir/link_prediction/similarity_test.s
+# target to preprocess a source file
+link_prediction/similarity_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SIMILARITY_TEST.dir/build.make tests/CMakeFiles/SIMILARITY_TEST.dir/link_prediction/similarity_test.cpp.i
+.PHONY : link_prediction/similarity_test.cpp.i
+
+link_prediction/similarity_test.s: link_prediction/similarity_test.cpp.s
 .PHONY : link_prediction/similarity_test.s
 
+# target to generate assembly for a file
+link_prediction/similarity_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SIMILARITY_TEST.dir/build.make tests/CMakeFiles/SIMILARITY_TEST.dir/link_prediction/similarity_test.cpp.s
+.PHONY : link_prediction/similarity_test.cpp.s
+
+sampling/random_walks_check_sg.o: sampling/random_walks_check_sg.cu.o
+.PHONY : sampling/random_walks_check_sg.o
+
 # target to build an object file
-sampling/sg_random_walks_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RANDOM_WALKS_TEST.dir/build.make CMakeFiles/RANDOM_WALKS_TEST.dir/sampling/sg_random_walks_test.o
+sampling/random_walks_check_sg.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/sampling/random_walks_check_sg.cu.o
+.PHONY : sampling/random_walks_check_sg.cu.o
+
+sampling/random_walks_check_sg.i: sampling/random_walks_check_sg.cu.i
+.PHONY : sampling/random_walks_check_sg.i
+
+# target to preprocess a source file
+sampling/random_walks_check_sg.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/sampling/random_walks_check_sg.cu.i
+.PHONY : sampling/random_walks_check_sg.cu.i
+
+sampling/random_walks_check_sg.s: sampling/random_walks_check_sg.cu.s
+.PHONY : sampling/random_walks_check_sg.s
+
+# target to generate assembly for a file
+sampling/random_walks_check_sg.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/sampling/random_walks_check_sg.cu.s
+.PHONY : sampling/random_walks_check_sg.cu.s
+
+sampling/sg_random_walks_test.o: sampling/sg_random_walks_test.cpp.o
 .PHONY : sampling/sg_random_walks_test.o
 
-# target to preprocess a source file
-sampling/sg_random_walks_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RANDOM_WALKS_TEST.dir/build.make CMakeFiles/RANDOM_WALKS_TEST.dir/sampling/sg_random_walks_test.i
+# target to build an object file
+sampling/sg_random_walks_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/RANDOM_WALKS_TEST.dir/sampling/sg_random_walks_test.cpp.o
+.PHONY : sampling/sg_random_walks_test.cpp.o
+
+sampling/sg_random_walks_test.i: sampling/sg_random_walks_test.cpp.i
 .PHONY : sampling/sg_random_walks_test.i
 
-# target to generate assembly for a file
-sampling/sg_random_walks_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RANDOM_WALKS_TEST.dir/build.make CMakeFiles/RANDOM_WALKS_TEST.dir/sampling/sg_random_walks_test.s
+# target to preprocess a source file
+sampling/sg_random_walks_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/RANDOM_WALKS_TEST.dir/sampling/sg_random_walks_test.cpp.i
+.PHONY : sampling/sg_random_walks_test.cpp.i
+
+sampling/sg_random_walks_test.s: sampling/sg_random_walks_test.cpp.s
 .PHONY : sampling/sg_random_walks_test.s
 
+# target to generate assembly for a file
+sampling/sg_random_walks_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RANDOM_WALKS_TEST.dir/build.make tests/CMakeFiles/RANDOM_WALKS_TEST.dir/sampling/sg_random_walks_test.cpp.s
+.PHONY : sampling/sg_random_walks_test.cpp.s
+
+sampling/sg_uniform_neighbor_sampling.o: sampling/sg_uniform_neighbor_sampling.cu.o
+.PHONY : sampling/sg_uniform_neighbor_sampling.o
+
 # target to build an object file
-structure/coarsen_graph_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make CMakeFiles/COARSEN_GRAPH_TEST.dir/structure/coarsen_graph_test.o
+sampling/sg_uniform_neighbor_sampling.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build.make tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/sampling/sg_uniform_neighbor_sampling.cu.o
+.PHONY : sampling/sg_uniform_neighbor_sampling.cu.o
+
+sampling/sg_uniform_neighbor_sampling.i: sampling/sg_uniform_neighbor_sampling.cu.i
+.PHONY : sampling/sg_uniform_neighbor_sampling.i
+
+# target to preprocess a source file
+sampling/sg_uniform_neighbor_sampling.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build.make tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/sampling/sg_uniform_neighbor_sampling.cu.i
+.PHONY : sampling/sg_uniform_neighbor_sampling.cu.i
+
+sampling/sg_uniform_neighbor_sampling.s: sampling/sg_uniform_neighbor_sampling.cu.s
+.PHONY : sampling/sg_uniform_neighbor_sampling.s
+
+# target to generate assembly for a file
+sampling/sg_uniform_neighbor_sampling.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/build.make tests/CMakeFiles/UNIFORM_NEIGHBOR_SAMPLING_TEST.dir/sampling/sg_uniform_neighbor_sampling.cu.s
+.PHONY : sampling/sg_uniform_neighbor_sampling.cu.s
+
+structure/coarsen_graph_test.o: structure/coarsen_graph_test.cpp.o
 .PHONY : structure/coarsen_graph_test.o
 
-# target to preprocess a source file
-structure/coarsen_graph_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make CMakeFiles/COARSEN_GRAPH_TEST.dir/structure/coarsen_graph_test.i
+# target to build an object file
+structure/coarsen_graph_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/structure/coarsen_graph_test.cpp.o
+.PHONY : structure/coarsen_graph_test.cpp.o
+
+structure/coarsen_graph_test.i: structure/coarsen_graph_test.cpp.i
 .PHONY : structure/coarsen_graph_test.i
 
-# target to generate assembly for a file
-structure/coarsen_graph_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make CMakeFiles/COARSEN_GRAPH_TEST.dir/structure/coarsen_graph_test.s
+# target to preprocess a source file
+structure/coarsen_graph_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/structure/coarsen_graph_test.cpp.i
+.PHONY : structure/coarsen_graph_test.cpp.i
+
+structure/coarsen_graph_test.s: structure/coarsen_graph_test.cpp.s
 .PHONY : structure/coarsen_graph_test.s
 
-# target to build an object file
-structure/count_self_loops_and_multi_edges_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/structure/count_self_loops_and_multi_edges_test.o
+# target to generate assembly for a file
+structure/coarsen_graph_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/build.make tests/CMakeFiles/COARSEN_GRAPH_TEST.dir/structure/coarsen_graph_test.cpp.s
+.PHONY : structure/coarsen_graph_test.cpp.s
+
+structure/count_self_loops_and_multi_edges_test.o: structure/count_self_loops_and_multi_edges_test.cpp.o
 .PHONY : structure/count_self_loops_and_multi_edges_test.o
 
-# target to preprocess a source file
-structure/count_self_loops_and_multi_edges_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/structure/count_self_loops_and_multi_edges_test.i
+# target to build an object file
+structure/count_self_loops_and_multi_edges_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/structure/count_self_loops_and_multi_edges_test.cpp.o
+.PHONY : structure/count_self_loops_and_multi_edges_test.cpp.o
+
+structure/count_self_loops_and_multi_edges_test.i: structure/count_self_loops_and_multi_edges_test.cpp.i
 .PHONY : structure/count_self_loops_and_multi_edges_test.i
 
-# target to generate assembly for a file
-structure/count_self_loops_and_multi_edges_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/structure/count_self_loops_and_multi_edges_test.s
+# target to preprocess a source file
+structure/count_self_loops_and_multi_edges_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/structure/count_self_loops_and_multi_edges_test.cpp.i
+.PHONY : structure/count_self_loops_and_multi_edges_test.cpp.i
+
+structure/count_self_loops_and_multi_edges_test.s: structure/count_self_loops_and_multi_edges_test.cpp.s
 .PHONY : structure/count_self_loops_and_multi_edges_test.s
 
-# target to build an object file
-structure/degree_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/DEGREE_TEST.dir/build.make CMakeFiles/DEGREE_TEST.dir/structure/degree_test.o
+# target to generate assembly for a file
+structure/count_self_loops_and_multi_edges_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/build.make tests/CMakeFiles/COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST.dir/structure/count_self_loops_and_multi_edges_test.cpp.s
+.PHONY : structure/count_self_loops_and_multi_edges_test.cpp.s
+
+structure/degree_test.o: structure/degree_test.cpp.o
 .PHONY : structure/degree_test.o
 
-# target to preprocess a source file
-structure/degree_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/DEGREE_TEST.dir/build.make CMakeFiles/DEGREE_TEST.dir/structure/degree_test.i
+# target to build an object file
+structure/degree_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/DEGREE_TEST.dir/build.make tests/CMakeFiles/DEGREE_TEST.dir/structure/degree_test.cpp.o
+.PHONY : structure/degree_test.cpp.o
+
+structure/degree_test.i: structure/degree_test.cpp.i
 .PHONY : structure/degree_test.i
 
-# target to generate assembly for a file
-structure/degree_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/DEGREE_TEST.dir/build.make CMakeFiles/DEGREE_TEST.dir/structure/degree_test.s
+# target to preprocess a source file
+structure/degree_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/DEGREE_TEST.dir/build.make tests/CMakeFiles/DEGREE_TEST.dir/structure/degree_test.cpp.i
+.PHONY : structure/degree_test.cpp.i
+
+structure/degree_test.s: structure/degree_test.cpp.s
 .PHONY : structure/degree_test.s
 
-# target to build an object file
-structure/graph_mask_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_MASK_TEST.dir/build.make CMakeFiles/GRAPH_MASK_TEST.dir/structure/graph_mask_test.o
+# target to generate assembly for a file
+structure/degree_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/DEGREE_TEST.dir/build.make tests/CMakeFiles/DEGREE_TEST.dir/structure/degree_test.cpp.s
+.PHONY : structure/degree_test.cpp.s
+
+structure/graph_mask_test.o: structure/graph_mask_test.cpp.o
 .PHONY : structure/graph_mask_test.o
 
-# target to preprocess a source file
-structure/graph_mask_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_MASK_TEST.dir/build.make CMakeFiles/GRAPH_MASK_TEST.dir/structure/graph_mask_test.i
+# target to build an object file
+structure/graph_mask_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_MASK_TEST.dir/build.make tests/CMakeFiles/GRAPH_MASK_TEST.dir/structure/graph_mask_test.cpp.o
+.PHONY : structure/graph_mask_test.cpp.o
+
+structure/graph_mask_test.i: structure/graph_mask_test.cpp.i
 .PHONY : structure/graph_mask_test.i
 
-# target to generate assembly for a file
-structure/graph_mask_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/GRAPH_MASK_TEST.dir/build.make CMakeFiles/GRAPH_MASK_TEST.dir/structure/graph_mask_test.s
+# target to preprocess a source file
+structure/graph_mask_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_MASK_TEST.dir/build.make tests/CMakeFiles/GRAPH_MASK_TEST.dir/structure/graph_mask_test.cpp.i
+.PHONY : structure/graph_mask_test.cpp.i
+
+structure/graph_mask_test.s: structure/graph_mask_test.cpp.s
 .PHONY : structure/graph_mask_test.s
 
-# target to build an object file
-structure/induced_subgraph_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/structure/induced_subgraph_test.o
+# target to generate assembly for a file
+structure/graph_mask_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/GRAPH_MASK_TEST.dir/build.make tests/CMakeFiles/GRAPH_MASK_TEST.dir/structure/graph_mask_test.cpp.s
+.PHONY : structure/graph_mask_test.cpp.s
+
+structure/induced_subgraph_test.o: structure/induced_subgraph_test.cpp.o
 .PHONY : structure/induced_subgraph_test.o
 
-# target to preprocess a source file
-structure/induced_subgraph_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/structure/induced_subgraph_test.i
+# target to build an object file
+structure/induced_subgraph_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/structure/induced_subgraph_test.cpp.o
+.PHONY : structure/induced_subgraph_test.cpp.o
+
+structure/induced_subgraph_test.i: structure/induced_subgraph_test.cpp.i
 .PHONY : structure/induced_subgraph_test.i
 
-# target to generate assembly for a file
-structure/induced_subgraph_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/structure/induced_subgraph_test.s
+# target to preprocess a source file
+structure/induced_subgraph_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/structure/induced_subgraph_test.cpp.i
+.PHONY : structure/induced_subgraph_test.cpp.i
+
+structure/induced_subgraph_test.s: structure/induced_subgraph_test.cpp.s
 .PHONY : structure/induced_subgraph_test.s
 
+# target to generate assembly for a file
+structure/induced_subgraph_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/build.make tests/CMakeFiles/INDUCED_SUBGRAPH_TEST.dir/structure/induced_subgraph_test.cpp.s
+.PHONY : structure/induced_subgraph_test.cpp.s
+
+structure/induced_subgraph_validate.o: structure/induced_subgraph_validate.cu.o
+.PHONY : structure/induced_subgraph_validate.o
+
 # target to build an object file
-structure/renumbering_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RENUMBERING_TEST.dir/build.make CMakeFiles/RENUMBERING_TEST.dir/structure/renumbering_test.o
+structure/induced_subgraph_validate.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/structure/induced_subgraph_validate.cu.o
+.PHONY : structure/induced_subgraph_validate.cu.o
+
+structure/induced_subgraph_validate.i: structure/induced_subgraph_validate.cu.i
+.PHONY : structure/induced_subgraph_validate.i
+
+# target to preprocess a source file
+structure/induced_subgraph_validate.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/structure/induced_subgraph_validate.cu.i
+.PHONY : structure/induced_subgraph_validate.cu.i
+
+structure/induced_subgraph_validate.s: structure/induced_subgraph_validate.cu.s
+.PHONY : structure/induced_subgraph_validate.s
+
+# target to generate assembly for a file
+structure/induced_subgraph_validate.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/structure/induced_subgraph_validate.cu.s
+.PHONY : structure/induced_subgraph_validate.cu.s
+
+structure/renumbering_test.o: structure/renumbering_test.cpp.o
 .PHONY : structure/renumbering_test.o
 
-# target to preprocess a source file
-structure/renumbering_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RENUMBERING_TEST.dir/build.make CMakeFiles/RENUMBERING_TEST.dir/structure/renumbering_test.i
+# target to build an object file
+structure/renumbering_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RENUMBERING_TEST.dir/build.make tests/CMakeFiles/RENUMBERING_TEST.dir/structure/renumbering_test.cpp.o
+.PHONY : structure/renumbering_test.cpp.o
+
+structure/renumbering_test.i: structure/renumbering_test.cpp.i
 .PHONY : structure/renumbering_test.i
 
-# target to generate assembly for a file
-structure/renumbering_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RENUMBERING_TEST.dir/build.make CMakeFiles/RENUMBERING_TEST.dir/structure/renumbering_test.s
+# target to preprocess a source file
+structure/renumbering_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RENUMBERING_TEST.dir/build.make tests/CMakeFiles/RENUMBERING_TEST.dir/structure/renumbering_test.cpp.i
+.PHONY : structure/renumbering_test.cpp.i
+
+structure/renumbering_test.s: structure/renumbering_test.cpp.s
 .PHONY : structure/renumbering_test.s
 
+# target to generate assembly for a file
+structure/renumbering_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/RENUMBERING_TEST.dir/build.make tests/CMakeFiles/RENUMBERING_TEST.dir/structure/renumbering_test.cpp.s
+.PHONY : structure/renumbering_test.cpp.s
+
+structure/streams.o: structure/streams.cu.o
+.PHONY : structure/streams.o
+
 # target to build an object file
-structure/symmetrize_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SYMMETRIZE_TEST.dir/build.make CMakeFiles/SYMMETRIZE_TEST.dir/structure/symmetrize_test.o
+structure/streams.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/STREAM_TEST.dir/build.make tests/CMakeFiles/STREAM_TEST.dir/structure/streams.cu.o
+.PHONY : structure/streams.cu.o
+
+structure/streams.i: structure/streams.cu.i
+.PHONY : structure/streams.i
+
+# target to preprocess a source file
+structure/streams.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/STREAM_TEST.dir/build.make tests/CMakeFiles/STREAM_TEST.dir/structure/streams.cu.i
+.PHONY : structure/streams.cu.i
+
+structure/streams.s: structure/streams.cu.s
+.PHONY : structure/streams.s
+
+# target to generate assembly for a file
+structure/streams.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/STREAM_TEST.dir/build.make tests/CMakeFiles/STREAM_TEST.dir/structure/streams.cu.s
+.PHONY : structure/streams.cu.s
+
+structure/symmetrize_test.o: structure/symmetrize_test.cpp.o
 .PHONY : structure/symmetrize_test.o
 
-# target to preprocess a source file
-structure/symmetrize_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SYMMETRIZE_TEST.dir/build.make CMakeFiles/SYMMETRIZE_TEST.dir/structure/symmetrize_test.i
+# target to build an object file
+structure/symmetrize_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SYMMETRIZE_TEST.dir/build.make tests/CMakeFiles/SYMMETRIZE_TEST.dir/structure/symmetrize_test.cpp.o
+.PHONY : structure/symmetrize_test.cpp.o
+
+structure/symmetrize_test.i: structure/symmetrize_test.cpp.i
 .PHONY : structure/symmetrize_test.i
 
-# target to generate assembly for a file
-structure/symmetrize_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SYMMETRIZE_TEST.dir/build.make CMakeFiles/SYMMETRIZE_TEST.dir/structure/symmetrize_test.s
+# target to preprocess a source file
+structure/symmetrize_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SYMMETRIZE_TEST.dir/build.make tests/CMakeFiles/SYMMETRIZE_TEST.dir/structure/symmetrize_test.cpp.i
+.PHONY : structure/symmetrize_test.cpp.i
+
+structure/symmetrize_test.s: structure/symmetrize_test.cpp.s
 .PHONY : structure/symmetrize_test.s
 
-# target to build an object file
-structure/transpose_storage_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/structure/transpose_storage_test.o
+# target to generate assembly for a file
+structure/symmetrize_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SYMMETRIZE_TEST.dir/build.make tests/CMakeFiles/SYMMETRIZE_TEST.dir/structure/symmetrize_test.cpp.s
+.PHONY : structure/symmetrize_test.cpp.s
+
+structure/transpose_storage_test.o: structure/transpose_storage_test.cpp.o
 .PHONY : structure/transpose_storage_test.o
 
-# target to preprocess a source file
-structure/transpose_storage_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/structure/transpose_storage_test.i
+# target to build an object file
+structure/transpose_storage_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/structure/transpose_storage_test.cpp.o
+.PHONY : structure/transpose_storage_test.cpp.o
+
+structure/transpose_storage_test.i: structure/transpose_storage_test.cpp.i
 .PHONY : structure/transpose_storage_test.i
 
-# target to generate assembly for a file
-structure/transpose_storage_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/structure/transpose_storage_test.s
+# target to preprocess a source file
+structure/transpose_storage_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/structure/transpose_storage_test.cpp.i
+.PHONY : structure/transpose_storage_test.cpp.i
+
+structure/transpose_storage_test.s: structure/transpose_storage_test.cpp.s
 .PHONY : structure/transpose_storage_test.s
 
-# target to build an object file
-structure/transpose_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_TEST.dir/build.make CMakeFiles/TRANSPOSE_TEST.dir/structure/transpose_test.o
+# target to generate assembly for a file
+structure/transpose_storage_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_STORAGE_TEST.dir/structure/transpose_storage_test.cpp.s
+.PHONY : structure/transpose_storage_test.cpp.s
+
+structure/transpose_test.o: structure/transpose_test.cpp.o
 .PHONY : structure/transpose_test.o
 
-# target to preprocess a source file
-structure/transpose_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_TEST.dir/build.make CMakeFiles/TRANSPOSE_TEST.dir/structure/transpose_test.i
+# target to build an object file
+structure/transpose_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_TEST.dir/structure/transpose_test.cpp.o
+.PHONY : structure/transpose_test.cpp.o
+
+structure/transpose_test.i: structure/transpose_test.cpp.i
 .PHONY : structure/transpose_test.i
 
-# target to generate assembly for a file
-structure/transpose_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TRANSPOSE_TEST.dir/build.make CMakeFiles/TRANSPOSE_TEST.dir/structure/transpose_test.s
+# target to preprocess a source file
+structure/transpose_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_TEST.dir/structure/transpose_test.cpp.i
+.PHONY : structure/transpose_test.cpp.i
+
+structure/transpose_test.s: structure/transpose_test.cpp.s
 .PHONY : structure/transpose_test.s
 
-# target to build an object file
-structure/weight_sum_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEIGHT_SUM_TEST.dir/build.make CMakeFiles/WEIGHT_SUM_TEST.dir/structure/weight_sum_test.o
+# target to generate assembly for a file
+structure/transpose_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/TRANSPOSE_TEST.dir/build.make tests/CMakeFiles/TRANSPOSE_TEST.dir/structure/transpose_test.cpp.s
+.PHONY : structure/transpose_test.cpp.s
+
+structure/weight_sum_test.o: structure/weight_sum_test.cpp.o
 .PHONY : structure/weight_sum_test.o
 
-# target to preprocess a source file
-structure/weight_sum_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEIGHT_SUM_TEST.dir/build.make CMakeFiles/WEIGHT_SUM_TEST.dir/structure/weight_sum_test.i
+# target to build an object file
+structure/weight_sum_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEIGHT_SUM_TEST.dir/build.make tests/CMakeFiles/WEIGHT_SUM_TEST.dir/structure/weight_sum_test.cpp.o
+.PHONY : structure/weight_sum_test.cpp.o
+
+structure/weight_sum_test.i: structure/weight_sum_test.cpp.i
 .PHONY : structure/weight_sum_test.i
 
-# target to generate assembly for a file
-structure/weight_sum_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/WEIGHT_SUM_TEST.dir/build.make CMakeFiles/WEIGHT_SUM_TEST.dir/structure/weight_sum_test.s
+# target to preprocess a source file
+structure/weight_sum_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEIGHT_SUM_TEST.dir/build.make tests/CMakeFiles/WEIGHT_SUM_TEST.dir/structure/weight_sum_test.cpp.i
+.PHONY : structure/weight_sum_test.cpp.i
+
+structure/weight_sum_test.s: structure/weight_sum_test.cpp.s
 .PHONY : structure/weight_sum_test.s
 
-# target to build an object file
-traversal/bfs_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BFS_TEST.dir/build.make CMakeFiles/BFS_TEST.dir/traversal/bfs_test.o
+# target to generate assembly for a file
+structure/weight_sum_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/WEIGHT_SUM_TEST.dir/build.make tests/CMakeFiles/WEIGHT_SUM_TEST.dir/structure/weight_sum_test.cpp.s
+.PHONY : structure/weight_sum_test.cpp.s
+
+traversal/bfs_test.o: traversal/bfs_test.cpp.o
 .PHONY : traversal/bfs_test.o
 
-# target to preprocess a source file
-traversal/bfs_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BFS_TEST.dir/build.make CMakeFiles/BFS_TEST.dir/traversal/bfs_test.i
+# target to build an object file
+traversal/bfs_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BFS_TEST.dir/build.make tests/CMakeFiles/BFS_TEST.dir/traversal/bfs_test.cpp.o
+.PHONY : traversal/bfs_test.cpp.o
+
+traversal/bfs_test.i: traversal/bfs_test.cpp.i
 .PHONY : traversal/bfs_test.i
 
-# target to generate assembly for a file
-traversal/bfs_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/BFS_TEST.dir/build.make CMakeFiles/BFS_TEST.dir/traversal/bfs_test.s
+# target to preprocess a source file
+traversal/bfs_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BFS_TEST.dir/build.make tests/CMakeFiles/BFS_TEST.dir/traversal/bfs_test.cpp.i
+.PHONY : traversal/bfs_test.cpp.i
+
+traversal/bfs_test.s: traversal/bfs_test.cpp.s
 .PHONY : traversal/bfs_test.s
 
+# target to generate assembly for a file
+traversal/bfs_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/BFS_TEST.dir/build.make tests/CMakeFiles/BFS_TEST.dir/traversal/bfs_test.cpp.s
+.PHONY : traversal/bfs_test.cpp.s
+
+traversal/extract_bfs_paths_test.o: traversal/extract_bfs_paths_test.cu.o
+.PHONY : traversal/extract_bfs_paths_test.o
+
 # target to build an object file
-traversal/k_hop_nbrs_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_HOP_NBRS_TEST.dir/build.make CMakeFiles/K_HOP_NBRS_TEST.dir/traversal/k_hop_nbrs_test.o
+traversal/extract_bfs_paths_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build.make tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/traversal/extract_bfs_paths_test.cu.o
+.PHONY : traversal/extract_bfs_paths_test.cu.o
+
+traversal/extract_bfs_paths_test.i: traversal/extract_bfs_paths_test.cu.i
+.PHONY : traversal/extract_bfs_paths_test.i
+
+# target to preprocess a source file
+traversal/extract_bfs_paths_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build.make tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/traversal/extract_bfs_paths_test.cu.i
+.PHONY : traversal/extract_bfs_paths_test.cu.i
+
+traversal/extract_bfs_paths_test.s: traversal/extract_bfs_paths_test.cu.s
+.PHONY : traversal/extract_bfs_paths_test.s
+
+# target to generate assembly for a file
+traversal/extract_bfs_paths_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/build.make tests/CMakeFiles/EXTRACT_BFS_PATHS_TEST.dir/traversal/extract_bfs_paths_test.cu.s
+.PHONY : traversal/extract_bfs_paths_test.cu.s
+
+traversal/k_hop_nbrs_test.o: traversal/k_hop_nbrs_test.cpp.o
 .PHONY : traversal/k_hop_nbrs_test.o
 
-# target to preprocess a source file
-traversal/k_hop_nbrs_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_HOP_NBRS_TEST.dir/build.make CMakeFiles/K_HOP_NBRS_TEST.dir/traversal/k_hop_nbrs_test.i
+# target to build an object file
+traversal/k_hop_nbrs_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_HOP_NBRS_TEST.dir/build.make tests/CMakeFiles/K_HOP_NBRS_TEST.dir/traversal/k_hop_nbrs_test.cpp.o
+.PHONY : traversal/k_hop_nbrs_test.cpp.o
+
+traversal/k_hop_nbrs_test.i: traversal/k_hop_nbrs_test.cpp.i
 .PHONY : traversal/k_hop_nbrs_test.i
 
-# target to generate assembly for a file
-traversal/k_hop_nbrs_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/K_HOP_NBRS_TEST.dir/build.make CMakeFiles/K_HOP_NBRS_TEST.dir/traversal/k_hop_nbrs_test.s
+# target to preprocess a source file
+traversal/k_hop_nbrs_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_HOP_NBRS_TEST.dir/build.make tests/CMakeFiles/K_HOP_NBRS_TEST.dir/traversal/k_hop_nbrs_test.cpp.i
+.PHONY : traversal/k_hop_nbrs_test.cpp.i
+
+traversal/k_hop_nbrs_test.s: traversal/k_hop_nbrs_test.cpp.s
 .PHONY : traversal/k_hop_nbrs_test.s
 
+# target to generate assembly for a file
+traversal/k_hop_nbrs_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/K_HOP_NBRS_TEST.dir/build.make tests/CMakeFiles/K_HOP_NBRS_TEST.dir/traversal/k_hop_nbrs_test.cpp.s
+.PHONY : traversal/k_hop_nbrs_test.cpp.s
+
+traversal/legacy/bfs_test.o: traversal/legacy/bfs_test.cu.o
+.PHONY : traversal/legacy/bfs_test.o
+
 # target to build an object file
-traversal/sssp_test.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SSSP_TEST.dir/build.make CMakeFiles/SSSP_TEST.dir/traversal/sssp_test.o
+traversal/legacy/bfs_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BFS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BFS_TEST.dir/traversal/legacy/bfs_test.cu.o
+.PHONY : traversal/legacy/bfs_test.cu.o
+
+traversal/legacy/bfs_test.i: traversal/legacy/bfs_test.cu.i
+.PHONY : traversal/legacy/bfs_test.i
+
+# target to preprocess a source file
+traversal/legacy/bfs_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BFS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BFS_TEST.dir/traversal/legacy/bfs_test.cu.i
+.PHONY : traversal/legacy/bfs_test.cu.i
+
+traversal/legacy/bfs_test.s: traversal/legacy/bfs_test.cu.s
+.PHONY : traversal/legacy/bfs_test.s
+
+# target to generate assembly for a file
+traversal/legacy/bfs_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/LEGACY_BFS_TEST.dir/build.make tests/CMakeFiles/LEGACY_BFS_TEST.dir/traversal/legacy/bfs_test.cu.s
+.PHONY : traversal/legacy/bfs_test.cu.s
+
+traversal/ms_bfs_test.o: traversal/ms_bfs_test.cu.o
+.PHONY : traversal/ms_bfs_test.o
+
+# target to build an object file
+traversal/ms_bfs_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MSBFS_TEST.dir/build.make tests/CMakeFiles/MSBFS_TEST.dir/traversal/ms_bfs_test.cu.o
+.PHONY : traversal/ms_bfs_test.cu.o
+
+traversal/ms_bfs_test.i: traversal/ms_bfs_test.cu.i
+.PHONY : traversal/ms_bfs_test.i
+
+# target to preprocess a source file
+traversal/ms_bfs_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MSBFS_TEST.dir/build.make tests/CMakeFiles/MSBFS_TEST.dir/traversal/ms_bfs_test.cu.i
+.PHONY : traversal/ms_bfs_test.cu.i
+
+traversal/ms_bfs_test.s: traversal/ms_bfs_test.cu.s
+.PHONY : traversal/ms_bfs_test.s
+
+# target to generate assembly for a file
+traversal/ms_bfs_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MSBFS_TEST.dir/build.make tests/CMakeFiles/MSBFS_TEST.dir/traversal/ms_bfs_test.cu.s
+.PHONY : traversal/ms_bfs_test.cu.s
+
+traversal/sssp_test.o: traversal/sssp_test.cpp.o
 .PHONY : traversal/sssp_test.o
 
-# target to preprocess a source file
-traversal/sssp_test.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SSSP_TEST.dir/build.make CMakeFiles/SSSP_TEST.dir/traversal/sssp_test.i
+# target to build an object file
+traversal/sssp_test.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SSSP_TEST.dir/build.make tests/CMakeFiles/SSSP_TEST.dir/traversal/sssp_test.cpp.o
+.PHONY : traversal/sssp_test.cpp.o
+
+traversal/sssp_test.i: traversal/sssp_test.cpp.i
 .PHONY : traversal/sssp_test.i
 
-# target to generate assembly for a file
-traversal/sssp_test.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/SSSP_TEST.dir/build.make CMakeFiles/SSSP_TEST.dir/traversal/sssp_test.s
+# target to preprocess a source file
+traversal/sssp_test.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SSSP_TEST.dir/build.make tests/CMakeFiles/SSSP_TEST.dir/traversal/sssp_test.cpp.i
+.PHONY : traversal/sssp_test.cpp.i
+
+traversal/sssp_test.s: traversal/sssp_test.cpp.s
 .PHONY : traversal/sssp_test.s
 
+# target to generate assembly for a file
+traversal/sssp_test.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/SSSP_TEST.dir/build.make tests/CMakeFiles/SSSP_TEST.dir/traversal/sssp_test.cpp.s
+.PHONY : traversal/sssp_test.cpp.s
+
+tree/mst_test.o: tree/mst_test.cu.o
+.PHONY : tree/mst_test.o
+
 # target to build an object file
-utilities/misc_utilities.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/utilities/misc_utilities.o
+tree/mst_test.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MST_TEST.dir/build.make tests/CMakeFiles/MST_TEST.dir/tree/mst_test.cu.o
+.PHONY : tree/mst_test.cu.o
+
+tree/mst_test.i: tree/mst_test.cu.i
+.PHONY : tree/mst_test.i
+
+# target to preprocess a source file
+tree/mst_test.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MST_TEST.dir/build.make tests/CMakeFiles/MST_TEST.dir/tree/mst_test.cu.i
+.PHONY : tree/mst_test.cu.i
+
+tree/mst_test.s: tree/mst_test.cu.s
+.PHONY : tree/mst_test.s
+
+# target to generate assembly for a file
+tree/mst_test.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/MST_TEST.dir/build.make tests/CMakeFiles/MST_TEST.dir/tree/mst_test.cu.s
+.PHONY : tree/mst_test.cu.s
+
+utilities/csv_file_utilities.o: utilities/csv_file_utilities.cu.o
+.PHONY : utilities/csv_file_utilities.o
+
+# target to build an object file
+utilities/csv_file_utilities.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/csv_file_utilities.cu.o
+.PHONY : utilities/csv_file_utilities.cu.o
+
+utilities/csv_file_utilities.i: utilities/csv_file_utilities.cu.i
+.PHONY : utilities/csv_file_utilities.i
+
+# target to preprocess a source file
+utilities/csv_file_utilities.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/csv_file_utilities.cu.i
+.PHONY : utilities/csv_file_utilities.cu.i
+
+utilities/csv_file_utilities.s: utilities/csv_file_utilities.cu.s
+.PHONY : utilities/csv_file_utilities.s
+
+# target to generate assembly for a file
+utilities/csv_file_utilities.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/csv_file_utilities.cu.s
+.PHONY : utilities/csv_file_utilities.cu.s
+
+utilities/matrix_market_file_utilities.o: utilities/matrix_market_file_utilities.cu.o
+.PHONY : utilities/matrix_market_file_utilities.o
+
+# target to build an object file
+utilities/matrix_market_file_utilities.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/matrix_market_file_utilities.cu.o
+.PHONY : utilities/matrix_market_file_utilities.cu.o
+
+utilities/matrix_market_file_utilities.i: utilities/matrix_market_file_utilities.cu.i
+.PHONY : utilities/matrix_market_file_utilities.i
+
+# target to preprocess a source file
+utilities/matrix_market_file_utilities.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/matrix_market_file_utilities.cu.i
+.PHONY : utilities/matrix_market_file_utilities.cu.i
+
+utilities/matrix_market_file_utilities.s: utilities/matrix_market_file_utilities.cu.s
+.PHONY : utilities/matrix_market_file_utilities.s
+
+# target to generate assembly for a file
+utilities/matrix_market_file_utilities.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/matrix_market_file_utilities.cu.s
+.PHONY : utilities/matrix_market_file_utilities.cu.s
+
+utilities/misc_utilities.o: utilities/misc_utilities.cpp.o
 .PHONY : utilities/misc_utilities.o
 
-# target to preprocess a source file
-utilities/misc_utilities.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/utilities/misc_utilities.i
+# target to build an object file
+utilities/misc_utilities.cpp.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/misc_utilities.cpp.o
+.PHONY : utilities/misc_utilities.cpp.o
+
+utilities/misc_utilities.i: utilities/misc_utilities.cpp.i
 .PHONY : utilities/misc_utilities.i
 
-# target to generate assembly for a file
-utilities/misc_utilities.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/utilities/misc_utilities.s
+# target to preprocess a source file
+utilities/misc_utilities.cpp.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/misc_utilities.cpp.i
+.PHONY : utilities/misc_utilities.cpp.i
+
+utilities/misc_utilities.s: utilities/misc_utilities.cpp.s
 .PHONY : utilities/misc_utilities.s
 
+# target to generate assembly for a file
+utilities/misc_utilities.cpp.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/misc_utilities.cpp.s
+.PHONY : utilities/misc_utilities.cpp.s
+
+utilities/test_utilities_sg.o: utilities/test_utilities_sg.cu.o
+.PHONY : utilities/test_utilities_sg.o
+
 # target to build an object file
-work/cugraph/thirdparty/mmio/mmio.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/work/cugraph/thirdparty/mmio/mmio.o
-.PHONY : work/cugraph/thirdparty/mmio/mmio.o
+utilities/test_utilities_sg.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/test_utilities_sg.cu.o
+.PHONY : utilities/test_utilities_sg.cu.o
+
+utilities/test_utilities_sg.i: utilities/test_utilities_sg.cu.i
+.PHONY : utilities/test_utilities_sg.i
 
 # target to preprocess a source file
-work/cugraph/thirdparty/mmio/mmio.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/work/cugraph/thirdparty/mmio/mmio.i
-.PHONY : work/cugraph/thirdparty/mmio/mmio.i
+utilities/test_utilities_sg.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/test_utilities_sg.cu.i
+.PHONY : utilities/test_utilities_sg.cu.i
+
+utilities/test_utilities_sg.s: utilities/test_utilities_sg.cu.s
+.PHONY : utilities/test_utilities_sg.s
 
 # target to generate assembly for a file
-work/cugraph/thirdparty/mmio/mmio.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cugraphtestutil.dir/build.make CMakeFiles/cugraphtestutil.dir/work/cugraph/thirdparty/mmio/mmio.s
+utilities/test_utilities_sg.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/test_utilities_sg.cu.s
+.PHONY : utilities/test_utilities_sg.cu.s
+
+utilities/thrust_wrapper.o: utilities/thrust_wrapper.cu.o
+.PHONY : utilities/thrust_wrapper.o
+
+# target to build an object file
+utilities/thrust_wrapper.cu.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/thrust_wrapper.cu.o
+.PHONY : utilities/thrust_wrapper.cu.o
+
+utilities/thrust_wrapper.i: utilities/thrust_wrapper.cu.i
+.PHONY : utilities/thrust_wrapper.i
+
+# target to preprocess a source file
+utilities/thrust_wrapper.cu.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/thrust_wrapper.cu.i
+.PHONY : utilities/thrust_wrapper.cu.i
+
+utilities/thrust_wrapper.s: utilities/thrust_wrapper.cu.s
+.PHONY : utilities/thrust_wrapper.s
+
+# target to generate assembly for a file
+utilities/thrust_wrapper.cu.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/utilities/thrust_wrapper.cu.s
+.PHONY : utilities/thrust_wrapper.cu.s
+
+work/cugraph/thirdparty/mmio/mmio.o: work/cugraph/thirdparty/mmio/mmio.c.o
+.PHONY : work/cugraph/thirdparty/mmio/mmio.o
+
+# target to build an object file
+work/cugraph/thirdparty/mmio/mmio.c.o:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/work/cugraph/thirdparty/mmio/mmio.c.o
+.PHONY : work/cugraph/thirdparty/mmio/mmio.c.o
+
+work/cugraph/thirdparty/mmio/mmio.i: work/cugraph/thirdparty/mmio/mmio.c.i
+.PHONY : work/cugraph/thirdparty/mmio/mmio.i
+
+# target to preprocess a source file
+work/cugraph/thirdparty/mmio/mmio.c.i:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/work/cugraph/thirdparty/mmio/mmio.c.i
+.PHONY : work/cugraph/thirdparty/mmio/mmio.c.i
+
+work/cugraph/thirdparty/mmio/mmio.s: work/cugraph/thirdparty/mmio/mmio.c.s
 .PHONY : work/cugraph/thirdparty/mmio/mmio.s
+
+# target to generate assembly for a file
+work/cugraph/thirdparty/mmio/mmio.c.s:
+	cd /work/cugraph/cpp && $(MAKE) $(MAKESILENT) -f tests/CMakeFiles/cugraphtestutil.dir/build.make tests/CMakeFiles/cugraphtestutil.dir/work/cugraph/thirdparty/mmio/mmio.c.s
+.PHONY : work/cugraph/thirdparty/mmio/mmio.c.s
 
 # Help Target
 help:
@@ -1964,6 +3088,8 @@ help:
 	@echo "... install/local"
 	@echo "... install/strip"
 	@echo "... list_install_components"
+	@echo "... package"
+	@echo "... package_source"
 	@echo "... rebuild_cache"
 	@echo "... test"
 	@echo "... BALANCED_TEST"
@@ -2107,6 +3233,9 @@ help:
 	@echo "... centrality/betweenness_centrality_test.o"
 	@echo "... centrality/betweenness_centrality_test.i"
 	@echo "... centrality/betweenness_centrality_test.s"
+	@echo "... centrality/betweenness_centrality_validate.o"
+	@echo "... centrality/betweenness_centrality_validate.i"
+	@echo "... centrality/betweenness_centrality_validate.s"
 	@echo "... centrality/edge_betweenness_centrality_test.o"
 	@echo "... centrality/edge_betweenness_centrality_test.i"
 	@echo "... centrality/edge_betweenness_centrality_test.s"
@@ -2116,6 +3245,12 @@ help:
 	@echo "... centrality/katz_centrality_test.o"
 	@echo "... centrality/katz_centrality_test.i"
 	@echo "... centrality/katz_centrality_test.s"
+	@echo "... centrality/legacy/betweenness_centrality_test.o"
+	@echo "... centrality/legacy/betweenness_centrality_test.i"
+	@echo "... centrality/legacy/betweenness_centrality_test.s"
+	@echo "... centrality/legacy/edge_betweenness_centrality_test.o"
+	@echo "... centrality/legacy/edge_betweenness_centrality_test.i"
+	@echo "... centrality/legacy/edge_betweenness_centrality_test.s"
 	@echo "... community/balanced_edge_test.o"
 	@echo "... community/balanced_edge_test.i"
 	@echo "... community/balanced_edge_test.s"
@@ -2125,6 +3260,9 @@ help:
 	@echo "... community/egonet_test.o"
 	@echo "... community/egonet_test.i"
 	@echo "... community/egonet_test.s"
+	@echo "... community/egonet_validate.o"
+	@echo "... community/egonet_validate.i"
+	@echo "... community/egonet_validate.s"
 	@echo "... community/leiden_test.o"
 	@echo "... community/leiden_test.i"
 	@echo "... community/leiden_test.s"
@@ -2134,6 +3272,12 @@ help:
 	@echo "... community/triangle_count_test.o"
 	@echo "... community/triangle_count_test.i"
 	@echo "... community/triangle_count_test.s"
+	@echo "... components/con_comp_test.o"
+	@echo "... components/con_comp_test.i"
+	@echo "... components/con_comp_test.s"
+	@echo "... components/scc_test.o"
+	@echo "... components/scc_test.i"
+	@echo "... components/scc_test.s"
 	@echo "... components/weakly_connected_components_test.o"
 	@echo "... components/weakly_connected_components_test.i"
 	@echo "... components/weakly_connected_components_test.s"
@@ -2143,6 +3287,9 @@ help:
 	@echo "... cores/k_core_test.o"
 	@echo "... cores/k_core_test.i"
 	@echo "... cores/k_core_test.s"
+	@echo "... cores/k_core_validate.o"
+	@echo "... cores/k_core_validate.i"
+	@echo "... cores/k_core_validate.s"
 	@echo "... generators/erdos_renyi_test.o"
 	@echo "... generators/erdos_renyi_test.i"
 	@echo "... generators/erdos_renyi_test.s"
@@ -2152,6 +3299,12 @@ help:
 	@echo "... generators/generators_test.o"
 	@echo "... generators/generators_test.i"
 	@echo "... generators/generators_test.s"
+	@echo "... layout/legacy/force_atlas2_test.o"
+	@echo "... layout/legacy/force_atlas2_test.i"
+	@echo "... layout/legacy/force_atlas2_test.s"
+	@echo "... linear_assignment/hungarian_test.o"
+	@echo "... linear_assignment/hungarian_test.i"
+	@echo "... linear_assignment/hungarian_test.s"
 	@echo "... link_analysis/hits_test.o"
 	@echo "... link_analysis/hits_test.i"
 	@echo "... link_analysis/hits_test.s"
@@ -2164,9 +3317,15 @@ help:
 	@echo "... link_prediction/similarity_test.o"
 	@echo "... link_prediction/similarity_test.i"
 	@echo "... link_prediction/similarity_test.s"
+	@echo "... sampling/random_walks_check_sg.o"
+	@echo "... sampling/random_walks_check_sg.i"
+	@echo "... sampling/random_walks_check_sg.s"
 	@echo "... sampling/sg_random_walks_test.o"
 	@echo "... sampling/sg_random_walks_test.i"
 	@echo "... sampling/sg_random_walks_test.s"
+	@echo "... sampling/sg_uniform_neighbor_sampling.o"
+	@echo "... sampling/sg_uniform_neighbor_sampling.i"
+	@echo "... sampling/sg_uniform_neighbor_sampling.s"
 	@echo "... structure/coarsen_graph_test.o"
 	@echo "... structure/coarsen_graph_test.i"
 	@echo "... structure/coarsen_graph_test.s"
@@ -2182,9 +3341,15 @@ help:
 	@echo "... structure/induced_subgraph_test.o"
 	@echo "... structure/induced_subgraph_test.i"
 	@echo "... structure/induced_subgraph_test.s"
+	@echo "... structure/induced_subgraph_validate.o"
+	@echo "... structure/induced_subgraph_validate.i"
+	@echo "... structure/induced_subgraph_validate.s"
 	@echo "... structure/renumbering_test.o"
 	@echo "... structure/renumbering_test.i"
 	@echo "... structure/renumbering_test.s"
+	@echo "... structure/streams.o"
+	@echo "... structure/streams.i"
+	@echo "... structure/streams.s"
 	@echo "... structure/symmetrize_test.o"
 	@echo "... structure/symmetrize_test.i"
 	@echo "... structure/symmetrize_test.s"
@@ -2200,15 +3365,39 @@ help:
 	@echo "... traversal/bfs_test.o"
 	@echo "... traversal/bfs_test.i"
 	@echo "... traversal/bfs_test.s"
+	@echo "... traversal/extract_bfs_paths_test.o"
+	@echo "... traversal/extract_bfs_paths_test.i"
+	@echo "... traversal/extract_bfs_paths_test.s"
 	@echo "... traversal/k_hop_nbrs_test.o"
 	@echo "... traversal/k_hop_nbrs_test.i"
 	@echo "... traversal/k_hop_nbrs_test.s"
+	@echo "... traversal/legacy/bfs_test.o"
+	@echo "... traversal/legacy/bfs_test.i"
+	@echo "... traversal/legacy/bfs_test.s"
+	@echo "... traversal/ms_bfs_test.o"
+	@echo "... traversal/ms_bfs_test.i"
+	@echo "... traversal/ms_bfs_test.s"
 	@echo "... traversal/sssp_test.o"
 	@echo "... traversal/sssp_test.i"
 	@echo "... traversal/sssp_test.s"
+	@echo "... tree/mst_test.o"
+	@echo "... tree/mst_test.i"
+	@echo "... tree/mst_test.s"
+	@echo "... utilities/csv_file_utilities.o"
+	@echo "... utilities/csv_file_utilities.i"
+	@echo "... utilities/csv_file_utilities.s"
+	@echo "... utilities/matrix_market_file_utilities.o"
+	@echo "... utilities/matrix_market_file_utilities.i"
+	@echo "... utilities/matrix_market_file_utilities.s"
 	@echo "... utilities/misc_utilities.o"
 	@echo "... utilities/misc_utilities.i"
 	@echo "... utilities/misc_utilities.s"
+	@echo "... utilities/test_utilities_sg.o"
+	@echo "... utilities/test_utilities_sg.i"
+	@echo "... utilities/test_utilities_sg.s"
+	@echo "... utilities/thrust_wrapper.o"
+	@echo "... utilities/thrust_wrapper.i"
+	@echo "... utilities/thrust_wrapper.s"
 	@echo "... work/cugraph/thirdparty/mmio/mmio.o"
 	@echo "... work/cugraph/thirdparty/mmio/mmio.i"
 	@echo "... work/cugraph/thirdparty/mmio/mmio.s"
@@ -2223,6 +3412,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	$(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /work/cugraph/cpp && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

@@ -501,6 +501,7 @@ sample_edges(
                                                 edge_t{},
                                                 edge_type_t{})),
           true);
+
       std::tie(majors, minors, edge_ids, edge_types) = std::move(sample_e_op_results);
     } else {
       auto [sample_offsets, sample_e_op_results] =
@@ -519,6 +520,7 @@ sample_edges(
             cugraph::invalid_vertex_id<vertex_t>::value,
             cugraph::invalid_vertex_id<vertex_t>::value),
           true);
+
       std::tie(majors, minors) = std::move(sample_e_op_results);
     }
   }

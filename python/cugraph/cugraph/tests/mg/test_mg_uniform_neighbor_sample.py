@@ -319,6 +319,70 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     assert len(output_df.compute()) == 3
 
 
+@pytest.mark.cugraph_ops
+def test_uniform_neighbor_sample_edge_properties():
+    edgelist_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2],
+                "dst": [1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4],
+                "eid": cudf.Series(
+                    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dtype="int64"
+                ),
+                "etp": cudf.Series([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0], dtype="int32"),
+                "w": [0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11],
+            }
+        ),
+        npartitions=2,
+    )
+
+    start_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "seed": cudf.Series([0, 4], dtype="int32"),
+                "batch": cudf.Series([0, 1], dtype="int32"),
+            }
+        )
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"]
+    )
+
+    sampling_results = uniform_neighbor_sample(
+        G,
+        start_list=start_df["seed"],
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        batch_id_list=start_df["batch"],
+    ).compute()
+
+    edgelist_df.set_index("eid")
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["w"].values_host.tolist()
+        == sampling_results["weight"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["etp"].values_host.tolist()
+        == sampling_results["edge_type"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["src"].values_host.tolist()
+        == sampling_results["sources"].values_host.tolist()
+    )
+    assert (
+        edgelist_df.loc[sampling_results.edge_id]["dst"].values_host.tolist()
+        == sampling_results["destinations"].values_host.tolist()
+    )
+
+    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
+        2 * 2 * 2
+    )
+    # FIXME test the batch id values once that is fixed in C++
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================

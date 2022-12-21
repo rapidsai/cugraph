@@ -214,6 +214,7 @@ uniform_neighbor_sample_impl(
                      static_cast<size_t>(k_level),
                      with_replacement);
     } else {
+      // Labels are currently unsupported if requesting all neighbors (i.e. fanout=-1)
       std::tie(d_out_src, d_out_dst, d_out_edge_id, d_out_weight, d_out_edge_type, d_out_label) =
         gather_one_hop_edgelist(
           handle, graph_view, edge_weight_view, edge_type_view, d_in, d_labels);
