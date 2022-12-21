@@ -32,7 +32,12 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  libcugraph pylibcugraph cugraph
+  libcugraph \
+  pylibcugraph \
+  cugraph \
+  cugraph-pyg \
+  cugraph-service-server \
+  cugraph-service-client
 
 rapids-logger "Check GPU usage"
 nvidia-smi

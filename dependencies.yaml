@@ -118,14 +118,11 @@ dependencies:
           - ipython
           - libcudf=23.02.*
           - nccl>=2.9.9
-          - networkx>=2.5.1
           - notebook>=0.5.0
           - pylibraft=23.02.*
           - raft-dask=23.02.*
           - rmm=23.02.*
           - scikit-build>=0.13.1
-          - scikit-learn>=0.23.1
-          - scipy
           - ucx-proc=*=gpu
           - ucx-py=0.30.*
   doc:
@@ -145,7 +142,10 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
+          - networkx>=2.5.1
           - py
           - pytest
           - pytest-cov
           - rapids-pytest-benchmark
+          - scikit-learn>=0.23.1
+          - scipy
