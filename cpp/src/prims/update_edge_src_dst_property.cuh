@@ -26,7 +26,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>

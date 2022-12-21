@@ -30,7 +30,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
