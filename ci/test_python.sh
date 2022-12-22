@@ -131,7 +131,8 @@ pytest \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
   --cov-config=../.coveragerc \
-  --cov=cugraph_service \
+  --cov=cugraph_service_client \
+  --cov=cugraph_service_server \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-service-coverage.xml" \
   --cov-report=term \
   --benchmark-disable \
