@@ -16,7 +16,7 @@ import time
 import pytest
 import numpy as np
 import cupy as cp
-import torch
+#import torch
 from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 import cudf
 import dask_cudf
@@ -40,6 +40,9 @@ from cugraph import (
 from cugraph.generators import rmat
 from cugraph.experimental import datasets, PropertyGraph, MGPropertyGraph
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
+
+from cugraph_pyg.sampler import CuGraphSampler
+from cugraph_pyg.data import to_pyg
 
 from cugraph_benchmarking import params
 
@@ -89,6 +92,7 @@ def create_graph(graph_data):
             mg=False,
         )
         edgelist_df["weight"] = cp.float32(1)
+        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
 
         vertex_df = cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -101,6 +105,7 @@ def create_graph(graph_data):
             edgelist_df,
             vertex_col_names=['src','dst'],
             type_name='et1',
+            edge_id_col_name='eid',
             property_columns=['weight']
         )
 
@@ -115,9 +120,9 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=True,
+        enable_tcp_over_ucx=False,
         enable_infiniband=False,
-        enable_nvlink=True,
+        enable_nvlink=False,
         enable_rdmacm=False,
         net_devices=None,
     )
@@ -130,7 +135,7 @@ def create_mg_graph(graph_data):
         edgelist_df = ds.get_edgelist()
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
-        edgelist_df = dask_cudf.from_cudf(edgelist_df)
+        edgelist_df = dask_cudf.from_cudf(edgelist_df, npartitions=2)
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -164,6 +169,7 @@ def create_mg_graph(graph_data):
             mg=True,
         )
         edgelist_df["weight"] = np.float32(1)
+        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -176,6 +182,7 @@ def create_mg_graph(graph_data):
             edgelist_df,
             vertex_col_names=['src','dst'],
             type_name='et1',
+            edge_id_col_name='eid',
             property_columns=['weight']
         )
 
@@ -236,17 +243,15 @@ def get_uniform_neighbor_sample_args(
     assert len(start_list) == num_start_verts
 
     return {
-        "start_list": torch.tensor(start_list, dtype=torch.int32).cuda(),
+        #"start_list": torch.tensor(start_list, dtype=torch.int32).cuda(),
+        'start_list': cp.array(start_list, dtype='int32'),
         "fanout": fanout,
         "with_replacement": with_replacement,
     }
 
 
 
-def get_sampler(G, num_neighbors, with_replacement, directed, edge_types):
-    from cugraph_pyg.sampler import CuGraphSampler
-    from cugraph_pyg.data import to_pyg
-    data = to_pyg(G, renumber_vertices=False)
+def get_sampler(data, num_neighbors, with_replacement, directed, edge_types):
     sampler = CuGraphSampler(
         data, 
         method='uniform_neighbor',        
@@ -281,9 +286,11 @@ def graph_objs(request):
 
     G.renumber_vertices_by_type()
     G.renumber_edges_by_type()
+
     print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
-    yield G
+    data = to_pyg(G, renumber_graph=False, backend='cupy')
+    yield (G, data)
 
     if dask_client is not None:
         stop_dask_client(dask_client, dask_cluster)
@@ -291,6 +298,7 @@ def graph_objs(request):
 ################################################################################
 # Benchmarks
 @pytest.mark.parametrize("batch_size", params.batch_sizes.values())
+#@pytest.mark.parametrize('batch_size', [100, 500, 1000])
 #@pytest.mark.parametrize("fanout", [params.fanout_10_25, params.fanout_5_10_15])
 @pytest.mark.parametrize("fanout", [params.fanout_10_25])
 @pytest.mark.parametrize(
@@ -299,14 +307,14 @@ def graph_objs(request):
 def bench_cugraph_uniform_neighbor_sample(
     gpubenchmark, graph_objs, batch_size, fanout, with_replacement
 ):
-    G = graph_objs
+    G, data = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
         G, _seed, batch_size, fanout, with_replacement
     )
 
     sampler = get_sampler(
-        G,
+        data,
         num_neighbors=uns_args['fanout'],
         with_replacement=uns_args["with_replacement"],
         directed=True,
@@ -320,13 +328,14 @@ def bench_cugraph_uniform_neighbor_sample(
         uns_func,
         ix=uns_args["start_list"],
     )
-    noi_index, row_dict, col_dict, _ = result['out']
+    
+    # noi_index, row_dict, col_dict, _ = result['out']
 
-    dtmap = {torch.int32: 32 // 8, torch.int64: 64 // 8}
-    bytes = 0
-    llen = 0
-    for d in noi_index, row_dict, col_dict:
-        for x in d.values():
-            llen += len(x)
-            bytes += len(x) * dtmap[x.dtype]
-    print(f"\nresult list len: {llen} (x3), total bytes={bytes}")
+    # dtmap = {torch.int32: 32 // 8, torch.int64: 64 // 8}
+    # bytes = 0
+    # llen = 0
+    # for d in noi_index, row_dict, col_dict:
+    #    for x in d.values():
+    #        llen += len(x)
+    #        bytes += len(x) * dtmap[x.dtype]
+    # print(f"\nresult list len: {llen} (x3), total bytes={bytes}")

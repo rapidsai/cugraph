@@ -501,6 +501,12 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
+    def vertex_types_from_numerals(self, nums):
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
+    def edge_types_from_numerals(self, nums):
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
     def add_vertex_data(
         self,
         dataframe,
@@ -849,8 +855,14 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            df_out = df.reset_index()
-            df_out.index = df_out.index.astype(df.index.dtype)
+
+            df_out = df.reset_index(drop=True)
+
+            # Preserve the dtype (vertex id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__vertex_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
             return df_out
         return None
 
@@ -1247,8 +1259,13 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            df_out = df.reset_index()
-            df_out.index = df_out.index.astype(df.index.dtype)
+            df_out = df.reset_index(drop=True)
+
+            # Preserve the dtype (edge id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__edge_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
             return df_out
 
         return None
@@ -1421,6 +1438,7 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -1564,6 +1582,7 @@ class EXPERIMENTAL__PropertyGraph:
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
+            create_with_edge_info=create_with_edge_info,
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
@@ -1674,6 +1693,7 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Create a Graph from the edges in edge_prop_df.
@@ -1760,7 +1780,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
-        elif default_edge_weight:
+        elif default_edge_weight or create_with_edge_info:
+            default_edge_weight = default_edge_weight or 0.0
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1801,6 +1822,15 @@ class EXPERIMENTAL__PropertyGraph:
                 "query resulted in duplicate edges which "
                 f"cannot be represented with the {msg}"
             )
+
+        if create_with_edge_info:
+            TCN = f"{self.type_col_name}_codes"
+            ICN = f"{self.edge_id_col_name}_ser"
+            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
+                "int32"
+            )
+            edge_prop_df[ICN] = edge_prop_df.index.to_series().astype("int32")
+            edge_attr = [edge_attr, ICN, TCN]
 
         create_args = {
             "source": self.src_col_name,
