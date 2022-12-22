@@ -144,9 +144,11 @@ dependencies:
       - output_types: [conda, requirements]
         packages:
           - *networkx
+          - ogb
           - py
           - pytest
           - pytest-cov
+          - python-louvain
           - rapids-pytest-benchmark
           - scikit-learn>=0.23.1
           - scipy

@@ -34,6 +34,7 @@ dependencies:
 - notebook>=0.5.0
 - numpydoc
 - nvcc_linux-64=11.5
+- ogb
 - openmpi
 - pip
 - pre-commit
@@ -42,6 +43,7 @@ dependencies:
 - pylibraft=23.02.*
 - pytest
 - pytest-cov
+- python-louvain
 - raft-dask=23.02.*
 - rapids-pytest-benchmark
 - recommonmark
