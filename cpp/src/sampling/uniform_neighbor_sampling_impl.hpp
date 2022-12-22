@@ -233,32 +233,31 @@ uniform_neighbor_sample_impl(
     if (d_result_edge_type) d_result_edge_type->resize(new_sz, handle.get_stream());
     if (d_result_label) d_result_label->resize(new_sz, handle.get_stream());
 
+    raft::copy(d_result_src.begin() + old_sz, d_out_src.begin(), add_sz, handle.get_stream());
+
+    raft::copy(d_result_dst.begin() + old_sz, d_out_dst.begin(), add_sz, handle.get_stream());
+
     raft::copy(
-      d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());
-    raft::copy(
-      d_result_dst.begin() + old_sz, d_out_dst.begin(), d_out_dst.size(), handle.get_stream());
-    raft::copy(d_result_edge_id.begin() + old_sz,
-               d_out_edge_id.begin(),
-               d_out_edge_id.size(),
-               handle.get_stream());
+      d_result_edge_id.begin() + old_sz, d_out_edge_id.begin(), add_sz, handle.get_stream());
 
     detail::scalar_fill(handle, d_result_hop.data() + old_sz, add_sz, hop);
 
     if (d_result_weight)
-      raft::copy(d_result_weight->begin() + old_sz,
-                 d_out_weight->begin(),
-                 d_out_weight->size(),
-                 handle.get_stream());
+      raft::copy(
+        d_result_weight->begin() + old_sz, d_out_weight->begin(), add_sz, handle.get_stream());
+
     if (d_result_edge_type)
       raft::copy(d_result_edge_type->begin() + old_sz,
                  d_out_edge_type->begin(),
-                 d_out_edge_type->size(),
+                 add_sz,
                  handle.get_stream());
+    /*
     if (d_result_label)
       raft::copy(d_result_label->begin() + old_sz,
                  d_out_label->begin(),
                  d_out_label->size(),
                  handle.get_stream());
+    */
 
     d_in     = std::move(d_out_dst);
     d_labels = std::move(d_labels);

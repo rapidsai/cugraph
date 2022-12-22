@@ -17,6 +17,7 @@ from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbo
 import numpy
 
 import cudf
+import cupy as cp
 
 
 def uniform_neighbor_sample(
@@ -97,6 +98,9 @@ def uniform_neighbor_sample(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
 
+    if with_edge_properties and batch_id_list is None:
+        batch_id_list = cp.zeros(len(start_list), dtype="int32")
+
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if isinstance(fanout_vals, list):
@@ -138,7 +142,6 @@ def uniform_neighbor_sample(
             batch_ids,
             hop_ids,
         ) = sampling_result
-        print(sampling_result)
 
         df["sources"] = sources
         df["destinations"] = destinations

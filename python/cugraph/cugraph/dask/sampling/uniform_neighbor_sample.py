@@ -183,6 +183,9 @@ def uniform_neighbor_sample(
             ].dtype,
         )
 
+    if with_edge_properties and batch_id_list is None:
+        batch_id_list = cp.zeros(len(start_list), dtype="int32")
+
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if isinstance(fanout_vals, list):
