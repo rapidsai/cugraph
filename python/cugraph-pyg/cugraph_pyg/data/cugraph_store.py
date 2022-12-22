@@ -106,10 +106,10 @@ def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_graph=None):
     G : PropertyGraph or MGPropertyGraph
         The graph to produce PyG wrappers for.
     renumber_graph: bool
-        Should usually be set to True.  If True, the vertices in the
-        provided property graph will be renumbered so that they are
-        contiguous by type.  If the vertices are already contiguously
-        renumbered by type, then this can be set to False.
+        Should usually be set to True.  If True, the vertices and edges
+        in the provided property graph will be renumbered so that they
+        are contiguous by type.  If the vertices and edges are already
+        contiguously renumbered by type, then this can be set to False.
 
     Returns
     -------
