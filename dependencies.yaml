@@ -143,6 +143,7 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
+          - aiohttp
           - *networkx
           - ogb
           - py
@@ -150,5 +151,6 @@ dependencies:
           - pytest-cov
           - python-louvain
           - rapids-pytest-benchmark
+          - requests
           - scikit-learn>=0.23.1
           - scipy
