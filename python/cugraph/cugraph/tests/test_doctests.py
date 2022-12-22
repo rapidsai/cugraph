@@ -118,8 +118,9 @@ def skip_docstring(docstring):
     first_line = docstring.examples[0].source
 
     if (
-        re.search("does not run on CUDA", first_line)
-        and cuda_version_string in first_line
+        (re.search("does not run on CUDA", first_line) or
+        re.search("is not currently supported in CUDA", first_line)) and
+        cuda_version_string in first_line
     ):
         return True
     return False
