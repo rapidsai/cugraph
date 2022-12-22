@@ -62,14 +62,14 @@ def createGraph(csvFileName, graphType=None):
         # benchmark runtime and complexity lower, and assume tests have
         # coverage to verify correctness for those combinations.
         if "directed" in csvFileName.parts:
-            graph_obj = cugraph.Graph(directed=True)
+            graphType = cugraph.Graph(directed=True)
         else:
-            graph_obj = cugraph.Graph()
+            graphType = cugraph.Graph()
 
     return cugraph.from_cudf_edgelist(
         utils.read_csv_file(csvFileName),
         source="0", destination="1", edge_attr="2",
-        create_using=graph_obj,
+        create_using=graphType,
         renumber=True)
 
 

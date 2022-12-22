@@ -689,6 +689,7 @@ class CugraphHandler:
         check_multi_edges,
         renumber_graph,
         add_edge_data,
+        create_with_edge_info,
         graph_id,
     ):
         """
@@ -722,6 +723,7 @@ class CugraphHandler:
                 check_multi_edges=check_multi_edges,
                 renumber_graph=renumber_graph,
                 add_edge_data=add_edge_data,
+                create_with_edge_info=create_with_edge_info,
             )
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")

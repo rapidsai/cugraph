@@ -740,6 +740,7 @@ def test_remote_graph_neighbor_sample_implicit_subgraph(
     assert (res_local["indices"] == res_remote["indices"]).all()
 
 
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_remote_graph_renumber_vertices(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
@@ -761,6 +762,7 @@ def test_remote_graph_renumber_vertices(
             )
 
 
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_remote_graph_renumber_edges(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):

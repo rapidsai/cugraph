@@ -1,7 +1,0 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.
-
-[flake8]
-exclude = img,notebooks,thirdparty,__init__.py,libgdf
-# https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html#flake8
-max-line-length = 88
-extend-ignore = E203

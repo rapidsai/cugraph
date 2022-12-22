@@ -501,6 +501,12 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
+    def vertex_types_from_numerals(self, nums):
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
+    def edge_types_from_numerals(self, nums):
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
     def add_vertex_data(
         self,
         dataframe,
@@ -849,7 +855,9 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            return df.reset_index()
+            df_out = df.reset_index()
+            df_out.index = df_out.index.astype(df.index.dtype)
+            return df_out
         return None
 
     def add_edge_data(
@@ -1245,7 +1253,9 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            return df.reset_index()
+            df_out = df.reset_index()
+            df_out.index = df_out.index.astype(df.index.dtype)
+            return df_out
 
         return None
 
@@ -1417,6 +1427,7 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -1560,6 +1571,7 @@ class EXPERIMENTAL__PropertyGraph:
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
+            create_with_edge_info=create_with_edge_info,
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
@@ -1670,6 +1682,7 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Create a Graph from the edges in edge_prop_df.
@@ -1756,7 +1769,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
-        elif default_edge_weight:
+        elif default_edge_weight or create_with_edge_info:
+            default_edge_weight = default_edge_weight or 0.0
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1797,6 +1811,13 @@ class EXPERIMENTAL__PropertyGraph:
                 "query resulted in duplicate edges which "
                 f"cannot be represented with the {msg}"
             )
+
+        if create_with_edge_info:
+            TCN = f"{self.type_col_name}_codes"
+            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
+                "int32"
+            )
+            edge_attr = [edge_attr, self.edge_id_col_name, TCN]
 
         create_args = {
             "source": self.src_col_name,
@@ -1892,7 +1913,9 @@ class EXPERIMENTAL__PropertyGraph:
                 TCN
             ].astype(cat_dtype)
 
+        index_dtype = self.__vertex_prop_dataframe.index.dtype
         df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
+        df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
             self.__edge_prop_dataframe[self.src_col_name] = self.__edge_prop_dataframe[
@@ -1979,12 +2002,14 @@ class EXPERIMENTAL__PropertyGraph:
             )
 
         df = self.__edge_prop_dataframe
+        index_dtype = df.index.dtype
         if prev_id_column is None:
             df = df.sort_values(by=TCN, ignore_index=True)
         else:
             df = df.sort_values(by=TCN)
             df.index.name = prev_id_column
             df.reset_index(inplace=True)
+        df.index = df.index.astype(index_dtype)
         df.index.name = self.edge_id_col_name
         self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
