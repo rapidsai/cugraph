@@ -55,6 +55,8 @@ pushd python/pylibcugraph/pylibcugraph
 pytest \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-pylibcugraph.xml" \
+  --numprocesses=8 \
+  --dist=loadscope \
   --cov-config=../../.coveragerc \
   --cov=pylibcugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
@@ -74,6 +76,8 @@ pytest \
   --ignore=tests/mg \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
+  --numprocesses=8 \
+  --dist=loadscope \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
@@ -92,6 +96,8 @@ pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
+  --numprocesses=8 \
+  --dist=loadscope \
   -m "managedmem_on and poolallocator_on and tiny" \
   --benchmark-disable
 exitcode=$?
@@ -110,6 +116,8 @@ pytest \
   --ignore=tests/int \
   --ignore=tests/mg \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
+  --numprocesses=8 \
+  --dist=loadscope \
   --cov-config=../../.coveragerc \
   --cov=cugraph_pyg \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
@@ -130,6 +138,8 @@ pytest \
   --verbose \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-service.xml" \
+  --numprocesses=8 \
+  --dist=loadscope \
   --cov-config=../.coveragerc \
   --cov=cugraph_service_client \
   --cov=cugraph_service_server \
