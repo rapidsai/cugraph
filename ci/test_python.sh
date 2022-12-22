@@ -107,6 +107,8 @@ pushd python/cugraph-pyg/cugraph_pyg
 # rmat is not tested because of multi-GPU testing
 pytest \
   --cache-clear \
+  --ignore=tests/int \
+  --ignore=tests/mg \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
   --cov-config=../../.coveragerc \
   --cov=cugraph_pyg \
