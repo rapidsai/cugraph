@@ -636,7 +636,6 @@ class EXPERIMENTAL__CuGraphStore:
 
         noi_index = {}
         for type_name, ix in noi_types.items():
-            print(type_name, "\t", ix)
             # store the renumbering for this vertex type
             # renumbered vertex id is the index of the old id
             noi_index[type_name] = nodes_of_interest[ix]
