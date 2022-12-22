@@ -1825,10 +1825,12 @@ class EXPERIMENTAL__PropertyGraph:
 
         if create_with_edge_info:
             TCN = f"{self.type_col_name}_codes"
+            ICN = f"{self.edge_id_col_name}_ser"
             edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
                 "int32"
             )
-            edge_attr = [edge_attr, self.edge_id_col_name, TCN]
+            edge_prop_df[ICN] = edge_prop_df.index.to_series().astype("int32")
+            edge_attr = [edge_attr, ICN, TCN]
 
         create_args = {
             "source": self.src_col_name,

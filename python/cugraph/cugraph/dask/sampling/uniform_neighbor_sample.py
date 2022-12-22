@@ -223,7 +223,7 @@ def uniform_neighbor_sample(
             with_replacement,
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
-            batch_id_list=None if batch_id_list is None else batch_id_list.loc[perm[i]],
+            batch_id_list=None if batch_id_list is None else batch_id_list[perm[i]],
             workers=[w],
             allow_other_workers=False,
             pure=False,

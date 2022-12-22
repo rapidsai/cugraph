@@ -16,7 +16,7 @@ import time
 import pytest
 import numpy as np
 import cupy as cp
-import torch
+#import torch
 from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 import cudf
 import dask_cudf
@@ -92,6 +92,7 @@ def create_graph(graph_data):
             mg=False,
         )
         edgelist_df["weight"] = cp.float32(1)
+        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
 
         vertex_df = cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -104,6 +105,7 @@ def create_graph(graph_data):
             edgelist_df,
             vertex_col_names=['src','dst'],
             type_name='et1',
+            edge_id_col_name='eid',
             property_columns=['weight']
         )
 
@@ -133,7 +135,7 @@ def create_mg_graph(graph_data):
         edgelist_df = ds.get_edgelist()
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
-        edgelist_df = dask_cudf.from_cudf(edgelist_df)
+        edgelist_df = dask_cudf.from_cudf(edgelist_df, npartitions=2)
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -167,6 +169,7 @@ def create_mg_graph(graph_data):
             mg=True,
         )
         edgelist_df["weight"] = np.float32(1)
+        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -179,6 +182,7 @@ def create_mg_graph(graph_data):
             edgelist_df,
             vertex_col_names=['src','dst'],
             type_name='et1',
+            edge_id_col_name='eid',
             property_columns=['weight']
         )
 
@@ -239,7 +243,8 @@ def get_uniform_neighbor_sample_args(
     assert len(start_list) == num_start_verts
 
     return {
-        "start_list": torch.tensor(start_list, dtype=torch.int32).cuda(),
+        #"start_list": torch.tensor(start_list, dtype=torch.int32).cuda(),
+        'start_list': cp.array(start_list, dtype='int32'),
         "fanout": fanout,
         "with_replacement": with_replacement,
     }
@@ -281,9 +286,10 @@ def graph_objs(request):
 
     G.renumber_vertices_by_type()
     G.renumber_edges_by_type()
+
     print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
-    data = to_pyg(G, renumber_vertices=False)
+    data = to_pyg(G, renumber_graph=False, backend='cupy')
     yield (G, data)
 
     if dask_client is not None:

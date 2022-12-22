@@ -627,7 +627,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         noi_types = self.__graph.vertex_types_from_numerals(
             self.searchsorted(
-                self.from_dlpack(self.__vertex_type_offsets["stop"].to_dlpack()),
+                self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
                 nodes_of_interest,
             )
         )
