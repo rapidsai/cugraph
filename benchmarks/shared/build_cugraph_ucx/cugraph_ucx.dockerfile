@@ -54,6 +54,19 @@ RUN gpuci_mamba_retry install -y -c pytorch -c rapidsai-nightly -c rapidsai -c c
     setuptools \
     tqdm
 
+RUN mamba install -c conda-forge -c rapidsai-nightly -c rapidsai -y \
+    ninja \
+    versioneer \
+    scikit-build \
+    cmake=3.23.1 \
+    cython \
+    scikit-build=0.13.1 \
+    pytest \
+    pytest-cov \
+    rapids-pytest-benchmark \
+    py \
+    networkx=2.5.1 \
+    scipy
 
 # Build ucx from source with IB support 
 # on 1.14.x
@@ -61,7 +74,6 @@ RUN conda remove --force -y ucx ucx-proc
 
 ADD build-ucx.sh /home/build-ucx.sh
 RUN chmod 744 ./home/build-ucx.sh & bash ./home/build-ucx.sh
-
 
 ADD test_client_bandwidth.py  /home/test_client_bandwidth.py
 RUN chmod 777 /home/test_client_bandwidth.py

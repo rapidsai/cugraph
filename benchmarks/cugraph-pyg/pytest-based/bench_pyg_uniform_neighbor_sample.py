@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.dask.comms import comms as Comms
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+
+import os
 import time
 import pytest
 import numpy as np
@@ -20,6 +25,7 @@ import cupy as cp
 from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 import cudf
 import dask_cudf
+import rmm
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -119,13 +125,17 @@ def create_mg_graph(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated.
     """
-    (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=False,
-        enable_infiniband=False,
-        enable_nvlink=False,
-        enable_rdmacm=False,
-        net_devices=None,
-    )
+    ## Reserving GPU 0 for client(trainer/service project)
+    n_devices = os.getenv('DASK_NUM_WORKERS', 4)
+    n_devices = int(n_devices)
+
+    visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
+
+    cluster = LocalCUDACluster(protocol='tcp', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    rmm.reinitialize(pool_allocator=True)
+
     
     pG = MGPropertyGraph()
 
@@ -135,7 +145,9 @@ def create_mg_graph(graph_data):
         edgelist_df = ds.get_edgelist()
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
-        edgelist_df = dask_cudf.from_cudf(edgelist_df, npartitions=2)
+        edgelist_df = dask_cudf.from_cudf(edgelist_df, npartitions=n_devices)
+        #edgelist_df = edgelist_df.repartition(npartitions=edgelist_df.npartitions*2).persist()
+        edgelist_df.compute()
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -168,8 +180,10 @@ def create_mg_graph(graph_data):
             create_using=None,  # None == return edgelist
             mg=True,
         )
-        edgelist_df["weight"] = np.float32(1)
+        edgelist_df["weight"] = cp.float32(1)
         edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
+        #edgelist_df = edgelist_df.repartition(npartitions=edgelist_df.npartitions*2).persist()
+        edgelist_df.compute()
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -220,9 +234,6 @@ def get_uniform_neighbor_sample_args(
     # ints between 0 and num_verts, then map those to actual vertex IDs.  Since
     # the randomly-chosen IDs may not map to actual IDs, keep trying until
     # num_start_verts have been picked, or max_tries is reached.
-    
-    #G.renumber_edges_by_type()
-    #G.renumber_vertices_by_type()
 
     start_list_set = set()
     max_tries = 10000
