@@ -875,7 +875,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                 tmp_df, self.__edge_prop_dataframe
             )
         self.__edge_prop_dtypes.update(new_col_info)
-        print("tmp df:", tmp_df.index.dtype)
 
         # TODO: allow tmp_df to come in with edge id already as index
         self.__update_dataframe_dtypes(tmp_df, self.__edge_prop_dtypes)
@@ -1174,6 +1173,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         add_edge_data=True,
         create_with_edge_info=False,
     ):
+
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
@@ -1211,7 +1211,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
         elif default_edge_weight or create_with_edge_info:
-            default_edge_weight = default_edge_weight or 0.0
+            if default_edge_weight is None:
+                default_edge_weight = cupy.float32(1)
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1270,12 +1271,12 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         if create_with_edge_info:
             TCN = f"{self.type_col_name}_codes"
-            ICN = f"{self.edge_id_col_name}_ser"
+            # ICN = f"{self.edge_id_col_name}_ser"
             edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
                 "int32"
             )
-            edge_prop_df[ICN] = edge_prop_df.index.to_series().astype("int32")
-            edge_attr = [edge_attr, ICN, TCN]
+            # edge_prop_df[ICN] = edge_prop_df.index
+            edge_attr = [edge_attr, self.edge_id_col_name, TCN]
             col_names = [self.src_col_name, self.dst_col_name] + edge_attr
         else:
             col_names = [self.src_col_name, self.dst_col_name]
@@ -1283,7 +1284,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                 col_names.append(edge_attr)
 
         G.from_dask_cudf_edgelist(
-            edge_prop_df[col_names],
+            edge_prop_df.reset_index()[col_names],
             source=self.src_col_name,
             destination=self.dst_col_name,
             edge_attr=edge_attr,

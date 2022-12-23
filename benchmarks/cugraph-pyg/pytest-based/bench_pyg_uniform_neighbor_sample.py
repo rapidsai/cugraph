@@ -92,7 +92,9 @@ def create_graph(graph_data):
             mg=False,
         )
         edgelist_df["weight"] = cp.float32(1)
-        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
+        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int64')
+        edgelist_df['src'] = edgelist_df.src.astype('int64')
+        edgelist_df['dst'] = edgelist_df.src.astype('int64')
 
         vertex_df = cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -168,8 +170,10 @@ def create_mg_graph(graph_data):
             create_using=None,  # None == return edgelist
             mg=True,
         )
-        edgelist_df["weight"] = np.float32(1)
-        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int32')
+        edgelist_df["weight"] = cp.float32(1)
+        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int64')
+        edgelist_df['src'] = edgelist_df.src.astype('int64')
+        edgelist_df['dst'] = edgelist_df.dst.astype('int64')
 
         vertex_df = dask_cudf.concat(
             [edgelist_df['src'], edgelist_df['dst']]
@@ -185,7 +189,6 @@ def create_mg_graph(graph_data):
             edge_id_col_name='eid',
             property_columns=['weight']
         )
-
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 

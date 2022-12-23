@@ -126,18 +126,3 @@ fanout_5_10_15 = pytest.param(
 #     (mnmg, rmat["29_16"]),
 #     (mnmg, rmat["30_16"]),
 # )
-# graph_obj_fixture_params = gen_fixture_params(
-#    (sg, karate),
-#    (snmg, karate),
-#    (sg, rmat["16_4"]),
-#    (sg, rmat["18_4"]),
-#    (sg, rmat["20_4"]),
-#    (sg, rmat["24_4"]),
-#    (sg, rmat["25_4"]),
-#    (sg, rmat["26_4"]),
-#    (snmg, rmat["24_4"]),
-#    (snmg, rmat["27_4"]),
-#    (snmg, rmat["28_4"]),
-#    (mnmg, rmat["29_4"]),
-#    (mnmg, rmat["30_4"]),
-# )

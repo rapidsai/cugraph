@@ -590,14 +590,14 @@ class EXPERIMENTAL__CuGraphStore:
             query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
                 query += f' | ({TCN}=="{t}")'
-            selection = self.__graph.select_edges(query)
+            # selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
-                selection=selection,
+                # selection=selection,
                 edge_weight_property=None,
                 default_edge_weight=1.0,
-                check_multi_edges=True,
+                check_multi_edges=False,
                 renumber_graph=True,
                 add_edge_data=False,
                 create_with_edge_info=True,
