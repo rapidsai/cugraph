@@ -149,7 +149,6 @@ dependencies:
           - py
           - pytest
           - pytest-cov
-          - pytest-xdist
           - python-louvain
           - rapids-pytest-benchmark
           - requests
