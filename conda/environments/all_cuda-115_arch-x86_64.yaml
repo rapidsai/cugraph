@@ -44,7 +44,6 @@ dependencies:
 - pylibraft=23.02.*
 - pytest
 - pytest-cov
-- pytest-xdist
 - python-louvain
 - raft-dask=23.02.*
 - rapids-pytest-benchmark
