@@ -132,7 +132,8 @@ def skip_docstring(docstring_obj):
     """
     docstring = docstring_obj.docstring
     for line in docstring.splitlines():
-        if (re.search("currently not available on CUDA", line)
+        if (
+            re.search("currently not available on CUDA", line)
             and cuda_version_string in line
         ):
             return f"docstring example not supported on CUDA {cuda_version_string}"
