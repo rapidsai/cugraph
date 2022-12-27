@@ -44,7 +44,6 @@ requirements:
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
-    - libraft-headers {{ minor_version }}
     - setuptools
     - versioneer
   run:
