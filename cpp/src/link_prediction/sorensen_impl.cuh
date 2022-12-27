@@ -18,7 +18,7 @@
 #include <cugraph/algorithms.hpp>
 #include <link_prediction/similarity_impl.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace detail {

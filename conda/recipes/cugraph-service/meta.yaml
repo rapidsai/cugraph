@@ -50,14 +50,14 @@ outputs:
       run:
         - python x.x
         - thriftpy2 >=0.4.15
-        - {{ pin_compatible('cugraph-service-client', exact=True) }}
-        - {{ pin_compatible('cugraph', exact=True) }}
+        - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cupy >=9.5.0,<12.0.0a0
         - numpy
         - ucx-py {{ ucx_py_version }}
         - distributed >=2022.12.0
         - dask-cuda {{ minor_version }}.*
         - cudf {{ minor_version }}.*
+        - cugraph {{ minor_version }}.*
         - dask-cudf {{ minor_version }}.*
 
 tests:                                 # [linux64]
