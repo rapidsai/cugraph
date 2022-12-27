@@ -21,7 +21,6 @@ import numpy as np
 import pandas as pd
 import scipy
 import pytest
-import re
 
 import cugraph
 import pylibcugraph
@@ -121,7 +120,7 @@ def skip_docstring(docstring_obj):
     Currently, this function will return a reason string if the docstring
     contains a line with the following text:
 
-    "currently not available on CUDA <version>"
+    "currently not available on CUDA <version> systems"
 
     where <version> is a major.minor version string, such as 11.4, that matches
     the version of CUDA on the system running the test.  An example of a line
@@ -132,10 +131,7 @@ def skip_docstring(docstring_obj):
     """
     docstring = docstring_obj.docstring
     for line in docstring.splitlines():
-        if (
-            re.search("currently not available on CUDA", line)
-            and cuda_version_string in line
-        ):
+        if f"currently not available on CUDA {cuda_version_string} systems" in line:
             return f"docstring example not supported on CUDA {cuda_version_string}"
     return None
 
