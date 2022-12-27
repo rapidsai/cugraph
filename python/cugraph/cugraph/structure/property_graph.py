@@ -1829,7 +1829,7 @@ class EXPERIMENTAL__PropertyGraph:
             edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
                 "int32"
             )
-            edge_prop_df[ICN] = edge_prop_df.index.to_series().astype("int32")
+            edge_prop_df[ICN] = edge_prop_df.index.to_series().reset_index(drop=True)
             edge_attr = [edge_attr, ICN, TCN]
 
         create_args = {
