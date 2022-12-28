@@ -133,7 +133,7 @@ def create_mg_graph(graph_data):
 
     visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
 
-    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
+    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='16GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
     Comms.initialize(p2p=True)
     rmm.reinitialize(pool_allocator=True)
@@ -237,8 +237,8 @@ def get_uniform_neighbor_sample_args(
     # num_start_verts have been picked, or max_tries is reached.
 
     start_list = cp.random.randint(0, num_verts, num_start_verts, dtype='int64')
-    print('start len:', len(start_list))
-    print(G.get_vertex_data(vertex_ids=start_list).compute())
+    #print('start len:', len(start_list))
+    #print(G.get_vertex_data(vertex_ids=start_list).compute())
 
     return {
         #"start_list": torch.tensor(start_list, dtype=torch.int32).cuda(),
@@ -322,10 +322,15 @@ def bench_cugraph_uniform_neighbor_sample(
 
     # print(f"\n{uns_args}")
     
+    # import pdb;pdb.set_trace()
+
+    uns_func(uns_args['start_list'])
+    '''
     result = gpubenchmark(
         uns_func,
         ix=uns_args["start_list"],
     )
+    '''
     
     # noi_index, row_dict, col_dict, _ = result['out']
 

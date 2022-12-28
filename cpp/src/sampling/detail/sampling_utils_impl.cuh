@@ -537,7 +537,7 @@ sample_edges(
                           auto v2 = thrust::get<1>(tuple);
 
                           return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
-                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
+                                  (v2 == cugraph::invalid_vertex_id<vertex_t>::value));
                         });
 
     size_t new_size = thrust::distance(edge_first, end_iter);
@@ -549,6 +549,16 @@ sample_edges(
       minors.shrink_to_fit(handle.get_stream());
       (*weights).resize(new_size, handle.get_stream());
       (*weights).shrink_to_fit(handle.get_stream());
+        edge_ids.resize(new_size, handle.get_stream());
+        edge_ids.shrink_to_fit(handle.get_stream());
+      if(edge_types) {
+        (*edge_types).resize(new_size, handle.get_stream());
+        (*edge_types).shrink_to_fit(handle.get_stream());
+      }
+      if(labels) {
+        (*labels).resize(new_size, handle.get_stream());
+        (*labels).shrink_to_fit(handle.get_stream());
+      }
     }
   } else {
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
@@ -561,7 +571,7 @@ sample_edges(
                           auto v2 = thrust::get<1>(tuple);
 
                           return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
-                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
+                                  (v2 == cugraph::invalid_vertex_id<vertex_t>::value));
                         });
 
     size_t new_size = thrust::distance(edge_first, end_iter);
@@ -571,6 +581,16 @@ sample_edges(
       majors.shrink_to_fit(handle.get_stream());
       minors.resize(new_size, handle.get_stream());
       minors.shrink_to_fit(handle.get_stream());
+      edge_ids.resize(new_size, handle.get_stream());
+      edge_ids.shrink_to_fit(handle.get_stream());
+      if(edge_types) {
+        (*edge_types).resize(new_size, handle.get_stream());
+        (*edge_types).shrink_to_fit(handle.get_stream());
+      }
+      if(labels) {
+        (*labels).resize(new_size, handle.get_stream());
+        (*labels).shrink_to_fit(handle.get_stream());
+      }
     }
   }
 
