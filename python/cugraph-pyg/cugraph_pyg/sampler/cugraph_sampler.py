@@ -145,7 +145,7 @@ class EXPERIMENTAL__CuGraphSampler:
             # conversion required by cugraph api
             list(num_neighbors),
             replace,
-            with_edge_properties=True,
+            # with_edge_properties=True,
         )
 
         # We make the assumption that the sample must fit on a single device

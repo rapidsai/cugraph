@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <optional>
@@ -96,28 +96,6 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_vertices,
-  std::vector<vertex_t> const& vertex_partition_range_lasts);
-
-/**
- * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam value_t Type of vertex values. Needs to be an integral type.
- *
- * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * @param[in] d_vertices Vertex IDs to shuffle
- * @param[in] d_values Vertex Values to shuffle
- * @param[in] vertex_partition_range_lasts From graph view, vector of last vertex id for each gpu
- *
- * @return tuple containing device vector of shuffled vertices and device vector of corresponding
- *         values
- */
-template <typename vertex_t, typename value_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_int_vertices_and_values_by_gpu_id(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& d_vertices,
-  rmm::device_uvector<value_t>&& d_values,
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**

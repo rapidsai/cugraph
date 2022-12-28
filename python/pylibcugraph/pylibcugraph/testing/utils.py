@@ -42,7 +42,6 @@ def gen_fixture_params(*param_values):
                          pytest.param(True, marks=[pytest.mark.B_good], id="B=True")),
                        )
 
-
     results in fixture param combinations:
 
     True, False  - marks=[A_good, B_bad]  - id="A=True,B=False"

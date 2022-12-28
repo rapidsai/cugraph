@@ -595,12 +595,12 @@ class EXPERIMENTAL__CuGraphStore:
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
                 # selection=selection,
-                edge_weight_property=None,
+                edge_weight_property=self.__graph.type_col_name,
                 default_edge_weight=1.0,
                 check_multi_edges=False,
                 renumber_graph=True,
                 add_edge_data=False,
-                create_with_edge_info=True,
+                create_with_edge_info=False,
             )
             self.__subgraphs[edge_types] = sg
 
@@ -706,7 +706,7 @@ class EXPERIMENTAL__CuGraphStore:
             dst = self.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
         else:
-            eoi_types = self.__graph.edge_types_from_numerals(sampling_results.edge_type)
+            eoi_types = self.__graph.edge_types_from_numerals(sampling_results.indices.astype('int32'))
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
             
             for cugraph_type_name, ix in eoi_types.items():

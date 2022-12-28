@@ -20,7 +20,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cuda_profiler_api.h>
