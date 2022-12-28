@@ -133,7 +133,7 @@ def create_mg_graph(graph_data):
 
     visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
 
-    cluster = LocalCUDACluster(protocol='tcp', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
+    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
     Comms.initialize(p2p=True)
     rmm.reinitialize(pool_allocator=True)
@@ -236,27 +236,13 @@ def get_uniform_neighbor_sample_args(
     # the randomly-chosen IDs may not map to actual IDs, keep trying until
     # num_start_verts have been picked, or max_tries is reached.
 
-    start_list_set = set()
-    max_tries = 10000
-    try_num = 0
-    while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
-        internal_vertex_ids_start_list = rng.choice(
-            num_verts, size=num_start_verts, replace=False
-        )
-        start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
-        start_list_series = start_list_df["vid"]
-
-        start_list_series.dropna(inplace=True)
-        start_list_set.update(set(start_list_series.values_host.tolist()))
-        try_num += 1
-
-    start_list = list(start_list_set)
-    start_list = start_list[:num_start_verts]
-    assert len(start_list) == num_start_verts
+    start_list = cp.random.randint(0, num_verts, num_start_verts, dtype='int64')
+    print('start len:', len(start_list))
+    print(G.get_vertex_data(vertex_ids=start_list).compute())
 
     return {
         #"start_list": torch.tensor(start_list, dtype=torch.int32).cuda(),
-        'start_list': cp.array(start_list, dtype='int32'),
+        'start_list': start_list,
         "fanout": fanout,
         "with_replacement": with_replacement,
     }

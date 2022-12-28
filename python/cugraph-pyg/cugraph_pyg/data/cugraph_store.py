@@ -625,20 +625,26 @@ class EXPERIMENTAL__CuGraphStore:
             nodes_of_interest.sort_values().to_dlpack()
         )
 
-        noi_types = self.__graph.vertex_types_from_numerals(
-            self.searchsorted(
-                self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
-                nodes_of_interest,
-            )
-        )
-
-        noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
-
         noi_index = {}
-        for type_name, ix in noi_types.items():
-            # store the renumbering for this vertex type
-            # renumbered vertex id is the index of the old id
-            noi_index[type_name] = nodes_of_interest[ix]
+
+        vtypes = list(self.__graph.vertex_types)
+        if len(vtypes) == 1:
+            noi_index[vtypes[0]] = nodes_of_interest
+        else:
+            noi_types = self.__graph.vertex_types_from_numerals(
+                self.searchsorted(
+                    self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                    nodes_of_interest,
+                )
+            )
+
+            noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
+
+            for type_name, ix in noi_types.items():
+                # store the renumbering for this vertex type
+                # renumbered vertex id is the index of the old id
+                ix = self.from_dlpack(ix.to_dlpack())
+                noi_index[type_name] = nodes_of_interest[ix]
 
         return noi_index
 
@@ -683,26 +689,41 @@ class EXPERIMENTAL__CuGraphStore:
         for the outputted subgraph that follow PyG's conventions, allowing easy
         construction of a HeteroData object.
         """
-        eoi_types = self.__graph.edge_types_from_numerals(sampling_results.edge_type)
-        eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
-
+        #print(sampling_results.edge_type.value_counts())
         row_dict = {}
         col_dict = {}
-        for cugraph_type_name, ix in eoi_types.items():
-            t_pyg_type = self.__edge_types_to_attrs[cugraph_type_name].edge_type
+        if len(self.__edge_types_to_attrs) == 1:
+            t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, edge_type, dst_type = t_pyg_type
 
-            sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
+            sources = self.from_dlpack(sampling_results.sources.to_dlpack())
             src_id_table = noi_index[src_type]
             src = self.searchsorted(src_id_table, sources)
             row_dict[t_pyg_type] = src
 
-            destinations = self.from_dlpack(
-                sampling_results.destinations.loc[ix].to_dlpack()
-            )
+            destinations = self.from_dlpack(sampling_results.destinations.to_dlpack())
             dst_id_table = noi_index[dst_type]
             dst = self.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
+        else:
+            eoi_types = self.__graph.edge_types_from_numerals(sampling_results.edge_type)
+            eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
+            
+            for cugraph_type_name, ix in eoi_types.items():
+                t_pyg_type = self.__edge_types_to_attrs[cugraph_type_name].edge_type
+                src_type, edge_type, dst_type = t_pyg_type
+
+                sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
+                src_id_table = noi_index[src_type]
+                src = self.searchsorted(src_id_table, sources)
+                row_dict[t_pyg_type] = src
+
+                destinations = self.from_dlpack(
+                    sampling_results.destinations.loc[ix].to_dlpack()
+                )
+                dst_id_table = noi_index[dst_type]
+                dst = self.searchsorted(dst_id_table, destinations)
+                col_dict[t_pyg_type] = dst
 
         return row_dict, col_dict
 

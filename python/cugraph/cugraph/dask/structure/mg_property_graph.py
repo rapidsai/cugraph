@@ -331,10 +331,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         return self.get_vertices()
 
     def vertex_types_from_numerals(self, nums):
-        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
 
     def edge_types_from_numerals(self, nums):
-        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
 
     def add_vertex_data(
         self,
@@ -1218,12 +1218,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         else:
             edge_attr = None
 
-        print('printing edge prop dataframe!')
-        print(edge_prop_df.compute())
-
-        print("resetting index!")
-        print(edge_prop_df.reset_index().compute())
-
         # Set up the new Graph to return
         if isinstance(create_using, cugraph.Graph):
             # FIXME: extract more attrs from the create_using instance
@@ -1276,13 +1270,11 @@ class EXPERIMENTAL__MGPropertyGraph:
         legacy_renum_only = True
 
         if create_with_edge_info:
-            # TCN = f"{self.type_col_name}_codes"
-            # ICN = f"{self.edge_id_col_name}_ser"
-            edge_prop_df[self.type_col_name] = edge_prop_df[self.type_col_name].cat.codes.astype(
+            TCN = f"{self.type_col_name}_codes"
+            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
                 "int32"
             )
-            # edge_prop_df[ICN] = edge_prop_df.index
-            edge_attr = [edge_attr, self.edge_id_col_name, self.type_col_name]
+            edge_attr = [edge_attr, self.edge_id_col_name, TCN]
             col_names = [self.src_col_name, self.dst_col_name] + edge_attr
         else:
             col_names = [self.src_col_name, self.dst_col_name]
@@ -1290,6 +1282,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                 col_names.append(edge_attr)
 
         edge_prop_df = edge_prop_df.reset_index().drop([col for col in edge_prop_df if col not in col_names], axis=1)
+        edge_prop_df.repartition(npartitions=self.__num_workers * 2).persist()
+
         G.from_dask_cudf_edgelist(
             edge_prop_df,
             source=self.src_col_name,
