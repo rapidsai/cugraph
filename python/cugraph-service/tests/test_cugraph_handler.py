@@ -26,6 +26,10 @@ import pytest
 
 
 # Pytest Setup / Teardown - called for each test function
+# FIXME: this should not be required, but is being added as a workaround to
+# eliminate a crash during test session cleanup (Segmentation fault: address
+# not mapped to object at address 0x268). If this works, it could mean
+# references are not being cleaned up properly (or some similar problem).
 def teardown_function():
     gc.collect()
 
