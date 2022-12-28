@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
 import sys
 import pickle
 from pathlib import Path
@@ -21,7 +22,12 @@ import pytest
 
 ###############################################################################
 # fixtures
-# The fixtures used in these tests are defined in conftest.py
+# The fixtures used in these tests are defined here and in conftest.py
+
+
+# Pytest Setup / Teardown - called for each test function
+def teardown_function():
+    gc.collect()
 
 
 ###############################################################################
