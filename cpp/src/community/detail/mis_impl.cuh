@@ -57,41 +57,50 @@ rmm::device_uvector<vertex_t> rank_vertices(
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  // As there is only one out-edge, compute_out_weight_sums would
-  // return weight of outgoing edge.
-
   return compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
     handle, graph_view, *edge_weight_view);
 }
 
 // FIXME: Consider discarding vertices that are already inclued or discarded in the MIS
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> select_a_random_set_of_vetices(raft::handle_t const& handle,
-                                                             vertex_t begin,
-                                                             vertex_t end,
-                                                             vertex_t count,
-                                                             uint64_t seed,
-                                                             int repetitions_per_vertex = 0)
+rmm::device_uvector<vertex_t> select_a_random_set_of_vetices(
+  raft::handle_t const& handle,
+  rmm::device_uvector<uint8_t>& vertex_set,
+  vertex_t count,
+  uint64_t seed)
 {
-#if 0
-  auto& comm                  = handle.get_comms();
-  auto const comm_rank        = comm.get_rank();
-#endif
-  vertex_t number_of_vertices = end - begin;
-
-  rmm::device_uvector<vertex_t> vertices(
-    std::max((repetitions_per_vertex + 1) * number_of_vertices, count), handle.get_stream());
-  thrust::tabulate(
-    handle.get_thrust_policy(),
-    vertices.begin(),
-    vertices.end(),
-    [begin, number_of_vertices] __device__(auto v) { return begin + (v % number_of_vertices); });
   thrust::default_random_engine g;
   g.seed(seed);
-  thrust::shuffle(handle.get_thrust_policy(), vertices.begin(), vertices.end(), g);
-  vertices.resize(count, handle.get_stream());
-  return vertices;
+  thrust::shuffle(handle.get_thrust_policy(), vertex_set.begin(), vertex_set.end(), g);
+  vertex_set.resize(count, handle.get_stream());
+  return vertex_set;
 }
+
+// FIXME: Consider discarding vertices that are already inclued or discarded in the MIS
+// template <typename vertex_t>
+// rmm::device_uvector<vertex_t> select_a_random_set_of_vetices(raft::handle_t const& handle,
+//                                                              vertex_t vertex_id_first,
+//                                                              vertex_t vertex_id_last,
+//                                                              vertex_t count,
+//                                                              uint64_t seed,
+//                                                              int repetitions_per_vertex = 0)
+// {
+//   vertex_t number_of_vertices = vertex_id_last - vertex_id_first;
+
+//   rmm::device_uvector<vertex_t> vertices(
+//     std::max((repetitions_per_vertex + 1) * number_of_vertices, count), handle.get_stream());
+//   thrust::tabulate(handle.get_thrust_policy(),
+//                    vertices.begin(),
+//                    vertices.end(),
+//                    [vertex_id_first, number_of_vertices] __device__(auto idx) {
+//                      return vertex_id_first + (idx % number_of_vertices);
+//                    });
+//   thrust::default_random_engine g;
+//   g.seed(seed);
+//   thrust::shuffle(handle.get_thrust_policy(), vertices.begin(), vertices.end(), g);
+//   vertices.resize(count, handle.get_stream());
+//   return vertices;
+// }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
@@ -101,7 +110,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
-  size_t number_of_vertices = graph_view.local_vertex_partition_range_size();
+  vertex_t number_of_vertices = graph_view.local_vertex_partition_range_size();
 
   rmm::device_uvector<vertex_t> mis(number_of_vertices, handle.get_stream());
 
@@ -120,17 +129,34 @@ rmm::device_uvector<vertex_t> compute_mis(
   thrust::uninitialized_fill(
     handle.get_thrust_policy(), discard_flags.begin(), discard_flags.end(), uint8_t{0});
 
+  rmm::device_uvector<uint8_t> remaining_candidates(0, handle.get_stream());
+
+  auto vertex_begin =
+    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
+  auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
   while (true) {
-    //
-    // Select a random set of vertices
-    //
+    // Select a random set of eligible vertices
+
+    vertex_t nr_remaining_candidates = thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(
+        thrust::make_tuple(mis_inclusion_flags.begin(), discard_flags.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(mis_inclusion_flags.end(), discard_flags.end())),
+      [] __device__(auto flags) { return thrust::get<0>(flags) && thrust::get<1>(flags); });
+
+    remaining_candidates.resize(nr_remaining_candidates, handle.get_stream());
+
+    thrust::copy_if(
+      handle.get_thrust_policy(),
+      vertex_begin,
+      vertex_end,
+      thrust::make_zip_iterator(
+        thrust::make_tuple(discard_flags.begin(), mis_inclusion_flags.begin())),
+      remaining_candidates.begin(),
+      [] __device__(auto flags) { return thrust::get<0>(flags) && thrust::get<1>(flags); });
 
     auto random_vertices = select_a_random_set_of_vetices<vertex_t>(
-      handle,
-      graph_view.local_vertex_partition_range_first(),
-      graph_view.local_vertex_partition_range_last(),
-      static_cast<vertex_t>(0.2 * graph_view.local_vertex_partition_range_size()),
-      0);
+      handle, remaining_candidates, static_cast<vertex_t>(0.2 * nr_remaining_candidates));
 
     thrust::sort(handle.get_thrust_policy(),
                  random_vertices.begin(),
@@ -144,23 +170,22 @@ rmm::device_uvector<vertex_t> compute_mis(
                                              random_vertices.begin())),
       handle.get_stream());
 
-    // Flag vertices that are selected to be part of the MIS upon passing validity checks
+    // Flag vertices that are selected to be part of the MIS upon validity checks
     rmm::device_uvector<uint8_t> selection_flags(graph_view.local_vertex_partition_range_size(),
                                                  handle.get_stream());
 
     thrust::uninitialized_fill(
       handle.get_thrust_policy(), selection_flags.begin(), selection_flags.end(), uint8_t{0});
 
-    thrust::transform(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      selection_flags.begin(),
-      [selected_nodes    = random_vertices.data(),
-       nr_selected_nodes = random_vertices.size()] __device__(auto node) {
-        return thrust::binary_search(
-          thrust::seq, selected_nodes, selected_nodes + nr_selected_nodes, node);
-      });
+    thrust::transform(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      selection_flags.begin(),
+                      [selected_nodes    = random_vertices.data(),
+                       nr_selected_nodes = random_vertices.size()] __device__(auto node) {
+                        return thrust::binary_search(
+                          thrust::seq, selected_nodes, selected_nodes + nr_selected_nodes, node);
+                      });
 
     edge_src_property_t<GraphViewType, uint8_t> src_inclusion_flag_cache(handle);
     edge_dst_property_t<GraphViewType, uint8_t> dst_inclusion_flag_cache(handle);
@@ -320,26 +345,36 @@ rmm::device_uvector<vertex_t> compute_mis(
                           static_cast<uint8_t>(selected || prev_discard_flag));
                       });
 
-    size_t nr_include_vertices   = thrust::count_if(handle.get_thrust_policy(),
-                                                  mis_inclusion_flags.begin(),
-                                                  mis_inclusion_flags.end(),
-                                                  [] __device__(auto flag) { return flag > 0; });
-    size_t nr_discarded_vertices = thrust::count_if(handle.get_thrust_policy(),
-                                                    discard_flags.begin(),
-                                                    discard_flags.end(),
+    vertex_t nr_include_vertices = thrust::count_if(handle.get_thrust_policy(),
+                                                    mis_inclusion_flags.begin(),
+                                                    mis_inclusion_flags.end(),
                                                     [] __device__(auto flag) { return flag > 0; });
+    vertex_t nr_discarded_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       discard_flags.begin(),
+                       discard_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
 
-    if ((number_of_vertices - nr_include_vertices - nr_discarded_vertices) == 0) break;
+    vertex_t nr_remaining_vertices_to_check =
+      number_of_vertices - nr_include_vertices - nr_discarded_vertices;
+
+    if (multi_gpu) {
+      nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
+                                                             nr_remaining_vertices_to_check,
+                                                             raft::comms::op_t::SUM,
+                                                             handle.get_stream());
+    }
+    if (nr_remaining_vertices_to_check == 0) { break; }
   }
 
-  size_t nr_vertices_in_mis = thrust::count_if(handle.get_thrust_policy(),
-                                               mis_inclusion_flags.begin(),
-                                               mis_inclusion_flags.end(),
-                                               [] __device__(auto flag) { return flag > 0; });
+  vertex_t nr_vertices_in_mis = thrust::count_if(handle.get_thrust_policy(),
+                                                 mis_inclusion_flags.begin(),
+                                                 mis_inclusion_flags.end(),
+                                                 [] __device__(auto flag) { return flag > 0; });
 
   thrust::copy_if(handle.get_thrust_policy(),
-                  thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-                  thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+                  vertex_begin,
+                  vertex_end,
                   mis_inclusion_flags.begin(),
                   mis.begin(),
                   [] __device__(auto flag) { return flag > 0; });
