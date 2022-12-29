@@ -60,6 +60,8 @@ def create_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
 
+    rmm.reinitialize(pool_allocator=True, initial_pool_size=10e9, maximum_pool_size=28e9)
+
     pG = PropertyGraph()
 
     # Assume strings are names of datasets in the datasets package
@@ -133,7 +135,7 @@ def create_mg_graph(graph_data):
 
     visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
 
-    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='16GB', CUDA_VISIBLE_DEVICES=visible_devices)
+    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='31GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
     Comms.initialize(p2p=True)
     rmm.reinitialize(pool_allocator=True)
@@ -283,7 +285,9 @@ def graph_objs(request):
         (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
 
     G.renumber_vertices_by_type()
-    G.renumber_edges_by_type()
+    # G.renumber_edges_by_type()
+    # Renumber edges by type is not needed.
+    # Edges are already contiguously numbered for a single type.
 
     print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
@@ -324,13 +328,13 @@ def bench_cugraph_uniform_neighbor_sample(
     
     # import pdb;pdb.set_trace()
 
-    uns_func(uns_args['start_list'])
-    '''
+    # uns_func(uns_args['start_list'])
+    
     result = gpubenchmark(
         uns_func,
         ix=uns_args["start_list"],
     )
-    '''
+    
     
     # noi_index, row_dict, col_dict, _ = result['out']
 
