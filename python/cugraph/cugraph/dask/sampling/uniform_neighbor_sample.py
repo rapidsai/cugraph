@@ -41,54 +41,27 @@ def create_empty_df(indices_t, weight_t):
     return df
 
 
-def convert_to_cudf(cp_arrays, weight_t, with_edge_properties):
+def convert_to_cudf(cp_arrays, weight_t):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
+    cupy_sources, cupy_destinations, cupy_indices = cp_arrays
+
     df = cudf.DataFrame()
+    df[src_n] = cupy_sources
+    df[dst_n] = cupy_destinations
+    df[indices_n] = cupy_indices
 
-    if with_edge_properties:
-        (
-            sources,
-            destinations,
-            weights,
-            edge_ids,
-            edge_types,
-            batch_ids,
-            hop_ids,
-        ) = cp_arrays
-
-        df[src_n] = sources
-        df[dst_n] = destinations
-        df["weight"] = weights
-        df["edge_id"] = edge_ids
-        df["edge_type"] = edge_types
-        df["batch_id"] = batch_ids
-        df["hop_id"] = hop_ids
-    else:
-        cupy_sources, cupy_destinations, cupy_indices = cp_arrays
-
-        df[src_n] = cupy_sources
-        df[dst_n] = cupy_destinations
-        df[indices_n] = cupy_indices
-
-        if weight_t == "int32":
-            df.indices = df.indices.astype("int32")
-        elif weight_t == "int64":
-            df.indices = df.indices.astype("int64")
+    if weight_t == "int32":
+        df.indices = df.indices.astype("int32")
+    elif weight_t == "int64":
+        df.indices = df.indices.astype("int64")
 
     return df
 
 
 def _call_plc_uniform_neighbor_sample(
-    sID,
-    mg_graph_x,
-    st_x,
-    fanout_vals,
-    with_replacement,
-    weight_t,
-    with_edge_properties,
-    batch_id_list,
+    sID, mg_graph_x, st_x, fanout_vals, with_replacement, weight_t
 ):
     cp_arrays = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -97,19 +70,12 @@ def _call_plc_uniform_neighbor_sample(
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
         do_expensive_check=False,
-        with_edge_properties=with_edge_properties,
-        batch_id_list=batch_id_list,
     )
-    return convert_to_cudf(cp_arrays, weight_t, with_edge_properties)
+    return convert_to_cudf(cp_arrays, weight_t)
 
 
 def uniform_neighbor_sample(
-    input_graph,
-    start_list,
-    fanout_vals,
-    with_replacement=True,
-    with_edge_properties=False,
-    batch_id_list=None,
+    input_graph, start_list, fanout_vals, with_replacement=True
 ):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -134,43 +100,19 @@ def uniform_neighbor_sample(
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
-    with_edge_properties: bool, optional (default=False)
-        Flag to specify whether to return edge properties (weight, edge id,
-        edge type, batch id, hop id) with the sampled edges.
-
-    batch_id_list: list (int32)
-        List of batch ids that will be returned with the sampled edges if
-        with_edge_properties is set to True.
 
     Returns
     -------
     result : dask_cudf.DataFrame
         GPU distributed data frame containing 4 dask_cudf.Series
 
-        If with_edge_properties=True:
-            ddf['sources']: dask_cudf.Series
-                Contains the source vertices from the sampling result
-            ddf['destinations']: dask_cudf.Series
-                Contains the destination vertices from the sampling result
-            ddf['indices']: dask_cudf.Series
-                Contains the indices from the sampling result for path
-                reconstruction
-
-        If with_edge_properties=False:
-            df['sources']: dask_cudf.Series
-                Contains the source vertices from the sampling result
-            df['destinations']: dask_cudf.Series
-                Contains the destination vertices from the sampling result
-            df['edge_weight']: dask_cudf.Series
-                Contains the edge weights from the sampling result
-            df['edge_id']: dask_cudf.Series
-                Contains the edge ids from the sampling result
-            df['edge_type']: dask_cudf.Series
-                Contains the edge types from the sampling result
-            df['batch_id']: dask_cudf.Series
-                Contains the batch ids from the sampling result
-            df['hop_id']: dask_cudf.Series
-                Contains the hop ids from the sampling result
+        ddf['sources']: dask_cudf.Series
+            Contains the source vertices from the sampling result
+        ddf['destinations']: dask_cudf.Series
+            Contains the destination vertices from the sampling result
+        ddf['indices']: dask_cudf.Series
+            Contains the indices from the sampling result for path
+            reconstruction
     """
     if isinstance(start_list, int):
         start_list = [start_list]
@@ -182,9 +124,6 @@ def uniform_neighbor_sample(
                 input_graph.renumber_map.renumbered_src_col_name
             ].dtype,
         )
-
-    if with_edge_properties and batch_id_list is None:
-        batch_id_list = cp.zeros(len(start_list), dtype="int32")
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -211,19 +150,17 @@ def uniform_neighbor_sample(
     client = input_graph._client
 
     session_id = Comms.get_session_id()
-    perm = cp.array_split(start_list.index.values, input_graph._npartitions)
+    start_list = cp.array_split(start_list.values, input_graph._npartitions)
 
     result = [
         client.submit(
             _call_plc_uniform_neighbor_sample,
             session_id,
             input_graph._plc_graph[w],
-            start_list.loc[perm[i]],
+            start_list[i],
             fanout_vals,
             with_replacement,
             weight_t=weight_t,
-            with_edge_properties=with_edge_properties,
-            batch_id_list=None if batch_id_list is None else batch_id_list[perm[i]],
             workers=[w],
             allow_other_workers=False,
             pure=False,
