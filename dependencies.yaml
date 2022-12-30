@@ -154,6 +154,7 @@ dependencies:
           - aiohttp
           - networkx>=2.5.1
           - requests
+          - scipy
   test_notebook:
     common:
       - output_types: [conda, requirements]
@@ -171,4 +172,3 @@ dependencies:
           - python-louvain
           - rapids-pytest-benchmark
           - scikit-learn>=0.23.1
-          - scipy
