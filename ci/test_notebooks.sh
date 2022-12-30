@@ -45,10 +45,10 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     pushd "${folder}"
     NBLIST=$(python "${NOTEBOOK_LIST}" ci)
     for nb in ${NBLIST}; do
-        nbBasename=$(basename ${nb})
-        pushd $(dirname ${nb})
+        nbBasename=$(basename "${nb}")
+        pushd "$(dirname "${nb}")"
         nvidia-smi
-        ${NBTEST} ${nbBasename}
+        ${NBTEST} "${nbBasename}"
         echo "Ran nbtest for $nb : return code was: $?, test script exit code is now: $EXITCODE"
         echo
         popd
