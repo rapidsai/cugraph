@@ -22,6 +22,11 @@ files:
     output: none
     includes:
       - cudatoolkit
+  test_notebooks:
+    output: none
+    includes:
+      - cudatoolkit
+      - py_version
   test_python:
     output: none
     includes:
