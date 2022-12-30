@@ -12,6 +12,7 @@ files:
       - cudatoolkit
       - doc
       - python_build
+      - test_notebook
       - test_python
   checks:
     output: none
@@ -27,6 +28,7 @@ files:
     includes:
       - cudatoolkit
       - py_version
+      - test_notebook
   test_python:
     output: none
     includes:
@@ -120,7 +122,6 @@ dependencies:
           - dask-cuda=23.02.*
           - dask-cudf=23.02.*
           - distributed>=2022.12.0
-          - ipython
           - libcudf=23.02.*
           - nccl>=2.9.9
           - &networkx networkx>=2.5.1
@@ -144,6 +145,12 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
+  test_notebook:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - ipython
+          - notebook
   test_python:
     common:
       - output_types: [conda, requirements]
