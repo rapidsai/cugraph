@@ -32,3 +32,29 @@ jobs:
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
+  wheel-tests-pylibcugraph:
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@upkeep/manylinux-improvements
+    with:
+      build_type: nightly
+      repo: rapidsai/cugraph
+      branch: ${{ inputs.branch }}
+      date: ${{ inputs.date }}
+      sha: ${{ inputs.sha }}
+      package-name: pylibcugraph
+      # On arm also need to install cupy from the specific webpage.
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+  wheel-tests-cugraph:
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@upkeep/manylinux-improvements
+    with:
+      build_type: nightly
+      repo: rapidsai/cugraph
+      branch: ${{ inputs.branch }}
+      date: ${{ inputs.date }}
+      sha: ${{ inputs.sha }}
+      package-name: raft_dask
+      # On arm also need to install cupy from the specific webpage.
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
