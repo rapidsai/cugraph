@@ -29,7 +29,6 @@ rapids-mamba-retry install \
   --channel "${PYTHON_CHANNEL}" \
   libcugraph pylibcugraph cugraph
 
-pushd notebooks
 NBTEST="$(realpath "$(dirname "$0")/utils/nbtest.sh")"
 NOTEBOOK_LIST="$(realpath "$(dirname "$0")/gpu/notebook_list.py")"
 TOPLEVEL_NB_FOLDERS="$(find . -name "*.ipynb" | cut -d'/' -f2 | sort -u)"
@@ -37,6 +36,7 @@ EXITCODE=0
 trap "EXITCODE=1" ERR
 
 
+pushd notebooks
 set +e
 # Always run nbtest in all TOPLEVEL_NB_FOLDERS, set EXITCODE to failure
 # if any run fails
