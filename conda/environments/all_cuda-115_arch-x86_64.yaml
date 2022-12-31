@@ -32,7 +32,6 @@ dependencies:
 - nccl>=2.9.9
 - networkx>=2.5.1
 - ninja
-- notebook
 - notebook>=0.5.0
 - numpydoc
 - nvcc_linux-64=11.5
