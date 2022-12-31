@@ -8,10 +8,12 @@ files:
     includes:
       - checks
       - common_build
+      - common_python_test
       - cpp_build
       - cudatoolkit
       - doc
       - python_build
+      - test_notebook
       - test_python
   checks:
     output: none
@@ -22,9 +24,17 @@ files:
     output: none
     includes:
       - cudatoolkit
+  test_notebooks:
+    output: none
+    includes:
+      - common_python_test
+      - cudatoolkit
+      - py_version
+      - test_notebook
   test_python:
     output: none
     includes:
+      - common_python_test
       - cudatoolkit
       - py_version
       - test_python
@@ -115,10 +125,8 @@ dependencies:
           - dask-cuda=23.02.*
           - dask-cudf=23.02.*
           - distributed>=2022.12.0
-          - ipython
           - libcudf=23.02.*
           - nccl>=2.9.9
-          - &networkx networkx>=2.5.1
           - notebook>=0.5.0
           - pylibraft=23.02.*
           - raft-dask=23.02.*
@@ -139,18 +147,28 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
-  test_python:
+  common_python_test:
     common:
       - output_types: [conda, requirements]
         packages:
           - aiohttp
-          - *networkx
+          - networkx>=2.5.1
+          - requests
+          - scipy
+  test_notebook:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - ipython
+          - notebook
+  test_python:
+    common:
+      - output_types: [conda, requirements]
+        packages:
           - ogb
           - py
           - pytest
           - pytest-cov
           - python-louvain
           - rapids-pytest-benchmark
-          - requests
           - scikit-learn>=0.23.1
-          - scipy
