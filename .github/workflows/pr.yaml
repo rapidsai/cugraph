@@ -15,6 +15,7 @@ jobs:
       - checks
       - conda-cpp-build
       - conda-cpp-tests
+      - conda-notebook-tests
       - conda-python-build
       - conda-python-tests
     secrets: inherit
