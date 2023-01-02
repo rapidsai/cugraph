@@ -19,8 +19,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <raft/handle.hpp>
-#include <raft/span.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/core/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>

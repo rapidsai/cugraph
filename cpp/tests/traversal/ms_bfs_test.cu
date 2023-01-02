@@ -15,16 +15,16 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -238,7 +238,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 
     cudaProfilerStop();
     hr_timer.stop();
-    hr_timer.display(std::cout);
+    hr_timer.display_and_clear(std::cout);
 
     // checksum
     vertex_t ref_sum = 0;
