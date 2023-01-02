@@ -38,6 +38,7 @@ def start_server_subprocess(
     host="localhost",
     port=9090,
     graph_creation_extension_dir=None,
+    start_local_cuda_cluster=False,
     dask_scheduler_file=None,
     env_additions=None,
 ):
@@ -57,13 +58,17 @@ def start_server_subprocess(
     if env_additions is not None:
         env_dict.update(env_additions)
 
-    # pytest will update sys.path based on the tests it discovers, and for this
-    # source tree, an entry for the parent of this "tests" directory will be
-    # added. The parent to this "tests" directory also allows imports to find
-    # the cugraph_service sources, so in oder to ensure the server that's
-    # started is also using the same sources, the PYTHONPATH env should be set
-    # to the sys.path being used in this process.
+    # pytest will update sys.path based on the tests it discovers and optional
+    # settings in pytest.ini. Make sure any path settings are passed on the the
+    # server so modules are properly found.
     env_dict["PYTHONPATH"] = ":".join(sys.path)
+
+    # special case: some projects organize their tests/benchmarks by package
+    # name, such as "cugraph". Unfortunately, these can collide with installed
+    # package names since python will treat them as a namespace package if this
+    # is run from a directory with a "cugraph" or similar subdir. Simply change
+    # to a temp dir prior to running the server to avoid collisions.
+    tempdir_object = TemporaryDirectory()
 
     args = [
         sys.executable,
@@ -84,6 +89,8 @@ def start_server_subprocess(
             "--dask-scheduler-file",
             dask_scheduler_file,
         ]
+    if start_local_cuda_cluster:
+        args += ["--start-local-cuda-cluster"]
 
     try:
         server_process = subprocess.Popen(
@@ -92,7 +99,13 @@ def start_server_subprocess(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            cwd=tempdir_object.name,
         )
+
+        # Attach tempdir_object to server_process so it is not deleted and
+        # removed when it goes out of scope. Instead, it should get deleted
+        # when server_process is GC'd
+        server_process.tempdir = tempdir_object
 
         print(
             "\nLaunched cugraph_service server, waiting for it to start...",
@@ -100,7 +113,7 @@ def start_server_subprocess(
             flush=True,
         )
         client = CugraphServiceClient(host, port)
-        max_retries = 20
+        max_retries = 60
         retries = 0
         while retries < max_retries:
             try:
