@@ -196,7 +196,7 @@ class Louvain {
       shrink_graph(current_graph);
     }
 
-    timer_display(std::cout);
+    timer_display_and_clear(std::cout);
 
     return best_modularity;
   }
@@ -217,10 +217,10 @@ class Louvain {
 #endif
   }
 
-  void timer_display(std::ostream& os)
+  void timer_display_and_clear(std::ostream& os)
   {
 #ifdef TIMING
-    hr_timer_.display(os);
+    hr_timer_.display_and_clear(os);
 #endif
   }
 

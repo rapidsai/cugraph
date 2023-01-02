@@ -59,12 +59,14 @@ void timer_stop(raft::handle_t const& handle, HighResTimer& hr_timer)
 }
 
 template <bool multi_gpu>
-void timer_display(raft::handle_t const& handle, HighResTimer const& hr_timer, std::ostream& os)
+void timer_display_and_clear(raft::handle_t const& handle,
+                             HighResTimer const& hr_timer,
+                             std::ostream& os)
 {
   if (multi_gpu) {
-    if (handle.get_comms().get_rank() == 0) hr_timer.display(os);
+    if (handle.get_comms().get_rank() == 0) hr_timer.display_and_clear(os);
   } else {
-    hr_timer.display(os);
+    hr_timer.display_and_clear(os);
   }
 }
 #endif

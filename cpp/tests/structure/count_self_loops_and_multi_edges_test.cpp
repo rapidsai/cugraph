@@ -99,7 +99,7 @@ class Tests_CountSelfLoopsAndMultiEdges
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
@@ -114,7 +114,7 @@ class Tests_CountSelfLoopsAndMultiEdges
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (cugraph::test::g_perf) {
@@ -127,7 +127,7 @@ class Tests_CountSelfLoopsAndMultiEdges
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (count_self_loops_and_multi_edges_usecase.check_correctness) {

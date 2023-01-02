@@ -296,7 +296,7 @@ extract_induced_subgraphs(
 
 #ifdef TIMING
   hr_timer.stop();
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 #endif
   return std::make_tuple(std::move(edge_majors),
                          std::move(edge_minors),

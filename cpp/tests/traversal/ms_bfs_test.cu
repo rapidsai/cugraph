@@ -238,7 +238,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 
     cudaProfilerStop();
     hr_timer.stop();
-    hr_timer.display(std::cout);
+    hr_timer.display_and_clear(std::cout);
 
     // checksum
     vertex_t ref_sum = 0;

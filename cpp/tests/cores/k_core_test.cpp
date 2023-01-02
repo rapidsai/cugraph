@@ -78,8 +78,9 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
+
     auto graph_view = graph.view();
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
@@ -111,7 +112,7 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (k_core_usecase.check_correctness) {
