@@ -73,8 +73,8 @@ def ego_graph(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph.
-    
-    source_vertices : cudf.Series
+
+    source_vertices : cupy array
         The centered nodes from which the induced subgraph will be extracted
 
     radius: size_t

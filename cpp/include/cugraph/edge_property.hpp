@@ -18,7 +18,7 @@
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
 

@@ -18,7 +18,7 @@
 
 #include <prims/property_op_utils.cuh>
 
-#include <raft/comms/comms.hpp>
+#include <raft/core/comms.hpp>
 
 #include <thrust/functional.h>
 
