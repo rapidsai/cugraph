@@ -7,8 +7,10 @@ python3 create_dataset.py
 
 ## For PURE GPU Benchmarks
 ```
-pytest pytest-based/dgl_benchmark.py
+pytest dgl_benchmark.py::bench_dgl_pure_gpu
 ```
 
 ## For UVA Benchmarks
-See `general/uva_bench.ipynb`
+```
+pytest dgl_benchmark.py::bench_dgl_uva
+```
