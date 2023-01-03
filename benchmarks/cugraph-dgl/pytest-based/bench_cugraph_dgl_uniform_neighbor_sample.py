@@ -24,7 +24,6 @@ import cupy as cp
 # Facing issues with rapids-pytest-benchmark plugin
 # pytest-benchmark.
 import pytest_benchmark
-benchmark = pytest_benchmark.plugin.benchmark
 
 from cugraph.generators import rmat
 from cugraph.experimental import datasets
