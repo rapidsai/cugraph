@@ -28,7 +28,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>

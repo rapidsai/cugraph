@@ -29,8 +29,8 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 
 #include <gtest/gtest.h>
 
