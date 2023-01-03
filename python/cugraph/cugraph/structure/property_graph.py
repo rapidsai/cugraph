@@ -15,7 +15,11 @@ import cudf
 import numpy as np
 
 import cugraph
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import (
+    import_optional,
+    MissingModule,
+    create_list_series_from_2d_ar,
+)
 
 pd = import_optional("pandas")
 
@@ -508,7 +512,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -825,11 +829,14 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1214,11 +1221,14 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -2091,16 +2101,20 @@ class EXPERIMENTAL__PropertyGraph:
         for key, columns in vector_properties.items():
             vector_property_lengths[key] = len(columns)
 
-    def _create_vector_properties(self, df, vector_properties):
-        # Make each vector contigous and 1-d
+    @staticmethod
+    def _create_vector_properties(df, vector_properties):
         vectors = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
-            vectors[key] = [
-                np.squeeze(vec, 0)
-                for vec in np.split(np.ascontiguousarray(values, like=values), len(df))
-            ]
-        # Create all vectors before assigning in case column names are reused
+            if isinstance(df, cudf.DataFrame):
+                vectors[key] = create_list_series_from_2d_ar(values, index=df.index)
+            else:
+                vectors[key] = [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        np.ascontiguousarray(values, like=values), len(df)
+                    )
+                ]
         for key, vec in vectors.items():
             df[key] = vec
 

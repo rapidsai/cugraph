@@ -13,11 +13,10 @@
 
 import cudf
 import cupy
-import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, create_list_series_from_2d_ar
 
 pd = import_optional("pandas")
 
@@ -578,11 +577,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -906,11 +907,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1680,17 +1684,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Make each vector contigous and 1-d
         new_cols = {}
         for key, columns in vector_properties.items():
-            values = cupy.ascontiguousarray(df[columns].values)
-            dtype = cudf.ListDtype(values.dtype)
-            if len(df) == 0:
-                # cudf doesn't like making empty Series with list dtype
-                new_cols[key] = cudf.Series([[0]], dtype=dtype).iloc[0:0]
-            else:
-                new_cols[key] = cudf.Series(
-                    [cupy.squeeze(x, 0) for x in cupy.split(values, len(df))],
-                    df.index,
-                    dtype=dtype,
-                )
+            values = df[columns].values
+            new_cols[key] = create_list_series_from_2d_ar(values, index=df.index)
         return df.assign(**new_cols)
 
     @staticmethod
