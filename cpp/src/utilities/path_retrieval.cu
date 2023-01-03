@@ -17,7 +17,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>

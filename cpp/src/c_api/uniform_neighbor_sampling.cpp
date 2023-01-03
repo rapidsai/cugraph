@@ -26,7 +26,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/visitors/generic_cascaded_dispatch.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace c_api {

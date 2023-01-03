@@ -30,7 +30,7 @@
 #endif
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <optional>

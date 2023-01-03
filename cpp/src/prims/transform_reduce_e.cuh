@@ -28,8 +28,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/execution_policy.h>
