@@ -15,7 +15,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <curand_kernel.h>
 
