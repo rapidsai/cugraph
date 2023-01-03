@@ -262,7 +262,6 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         handle_->get_comms().barrier();
-        handle_->get_comms().barrier();
         hr_timer.start("MG per_v_transform_reduce_outgoing_e");
       }
 
