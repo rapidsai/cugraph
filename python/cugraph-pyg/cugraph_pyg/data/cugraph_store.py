@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,9 @@ import warnings
 
 # numpy is always available
 import numpy as np
+
+# FIXME remove dependence on cudf
+import cudf
 
 # cuGraph or cuGraph-Service is required; each has its own version of
 # import_optional and we need to select the correct one.
@@ -234,7 +237,7 @@ class EXPERIMENTAL__CuGraphStore:
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
-            from torch import concatenate as concatenate
+            from torch import concat as concatenate
             from torch import arange as arange
         elif backend == "cupy":
             from cupy import from_dlpack
@@ -587,16 +590,17 @@ class EXPERIMENTAL__CuGraphStore:
             query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
                 query += f' | ({TCN}=="{t}")'
-            selection = self.__graph.select_edges(query)
+            # selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
-                selection=selection,
-                edge_weight_property=self.__graph.edge_id_col_name,
+                # selection=selection,
+                edge_weight_property=self.__graph.type_col_name,
                 default_edge_weight=1.0,
-                check_multi_edges=True,
+                check_multi_edges=False,
                 renumber_graph=True,
                 add_edge_data=False,
+                create_with_edge_info=False,
             )
             self.__subgraphs[edge_types] = sg
 
@@ -616,33 +620,31 @@ class EXPERIMENTAL__CuGraphStore:
         and edge ids for the outputted subgraph that
         follow PyG's conventions, allowing easy construction of a HeteroData object.
         """
-        nodes_of_interest = nodes_of_interest.sort_values()
 
-        # noi contains all property values
-        # compute should not be called below, just values_host to convert the
-        # cudf Series into a host Series as required by MG PropertyGraph.
-        noi = self.__graph.get_vertex_data(
-            nodes_of_interest.values_host if self._is_delayed else nodes_of_interest
+        nodes_of_interest = self.from_dlpack(
+            nodes_of_interest.sort_values().to_dlpack()
         )
-        noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
 
         noi_index = {}
-        for t_code, t in enumerate(noi_types):
-            noi_t = noi[noi[self.__graph.type_col_name].cat.codes == t_code]
-            # noi_t should be sorted since the input nodes of interest were
 
-            if len(noi_t) > 0:
+        vtypes = list(self.__graph.vertex_types)
+        if len(vtypes) == 1:
+            noi_index[vtypes[0]] = nodes_of_interest
+        else:
+            noi_types = self.__graph.vertex_types_from_numerals(
+                self.searchsorted(
+                    self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                    nodes_of_interest,
+                )
+            )
+
+            noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
+
+            for type_name, ix in noi_types.items():
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
-                noi_index[t] = (
-                    self.from_dlpack(
-                        noi_t[self.__graph.vertex_col_name].compute().to_dlpack()
-                    )
-                    if self._is_delayed
-                    else self.from_dlpack(
-                        noi_t[self.__graph.vertex_col_name].to_dlpack()
-                    )
-                )
+                ix = self.from_dlpack(ix.to_dlpack())
+                noi_index[type_name] = nodes_of_interest[ix]
 
         return noi_index
 
@@ -687,42 +689,39 @@ class EXPERIMENTAL__CuGraphStore:
         for the outputted subgraph that follow PyG's conventions, allowing easy
         construction of a HeteroData object.
         """
-        eoi = self.__graph.get_edge_data(
-            edge_ids=(
-                sampling_results.indices.compute().values_host
-                if self._is_delayed
-                else sampling_results.indices
-            ),
-            columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
-        )
-        eoi_types = eoi[self.__graph.type_col_name].cat.categories.values_host
-
+        #print(sampling_results.edge_type.value_counts())
         row_dict = {}
         col_dict = {}
-        for t_code, t in enumerate(eoi_types):
-            t_pyg_type = self.__edge_types_to_attrs[t].edge_type
+        if len(self.__edge_types_to_attrs) == 1:
+            t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, edge_type, dst_type = t_pyg_type
 
-            eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes == t_code]
+            sources = self.from_dlpack(sampling_results.sources.to_dlpack())
+            src_id_table = noi_index[src_type]
+            src = self.searchsorted(src_id_table, sources)
+            row_dict[t_pyg_type] = src
 
-            if len(eoi_t) > 0:
-                eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
+            destinations = self.from_dlpack(sampling_results.destinations.to_dlpack())
+            dst_id_table = noi_index[dst_type]
+            dst = self.searchsorted(dst_id_table, destinations)
+            col_dict[t_pyg_type] = dst
+        else:
+            eoi_types = self.__graph.edge_types_from_numerals(sampling_results.indices.astype('int32'))
+            eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
+            
+            for cugraph_type_name, ix in eoi_types.items():
+                t_pyg_type = self.__edge_types_to_attrs[cugraph_type_name].edge_type
+                src_type, edge_type, dst_type = t_pyg_type
 
-                sources = eoi_t[self.__graph.src_col_name]
-                if self._is_delayed:
-                    sources = sources.compute()
-                sources = self.from_dlpack(sources.to_dlpack())
+                sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
                 src_id_table = noi_index[src_type]
-
                 src = self.searchsorted(src_id_table, sources)
                 row_dict[t_pyg_type] = src
 
-                destinations = eoi_t[self.__graph.dst_col_name]
-                if self._is_delayed:
-                    destinations = destinations.compute()
-                destinations = self.from_dlpack(destinations.to_dlpack())
+                destinations = self.from_dlpack(
+                    sampling_results.destinations.loc[ix].to_dlpack()
+                )
                 dst_id_table = noi_index[dst_type]
-
                 dst = self.searchsorted(dst_id_table, destinations)
                 col_dict[t_pyg_type] = dst
 
