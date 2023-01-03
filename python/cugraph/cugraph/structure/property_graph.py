@@ -512,7 +512,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -829,11 +829,14 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1226,11 +1229,14 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
