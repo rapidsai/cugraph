@@ -518,7 +518,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -830,16 +830,19 @@ class EXPERIMENTAL__PropertyGraph:
         6  vtype        96       7
         7  vtype        88       8
         """
-        if self.__vertex_prop_dataframe is not None:
+        if self.__vertex_prop_dataframe is not None:    
             df = self.__vertex_prop_dataframe
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1232,11 +1235,14 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1438,7 +1444,6 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
-        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -1582,7 +1587,6 @@ class EXPERIMENTAL__PropertyGraph:
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
-            create_with_edge_info=create_with_edge_info,
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
@@ -1784,8 +1788,7 @@ class EXPERIMENTAL__PropertyGraph:
 
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
-        elif default_edge_weight or create_with_edge_info:
-            default_edge_weight = default_edge_weight or 0.0
+        elif default_edge_weight:
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1826,15 +1829,6 @@ class EXPERIMENTAL__PropertyGraph:
                 "query resulted in duplicate edges which "
                 f"cannot be represented with the {msg}"
             )
-
-        if create_with_edge_info:
-            TCN = f"{self.type_col_name}_codes"
-            ICN = f"{self.edge_id_col_name}_ser"
-            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
-                "int32"
-            )
-            edge_prop_df[ICN] = edge_prop_df.index.to_series().reset_index(drop=True)
-            edge_attr = [edge_attr, ICN, TCN]
 
         create_args = {
             "source": self.src_col_name,
