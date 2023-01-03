@@ -25,7 +25,7 @@
 
 #include <utilities/graph_utils.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
