@@ -871,6 +871,7 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
             cur = df[prev_id_column].sort_values()
             expected = sorted(x for x, *args in data[key][1])
             assert (cur == cudf.Series(expected, index=cur.index)).all()
+
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data().compute()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
@@ -906,6 +907,7 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
         df = pG.get_edge_data(types=[key]).compute()
         assert len(df) == stop - start + 1
         assert (df[pG.edge_id_col_name] == cudf.Series(range(start, stop + 1))).all()
+
         if prev_id_column is not None:
             assert prev_id_column in df.columns
 
@@ -1336,3 +1338,32 @@ def bench_add_edges_cyber(gpubenchmark, dask_client, N):
         assert len(df) == len(cyber_df)
 
     gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_rows", [1_000_000])
+@pytest.mark.parametrize("n_feats", [128])
+def bench_get_vector_features(gpubenchmark, dask_client, n_rows, n_feats):
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+    df = dask_cudf.from_cudf(df, npartitions=16)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+    pG = MGPropertyGraph()
+    pG.add_edge_data(
+        df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+    )
+
+    def func(pG):
+        df = pG.get_edge_data(edge_ids=cp.arange(0, 100_000))
+        df = df.compute()
+
+    gpubenchmark(func, pG)
