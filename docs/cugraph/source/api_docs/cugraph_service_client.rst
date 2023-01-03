@@ -10,12 +10,14 @@ cugraph-service
    :toctree: api/
 
    cugraph_service_client.client.RunAsyncioThread
-   cugraph_service_client.cugraph_service_thrift
-   cugraph_service_client.defaults
-   cugraph_service_client.exceptions
+   cugraph_service_client.client.run_async
+   cugraph_service_client.client.DeviceArrayAllocator
+   cugraph_service_client.client.CugraphServiceClient
    cugraph_service_client.remote_graph_utils
-   cugraph_service_client.remote_graph
-   cugraph_service_client.types
+   cugraph_service_client.remote_graph.RemoteGraph
+   cugraph_service_client.types.UnionWrapper
+   cugraph_service_client.types.ValueWrapper
+   cugraph_service_client.types.GraphVertexEdgeIDWrapper
 
 
 

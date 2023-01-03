@@ -6,11 +6,38 @@ files:
       cuda: ["11.5"]
       arch: [x86_64]
     includes:
+      - checks
       - common_build
+      - common_python_test
       - cpp_build
       - cudatoolkit
       - doc
       - python_build
+      - test_notebook
+      - test_python
+  checks:
+    output: none
+    includes:
+      - checks
+      - py_version
+  test_cpp:
+    output: none
+    includes:
+      - cudatoolkit
+  test_notebooks:
+    output: none
+    includes:
+      - common_python_test
+      - cudatoolkit
+      - py_version
+      - test_notebook
+  test_python:
+    output: none
+    includes:
+      - common_python_test
+      - cudatoolkit
+      - py_version
+      - test_python
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -18,6 +45,11 @@ channels:
   - conda-forge
   - nvidia
 dependencies:
+  checks:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - pre-commit
   cudatoolkit:
     specific:
       - output_types: [conda]
@@ -53,6 +85,7 @@ dependencies:
           - libraft-headers=23.02.*
           - libraft-distance=23.02.*
           - librmm=23.02.*
+          - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
         matrices:
@@ -92,21 +125,12 @@ dependencies:
           - dask-cuda=23.02.*
           - dask-cudf=23.02.*
           - distributed>=2022.12.0
-          - ipython
           - libcudf=23.02.*
           - nccl>=2.9.9
-          - networkx>=2.5.1
-          - notebook>=0.5.0
-          - py
           - pylibraft=23.02.*
-          - pytest
-          - pytest-cov
           - raft-dask=23.02.*
-          - rapids-pytest-benchmark
           - rmm=23.02.*
           - scikit-build>=0.13.1
-          - scikit-learn>=0.23.1
-          - scipy
           - ucx-proc=*=gpu
           - ucx-py=0.30.*
   doc:
@@ -122,3 +146,28 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
+  common_python_test:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - aiohttp
+          - networkx>=2.5.1
+          - requests
+          - scipy
+  test_notebook:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - ipython
+          - notebook>=0.5.0
+  test_python:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - ogb
+          - py
+          - pytest
+          - pytest-cov
+          - python-louvain
+          - rapids-pytest-benchmark
+          - scikit-learn>=0.23.1
