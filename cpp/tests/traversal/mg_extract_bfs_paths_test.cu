@@ -16,7 +16,6 @@
 #include "randomly_select_destinations.cuh"
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -27,10 +26,11 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -71,11 +71,12 @@ class Tests_MGExtractBFSPaths
 
     using weight_t = float;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Construct graph");
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
@@ -86,9 +87,9 @@ class Tests_MGExtractBFSPaths
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
     auto mg_graph_view = mg_graph.view();
 
@@ -137,7 +138,8 @@ class Tests_MGExtractBFSPaths
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      handle_->get_comms().barrier();
+      hr_timer.start("MG extract_bfs_paths");
     }
 
     vertex_t mg_max_path_length{0};
@@ -151,9 +153,9 @@ class Tests_MGExtractBFSPaths
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "extract_bfs_paths took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (extract_bfs_paths_usecase.check_correctness) {

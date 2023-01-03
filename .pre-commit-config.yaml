@@ -4,13 +4,13 @@
 # To run: `pre-commit run --all-files`
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v4.4.0
     hooks:
       - id: check-added-large-files
       - id: debug-statements
       - id: mixed-line-ending
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 22.10.0
     hooks:
       - id: black
         language_version: python3
@@ -18,14 +18,36 @@ repos:
         args: [--target-version=py38]
         files: ^python/
   - repo: https://github.com/PyCQA/flake8
-    rev: 3.8.4
+    rev: 6.0.0
     hooks:
       - id: flake8
-        args: [--config=python/.flake8]
-        files: ^python/
+        args: ["--config=setup.cfg"]
+        files: python/.*$
+        types: [file]
+        types_or: [python] # TODO: Enable [python, cython]
+        additional_dependencies: ["flake8-force"]
   - repo: https://github.com/asottile/yesqa
     rev: v1.3.0
     hooks:
       - id: yesqa
         additional_dependencies:
-          - flake8==3.8.4
+          - flake8==6.0.0
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v11.1.0
+    hooks:
+      - id: clang-format
+        exclude: |
+          (?x)^(
+            cpp/libcugraph_etl|
+            cpp/tests/c_api/.*
+          )
+        types_or: [c, c++, cuda]
+        args: ["-fallback-style=none", "-style=file", "-i"]
+  - repo: local
+    hooks:
+      - id: copyright-check
+        name: copyright-check
+        entry: python ./ci/checks/copyright.py --git-modified-only --update-current-year
+        language: python
+        pass_filenames: false
+        additional_dependencies: [gitpython]

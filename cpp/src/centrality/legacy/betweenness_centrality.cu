@@ -24,7 +24,7 @@
 #include <thrust/replace.h>
 #include <thrust/transform.h>
 
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -35,7 +35,7 @@
 
 #include "betweenness_centrality.cuh"
 #include "betweenness_centrality_kernels.cuh"
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace detail {

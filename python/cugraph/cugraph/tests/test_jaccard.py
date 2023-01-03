@@ -66,11 +66,11 @@ def compare_jaccard_two_hop(G, Gnx, edgevals=True):
         # print(u, " ", v, " ", p)
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
-    df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
+    df = df.sort_values(by=["first", "second"]).reset_index(drop=True)
     if not edgevals:
         # experimental jaccard currently only supports unweighted graphs
         df_exp = exp_jaccard(G, pairs)
-        df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
+        df_exp = df_exp.sort_values(by=["first", "second"]).reset_index(drop=True)
         assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
 
     assert len(nx_coeff) == len(df)
@@ -94,11 +94,11 @@ def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
     # cugraph Jaccard Call
     df = benchmark_callable(cugraph.jaccard, G, vertex_pair=vertex_pair)
 
-    df = df.sort_values(["source", "destination"]).reset_index(drop=True)
+    df = df.sort_values(["first", "second"]).reset_index(drop=True)
 
     return (
-        df["source"].to_numpy(),
-        df["destination"].to_numpy(),
+        df["first"].to_numpy(),
+        df["second"].to_numpy(),
         df["jaccard_coeff"].to_numpy(),
     )
 
@@ -292,22 +292,25 @@ def test_jaccard_multi_column(read_csv):
             "1_dst": "1_destination",
         }
     )
-    assert_frame_equal(df_res, df_plc_exp, check_dtype=False, check_like=True)
+
+    jaccard_res = df_res["jaccard_coeff"].sort_values().reset_index(drop=True)
+    jaccard_plc_exp = df_plc_exp["jaccard_coeff"].sort_values().reset_index(drop=True)
+    assert_series_equal(jaccard_res, jaccard_plc_exp)
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     df_exp = cugraph.jaccard(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
-    expected = df_exp.sort_values("source").reset_index()
+    actual = df_res.sort_values("0_first").reset_index()
+    expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
 
 
 def test_weighted_exp_jaccard():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         exp_jaccard(G)
 
     G = karate.get_graph(ignore_weights=True)

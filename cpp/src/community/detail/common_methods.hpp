@@ -15,39 +15,38 @@
  */
 #pragma once
 
-#include <utilities/high_res_timer.hpp>
+//#define TIMING
 
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {
 
+#ifdef TIMING
 // Some timing functions
-//   Need to #define TIMING to have these functions actually time, otherwise
-//   this is a noop
 template <bool multi_gpu>
 void timer_start(raft::handle_t const& handle, HighResTimer& hr_timer, std::string const& region)
 {
-#ifdef TIMING
   if constexpr (multi_gpu) {
     if (handle.get_comms().get_rank() == 0) hr_timer.start(region);
   } else {
     hr_timer.start(region);
   }
-#endif
 }
 
 template <bool multi_gpu>
 void timer_stop(raft::handle_t const& handle, HighResTimer& hr_timer)
 {
-#ifdef TIMING
   if constexpr (multi_gpu) {
     if (handle.get_comms().get_rank() == 0) {
       handle.get_stream().synchronize();
@@ -57,20 +56,20 @@ void timer_stop(raft::handle_t const& handle, HighResTimer& hr_timer)
     handle.get_stream().synchronize();
     hr_timer.stop();
   }
-#endif
 }
 
 template <bool multi_gpu>
-void timer_display(raft::handle_t const& handle, HighResTimer const& hr_timer, std::ostream& os)
+void timer_display_and_clear(raft::handle_t const& handle,
+                             HighResTimer const& hr_timer,
+                             std::ostream& os)
 {
-#ifdef TIMING
   if (multi_gpu) {
-    if (handle.get_comms().get_rank() == 0) hr_timer.display(os);
+    if (handle.get_comms().get_rank() == 0) hr_timer.display_and_clear(os);
   } else {
-    hr_timer.display(os);
+    hr_timer.display_and_clear(os);
   }
-#endif
 }
+#endif
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 weight_t compute_modularity(

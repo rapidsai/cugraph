@@ -160,7 +160,7 @@ class Leiden : public Louvain<graph_type> {
       num_level++;
     }
 
-    this->timer_display(std::cout);
+    this->timer_display_and_clear(std::cout);
 
     return best_modularity;
   }
