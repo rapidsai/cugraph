@@ -18,7 +18,7 @@ import numpy as np
 import cudf
 import dask_cudf
 import rmm
-from time import time
+from time import perf_counter_ns
 
 def benchmark_func(func, n_times=10):
     def wrap_func(*args, **kwargs):
@@ -26,9 +26,9 @@ def benchmark_func(func, n_times=10):
         # ignore 1st run
         # and return other runs
         for _ in range(0,n_times+1):
-            t1 = time()
+            t1 = perf_counter_ns()
             result = func(*args, **kwargs)
-            t2 = time()
+            t2 = perf_counter_ns()
             time_ls.append(t2-t1)
         return result, time_ls[1:]
     return wrap_func
@@ -56,8 +56,9 @@ def run_bandwidth_test(ddf, n):
     time_mean = time_ar.mean()
     size_bytes = df.memory_usage().sum()
     size_gb = round(size_bytes/(pow(1024,3)), 2)        
-    print(f"Getting {len(df):,} rows  of size {size_gb} took = {time_mean*1_000} ms")
-    print(f"Bandwidth = {round(size_gb/time_mean, 4)} gb/s")
+    print(f"Getting {len(df):,} rows  of size {size_gb} took = {time_mean*1e-6} ms")
+    time_mean_s = time_mean*1e-9
+    print(f"Bandwidth = {round(size_gb/time_mean_s, 4)} gb/s")
     return
     
 

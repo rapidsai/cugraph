@@ -59,14 +59,14 @@ RUN gpuci_mamba_retry install -y -c pytorch -c rapidsai-nightly -c rapidsai -c c
 # on 1.14.x
 RUN conda remove --force -y ucx ucx-proc
 
-ADD build-ucx.sh /home/build-ucx.sh
-RUN chmod 744 ./home/build-ucx.sh & bash ./home/build-ucx.sh
+ADD build-ucx.sh /root/build-ucx.sh
+RUN chmod 744 /root/build-ucx.sh & bash /root/build-ucx.sh
 
 
-ADD test_client_bandwidth.py  /home/test_client_bandwidth.py
-RUN chmod 777 /home/test_client_bandwidth.py
-ADD test_cugraph_sampling.py  /home/test_cugraph_sampling.py
-RUN chmod 777 /home/test_cugraph_sampling.py
+ADD test_client_bandwidth.py  /root/test_client_bandwidth.py
+RUN chmod 777 /root/test_client_bandwidth.py
+ADD test_cugraph_sampling.py  /root/test_cugraph_sampling.py
+RUN chmod 777 /root/test_cugraph_sampling.py
 
 ENV PATH /opt/conda/env/bin:$PATH
-WORKDIR /home/
+WORKDIR /root/
