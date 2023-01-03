@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -501,6 +501,12 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
+    def vertex_types_from_numerals(self, nums):
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
+    def edge_types_from_numerals(self, nums):
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
     def add_vertex_data(
         self,
         dataframe,
@@ -512,7 +518,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associated edges.
+        Can contain additional vertices that will not have associatede edges.
 
         Parameters
         ----------
@@ -829,14 +835,11 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-
-                try:
-                    df = df.loc[vertex_ids]
-                except TypeError:
-                    raise TypeError(
-                        "vertex_ids needs to be a list-like type "
-                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
-                    )
+                elif not isinstance(
+                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
+                    vertex_ids = list(vertex_ids)
+                df = df.loc[vertex_ids]
 
             if types is not None:
                 if isinstance(types, str):
@@ -1229,14 +1232,11 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-
-                try:
-                    df = df.loc[edge_ids]
-                except TypeError:
-                    raise TypeError(
-                        "edge_ids needs to be a list-like type "
-                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
-                    )
+                elif not isinstance(
+                    edge_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
+                    edge_ids = list(edge_ids)
+                df = df.loc[edge_ids]
 
             if types is not None:
                 if isinstance(types, str):
@@ -1438,6 +1438,7 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -1581,6 +1582,7 @@ class EXPERIMENTAL__PropertyGraph:
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
+            create_with_edge_info=create_with_edge_info,
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
@@ -1691,6 +1693,7 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Create a Graph from the edges in edge_prop_df.
@@ -1757,7 +1760,11 @@ class EXPERIMENTAL__PropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property in edge_prop_df.columns:
+            if edge_weight_property == self.type_col_name:
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype('float32')
+                edge_prop_df['temp_type_col'] = prop_col
+                edge_weight_property = 'temp_type_col'
+            elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
                 prop_col = edge_prop_df.index.to_series()
@@ -1777,7 +1784,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
-        elif default_edge_weight:
+        elif default_edge_weight or create_with_edge_info:
+            default_edge_weight = default_edge_weight or 0.0
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1818,6 +1826,15 @@ class EXPERIMENTAL__PropertyGraph:
                 "query resulted in duplicate edges which "
                 f"cannot be represented with the {msg}"
             )
+
+        if create_with_edge_info:
+            TCN = f"{self.type_col_name}_codes"
+            ICN = f"{self.edge_id_col_name}_ser"
+            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
+                "int32"
+            )
+            edge_prop_df[ICN] = edge_prop_df.index.to_series().reset_index(drop=True)
+            edge_attr = [edge_attr, ICN, TCN]
 
         create_args = {
             "source": self.src_col_name,

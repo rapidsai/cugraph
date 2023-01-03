@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 import cudf
 import cupy
+import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
@@ -329,6 +330,12 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         return self.get_vertices()
 
+    def vertex_types_from_numerals(self, nums):
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
+
+    def edge_types_from_numerals(self, nums):
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
+
     def add_vertex_data(
         self,
         dataframe,
@@ -577,13 +584,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                try:
-                    df = df.loc[vertex_ids]
-                except TypeError:
-                    raise TypeError(
-                        "vertex_ids needs to be a list-like type "
-                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
-                    )
+                elif not isinstance(
+                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
+                    vertex_ids = list(vertex_ids)
+                df = df.loc[vertex_ids]
 
             if types is not None:
                 if isinstance(types, str):
@@ -870,7 +875,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                 tmp_df, self.__edge_prop_dataframe
             )
         self.__edge_prop_dtypes.update(new_col_info)
-        print("tmp df:", tmp_df.index.dtype)
 
         # TODO: allow tmp_df to come in with edge id already as index
         self.__update_dataframe_dtypes(tmp_df, self.__edge_prop_dtypes)
@@ -921,14 +925,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-
-                try:
-                    df = df.loc[edge_ids]
-                except TypeError:
-                    raise TypeError(
-                        "edge_ids needs to be a list-like type "
-                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
-                    )
+                elif not isinstance(
+                    edge_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
+                    edge_ids = list(edge_ids)
+                df = df.loc[edge_ids]
 
             if types is not None:
                 if isinstance(types, str):
@@ -1033,6 +1034,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -1154,6 +1156,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
+            create_with_edge_info=create_with_edge_info,
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
@@ -1168,7 +1171,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
+        create_with_edge_info=False,
     ):
+
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
@@ -1187,7 +1192,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property in edge_prop_df.columns:
+            if edge_weight_property == self.type_col_name:
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype('float32')
+                edge_prop_df['temp_type_col'] = prop_col
+                edge_weight_property = 'temp_type_col'
+            elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
                 prop_col = edge_prop_df.index.to_series()
@@ -1205,7 +1214,9 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
-        elif default_edge_weight:
+        elif default_edge_weight or create_with_edge_info:
+            if default_edge_weight is None:
+                default_edge_weight = cupy.float32(1)
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1262,12 +1273,23 @@ class EXPERIMENTAL__MGPropertyGraph:
             raise ValueError("currently, renumber_graph must be set to True for MG")
         legacy_renum_only = True
 
-        col_names = [self.src_col_name, self.dst_col_name]
-        if edge_attr is not None:
-            col_names.append(edge_attr)
+        if create_with_edge_info:
+            TCN = f"{self.type_col_name}_codes"
+            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
+                "int32"
+            )
+            edge_attr = [edge_attr, self.edge_id_col_name, TCN]
+            col_names = [self.src_col_name, self.dst_col_name] + edge_attr
+        else:
+            col_names = [self.src_col_name, self.dst_col_name]
+            if edge_attr is not None:
+                col_names.append(edge_attr)
+
+        edge_prop_df = edge_prop_df.reset_index().drop([col for col in edge_prop_df if col not in col_names], axis=1)
+        edge_prop_df = edge_prop_df.repartition(npartitions=self.__num_workers * 4).persist()
 
         G.from_dask_cudf_edgelist(
-            edge_prop_df[col_names],
+            edge_prop_df,
             source=self.src_col_name,
             destination=self.dst_col_name,
             edge_attr=edge_attr,
@@ -1283,6 +1305,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             # multiple edges between vertrices with different properties.
             # FIXME: also add vertex_data
             G.edge_data = self.__create_property_lookup_table(edge_prop_df)
+
+        del edge_prop_df
 
         return G
 
