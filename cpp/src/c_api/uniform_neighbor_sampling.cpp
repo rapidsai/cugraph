@@ -249,7 +249,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         raft::copy(label.data(), label_->as_type<int32_t>(), label.size(), handle_.get_stream());
       }
 
-      auto&& [src, dst, edge_id, edge_type, wgt, hop, edge_label] =
+      auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label] =
         cugraph::uniform_neighbor_sample<vertex_t, edge_t, weight_t, edge_type_t, false, multi_gpu>(
           handle_,
           graph_view,
@@ -281,7 +281,9 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(edge_id, graph_->edge_type_),
+        (edge_id)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(*edge_id, graph_->edge_type_)
+          : nullptr,
         (edge_type) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
                         *edge_type, graph_->edge_type_id_type_)
                     : nullptr,

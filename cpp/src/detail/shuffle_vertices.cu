@@ -118,8 +118,6 @@ shuffle_int_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
       {d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()}});
 
-  handle.sync_stream();
-
   return return_value;
 }
 

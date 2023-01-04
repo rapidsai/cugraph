@@ -1831,7 +1831,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
- * Output from this function a set of tuples (src, dst, edge_id, edge_type, weight, hop, label),
+ * Output from this function is a tuple of vectors (src, dst, edge_id, edge_type, weight, hop, label),
  * identifying the randomly selected edges.  src is the source vertex, dst is the destination
  * vertex, edge_id identifies the edge id, edge_type identifies the edge type, weight is the edge
  * weight, hop identifies which hop the edge was encountered in.  Label is optional, if input labels
@@ -1855,7 +1855,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * (true); or, without replacement (false); default = true;
  * @param seed A seed to initialize the random number generator
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * edge_t edge it, optional edge_type_t edge type, optional weight_t weight, int32 hop,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32 hop,
  * optional int32_t label)
  */
 template <typename vertex_t,
@@ -1866,9 +1866,9 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
            rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -1878,10 +1878,10 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<edge_t,
                          thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<int const> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement = true,
   uint64_t seed         = 0);
 

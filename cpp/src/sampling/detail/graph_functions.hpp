@@ -88,7 +88,8 @@ gather_one_hop_edgelist(
  * @param graph_view Non-owning graph object.
  * @param active_majors Device vector containing all the vertex id that are processed by
  * gpus in the column communicator
- * @return A tuple of device vector containing the majors, minors and weights gathered locally
+ * @return A tuple of device vectors containing the majors, minors, optional weights,
+ *  optional edge ids, optional edge types and optional label
  */
 template <typename vertex_t,
           typename edge_t,
@@ -97,8 +98,8 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -153,7 +154,8 @@ sample_edges(raft::handle_t const& handle,
  * @param fanout How many edges to sample for each vertex
  * @param with_replacement If true sample with replacement, otherwise sample without replacement
  * @param invalid_vertex_id Value to use for an invalid vertex
- * @return A tuple of device vector containing the majors, minors and weights gathered locally
+ * @return A tuple of device vectors containing the majors, minors, optional weights,
+ *  optional edge ids, optional edge types and optional label
  */
 template <typename vertex_t,
           typename edge_t,
@@ -162,8 +164,8 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(

@@ -309,8 +309,8 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -334,7 +334,7 @@ gather_one_hop_edgelist(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  rmm::device_uvector<edge_t> edge_ids(0, handle.get_stream());
+  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
@@ -389,8 +389,8 @@ gather_one_hop_edgelist(
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
-                         std::move(edge_ids),
                          std::move(weights),
+                         std::move(edge_ids),
                          std::move(edge_types),
                          std::move(labels));
 }
@@ -402,8 +402,8 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(
@@ -428,7 +428,7 @@ sample_edges(
 
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-  rmm::device_uvector<edge_t> edge_ids(0, handle.get_stream());
+  std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
@@ -574,8 +574,8 @@ sample_edges(
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
-                         std::move(edge_ids),
                          std::move(weights),
+                         std::move(edge_ids),
                          std::move(edge_types),
                          std::move(labels));
 }

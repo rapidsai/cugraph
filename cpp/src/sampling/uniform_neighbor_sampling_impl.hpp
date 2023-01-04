@@ -131,9 +131,9 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
            rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample_impl(
@@ -143,10 +143,10 @@ uniform_neighbor_sample_impl(
   std::optional<
     edge_property_view_t<edge_t,
                          thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   rmm::device_uvector<vertex_t>& d_in,
   std::optional<rmm::device_uvector<int32_t>>& d_labels,
-  raft::host_span<const int> h_fan_out,
+  raft::host_span<int32_t const> h_fan_out,
   bool with_replacement,
   uint64_t seed)
 {
@@ -160,13 +160,15 @@ uniform_neighbor_sample_impl(
 
   rmm::device_uvector<vertex_t> d_result_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_result_dst(0, handle.get_stream());
-  rmm::device_uvector<edge_t> d_result_edge_id(0, handle.get_stream());
+  auto d_result_edge_id =
+    edge_id_type_view ? std::make_optional(rmm::device_uvector<edge_t>(0, handle.get_stream()))
+                      : std::nullopt;
   auto d_result_weight =
     edge_weight_view ? std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()))
                      : std::nullopt;
   auto d_result_edge_type =
-    edge_type_view ? std::make_optional(rmm::device_uvector<edge_type_t>(0, handle.get_stream()))
-                   : std::nullopt;
+    edge_id_type_view ? std::make_optional(rmm::device_uvector<edge_type_t>(0, handle.get_stream()))
+                      : std::nullopt;
   rmm::device_uvector<int32_t> d_result_hop(0, handle.get_stream());
   auto d_result_label = d_labels
                           ? std::make_optional(rmm::device_uvector<int32_t>(0, handle.get_stream()))
@@ -194,7 +196,7 @@ uniform_neighbor_sample_impl(
 
     rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
-    rmm::device_uvector<edge_t> d_out_edge_id(0, handle.get_stream());
+    std::optional<rmm::device_uvector<edge_t>> d_out_edge_id{std::nullopt};
     std::optional<rmm::device_uvector<weight_t>> d_out_weight{std::nullopt};
     std::optional<rmm::device_uvector<edge_type_t>> d_out_edge_type{std::nullopt};
     std::optional<rmm::device_uvector<int32_t>> d_out_label{std::nullopt};
@@ -203,20 +205,20 @@ uniform_neighbor_sample_impl(
       raft::random::RngState rng_state(seed);
       seed += d_in.size() * k_level * comm_size;
 
-      std::tie(d_out_src, d_out_dst, d_out_edge_id, d_out_weight, d_out_edge_type, d_out_label) =
+      std::tie(d_out_src, d_out_dst, d_out_weight, d_out_edge_id, d_out_edge_type, d_out_label) =
         sample_edges(handle,
                      graph_view,
                      edge_weight_view,
-                     edge_type_view,
+                     edge_id_type_view,
                      rng_state,
                      d_in,
                      d_labels,
                      static_cast<size_t>(k_level),
                      with_replacement);
     } else {
-      std::tie(d_out_src, d_out_dst, d_out_edge_id, d_out_weight, d_out_edge_type, d_out_label) =
+      std::tie(d_out_src, d_out_dst, d_out_weight, d_out_edge_id, d_out_edge_type, d_out_label) =
         gather_one_hop_edgelist(
-          handle, graph_view, edge_weight_view, edge_type_view, d_in, d_labels);
+          handle, graph_view, edge_weight_view, edge_id_type_view, d_in, d_labels);
     }
 
     // resize accumulators:
@@ -226,19 +228,20 @@ uniform_neighbor_sample_impl(
 
     d_result_src.resize(new_sz, handle.get_stream());
     d_result_dst.resize(new_sz, handle.get_stream());
-    d_result_edge_id.resize(new_sz, handle.get_stream());
     d_result_hop.resize(new_sz, handle.get_stream());
     if (d_result_weight) d_result_weight->resize(new_sz, handle.get_stream());
+    if (d_result_edge_id) d_result_edge_id->resize(new_sz, handle.get_stream());
     if (d_result_edge_type) d_result_edge_type->resize(new_sz, handle.get_stream());
 
     raft::copy(
       d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());
     raft::copy(
       d_result_dst.begin() + old_sz, d_out_dst.begin(), d_out_dst.size(), handle.get_stream());
-    raft::copy(d_result_edge_id.begin() + old_sz,
-               d_out_edge_id.begin(),
-               d_out_edge_id.size(),
-               handle.get_stream());
+    if (d_out_edge_id)
+      raft::copy(d_result_edge_id->begin() + old_sz,
+                 d_out_edge_id->begin(),
+                 d_out_edge_id->size(),
+                 handle.get_stream());
 
     detail::scalar_fill(handle, d_result_hop.data() + old_sz, add_sz, hop);
 
@@ -266,9 +269,9 @@ uniform_neighbor_sample_impl(
 
   return std::make_tuple(std::move(d_result_src),
                          std::move(d_result_dst),
+                         std::move(d_result_weight),
                          std::move(d_result_edge_id),
                          std::move(d_result_edge_type),
-                         std::move(d_result_weight),
                          std::move(d_result_hop),
                          std::move(d_result_label));
 #endif
@@ -309,9 +312,9 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<edge_t>,
-           std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
            rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -321,10 +324,10 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<edge_t,
                          thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<int const> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed)
 {
@@ -345,7 +348,7 @@ uniform_neighbor_sample(
   return detail::uniform_neighbor_sample_impl(handle,
                                               graph_view,
                                               edge_weight_view,
-                                              edge_type_view,
+                                              edge_id_type_view,
                                               d_start_vs,
                                               d_start_labels,
                                               fan_out,
