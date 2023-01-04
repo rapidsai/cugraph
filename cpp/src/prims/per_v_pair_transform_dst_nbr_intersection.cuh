@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,11 +149,7 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
     *(major_minor_pair_value_output_first + index) =
-      evaluate_intersection_op<GraphViewType,
-                               decltype(src_prop),
-                               decltype(dst_prop),
-                               IntersectionOp>()
-        .compute(src, dst, src_prop, dst_prop, intersection, intersection_op);
+      intersection_op(src, dst, src_prop, dst_prop, intersection);
   }
 };
 
