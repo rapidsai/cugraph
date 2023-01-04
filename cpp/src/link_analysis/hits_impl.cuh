@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <prims/count_if_v.cuh>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
@@ -121,6 +122,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       edge_dummy_property_t{}.view(),
       [] __device__(auto, auto, auto prev_src_hub_value, auto, auto) { return prev_src_hub_value; },
       result_t{0},
+      reduce_op::plus<result_t>{},
       authorities);
 
     update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth);
@@ -136,6 +138,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
         return curr_dst_auth_value;
       },
       result_t{0},
+      reduce_op::plus<result_t>{},
       curr_hubs);
 
     // Normalize current hub values

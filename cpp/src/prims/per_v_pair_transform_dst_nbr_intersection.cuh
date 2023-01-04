@@ -149,11 +149,7 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
     *(major_minor_pair_value_output_first + index) =
-      evaluate_intersection_op<GraphViewType,
-                               decltype(src_prop),
-                               decltype(dst_prop),
-                               IntersectionOp>()
-        .compute(src, dst, src_prop, dst_prop, intersection, intersection_op);
+      intersection_op(src, dst, src_prop, dst_prop, intersection);
   }
 };
 
