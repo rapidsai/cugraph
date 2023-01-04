@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 import pytest
 import numpy as np
 import cupy as cp
@@ -102,6 +104,11 @@ def create_mg_graph(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated.
     """
+    n_devices = os.getenv("DASK_NUM_WORKERS", 4)
+    n_devices = int(n_devices)
+    # range starts at 1 to let let 0 be used by benchmark/client process
+    visible_devices = ",".join([str(i) for i in range(1, n_devices+1)])
+
     (client, cluster) = start_dask_client(
         # enable_tcp_over_ucx=True,
         # enable_infiniband=False,
@@ -109,7 +116,7 @@ def create_mg_graph(graph_data):
         # enable_rdmacm=False,
         protocol="ucx",
         rmm_pool_size="28GB",
-        CUDA_VISIBLE_DEVICES="1,2,3,4,5,6,7",  # let 0 be used by benchmark process
+        CUDA_VISIBLE_DEVICES=visible_devices,
     )
     rmm.reinitialize(pool_allocator=True)
 
