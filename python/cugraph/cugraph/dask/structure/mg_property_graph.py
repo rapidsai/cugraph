@@ -870,7 +870,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                 tmp_df, self.__edge_prop_dataframe
             )
         self.__edge_prop_dtypes.update(new_col_info)
-        print("tmp df:", tmp_df.index.dtype)
 
         # TODO: allow tmp_df to come in with edge id already as index
         self.__update_dataframe_dtypes(tmp_df, self.__edge_prop_dtypes)
