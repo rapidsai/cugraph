@@ -412,7 +412,10 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def is_remote(self):
-        return self.__graph.is_remote()
+        if type(self.__graph).__name__ in ['PropertyGraph', 'MGPropertyGraph']:
+            return False
+        else:
+            return self.__graph.is_remote()
 
     @cached_property
     def _is_delayed(self):
