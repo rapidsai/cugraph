@@ -20,6 +20,7 @@
 #include <prims/per_v_random_select_transform_outgoing_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>  // ??
 #include <prims/vertex_frontier.cuh>
+#include <structure/detail/structure_utils.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -37,6 +38,7 @@ namespace cugraph {
 namespace detail {
 
 // FIXME: Need to move this to a publicly available function
+//        and refactor now true edge ids are available
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -79,7 +81,7 @@ count_and_remove_duplicates(raft::handle_t const& handle,
 }
 
 template <typename vertex_t>
-struct return_all_edges_e_op {
+struct return_edges_with_properties_e_op {
   template <typename EdgeProperties>
   auto __host__ __device__ operator()(vertex_t src,
                                       vertex_t dst,
@@ -87,6 +89,7 @@ struct return_all_edges_e_op {
                                       thrust::nullopt_t,
                                       EdgeProperties edge_properties)
   {
+    // FIXME: A solution using thrust_tuple_cat would be more flexible here
     if constexpr (std::is_same_v<EdgeProperties, thrust::nullopt_t>) {
       return thrust::make_optional(thrust::make_tuple(src, dst));
     } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
@@ -115,6 +118,7 @@ struct sample_edges_op_t {
                                       thrust::nullopt_t,
                                       EdgeProperties edge_properties) const
   {
+    // FIXME: A solution using thrust_tuple_cat would be more flexible here
     if constexpr (std::is_same_v<EdgeProperties, thrust::nullopt_t>) {
       return thrust::make_tuple(src, dst);
     } else if constexpr (std::is_arithmetic<EdgeProperties>::value) {
@@ -157,25 +161,25 @@ gather_one_hop_edgelist(
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
   if (edge_weight_view) {
-    std::tie(majors, minors, weights) =
-      cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                       graph_view,
-                                                       vertex_frontier.bucket(0),
-                                                       edge_src_dummy_property_t{}.view(),
-                                                       edge_dst_dummy_property_t{}.view(),
-                                                       *edge_weight_view,
-                                                       return_all_edges_e_op<vertex_t>{},
-                                                       do_expensive_check);
+    std::tie(majors, minors, weights) = cugraph::extract_transform_v_frontier_outgoing_e(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(0),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      *edge_weight_view,
+      return_edges_with_properties_e_op<vertex_t>{},
+      do_expensive_check);
   } else {
-    std::tie(majors, minors) =
-      cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                       graph_view,
-                                                       vertex_frontier.bucket(0),
-                                                       edge_src_dummy_property_t{}.view(),
-                                                       edge_dst_dummy_property_t{}.view(),
-                                                       edge_dummy_property_t{}.view(),
-                                                       return_all_edges_e_op<vertex_t>{},
-                                                       do_expensive_check);
+    std::tie(majors, minors) = cugraph::extract_transform_v_frontier_outgoing_e(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(0),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      edge_dummy_property_t{}.view(),
+      return_edges_with_properties_e_op<vertex_t>{},
+      do_expensive_check);
   }
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
@@ -286,7 +290,7 @@ sample_edges(raft::handle_t const& handle,
                           auto v2 = thrust::get<1>(tuple);
 
                           return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
-                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
+                                  (v2 == cugraph::invalid_vertex_id<vertex_t>::value));
                         });
 
     size_t new_size = thrust::distance(edge_first, end_iter);
@@ -328,6 +332,8 @@ gather_one_hop_edgelist(
   // FIXME: add as a template parameter
   using tag_t = void;
 
+  // NOTE:  There's no sample offsets here.  I probably have to do the label as a tag thing here... :-(
+
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
   vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
@@ -344,46 +350,48 @@ gather_one_hop_edgelist(
       auto edge_weight_type_id_view = view_concat(*edge_weight_view, *edge_id_type_view);
 
       std::tie(majors, minors, weights, edge_ids, edge_types) =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         edge_weight_type_id_view,
-                                                         return_all_edges_e_op<vertex_t>{},
-                                                         do_expensive_check);
+        cugraph::extract_transform_v_frontier_outgoing_e(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(0),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_weight_type_id_view,
+          return_edges_with_properties_e_op<vertex_t>{},
+          do_expensive_check);
     } else {
-      std::tie(majors, minors, weights) =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         *edge_weight_view,
-                                                         return_all_edges_e_op<vertex_t>{},
-                                                         do_expensive_check);
+      std::tie(majors, minors, weights) = cugraph::extract_transform_v_frontier_outgoing_e(
+        handle,
+        graph_view,
+        vertex_frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        *edge_weight_view,
+        return_edges_with_properties_e_op<vertex_t>{},
+        do_expensive_check);
     }
   } else {
     if (edge_id_type_view) {
       std::tie(majors, minors, edge_ids, edge_types) =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         *edge_id_type_view,
-                                                         return_all_edges_e_op<vertex_t>{},
-                                                         do_expensive_check);
+        cugraph::extract_transform_v_frontier_outgoing_e(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(0),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          *edge_id_type_view,
+          return_edges_with_properties_e_op<vertex_t>{},
+          do_expensive_check);
     } else {
-      std::tie(majors, minors) =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         edge_dummy_property_t{}.view(),
-                                                         return_all_edges_e_op<vertex_t>{},
-                                                         do_expensive_check);
+      std::tie(majors, minors) = cugraph::extract_transform_v_frontier_outgoing_e(
+        handle,
+        graph_view,
+        vertex_frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        return_edges_with_properties_e_op<vertex_t>{},
+        do_expensive_check);
     }
   }
 
@@ -433,10 +441,6 @@ sample_edges(
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
-  // NOTE:  sample_offsets breaks down the number of samples for each element in the frontier.
-  //        If we convert that offsets array into it's own array we can use that to look up labels
-  //   Meaning that I don't have to add the label as a tag - which makes the coding easier.  Fix
-  //   that in the above code!
   if (edge_weight_view) {
     if (edge_id_type_view) {
       auto edge_weight_type_id_view = view_concat(*edge_weight_view, *edge_id_type_view);
@@ -453,12 +457,22 @@ sample_edges(
           rng_state,
           fanout,
           with_replacement,
-          std::make_optional(thrust::make_tuple(cugraph::invalid_vertex_id<vertex_t>::value,
-                                                cugraph::invalid_vertex_id<vertex_t>::value,
-                                                weight_t{},
-                                                edge_t{},
-                                                edge_type_t{})),
+          std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{std::nullopt},
           true);
+
+      if (active_major_labels) {
+        auto label_offsets = detail::expand_sparse_offsets(
+          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
+          int32_t{0},
+          handle.get_stream());
+
+        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       label_offsets.begin(),
+                       label_offsets.end(),
+                       active_major_labels->begin(),
+                       labels->begin());
+      }
 
       std::tie(majors, minors, weights, edge_ids, edge_types) = std::move(sample_e_op_results);
     } else {
@@ -474,11 +488,22 @@ sample_edges(
           rng_state,
           fanout,
           with_replacement,
-          std::make_optional<thrust::tuple<vertex_t, vertex_t, weight_t>>(
-            cugraph::invalid_vertex_id<vertex_t>::value,
-            cugraph::invalid_vertex_id<vertex_t>::value,
-            weight_t{}),
+          std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
           true);
+
+      if (active_major_labels) {
+        auto label_offsets = detail::expand_sparse_offsets(
+          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
+          int32_t{0},
+          handle.get_stream());
+
+        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       label_offsets.begin(),
+                       label_offsets.end(),
+                       active_major_labels->begin(),
+                       labels->begin());
+      }
 
       std::tie(majors, minors, weights) = std::move(sample_e_op_results);
     }
@@ -496,11 +521,23 @@ sample_edges(
           rng_state,
           fanout,
           with_replacement,
-          std::make_optional(thrust::make_tuple(cugraph::invalid_vertex_id<vertex_t>::value,
-                                                cugraph::invalid_vertex_id<vertex_t>::value,
-                                                edge_t{},
-                                                edge_type_t{})),
+          std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
           true);
+
+      if (active_major_labels) {
+        auto label_offsets = detail::expand_sparse_offsets(
+          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
+          int32_t{0},
+          handle.get_stream());
+
+        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       label_offsets.begin(),
+                       label_offsets.end(),
+                       active_major_labels->begin(),
+                       labels->begin());
+      }
+
       std::tie(majors, minors, edge_ids, edge_types) = std::move(sample_e_op_results);
     } else {
       auto [sample_offsets, sample_e_op_results] =
@@ -515,60 +552,24 @@ sample_edges(
           rng_state,
           fanout,
           with_replacement,
-          std::make_optional<thrust::tuple<vertex_t, vertex_t>>(
-            cugraph::invalid_vertex_id<vertex_t>::value,
-            cugraph::invalid_vertex_id<vertex_t>::value),
+          std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
           true);
+
+      if (active_major_labels) {
+        auto label_offsets = detail::expand_sparse_offsets(
+          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
+          int32_t{0},
+          handle.get_stream());
+
+        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        thrust::gather(handle.get_thrust_policy(),
+                       label_offsets.begin(),
+                       label_offsets.end(),
+                       active_major_labels->begin(),
+                       labels->begin());
+      }
+
       std::tie(majors, minors) = std::move(sample_e_op_results);
-    }
-  }
-
-  if (weights) {
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(majors.begin(), minors.begin(), (*weights).begin()));
-    auto end_iter =
-      thrust::remove_if(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + majors.size(),
-                        [] __device__(auto tuple) {
-                          auto v1 = thrust::get<0>(tuple);
-                          auto v2 = thrust::get<1>(tuple);
-
-                          return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
-                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
-                        });
-
-    size_t new_size = thrust::distance(edge_first, end_iter);
-
-    if (new_size != majors.size()) {
-      majors.resize(new_size, handle.get_stream());
-      majors.shrink_to_fit(handle.get_stream());
-      minors.resize(new_size, handle.get_stream());
-      minors.shrink_to_fit(handle.get_stream());
-      (*weights).resize(new_size, handle.get_stream());
-      (*weights).shrink_to_fit(handle.get_stream());
-    }
-  } else {
-    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
-    auto end_iter =
-      thrust::remove_if(handle.get_thrust_policy(),
-                        edge_first,
-                        edge_first + majors.size(),
-                        [] __device__(auto tuple) {
-                          auto v1 = thrust::get<0>(tuple);
-                          auto v2 = thrust::get<1>(tuple);
-
-                          return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
-                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
-                        });
-
-    size_t new_size = thrust::distance(edge_first, end_iter);
-
-    if (new_size != majors.size()) {
-      majors.resize(new_size, handle.get_stream());
-      majors.shrink_to_fit(handle.get_stream());
-      minors.resize(new_size, handle.get_stream());
-      minors.shrink_to_fit(handle.get_stream());
     }
   }
 
