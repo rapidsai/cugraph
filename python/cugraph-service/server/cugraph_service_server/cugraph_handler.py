@@ -386,7 +386,7 @@ class CugraphHandler:
         self,
         protocol=None,
         rmm_pool_size=None,
-        CUDA_VISIBLE_DEVICES=None,
+        dask_worker_devices=None,
         dask_scheduler_file=None,
     ):
         """
@@ -403,9 +403,9 @@ class CugraphHandler:
                 local_directory=tempdir_object.name,
                 protocol=protocol,
                 rmm_pool_size=rmm_pool_size,
-                CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES,
+                CUDA_VISIBLE_DEVICES=dask_worker_devices,
             )
-            # Reinitialize the client to use RMM pool allocator if cluster is
+            # Initialize the client to use RMM pool allocator if cluster is
             # using it.
             if rmm_pool_size is not None:
                 rmm.reinitialize(pool_allocator=True)
@@ -661,12 +661,12 @@ class CugraphHandler:
         try:
             if create_using == "":
                 create_using = None
-            else:
+            elif create_using is not None:
                 create_using = self.__parse_create_using_string(create_using)
             edge_weight_property = edge_weight_property or None
             if selection == "":
                 selection = None
-            else:
+            elif selection is not None:
                 selection = pG.select_edges(selection)
 
             # FIXME: create_using and selection should not be strings at this point

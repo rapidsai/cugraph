@@ -26,7 +26,7 @@ def start_server_blocking(
     port=defaults.port,
     protocol=None,
     rmm_pool_size=None,
-    CUDA_VISIBLE_DEVICES=None,
+    dask_worker_devices=None,
     console_message="",
 ):
     """
@@ -52,7 +52,7 @@ def start_server_blocking(
         handler.initialize_dask_client(
             protocol=protocol,
             rmm_pool_size=rmm_pool_size,
-            CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES,
+            dask_worker_devices=dask_worker_devices,
         )
 
     if console_message != "":

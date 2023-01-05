@@ -25,7 +25,7 @@ from cugraph.dask.common.mg_utils import get_visible_devices
 def start_dask_client(
     protocol=None,
     rmm_pool_size=None,
-    CUDA_VISIBLE_DEVICES=None,
+    dask_worker_devices=None,
 ):
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     cluster = None
@@ -43,9 +43,9 @@ def start_dask_client(
                 f"WARNING: {rmm_pool_size=} is ignored in start_dask_client() when "
                 "using dask SCHEDULER_FILE"
             )
-        if CUDA_VISIBLE_DEVICES is not None:
+        if dask_worker_devices is not None:
             print(
-                f"WARNING: {CUDA_VISIBLE_DEVICES=} is ignored in start_dask_client() "
+                f"WARNING: {dask_worker_devices=} is ignored in start_dask_client() "
                 "when using dask SCHEDULER_FILE"
             )
 
@@ -60,7 +60,7 @@ def start_dask_client(
             local_directory=tempdir_object.name,
             protocol=protocol,
             rmm_pool_size=rmm_pool_size,
-            CUDA_VISIBLE_DEVICES=CUDA_VISIBLE_DEVICES,
+            CUDA_VISIBLE_DEVICES=dask_worker_devices,
         )
         client = Client(cluster)
         client.wait_for_workers(len(get_visible_devices()))

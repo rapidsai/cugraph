@@ -62,7 +62,7 @@ def main():
         help="RMM pool size, ex. '28GB'",
     )
     arg_parser.add_argument(
-        "--cuda-visible-devices",
+        "--dask-worker-devices",
         type=str,
         help="list of GPU device IDs the dask cluster should use, ex. '0,1,2,3'",
     )
@@ -90,7 +90,7 @@ def main():
         args.port,
         args.protocol,
         args.rmm_pool_size,
-        args.cuda_visible_devices,
+        args.dask_worker_devices,
         console_message=msg,
     )
     print("done.")

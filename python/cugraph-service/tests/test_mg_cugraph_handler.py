@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,22 +32,23 @@ def mg_handler():
     """
     from cugraph_service_server.cugraph_handler import CugraphHandler
 
-    dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
-    if dask_scheduler_file is None:
-        raise EnvironmentError(
-            "Environment variable SCHEDULER_FILE must be "
-            "set to the path to a dask scheduler json file"
-        )
-    dask_scheduler_file = Path(dask_scheduler_file)
-    if not dask_scheduler_file.exists():
-        raise FileNotFoundError(
-            "env var SCHEDULER_FILE is set to "
-            f"{dask_scheduler_file}, which does not "
-            "exist."
-        )
-
     handler = CugraphHandler()
-    handler.initialize_dask_client(dask_scheduler_file)
+    dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
+
+    if dask_scheduler_file is None:
+        handler.initialize_dask_client()
+
+    else:
+        dask_scheduler_file = Path(dask_scheduler_file)
+        if not dask_scheduler_file.exists():
+            raise FileNotFoundError(
+                "env var SCHEDULER_FILE is set to "
+                f"{dask_scheduler_file}, which does not "
+                "exist."
+            )
+
+        handler.initialize_dask_client(dask_scheduler_file)
+
     return handler
 
 
@@ -75,6 +76,7 @@ def handler_with_karate_edgelist_loaded(mg_handler):
         type_name="",
         property_columns=[],
         names=[],
+        edge_id_col_name="",
         graph_id=defaults.graph_id,
     )
     assert mg_handler.get_graph_ids() == [0]
@@ -203,7 +205,7 @@ def test_get_edge_IDs_for_vertices(handler_with_karate_edgelist_loaded):
         selection=None,
         edge_weight_property=None,
         default_edge_weight=1.0,
-        allow_multi_edges=True,
+        check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
         graph_id=defaults.graph_id,
@@ -259,6 +261,7 @@ def test_get_graph_info_defaults(mg_handler):
     info = handler.get_graph_info([], graph_id=defaults.graph_id)
 
     expected = {
+        "is_multi_gpu": True,
         "num_vertices": 0,
         "num_vertices_from_vertex_data": 0,
         "num_edges": 0,
@@ -271,7 +274,6 @@ def test_get_graph_info_defaults(mg_handler):
 
 
 def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
-    from cugraph_service_client.exceptions import CugraphServiceError
     from cugraph_service_client import defaults
 
     (handler, test_data) = handler_with_karate_edgelist_loaded
@@ -279,17 +281,6 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
     start_list = [1, 2, 3]
     fanout_vals = [2, 2, 2]
     with_replacement = True
-
-    # invalid graph type - default graph is a PG, needs an extracted subgraph
-    with pytest.raises(CugraphServiceError):
-        handler.uniform_neighbor_sample(
-            start_list=start_list,
-            fanout_vals=fanout_vals,
-            with_replacement=with_replacement,
-            graph_id=defaults.graph_id,
-            result_host=None,
-            result_port=None,
-        )
 
     # FIXME: add test coverage for specifying the edge ID as the
     # edge_weight_property, then ensuring the edge ID is returned properly with
@@ -300,7 +291,7 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
         selection=None,
         edge_weight_property=None,
         default_edge_weight=1.0,
-        allow_multi_edges=True,
+        check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
         graph_id=defaults.graph_id,
