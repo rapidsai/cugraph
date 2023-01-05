@@ -6,7 +6,7 @@ set -ex
 UCX_VERSION_TAG=${1:-"v1.14.x"}
 CUDA_HOME=${2:-"/usr/local/cuda"}
 # Send any remaining arguments to configure
-CONFIGURE_ARGS=${@:2}
+CONFIGURE_ARGS=${@:3}
 git clone https://github.com/openucx/ucx.git
 cd ucx
 git checkout ${UCX_VERSION_TAG}

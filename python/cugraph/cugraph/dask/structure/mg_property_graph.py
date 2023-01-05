@@ -1280,16 +1280,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
             edge_attr = [edge_attr, self.edge_id_col_name, TCN]
             col_names = [self.src_col_name, self.dst_col_name] + edge_attr
+            edge_prop_df = edge_prop_df.reset_index()
         else:
             col_names = [self.src_col_name, self.dst_col_name]
             if edge_attr is not None:
                 col_names.append(edge_attr)
 
-        edge_prop_df = edge_prop_df.reset_index().drop([col for col in edge_prop_df if col not in col_names], axis=1)
-        edge_prop_df = edge_prop_df.repartition(npartitions=self.__num_workers * 4).persist()
-
         G.from_dask_cudf_edgelist(
-            edge_prop_df,
+            edge_prop_df[col_names],
             source=self.src_col_name,
             destination=self.dst_col_name,
             edge_attr=edge_attr,
@@ -1305,8 +1303,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             # multiple edges between vertrices with different properties.
             # FIXME: also add vertex_data
             G.edge_data = self.__create_property_lookup_table(edge_prop_df)
-
-        del edge_prop_df
 
         return G
 
@@ -1405,6 +1401,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
         df[self.vertex_col_name] = df[self.vertex_col_name].astype(index_dtype)
+        
         self.__vertex_prop_dataframe = (
             df.persist().set_index(self.vertex_col_name, sorted=True).persist()
         )

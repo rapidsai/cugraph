@@ -130,10 +130,11 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     ## Reserving GPU 0 for client(trainer/service project)
+    start = 8
     n_devices = os.getenv('DASK_NUM_WORKERS', 4)
     n_devices = int(n_devices)
 
-    visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
+    visible_devices = ','.join([str(i) for i in range(1 + start, n_devices + 1 + start)])
 
     cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='31GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
@@ -184,8 +185,6 @@ def create_mg_graph(graph_data):
             create_using=None,  # None == return edgelist
             mg=True,
         )
-        edgelist_df["weight"] = cp.float32(1)
-        edgelist_df['eid'] = edgelist_df.index.to_series().astype('int64')
         edgelist_df['src'] = edgelist_df.src.astype('int64')
         edgelist_df['dst'] = edgelist_df.dst.astype('int64')
 
@@ -193,8 +192,29 @@ def create_mg_graph(graph_data):
             [edgelist_df['src'], edgelist_df['dst']]
         ).unique()
         vertex_df.name = 'vtx'
+    
+        vertex_df = vertex_df.to_frame().reset_index().rename(columns={'index':'vid'})
 
-        pG.add_vertex_data(vertex_df.to_frame(), vertex_col_name='vtx', type_name='vt1')
+        edgelist_df = edgelist_df.merge(
+            vertex_df, how='left', left_on='src', right_on='vtx'
+        ).drop(
+            ['src', 'vtx'], axis=1
+        ).rename(
+            columns={'vid':'src'}
+        ).merge(
+            vertex_df, how='left', left_on='dst', right_on='vtx'
+        ).drop(
+            ['dst', 'vtx'], axis=1
+        ).rename(
+            columns={'vid':'dst'}
+        ).reset_index(drop=True).repartition(npartitions=n_devices*4)
+        
+        edgelist_df["weight"] = cp.float32(1)
+        edgelist_df['eid'] = 1
+        edgelist_df['eid'] = edgelist_df['eid'].cumsum() - 1
+        edgelist_df = edgelist_df.persist()
+
+        pG.add_vertex_data(vertex_df, vertex_col_name='vid', type_name='vt1')
 
         pG.add_edge_data(
             edgelist_df,
@@ -203,6 +223,7 @@ def create_mg_graph(graph_data):
             edge_id_col_name='eid',
             property_columns=['weight']
         )
+
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
@@ -238,7 +259,9 @@ def get_uniform_neighbor_sample_args(
     # the randomly-chosen IDs may not map to actual IDs, keep trying until
     # num_start_verts have been picked, or max_tries is reached.
 
-    start_list = cp.random.randint(0, num_verts, num_start_verts, dtype='int64')
+    #start_list = cp.random.randint(0, num_verts, num_start_verts, dtype='int64')
+    import torch
+    start_list = torch.randint(0, num_verts, (num_start_verts,), dtype=torch.int64)
     #print('start len:', len(start_list))
     #print(G.get_vertex_data(vertex_ids=start_list).compute())
 
@@ -284,7 +307,7 @@ def graph_objs(request):
     else:
         (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
 
-    G.renumber_vertices_by_type()
+    # G.renumber_vertices_by_type()
     # G.renumber_edges_by_type()
     # Renumber edges by type is not needed.
     # Edges are already contiguously numbered for a single type.
@@ -292,6 +315,9 @@ def graph_objs(request):
     print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
     data = to_pyg(G, renumber_graph=False, backend='cupy')
+    # prefetch the subgraph
+    data[0]._subgraph(['et1'])
+    raise ValueError(f'got subgraph!')
     yield (G, data)
 
     if dask_client is not None:
@@ -329,7 +355,7 @@ def bench_cugraph_uniform_neighbor_sample(
     # import pdb;pdb.set_trace()
 
     # uns_func(uns_args['start_list'])
-    
+
     result = gpubenchmark(
         uns_func,
         ix=uns_args["start_list"],

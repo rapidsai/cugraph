@@ -595,7 +595,7 @@ class EXPERIMENTAL__CuGraphStore:
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
                 # selection=selection,
-                edge_weight_property=self.__graph.type_col_name,
+                edge_weight_property='weight',
                 default_edge_weight=1.0,
                 check_multi_edges=False,
                 renumber_graph=True,

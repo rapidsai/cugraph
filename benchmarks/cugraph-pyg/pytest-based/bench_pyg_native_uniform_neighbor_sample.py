@@ -103,12 +103,6 @@ def create_graph(graph_data):
             torch.from_dlpack(edgelist_df['dst'].to_dlpack()).to(torch.long)
         ])
 
-        with open('/work/testing/blah.file', 'w') as f:
-            f.write('vertex ids:\n')
-            f.write(str(edgelist_df.src.min()) + '\t' + str(edgelist_df.src.max()) + '\n')
-            f.write(str(edgelist_df.dst.min()) + '\t' + str(edgelist_df.dst.max()) + '\n')
-            f.write(str(len(vertex_df)) + '\n')
-
 
         data = HeteroData().to('cuda:0')
 
