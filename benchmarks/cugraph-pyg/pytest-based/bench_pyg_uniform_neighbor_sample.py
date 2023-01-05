@@ -26,6 +26,7 @@ from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 import cudf
 import dask_cudf
 import rmm
+import cugraph
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -130,7 +131,7 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     ## Reserving GPU 0 for client(trainer/service project)
-    start = 8
+    start = 0
     n_devices = os.getenv('DASK_NUM_WORKERS', 4)
     n_devices = int(n_devices)
 
@@ -306,6 +307,9 @@ def graph_objs(request):
         G = create_graph(graph_data)
     else:
         (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
+        H = cugraph.MultiGraph(directed=True)
+        H.from_dask_cudf_edgelist(G._edge_prop_dataframe, source=G.src_col_name, destination=G.dst_col_name, edge_attr='weight')
+        raise ValueError('got subgraph!')
 
     # G.renumber_vertices_by_type()
     # G.renumber_edges_by_type()
@@ -316,8 +320,11 @@ def graph_objs(request):
 
     data = to_pyg(G, renumber_graph=False, backend='cupy')
     # prefetch the subgraph
-    data[0]._subgraph(['et1'])
-    raise ValueError(f'got subgraph!')
+    #data[0]._subgraph(['et1'])
+    #H = cugraph.MultiGraph(directed=True)
+    #H.from_dask_cudf_edgelist(G._edge_prop_dataframe, source=G.src_col_name, destination=G.dst_col_name, edge_attr='weight')
+    #data[0]._EXPERIMENTAL__CuGraphStore__subgraphs[('et1',)] = H
+    #raise ValueError(f'got subgraph!')
     yield (G, data)
 
     if dask_client is not None:
