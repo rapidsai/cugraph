@@ -65,7 +65,7 @@ class CuGraphEdgeAttr:
     # The number of nodes in this edge type. If set to None, will attempt to
     # infer with the simple heuristic int(self.edge_index.max()) + 1
     size: Optional[Tuple[int, int]] = None
-
+  
     # NOTE we define __post_init__ to force-cast layout
     def __post_init__(self):
         self.layout = EdgeLayout(self.layout)
