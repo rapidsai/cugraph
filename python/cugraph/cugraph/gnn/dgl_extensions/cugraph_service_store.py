@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,10 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import defaultdict
 from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 from functools import cached_property
-from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
 from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
 
 # TODO: Make this optional in next release
@@ -34,7 +32,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     def __init__(self, graph, graph_client, device_id=None, backend_lib="torch"):
         # not using isinstance to check type to prevent
         # on adding dependency of  Remote graphs to cugraph
-        if type(graph).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
+        if type(graph).__name__ == "RemoteGraph":
             if device_id is not None:
                 import numba.cuda as cuda
 
@@ -53,12 +51,6 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             raise ValueError("graph must be a RemoteGraph")
 
         BaseCuGraphStore.__init__(self, graph)
-        # dict to map column names corresponding to edge features
-        # of each type
-        self.edata_feat_col_d = defaultdict(list)
-        # dict to map column names corresponding to node features
-        # of each type
-        self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
     def add_node_data(
@@ -182,20 +174,16 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         None
         """
 
-        c_ar, len_ar = self.client.call_extension(
+        self.client.call_extension(
             func_name="add_node_data_from_parquet_remote",
             file_path=file_path,
             node_col_name=node_col_name,
             node_offset=node_offset,
             ntype=ntype,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
             graph_id=self.gdata._graph_id,
             result_device=self.device_id,
-        )
-        loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
-
-        columns = [col for col in loaded_columns if col != node_col_name]
-        _update_feature_map(
-            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
         )
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
@@ -242,20 +230,17 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         -------
         None
         """
-        c_ar, len_ar = self.client.call_extension(
+        self.client.call_extension(
             func_name="add_edge_data_from_parquet_remote",
             file_path=file_path,
             node_col_names=node_col_names,
             canonical_etype=canonical_etype,
             src_offset=src_offset,
             dst_offset=dst_offset,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
             graph_id=self.gdata._graph_id,
             result_device=self.device_id,
-        )
-        loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
-        columns = [col for col in loaded_columns if col not in node_col_names]
-        _update_feature_map(
-            self.edata_feat_col_d, feat_name, contains_vector_features, columns
         )
         self.__clear_cached_properties()
 
@@ -270,16 +255,10 @@ class CuGraphRemoteStore(BaseCuGraphStore):
                     )
                 )
             ntype = ntypes[0]
-        if key not in self.ndata_feat_col_d:
-            raise ValueError(
-                f"key {key} not found in CuGraphStore node features",
-                f" {list(self.ndata_feat_col_d.keys())}",
-            )
 
-        columns = self.ndata_feat_col_d[key]
         return CuFeatureStorage(
             pg=self.gdata,
-            columns=columns,
+            column=key,
             storage_type="node",
             indices_offset=indices_offset,
             backend_lib=self.backend_lib,
@@ -298,16 +277,10 @@ class CuGraphRemoteStore(BaseCuGraphStore):
                 )
 
             etype = etypes[0]
-        if key not in self.edata_feat_col_d:
-            raise ValueError(
-                f"key {key} not found in CuGraphStore edge features",
-                f" {list(self.edata_feat_col_d.keys())}",
-            )
-        columns = self.edata_feat_col_d[key]
 
         return CuFeatureStorage(
             pg=self.gdata,
-            columns=columns,
+            column=key,
             storage_type="edge",
             backend_lib=self.backend_lib,
             indices_offset=indices_offset,
@@ -563,23 +536,3 @@ def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
                 s, d, e_id = None, None, None
             result_d[etype] = (s, d, e_id)
         return result_d
-
-
-def _deserialize_strings_from_char_ars(char_ar, len_ar):
-    string_start = 0
-    string_list = []
-    for string_offset in len_ar:
-        string_end = string_start + string_offset
-        s = char_ar[string_start:string_end]
-
-        # Check of cupy array
-        if type(s).__module__ == "cupy":
-            s = s.get()
-
-        # Check for numpy
-        if type(s).__module__ == "numpy":
-            s = s.tolist()
-        s = "".join([chr(i) for i in s])
-        string_list.append(s)
-        string_start = string_end
-    return string_list
