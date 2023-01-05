@@ -44,7 +44,8 @@ _seed = 42
 def create_remote_graph(graph_data, is_mg, client):
     """
     Create a remote graph instance based on the data to be loaded/generated,
-    relying on server-side graph creation extensions.
+    relying on server-side graph creation extensions, return a tuple containing
+    the remote graph instance and the number of vertices it contains.
 
     The server extension is part of the
     "cugraph_service_server.testing.benchmark_server_extension" and is loaded
@@ -55,11 +56,13 @@ def create_remote_graph(graph_data, is_mg, client):
         gid = client.call_graph_creation_extension(
             "create_graph_from_builtin_dataset", graph_data
         )
+        num_verts = client.get_num_vertices(graph_id=gid)
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
-        num_edges = (2**scale) * graph_data["edgefactor"]
+        num_verts = 2**scale
+        num_edges = num_verts * graph_data["edgefactor"]
         seed = _seed
         gid = client.call_graph_creation_extension(
             "create_graph_from_rmat_generator",
@@ -72,11 +75,11 @@ def create_remote_graph(graph_data, is_mg, client):
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
     G = RemoteGraph(client, gid)
-    return G
+    return (G, num_verts)
 
 
 def get_uniform_neighbor_sample_args(
-    G, seed, batch_size, fanout, with_replacement
+    G, num_verts, seed, batch_size, fanout, with_replacement
 ):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
@@ -91,22 +94,12 @@ def get_uniform_neighbor_sample_args(
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
-    # Get the number of starting vertices (batch size) based on the graph size
-    # in order to support small graphs.  However, current benchmarks will never
-    # have graphs smaller than the batch size, so this is commented out.
-    # Uncomment if smaller graphs are being used.
-    #
-    # num_verts = G.number_of_vertices()
-    # if batch_size > num_verts:
-    #     num_start_verts = int(num_verts * 0.25)
-    # else:
-    #     num_start_verts = batch_size
     num_start_verts = batch_size
 
     # Create the start_list on the server, since generating a list of actual
     # IDs requires unrenumbering steps that cannot be easily done remotely.
     start_list = G._client.call_extension(
-        "gen_vertex_list", G._graph_id, num_start_verts
+        "gen_vertex_list", G._graph_id, num_start_verts, num_verts
     )
 
     return {
@@ -163,11 +156,11 @@ def remote_graph_objs(request):
         raise NotImplementedError(f"{gpu_config=}")
 
     with TimerContext("creating graph"):
-        G = create_remote_graph(graph_data, is_mg, cgs_client)
+        (G, num_verts) = create_remote_graph(graph_data, is_mg, cgs_client)
 
     uns_func = remote_uniform_neighbor_sample
 
-    yield (G, uns_func)
+    yield (G, num_verts, uns_func)
 
     del G  # is this necessary?
     if server_process is not None:
@@ -187,11 +180,11 @@ def remote_graph_objs(request):
 def bench_cgs_uniform_neighbor_sample(
     gpubenchmark, remote_graph_objs, batch_size, fanout, with_replacement
 ):
-    (G, uniform_neighbor_sample_func) = remote_graph_objs
+    (G, num_verts, uniform_neighbor_sample_func) = remote_graph_objs
 
     with TimerContext("computing sampling args"):
         uns_args = get_uniform_neighbor_sample_args(
-            G, _seed, batch_size, fanout, with_replacement
+            G, num_verts, _seed, batch_size, fanout, with_replacement
         )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list

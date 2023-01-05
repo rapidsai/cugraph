@@ -50,7 +50,8 @@ _seed = 42
 
 def create_graph(graph_data):
     """
-    Create a graph instance based on the data to be loaded/generated.
+    Create a graph instance based on the data to be loaded/generated, return a
+    tuple containing (graph_obj, num_verts)
     """
     # FIXME: need to consider directed/undirected?
     G = MultiGraph(directed=True)
@@ -66,11 +67,13 @@ def create_graph(graph_data):
         G.from_cudf_edgelist(
             edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renum_only=True
         )
+        num_verts = G.number_of_vertices()
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
-        num_edges = (2**scale) * graph_data["edgefactor"]
+        num_verts = 2**scale
+        num_edges = num_verts * graph_data["edgefactor"]
         seed = _seed
         edgelist_df = rmat(
             scale,
@@ -97,12 +100,13 @@ def create_graph(graph_data):
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
-    return G
+    return (G, num_verts)
 
 
 def create_mg_graph(graph_data):
     """
-    Create a graph instance based on the data to be loaded/generated.
+    Create a graph instance based on the data to be loaded/generated, return a
+    tuple containing (graph_obj, num_verts, client, cluster)
     """
     n_devices = os.getenv("DASK_NUM_WORKERS", 4)
     n_devices = int(n_devices)
@@ -133,11 +137,13 @@ def create_mg_graph(graph_data):
         G.from_dask_cudf_edgelist(
             edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renumber=True
         )
+        num_verts = G.number_of_vertices()
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
-        num_edges = (2**scale) * graph_data["edgefactor"]
+        num_verts = 2**scale
+        num_edges = num_verts * graph_data["edgefactor"]
         seed = _seed
         edgelist_df = rmat(
             scale,
@@ -164,11 +170,11 @@ def create_mg_graph(graph_data):
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
-    return (G, client, cluster)
+    return (G, num_verts, client, cluster)
 
 
 def get_uniform_neighbor_sample_args(
-    G, seed, batch_size, fanout, with_replacement
+    G, num_verts, seed, batch_size, fanout, with_replacement
 ):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
@@ -183,29 +189,22 @@ def get_uniform_neighbor_sample_args(
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
-    # Get the number of starting vertices (batch size) based on the graph size
-    # in order to support small graphs.  However, current benchmarks will never
-    # have graphs smaller than the batch size, so this is commented out.
-    # Uncomment if smaller graphs are being used.
-    #
-    # num_verts = G.number_of_vertices()
-    # if batch_size > num_verts:
-    #     num_start_verts = int(num_verts * 0.25)
-    # else:
-    #     num_start_verts = batch_size
+    # start_list is a random sampling of the src verts.
+    # Dask series only support the frac arg for getting n samples.
     num_start_verts = batch_size
-
-    # Create the list of starting vertices by simply picking the first
-    # num_start_verts vertices in the edgelist. This will likely result in
-    # duplicates.
     srcs = G.edgelist.edgelist_df["src"]
-    start_list = srcs.head(num_start_verts)
+    frac = num_start_verts / num_verts
+    start_list = srcs.sample(frac=frac, random_state=seed)
 
     # Attempt to automatically handle a dask Series
     if hasattr(start_list, "compute"):
         start_list = start_list.compute()
 
+    # frac does not guarantee exactly num_start_verts, so ensure only
+    # num_start_verts are returned
+    start_list = start_list[:num_start_verts]
     assert len(start_list) == num_start_verts
+    start_list = start_list.to_numpy().tolist()
 
     return {
         "start_list": start_list,
@@ -230,10 +229,10 @@ def graph_objs(request):
 
     with TimerContext("creating graph"):
         if gpu_config == "SG":
-            G = create_graph(graph_data)
+            (G, num_verts) = create_graph(graph_data)
             uns_func = uniform_neighbor_sample
         else:
-            (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
+            (G, num_verts, dask_client, dask_cluster) = create_mg_graph(graph_data)
             # The default uniform_neighbor_sample MG function returns a
             # dask_cudf DataFrame, which must be evaluated (.compute()) in
             # order to get usable results.
@@ -258,7 +257,7 @@ def graph_objs(request):
 
                 return (sources, destinations, indices)
 
-    yield (G, uns_func)
+    yield (G, num_verts, uns_func)
 
     if dask_client is not None:
         stop_dask_client(dask_client, dask_cluster)
@@ -274,11 +273,11 @@ def graph_objs(request):
 def bench_cugraph_uniform_neighbor_sample(
     gpubenchmark, graph_objs, batch_size, fanout, with_replacement
 ):
-    (G, uniform_neighbor_sample_func) = graph_objs
+    (G, num_verts, uniform_neighbor_sample_func) = graph_objs
 
     with TimerContext("computing sampling args"):
         uns_args = get_uniform_neighbor_sample_args(
-            G, _seed, batch_size, fanout, with_replacement
+            G, num_verts, _seed, batch_size, fanout, with_replacement
         )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list

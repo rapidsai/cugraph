@@ -109,11 +109,12 @@ def create_graph_from_rmat_generator(
 
 
 # General-purpose extensions
-def gen_vertex_list(graph_id, num_verts_to_return, server=None):
+def gen_vertex_list(graph_id, num_verts_to_return, num_verts_in_graph, server=None):
     """
     Returns a list of num_verts_to_return vertex IDs from the Graph referenced
     by graph_id.
     """
+    seed = 42
     G = server.get_graph(graph_id)
 
     if not (isinstance(G, cugraph.Graph)):
@@ -121,16 +122,19 @@ def gen_vertex_list(graph_id, num_verts_to_return, server=None):
             f"{graph_id=} must refer to a cugraph.Graph instance, " f"got: {type(G)}"
         )
 
-    # Create the list of starting vertices by simply picking the first
-    # num_verts_to_return vertices in the edgelist. This will likely result in
-    # duplicates.
+    # vertex_list is a random sampling of the src verts.
+    # Dask series only support the frac arg for getting n samples.
     srcs = G.edgelist.edgelist_df["src"]
-    start_list = srcs.head(num_verts_to_return)
+    frac = num_verts_to_return / num_verts_in_graph
+    vertex_list = srcs.sample(frac=frac, random_state=seed)
 
     # Attempt to automatically handle a dask Series
-    if hasattr(start_list, "compute"):
-        start_list = start_list.compute()
+    if hasattr(vertex_list, "compute"):
+        vertex_list = vertex_list.compute()
 
-    assert len(start_list) == num_verts_to_return
+    # frac does not guarantee exactly num_verts_to_return, so ensure only
+    # num_verts_to_return are returned
+    vertex_list = vertex_list[:num_verts_to_return]
+    assert len(vertex_list) == num_verts_to_return
 
-    return start_list.to_cupy()
+    return vertex_list.to_cupy()
