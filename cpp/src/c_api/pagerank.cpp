@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -141,7 +141,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
         if constexpr (multi_gpu) {
           std::tie(personalization_vertices, personalization_values) =
-            cugraph::detail::shuffle_ext_vertices_and_values_by_gpu_id(
+            cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
               handle_, std::move(personalization_vertices), std::move(personalization_values));
         }
         //

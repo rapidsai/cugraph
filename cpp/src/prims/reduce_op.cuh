@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 #include <prims/property_op_utils.cuh>
 
-#include <raft/comms/comms.hpp>
+#include <raft/core/comms.hpp>
 
 #include <thrust/functional.h>
 
@@ -130,6 +130,27 @@ struct has_identity_element<ReduceOp, std::remove_cv_t<decltype(ReduceOp::identi
 
 template <typename ReduceOp>
 inline constexpr bool has_identity_element_v = has_identity_element<ReduceOp>::value;
+
+template <typename ReduceOp, typename Iterator>
+__device__ std::enable_if_t<has_compatible_raft_comms_op_v<ReduceOp>, void> atomic_reduce(
+  Iterator iter, typename thrust::iterator_traits<Iterator>::value_type value)
+{
+  static_assert(std::is_same_v<typename ReduceOp::value_type,
+                               typename thrust::iterator_traits<Iterator>::value_type>);
+  static_assert(
+    (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) ||
+    (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) ||
+    (ReduceOp::compatible_raft_comms_op ==
+     raft::comms::op_t::MAX));  // currently, only (element-wise) sum, min, and max are supported.
+
+  if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) {
+    atomic_add_edge_op_result(iter, value);
+  } else if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) {
+    atomic_min_edge_op_result(iter, value);
+  } else {
+    atomic_max_edge_op_result(iter, value);
+  }
+}
 
 }  // namespace reduce_op
 }  // namespace cugraph

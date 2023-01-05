@@ -18,6 +18,13 @@ export PARALLEL_LEVEL=${PARALLEL_LEVEL:-4}
 export CUDA_REL=${CUDA_VERSION%.*}
 export CONDA_ARTIFACT_PATH=${WORKSPACE}/ci/artifacts/cugraph/cpu/.conda-bld/
 
+# Workaround to keep Jenkins builds working
+# until we migrate fully to GitHub Actions
+export RAPIDS_CUDA_VERSION="${CUDA}"
+export SCCACHE_BUCKET=rapids-sccache
+export SCCACHE_REGION=us-west-2
+export SCCACHE_IDLE_TIMEOUT=32768
+
 function cleanup {
   gpuci_logger "Removing datasets and temp files"
   rm -rf $WORKSPACE/datasets/test
@@ -135,8 +142,18 @@ else
     gpuci_logger "Building and installing cugraph-pyg..."
     gpuci_conda_retry mambabuild conda/recipes/cugraph-pyg --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
 
-    gpuci_logger "Installing pylibcugraph, cugraph, cugraph-pyg and cugraph-service from build / artifact dirs"
-    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} pylibcugraph cugraph cugraph-pyg cugraph-service-server cugraph-service-client
+    #gpuci_logger "Installing pylibcugraph, cugraph, cugraph-pyg and cugraph-service from build / artifact dirs"
+    #gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} pylibcugraph cugraph cugraph-pyg cugraph-service-server cugraph-service-client
+    gpuci_logger "Installing pylibcugraph from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} pylibcugraph
+    gpuci_logger "Installing cugraph from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph
+    gpuci_logger "Installing cugraph-pyg from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph-pyg
+    gpuci_logger "Installing cugraph-service-server from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph-service-server
+    gpuci_logger "Installing cugraph-service-client from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} cugraph-service-client
 fi
 
 ################################################################################

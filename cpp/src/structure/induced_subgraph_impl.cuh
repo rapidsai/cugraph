@@ -34,7 +34,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #endif
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>

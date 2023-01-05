@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -29,10 +30,10 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
@@ -133,23 +134,14 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       });
 
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-      h_vertex_partition_range_lasts.size(), handle_->get_stream());
-    raft::update_device(d_vertex_partition_range_lasts.data(),
-                        h_vertex_partition_range_lasts.data(),
-                        h_vertex_partition_range_lasts.size(),
-                        handle_->get_stream());
-    std::tie(mg_vertex_pair_buffer, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
-      handle_->get_comms(),
-      cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
-      cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
-      cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        comm_size,
-        row_comm_size,
-        col_comm_size},
-      handle_->get_stream());
+    std::tie(std::get<0>(mg_vertex_pair_buffer), std::get<1>(mg_vertex_pair_buffer), std::ignore) =
+      cugraph::detail::shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                  weight_t>(
+        *handle_,
+        std::move(std::get<0>(mg_vertex_pair_buffer)),
+        std::move(std::get<1>(mg_vertex_pair_buffer)),
+        std::nullopt,
+        h_vertex_partition_range_lasts);
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());

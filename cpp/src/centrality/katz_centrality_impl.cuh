@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include <prims/count_if_v.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_v.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
@@ -25,7 +26,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
@@ -120,6 +121,7 @@ void katz_centrality(
           return static_cast<result_t>(alpha * src_val * w);
         },
         betas != nullptr ? result_t{0.0} : beta,
+        reduce_op::plus<result_t>{},
         new_katz_centralities);
     } else {
       per_v_transform_reduce_incoming_e(
@@ -132,6 +134,7 @@ void katz_centrality(
           return static_cast<result_t>(alpha * src_val * 1.0);
         },
         betas != nullptr ? result_t{0.0} : beta,
+        reduce_op::plus<result_t>{},
         new_katz_centralities);
     }
 
