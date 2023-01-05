@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,7 +123,7 @@ class Tests_MGEgonet
       mg_graph_view.local_vertex_partition_range_first(),
       mg_graph_view.local_vertex_partition_range_last());
 
-    d_ego_sources = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+    d_ego_sources = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
       *handle_, std::move(d_ego_sources), mg_graph_view.vertex_partition_range_lasts());
 
     auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_wgt, d_ego_edgelist_offsets] =

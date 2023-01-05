@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -76,7 +76,7 @@ karate = pytest.param(
 
 # RMAT-generated graph options
 _rmat_scales = range(16, 31)
-_rmat_edgefactors = [4, 16, 32]
+_rmat_edgefactors = [4, 8, 16, 32]
 rmat = {}
 for scale in _rmat_scales:
     for edgefactor in _rmat_edgefactors:
@@ -139,4 +139,17 @@ graph_obj_fixture_params = gen_fixture_params(
     (snmg, rmat["28_4"]),
     (mnmg, rmat["29_4"]),
     (mnmg, rmat["30_4"]),
+    (snmg, rmat["24_8"]),
+    (snmg, rmat["25_8"]),
+    (snmg, rmat["27_8"]),
+    (snmg, rmat["28_8"]),
+    (mnmg, rmat["29_8"]),
+    (mnmg, rmat["30_8"]),
+    (snmg, rmat["24_16"]),
+    (snmg, rmat["25_16"]),
+    (snmg, rmat["27_16"]),
+    (snmg, rmat["28_16"]),
+    (mnmg, rmat["29_16"]),
+    (mnmg, rmat["30_16"]),
+
 )
