@@ -486,9 +486,10 @@ class CuGraphStorage:
             src_ids = F.zerocopy_from_dlpack(src_c)
             dst_ids = F.zerocopy_from_dlpack(dst_c)
             edge_id_t = F.zerocopy_from_dlpack(edge_id_c)
+            total_number_of_nodes = sum(self.num_nodes_dict.values())
             sampled_graph = dgl.graph(
                 (src_ids, dst_ids),
-                num_nodes=self.total_number_of_nodes,
+                num_nodes=total_number_of_nodes,
                 idtype=self.idtype,
             )
             sampled_graph.edata[dgl.EID] = edge_id_t
