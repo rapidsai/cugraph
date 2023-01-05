@@ -138,7 +138,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       std::tie(store_transposed ? edgelist_dsts : edgelist_srcs,
                store_transposed ? edgelist_srcs : edgelist_dsts,
                edgelist_weights) =
-        cugraph::detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
+        cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                    weight_t>(
           handle_,
           std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
           std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
