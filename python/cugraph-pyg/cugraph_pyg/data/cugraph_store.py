@@ -412,7 +412,8 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def is_remote(self):
-        if type(self.__graph).__name__ in ['PropertyGraph', 'MGPropertyGraph']:
+        pg_types = ['PropertyGraph', 'MGPropertyGraph']
+        if type(self.__graph).__name__ in pg_types:
             return False
         else:
             return self.__graph.is_remote()
