@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ uniform_nbr_sample_impl(
   for (auto&& k_level : h_fan_out) {
     // prep step for extracting out-degs(sources):
     if constexpr (multi_gpu) {
-      d_in = shuffle_int_vertices_by_gpu_id(
+      d_in = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(d_in), graph_view.vertex_partition_range_lasts());
     }
 
@@ -186,10 +186,14 @@ uniform_neighbor_sample_impl(
     // prep step for extracting out-degs(sources):
     if constexpr (multi_gpu) {
       if (d_labels) {
-        std::tie(d_in, *d_labels) = shuffle_int_vertices_and_values_by_gpu_id(
-          handle, std::move(d_in), std::move(*d_labels), graph_view.vertex_partition_range_lasts());
+        std::tie(d_in, *d_labels) =
+          shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+            handle,
+            std::move(d_in),
+            std::move(*d_labels),
+            graph_view.vertex_partition_range_lasts());
       } else {
-        d_in = shuffle_int_vertices_by_gpu_id(
+        d_in = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
           handle, std::move(d_in), graph_view.vertex_partition_range_lasts());
       }
     }
