@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1868,6 +1868,7 @@ void triangle_count(raft::handle_t const& handle,
  * a weight of 1 for all edges.
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1875,7 +1876,8 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
 
 /**
  * @brief     Compute Sorensen similarity coefficient
@@ -1898,6 +1900,7 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1905,7 +1908,8 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
 
 /**
  * @brief     Compute overlap similarity coefficient
@@ -1928,6 +1932,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1935,7 +1940,8 @@ rmm::device_uvector<weight_t> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
 
 /*
  * @brief Enumerate K-hop neighbors

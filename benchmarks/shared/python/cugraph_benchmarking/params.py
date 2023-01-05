@@ -136,16 +136,31 @@ graph_obj_fixture_params = gen_fixture_params(
     (mnmg, rmat["29_16"]),
 )
 # Uncomment the following test combinations for use with experiments/local dev
-# graph_obj_fixture_params = gen_fixture_params(
-#     (sg, karate),
-#     (sg, rmat["16_4"]),
-#     (sg, rmat["18_4"]),
-#     (sg, rmat["20_4"]),
-#     (sg, rmat["25_4"]),
-#     (sg, rmat["26_4"]),
-#     (snmg, rmat["26_4"]),
-#     (snmg, rmat["27_4"]),
-#     (snmg, rmat["28_4"]),
-#     (mnmg, rmat["29_4"]),
-#     (mnmg, rmat["30_4"]),
-# )
+"""
+graph_obj_fixture_params = gen_fixture_params(
+    (sg, karate),
+    (sg, rmat["16_4"]),
+    (sg, rmat["18_4"]),
+    (sg, rmat["20_4"]),
+    (sg, rmat["24_4"]),
+    (sg, rmat["25_4"]),
+    (sg, rmat["26_4"]),
+    (snmg, rmat["26_4"]),
+    (snmg, rmat["27_4"]),
+    (snmg, rmat["28_4"]),
+    (mnmg, rmat["29_4"]),
+    (mnmg, rmat["30_4"]),
+    (snmg, rmat["24_8"]),
+    (snmg, rmat["25_8"]),
+    (snmg, rmat["27_8"]),
+    (snmg, rmat["28_8"]),
+    (mnmg, rmat["29_8"]),
+    (mnmg, rmat["30_8"]),
+    (snmg, rmat["24_16"]),
+    (snmg, rmat["25_16"]),
+    (snmg, rmat["27_16"]),
+    (snmg, rmat["28_16"]),
+    (mnmg, rmat["29_16"]),
+    (mnmg, rmat["30_16"]),
+)
+"""
