@@ -152,21 +152,6 @@ class EXPERIMENTAL__CuGraphSampler:
         if is_multi_gpu:
             sampling_results = sampling_results.compute()
 
-        """
-        nodes_of_interest, indices_of_interest = cupy.unique(
-            cudf.concat(
-                [sampling_results.destinations, sampling_results.sources]
-            ).to_cupy(),
-            return_index=True
-        )
-
-        ioi_div = indices_of_interest < len(sampling_results)
-        ioi_src = indices_of_interest[ioi_div]
-        ioi_dst = indices_of_interest[~ioi_div]
-        edge_types_of_interest_src = sampling_results.edge_type[ioi_src]
-        edge_types_of_interest_dst = sampling_results.edge_type[ioi_dst]
-        """
-
         nodes_of_interest = cudf.concat(
             [sampling_results.sources, sampling_results.destinations]
         ).unique()
