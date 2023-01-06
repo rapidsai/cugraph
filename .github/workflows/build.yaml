@@ -54,7 +54,7 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-build-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@upkeep/manylinux-improvements
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@main
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       repo: rapidsai/cugraph
@@ -75,7 +75,7 @@ jobs:
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@upkeep/manylinux-improvements
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@main
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       repo: rapidsai/cugraph
@@ -86,7 +86,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-publish-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@upkeep/manylinux-improvements
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@main
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       repo: rapidsai/cugraph
@@ -107,7 +107,7 @@ jobs:
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@upkeep/manylinux-improvements
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@main
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       repo: rapidsai/cugraph
