@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -115,7 +115,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     if constexpr (graph_view_t::is_multi_gpu) {
       std::tie(cluster_keys_v, cluster_weights_v) =
-        detail::shuffle_ext_vertices_and_values_by_gpu_id(
+        detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
           handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,7 +96,8 @@ class Tests_MGEdgeBetweennessCentrality
       d_seeds = cugraph::test::randomly_select(*handle_, d_seeds, betweenness_usecase.num_seeds);
     }
 
-    d_seeds = cugraph::detail::shuffle_ext_vertices_by_gpu_id(*handle_, std::move(d_seeds));
+    d_seeds = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_seeds));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
