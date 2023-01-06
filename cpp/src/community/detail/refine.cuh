@@ -28,6 +28,7 @@
 #include <prims/update_edge_src_dst_property.cuh>
 #include <utilities/collect_comm.cuh>
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
@@ -700,9 +701,11 @@ refine_clustering(
 
       thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
 
-      target_comms.resize(static_cast<size_t>(thrust::distance(
-        target_comms.begin(),
-        thrust::unique(handle.get_thrust_policy(), target_comms.begin(), target_comms.end()))));
+      target_comms.resize(
+        static_cast<size_t>(thrust::distance(
+          target_comms.begin(),
+          thrust::unique(handle.get_thrust_policy(), target_comms.begin(), target_comms.end()))),
+        handle.get_stream());
     }
 
     // Makr all the dest comms as non-sigleton
@@ -761,8 +764,8 @@ refine_clustering(
                                                         leiden_keys_to_read_louvain.end())));
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    leiden_keys_to_read_louvain =
-      shuffle_ext_vertices_by_gpu_id(handle, std::move(leiden_keys_to_read_louvain));
+    leiden_keys_to_read_louvain = cugraph::detail::shuffle_ext_vertices_by_gpu_id(
+      handle, std::move(leiden_keys_to_read_louvain));
 
     thrust::sort(handle.get_thrust_policy(),
                  leiden_keys_to_read_louvain.begin(),

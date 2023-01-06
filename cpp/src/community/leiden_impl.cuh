@@ -334,7 +334,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     if constexpr (graph_view_t::is_multi_gpu) {
       copied_louvain_partition =
-        shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(copied_louvain_partition));
+      cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(copied_louvain_partition));
 
       thrust::sort(handle.get_thrust_policy(),
                    copied_louvain_partition.begin(),
@@ -470,6 +470,29 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         vertex_t* clustering)
 {
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<size_t, weight_t> leiden(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  vertex_t* clustering,
+  size_t max_level,
+  weight_t resolution)
+{
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
+  detail::check_clustering(graph_view, clustering);
+
+  std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
+  weight_t modularity;
+
+  std::tie(dendrogram, modularity) =
+    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
+
+  detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
+
+  return std::make_pair(dendrogram->num_levels(), modularity);
 }
 
 }  // namespace cugraph
