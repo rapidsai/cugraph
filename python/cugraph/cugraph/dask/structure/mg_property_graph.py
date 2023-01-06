@@ -13,7 +13,6 @@
 
 import cudf
 import cupy
-import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
