@@ -20,14 +20,12 @@
 
 #include <cugraph/api_helpers.hpp>
 #include <cugraph/graph.hpp>
-#include <cugraph/visitors/graph_envelope.hpp>
-#include <cugraph/visitors/ret_terased.hpp>
 
 #include <utilities/graph_utils.cuh>
 
 #include <cub/cub.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
@@ -132,12 +130,8 @@ struct fixed_seeding_t {
 
 // Uniform RW selector logic:
 //
-template <typename graph_type, typename real_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
 struct uniform_selector_t {
-  using vertex_t = typename graph_type::vertex_type;
-  using edge_t   = typename graph_type::edge_type;
-  using weight_t = typename graph_type::weight_type;
-
   struct sampler_t {
     sampler_t(edge_t const* ro,
               vertex_t const* ci,
@@ -178,14 +172,16 @@ struct uniform_selector_t {
 
   using sampler_type = sampler_t;
 
-  uniform_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
-    : d_cache_out_degs_(graph.compute_out_degrees(handle)),
-      sampler_{graph.local_edge_partition_view().offsets().data(),
-               graph.local_edge_partition_view().indices().data(),
-               graph.local_edge_partition_view().weights()
-                 ? (*(graph.local_edge_partition_view().weights())).data()
-                 : static_cast<weight_t*>(nullptr),
-               d_cache_out_degs_.data()}
+  uniform_selector_t(raft::handle_t const& handle,
+                     graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+                     real_t tag)
+    : d_cache_out_degs_(graph_view.compute_out_degrees(handle)),
+      sampler_{
+        graph_view.local_edge_partition_view().offsets().data(),
+        graph_view.local_edge_partition_view().indices().data(),
+        edge_weight_view ? (*edge_weight_view).value_firsts()[0] : static_cast<weight_t*>(nullptr),
+        d_cache_out_degs_.data()}
   {
   }
 
@@ -200,102 +196,10 @@ struct uniform_selector_t {
   // because it ows a device_vec;
 };
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          typename binary_op_t = thrust::plus<weight_t>>
-struct visitor_aggregate_weights_t : visitors::visitor_t {
-  visitor_aggregate_weights_t(
-    raft::handle_t const& handle,
-    size_t num_vertices,
-    binary_op_t aggregate_op = thrust::plus<weight_t>{},
-    weight_t initial_value   = 0)  // different aggregation ops require different initial values;
-    : handle_(handle),
-      d_aggregate_weights_(num_vertices, handle_.get_stream()),
-      aggregator_(aggregate_op),
-      initial_value_(initial_value)
-  {
-  }
-
-  void visit_graph(graph_envelope_t::base_graph_t const& graph_v) override
-  {
-    auto const& graph_view =
-      static_cast<graph_view_t<vertex_t, edge_t, weight_t, false, false> const&>(graph_v);
-
-    auto opt_weights = graph_view.local_edge_partition_view().weights();
-    CUGRAPH_EXPECTS(opt_weights.has_value(), "Cannot aggregate weights of un-weighted graph.");
-
-    size_t num_vertices = d_aggregate_weights_.size();
-
-    edge_t const* offsets = graph_view.local_edge_partition_view().offsets().data();
-
-    weight_t const* values = (*opt_weights).data();
-
-    // Determine temporary device storage requirements:
-    //
-    void* ptr_d_temp_storage{nullptr};
-    size_t temp_storage_bytes = 0;
-    cub::DeviceSegmentedReduce::Reduce(ptr_d_temp_storage,
-                                       temp_storage_bytes,
-                                       values,
-                                       d_aggregate_weights_.data(),
-                                       num_vertices,
-                                       offsets,
-                                       offsets + 1,
-                                       aggregator_,
-                                       initial_value_,
-                                       handle_.get_stream());
-    // Allocate temporary storage
-    //
-    rmm::device_uvector<std::byte> d_temp_storage(temp_storage_bytes, handle_.get_stream());
-    ptr_d_temp_storage = d_temp_storage.data();
-
-    // Run reduction:
-    //
-    cub::DeviceSegmentedReduce::Reduce(ptr_d_temp_storage,
-                                       temp_storage_bytes,
-                                       values,
-                                       d_aggregate_weights_.data(),
-                                       num_vertices,
-                                       offsets,
-                                       offsets + 1,
-                                       aggregator_,
-                                       initial_value_,
-                                       handle_.get_stream());
-  }
-
-  // no need for type-erasure, as this is only used internally:
-  //
-  visitors::return_t const& get_result(void) const override { return ret_unused_; }
-
-  visitors::return_t&& get_result(void) override { return std::move(ret_unused_); }
-
-  rmm::device_uvector<weight_t>&& get_aggregated_weights(void)
-  {
-    return std::move(d_aggregate_weights_);
-  }
-
-  rmm::device_uvector<weight_t> const& get_aggregated_weights(void) const
-  {
-    return d_aggregate_weights_;
-  }
-
- private:
-  raft::handle_t const& handle_;
-  rmm::device_uvector<weight_t> d_aggregate_weights_;
-  binary_op_t aggregator_;
-  weight_t initial_value_{0};
-  visitors::return_t ret_unused_{};  // necessary to silence a concerning warning
-};
-
 // Biased RW selection logic:
 //
-template <typename graph_type, typename real_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
 struct biased_selector_t {
-  using vertex_t = typename graph_type::vertex_type;
-  using edge_t   = typename graph_type::edge_type;
-  using weight_t = typename graph_type::weight_type;
-
   struct sampler_t {
     sampler_t(edge_t const* ro,
               vertex_t const* ci,
@@ -347,24 +251,21 @@ struct biased_selector_t {
 
   using sampler_type = sampler_t;
 
-  biased_selector_t(raft::handle_t const& handle, graph_type const& graph, real_t tag)
-    : sum_calculator_(handle, graph.number_of_vertices()),
-      sampler_{graph.local_edge_partition_view().offsets().data(),
-               graph.local_edge_partition_view().indices().data(),
-               graph.local_edge_partition_view().weights()
-                 ? (*(graph.local_edge_partition_view().weights())).data()
-                 : static_cast<weight_t*>(nullptr),
-               sum_calculator_.get_aggregated_weights().data()}
+  biased_selector_t(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+                    edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
+                    real_t tag,
+                    weight_t const* out_weight_sums)
+    : sampler_{graph_view.local_edge_partition_view().offsets().data(),
+               graph_view.local_edge_partition_view().indices().data(),
+               edge_weight_view.value_firsts()[0],
+               out_weight_sums}
   {
-    graph.apply(sum_calculator_);
   }
 
   sampler_t const& get_strategy(void) const { return sampler_; }
 
-  decltype(auto) get_sum_weights(void) const { return sum_calculator_.get_aggregated_weights(); }
-
  private:
-  visitor_aggregate_weights_t<vertex_t, edge_t, weight_t> sum_calculator_;
   sampler_t sampler_;
 };
 
@@ -377,12 +278,8 @@ struct biased_selector_t {
 // TODO: need to decide logic on very 1st step of traversal
 //       (which has no `prev_v` vertex);
 //
-template <typename graph_type, typename real_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename real_t>
 struct node2vec_selector_t {
-  using vertex_t = typename graph_type::vertex_type;
-  using edge_t   = typename graph_type::edge_type;
-  using weight_t = typename graph_type::weight_type;
-
   struct sampler_t {
     sampler_t(edge_t const* ro,
               vertex_t const* ci,
@@ -573,23 +470,23 @@ struct node2vec_selector_t {
   using sampler_type = sampler_t;
 
   node2vec_selector_t(raft::handle_t const& handle,
-                      graph_type const& graph,
+                      graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                       real_t tag,
                       weight_t p,
                       weight_t q,
                       edge_t num_paths = 0)
-    : max_out_degree_(num_paths > 0 ? graph.compute_max_out_degree(handle) : 0),
+    : max_out_degree_(num_paths > 0 ? graph_view.compute_max_out_degree(handle) : 0),
       d_coalesced_alpha_{max_out_degree_ * num_paths, handle.get_stream()},
-      sampler_{graph.local_edge_partition_view().offsets().data(),
-               graph.local_edge_partition_view().indices().data(),
-               graph.local_edge_partition_view().weights()
-                 ? (*(graph.local_edge_partition_view().weights())).data()
-                 : static_cast<weight_t*>(nullptr),
-               p,
-               q,
-               static_cast<vertex_t>(max_out_degree_),
-               num_paths,
-               raw_ptr(d_coalesced_alpha_)}
+      sampler_{
+        graph_view.local_edge_partition_view().offsets().data(),
+        graph_view.local_edge_partition_view().indices().data(),
+        edge_weight_view ? (*edge_weight_view).value_firsts()[0] : static_cast<weight_t*>(nullptr),
+        p,
+        q,
+        static_cast<vertex_t>(max_out_degree_),
+        num_paths,
+        raw_ptr(d_coalesced_alpha_)}
   {
   }
 
@@ -625,25 +522,26 @@ struct vertical_traversal_t {
   {
   }
 
-  template <typename graph_t,
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
             typename random_walker_t,
             typename selector_t,
             typename index_t,
             typename real_t,
             typename seed_t>
   void operator()(
-    graph_t const& graph,                // graph being traversed
-    random_walker_t const& rand_walker,  // random walker object for which traversal is driven
-    selector_t const& selector,          // sampling type (uniform, biased, etc.)
-    seed_t seed0,                        // initial seed value
-    device_vec_t<typename graph_t::vertex_type>& d_coalesced_v,  // crt coalesced vertex set
-    device_vec_t<typename graph_t::weight_type>& d_coalesced_w,  // crt coalesced weight set
-    device_vec_t<index_t>& d_paths_sz,                           // crt paths sizes
-    device_vec_t<typename graph_t::edge_type>&
-      d_crt_out_degs,                // crt out-degs for current set of vertices
-    device_vec_t<real_t>& d_random,  // crt set of random real values
-    device_vec_t<typename graph_t::vertex_type>&
-      d_col_indx)  // crt col col indices to be used for retrieving next step
+    graph_view_t<vertex_t, edge_t, false, false> const& graph_view,  // graph being traversed
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    random_walker_t const& rand_walker,     // random walker object for which traversal is driven
+    selector_t const& selector,             // sampling type (uniform, biased, etc.)
+    seed_t seed0,                           // initial seed value
+    device_vec_t<vertex_t>& d_coalesced_v,  // crt coalesced vertex set
+    device_vec_t<weight_t>& d_coalesced_w,  // crt coalesced weight set
+    device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
+    device_vec_t<edge_t>& d_crt_out_degs,   // crt out-degs for current set of vertices
+    device_vec_t<real_t>& d_random,         // crt set of random real values
+    device_vec_t<vertex_t>& d_col_indx)  // crt col col indices to be used for retrieving next step
     const
   {
     auto const& handle = rand_walker.get_handle();
@@ -653,7 +551,8 @@ struct vertical_traversal_t {
     for (decltype(max_depth_) step_indx = 1; step_indx < max_depth_; ++step_indx) {
       // take one-step in-sync for each path in parallel:
       //
-      rand_walker.step(graph,
+      rand_walker.step(graph_view,
+                       edge_weight_view,
                        selector,
                        seed0 + static_cast<seed_t>(step_indx),
                        d_coalesced_v,
@@ -690,31 +589,29 @@ struct horizontal_traversal_t {
   {
   }
 
-  template <typename graph_t,
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
             typename random_walker_t,
             typename selector_t,
             typename index_t,
             typename real_t,
             typename seed_t>
   void operator()(
-    graph_t const& graph,                // graph being traversed
-    random_walker_t const& rand_walker,  // random walker object for which traversal is driven
-    selector_t const& selector,          // sampling type (uniform, biased, etc.)
-    seed_t seed0,                        // initial seed value
-    device_vec_t<typename graph_t::vertex_type>& d_coalesced_v,  // crt coalesced vertex set
-    device_vec_t<typename graph_t::weight_type>& d_coalesced_w,  // crt coalesced weight set
-    device_vec_t<index_t>& d_paths_sz,                           // crt paths sizes
-    device_vec_t<typename graph_t::edge_type>&
-      d_crt_out_degs,                // ignored: out-degs for the current set of vertices
-    device_vec_t<real_t>& d_random,  // _entire_ set of random real values
-    device_vec_t<typename graph_t::vertex_type>&
-      d_col_indx)  // ignored: crt col indices to be used for retrieving next step
-                   // (Note: coalesced set updated on-the-go)
+    graph_view_t<vertex_t, edge_t, false, false> const& graph_view,  // graph being traversed
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    random_walker_t const& rand_walker,     // random walker object for which traversal is driven
+    selector_t const& selector,             // sampling type (uniform, biased, etc.)
+    seed_t seed0,                           // initial seed value
+    device_vec_t<vertex_t>& d_coalesced_v,  // crt coalesced vertex set
+    device_vec_t<weight_t>& d_coalesced_w,  // crt coalesced weight set
+    device_vec_t<index_t>& d_paths_sz,      // crt paths sizes
+    device_vec_t<edge_t>& d_crt_out_degs,   // ignored: out-degs for the current set of vertices
+    device_vec_t<real_t>& d_random,         // _entire_ set of random real values
+    device_vec_t<vertex_t>& d_col_indx)  // ignored: crt col indices to be used for retrieving next
+                                         // step (Note: coalesced set updated on-the-go)
     const
   {
-    using vertex_t        = typename graph_t::vertex_type;
-    using edge_t          = typename graph_t::edge_type;
-    using weight_t        = typename graph_t::weight_type;
     using random_engine_t = typename random_walker_t::rnd_engine_t;
     using sampler_t       = typename selector_t::sampler_type;
 

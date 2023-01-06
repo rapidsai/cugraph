@@ -20,7 +20,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/tuple.h>
@@ -34,27 +34,19 @@ namespace detail {
 
 // FIXME: Can we have a common check_clustering to be used by both
 // Louvain and Leiden, and possibly other clustering methods?
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
-void check_clustering(
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t* clustering)
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                      vertex_t* clustering)
 {
   if (graph_view.local_vertex_partition_range_size() > 0)
     CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution)
 {
@@ -65,16 +57,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
 // FIXME: Can we have a common flatten_dendrogram to be used by both
 // Louvain and Leiden, and possibly other clustering methods?
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
-void flatten_dendrogram(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  Dendrogram<vertex_t> const& dendrogram,
-  vertex_t* clustering)
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void flatten_dendrogram(raft::handle_t const& handle,
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
 
@@ -89,22 +76,22 @@ void flatten_dendrogram(
 
 }  // namespace detail
 
-template <typename GraphViewType>
-std::pair<std::unique_ptr<Dendrogram<typename GraphViewType::vertex_type>>,
-          typename GraphViewType::weight_type>
-leiden(raft::handle_t const& handle,
-       GraphViewType const& graph_view,
-       size_t max_level,
-       typename GraphViewType::weight_type resolution)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level,
+  weight_t resolution)
 {
-  return detail::leiden(handle, graph_view, max_level, resolution);
+  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
 }
 
-template <typename GraphViewType>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void flatten_dendrogram(raft::handle_t const& handle,
-                        GraphViewType const& graph_view,
-                        Dendrogram<typename GraphViewType::vertex_type> const& dendrogram,
-                        typename GraphViewType::vertex_type* clustering)
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }

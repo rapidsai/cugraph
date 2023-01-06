@@ -18,16 +18,23 @@
 //
 #pragma once
 
+#include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
+#include <utilities/test_graphs.hpp>
+#include <utilities/test_utilities.hpp>
+#include <utilities/thrust_wrapper.hpp>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -66,13 +73,6 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
-
-#include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
-#include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
 
 // utilities for testing / verification of Nbr Sampling functionality:
 //
@@ -462,7 +462,7 @@ sg_gather_edges(raft::handle_t const& handle,
   auto edge_count   = source_count * indices_per_source;
   rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
-  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, false>(
     graph_view.local_edge_partition_view());
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
@@ -513,9 +513,8 @@ sg_gather_edges(raft::handle_t const& handle,
   static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
-  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, false>(
     graph_view.local_edge_partition_view());
 
   rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
@@ -788,9 +787,9 @@ void validate_sampling_depth(raft::handle_t const& handle,
                              rmm::device_uvector<vertex_t>&& d_source_vertices,
                              int max_depth)
 {
-  graph_t<vertex_t, vertex_t, weight_t, false, false> graph(handle);
+  graph_t<vertex_t, vertex_t, false, false> graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> number_map{std::nullopt};
-  std::tie(graph, std::ignore, number_map) =
+  std::tie(graph, std::ignore, std::ignore, number_map) =
     create_graph_from_edgelist<vertex_t, vertex_t, weight_t, int32_t, false, false>(
       handle,
       std::nullopt,
@@ -827,14 +826,14 @@ void validate_sampling_depth(raft::handle_t const& handle,
   for (size_t i = 0; i < d_source_vertices.size(); ++i) {
     if (h_source_vertices[i] != cugraph::invalid_vertex_id<vertex_t>::value) {
       // Do BFS
-      cugraph::bfs<vertex_t, vertex_t, weight_t, false>(handle,
-                                                        graph_view,
-                                                        d_local_distances.data(),
-                                                        nullptr,
-                                                        d_source_vertices.data() + i,
-                                                        size_t{1},
-                                                        bool{false},
-                                                        vertex_t{max_depth});
+      cugraph::bfs<vertex_t, vertex_t, false>(handle,
+                                              graph_view,
+                                              d_local_distances.data(),
+                                              nullptr,
+                                              d_source_vertices.data() + i,
+                                              size_t{1},
+                                              bool{false},
+                                              vertex_t{max_depth});
 
       auto tuple_iter = thrust::make_zip_iterator(
         thrust::make_tuple(d_distances.begin(), d_local_distances.begin()));

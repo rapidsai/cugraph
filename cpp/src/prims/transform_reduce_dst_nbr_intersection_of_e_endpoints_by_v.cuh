@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -69,7 +69,6 @@ template <typename GraphViewType,
 struct call_intersection_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu>
     edge_partition{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
@@ -92,16 +91,11 @@ struct call_intersection_op_t {
     auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
     auto intersection = raft::device_span<typename GraphViewType::vertex_type const>(
       nbr_indices + nbr_offsets[i], nbr_indices + nbr_offsets[i + 1]);
-    return evaluate_intersection_op<GraphViewType,
-                                    typename EdgePartitionSrcValueInputWrapper::value_type,
-                                    typename EdgePartitionDstValueInputWrapper::value_type,
-                                    IntersectionOp>()
-      .compute(src,
-               dst,
-               edge_partition_src_value_input.get(src_offset),
-               edge_partition_dst_value_input.get(dst_offset),
-               intersection,
-               intersection_op);
+    return intersection_op(src,
+                           dst,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           intersection);
   }
 };
 
@@ -243,7 +237,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
+  using weight_t = float;  // dummy
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -277,7 +271,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
@@ -299,8 +293,13 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     detail::decompress_edge_partition_to_edgelist<vertex_t,
                                                   edge_t,
                                                   weight_t,
-                                                  GraphViewType::is_multi_gpu>(
-      handle, edge_partition, majors.data(), minors.data(), std::nullopt, segment_offsets);
+                                                  GraphViewType::is_multi_gpu>(handle,
+                                                                               edge_partition,
+                                                                               std::nullopt,
+                                                                               majors.data(),
+                                                                               minors.data(),
+                                                                               std::nullopt,
+                                                                               segment_offsets);
 
     auto vertex_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));

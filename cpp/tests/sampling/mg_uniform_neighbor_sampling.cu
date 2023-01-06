@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,31 +45,33 @@ class Tests_MGNbrSampling
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG construct graph");
     }
 
     constexpr bool sort_adjacency_list = true;
 
-    auto [mg_graph, mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, true, false, sort_adjacency_list);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
-    auto mg_graph_view                        = mg_graph.view();
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
@@ -91,6 +93,7 @@ class Tests_MGNbrSampling
     EXPECT_THROW(cugraph::uniform_nbr_sample(
                    *handle_,
                    mg_graph_view,
+                   mg_edge_weight_view,
                    raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
                    raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
                    prims_usecase.flag_replacement),
@@ -99,6 +102,7 @@ class Tests_MGNbrSampling
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       *handle_,
       mg_graph_view,
+      mg_edge_weight_view,
       raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);
@@ -131,7 +135,7 @@ class Tests_MGNbrSampling
         thrust::unique(handle_->get_thrust_policy(), d_vertices.begin(), d_vertices.end());
       d_vertices.resize(thrust::distance(d_vertices.begin(), vertices_end), handle_->get_stream());
 
-      d_vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(*handle_, std::move(d_vertices), mg_graph_view.vertex_partition_range_lasts());
+      d_vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(*handle_, std::move(d_vertices), mg_graph_view.vertex_partition_range_lasts());
 
       thrust::sort(handle_->get_thrust_policy(), d_vertices.begin(), d_vertices.end());
 

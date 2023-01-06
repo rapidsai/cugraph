@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -30,14 +29,15 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/graph_view.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/equal.h>
@@ -119,26 +119,27 @@ class Tests_MGExtractIfE
             bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -157,24 +158,23 @@ class Tests_MGExtractIfE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG extract_if_e");
     }
 
-    auto [mg_edgelist_srcs, mg_edgelist_dsts, mg_edgelist_weights] =
-      extract_if_e(*handle_,
-                   mg_graph_view,
-                   mg_src_prop.view(),
-                   mg_dst_prop.view(),
-                   [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
-                     return src_val < dst_val;
-                   });
+    auto [mg_edgelist_srcs, mg_edgelist_dsts] = extract_if_e(
+      *handle_,
+      mg_graph_view,
+      mg_src_prop.view(),
+      mg_dst_prop.view(),
+      [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val, thrust::nullopt_t) {
+        return src_val < dst_val;
+      });
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG extract_if_e took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. compare SG & MG results
@@ -188,11 +188,6 @@ class Tests_MGExtractIfE
         cugraph::test::device_gatherv(*handle_, mg_edgelist_srcs.data(), mg_edgelist_srcs.size());
       auto mg_aggregate_edgelist_dsts =
         cugraph::test::device_gatherv(*handle_, mg_edgelist_dsts.data(), mg_edgelist_dsts.size());
-      std::optional<rmm::device_uvector<weight_t>> mg_aggregate_edgelist_weights{std::nullopt};
-      if (mg_edgelist_weights) {
-        mg_aggregate_edgelist_weights = cugraph::test::device_gatherv(
-          *handle_, (*mg_edgelist_weights).data(), (*mg_edgelist_weights).size());
-      }
 
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-2. unrenumber MG results
@@ -212,10 +207,11 @@ class Tests_MGExtractIfE
 
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             *handle_, input_usecase, true, false);
+
         auto sg_graph_view = sg_graph.view();
 
         // 3-4. run SG extract_if_e
@@ -230,54 +226,33 @@ class Tests_MGExtractIfE
         auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
           *handle_, sg_graph_view, sg_vertex_prop);
 
-        auto [sg_edgelist_srcs, sg_edgelist_dsts, sg_edgelist_weights] =
-          extract_if_e(*handle_,
-                       sg_graph_view,
-                       sg_src_prop.view(),
-                       sg_dst_prop.view(),
-                       [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
-                         return src_val < dst_val;
-                       });
+        auto [sg_edgelist_srcs, sg_edgelist_dsts] = extract_if_e(
+          *handle_,
+          sg_graph_view,
+          sg_src_prop.view(),
+          sg_dst_prop.view(),
+          [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val, thrust::nullopt_t) {
+            return src_val < dst_val;
+          });
 
         // 3-5. compare
 
-        if (mg_graph_view.is_weighted()) {
-          auto mg_edge_first =
-            thrust::make_zip_iterator(thrust::make_tuple(mg_aggregate_edgelist_srcs.begin(),
-                                                         mg_aggregate_edgelist_dsts.begin(),
-                                                         (*mg_aggregate_edgelist_weights).begin()));
-          auto sg_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-            sg_edgelist_srcs.begin(), sg_edgelist_dsts.begin(), (*sg_edgelist_weights).begin()));
-          thrust::sort(handle_->get_thrust_policy(),
-                       mg_edge_first,
-                       mg_edge_first + mg_aggregate_edgelist_srcs.size());
-          thrust::sort(
-            handle_->get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
-          ASSERT_TRUE(thrust::equal(
-            handle_->get_thrust_policy(),
-            mg_edge_first,
-            mg_edge_first + mg_aggregate_edgelist_srcs.size(),
-            sg_edge_first,
-            compare_equal_t<
-              typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
-        } else {
-          auto mg_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-            mg_aggregate_edgelist_srcs.begin(), mg_aggregate_edgelist_dsts.begin()));
-          auto sg_edge_first = thrust::make_zip_iterator(
-            thrust::make_tuple(sg_edgelist_srcs.begin(), sg_edgelist_dsts.begin()));
-          thrust::sort(handle_->get_thrust_policy(),
-                       mg_edge_first,
-                       mg_edge_first + mg_aggregate_edgelist_srcs.size());
-          thrust::sort(
-            handle_->get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
-          ASSERT_TRUE(thrust::equal(
-            handle_->get_thrust_policy(),
-            mg_edge_first,
-            mg_edge_first + mg_aggregate_edgelist_srcs.size(),
-            sg_edge_first,
-            compare_equal_t<
-              typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
-        }
+        auto mg_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
+          mg_aggregate_edgelist_srcs.begin(), mg_aggregate_edgelist_dsts.begin()));
+        auto sg_edge_first = thrust::make_zip_iterator(
+          thrust::make_tuple(sg_edgelist_srcs.begin(), sg_edgelist_dsts.begin()));
+        thrust::sort(handle_->get_thrust_policy(),
+                     mg_edge_first,
+                     mg_edge_first + mg_aggregate_edgelist_srcs.size());
+        thrust::sort(
+          handle_->get_thrust_policy(), sg_edge_first, sg_edge_first + sg_edgelist_srcs.size());
+        ASSERT_TRUE(thrust::equal(
+          handle_->get_thrust_policy(),
+          mg_edge_first,
+          mg_edge_first + mg_aggregate_edgelist_srcs.size(),
+          sg_edge_first,
+          compare_equal_t<
+            typename thrust::iterator_traits<decltype(mg_edge_first)>::value_type>{}));
       }
     }
   }

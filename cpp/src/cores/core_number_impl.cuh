@@ -26,7 +26,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>
@@ -53,10 +53,8 @@ struct e_op_t {
   size_t k{};
   edge_t delta{};
 
-  __device__ thrust::optional<edge_t> operator()(vertex_t,
-                                                 vertex_t,
-                                                 thrust::nullopt_t,
-                                                 edge_t dst_val) const
+  __device__ thrust::optional<edge_t> operator()(
+    vertex_t, vertex_t, thrust::nullopt_t, edge_t dst_val, thrust::nullopt_t) const
   {
     return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
   }
@@ -79,9 +77,9 @@ struct mult_degree_by_two_t {
 
 }  // namespace
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void core_number(raft::handle_t const& handle,
-                 graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                 graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                  edge_t* core_numbers,
                  k_core_degree_type_t degree_type,
                  size_t k_first,
@@ -177,8 +175,8 @@ void core_number(raft::handle_t const& handle,
 
   vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
-    dst_core_numbers(handle, graph_view);
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> dst_core_numbers(
+    handle, graph_view);
   update_edge_dst_property(handle, graph_view, core_numbers, dst_core_numbers);
 
   auto k = std::max(k_first, size_t{2});  // degree 0|1 vertices belong to 0|1-core
@@ -229,6 +227,7 @@ void core_number(raft::handle_t const& handle,
                                                           vertex_frontier.bucket(bucket_idx_cur),
                                                           edge_src_dummy_property_t{}.view(),
                                                           dst_core_numbers.view(),
+                                                          edge_dummy_property_t{}.view(),
                                                           e_op_t<vertex_t, edge_t>{k, delta},
                                                           reduce_op::plus<edge_t>());
 

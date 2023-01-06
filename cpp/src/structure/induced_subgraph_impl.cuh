@@ -15,6 +15,8 @@
  */
 #pragma once
 
+//#define TIMING
+
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
 #include <structure/detail/structure_utils.cuh>
@@ -22,14 +24,17 @@
 
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -50,8 +55,6 @@
 
 #include <tuple>
 
-#include <utilities/high_res_timer.hpp>
-
 namespace cugraph {
 
 namespace detail {
@@ -65,9 +68,9 @@ struct induced_subgraph_weighted_edge_op {
 
   return_type __device__ operator()(thrust::tuple<vertex_t, size_t> tagged_src,
                                     vertex_t dst,
-                                    weight_t wgt,
                                     property_t sv,
-                                    property_t dv)
+                                    property_t dv,
+                                    weight_t wgt)
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
@@ -90,7 +93,8 @@ struct induced_subgraph_unweighted_edge_op {
   return_type __device__ operator()(thrust::tuple<vertex_t, size_t> tagged_src,
                                     vertex_t dst,
                                     property_t sv,
-                                    property_t dv)
+                                    property_t dv,
+                                    thrust::nullopt_t)
   {
     size_t subgraph = thrust::get<1>(tagged_src);
     return thrust::binary_search(thrust::seq,
@@ -115,7 +119,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<size_t const> subgraph_offsets,
   raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check)
@@ -240,7 +245,7 @@ extract_induced_subgraphs(
   std::optional<rmm::device_uvector<weight_t>> edge_weights{std::nullopt};
   rmm::device_uvector<size_t> subgraph_edge_graph_ids(0, handle.get_stream());
 
-  if (graph_view.is_weighted()) {
+  if (edge_weight_view) {
     edge_weights = std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
 
     std::tie(edge_majors, edge_minors, *edge_weights, subgraph_edge_graph_ids) =
@@ -250,6 +255,7 @@ extract_induced_subgraphs(
         vertex_frontier.bucket(0),
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
+        *edge_weight_view,
         detail::induced_subgraph_weighted_edge_op<vertex_t, weight_t, thrust::nullopt_t>{
           dst_subgraph_offsets, dst_subgraph_vertices},
         do_expensive_check);
@@ -269,6 +275,7 @@ extract_induced_subgraphs(
         vertex_frontier.bucket(0),
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
         detail::induced_subgraph_unweighted_edge_op<vertex_t, thrust::nullopt_t>{
           dst_subgraph_offsets, dst_subgraph_vertices},
         do_expensive_check);
@@ -289,7 +296,7 @@ extract_induced_subgraphs(
 
 #ifdef TIMING
   hr_timer.stop();
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 #endif
   return std::make_tuple(std::move(edge_majors),
                          std::move(edge_minors),

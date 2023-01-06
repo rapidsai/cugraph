@@ -12,15 +12,15 @@
 // Force_Atlas2 tests
 // Author: Hugo Linsenmaier hlinsenmaier@nvidia.com
 
+#include <layout/legacy/trust_worthiness.h>
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
-#include <layout/legacy/trust_worthiness.h>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cuda_profiler_api.h>
@@ -88,8 +88,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
 
     int m, k, nnz;
     MM_typecode mc;
-    HighResClock hr_clock;
-    double time_tmp;
+    HighResTimer hr_timer{};
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
@@ -158,7 +157,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
     bool verbose                          = false;
 
     if (cugraph::test::g_perf) {
-      hr_clock.start();
+      hr_timer.start("force_atlas2");
       for (int i = 0; i < PERF_MULTIPLIER; ++i) {
         cugraph::force_atlas2<int, int, T>(handle,
                                            G,
@@ -179,7 +178,7 @@ class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase>
                                            verbose);
         cudaDeviceSynchronize();
       }
-      hr_clock.stop(&time_tmp);
+      auto time_tmp = hr_timer.stop();
       force_atlas2_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();

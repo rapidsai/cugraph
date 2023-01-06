@@ -43,25 +43,27 @@ class Tests_Uniform_Neighbor_Sampling
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, renumber_map_labels] =
+    auto [graph, edge_weights, renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
-    auto graph_view                           = graph.view();
+    auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
@@ -85,6 +87,7 @@ class Tests_Uniform_Neighbor_Sampling
     EXPECT_THROW(cugraph::uniform_nbr_sample(
                    handle,
                    graph_view,
+                   edge_weight_view,
                    raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
                    raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
                    prims_usecase.flag_replacement),
@@ -93,6 +96,7 @@ class Tests_Uniform_Neighbor_Sampling
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       graph_view,
+      edge_weight_view,
       raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);
@@ -122,6 +126,7 @@ class Tests_Uniform_Neighbor_Sampling
       auto [d_src_in, d_dst_in, d_indices_in, d_ignore] = extract_induced_subgraphs(
         handle,
         graph_view,
+        edge_weight_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), 2),
         raft::device_span<vertex_t const>(d_vertices.data(), d_vertices.size()),
         true);

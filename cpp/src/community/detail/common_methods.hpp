@@ -15,37 +15,38 @@
  */
 #pragma once
 
-#include <utilities/high_res_timer.hpp>
+//#define TIMING
 
 #include <cugraph/dendrogram.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_view.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {
 
+#ifdef TIMING
 // Some timing functions
-//   Need to #define TIMING to have these functions actually time, otherwise
-//   this is a noop
 template <bool multi_gpu>
 void timer_start(raft::handle_t const& handle, HighResTimer& hr_timer, std::string const& region)
 {
-#ifdef TIMING
   if constexpr (multi_gpu) {
     if (handle.get_comms().get_rank() == 0) hr_timer.start(region);
   } else {
     hr_timer.start(region);
   }
-#endif
 }
 
 template <bool multi_gpu>
 void timer_stop(raft::handle_t const& handle, HighResTimer& hr_timer)
 {
-#ifdef TIMING
   if constexpr (multi_gpu) {
     if (handle.get_comms().get_rank() == 0) {
       handle.get_stream().synchronize();
@@ -55,62 +56,72 @@ void timer_stop(raft::handle_t const& handle, HighResTimer& hr_timer)
     handle.get_stream().synchronize();
     hr_timer.stop();
   }
-#endif
 }
 
 template <bool multi_gpu>
-void timer_display(raft::handle_t const& handle, HighResTimer const& hr_timer, std::ostream& os)
+void timer_display_and_clear(raft::handle_t const& handle,
+                             HighResTimer const& hr_timer,
+                             std::ostream& os)
 {
-#ifdef TIMING
   if (multi_gpu) {
-    if (handle.get_comms().get_rank() == 0) hr_timer.display(os);
+    if (handle.get_comms().get_rank() == 0) hr_timer.display_and_clear(os);
   } else {
-    hr_timer.display(os);
+    hr_timer.display_and_clear(os);
   }
-#endif
 }
-
-template <typename graph_view_t>
-typename graph_view_t::weight_type compute_modularity(
-  raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
-  rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters,
-  rmm::device_uvector<typename graph_view_t::weight_type> const& cluster_weights,
-  typename graph_view_t::weight_type total_edge_weight,
-  typename graph_view_t::weight_type resolution);
+#endif
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction(
+weight_t compute_modularity(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> labels);
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    dst_clusters_cache,
+  rmm::device_uvector<vertex_t> const& next_clusters,
+  rmm::device_uvector<weight_t> const& cluster_weights,
+  weight_t total_edge_weight,
+  weight_t resolution);
 
-template <typename graph_view_t>
-rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_delta_modularity(
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<
+  graph_t<vertex_t, edge_t, false, multi_gpu>,
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
+graph_contraction(raft::handle_t const& handle,
+                  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                  raft::device_span<vertex_t> labels);
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  typename graph_view_t::weight_type total_edge_weight,
-  typename graph_view_t::weight_type resolution,
-  rmm::device_uvector<typename graph_view_t::weight_type> const& vertex_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>&& cluster_keys_v,
-  rmm::device_uvector<typename graph_view_t::weight_type>&& cluster_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>&& next_clusters_v,
-  edge_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  weight_t total_edge_weight,
+  weight_t resolution,
+  rmm::device_uvector<weight_t> const& vertex_weights_v,
+  rmm::device_uvector<vertex_t>&& cluster_keys_v,
+  rmm::device_uvector<weight_t>&& cluster_weights_v,
+  rmm::device_uvector<vertex_t>&& next_clusters_v,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t> const&
     src_vertex_weights_cache,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    dst_clusters_cache,
   bool up_down);
 
-template <typename graph_view_t>
-std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<typename graph_view_t::weight_type>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
 compute_cluster_keys_and_values(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters_v,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache);
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  rmm::device_uvector<vertex_t> const& next_clusters_v,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    src_clusters_cache);
 
 }  // namespace detail
 }  // namespace cugraph

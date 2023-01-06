@@ -15,7 +15,11 @@ import cudf
 import numpy as np
 
 import cugraph
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import (
+    import_optional,
+    MissingModule,
+    create_list_series_from_2d_ar,
+)
 
 pd = import_optional("pandas")
 
@@ -508,7 +512,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -825,11 +829,14 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1214,11 +1221,14 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1816,9 +1826,14 @@ class EXPERIMENTAL__PropertyGraph:
 
         return G
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(self, prev_id_column=None):
         """
         Renumber vertex IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the vertex ID before renumbering.
 
         Returns
         -------
@@ -1862,6 +1877,13 @@ class EXPERIMENTAL__PropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+        if (
+            prev_id_column is not None
+            and prev_id_column in self.__vertex_prop_dataframe
+        ):
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
@@ -1885,7 +1907,10 @@ class EXPERIMENTAL__PropertyGraph:
             self.__edge_prop_dataframe[self.dst_col_name] = self.__edge_prop_dataframe[
                 self.dst_col_name
             ].map(mapper)
-        df.drop(columns=[self.vertex_col_name], inplace=True)
+        if prev_id_column is None:
+            df.drop(columns=[self.vertex_col_name], inplace=True)
+        else:
+            df.rename(columns={self.vertex_col_name: prev_id_column}, inplace=True)
         df.index.name = self.vertex_col_name
         self.__vertex_prop_dataframe = df
         rv = self._vertex_type_value_counts.sort_index().cumsum().to_frame("stop")
@@ -1893,9 +1918,14 @@ class EXPERIMENTAL__PropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def renumber_edges_by_type(self):
+    def renumber_edges_by_type(self, prev_id_column=None):
         """
         Renumber edge IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
 
         Returns
         -------
@@ -1934,9 +1964,12 @@ class EXPERIMENTAL__PropertyGraph:
         """
         TCN = self.type_col_name
 
-        # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        if prev_id_column is not None and prev_id_column in self.__edge_prop_dataframe:
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
@@ -1951,10 +1984,15 @@ class EXPERIMENTAL__PropertyGraph:
                 cat_dtype
             )
 
-        self.__edge_prop_dataframe = self.__edge_prop_dataframe.sort_values(
-            by=TCN, ignore_index=True
-        )
-        self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+        df = self.__edge_prop_dataframe
+        if prev_id_column is None:
+            df = df.sort_values(by=TCN, ignore_index=True)
+        else:
+            df = df.sort_values(by=TCN)
+            df.index.name = prev_id_column
+            df.reset_index(inplace=True)
+        df.index.name = self.edge_id_col_name
+        self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
@@ -2063,16 +2101,20 @@ class EXPERIMENTAL__PropertyGraph:
         for key, columns in vector_properties.items():
             vector_property_lengths[key] = len(columns)
 
-    def _create_vector_properties(self, df, vector_properties):
-        # Make each vector contigous and 1-d
+    @staticmethod
+    def _create_vector_properties(df, vector_properties):
         vectors = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
-            vectors[key] = [
-                np.squeeze(vec, 0)
-                for vec in np.split(np.ascontiguousarray(values, like=values), len(df))
-            ]
-        # Create all vectors before assigning in case column names are reused
+            if isinstance(df, cudf.DataFrame):
+                vectors[key] = create_list_series_from_2d_ar(values, index=df.index)
+            else:
+                vectors[key] = [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        np.ascontiguousarray(values, like=values), len(df)
+                    )
+                ]
         for key, vec in vectors.items():
             df[key] = vec
 

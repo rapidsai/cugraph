@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -28,15 +27,15 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <cugraph/graph_view.hpp>
-
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
@@ -51,10 +50,8 @@ struct e_op_t {
                                                       cugraph::to_thrust_tuple(property_t{}),
                                                       cugraph::to_thrust_tuple(property_t{})));
 
-  __device__ result_t operator()(vertex_t src,
-                                 vertex_t dst,
-                                 property_t src_prop,
-                                 property_t dst_prop) const
+  __device__ result_t operator()(
+    vertex_t src, vertex_t dst, property_t src_prop, property_t dst_prop, thrust::nullopt_t) const
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
       static_assert(thrust::tuple_size<property_t>::value == size_t{2});
@@ -95,7 +92,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
   template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
@@ -105,19 +102,20 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -165,7 +163,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG per_v_random_select_transform_outgoing_e");
     }
 
     auto [sample_offsets, sample_e_op_results] =
@@ -174,6 +172,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                                         mg_vertex_frontier.bucket(bucket_idx_cur),
                                                         mg_src_prop.view(),
                                                         mg_dst_prop.view(),
+                                                        cugraph::edge_dummy_property_t{}.view(),
                                                         e_op_t<vertex_t, property_t>{},
                                                         rng_state,
                                                         prims_usecase.K,
@@ -183,10 +182,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG per_v_random_select_transform_outgoing_e took " << elapsed_time * 1e-6
-                << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. validate MG results
@@ -196,8 +193,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(*handle_);
-      std::tie(unrenumbered_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
+      std::tie(unrenumbered_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           *handle_, input_usecase, prims_usecase.test_weighted, false);
       auto unrenumbered_graph_view = unrenumbered_graph.view();

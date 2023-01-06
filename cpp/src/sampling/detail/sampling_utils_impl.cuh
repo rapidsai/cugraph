@@ -25,7 +25,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/optional.h>
 #include <thrust/sort.h>
@@ -78,112 +78,152 @@ count_and_remove_duplicates(raft::handle_t const& handle,
     std::move(result_src), std::move(result_dst), std::move(result_wgt), std::move(result_count));
 }
 
-template <typename vertex_t, typename weight_t, typename property_t>
+template <typename vertex_t, typename weight_t>
 struct return_all_edges_e_op {
-  using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>;
+  template <typename W = weight_t>
+  __device__
+    std::enable_if_t<std::is_same_v<W, void>, thrust::optional<thrust::tuple<vertex_t, vertex_t>>>
+      __device__ operator()(
+        vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t)
+  {
+    return thrust::make_optional(thrust::make_tuple(src, dst));
+  }
 
-  return_type __device__
-  operator()(vertex_t src, vertex_t dst, weight_t wgt, property_t, property_t)
+  template <typename W = weight_t>
+  __device__ std::enable_if_t<!std::is_same_v<W, void>,
+                              thrust::optional<thrust::tuple<vertex_t, vertex_t, W>>>
+    __device__ operator()(vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, W wgt)
   {
     return thrust::make_optional(thrust::make_tuple(src, dst, wgt));
   }
 };
 
-template <typename GraphViewType>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>,
-           std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  const rmm::device_uvector<vertex_t>& active_majors,
   bool do_expensive_check)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-
   // FIXME: add as a template parameter
   using tag_t = void;
 
-  cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(
-    handle, 1);
+  cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
   vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-  // FIXME:  Shouldn't there be a dummy property equivalent here?
-  using property_t = int32_t;
-  cugraph::edge_src_property_t<GraphViewType, property_t> src_properties(handle, graph_view);
-  cugraph::edge_dst_property_t<GraphViewType, property_t> dst_properties(handle, graph_view);
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  if (edge_weight_view) {
+    std::tie(majors, minors, weights) =
+      cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                       graph_view,
+                                                       vertex_frontier.bucket(0),
+                                                       edge_src_dummy_property_t{}.view(),
+                                                       edge_dst_dummy_property_t{}.view(),
+                                                       *edge_weight_view,
+                                                       return_all_edges_e_op<vertex_t, weight_t>{},
+                                                       do_expensive_check);
+  } else {
+    std::tie(majors, minors) =
+      cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                       graph_view,
+                                                       vertex_frontier.bucket(0),
+                                                       edge_src_dummy_property_t{}.view(),
+                                                       edge_dst_dummy_property_t{}.view(),
+                                                       edge_dummy_property_t{}.view(),
+                                                       return_all_edges_e_op<vertex_t, void>{},
+                                                       do_expensive_check);
+  }
 
-  auto [majors, minors, weights] = cugraph::extract_transform_v_frontier_outgoing_e(
-    handle,
-    graph_view,
-    vertex_frontier.bucket(0),
-    // edge_src_dummy_property_t{},
-    // edge_dst_dummy_property_t{},
-    src_properties.view(),
-    dst_properties.view(),
-    return_all_edges_e_op<vertex_t, weight_t, property_t>{},
-    do_expensive_check);
-
-  return std::make_tuple(
-    std::move(majors), std::move(minors), std::make_optional(std::move(weights)));
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
-template <typename vertex_t, typename weight_t, typename property_t>
+template <typename vertex_t, typename weight_t>
 struct sample_edges_op_t {
-  using result_t = thrust::tuple<vertex_t, vertex_t, weight_t, property_t, property_t>;
+  using result_t = thrust::tuple<vertex_t, vertex_t, weight_t>;
 
-  __device__ result_t operator()(
-    vertex_t src, vertex_t dst, weight_t wgt, property_t src_prop, property_t dst_prop) const
+  template <typename W = weight_t>
+  __device__ std::enable_if_t<std::is_same_v<W, void>, thrust::tuple<vertex_t, vertex_t>>
+  operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
   {
-    return thrust::make_tuple(src, dst, wgt, src_prop, dst_prop);
+    return thrust::make_tuple(src, dst);
+  }
+
+  template <typename W = weight_t>
+  __device__ std::enable_if_t<!std::is_same_v<W, void>, thrust::tuple<vertex_t, vertex_t, W>>
+  operator()(vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, W wgt) const
+  {
+    return thrust::make_tuple(src, dst, wgt);
   }
 };
 
-template <typename GraphViewType>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>,
-           std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
 sample_edges(raft::handle_t const& handle,
-             GraphViewType const& graph_view,
+             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<typename GraphViewType::vertex_type> const& active_majors,
+             rmm::device_uvector<vertex_t> const& active_majors,
              size_t fanout,
              bool with_replacement)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
-
   // FIXME: add as a template parameter
   using tag_t = void;
 
-  cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(
-    handle, 1);
+  cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> vertex_frontier(handle, 1);
 
   vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-  // FIXME:  Shouldn't there be a dummy property equivalent here?
-  using property_t = int32_t;
-  cugraph::edge_src_property_t<GraphViewType, property_t> src_properties(handle, graph_view);
-  cugraph::edge_dst_property_t<GraphViewType, property_t> dst_properties(handle, graph_view);
-
-  using result_t = thrust::tuple<vertex_t, vertex_t, weight_t, property_t, property_t>;
-
-  auto [sample_offsets, sample_e_op_results] = cugraph::per_v_random_select_transform_outgoing_e(
-    handle,
-    graph_view,
-    vertex_frontier.bucket(0),
-    src_properties.view(),
-    dst_properties.view(),
-    sample_edges_op_t<vertex_t, weight_t, property_t>{},
-    rng_state,
-    fanout,
-    with_replacement,
-    std::make_optional(result_t{cugraph::invalid_vertex_id<vertex_t>::value,
-                                cugraph::invalid_vertex_id<vertex_t>::value}),
-    true);
+  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  if (edge_weight_view) {
+    auto [sample_offsets, sample_e_op_results] = cugraph::per_v_random_select_transform_outgoing_e(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(0),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      *edge_weight_view,
+      sample_edges_op_t<vertex_t, weight_t>{},
+      rng_state,
+      fanout,
+      with_replacement,
+      std::make_optional<thrust::tuple<vertex_t, vertex_t, weight_t>>(
+        cugraph::invalid_vertex_id<vertex_t>::value,
+        cugraph::invalid_vertex_id<vertex_t>::value,
+        weight_t{}),
+      true);
+    majors  = std::move(std::get<0>(sample_e_op_results));
+    minors  = std::move(std::get<1>(sample_e_op_results));
+    weights = std::move(std::get<2>(sample_e_op_results));
+  } else {
+    auto [sample_offsets, sample_e_op_results] = cugraph::per_v_random_select_transform_outgoing_e(
+      handle,
+      graph_view,
+      vertex_frontier.bucket(0),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
+      edge_dummy_property_t{}.view(),
+      sample_edges_op_t<vertex_t, void>{},
+      rng_state,
+      fanout,
+      with_replacement,
+      std::make_optional<thrust::tuple<vertex_t, vertex_t>>(
+        cugraph::invalid_vertex_id<vertex_t>::value, cugraph::invalid_vertex_id<vertex_t>::value),
+      true);
+    majors = std::move(std::get<0>(sample_e_op_results));
+    minors = std::move(std::get<1>(sample_e_op_results));
+  }
 
   //
   // FIXME: Debugging status, EOD 9/18/22
@@ -193,29 +233,56 @@ sample_edges(raft::handle_t const& handle,
   //   3) Finally... can I switch to using cugraph::invalid_vertex_id<vertex_t> instead of
   //   number_of_vertices()? 4) I'm close, I should do the code cleanup.
   //
-  auto end_iter = thrust::copy_if(handle.get_thrust_policy(),
-                                  get_dataframe_buffer_begin(sample_e_op_results),
-                                  get_dataframe_buffer_end(sample_e_op_results),
-                                  get_dataframe_buffer_begin(sample_e_op_results),
-                                  [] __device__(auto tuple) {
-                                    auto v1 = thrust::get<0>(tuple);
-                                    auto v2 = thrust::get<1>(tuple);
+  if (weights) {
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(majors.begin(), minors.begin(), (*weights).begin()));
+    auto end_iter =
+      thrust::remove_if(handle.get_thrust_policy(),
+                        edge_first,
+                        edge_first + majors.size(),
+                        [] __device__(auto tuple) {
+                          auto v1 = thrust::get<0>(tuple);
+                          auto v2 = thrust::get<1>(tuple);
 
-                                    return ((v1 != cugraph::invalid_vertex_id<vertex_t>::value) &&
-                                            (v1 != cugraph::invalid_vertex_id<vertex_t>::value));
-                                  });
+                          return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
+                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
+                        });
 
-  size_t new_size = thrust::distance(get_dataframe_buffer_begin(sample_e_op_results), end_iter);
+    size_t new_size = thrust::distance(edge_first, end_iter);
 
-  if (new_size != size_dataframe_buffer(sample_e_op_results)) {
-    resize_dataframe_buffer(sample_e_op_results, new_size, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
+    if (new_size != majors.size()) {
+      majors.resize(new_size, handle.get_stream());
+      majors.shrink_to_fit(handle.get_stream());
+      minors.resize(new_size, handle.get_stream());
+      minors.shrink_to_fit(handle.get_stream());
+      (*weights).resize(new_size, handle.get_stream());
+      (*weights).shrink_to_fit(handle.get_stream());
+    }
+  } else {
+    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
+    auto end_iter =
+      thrust::remove_if(handle.get_thrust_policy(),
+                        edge_first,
+                        edge_first + majors.size(),
+                        [] __device__(auto tuple) {
+                          auto v1 = thrust::get<0>(tuple);
+                          auto v2 = thrust::get<1>(tuple);
+
+                          return ((v1 == cugraph::invalid_vertex_id<vertex_t>::value) ||
+                                  (v1 == cugraph::invalid_vertex_id<vertex_t>::value));
+                        });
+
+    size_t new_size = thrust::distance(edge_first, end_iter);
+
+    if (new_size != majors.size()) {
+      majors.resize(new_size, handle.get_stream());
+      majors.shrink_to_fit(handle.get_stream());
+      minors.resize(new_size, handle.get_stream());
+      minors.shrink_to_fit(handle.get_stream());
+    }
   }
 
-  auto& [majors, minors, weights, p1, p2] = sample_e_op_results;
-
-  return std::make_tuple(
-    std::move(majors), std::move(minors), std::make_optional(std::move(weights)));
+  return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
 }  // namespace detail

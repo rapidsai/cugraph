@@ -21,11 +21,11 @@ import cupy as cp
 import numpy as np
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cupy.testing import assert_array_equal
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 from cugraph.experimental.datasets import cyber
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.testing import utils
+from cugraph.experimental.datasets import netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -165,7 +165,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="module", params=df_types_fixture_params)
@@ -178,7 +178,7 @@ def net_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"
+    netscience_csv = netscience.get_path()
     source_col_name = "src"
     dest_col_name = "dst"
 
@@ -257,7 +257,7 @@ def dataset1_PropertyGraph(request):
     return (pG, dataset1)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def dataset1_MGPropertyGraph(dask_client):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
@@ -368,7 +368,7 @@ def net_MGPropertyGraph(dask_client):
     """
     from cugraph.experimental import MGPropertyGraph
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
+    input_data_path = str(netscience.get_path())
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -849,11 +849,14 @@ def test_get_data_empty_graphs(dask_client):
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
-def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
 
     (pG, data) = dataset1_MGPropertyGraph
-    df_id_ranges = pG.renumber_vertices_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_vertices_by_type("merchant_size")
+    df_id_ranges = pG.renumber_vertices_by_type(prev_id_column)
     expected = {
         "merchants": [0, 4],  # stop is inclusive
         "users": [5, 8],
@@ -863,29 +866,38 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key]).compute()
         assert len(df) == stop - start + 1
-        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
-
+        assert (
+            df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))
+        ).all()
+        if prev_id_column is not None:
+            cur = df[prev_id_column].sort_values()
+            expected = sorted(x for x, *args in data[key][1])
+            expected = cur._constructor(sorted(x for x, *args in data[key][1]))
+            assert (cur.values == expected.values).all()
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data().compute()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
     assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
 
     empty_pG = MGPropertyGraph()
-    assert empty_pG.renumber_vertices_by_type() is None
+    assert empty_pG.renumber_vertices_by_type(prev_id_column) is None
 
     # Test when vertex IDs only exist in edge data
     df = cudf.DataFrame({"src": [99998], "dst": [99999]})
     df = dask_cudf.from_cudf(df, npartitions=1)
     empty_pG.add_edge_data(df, ["src", "dst"])
     with pytest.raises(NotImplementedError, match="only exist in edge"):
-        empty_pG.renumber_vertices_by_type()
+        empty_pG.renumber_vertices_by_type(prev_id_column)
 
 
-def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
 
     (pG, data) = dataset1_MGPropertyGraph
-    df_id_ranges = pG.renumber_edges_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_edges_by_type("time")
+    df_id_ranges = pG.renumber_edges_by_type(prev_id_column)
     expected = {
         "referrals": [0, 5],  # stop is inclusive
         "relationships": [6, 9],
@@ -896,10 +908,14 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key]).compute()
         assert len(df) == stop - start + 1
-        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        actual = df[pG.edge_id_col_name]
+        expected = actual._constructor(range(start, stop + 1))
+        assert (actual == expected).all()
+        if prev_id_column is not None:
+            assert prev_id_column in df.columns
 
     empty_pG = MGPropertyGraph()
-    assert empty_pG.renumber_edges_by_type() is None
+    assert empty_pG.renumber_edges_by_type(prev_id_column) is None
 
 
 def test_add_data_noncontiguous(dask_client):
@@ -1325,3 +1341,32 @@ def bench_add_edges_cyber(gpubenchmark, dask_client, N):
         assert len(df) == len(cyber_df)
 
     gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_rows", [1_000_000])
+@pytest.mark.parametrize("n_feats", [128])
+def bench_get_vector_features(gpubenchmark, dask_client, n_rows, n_feats):
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+    df = dask_cudf.from_cudf(df, npartitions=16)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+    pG = MGPropertyGraph()
+    pG.add_edge_data(
+        df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+    )
+
+    def func(pG):
+        df = pG.get_edge_data(edge_ids=cp.arange(0, 100_000))
+        df = df.compute()
+
+    gpubenchmark(func, pG)

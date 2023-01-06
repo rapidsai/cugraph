@@ -13,11 +13,10 @@
 
 import cudf
 import cupy
-import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, create_list_series_from_2d_ar
 
 pd = import_optional("pandas")
 
@@ -578,11 +577,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -906,11 +907,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1260,8 +1264,13 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         return G
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(self, prev_id_column=None):
         """Renumber vertex IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the vertex ID before renumbering.
 
         Returns a DataFrame with the start and stop IDs for each vertex type.
         Stop is *inclusive*.
@@ -1278,6 +1287,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+        if (
+            prev_id_column is not None
+            and prev_id_column in self.__vertex_prop_dataframe
+        ):
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is dask_cudf.Series:
@@ -1318,10 +1334,22 @@ class EXPERIMENTAL__MGPropertyGraph:
                 .drop(columns=[self.dst_col_name])
                 .rename(columns={new_name: self.dst_col_name})
             )
-            df[self.vertex_col_name] = df[new_name]
-            del df[new_name]
+            if prev_id_column is None:
+                df[self.vertex_col_name] = df[new_name]
+                del df[new_name]
+            else:
+                df = df.rename(
+                    columns={
+                        new_name: self.vertex_col_name,
+                        self.vertex_col_name: prev_id_column,
+                    }
+                )
         else:
-            df = df.sort_values(by=self.type_col_name, ignore_index=True)
+            if prev_id_column is None:
+                df = df.sort_values(by=self.type_col_name, ignore_index=True)
+            else:
+                df.index.name = prev_id_column
+                df = df.sort_values(by=self.type_col_name).reset_index()
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
@@ -1344,8 +1372,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def renumber_edges_by_type(self):
+    def renumber_edges_by_type(self, prev_id_column=None):
         """Renumber edge IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
 
         Returns a DataFrame with the start and stop IDs for each edge type.
         Stop is *inclusive*.
@@ -1353,13 +1386,21 @@ class EXPERIMENTAL__MGPropertyGraph:
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        if prev_id_column is not None and prev_id_column in self.__edge_prop_dataframe:
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
         df = self.__edge_prop_dataframe
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         cat_dtype = df.dtypes[self.type_col_name]
         df[self.type_col_name] = df[self.type_col_name].astype(str)
 
-        df = df.sort_values(by=self.type_col_name, ignore_index=True)
+        if prev_id_column is None:
+            df = df.sort_values(by=self.type_col_name, ignore_index=True)
+        else:
+            df.index = df.index.rename(prev_id_column)
+            df = df.sort_values(by=self.type_col_name).reset_index()
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
@@ -1643,17 +1684,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Make each vector contigous and 1-d
         new_cols = {}
         for key, columns in vector_properties.items():
-            values = cupy.ascontiguousarray(df[columns].values)
-            dtype = cudf.ListDtype(values.dtype)
-            if len(df) == 0:
-                # cudf doesn't like making empty Series with list dtype
-                new_cols[key] = cudf.Series([[0]], dtype=dtype).iloc[0:0]
-            else:
-                new_cols[key] = cudf.Series(
-                    [cupy.squeeze(x, 0) for x in cupy.split(values, len(df))],
-                    df.index,
-                    dtype=dtype,
-                )
+            values = df[columns].values
+            new_cols[key] = create_list_series_from_2d_ar(values, index=df.index)
         return df.assign(**new_cols)
 
     @staticmethod

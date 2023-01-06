@@ -15,7 +15,6 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -24,9 +23,10 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -104,25 +104,26 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     constexpr bool renumber = true;
 
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < graph_view.number_of_vertices());
@@ -133,11 +134,12 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("SSSP");
     }
 
     cugraph::sssp(handle,
                   graph_view,
+                  *edge_weight_view,
                   d_distances.data(),
                   d_predecessors.data(),
                   static_cast<vertex_t>(sssp_usecase.source),
@@ -146,26 +148,35 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "SSSP took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (sssp_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        unrenumbered_edge_weights{std::nullopt};
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, input_usecase, true, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      auto unrenumbered_edge_weight_view =
+        renumber
+          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
+                                       : std::nullopt)
+          : edge_weight_view;
 
       auto h_offsets = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
       auto h_indices = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().indices());
       auto h_weights = cugraph::test::to_host(
-        handle, *(unrenumbered_graph_view.local_edge_partition_view().weights()));
+        handle,
+        raft::device_span<weight_t const>((*unrenumbered_edge_weight_view).value_firsts()[0],
+                                          (*unrenumbered_edge_weight_view).edge_counts()[0]));
 
       auto unrenumbered_source = static_cast<vertex_t>(sssp_usecase.source);
       if (renumber) {

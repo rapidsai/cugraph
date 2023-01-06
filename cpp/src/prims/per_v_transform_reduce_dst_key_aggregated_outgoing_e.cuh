@@ -33,7 +33,7 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -80,12 +80,12 @@ struct rebase_offset_t {
 };
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename edge_value_t>
 struct triplet_to_col_rank_t {
   compute_gpu_id_from_ext_vertex_t<vertex_t> key_func{};
   int row_comm_size{};
   __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
+    thrust::tuple<vertex_t, vertex_t, edge_value_t> val /* major, minor key, edge value */) const
   {
     return key_func(thrust::get<1>(val)) / row_comm_size;
   }
@@ -102,7 +102,7 @@ struct pair_to_binary_partition_id_t {
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t,
-          typename weight_t,
+          typename edge_value_t,
           typename EdgePartitionSrcValueInputWrapper,
           typename KeyAggregatedEdgeOp,
           typename EdgePartitionDeviceView,
@@ -113,18 +113,18 @@ struct call_key_aggregated_e_op_t {
   EdgePartitionDeviceView edge_partition{};
   KVStoreDeviceViewType kv_store_device_view{};
 
-  __device__ auto operator()(
-    thrust::tuple<vertex_t, vertex_t, weight_t> val /* major, minor key, weight */) const
+  __device__ auto operator()(thrust::tuple<vertex_t, vertex_t, edge_value_t>
+                               val /* major, minor key, aggregated edge value */) const
   {
-    auto major = thrust::get<0>(val);
-    auto key   = thrust::get<1>(val);
-    auto w     = thrust::get<2>(val);
+    auto major                 = thrust::get<0>(val);
+    auto key                   = thrust::get<1>(val);
+    auto aggregated_edge_value = thrust::get<2>(val);
     return key_aggregated_e_op(
       major,
       key,
-      w,
       edge_partition_src_value_input.get(edge_partition.major_offset_from_major_nocheck(major)),
-      kv_store_device_view.find(key));
+      kv_store_device_view.find(key),
+      aggregated_edge_value);
   }
 };
 
@@ -175,6 +175,7 @@ struct reduce_with_init_t {
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
  * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
  * coincide with vertex type).
@@ -191,6 +192,10 @@ struct reduce_with_init_t {
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
  * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
  * wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
  * @param edge_dst_key_input Wrapper used to access destination input key values (for the edge
  * destinations assigned to this process in multi-GPU). Use  cugraph::edge_dst_property_t::view().
  * Use update_edge_dst_property to fill the wrapper.
@@ -203,10 +208,10 @@ struct reduce_with_init_t {
  * @param map_value_first Iterator pointing to the first (inclusive) value in (key, value) pairs
  * (assigned to this process in multi-GPU). `map_value_last` (exclusive) is deduced as @p
  * map_value_first + thrust::distance(@p map_unique_key_first, @p map_unique_key_last).
- * @param key_aggregated_e_op Quinary operator takes edge source, key, aggregated edge weight, *(@p
- * edge_partition_src_value_input_first + i), and value for the key stored in the input (key, value)
+ * @param key_aggregated_e_op Quinary operator takes 1) edge source, 2) key, 3) *(@p
+ * edge_partition_src_value_input_first + i), 4) value for the key stored in the input (key, value)
  * pairs provided by @p map_unique_key_first, @p map_unique_key_last, and @p map_value_first
- * (aggregated over the entire set of processes in multi-GPU).
+ * (aggregated over the entire set of processes in multi-GPU), and 5) aggregated edge value.
  * @param init Initial value to be reduced with the reduced value for each vertex.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in src/prims/reduce_op.cuh. It is
@@ -222,6 +227,7 @@ struct reduce_with_init_t {
  */
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeDstKeyInputWrapper,
           typename KVStoreViewType,
           typename KeyAggregatedEdgeOp,
@@ -232,6 +238,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeValueInputWrapper edge_value_input,
   EdgeDstKeyInputWrapper edge_dst_key_input,
   KVStoreViewType kv_store_view,
   KeyAggregatedEdgeOp key_aggregated_e_op,
@@ -246,10 +253,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     std::is_same_v<typename KVStoreViewType::key_type, typename GraphViewType::vertex_type>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-  using value_t  = typename KVStoreViewType::value_type;
+  using vertex_t        = typename GraphViewType::vertex_type;
+  using edge_t          = typename GraphViewType::edge_type;
+  using edge_value_t    = typename EdgeValueInputWrapper::value_type;
+  using kv_pair_value_t = typename KVStoreViewType::value_type;
+  static_assert(
+    std::is_arithmetic_v<edge_value_t>,
+    "Currently only scalar values are supported, should be extended to support thrust::tuple of "
+    "arithmetic types and void (for dummy property values) to be consistent with other "
+    "primitives.");  // this will also require a custom edge value aggregation op.
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -269,12 +281,26 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeDstKeyInputWrapper::value_iterator>>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator>>;
 
   if (do_expensive_check) { /* currently, nothing to do */
   }
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto element_size     = sizeof(vertex_t) * 2 + sizeof(weight_t);
+  size_t element_size   = sizeof(vertex_t) * 2;
+  if constexpr (!std::is_same_v<edge_value_t, void>) {
+    static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<edge_value_t>::value);
+    if constexpr (is_thrust_tuple_of_arithmetic<edge_value_t>::value) {
+      element_size += sum_thrust_tuple_element_sizes<edge_value_t>();
+    } else {
+      element_size += sizeof(edge_value_t);
+    }
+  }
   auto constexpr mem_frugal_ratio =
     0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
           // total_global_mem, switch to the memory frugal approach
@@ -287,13 +313,18 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   auto e_op_result_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+
+    auto edge_partition_src_value_input =
+      edge_partition_src_input_device_view_t(edge_src_value_input, i);
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
     rmm::device_uvector<vertex_t> tmp_majors(edge_partition.number_of_edges(), handle.get_stream());
     rmm::device_uvector<vertex_t> tmp_minor_keys(tmp_majors.size(), handle.get_stream());
-    rmm::device_uvector<weight_t> tmp_key_aggregated_edge_weights(tmp_majors.size(),
-                                                                  handle.get_stream());
+    // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
+    rmm::device_uvector<edge_value_t> tmp_key_aggregated_edge_values(tmp_majors.size(),
+                                                                     handle.get_stream());
 
     if (edge_partition.number_of_edges() > 0) {
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -329,8 +360,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       rmm::device_uvector<vertex_t> unreduced_majors(max_chunk_size, handle.get_stream());
       rmm::device_uvector<vertex_t> unreduced_minor_keys(unreduced_majors.size(),
                                                          handle.get_stream());
-      rmm::device_uvector<weight_t> unreduced_key_aggregated_edge_weights(
-        graph_view.is_weighted() ? unreduced_majors.size() : size_t{0}, handle.get_stream());
+      // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
+      rmm::device_uvector<edge_value_t> unreduced_key_aggregated_edge_values(
+        unreduced_majors.size(), handle.get_stream());
       rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
 
       size_t reduced_size{0};
@@ -344,18 +376,19 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         auto offset_first =
           thrust::make_transform_iterator(edge_partition.offsets() + h_vertex_offsets[j],
                                           detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
-        if (graph_view.is_weighted()) {
-          cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
-                                              tmp_storage_bytes,
-                                              tmp_minor_keys.begin() + h_edge_offsets[j],
-                                              unreduced_minor_keys.begin(),
-                                              *(edge_partition.weights()) + h_edge_offsets[j],
-                                              unreduced_key_aggregated_edge_weights.begin(),
-                                              h_edge_offsets[j + 1] - h_edge_offsets[j],
-                                              h_vertex_offsets[j + 1] - h_vertex_offsets[j],
-                                              offset_first,
-                                              offset_first + 1,
-                                              handle.get_stream());
+        if constexpr (!std::is_same_v<edge_value_t, void>) {
+          cub::DeviceSegmentedSort::SortPairs(
+            static_cast<void*>(nullptr),
+            tmp_storage_bytes,
+            tmp_minor_keys.begin() + h_edge_offsets[j],
+            unreduced_minor_keys.begin(),
+            edge_partition_e_value_input.value_first() + h_edge_offsets[j],
+            unreduced_key_aggregated_edge_values.begin(),
+            h_edge_offsets[j + 1] - h_edge_offsets[j],
+            h_vertex_offsets[j + 1] - h_vertex_offsets[j],
+            offset_first,
+            offset_first + 1,
+            handle.get_stream());
         } else {
           cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
                                              tmp_storage_bytes,
@@ -370,18 +403,19 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
         }
-        if (graph_view.is_weighted()) {
-          cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
-                                              tmp_storage_bytes,
-                                              tmp_minor_keys.begin() + h_edge_offsets[j],
-                                              unreduced_minor_keys.begin(),
-                                              *(edge_partition.weights()) + h_edge_offsets[j],
-                                              unreduced_key_aggregated_edge_weights.begin(),
-                                              h_edge_offsets[j + 1] - h_edge_offsets[j],
-                                              h_vertex_offsets[j + 1] - h_vertex_offsets[j],
-                                              offset_first,
-                                              offset_first + 1,
-                                              handle.get_stream());
+        if constexpr (!std::is_same_v<edge_value_t, void>) {
+          cub::DeviceSegmentedSort::SortPairs(
+            d_tmp_storage.data(),
+            tmp_storage_bytes,
+            tmp_minor_keys.begin() + h_edge_offsets[j],
+            unreduced_minor_keys.begin(),
+            edge_partition_e_value_input.value_first() + h_edge_offsets[j],
+            unreduced_key_aggregated_edge_values.begin(),
+            h_edge_offsets[j + 1] - h_edge_offsets[j],
+            h_vertex_offsets[j + 1] - h_vertex_offsets[j],
+            offset_first,
+            offset_first + 1,
+            handle.get_stream());
         } else {
           cub::DeviceSegmentedSort::SortKeys(d_tmp_storage.data(),
                                              tmp_storage_bytes,
@@ -402,35 +436,35 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           thrust::make_tuple(unreduced_majors.begin(), unreduced_minor_keys.begin()));
         auto output_key_first =
           thrust::make_zip_iterator(thrust::make_tuple(tmp_majors.begin(), tmp_minor_keys.begin()));
-        if (graph_view.is_weighted()) {
+        if constexpr (!std::is_same_v<edge_value_t, void>) {
           reduced_size +=
             thrust::distance(output_key_first + reduced_size,
                              thrust::get<0>(thrust::reduce_by_key(
                                handle.get_thrust_policy(),
                                input_key_first,
                                input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
-                               unreduced_key_aggregated_edge_weights.begin(),
+                               unreduced_key_aggregated_edge_values.begin(),
                                output_key_first + reduced_size,
-                               tmp_key_aggregated_edge_weights.begin() + reduced_size)));
+                               tmp_key_aggregated_edge_values.begin() + reduced_size)));
         } else {
           reduced_size +=
             thrust::distance(output_key_first + reduced_size,
-                             thrust::get<0>(thrust::reduce_by_key(
+                             thrust::get<0>(thrust::unique(
                                handle.get_thrust_policy(),
                                input_key_first,
                                input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
-                               thrust::make_constant_iterator(weight_t{1.0}),
-                               output_key_first + reduced_size,
-                               tmp_key_aggregated_edge_weights.begin() + reduced_size)));
+                               output_key_first + reduced_size)));
         }
       }
       tmp_majors.resize(reduced_size, handle.get_stream());
       tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
-      tmp_key_aggregated_edge_weights.resize(tmp_majors.size(), handle.get_stream());
+      // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
+      tmp_key_aggregated_edge_values.resize(tmp_majors.size(), handle.get_stream());
     }
-    tmp_minor_keys.shrink_to_fit(handle.get_stream());
-    tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
     tmp_majors.shrink_to_fit(handle.get_stream());
+    tmp_minor_keys.shrink_to_fit(handle.get_stream());
+    // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
+    tmp_key_aggregated_edge_values.shrink_to_fit(handle.get_stream());
 
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
@@ -440,12 +474,13 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_size = col_comm.get_size();
 
+      // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
       auto triplet_first     = thrust::make_zip_iterator(thrust::make_tuple(
-        tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
+        tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_values.begin()));
       auto d_tx_value_counts = cugraph::groupby_and_count(
         triplet_first,
         triplet_first + tmp_majors.size(),
-        detail::triplet_to_col_rank_t<vertex_t, weight_t>{
+        detail::triplet_to_col_rank_t<vertex_t, edge_value_t>{
           detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}, row_comm_size},
         col_comm_size,
         mem_frugal_threshold,
@@ -460,7 +495,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_minor_keys(0, handle.get_stream());
-      rmm::device_uvector<weight_t> rx_key_aggregated_edge_weights(0, handle.get_stream());
+      rmm::device_uvector<edge_value_t> rx_key_aggregated_edge_values(0, handle.get_stream());
       auto mem_frugal_flag =
         host_scalar_allreduce(col_comm,
                               tmp_majors.size() > mem_frugal_threshold ? int{1} : int{0},
@@ -477,23 +512,20 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         tmp_minor_keys.resize(0, handle.get_stream());
         tmp_minor_keys.shrink_to_fit(handle.get_stream());
 
-        std::tie(rx_key_aggregated_edge_weights, std::ignore) =
-          shuffle_values(col_comm,
-                         tmp_key_aggregated_edge_weights.begin(),
-                         h_tx_value_counts,
-                         handle.get_stream());
-        tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
-        tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
+        std::tie(rx_key_aggregated_edge_values, std::ignore) = shuffle_values(
+          col_comm, tmp_key_aggregated_edge_values.begin(), h_tx_value_counts, handle.get_stream());
+        tmp_key_aggregated_edge_values.resize(0, handle.get_stream());
+        tmp_key_aggregated_edge_values.shrink_to_fit(handle.get_stream());
       } else {
-        std::forward_as_tuple(std::tie(rx_majors, rx_minor_keys, rx_key_aggregated_edge_weights),
+        std::forward_as_tuple(std::tie(rx_majors, rx_minor_keys, rx_key_aggregated_edge_values),
                               std::ignore) =
           shuffle_values(col_comm, triplet_first, h_tx_value_counts, handle.get_stream());
         tmp_majors.resize(0, handle.get_stream());
         tmp_majors.shrink_to_fit(handle.get_stream());
         tmp_minor_keys.resize(0, handle.get_stream());
         tmp_minor_keys.shrink_to_fit(handle.get_stream());
-        tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
-        tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
+        tmp_key_aggregated_edge_values.resize(0, handle.get_stream());
+        tmp_key_aggregated_edge_values.shrink_to_fit(handle.get_stream());
       }
 
       auto key_pair_first =
@@ -502,7 +534,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         auto second_first =
           detail::mem_frugal_partition(key_pair_first,
                                        key_pair_first + rx_majors.size(),
-                                       rx_key_aggregated_edge_weights.begin(),
+                                       rx_key_aggregated_edge_values.begin(),
                                        detail::pair_to_binary_partition_id_t<vertex_t>{},
                                        int{1},
                                        handle.get_stream());
@@ -510,7 +542,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         thrust::sort_by_key(handle.get_thrust_policy(),
                             key_pair_first,
                             std::get<0>(second_first),
-                            rx_key_aggregated_edge_weights.begin());
+                            rx_key_aggregated_edge_values.begin());
 
         thrust::sort_by_key(handle.get_thrust_policy(),
                             std::get<0>(second_first),
@@ -520,7 +552,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         thrust::sort_by_key(handle.get_thrust_policy(),
                             key_pair_first,
                             key_pair_first + rx_majors.size(),
-                            rx_key_aggregated_edge_weights.begin());
+                            rx_key_aggregated_edge_values.begin());
       }
       auto num_uniques =
         thrust::count_if(handle.get_thrust_policy(),
@@ -529,17 +561,17 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                          detail::is_first_in_run_t<decltype(key_pair_first)>{key_pair_first});
       tmp_majors.resize(num_uniques, handle.get_stream());
       tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
-      tmp_key_aggregated_edge_weights.resize(tmp_majors.size(), handle.get_stream());
+      tmp_key_aggregated_edge_values.resize(tmp_majors.size(), handle.get_stream());
       thrust::reduce_by_key(
         handle.get_thrust_policy(),
         key_pair_first,
         key_pair_first + rx_majors.size(),
-        rx_key_aggregated_edge_weights.begin(),
+        rx_key_aggregated_edge_values.begin(),
         thrust::make_zip_iterator(thrust::make_tuple(tmp_majors.begin(), tmp_minor_keys.begin())),
-        tmp_key_aggregated_edge_weights.begin());
+        tmp_key_aggregated_edge_values.begin());
     }
 
-    std::unique_ptr<kv_store_t<vertex_t, value_t, KVStoreViewType::binary_search>>
+    std::unique_ptr<kv_store_t<vertex_t, kv_pair_value_t, KVStoreViewType::binary_search>>
       multi_gpu_kv_map_ptr{nullptr};
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
@@ -557,7 +589,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                handle.get_stream());
       unique_minor_keys.shrink_to_fit(handle.get_stream());
 
-      auto values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, handle.get_stream());
+      auto values_for_unique_keys =
+        allocate_dataframe_buffer<kv_pair_value_t>(0, handle.get_stream());
       std::tie(unique_minor_keys, values_for_unique_keys) = collect_values_for_unique_keys(
         comm,
         kv_store_view,
@@ -566,14 +599,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         handle.get_stream());
 
       if constexpr (KVStoreViewType::binary_search) {
-        multi_gpu_kv_map_ptr =
-          std::make_unique<kv_store_t<vertex_t, value_t, true>>(std::move(unique_minor_keys),
-                                                                std::move(values_for_unique_keys),
-                                                                kv_store_view.invalid_value,
-                                                                false,
-                                                                handle.get_stream());
+        multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, kv_pair_value_t, true>>(
+          std::move(unique_minor_keys),
+          std::move(values_for_unique_keys),
+          kv_store_view.invalid_value,
+          false,
+          handle.get_stream());
       } else {
-        multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, value_t, false>>(
+        multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, kv_pair_value_t, false>>(
           unique_minor_keys.begin(),
           unique_minor_keys.begin() + unique_minor_keys.size(),
           get_dataframe_buffer_begin(values_for_unique_keys),
@@ -586,11 +619,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
-    auto edge_partition_src_value_input =
-      edge_partition_src_input_device_view_t(edge_src_value_input, i);
-
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
-      tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
+      tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_values.begin()));
     std::conditional_t<KVStoreViewType::binary_search,
                        detail::kv_binary_search_store_device_view_t<KVStoreViewType>,
                        detail::kv_cuco_store_device_view_t<KVStoreViewType>>
@@ -601,7 +631,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       triplet_first + tmp_majors.size(),
       get_dataframe_buffer_begin(tmp_e_op_result_buffer),
       detail::call_key_aggregated_e_op_t<vertex_t,
-                                         weight_t,
+                                         edge_value_t,
                                          edge_partition_src_input_device_view_t,
                                          KeyAggregatedEdgeOp,
                                          decltype(edge_partition),
@@ -611,8 +641,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     if constexpr (GraphViewType::is_multi_gpu) { multi_gpu_kv_map_ptr.reset(); }
     tmp_minor_keys.resize(0, handle.get_stream());
     tmp_minor_keys.shrink_to_fit(handle.get_stream());
-    tmp_key_aggregated_edge_weights.resize(0, handle.get_stream());
-    tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
+    tmp_key_aggregated_edge_values.resize(0, handle.get_stream());
+    tmp_key_aggregated_edge_values.shrink_to_fit(handle.get_stream());
 
     {
       auto num_uniques =

@@ -18,8 +18,8 @@ from pathlib import Path
 import pytest
 import cupy as cp
 
+from cugraph_service_server.testing import utils
 from . import data
-from . import utils
 
 
 ###############################################################################
@@ -42,7 +42,7 @@ def mg_server():
     from cugraph_service_client.exceptions import CugraphServiceError
 
     server_process = None
-    host = "localhost"
+    host = "0.0.0.0"
     port = 9090
     client = CugraphServiceClient(host, port)
 

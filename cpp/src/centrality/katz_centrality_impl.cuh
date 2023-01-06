@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include <prims/count_if_v.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_v.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
@@ -25,7 +26,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
@@ -38,21 +39,23 @@
 namespace cugraph {
 namespace detail {
 
-template <typename GraphViewType, typename result_t>
-void katz_centrality(raft::handle_t const& handle,
-                     GraphViewType const& pull_graph_view,
-                     result_t const* betas,
-                     result_t* katz_centralities,
-                     result_t alpha,
-                     result_t beta,  // relevant only if betas == nullptr
-                     result_t epsilon,
-                     size_t max_iterations,
-                     bool has_initial_guess,
-                     bool normalize,
-                     bool do_expensive_check)
+template <typename GraphViewType, typename weight_t, typename result_t>
+void katz_centrality(
+  raft::handle_t const& handle,
+  GraphViewType const& pull_graph_view,
+  std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
+    edge_weight_view,
+  result_t const* betas,
+  result_t* katz_centralities,
+  result_t alpha,
+  result_t beta,  // relevant only if betas == nullptr
+  result_t epsilon,
+  size_t max_iterations,
+  bool has_initial_guess,
+  bool normalize,
+  bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
@@ -107,16 +110,33 @@ void katz_centrality(raft::handle_t const& handle,
     update_edge_src_property(
       handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities);
 
-    per_v_transform_reduce_incoming_e(
-      handle,
-      pull_graph_view,
-      edge_src_katz_centralities.view(),
-      edge_dst_dummy_property_t{}.view(),
-      [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
-        return static_cast<result_t>(alpha * src_val * w);
-      },
-      betas != nullptr ? result_t{0.0} : beta,
-      new_katz_centralities);
+    if (edge_weight_view) {
+      per_v_transform_reduce_incoming_e(
+        handle,
+        pull_graph_view,
+        edge_src_katz_centralities.view(),
+        edge_dst_dummy_property_t{}.view(),
+        *edge_weight_view,
+        [alpha] __device__(vertex_t, vertex_t, auto src_val, auto, weight_t w) {
+          return static_cast<result_t>(alpha * src_val * w);
+        },
+        betas != nullptr ? result_t{0.0} : beta,
+        reduce_op::plus<result_t>{},
+        new_katz_centralities);
+    } else {
+      per_v_transform_reduce_incoming_e(
+        handle,
+        pull_graph_view,
+        edge_src_katz_centralities.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        [alpha] __device__(vertex_t, vertex_t, auto src_val, auto, auto) {
+          return static_cast<result_t>(alpha * src_val * 1.0);
+        },
+        betas != nullptr ? result_t{0.0} : beta,
+        reduce_op::plus<result_t>{},
+        new_katz_centralities);
+    }
 
     if (betas != nullptr) {
       auto val_first = thrust::make_zip_iterator(thrust::make_tuple(new_katz_centralities, betas));
@@ -176,7 +196,8 @@ void katz_centrality(raft::handle_t const& handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const& handle,
-                     graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+                     graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      result_t const* betas,
                      result_t* katz_centralities,
                      result_t alpha,
@@ -189,6 +210,7 @@ void katz_centrality(raft::handle_t const& handle,
 {
   detail::katz_centrality(handle,
                           graph_view,
+                          edge_weight_view,
                           betas,
                           katz_centralities,
                           alpha,

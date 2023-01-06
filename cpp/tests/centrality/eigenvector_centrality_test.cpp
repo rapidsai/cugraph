@@ -15,7 +15,6 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -24,9 +23,10 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -120,25 +120,26 @@ class Tests_EigenvectorCentrality
     constexpr bool renumber = true;
 
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, input_usecase, eigenvector_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     weight_t constexpr epsilon{1e-6};
 
@@ -147,12 +148,13 @@ class Tests_EigenvectorCentrality
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Eigenvector centrality");
     }
 
     d_centralities =
       cugraph::eigenvector_centrality(handle,
                                       graph_view,
+                                      edge_weight_view,
                                       std::optional<raft::device_span<weight_t const>>{},
                                       epsilon,
                                       eigenvector_usecase.max_iterations,
@@ -160,14 +162,16 @@ class Tests_EigenvectorCentrality
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "Eigenvector Centrality took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (eigenvector_usecase.check_correctness) {
       auto [dst_v, src_v, opt_wgt_v] = cugraph::decompress_to_edgelist(
-        handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
       auto h_src     = cugraph::test::to_host(handle, src_v);
       auto h_dst     = cugraph::test::to_host(handle, dst_v);

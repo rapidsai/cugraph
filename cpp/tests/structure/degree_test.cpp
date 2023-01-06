@@ -21,8 +21,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -79,13 +79,15 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+  template <typename vertex_t, typename edge_t, bool store_transposed>
   void run_current_test(Degree_Usecase const& configuration)
   {
+    using weight_t = float;  // dummy
+
     raft::handle_t handle{};
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
-    std::tie(graph, std::ignore) = cugraph::test::
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
+    std::tie(graph, std::ignore, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, false, false);
     auto graph_view = graph.view();
@@ -134,12 +136,12 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
 
 TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeFalse)
 {
-  run_current_test<int32_t, int32_t, float, false>(GetParam());
+  run_current_test<int32_t, int32_t, false>(GetParam());
 }
 
 TEST_P(Tests_Degree, CheckInt32Int32FloatTransposeTrue)
 {
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
+  run_current_test<int32_t, int32_t, true>(GetParam());
 }
 
 INSTANTIATE_TEST_SUITE_P(simple_test,

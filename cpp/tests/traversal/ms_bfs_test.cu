@@ -15,16 +15,16 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -150,14 +150,14 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
     raft::copy(d_sources.data(), h_sources.data(), h_sources.size(), handle.get_stream());
 
     // create the graph
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
     rmm::device_uvector<vertex_t> d_renumber_map_labels(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_vertices(n_vertices, handle.get_stream());
     rmm::device_uvector<weight_t> d_weights(n_edges, handle.get_stream());
     thrust::sequence(
       rmm::exec_policy(handle.get_stream()), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
-    std::tie(graph, std::ignore, std::ignore) =
+    std::tie(graph, std::ignore, std::ignore, std::ignore) =
       cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
         handle,
         std::move(d_vertices),
@@ -238,7 +238,7 @@ class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
 
     cudaProfilerStop();
     hr_timer.stop();
-    hr_timer.display(std::cout);
+    hr_timer.display_and_clear(std::cout);
 
     // checksum
     vertex_t ref_sum = 0;
