@@ -1260,7 +1260,7 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            
+
             # Should not drop so the edge ids are returned as a column.
             df_out = df.reset_index()
 
