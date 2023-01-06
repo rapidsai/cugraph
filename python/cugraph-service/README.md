@@ -13,14 +13,14 @@
    conda install -c rapidsai-nightly -c rapidsai -c conda-forge -c nvidia cugraph-service-server
    ```
 
-1. Run the server (use –help to see more options)
+1. Run the server (use --help to see more options)
    - To run on a single-GPU:
    ```
    cugraph-service-server
    ```
    - To run on multiple GPUs:
    ```
-   cugraph-service-server –start-local-cuda-cluster
+   cugraph-service-server --start-local-cuda-cluster
    ```
 
 1. Use the client in your application:
