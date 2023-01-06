@@ -82,6 +82,8 @@ class subcomm_factory_t {
     name_policy_t key;
     raft::comms::comms_t const& communicator = handle_.get_comms();
 
+    printf("in init_row_col_comms\n");
+
     int const rank = communicator.get_rank();
     int row_index  = rank / row_size_;
     int col_index  = rank % row_size_;
