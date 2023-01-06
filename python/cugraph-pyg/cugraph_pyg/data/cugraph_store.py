@@ -51,8 +51,13 @@ NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 
 TensorType = Union[Tensor, NdArray]
 CuGraphGraph = None if isinstance(cugraph, MissingModule) else cugraph.MultiGraph
-CGSGraph = None if isinstance(cugraph_service_client, MissingModule) else cugraph_service_client.RemoteGraph
-StructuralGraphType = Union[CuGraphGraph,CGSGraph]
+CGSGraph = (
+    None
+    if isinstance(cugraph_service_client, MissingModule)
+    else cugraph_service_client.RemoteGraph
+)
+StructuralGraphType = Union[CuGraphGraph, CGSGraph]
+
 
 class EdgeLayout(Enum):
     COO = "coo"
@@ -217,7 +222,7 @@ class EXPERIMENTAL__CuGraphStore:
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
 
-    def __init__(self, G, backend:str="torch", renumber_graph:bool=None):
+    def __init__(self, G, backend: str = "torch", renumber_graph: bool = None):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
@@ -318,7 +323,7 @@ class EXPERIMENTAL__CuGraphStore:
 
             self._edge_attr_cls = CuGraphEdgeAttr
 
-    def __renumber_graph(self, renumber_graph:bool) -> Void:
+    def __renumber_graph(self, renumber_graph: bool) -> Void:
         """
         Renumbers the vertices and edges in this store's property graph
         and sets the vertex offsets.
@@ -662,7 +667,9 @@ class EXPERIMENTAL__CuGraphStore:
 
         return noi_index
 
-    def _get_renumbered_edge_groups_from_sample(self, sampling_results:cudf.DataFrame, noi_index:dict) -> Tuple[dict, dict]:
+    def _get_renumbered_edge_groups_from_sample(
+        self, sampling_results: cudf.DataFrame, noi_index: dict
+    ) -> Tuple[dict, dict]:
         """
         Given a cudf (NOT dask_cudf) DataFrame of sampling results and a dictionary
         of non-renumbered vertex ids grouped by vertex type, this method
@@ -703,7 +710,7 @@ class EXPERIMENTAL__CuGraphStore:
         for the outputted subgraph that follow PyG's conventions, allowing easy
         construction of a HeteroData object.
         """
-        #print(sampling_results.edge_type.value_counts())
+        # print(sampling_results.edge_type.value_counts())
         row_dict = {}
         col_dict = {}
         if len(self.__edge_types_to_attrs) == 1:
@@ -720,9 +727,11 @@ class EXPERIMENTAL__CuGraphStore:
             dst = self.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
         else:
-            eoi_types = self.__graph.edge_types_from_numerals(sampling_results.indices.astype('int32'))
+            eoi_types = self.__graph.edge_types_from_numerals(
+                sampling_results.indices.astype("int32")
+            )
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
-            
+
             for cugraph_type_name, ix in eoi_types.items():
                 t_pyg_type = self.__edge_types_to_attrs[cugraph_type_name].edge_type
                 src_type, edge_type, dst_type = t_pyg_type
@@ -744,7 +753,9 @@ class EXPERIMENTAL__CuGraphStore:
     def put_tensor(self, tensor, attr) -> Void:
         raise NotImplementedError("Adding properties not supported.")
 
-    def create_named_tensor(self, attr_name: str, properties: List[str], vertex_type: str, dtype: str) -> Void:
+    def create_named_tensor(
+        self, attr_name: str, properties: List[str], vertex_type: str, dtype: str
+    ) -> Void:
         """
         Create a named tensor that contains a subset of
         properties in the graph.
