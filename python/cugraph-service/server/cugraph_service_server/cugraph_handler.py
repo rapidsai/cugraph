@@ -411,7 +411,13 @@ class CugraphHandler:
                 rmm.reinitialize(pool_allocator=True)
 
             self.__dask_client = Client(cluster)
-            self.__dask_client.wait_for_workers(len(get_visible_devices()))
+
+            if dask_worker_devices is not None:
+                # FIXME: this assumes a properly formatted string with commas
+                num_workers = len(dask_worker_devices.split(","))
+            else:
+                num_workers = len(get_visible_devices())
+            self.__dask_client.wait_for_workers(num_workers)
 
         if not Comms.is_initialized():
             Comms.initialize(p2p=True)
