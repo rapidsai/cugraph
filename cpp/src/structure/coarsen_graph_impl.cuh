@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -335,10 +335,11 @@ coarsen_graph(raft::handle_t const& handle,
     // 1-2. globally shuffle
 
     std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
-                                                  std::move(edgelist_majors),
-                                                  std::move(edgelist_minors),
-                                                  std::move(edgelist_weights));
+      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(edgelist_majors),
+        std::move(edgelist_minors),
+        std::move(edgelist_weights));
 
     // 1-3. groupby and coarsen again
 
@@ -451,10 +452,11 @@ coarsen_graph(raft::handle_t const& handle,
     }
 
     std::tie(reversed_edgelist_majors, reversed_edgelist_minors, reversed_edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
-                                                  std::move(reversed_edgelist_majors),
-                                                  std::move(reversed_edgelist_minors),
-                                                  std::move(reversed_edgelist_weights));
+      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(reversed_edgelist_majors),
+        std::move(reversed_edgelist_minors),
+        std::move(reversed_edgelist_weights));
 
     auto output_offset = concatenated_edgelist_majors.size();
 
@@ -500,7 +502,8 @@ coarsen_graph(raft::handle_t const& handle,
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(unique_labels));
+  unique_labels = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+    handle, std::move(unique_labels));
 
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(

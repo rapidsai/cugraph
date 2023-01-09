@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/execution_policy.h>
@@ -113,18 +113,11 @@ __global__ void trasnform_reduce_e_hypersparse(
           GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
         auto dst_offset =
           GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-        return evaluate_edge_op<GraphViewType,
-                                vertex_t,
-                                EdgePartitionSrcValueInputWrapper,
-                                EdgePartitionDstValueInputWrapper,
-                                EdgePartitionEdgeValueInputWrapper,
-                                EdgeOp>()
-          .compute(src,
-                   dst,
-                   edge_partition_src_value_input.get(src_offset),
-                   edge_partition_dst_value_input.get(dst_offset),
-                   edge_partition_e_value_input.get(edge_offset + i),
-                   e_op);
+        return e_op(src,
+                    dst,
+                    edge_partition_src_value_input.get(src_offset),
+                    edge_partition_dst_value_input.get(dst_offset),
+                    edge_partition_e_value_input.get(edge_offset + i));
       },
       e_op_result_t{},
       edge_property_add);
@@ -134,7 +127,7 @@ __global__ void trasnform_reduce_e_hypersparse(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -199,18 +192,11 @@ __global__ void trasnform_reduce_e_low_degree(
           GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
         auto dst_offset =
           GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-        return evaluate_edge_op<GraphViewType,
-                                vertex_t,
-                                EdgePartitionSrcValueInputWrapper,
-                                EdgePartitionDstValueInputWrapper,
-                                EdgePartitionEdgeValueInputWrapper,
-                                EdgeOp>()
-          .compute(src,
-                   dst,
-                   edge_partition_src_value_input.get(src_offset),
-                   edge_partition_dst_value_input.get(dst_offset),
-                   edge_partition_e_value_input.get(edge_offset + i),
-                   e_op);
+        return e_op(src,
+                    dst,
+                    edge_partition_src_value_input.get(src_offset),
+                    edge_partition_dst_value_input.get(dst_offset),
+                    edge_partition_e_value_input.get(edge_offset + i));
       },
       e_op_result_t{},
       edge_property_add);
@@ -220,7 +206,7 @@ __global__ void trasnform_reduce_e_low_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -275,25 +261,18 @@ __global__ void trasnform_reduce_e_mid_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          vertex_t,
-                                          EdgePartitionSrcValueInputWrapper,
-                                          EdgePartitionDstValueInputWrapper,
-                                          EdgePartitionEdgeValueInputWrapper,
-                                          EdgeOp>()
-                           .compute(src,
-                                    dst,
-                                    edge_partition_src_value_input.get(src_offset),
-                                    edge_partition_dst_value_input.get(dst_offset),
-                                    edge_partition_e_value_input.get(edge_offset + i),
-                                    e_op);
-      e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
+      auto e_op_result = e_op(src,
+                              dst,
+                              edge_partition_src_value_input.get(src_offset),
+                              edge_partition_dst_value_input.get(dst_offset),
+                              edge_partition_e_value_input.get(edge_offset + i));
+      e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x * (blockDim.x / raft::warp_size());
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -345,25 +324,18 @@ __global__ void trasnform_reduce_e_high_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          vertex_t,
-                                          EdgePartitionSrcValueInputWrapper,
-                                          EdgePartitionDstValueInputWrapper,
-                                          EdgePartitionEdgeValueInputWrapper,
-                                          EdgeOp>()
-                           .compute(src,
-                                    dst,
-                                    edge_partition_src_value_input.get(src_offset),
-                                    edge_partition_dst_value_input.get(dst_offset),
-                                    edge_partition_e_value_input.get(edge_offset + i),
-                                    e_op);
-      e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
+      auto e_op_result = e_op(src,
+                              dst,
+                              edge_partition_src_value_input.get(src_offset),
+                              edge_partition_dst_value_input.get(dst_offset),
+                              edge_partition_e_value_input.get(edge_offset + i));
+      e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x;
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 }  // namespace detail

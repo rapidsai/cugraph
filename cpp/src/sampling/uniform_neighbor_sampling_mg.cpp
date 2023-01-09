@@ -88,15 +88,15 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<int64_t, int64_t, false, true> const& graph_view,
                    std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
                    raft::device_span<int64_t> starting_vertices,
-                   raft::host_span<const int> fan_out,
+                   raft::host_span<int32_t const> fan_out,
                    bool with_replacement,
                    uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -106,18 +106,18 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<int32_t,
                          thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<const int> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -127,18 +127,18 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<const int> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -148,18 +148,18 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<int64_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<const int> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -169,18 +169,18 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<int32_t,
                          thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<const int> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -190,18 +190,18 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<const int> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
-                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>>
 uniform_neighbor_sample(
@@ -211,10 +211,10 @@ uniform_neighbor_sample(
   std::optional<
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
-    edge_type_view,
+    edge_id_type_view,
   raft::device_span<int64_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
-  raft::host_span<const int> fan_out,
+  raft::host_span<int32_t const> fan_out,
   bool with_replacement,
   uint64_t seed);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -81,18 +81,11 @@ __device__ void update_buffer_element(
   *key = edge_partition_src_dst_key_input.get(
     ((GraphViewType::is_storage_transposed != edge_partition_src_key) ? major_offset
                                                                       : minor_offset));
-  *value = evaluate_edge_op<GraphViewType,
-                            vertex_t,
-                            EdgePartitionSrcValueInputWrapper,
-                            EdgePartitionDstValueInputWrapper,
-                            EdgePartitionEdgeValueInputWrapper,
-                            EdgeOp>()
-             .compute(src,
-                      dst,
-                      edge_partition_src_value_input.get(src_offset),
-                      edge_partition_dst_value_input.get(dst_offset),
-                      edge_partition_e_value_input.get(edge_offset),
-                      e_op);
+  *value = e_op(src,
+                dst,
+                edge_partition_src_value_input.get(src_offset),
+                edge_partition_dst_value_input.get(dst_offset),
+                edge_partition_e_value_input.get(edge_offset));
 }
 
 template <bool edge_partition_src_key,

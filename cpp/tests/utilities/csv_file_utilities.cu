@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/distance.h>
@@ -82,6 +82,8 @@ bool check_symmetric(raft::handle_t const& handle,
                                                           std::move(symmetrized_dsts),
                                                           std::move(symmetrized_weights),
                                                           true);
+
+  if (symmetrized_srcs.size() != org_srcs.size()) { return false; }
 
   if (edgelist_weights) {
     auto org_first = thrust::make_zip_iterator(

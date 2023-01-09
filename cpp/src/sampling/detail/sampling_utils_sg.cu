@@ -132,8 +132,8 @@ gather_one_hop_edgelist(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -150,8 +150,8 @@ gather_one_hop_edgelist(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -168,8 +168,8 @@ gather_one_hop_edgelist(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -186,8 +186,8 @@ gather_one_hop_edgelist(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -204,8 +204,8 @@ gather_one_hop_edgelist(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -222,8 +222,8 @@ gather_one_hop_edgelist(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 gather_one_hop_edgelist(
@@ -306,8 +306,8 @@ sample_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(
@@ -326,8 +326,8 @@ sample_edges(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(
@@ -346,8 +346,8 @@ sample_edges(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(
@@ -366,8 +366,8 @@ sample_edges(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(
@@ -386,8 +386,8 @@ sample_edges(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(
@@ -406,8 +406,8 @@ sample_edges(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
+                    std::optional<rmm::device_uvector<int64_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>>
 sample_edges(

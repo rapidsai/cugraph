@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <detail/graph_utils.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_e.cuh>
 
 #include <cugraph/edge_property.hpp>
@@ -27,8 +28,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -210,6 +211,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       edge_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, auto, auto, auto) { return edge_t{1}; },
       edge_t{0},
+      reduce_op::plus<edge_t>{},
       minor_degrees.data());
   } else {
     per_v_transform_reduce_incoming_e(
@@ -220,6 +222,7 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
       edge_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, auto, auto, auto) { return edge_t{1}; },
       edge_t{0},
+      reduce_op::plus<edge_t>{},
       minor_degrees.data());
   }
 
@@ -260,7 +263,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   }
 
   count_sum = BlockReduce(temp_storage).Reduce(count_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(count, count_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(count, count_sum); }
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -292,7 +295,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   }
 
   count_sum = BlockReduce(temp_storage).Reduce(count_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(count, count_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(count, count_sum); }
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>

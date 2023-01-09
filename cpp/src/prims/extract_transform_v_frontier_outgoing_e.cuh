@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <cstdint>
 #include <numeric>
@@ -69,14 +69,14 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
-decltype(
-  allocate_dataframe_buffer<typename evaluate_edge_op<GraphViewType,
-                                                      typename VertexFrontierBucketType::key_type,
-                                                      EdgeSrcValueInputWrapper,
-                                                      EdgeDstValueInputWrapper,
-                                                      EdgeValueInputWrapper,
-                                                      EdgeOp>::result_type::value_type>(
-    size_t{0}, rmm::cuda_stream_view{}))
+decltype(allocate_dataframe_buffer<
+         typename detail::edge_op_result_type<typename VertexFrontierBucketType::key_type,
+                                              typename GraphViewType::vertex_type,
+                                              typename EdgeSrcValueInputWrapper::value_type,
+                                              typename EdgeDstValueInputWrapper::value_type,
+                                              typename EdgeValueInputWrapper::value_type,
+                                              EdgeOp>::type::value_type>(size_t{0},
+                                                                         rmm::cuda_stream_view{}))
 extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
                                         GraphViewType const& graph_view,
                                         VertexFrontierBucketType const& frontier,
@@ -88,12 +88,13 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
 {
   static_assert(!GraphViewType::is_storage_transposed);
 
-  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  typename VertexFrontierBucketType::key_type,
-                                                  EdgeSrcValueInputWrapper,
-                                                  EdgeDstValueInputWrapper,
-                                                  EdgeValueInputWrapper,
-                                                  EdgeOp>::result_type;
+  using e_op_result_t =
+    typename detail::edge_op_result_type<typename VertexFrontierBucketType::key_type,
+                                         typename GraphViewType::vertex_type,
+                                         typename EdgeSrcValueInputWrapper::value_type,
+                                         typename EdgeDstValueInputWrapper::value_type,
+                                         typename EdgeValueInputWrapper::value_type,
+                                         EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
   using payload_t = typename e_op_result_t::value_type;
 

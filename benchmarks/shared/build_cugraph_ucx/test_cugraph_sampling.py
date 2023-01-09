@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 import rmm
 import numpy as np
-from time import time
+from time import perf_counter_ns
 from cugraph.dask.comms import comms as Comms
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 from cugraph import MultiGraph
@@ -29,9 +29,9 @@ def benchmark_func(func, n_times=10):
         # ignore 1st run
         # and return other runs
         for _ in range(0,n_times+1):
-            t1 = time()
+            t1 = perf_counter_ns()
             result = func(*args, **kwargs)
-            t2 = time()
+            t2 = perf_counter_ns()
             time_ls.append(t2-t1)
         return result, time_ls[1:]
     return wrap_func
@@ -78,7 +78,7 @@ def run_sampling_test(ddf, start_list):
     df, time_ls = sample_graph(ddf, start_list)
     time_ar = np.asarray(time_ls)
     time_mean = time_ar.mean()
-    print(f"Sampling {len(start_list):,} took = {time_mean*1_000} ms")
+    print(f"Sampling {len(start_list):,} took = {time_mean*1e-6} ms")
     return
     
 

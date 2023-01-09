@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -149,11 +149,7 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
     *(major_minor_pair_value_output_first + index) =
-      evaluate_intersection_op<GraphViewType,
-                               decltype(src_prop),
-                               decltype(dst_prop),
-                               IntersectionOp>()
-        .compute(src, dst, src_prop, dst_prop, intersection, intersection_op);
+      intersection_op(src, dst, src_prop, dst_prop, intersection);
   }
 };
 
@@ -213,7 +209,8 @@ void per_v_pair_transform_dst_nbr_intersection(
   if (do_expensive_check) {
     auto num_invalids =
       detail::count_invalid_vertex_pairs(handle, graph_view, vertex_pair_first, vertex_pair_last);
-    CUGRAPH_EXPECTS(num_invalids == 0, "");
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input arguments: there are invalid input vertex pairs.");
   }
 
   auto num_input_pairs = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));

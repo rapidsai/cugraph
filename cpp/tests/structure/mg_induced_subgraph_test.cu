@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -140,7 +140,7 @@ class Tests_MGInducedSubgraph
         h_sg_subgraph_offsets[i + 1] = sg_start + vertices.size();
       }
 
-      vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
 
       raft::copy(d_subgraph_vertices.data() + start,

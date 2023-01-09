@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,9 @@
 
 #include <cuco/detail/hash_functions.cuh>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/distance.h>
@@ -157,7 +157,7 @@ class Tests_MGReduceV
     auto property_iter = cugraph::get_dataframe_buffer_begin(mg_vertex_prop);
 
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
-    reduction_type_t reduction_types[] = {
+    std::array<reduction_type_t, 3> reduction_types = {
       reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
     std::unordered_map<reduction_type_t, result_t> results;

@@ -20,8 +20,8 @@
 
 #include <utilities/mg_utilities.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/zip_iterator.h>
