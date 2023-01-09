@@ -9,6 +9,9 @@ import cugraph_dgl
 
 # Timing Imports
 import time
+# Ignore Warning
+import warnings
+warnings.filterwarnings('ignore')
 
 import torch
 import torch.nn as nn
@@ -216,6 +219,13 @@ if __name__ == "__main__":
                 pool_allocator=True, initial_pool_size=5e9, maximum_pool_size=25e9
             )
 
+        
+        if 'train_mask' in g.ndata:
+            g.ndata['train_mask'] = g.ndata['train_mask'].int()
+        if 'train_mask' in g.ndata:
+            g.ndata['test_mask'] = g.ndata['test_mask'].int()
+        if 'val_mask' in g.ndata: 
+            g.ndata['val_mask'] = g.ndata['val_mask'].int()
         g = cugraph_dgl.cugraph_storage_from_heterograph(g)
         del dataset.g
 
