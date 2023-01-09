@@ -219,7 +219,10 @@ if __name__ == "__main__":
                 pool_allocator=True, initial_pool_size=5e9, maximum_pool_size=25e9
             )
 
-        
+        # Work around for DLFW container issues
+        # where dlpack conversion of boolean fails 
+        # on the first run
+        # Similar to issue https://github.com/dmlc/dgl/issues/3591
         if 'train_mask' in g.ndata:
             g.ndata['train_mask'] = g.ndata['train_mask'].int()
         if 'train_mask' in g.ndata:
