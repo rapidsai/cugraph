@@ -33,8 +33,13 @@ RUN apt-get update -y \
         curl \
         librdmacm-dev \
         rdma-core \
+        gcc-10 \
+        g++-10 \
     && apt-get autoremove -y \
     && apt-get clean
+
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 10
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 10
 
 ARG PYTHON_VER=3.9
 ARG RAPIDS_VER=23.02
