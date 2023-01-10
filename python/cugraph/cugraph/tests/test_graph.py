@@ -112,8 +112,7 @@ def compare_graphs(nx_graph, cu_graph):
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        merge = df.merge(
-            df0, on=["source", "target"], suffixes=("_cugraph", "_nx"))
+        merge = df.merge(df0, on=["source", "target"], suffixes=("_cugraph", "_nx"))
         print("merge = \n", merge)
         print(merge[merge.weight_cugraph != merge.weight_nx])
         if not merge["weight_cugraph"].equals(merge["weight_nx"]):
@@ -193,9 +192,7 @@ def test_add_edge_list_to_adj_list(graph_file):
 def test_add_adj_list_to_edge_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-        )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -220,9 +217,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 def test_view_edge_list_from_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-        )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -245,8 +240,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     df["dst"] = cudf.Series(Mnx["1"])
 
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
 
@@ -272,8 +266,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     df["dst"] = cudf.Series(Mnx["1"])
 
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix((
-        Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -374,10 +367,8 @@ def test_view_edge_list_for_Graph(graph_file):
 
     # Compare nx and cugraph edges when viewing edgelist
     # assert cu_edge_list.equals(nx_edge_list)
-    assert (cu_edge_list["src"].to_numpy() ==
-            nx_edge_list["src"].to_numpy()).all()
-    assert (cu_edge_list["dst"].to_numpy() ==
-            nx_edge_list["dst"].to_numpy()).all()
+    assert (cu_edge_list["src"].to_numpy() == nx_edge_list["src"].to_numpy()).all()
+    assert (cu_edge_list["dst"].to_numpy() == nx_edge_list["dst"].to_numpy()).all()
 
 
 # Test
@@ -406,8 +397,10 @@ def test_consolidation(graph_file):
         df, source="source", target="target", create_using=nx.DiGraph
     )
     G = cugraph.from_cudf_edgelist(
-        ddf, source="source", destination="target",
-        create_using=cugraph.Graph(directed=True)
+        ddf,
+        source="source",
+        destination="target",
+        create_using=cugraph.Graph(directed=True),
     )
 
     t1 = time.time()
@@ -432,8 +425,7 @@ def test_two_hop_neighbors(graph_file):
     df = G.get_two_hop_neighbors()
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix((
-        Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     find_two_paths(df, Mcsr)
     check_all_two_hops(df, Mcsr)
@@ -448,8 +440,7 @@ def test_degree_functionality(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
 
     df_in_degree = G.in_degree()
     df_out_degree = G.out_degree()
@@ -485,8 +476,7 @@ def test_degrees_functionality(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
 
     df = G.degrees()
 
@@ -518,8 +508,7 @@ def test_number_of_vertices(graph_file):
     # cugraph add_edge_list
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph())
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
     assert G.number_of_vertices() == Gnx.number_of_nodes()
 
 
@@ -535,8 +524,7 @@ def test_to_directed(graph_file):
     # cugraph add_edge_list
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
     DiG = G.to_directed()
     DiGnx = Gnx.to_directed()
@@ -633,7 +621,7 @@ def test_bipartite_api(graph_file):
     nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique()
 
     # Create set of nodes for partition
-    set1_exp = cudf.Series(nodes[0: int(len(nodes) / 2)])
+    set1_exp = cudf.Series(nodes[0 : int(len(nodes) / 2)])
     set2_exp = cudf.Series(set(nodes.values_host) - set(set1_exp.values_host))
 
     G = cugraph.BiPartiteGraph()
@@ -662,8 +650,7 @@ def test_neighbors(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1",
-                                  create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     for n in nodes.values_host:
         cu_neighbors = G.neighbors(n).to_arrow().to_pylist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
@@ -707,10 +694,7 @@ def test_graph_init_with_multigraph():
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_sg_graph(graph_file):
     el = utils.read_csv_file(graph_file)
-    G = cugraph.from_cudf_edgelist(
-                    el, source="0",
-                    destination="1", edge_attr="2"
-                    )
+    G = cugraph.from_cudf_edgelist(el, source="0", destination="1", edge_attr="2")
 
     # ensure graph exists
     assert G._plc_graph is not None

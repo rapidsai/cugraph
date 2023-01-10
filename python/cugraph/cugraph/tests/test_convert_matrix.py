@@ -97,8 +97,11 @@ def test_from_to_numpy(graph_file):
     )
 
     cuG = cugraph.from_pandas_edgelist(
-        M, source="0", destination="1", edge_attr="weight",
-        create_using=cugraph.Graph(directed=True)
+        M,
+        source="0",
+        destination="1",
+        edge_attr="weight",
+        create_using=cugraph.Graph(directed=True),
     )
 
     # convert graphs to numpy array
@@ -114,9 +117,8 @@ def test_from_to_numpy(graph_file):
     # Create graphs from numpy array
     new_nxG = nx.from_numpy_array(nparray_nx, create_using=nx.DiGraph)
     new_cuG = cugraph.from_numpy_array(
-                        nparray_cu,
-                        create_using=cugraph.Graph(directed=True)
-                        )
+        nparray_cu, create_using=cugraph.Graph(directed=True)
+    )
 
     # Assert graphs are same
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
@@ -135,9 +137,8 @@ def test_from_to_numpy(graph_file):
     # Create graphs from numpy matrix
     new_nxG = nx.from_numpy_matrix(npmatrix_nx, create_using=nx.DiGraph)
     new_cuG = cugraph.from_numpy_matrix(
-                    npmatrix_cu,
-                    create_using=cugraph.Graph(directed=True)
-                    )
+        npmatrix_cu, create_using=cugraph.Graph(directed=True)
+    )
 
     # Assert graphs are same
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
@@ -189,16 +190,13 @@ def test_from_adjlist(graph_file):
     with pytest.raises(TypeError):
         G1 = cugraph.from_adjlist(cu_offsets, pd_indices)
     with pytest.raises(TypeError):
-        G1 = cugraph.from_adjlist(cu_offsets, cu_indices,
-                                  cu_vals, create_using=33)
+        G1 = cugraph.from_adjlist(cu_offsets, cu_indices, cu_vals, create_using=33)
 
     G1 = cugraph.from_adjlist(
-        cu_offsets, cu_indices, cu_vals,
-        create_using=cugraph.Graph(directed=True)
+        cu_offsets, cu_indices, cu_vals, create_using=cugraph.Graph(directed=True)
     )
     G2 = cugraph.from_adjlist(
-        pd_offsets, pd_indices, pd_vals,
-        create_using=cugraph.Graph(directed=True)
+        pd_offsets, pd_indices, pd_vals, create_using=cugraph.Graph(directed=True)
     )
 
     assert G1.AdjList == G2.AdjList

@@ -27,8 +27,7 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    score = cugraph.analyzeClustering_edge_cut(
-                    G, partitions, df, "vertex", "cluster")
+    score = cugraph.analyzeClustering_edge_cut(G, partitions, df, "vertex", "cluster")
     return set(df["vertex"].to_numpy()), score
 
 
