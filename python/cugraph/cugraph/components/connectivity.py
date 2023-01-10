@@ -121,7 +121,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True, then convert the input matrix to a Graph(ditected=True)
+        If True, then convert the input matrix to a Graph(directed=True)
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
