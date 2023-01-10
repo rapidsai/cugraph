@@ -93,7 +93,7 @@ def _convert_df_to_output_type(df, input_type):
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if input_type in [Graph]:
+    if input_type is Graph:
         return df
 
     elif is_nx_graph_type(input_type):
