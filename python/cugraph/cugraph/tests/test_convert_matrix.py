@@ -113,8 +113,10 @@ def test_from_to_numpy(graph_file):
 
     # Create graphs from numpy array
     new_nxG = nx.from_numpy_array(nparray_nx, create_using=nx.DiGraph)
-    new_cuG = cugraph.from_numpy_array(nparray_cu,
-                                create_using=cugraph.Graph(directed=True))
+    new_cuG = cugraph.from_numpy_array(
+                        nparray_cu,
+                        create_using=cugraph.Graph(directed=True)
+                        )
 
     # Assert graphs are same
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
@@ -132,8 +134,10 @@ def test_from_to_numpy(graph_file):
 
     # Create graphs from numpy matrix
     new_nxG = nx.from_numpy_matrix(npmatrix_nx, create_using=nx.DiGraph)
-    new_cuG = cugraph.from_numpy_matrix(npmatrix_cu,
-                    create_using=cugraph.Graph(directed=True))
+    new_cuG = cugraph.from_numpy_matrix(
+                    npmatrix_cu,
+                    create_using=cugraph.Graph(directed=True)
+                    )
 
     # Assert graphs are same
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
@@ -185,7 +189,8 @@ def test_from_adjlist(graph_file):
     with pytest.raises(TypeError):
         G1 = cugraph.from_adjlist(cu_offsets, pd_indices)
     with pytest.raises(TypeError):
-        G1 = cugraph.from_adjlist(cu_offsets, cu_indices, cu_vals, create_using=33)
+        G1 = cugraph.from_adjlist(cu_offsets, cu_indices,
+                                  cu_vals, create_using=33)
 
     G1 = cugraph.from_adjlist(
         cu_offsets, cu_indices, cu_vals,

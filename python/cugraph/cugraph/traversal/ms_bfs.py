@@ -24,7 +24,7 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
 
     Parameters
     ----------
-    G : cugraph.Graph 
+    G : cugraph.Graph
         The adjacency list will be computed if not already present.
 
     sources :  cudf.Series
@@ -93,7 +93,9 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
         tmp = components["color"].value_counts()
         n_components = tmp.size
         if n_sources / n_components > 100:
-            warnings.warn("High number of seeds per component result in large output.")
+            warnings.warn(
+                "High number of seeds per component result in large output."
+                )
         mean_component_sz = tmp.mean()
         output_sz = mean_component_sz * n_sources * 2 * size_of_e
 
@@ -180,7 +182,9 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
     # )
 
 
-def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=False):
+def multi_source_bfs(
+        G, sources, components=None, depth_limit=None, offload=False
+        ):
     """
     Find the breadth first traversal from multiple sources in a graph.
 
