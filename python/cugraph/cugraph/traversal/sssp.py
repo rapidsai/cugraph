@@ -46,7 +46,7 @@ def _ensure_args(
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph]) or is_nx_graph_type(G_type):
+    if G_type is Graph or is_nx_graph_type(G_type):
         # FIXME: Improve Graph-type checking
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
