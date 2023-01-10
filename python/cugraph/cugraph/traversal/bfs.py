@@ -105,8 +105,8 @@ def _convert_df_to_output_type(df, input_type):
         #   predecessor: cupy.ndarray
         sorted_df = df.sort_values("vertex")
         if is_cp_matrix_type(input_type):
-            distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
-            preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
+            distances = cp.from_dlpack(sorted_df["distance"].to_dlpack())
+            preds = cp.from_dlpack(sorted_df["predecessor"].to_dlpack())
             return (distances, preds)
         else:
             distances = sorted_df["distance"].to_numpy()

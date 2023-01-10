@@ -88,7 +88,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         sorted_df = df.sort_values("vertex")
         if return_labels:
             if is_cp_matrix_type(input_type):
-                labels = cp.fromDlpack(sorted_df["labels"].to_dlpack())
+                labels = cp.from_dlpack(sorted_df["labels"].to_dlpack())
             else:
                 labels = sorted_df["labels"].to_numpy()
             return (n_components, labels)
