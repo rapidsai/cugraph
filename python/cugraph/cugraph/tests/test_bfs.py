@@ -405,7 +405,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
         elif cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
-    if not isinstance(cugraph_input_type, (cugraph.Graph)):
+    if not isinstance(cugraph_input_type, cugraph.Graph):
         G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)
     else:
         G_or_matrix = G
