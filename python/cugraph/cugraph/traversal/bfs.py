@@ -43,7 +43,7 @@ def _ensure_args(G, start, i_start, directed):
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph]) or is_nx_graph_type(G_type):
+    if G_type is Graph or is_nx_graph_type(G_type):
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a " "Graph-type input")
 
