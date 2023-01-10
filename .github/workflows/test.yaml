@@ -35,7 +35,6 @@ jobs:
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@main
     with:
       build_type: nightly
-      repo: rapidsai/cugraph
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
@@ -48,7 +47,6 @@ jobs:
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@main
     with:
       build_type: nightly
-      repo: rapidsai/cugraph
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
