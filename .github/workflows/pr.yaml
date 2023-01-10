@@ -96,6 +96,8 @@ jobs:
       extra-repo: rapidsai/cugraph-ops
       extra-repo-sha: branch-23.02
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+      before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep"
+      cibw-before-build: "pip install --no-deps ./local-pylibcugraph-dep/pylibcugraph*.whl"
       skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
   wheel-tests-cugraph:
     needs: wheel-build-cugraph
