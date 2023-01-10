@@ -370,7 +370,7 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong, cugraph_input_type):
         api_type,
     ) = dataset_nxresults_strong
 
-    if not isinstance(cugraph_input_type, (cugraph.Graph)):
+    if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
             dataset_path, cugraph_input_type, edgevals=True
         )
