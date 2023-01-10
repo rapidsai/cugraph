@@ -17,7 +17,7 @@ import dask_cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import bfs as pylibcugraph_bfs
 
-from cugraph.structure.graph_classes import Graph, DiGraph
+from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
@@ -43,7 +43,7 @@ def _ensure_args(G, start, i_start, directed):
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+    if (G_type in [Graph]) or is_nx_graph_type(G_type):
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a " "Graph-type input")
 
@@ -93,7 +93,7 @@ def _convert_df_to_output_type(df, input_type):
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if input_type in [Graph, DiGraph]:
+    if input_type in [Graph]:
         return df
 
     elif is_nx_graph_type(input_type):

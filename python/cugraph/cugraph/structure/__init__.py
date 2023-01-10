@@ -13,11 +13,8 @@
 
 from cugraph.structure.graph_classes import (
     Graph,
-    DiGraph,
     MultiGraph,
-    MultiDiGraph,
     BiPartiteGraph,
-    BiPartiteDiGraph,
 )
 from cugraph.structure.graph_classes import (
     is_weighted,

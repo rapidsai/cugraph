@@ -84,7 +84,7 @@ def test_Graph_from_MultiGraph(graph_file):
         edge_attr="weight",
         create_using=nx.MultiGraph(),
     )
-    Gd = cugraph.DiGraph(GdM)
+    Gd = cugraph.Graph(GdM,directed=True)
     Gnxd = nx.DiGraph(GnxdM)
     assert Gnxd.number_of_edges() == Gd.number_of_edges()
 

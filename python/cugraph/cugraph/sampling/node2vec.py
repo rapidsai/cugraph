@@ -38,7 +38,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed or undirected.
         Weights in the graph are ignored.
 
     start_vertices: int or list or cudf.Series or cudf.DataFrame

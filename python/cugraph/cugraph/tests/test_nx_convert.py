@@ -81,7 +81,7 @@ def test_networkx_compatibility(graph_file):
         M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
     )
 
-    # create a cuGraph DiGraph
+    # create a cuGraph Directed Graph
     gdf = cudf.from_pandas(M)
     gdf = gdf.rename(columns={"weight": "weights"})
     cuG = cugraph.from_cudf_edgelist(
@@ -89,7 +89,7 @@ def test_networkx_compatibility(graph_file):
         source="0",
         destination="1",
         edge_attr="weights",
-        create_using=cugraph.DiGraph,
+        create_using=cugraph.Graph(directed=True),
     )
 
     _compare_graphs(nxG, cuG)
