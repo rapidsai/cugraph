@@ -60,6 +60,7 @@ def input_combo(request):
     indices_type = parameters["indices_type"]
 
     input_data_path = parameters["graph_file"].get_path()
+    print('data path:', input_data_path)
     directed = parameters["directed"]
 
     df = cudf.read_csv(
@@ -152,6 +153,10 @@ def test_uniform_neighbor_sample_simple(input_combo):
         input_combo["fanout_vals"],
         input_combo["with_replacement"],
     )
+
+    print(input_df)
+    print(result_nbr)
+
 
     # multi edges are dropped to easily verify that each edge in the
     # results is present in the input dataframe
