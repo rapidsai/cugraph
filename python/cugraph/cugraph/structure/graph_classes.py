@@ -19,7 +19,6 @@ from .graph_implementation import (
 )
 import cudf
 import dask_cudf
-import warnings
 
 from cugraph.utilities.utils import import_optional
 
