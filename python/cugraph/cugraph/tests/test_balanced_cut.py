@@ -27,7 +27,8 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    score = cugraph.analyzeClustering_edge_cut(G, partitions, df, "vertex", "cluster")
+    score = cugraph.analyzeClustering_edge_cut(
+                    G, partitions, df, "vertex", "cluster")
     return set(df["vertex"].to_numpy()), score
 
 
@@ -95,26 +96,6 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     # assignment
     print(cu_score, rand_score)
     assert cu_score < rand_score
-
-
-# Test to ensure Directed objs are not accepted
-# Test all combinations of default/managed and pooled/non-pooled allocation
-#def test_digraph_rejected():
-#    gc.collect()
-#
-#    df = cudf.DataFrame()
-#    df["src"] = cudf.Series(range(10))
-#    df["dst"] = cudf.Series(range(10))
-#    df["val"] = cudf.Series(range(10))
-#
-#    with pytest.deprecated_call():
-#        G = cugraph.Graph(directed=True)
-#    G.from_cudf_edgelist(
-#        df, source="src", destination="dst", edge_attr="val", renumber=False
-#    )
-#
-#    with pytest.raises(Exception):
-#        cugraph_call(G, 2)
 
 
 @pytest.mark.parametrize("graph_file", DATASETS)
