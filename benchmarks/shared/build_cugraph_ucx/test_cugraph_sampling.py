@@ -90,11 +90,11 @@ def run_sampling_test(G, start_list):
 
 
 def start_cluster(n_workers):
-    dask_worker_devices = ','.join([str(i) for i in range(0,n_workers)])    
-    cluster = LocalCUDACluster(protocol='tcp',rmm_pool_size='15GB', CUDA_VISIBLE_DEVICES=dask_worker_devices)
+    dask_worker_devices = ','.join([str(i) for i in range(1,n_workers+1)])    
+    cluster = LocalCUDACluster(protocol='ucx',rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=dask_worker_devices)
     client = Client(cluster)
     Comms.initialize(p2p=True)
-    rmm.reinitialize(pool_allocator=True, initial_pool_size=2**30, maximum_pool_size=4*2**30)
+    rmm.reinitialize(pool_allocator=True, initial_pool_size=2**30, maximum_pool_size=2*(2**30) )
     return cluster, client
 
 

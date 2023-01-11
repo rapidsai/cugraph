@@ -14,9 +14,25 @@
 import os
 import rmm
 from cugraph.generators import rmat
+from dask_cuda import LocalCUDACluster
+from distributed import Client
+from cugraph.dask.comms import comms as Comms
+import numpy as np
+_seed = 42
 
-def create_dataset(scale, edgefactor, folder_path):
-    _seed = 42
+def start_cluster():
+    cluster = LocalCUDACluster(protocol='tcp',rmm_managed_memory=True)
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    return cluster, client
+
+
+def create_edgelist_df(scale, edgefactor):
+    """
+    Create a graph instance based on the data to be loaded/generated.
+    """
+  
+    # Assume strings are names of datasets in the datasets package
     num_edges = (2**scale) * edgefactor
     seed = _seed
     edgelist_df = rmat(
@@ -29,16 +45,17 @@ def create_dataset(scale, edgefactor, folder_path):
         clip_and_flip=False,
         scramble_vertex_ids=False,  # FIXME: need to understand relevance of this
         create_using=None,  # None == return edgelist
-        mg=False,
+        mg=True,
     )
-    filepath = os.path.join(folder_path, f'rmat_scale_{scale}_edgefactor_{edgefactor}.parquet')
-    edgelist_df.to_parquet(filepath)
+    edgelist_df["weight"] = np.float32(1)
+    return edgelist_df
 
 
-
-folder_path = os.path.join(os.getcwd(), 'datasets') 
-os.makedirs(folder_path, exist_ok=True)
-rmm.reinitialize(managed_memory=True)
-for scale in [24,25,26]:
-    edgefactor = 16
-    create_dataset(scale=scale, edgefactor=edgefactor, folder_path=folder_path)
+if __name__ == "__main__":
+    cluster, client = start_cluster()
+    folder_path = '/datasets/vjawa/gnn_data/' 
+    os.makedirs(folder_path, exist_ok=True)
+    for scale in [28]:
+        edgefactor = 16
+        edgelist_df = create_edgelist_df(scale, edgefactor)
+        edgelist_df.to_parquet(folder_path+f'/mg_scale_{scale}_edgefactor_{edgefactor}.parquet')
