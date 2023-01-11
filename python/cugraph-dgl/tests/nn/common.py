@@ -15,6 +15,7 @@ from cugraph.utilities.utils import import_optional
 th = import_optional("torch")
 dgl = import_optional("dgl")
 
+
 def create_graph1():
     u = th.tensor([0, 1, 0, 2, 3, 0, 4, 0, 5, 0, 6, 7, 0, 8, 9])
     v = th.tensor([1, 9, 2, 9, 9, 4, 9, 5, 9, 6, 9, 9, 8, 9, 0])

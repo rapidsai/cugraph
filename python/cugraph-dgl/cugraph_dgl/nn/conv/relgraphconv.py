@@ -132,9 +132,7 @@ class RelGraphConv(nn.Module):
             self.coeff = None
         elif regularizer == "basis":
             if num_bases is None:
-                raise ValueError(
-                    'Missing "num_bases" for basis regularization.'
-                )
+                raise ValueError('Missing "num_bases" for basis regularization.')
             self.W = nn.Parameter(
                 torch.Tensor(num_bases + dim_self_loop, in_feat, out_feat)
             )
@@ -161,9 +159,7 @@ class RelGraphConv(nn.Module):
                     -1 / math.sqrt(self.in_feat),
                     1 / math.sqrt(self.in_feat),
                 )
-                nn.init.xavier_uniform_(
-                    self.coeff, gain=nn.init.calculate_gain("relu")
-                )
+                nn.init.xavier_uniform_(self.coeff, gain=nn.init.calculate_gain("relu"))
 
         # others
         self.bias = bias

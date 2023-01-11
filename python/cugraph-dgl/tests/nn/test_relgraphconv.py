@@ -30,6 +30,7 @@ options = {
     "to_block": [False, True],
 }
 
+
 @pytest.mark.parametrize("to_block", options["to_block"])
 @pytest.mark.parametrize("regularizer", options["regularizer"])
 @pytest.mark.parametrize("max_in_degree", options["max_in_degree"])
@@ -72,6 +73,4 @@ def test_relgraphconv_equality(idtype_int, max_in_degree, regularizer, to_block)
     out2.backward(grad_out)
     assert th.allclose(conv1.linear_r.W.grad, conv2.W.grad, atol=1e-6)
     if regularizer is not None:
-        assert th.allclose(
-            conv1.linear_r.coeff.grad, conv2.coeff.grad, atol=1e-6
-        )
+        assert th.allclose(conv1.linear_r.coeff.grad, conv2.coeff.grad, atol=1e-6)

@@ -29,6 +29,7 @@ options = {
     "to_block": [False, True],
 }
 
+
 @pytest.mark.parametrize("to_block", options["to_block"])
 @pytest.mark.parametrize("max_in_degree", options["max_in_degree"])
 @pytest.mark.parametrize("idtype_int", options["idtype_int"])
