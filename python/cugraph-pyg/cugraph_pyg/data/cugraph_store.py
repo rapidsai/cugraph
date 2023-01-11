@@ -391,7 +391,7 @@ class EXPERIMENTAL__CuGraphStore:
                 cumsum - self.__vertex_type_offsets["stop"]
             )
             self.__vertex_type_offsets["stop"] = cumsum - 1
-            self.__vertex_type_offsets["type"] = np.array(self.__graph.vertex_types)
+            self.__vertex_type_offsets["type"] = np.array(sorted(self.__graph.vertex_types), dtype='str')
 
     @property
     def _old_vertex_col_name(self) -> str:
@@ -449,6 +449,9 @@ class EXPERIMENTAL__CuGraphStore:
             ix = torch.tensor([], dtype=torch.int64)
         else:
             ix = cupy.array([], dtype='int64')
+
+        if isinstance(self.__vertex_type_offsets, dict):
+            vtypes = np.searchsorted(self.__vertex_type_offsets["type"], vtypes)
         for vtype in vtypes:
             start = self.__vertex_type_offsets["start"][vtype]
             stop = self.__vertex_type_offsets["stop"][vtype]
