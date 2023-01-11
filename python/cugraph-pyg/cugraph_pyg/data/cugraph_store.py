@@ -795,7 +795,6 @@ class EXPERIMENTAL__CuGraphStore:
             df = df.compute()
 
         # FIXME handle vertices without properties
-        print(df)
         output = self.from_dlpack(df.to_dlpack())
 
         # FIXME look up the dtypes for x and other properties
@@ -810,11 +809,6 @@ class EXPERIMENTAL__CuGraphStore:
         return output
 
     def _get_tensor(self, attr):
-        print('name:', attr.attr_name)
-        print('properties:', attr.properties)
-        print('index:', attr.index)
-        print('type:', attr.group_name)
-
         if attr.attr_name == "x":
             cols = None
         else:
