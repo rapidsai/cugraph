@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -830,7 +830,7 @@ class EXPERIMENTAL__PropertyGraph:
         6  vtype        96       7
         7  vtype        88       8
         """
-        if self.__vertex_prop_dataframe is not None:    
+        if self.__vertex_prop_dataframe is not None:
             df = self.__vertex_prop_dataframe
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
@@ -1266,7 +1266,7 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            
+
             # Should not drop so the edge ids are returned as a column.
             df_out = df.reset_index()
 
@@ -1768,9 +1768,9 @@ class EXPERIMENTAL__PropertyGraph:
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
             if edge_weight_property == self.type_col_name:
-                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype('float32')
-                edge_prop_df['temp_type_col'] = prop_col
-                edge_weight_property = 'temp_type_col'
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
+                edge_prop_df["temp_type_col"] = prop_col
+                edge_weight_property = "temp_type_col"
             elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,6 @@
 
 import cudf
 import cupy
-import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
@@ -331,10 +330,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         return self.get_vertices()
 
     def vertex_types_from_numerals(self, nums):
-        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
+        return (
+            self.__vertex_prop_dataframe[self.type_col_name]
+            .dtype.categories.to_series()
+            .iloc[nums]
+            .reset_index(drop=True)
+        )
 
     def edge_types_from_numerals(self, nums):
-        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
+        return (
+            self.__edge_prop_dataframe[self.type_col_name]
+            .dtype.categories.to_series()
+            .iloc[nums]
+            .reset_index(drop=True)
+        )
 
     def add_vertex_data(
         self,
@@ -1194,9 +1203,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
             if edge_weight_property == self.type_col_name:
-                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype('float32')
-                edge_prop_df['temp_type_col'] = prop_col
-                edge_weight_property = 'temp_type_col'
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
+                edge_prop_df["temp_type_col"] = prop_col
+                edge_weight_property = "temp_type_col"
             elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
@@ -1276,8 +1285,12 @@ class EXPERIMENTAL__MGPropertyGraph:
         if edge_attr is not None:
             col_names.append(edge_attr)
 
-        edge_prop_df = edge_prop_df.reset_index().drop([col for col in edge_prop_df if col not in col_names], axis=1)
-        edge_prop_df = edge_prop_df.repartition(npartitions=self.__num_workers * 4).persist()
+        edge_prop_df = edge_prop_df.reset_index().drop(
+            [col for col in edge_prop_df if col not in col_names], axis=1
+        )
+        edge_prop_df = edge_prop_df.repartition(
+            npartitions=self.__num_workers * 4
+        ).persist()
 
         G.from_dask_cudf_edgelist(
             edge_prop_df[col_names],

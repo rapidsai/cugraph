@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,10 +36,15 @@ import cudf
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
-cupy = import_optional('cupy')
-torch = import_optional('torch')
+cupy = import_optional("cupy")
+torch = import_optional("torch")
 
-HeteroSamplerOutput = None if isinstance(torch_geometric, MissingModule) else torch_geometric.sampler.base.HeteroSamplerOutput
+HeteroSamplerOutput = (
+    None
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.sampler.base.HeteroSamplerOutput
+)
+
 
 class EXPERIMENTAL__CuGraphSampler:
     """
@@ -51,7 +56,12 @@ class EXPERIMENTAL__CuGraphSampler:
         UNIFORM_NEIGHBOR,
     ]
 
-    def __init__(self, data:Tuple[CuGraphStore, CuGraphStore], method: str=UNIFORM_NEIGHBOR, **kwargs):
+    def __init__(
+        self,
+        data: Tuple[CuGraphStore, CuGraphStore],
+        method: str = UNIFORM_NEIGHBOR,
+        **kwargs,
+    ):
         if method not in self.SAMPLING_METHODS:
             raise ValueError(f"{method} is not a valid sampling method")
         self.__method = method
@@ -61,9 +71,11 @@ class EXPERIMENTAL__CuGraphSampler:
         self.__feature_store = fs
         self.__graph_store = gs
 
-    # FIXME Make HeteroSamplerOutput the only return type 
+    # FIXME Make HeteroSamplerOutput the only return type
     # after PyG becomes a hard requirement
-    def sample_from_nodes(self, sampler_input: Tuple[TensorType, TensorType, TensorType]) -> Union[HeteroSamplerOutput, dict]:
+    def sample_from_nodes(
+        self, sampler_input: Tuple[TensorType, TensorType, TensorType]
+    ) -> Union[HeteroSamplerOutput, dict]:
         """
         Sample nodes using this CuGraphSampler's sampling method
         (which is set at initialization)
@@ -112,9 +124,9 @@ class EXPERIMENTAL__CuGraphSampler:
         self,
         index: TensorType,
         num_neighbors: List[int],
-        replace:bool=True,
-        directed:bool=True,
-        edge_types:List[str]=None,
+        replace: bool = True,
+        directed: bool = True,
+        edge_types: List[str] = None,
         metadata=None,
         **kwargs,
     ) -> Union[dict, HeteroSamplerOutput]:
@@ -188,6 +200,4 @@ class EXPERIMENTAL__CuGraphSampler:
         if isinstance(torch_geometric, MissingModule):
             return {"out": out, "metadata": metadata}
         else:
-            return HeteroSamplerOutput(
-                *out, metadata=metadata
-            )
+            return HeteroSamplerOutput(*out, metadata=metadata)

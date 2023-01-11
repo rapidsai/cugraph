@@ -37,6 +37,7 @@ except ImportError:
 
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
+
 @pytest.fixture(scope="module")
 def dask_client():
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
@@ -51,7 +52,7 @@ def dask_client():
         tempdir_object = tempfile.TemporaryDirectory()
         cluster = LocalCUDACluster(
             local_directory=tempdir_object.name,
-            protocol='tcp',
+            protocol="tcp",
             CUDA_VISIBLE_DEVICES=cuda_visible_devices,
         )
 
