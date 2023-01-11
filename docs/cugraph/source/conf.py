@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 #
 # pygdf documentation build configuration file, created by
 # sphinx-quickstart on Wed May  3 10:59:22 2017.
@@ -73,8 +73,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'cugraph'
-copyright = '2019-2022, NVIDIA'
-author = 'NVIDIA'
+copyright = '2019-2023, NVIDIA Corporation'
+author = 'NVIDIA Corporation'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
