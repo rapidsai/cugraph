@@ -388,9 +388,9 @@ class EXPERIMENTAL__CuGraphStore:
 
             cumsum = self.__vertex_type_offsets["stop"].cumsum(0)
             self.__vertex_type_offsets["start"] = (
-                self.__vertex_type_offsets["stop"] - cumsum
+                cumsum - self.__vertex_type_offsets["stop"]
             )
-            self.__vertex_type_offsets["stop"] -= 1
+            self.__vertex_type_offsets["stop"] = cumsum - 1
             self.__vertex_type_offsets["type"] = np.array(self.__graph.vertex_types)
 
     @property
