@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -87,13 +87,14 @@ if (( ${exitcode} != 0 )); then
 fi
 popd
 
-rapids-logger "pytest cugraph benchmarks"
+rapids-logger "pytest cugraph benchmarks (run as tests)"
 pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
   -m "managedmem_on and poolallocator_on and tiny" \
-  --benchmark-disable
+  --benchmark-disable \
+  cugraph/pytest-based/bench_algos.py
 exitcode=$?
 
 if (( ${exitcode} != 0 )); then
