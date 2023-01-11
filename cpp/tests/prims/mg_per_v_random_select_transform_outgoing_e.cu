@@ -198,11 +198,9 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     mg_vertex_buffer.resize(num_seeds_this_gpu, handle_->get_stream());
     mg_vertex_buffer.shrink_to_fit(handle_->get_stream());
 
-    mg_vertex_buffer = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+    mg_vertex_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
       *handle_, std::move(mg_vertex_buffer), mg_graph_view.vertex_partition_range_lasts());
 #endif
-    std::cout << "V=" << mg_graph_view.number_of_vertices()
-              << "mg_vertex_buffer.size()=" << mg_vertex_buffer.size() << std::endl;
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
@@ -499,10 +497,10 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{100000}, size_t{4}, false, false, false, false},
-                      Prims_Usecase{size_t{100000}, size_t{4}, false, true, false, false},
-                      Prims_Usecase{size_t{100000}, size_t{4}, true, false, false, false},
-                      Prims_Usecase{size_t{100000}, size_t{4}, true, true, false, false}),
+    ::testing::Values(Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false},
+                      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false},
+                      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false},
+                      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false}),
     ::testing::Values(
       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
