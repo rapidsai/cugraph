@@ -11,7 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .relgraphconv import RelGraphConv
+from .sageconv import SAGEConv
 
 __all__ = [
     "RelGraphConv",
+    "SAGEConv",
 ]
