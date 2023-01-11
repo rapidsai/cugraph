@@ -457,7 +457,7 @@ class EXPERIMENTAL__CuGraphStore:
             stop = int(self.__vertex_type_offsets["stop"][vtype])
             ix = self.concatenate([ix, self.arange(start, stop + 1, 1, dtype='int64')])
 
-        return self.from_dlpack(ix.to_dlpack())
+        return self.from_dlpack(ix.__dlpack__())
 
     def put_edge_index(self, edge_index, edge_attr):
         """
