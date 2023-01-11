@@ -453,9 +453,9 @@ class EXPERIMENTAL__CuGraphStore:
         if isinstance(self.__vertex_type_offsets, dict):
             vtypes = np.searchsorted(self.__vertex_type_offsets["type"], vtypes)
         for vtype in vtypes:
-            start = self.__vertex_type_offsets["start"][vtype]
-            stop = self.__vertex_type_offsets["stop"][vtype]
-            ix = self.concatenate(ix, self.arange(start, stop + 1, 1))
+            start = int(self.__vertex_type_offsets["start"][vtype])
+            stop = int(self.__vertex_type_offsets["stop"][vtype])
+            ix = self.concatenate([ix, self.arange(start, stop + 1, 1, dtype='int64')])
 
         return self.from_dlpack(ix.to_dlpack())
 
