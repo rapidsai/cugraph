@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Any, Void, Union, List
+from typing import Optional, Tuple, Any, Union, List
 from enum import Enum
 
 from dataclasses import dataclass
@@ -323,7 +323,7 @@ class EXPERIMENTAL__CuGraphStore:
 
             self._edge_attr_cls = CuGraphEdgeAttr
 
-    def __renumber_graph(self, renumber_graph: bool) -> Void:
+    def __renumber_graph(self, renumber_graph:bool) -> None:
         """
         Renumbers the vertices and edges in this store's property graph
         and sets the vertex offsets.
@@ -750,12 +750,10 @@ class EXPERIMENTAL__CuGraphStore:
 
         return row_dict, col_dict
 
-    def put_tensor(self, tensor, attr) -> Void:
+    def put_tensor(self, tensor, attr) -> None:
         raise NotImplementedError("Adding properties not supported.")
 
-    def create_named_tensor(
-        self, attr_name: str, properties: List[str], vertex_type: str, dtype: str
-    ) -> Void:
+    def create_named_tensor(self, attr_name: str, properties: List[str], vertex_type: str, dtype: str) -> None:
         """
         Create a named tensor that contains a subset of
         properties in the graph.
@@ -779,7 +777,7 @@ class EXPERIMENTAL__CuGraphStore:
             )
         )
 
-    def __infer_x_and_y_tensors(self) -> Void:
+    def __infer_x_and_y_tensors(self) -> None:
         """
         Infers the x and y default tensor attributes/features.
         Currently unable to handle cases where properties differ across
