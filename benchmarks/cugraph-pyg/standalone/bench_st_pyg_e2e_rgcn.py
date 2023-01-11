@@ -21,18 +21,14 @@ if __name__ == '__main__':
     import torch
     import pandas as pd
 
-    from ogb.nodeproppred import NodePropPredDataset
-
     from cugraph.experimental import PropertyGraph, MGPropertyGraph
-
-    from cugraph_pyg.data import to_pyg
-    from cugraph_pyg.sampler import CuGraphSampler
 
     from torch_geometric.loader import NodeLoader
 
 
     def make_loader_hetero_mag(mg=False, batch_size=100, num_neighbors=[10,25], replace=False):
         # Load MAG into CPU memory
+        from ogb.nodeproppred import NodePropPredDataset
         dataset = NodePropPredDataset(name="ogbn-mag")
 
         data = dataset[0]
@@ -136,7 +132,8 @@ if __name__ == '__main__':
     n_devices = os.getenv('DASK_NUM_WORKERS', 4)
     n_devices = int(n_devices)
 
-    visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
+    start=13
+    visible_devices = ','.join([str(i) for i in range(start+1, start+n_devices+1)])
 
     cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
