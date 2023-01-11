@@ -373,10 +373,10 @@ class EXPERIMENTAL__CuGraphStore:
 
             cumsum = self.__vertex_type_offsets["stop"].cumsum(0)
             self.__vertex_type_offsets["start"] = (
-                self.__vertex_type_offsets["stop"] - cumsum
+                cumsum - self.__vertex_type_offsets["stop"]
             )
-            self.__vertex_type_offsets["stop"] -= 1
-            self.__vertex_type_offsets["type"] = np.array(self.__graph.vertex_types)
+            self.__vertex_type_offsets["stop"] = cumsum - 1
+            self.__vertex_type_offsets["type"] = np.array(sorted(self.__graph.vertex_types), dtype='str')
 
     @property
     def _old_vertex_col_name(self):
@@ -427,15 +427,18 @@ class EXPERIMENTAL__CuGraphStore:
 
         # FIXME always use torch, drop cupy (#2995)
         if self.__backend == "torch":
-            ix = torch.tensor()
+            ix = torch.tensor([], dtype=torch.int64)
         else:
-            ix = cupy.array()
+            ix = cupy.array([], dtype='int64')
+        
+        if isinstance(self.__vertex_type_offsets, dict):
+            vtypes = np.searchsorted(self.__vertex_type_offsets["type"], vtypes)
         for vtype in vtypes:
-            start = self.__vertex_type_offsets["start"][vtype]
-            stop = self.__vertex_type_offsets["stop"][vtype]
-            ix = self.concatenate(ix, self.arange(start, stop + 1, 1))
+            start = int(self.__vertex_type_offsets["start"][vtype])
+            stop = int(self.__vertex_type_offsets["stop"][vtype])
+            ix = self.concatenate([ix, self.arange(start, stop + 1, 1, dtype=self.vertex_dtype)])
 
-        return self.from_dlpack(ix.to_dlpack())
+        return ix
 
     def put_edge_index(self, edge_index, edge_attr):
         """
@@ -590,12 +593,12 @@ class EXPERIMENTAL__CuGraphStore:
             query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
                 query += f' | ({TCN}=="{t}")'
-            # selection = self.__graph.select_edges(query)
+            selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
-                # selection=selection,
-                edge_weight_property='weight',
+                selection=selection,
+                edge_weight_property=self.__graph.type_col_name,
                 default_edge_weight=1.0,
                 check_multi_edges=False,
                 renumber_graph=True,
@@ -631,10 +634,13 @@ class EXPERIMENTAL__CuGraphStore:
         if len(vtypes) == 1:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
+            # FIXME remove use of cudf
             noi_types = self.__graph.vertex_types_from_numerals(
-                self.searchsorted(
-                    self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
-                    nodes_of_interest,
+                cudf.from_dlpack(
+                    self.searchsorted(
+                        self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                        nodes_of_interest,
+                    ).__dlpack__()
                 )
             )
 
@@ -713,13 +719,13 @@ class EXPERIMENTAL__CuGraphStore:
                 t_pyg_type = self.__edge_types_to_attrs[cugraph_type_name].edge_type
                 src_type, edge_type, dst_type = t_pyg_type
 
-                sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
+                sources = self.from_dlpack(sampling_results.sources.iloc[ix].to_dlpack())
                 src_id_table = noi_index[src_type]
                 src = self.searchsorted(src_id_table, sources)
                 row_dict[t_pyg_type] = src
 
                 destinations = self.from_dlpack(
-                    sampling_results.destinations.loc[ix].to_dlpack()
+                    sampling_results.destinations.iloc[ix].to_dlpack()
                 )
                 dst_id_table = noi_index[dst_type]
                 dst = self.searchsorted(dst_id_table, destinations)
@@ -789,6 +795,7 @@ class EXPERIMENTAL__CuGraphStore:
             df = df.compute()
 
         # FIXME handle vertices without properties
+        print(df)
         output = self.from_dlpack(df.to_dlpack())
 
         # FIXME look up the dtypes for x and other properties
@@ -803,6 +810,11 @@ class EXPERIMENTAL__CuGraphStore:
         return output
 
     def _get_tensor(self, attr):
+        print('name:', attr.attr_name)
+        print('properties:', attr.properties)
+        print('index:', attr.index)
+        print('type:', attr.group_name)
+
         if attr.attr_name == "x":
             cols = None
         else:

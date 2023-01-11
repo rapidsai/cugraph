@@ -1,0 +1,17 @@
+name: cugraph_pyg_dev
+channels:
+- rapidsai-nightly
+- rapidsai
+- pytorch
+- conda-forge
+- nvidia
+- pyg
+
+dependencies:
+- cudatoolkit=11.7
+- cupy=11.4.0
+- cugraph=23.02.*
+- pytorch=1.13.0
+- pyg
+- setuptools
+- pytest

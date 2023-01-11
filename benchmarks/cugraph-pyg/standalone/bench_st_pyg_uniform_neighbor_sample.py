@@ -5,6 +5,7 @@ if __name__ == '__main__':
 
     import cugraph
     from dask_cuda import LocalCUDACluster
+    from cugraph.dask.common.mg_utils import get_visible_devices
     from dask.distributed import Client
     from cugraph.dask.comms import comms as Comms
     from cugraph.generators import rmat
@@ -23,18 +24,19 @@ if __name__ == '__main__':
 
     # module-wide fixtures
 
+    visible_devices = get_visible_devices()
     n_devices = os.getenv('DASK_NUM_WORKERS', 4)
     n_devices = int(n_devices)
 
-    visible_devices = ','.join([str(i) for i in range(1, n_devices+1)])
+    visible_devices = ','.join([visible_devices[i] for i in range(1, n_devices+1)])
 
     cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
     client = Client(cluster)
     Comms.initialize(p2p=True)
     rmm.reinitialize(pool_allocator=True)
 
-    scale = 28
-    edge_factor = 16
+    scale = 24
+    edge_factor = 4
 
     num_edges = (2**scale) * edge_factor
     seed = 0x08

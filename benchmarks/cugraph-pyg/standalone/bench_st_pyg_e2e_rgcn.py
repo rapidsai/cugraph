@@ -1,9 +1,11 @@
 if __name__ == '__main__':
+    from ogb.nodeproppred import NodePropPredDataset
     import os
     import sys
     import time
 
     import cugraph
+    from cugraph.dask.common.mg_utils import get_visible_devices
     from dask_cuda import LocalCUDACluster
     from dask.distributed import Client
     from cugraph.dask.comms import comms as Comms
@@ -28,7 +30,6 @@ if __name__ == '__main__':
 
     def make_loader_hetero_mag(mg=False, batch_size=100, num_neighbors=[10,25], replace=False):
         # Load MAG into CPU memory
-        from ogb.nodeproppred import NodePropPredDataset
         dataset = NodePropPredDataset(name="ogbn-mag")
 
         data = dataset[0]
@@ -41,7 +42,9 @@ if __name__ == '__main__':
         vertex_offsets = {}
         last_offset = 0
 
-        for node_type, num_nodes in data[0]["num_nodes_dict"].items():
+        # Make sure node types are in alphabetical order so renumber_vertices_by_types doesn't need to be called.
+        for node_type in sorted(data[0]["num_nodes_dict"].keys()):
+            num_nodes = data[0]['num_nodes_dict'][node_type]
             vertex_offsets[node_type] = last_offset
             last_offset += num_nodes
 
@@ -71,11 +74,10 @@ if __name__ == '__main__':
 
             pG.add_vertex_data(feature_df, vertex_col_name="id", type_name=node_type)
 
-        # Fill in an empty value for vertices without properties.
-        pG.fillna_vertices(0.0)
-
         # Add the edges
-        for i, (edge_key, eidx) in enumerate(data[0]["edge_index_dict"].items()):
+        # Make sure edge types are in alphabetical order so renumber_vertices_by_types doesn't need to be called.
+        for i, edge_key in enumerate(sorted(data[0]["edge_index_dict"].keys(), key=lambda t : t[1])):
+            eidx = data[0]['edge_index_dict'][edge_key]
             node_type_src, edge_type, node_type_dst = edge_key
             print(node_type_src, edge_type, node_type_dst)
             vertex_offset_src = vertex_offsets[node_type_src]
@@ -103,12 +105,15 @@ if __name__ == '__main__':
         y_df["id"] = range(vertex_offsets["paper"], vertex_offsets["paper"] + len(y_df))
         y_df.id = y_df.id.astype("int64")
         if mg:
-            y_df = dask_cudf.from_cudf(y_df, partitions=2)
+            y_df = dask_cudf.from_cudf(y_df, npartitions=2)
 
         pG.add_vertex_data(y_df, vertex_col_name="id", type_name="paper")
 
+        # Fill in an empty value for vertices without properties (includes y).
+        pG.fillna_vertices(0.0)
+
         # Construct a graph/feature store and loaders
-        feature_store, graph_store = to_pyg(pG, renumber_graph=False, backend='cupy')
+        feature_store, graph_store = to_pyg(pG, renumber_graph=False, backend='torch')
         sampler = CuGraphSampler(
             data=(feature_store, graph_store),
             shuffle=True,
@@ -128,26 +133,27 @@ if __name__ == '__main__':
         return loader
 
     # BEGIN WORKFLOW
-
-    n_devices = os.getenv('DASK_NUM_WORKERS', 4)
-    n_devices = int(n_devices)
-
-    start=13
-    visible_devices = ','.join([str(i) for i in range(start+1, start+n_devices+1)])
-
-    cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
-    rmm.reinitialize(pool_allocator=True)
-    torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
-
+    mg = False
     kx_mag = 1
     seed = 0x08
+
+    if mg:
+        visible_devices = get_visible_devices()
+        n_devices = os.getenv('DASK_NUM_WORKERS', 4)
+        n_devices = int(n_devices)
+
+        visible_devices = ','.join([visible_devices[i] for i in range(1, n_devices+1)])
+
+        cluster = LocalCUDACluster(protocol='ucx', rmm_pool_size='25GB', CUDA_VISIBLE_DEVICES=visible_devices)
+        client = Client(cluster)
+        Comms.initialize(p2p=True)
+    
+    rmm.reinitialize(pool_allocator=True)
 
     print("creating loader...")
     st = time.perf_counter_ns()
 
-    loader = make_loader_hetero_mag(mg=True)
+    loader = make_loader_hetero_mag(mg=mg)
 
     print(f"done creating loader, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
@@ -200,8 +206,9 @@ if __name__ == '__main__':
 
     '''
 
-    stop_dask_client(client)
-    print("\ndask_client fixture: client.close() called")
+    if mg:
+        stop_dask_client(client)
+        print("\ndask_client fixture: client.close() called")
 
 
 
