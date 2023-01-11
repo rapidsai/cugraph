@@ -20,6 +20,7 @@ from cugraph.dask.comms import comms as Comms
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 from cugraph import MultiGraph
 from cugraph.generators import rmat
+import cudf
 
 _seed = 42
 
@@ -36,11 +37,11 @@ def benchmark_func(func, n_times=10):
         return result, time_ls[1:]
     return wrap_func
 
-def create_mg_graph(graph_data):
+def create_edgelist_df(graph_data):
     """
     Create a graph instance based on the data to be loaded/generated.
     """
-    G = MultiGraph(directed=True)
+  
     # Assume strings are names of datasets in the datasets package
     scale = graph_data["scale"]
     num_edges = (2**scale) * graph_data["edgefactor"]
@@ -58,7 +59,10 @@ def create_mg_graph(graph_data):
         mg=True,
     )
     edgelist_df["weight"] = np.float32(1)
-
+    return edgelist_df
+    
+def create_mg_graph(edgelist_df):
+    G = MultiGraph(directed=True)
     G.from_dask_cudf_edgelist(
         edgelist_df,
         source="src",
@@ -66,6 +70,9 @@ def create_mg_graph(graph_data):
         edge_attr="weight",
         legacy_renum_only=True,
     )
+    
+    G.input_df = G.input_df.to_dask_dataframe()
+    G.edgelist.edgelist_df = G.edgelist.edgelist_df.to_dask_dataframe()
     return G
 
 @benchmark_func
@@ -74,30 +81,44 @@ def sample_graph(G, start_list):
     df = output_ddf.compute()
     return df
 
-def run_sampling_test(ddf, start_list):
-    df, time_ls = sample_graph(ddf, start_list)
+def run_sampling_test(G, start_list):
+    df, time_ls = sample_graph(G, start_list)
     time_ar = np.asarray(time_ls)
     time_mean = time_ar.mean()
-    print(f"Sampling {len(start_list):,} took = {time_mean*1e-6} ms")
+    print(f"Sampling {len(start_list):,} took = {time_mean*1e-6} ms", flush=True)
     return
-    
+
+
+def start_cluster(n_workers):
+    dask_worker_devices = ','.join([str(i) for i in range(0,n_workers)])    
+    cluster = LocalCUDACluster(protocol='tcp',rmm_pool_size='15GB', CUDA_VISIBLE_DEVICES=dask_worker_devices)
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    rmm.reinitialize(pool_allocator=True, initial_pool_size=2**30, maximum_pool_size=4*2**30)
+    return cluster, client
+
 
 
 if __name__ == "__main__":
-    cluster = LocalCUDACluster(protocol='ucx',rmm_pool_size='15GB', CUDA_VISIBLE_DEVICES='1,2,3,4,5,6,7,8')
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
+    import argparse
 
-    rmm.reinitialize(pool_allocator=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_workers", default=2, type=int)
+    parser.add_argument("--scale", default=25, type=int)
+    parser.add_argument("--edgefactor",default=16, type=int)
+    args = parser.parse_args()
+    print(args)
+    cluster, client = start_cluster(args.n_workers)
+    graph_data = {"scale": args.scale,
+              "edgefactor": args.edgefactor,
+              }    
+    edgelist_df = create_edgelist_df(graph_data)
+    g = create_mg_graph(edgelist_df)
+    del edgelist_df
 
-    graph_data = {"scale": 26,
-              "edgefactor": 8 ,
-              }
-    
-    g = create_mg_graph(graph_data)
-
-    for num_start_verts in [1_000, 10_000, 100_000]:
+    for num_start_verts in [100, 500, 1_000, 5_000]+[i for i in range(10_000, 110_000, 10_000)]:
         start_list = g.input_df["src"].head(num_start_verts)
+        start_list = cudf.Series(start_list)
         assert len(start_list)==num_start_verts
         run_sampling_test(g, start_list)
     
