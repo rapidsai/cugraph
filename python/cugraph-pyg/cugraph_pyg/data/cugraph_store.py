@@ -446,9 +446,9 @@ class EXPERIMENTAL__CuGraphStore:
 
         # FIXME always use torch, drop cupy (#2995)
         if self.__backend == "torch":
-            ix = torch.tensor()
+            ix = torch.tensor([], dtype=torch.int64)
         else:
-            ix = cupy.array()
+            ix = cupy.array([], dtype='int64')
         for vtype in vtypes:
             start = self.__vertex_type_offsets["start"][vtype]
             stop = self.__vertex_type_offsets["stop"][vtype]
