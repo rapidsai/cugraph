@@ -120,7 +120,7 @@ def create_mg_graph(graph_data):
         # enable_rdmacm=False,
         protocol="ucx",
         rmm_pool_size="28GB",
-        CUDA_VISIBLE_DEVICES=visible_devices,
+        dask_worker_devices=visible_devices,
     )
     rmm.reinitialize(pool_allocator=True)
 
@@ -135,7 +135,7 @@ def create_mg_graph(graph_data):
         # for G.from_cudf_edgelist()
         edgelist_df = dask_cudf.from_cudf(edgelist_df)
         G.from_dask_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renumber=True
+            edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renum_only=True
         )
         num_verts = G.number_of_vertices()
 

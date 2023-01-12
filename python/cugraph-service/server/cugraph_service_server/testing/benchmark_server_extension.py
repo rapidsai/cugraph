@@ -24,6 +24,7 @@ from cugraph.generators import rmat
 # Graph creation extensions (these are assumed to return a Graph object)
 def create_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     dataset_obj = getattr(datasets, dataset_name)
+    # FIXME: create an MG graph if server is mg?
     return dataset_obj.get_graph(fetch=True)
 
 
