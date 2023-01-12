@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,13 +40,8 @@ def compare_edges(cg, nxg):
 
 
 def cugraph_call(M, verts, directed=True):
-    # directed is used to create either a Graph or DiGraph so the returned
     # cugraph can be compared to nx graph of same type.
-    if directed:
-        G = cugraph.DiGraph()
-    else:
-        G = cugraph.Graph()
-    cu_M = cudf.DataFrame()
+    G = cugraph.Graph(directed=directed)
 
     cu_M = cudf.from_pandas(M)
 
@@ -75,8 +70,8 @@ def test_subgraph_extraction_DiGraph(graph_file):
     verts[0] = 0
     verts[1] = 1
     verts[2] = 17
-    cu_sg = cugraph_call(M, verts)
-    nx_sg = nx_call(M, verts)
+    cu_sg = cugraph_call(M, verts, True)
+    nx_sg = nx_call(M, verts, True)
     assert compare_edges(cu_sg, nx_sg)
 
 

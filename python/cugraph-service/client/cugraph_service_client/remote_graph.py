@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client.remote_graph_utils import (
     _transform_to_backend_dtype,
     _transform_to_backend_dtype_1d,
+    _offsets_to_backend_dtype,
     MissingModule,
 )
 
@@ -659,18 +660,55 @@ class RemoteGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(
+        self, prev_id_column=None, backend="cudf" if cudf_installed else "numpy"
+    ):
         """Renumber vertex IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each vertex type.
         Stop is *inclusive*.
-        """
-        raise NotImplementedError("not implemented")
 
-    def renumber_edges_by_type(self):
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        -------
+
+
+        """
+        offsets = self.__client.renumber_vertices_by_type(
+            prev_id_column=prev_id_column, graph_id=self.__graph_id
+        )
+        return _offsets_to_backend_dtype(offsets, backend)
+
+    def renumber_edges_by_type(
+        self, prev_id_column=None, backend="cudf" if cudf_installed else "numpy"
+    ):
         """Renumber edge IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each edge type.
         Stop is *inclusive*.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        A DataFrame or dict (depending on backend) with the start and stop IDs for
+        each edge type.
+        Stop is *inclusive*.
+        -------
+
+
         """
-        raise NotImplementedError("not implemented")
+        offsets = self.__client.renumber_edges_by_type(
+            prev_id_column=prev_id_column, graph_id=self.__graph_id
+        )
+        return _offsets_to_backend_dtype(offsets, backend)
