@@ -288,8 +288,7 @@ class Graph:
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
         """
-        if renumber is False:
-            raise ValueError("'renumber' must be set to 'True' for MNMG algos")
+
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleDistributedGraphImpl:
