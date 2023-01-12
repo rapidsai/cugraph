@@ -216,9 +216,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     )
 
     G = cugraph.Graph(directed=directed)
-    G.from_dask_cudf_edgelist(
-        ddf, "src", "dst", "value", store_transposed=False
-    )
+    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value", store_transposed=False)
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
@@ -271,9 +269,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = dask_cudf.from_cudf(df, npartitions=2)
 
     G = cugraph.Graph()
-    G.from_dask_cudf_edgelist(
-        df, source="src", destination="dst"
-    )
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst")
 
     start_list = cudf.Series([0], dtype="int32")
     fanout_vals = [-1]

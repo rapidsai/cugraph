@@ -169,9 +169,7 @@ def test_dask_hots_transposed_false(dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", store_transposed=False
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
 
     warning_msg = (
         "HITS expects the 'store_transposed' "

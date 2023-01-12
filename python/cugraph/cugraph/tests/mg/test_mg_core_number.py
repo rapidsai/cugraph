@@ -86,11 +86,7 @@ def input_expected_output(dask_client, input_combo):
 
     dg = cugraph.Graph(directed=False)
     dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr="value",
-        renumber=True
+        ddf, source="src", destination="dst", edge_attr="value", renumber=True
     )
 
     input_combo["MGGraph"] = dg

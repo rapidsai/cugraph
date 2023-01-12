@@ -45,8 +45,7 @@ IS_DIRECTED = [True, False]
 datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 
 fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
-    (IS_DIRECTED, "directed")
+    (datasets, "graph_file"), (IS_DIRECTED, "directed")
 )
 
 
@@ -56,9 +55,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(
-        zip(("graph_file", "directed"), request.param)
-    )
+    parameters = dict(zip(("graph_file", "directed"), request.param))
 
     input_data_path = parameters["graph_file"]
     directed = parameters["directed"]
@@ -74,12 +71,7 @@ def input_combo(request):
     parameters["input_df"] = ddf
 
     dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr="value"
-    )
+    dg.from_dask_cudf_edgelist(ddf, source="src", destination="dst", edge_attr="value")
 
     parameters["MGGraph"] = dg
 
