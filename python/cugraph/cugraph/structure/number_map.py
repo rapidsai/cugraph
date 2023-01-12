@@ -462,7 +462,7 @@ class NumberMap:
             warning_msg = ("The parameter 'legacy_renum_only' is deprecated and will be removed.")
             warnings.warn(warning_msg, DeprecationWarning)
 
-        renumbered = True
+        renumbered = False
 
         # For columns with mismatch dtypes, set the renumbered
         # id_type to either 'int32' or 'int64'
@@ -478,20 +478,14 @@ class NumberMap:
             # renumber the edgelist to 'int32'
             renumber_id_type = np.int32
 
-        # FIXME: Drop the renumber_type 'experimental' once all the
-        # algos follow the C/Pylibcugraph path
-
         # The renumber_type 'legacy' runs the python renumbering.
         if isinstance(src_col_names, list):
-            renumber_type = "legacy"
+            renumbered = True
 
         elif not (
             df[src_col_names].dtype == np.int32 or df[src_col_names].dtype == np.int64
         ):
-            renumber_type = "legacy"
-        else:
-            renumbered = False
-            renumber_type = "skip_renumbering"
+            renumbered = True
 
         renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type)
         if not isinstance(src_col_names, list):
@@ -524,7 +518,7 @@ class NumberMap:
 
         renumber_map.implementation.numbered = renumbered
 
-        if renumber_type == "legacy":
+        if renumbered:
             indirection_map = renumber_map.implementation.indirection_map(
                 df, src_col_names, dst_col_names
             )
@@ -542,20 +536,13 @@ class NumberMap:
                 drop=True,
                 preserve_order=preserve_order,
             )
-        # FIXME: Check instead of renumbered = False; this will avoid creating a new env var
-        elif renumbered is False:
+
+        else
             # Update the renumbered source and destination column name
             # with the original input's source and destination name
             renumber_map.renumbered_src_col_name = src_col_names[0]
             renumber_map.renumbered_dst_col_name = dst_col_names[0]
 
-        else:
-            df = df.rename(
-                columns={
-                    src_col_names[0]: renumber_map.renumbered_src_col_name,
-                    dst_col_names[0]: renumber_map.renumbered_dst_col_name,
-                }
-            )
         num_edges = len(df)
 
         return df, renumber_map
