@@ -18,17 +18,9 @@ import math
 from cugraph.utilities.utils import import_optional
 
 torch = import_optional("torch")
-nn =  import_optional("torch.nn")
-
-try:
-    from pylibcugraphops import make_fg_csr_hg, make_mfg_csr_hg
-    from pylibcugraphops.torch.autograd import (
-        agg_hg_basis_n2n_post as RelGraphConvAgg,
-    )
-except ImportError:
-    has_pylibcugraphops = False
-else:
-    has_pylibcugraphops = True
+nn = import_optional("torch.nn")
+ops = import_optional("pylibcugraphops")
+ops_autograd = import_optional("pylibcugraphops.torch.autograd")
 
 
 class RelGraphConv(nn.Module):
@@ -111,11 +103,6 @@ class RelGraphConv(nn.Module):
         apply_norm=True,
         max_in_degree=None,
     ):
-        if has_pylibcugraphops is False:
-            raise ModuleNotFoundError(
-                "dgl.nn.CuGraphRelGraphConv requires pylibcugraphops "
-                "to be installed."
-            )
         super().__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -225,7 +212,7 @@ class RelGraphConv(nn.Module):
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
 
-            _graph = make_mfg_csr_hg(
+            _graph = ops.make_mfg_csr_hg(
                 g.dstnodes(),
                 g.srcnodes(),
                 offsets,
@@ -238,7 +225,7 @@ class RelGraphConv(nn.Module):
                 edge_types=edge_types_perm,
             )
         else:
-            _graph = make_fg_csr_hg(
+            _graph = ops.make_fg_csr_hg(
                 offsets,
                 indices,
                 n_node_types=0,
@@ -247,7 +234,7 @@ class RelGraphConv(nn.Module):
                 edge_types=edge_types_perm,
             )
 
-        h = RelGraphConvAgg(
+        h = ops_autograd.agg_hg_basis_n2n_post(
             feat, self.coeff, _graph, not self.self_loop, self.apply_norm
         )
         h = h @ self.W.view(-1, self.out_feat)

@@ -14,15 +14,12 @@
 cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 
-from torch import nn
+from cugraph.utilities.utils import import_optional
 
-try:
-    from pylibcugraphops import make_fg_csr, make_mfg_csr
-    from pylibcugraphops.torch.autograd import agg_concat_n2n as SAGEConvAgg
-except ImportError:
-    has_pylibcugraphops = False
-else:
-    has_pylibcugraphops = True
+torch = import_optional("torch")
+nn = import_optional("torch.nn")
+ops = import_optional("pylibcugraphops")
+ops_autograd = import_optional("pylibcugraphops.torch.autograd")
 
 
 class SAGEConv(nn.Module):
@@ -83,11 +80,6 @@ class SAGEConv(nn.Module):
         norm=None,
         max_in_degree=None,
     ):
-        if has_pylibcugraphops is False:
-            raise ModuleNotFoundError(
-                "dgl.nn.CuGraphSAGEConv requires pylibcugraphops >= 23.02 "
-                "to be installed."
-            )
         super().__init__()
         self.in_feats = in_feats
         self.out_feats = out_feats
@@ -125,14 +117,14 @@ class SAGEConv(nn.Module):
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
 
-            _graph = make_mfg_csr(
+            _graph = ops.make_mfg_csr(
                 g.dstnodes(), g.srcnodes(), offsets, indices, max_in_degree
             )
         else:
-            _graph = make_fg_csr(offsets, indices)
+            _graph = ops.make_fg_csr(offsets, indices)
 
         feat = self.feat_drop(feat)
-        h = SAGEConvAgg(feat, _graph, self.aggr)
+        h = ops_autograd.agg_concat_n2n(feat, _graph, self.aggr)
         h = self.linear(h)
 
         if self.norm is not None:
