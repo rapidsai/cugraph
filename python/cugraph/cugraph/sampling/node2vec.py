@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,7 +38,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed or undirected.
         Weights in the graph are ignored.
 
     start_vertices: int or list or cudf.Series or cudf.DataFrame

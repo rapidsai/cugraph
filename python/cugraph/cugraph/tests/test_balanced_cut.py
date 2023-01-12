@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,10 +41,10 @@ def random_call(G, partitions):
         for i in range(num_verts):
             assignment.append(random.randint(0, partitions - 1))
 
-        assignment_cu = cudf.DataFrame(assignment, columns=["cluster"])
-        assignment_cu["vertex"] = assignment_cu.index
+        assign_cu = cudf.DataFrame(assignment, columns=["cluster"])
+        assign_cu["vertex"] = assign_cu.index
 
-        score += cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
+        score += cugraph.analyzeClustering_edge_cut(G, partitions, assign_cu)
 
     return set(range(num_verts)), (score / 10.0)
 
@@ -95,28 +95,6 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     # assignment
     print(cu_score, rand_score)
     assert cu_score < rand_score
-
-
-# Test to ensure DiGraph objs are not accepted
-# Test all combinations of default/managed and pooled/non-pooled allocation
-
-
-def test_digraph_rejected():
-    gc.collect()
-
-    df = cudf.DataFrame()
-    df["src"] = cudf.Series(range(10))
-    df["dst"] = cudf.Series(range(10))
-    df["val"] = cudf.Series(range(10))
-
-    with pytest.deprecated_call():
-        G = cugraph.DiGraph()
-    G.from_cudf_edgelist(
-        df, source="src", destination="dst", edge_attr="val", renumber=False
-    )
-
-    with pytest.raises(Exception):
-        cugraph_call(G, 2)
 
 
 @pytest.mark.parametrize("graph_file", DATASETS)
