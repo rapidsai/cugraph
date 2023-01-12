@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -217,3 +217,68 @@ def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None
         ]
 
     raise ValueError(f"invalid backend {backend[0]}")
+
+
+def _offsets_to_backend_dtype(offsets, backend):
+    """
+    Transforms the offsets object into an appropriate object for the given backend.
+
+    Parameters
+    ----------
+    offsets : cugraph_service_client.types.Offsets
+        The offsets object to transform.
+    backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+              [default = 'numpy']
+        The backend the offsets will be transformed to a type of.
+
+    Returns
+    -------
+    An object of the desired backend.
+    For cudf: A cudf DataFrame with index=type, start, stop columns
+    For pandas: A pandas DataFrame with index=type, start, stop columns
+    For cupy: A dict of {'type': np.ndarray, 'start': cp.ndarray, 'stop': cp.ndarray}
+    For numpy: A dict of {'type': np.ndarray, 'start': np.ndarray, 'stop': np.ndarray}
+    For torch: A dict of {'type': np.ndarray, 'start': Tensor, 'stop': Tensor}
+    """
+    if backend == "cudf" or backend == "pandas":
+        df_clx = cudf.DataFrame if backend == "cudf" else pandas.DataFrame
+        df = df_clx(
+            {
+                "start": offsets.start,
+                "stop": offsets.stop,
+            },
+            index=offsets.type,
+        )
+        df.index.name = "type"
+        return df
+
+    if backend == "cupy":
+        tn_clx = cupy.array
+        device = None
+    elif backend == "numpy":
+        tn_clx = np.array
+        device = None
+    elif backend == "torch":
+        tn_clx = torch.tensor
+        device = "cpu"
+    else:
+        if "torch" not in backend:
+            raise ValueError(f"Invalid backend {backend}")
+        tn_clx = torch.tensor
+        backend = backend.split(":")
+        try:
+            device = int(backend[1])
+        except ValueError:
+            device = backend[1]
+
+    return_dict = {
+        "type": np.array(offsets.type),
+        "start": tn_clx(offsets.start),
+        "stop": tn_clx(offsets.stop),
+    }
+
+    if device is not None:
+        return_dict["start"] = return_dict["start"].to(device)
+        return_dict["stop"] = return_dict["stop"].to(device)
+
+    return return_dict

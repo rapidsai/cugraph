@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -491,7 +491,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   CAPI_EXPECTS(
     (edge_type_ids == nullptr && edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
     CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: Edge id type must match edge type",
+    "Invalid input arguments: Edge id type must match edge (src/dst) type",
     *error);
 
   CAPI_EXPECTS((edge_type_ids == nullptr && edge_ids == nullptr) ||

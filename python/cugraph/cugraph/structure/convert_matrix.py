@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@
 import cudf
 import dask_cudf
 
-from cugraph.structure.graph_classes import DiGraph, Graph
+from cugraph.structure.graph_classes import Graph
 
 # optional dependencies used for handling different input types
 try:
@@ -91,8 +91,6 @@ def from_edgelist(
         elif isinstance(create_using, Graph):
             attrs = {"directed": create_using.is_directed()}
             G = type(create_using)(**attrs)
-        elif isinstance(create_using, DiGraph):
-            G = type(create_using)()
         elif type(create_using) is type(Graph):
             G = create_using()
         else:
@@ -159,8 +157,6 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif isinstance(create_using, DiGraph):
-        G = type(create_using)()
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
@@ -240,8 +236,6 @@ def from_cudf_edgelist(
     elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif isinstance(create_using, DiGraph):
-        G = type(create_using)()
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
@@ -327,8 +321,6 @@ def from_pandas_edgelist(
     elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif isinstance(create_using, DiGraph):
-        G = type(create_using)()
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
@@ -391,8 +383,6 @@ def from_pandas_adjacency(df, create_using=Graph):
     elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif isinstance(create_using, DiGraph):
-        G = type(create_using)()
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
@@ -438,8 +428,6 @@ def from_numpy_array(A, create_using=Graph):
     elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif isinstance(create_using, DiGraph):
-        G = type(create_using)()
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
@@ -484,8 +472,6 @@ def from_numpy_matrix(A, create_using=Graph):
     elif isinstance(create_using, Graph):
         attrs = {"directed": create_using.is_directed()}
         G = type(create_using)(**attrs)
-    elif isinstance(create_using, DiGraph):
-        G = type(create_using)()
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
