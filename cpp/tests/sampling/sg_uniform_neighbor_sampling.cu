@@ -99,15 +99,6 @@ class Tests_Uniform_Neighbor_Sampling
     random_numbers.resize(random_sources.size(), handle.get_stream());
     random_numbers.shrink_to_fit(handle.get_stream());
 
-    // TODO:  Only required for MG, here so I won't forget...
-    if (graph_view.local_vertex_partition_range_first() > 0)
-      thrust::transform(handle.get_thrust_policy(),
-                        random_sources.begin(),
-                        random_sources.end(),
-                        random_sources.begin(),
-                        [base_offset = graph_view.local_vertex_partition_range_first()] __device__(
-                          vertex_t v) { return v + base_offset; });
-
     //
     //  Now we'll assign the vertices to batches
     //
@@ -257,12 +248,9 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true},
                       Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
-#if 0
-  ,
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

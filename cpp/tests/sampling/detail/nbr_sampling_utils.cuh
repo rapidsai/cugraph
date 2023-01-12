@@ -763,22 +763,6 @@ void validate_extracted_graph_is_subgraph(
                                                         ArithmeticZipLess{});
 
     dist = thrust::distance(tmp_subgraph_iter, tmp_subgraph_iter_end);
-
-    if (dist > 0) {
-      std::cout << "dist = " << dist << std::endl;
-      raft::print_device_vector(
-        "  subgraph_src_v", subgraph_src_v.data(), subgraph_src_v.size(), std::cout);
-      raft::print_device_vector(
-        "  subgraph_dst_v", subgraph_dst_v.data(), subgraph_dst_v.size(), std::cout);
-      raft::print_device_vector(
-        "  subgraph_wgt_v", subgraph_wgt_v.data(), subgraph_wgt_v.size(), std::cout);
-      raft::print_device_vector("  src_v", src_v.data(), src_v.size(), std::cout);
-      raft::print_device_vector("  dst_v", dst_v.data(), dst_v.size(), std::cout);
-      raft::print_device_vector("  wgt_v", wgt_v.data(), wgt_v.size(), std::cout);
-      raft::print_device_vector("  tmp_src", tmp_src.data(), dist, std::cout);
-      raft::print_device_vector("  tmp_dst", tmp_dst.data(), dist, std::cout);
-      raft::print_device_vector("  tmp_wgt", tmp_wgt.data(), dist, std::cout);
-    }
   } else {
     auto graph_iter = thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin()));
     auto subgraph_iter =
@@ -821,18 +805,6 @@ void validate_extracted_graph_is_subgraph(
                                                         ArithmeticZipLess{});
 
     dist = thrust::distance(tmp_subgraph_iter, tmp_subgraph_iter_end);
-
-    if (dist > 0) {
-      std::cout << "dist = " << dist << std::endl;
-      raft::print_device_vector(
-        "  subgraph_src_v", subgraph_src_v.data(), subgraph_src_v.size(), std::cout);
-      raft::print_device_vector(
-        "  subgraph_dst_v", subgraph_dst_v.data(), subgraph_dst_v.size(), std::cout);
-      raft::print_device_vector("  src_v", src_v.data(), src_v.size(), std::cout);
-      raft::print_device_vector("  dst_v", dst_v.data(), dst_v.size(), std::cout);
-      raft::print_device_vector("  tmp_src", tmp_src.data(), dist, std::cout);
-      raft::print_device_vector("  tmp_dst", tmp_dst.data(), dist, std::cout);
-    }
   }
 
   ASSERT_EQ(0, dist);
