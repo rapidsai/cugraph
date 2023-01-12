@@ -15,8 +15,10 @@ primitives in cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 import math
 
-import torch
-from torch import nn
+from cugraph.utilities.utils import import_optional
+
+torch = import_optional("torch")
+nn =  import_optional("torch.nn")
 
 try:
     from pylibcugraphops import make_fg_csr_hg, make_mfg_csr_hg
