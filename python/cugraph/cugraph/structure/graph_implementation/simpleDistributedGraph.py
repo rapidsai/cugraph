@@ -942,7 +942,9 @@ class simpleDistributedGraphImpl:
         """
 
         if legacy_renum_only:
-            warning_msg = ("The parameter 'legacy_renum_only' is deprecated and will be removed.")
+            warning_msg = (
+                "The parameter 'legacy_renum_only' is deprecated and will be removed."
+            )
             warnings.warn(warning_msg, DeprecationWarning)
 
         if not self.properties.renumber:
@@ -958,10 +960,7 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            (
-                renumbered_ddf,
-                number_map,
-            ) = NumberMap.renumber_and_segment(
+            (renumbered_ddf, number_map,) = NumberMap.renumber_and_segment(
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,

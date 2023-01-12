@@ -15,14 +15,10 @@
 
 from collections.abc import Iterable
 
-from dask.distributed import wait, default_client
 import dask_cudf
 import numpy as np
 import cudf
 import warnings
-
-from cugraph.dask.common.input_utils import get_distributed_data
-import cugraph.dask.comms.comms as Comms
 
 
 class NumberMap:
@@ -459,7 +455,9 @@ class NumberMap:
         legacy_renum_only=False,
     ):
         if legacy_renum_only:
-            warning_msg = ("The parameter 'legacy_renum_only' is deprecated and will be removed.")
+            warning_msg = (
+                "The parameter 'legacy_renum_only' is deprecated and will be removed."
+            )
             warnings.warn(warning_msg, DeprecationWarning)
 
         renumbered = False
@@ -519,9 +517,6 @@ class NumberMap:
         renumber_map.implementation.numbered = renumbered
 
         if renumbered:
-            indirection_map = renumber_map.implementation.indirection_map(
-                df, src_col_names, dst_col_names
-            )
             df = renumber_map.add_internal_vertex_id(
                 df,
                 renumber_map.renumbered_src_col_name,
@@ -537,13 +532,11 @@ class NumberMap:
                 preserve_order=preserve_order,
             )
 
-        else
+        else:
             # Update the renumbered source and destination column name
             # with the original input's source and destination name
             renumber_map.renumbered_src_col_name = src_col_names[0]
             renumber_map.renumbered_dst_col_name = dst_col_names[0]
-
-        num_edges = len(df)
 
         return df, renumber_map
 
