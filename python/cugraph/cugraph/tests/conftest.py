@@ -36,11 +36,11 @@ def dask_client():
         enable_tcp_over_ucx=True,
         enable_nvlink=True,
         enable_infiniband=True,
-        enable_rdmacm=True,
+        enable_rdmacm=False,
         # net_devices="mlx5_0:1",
     )
 
     yield client
 
-    stop_dask_client(client)
+    stop_dask_client(*client)
     print("\ndask_client fixture: client.close() called")
