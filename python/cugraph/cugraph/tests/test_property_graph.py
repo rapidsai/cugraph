@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1749,14 +1749,15 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key])
+        if isinstance(df, cudf.DataFrame):
+            df = df.to_pandas()
         assert len(df) == stop - start + 1
-        assert (
-            df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))
-        ).all()
+
+        assert df["_VERTEX_"].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
-            expected = cur._constructor(sorted(x for x, *args in data[key][1]))
-            assert (cur.values == expected.values).all()
+            expected = sorted(x for x, *args in data[key][1])
+            assert cur.tolist() == expected
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
@@ -1793,15 +1794,46 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key])
+        if isinstance(df, cudf.DataFrame):
+            df = df.to_pandas()
+
         assert len(df) == stop - start + 1
-        actual = df[pG.edge_id_col_name]
-        expected = actual._constructor(range(start, stop + 1))
-        assert (actual == expected).all()
+        assert df[pG.edge_id_col_name].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             assert prev_id_column in df.columns
 
     empty_pG = PropertyGraph()
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
+
+
+def test_renumber_vertices_edges_dtypes():
+    from cugraph.experimental import PropertyGraph
+
+    edgelist_df = cudf.DataFrame(
+        {
+            "src": cp.array([0, 5, 2, 3, 4, 3], dtype="int32"),
+            "dst": cp.array([2, 4, 4, 5, 1, 2], dtype="int32"),
+            "eid": cp.array([8, 7, 5, 2, 9, 1], dtype="int32"),
+        }
+    )
+
+    vertex_df = cudf.DataFrame(
+        {"v": cp.array([0, 1, 2, 3, 4, 5], dtype="int32"), "p": [5, 10, 15, 20, 25, 30]}
+    )
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(vertex_df, vertex_col_name="v", property_columns=["p"])
+    pG.add_edge_data(
+        edgelist_df, vertex_col_names=["src", "dst"], edge_id_col_name="eid"
+    )
+
+    pG.renumber_vertices_by_type()
+    vd = pG.get_vertex_data()
+    assert vd.index.dtype == cp.int32
+
+    pG.renumber_edges_by_type()
+    ed = pG.get_edge_data()
+    assert ed.index.dtype == cp.int32
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
