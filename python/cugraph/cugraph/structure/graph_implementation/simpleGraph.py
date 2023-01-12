@@ -201,9 +201,7 @@ class simpleGraphImpl:
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            # Use renumber_map to figure out if renumbering was skipped or not
-            # This was added to handle 'legacy_renum_only' which will skip the
-            # old C++ renumbering  when running the pylibcugraph/C algos
+            # Use renumber_map to figure out if the python renumbering occured
             self.properties.renumbered = renumber_map.implementation.numbered
             self.renumber_map = renumber_map
         else:

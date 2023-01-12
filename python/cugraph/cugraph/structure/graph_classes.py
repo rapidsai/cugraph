@@ -282,10 +282,6 @@ class Graph:
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
 
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
         """
 
         if self._Impl is None:
