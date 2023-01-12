@@ -152,7 +152,6 @@ class Tests_MGNbrSampling
 
       cugraph::test::validate_extracted_graph_is_subgraph(
         *handle_, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
-#endif
 
       if (d_mg_aggregate_src.size() > 0) {
         cugraph::test::validate_sampling_depth(*handle_,
@@ -162,6 +161,7 @@ class Tests_MGNbrSampling
                                                std::move(d_mg_start_src),
                                                h_fan_out.size());
       }
+#endif
     }
 #endif
   }

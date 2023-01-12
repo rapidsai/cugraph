@@ -80,6 +80,16 @@ struct convert_pair_to_triplet_t {
   }
 };
 
+template <typename edge_t, typename T>
+struct check_invalid_t {
+  edge_t invalid_idx{};
+
+  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
+  {
+    return thrust::get<0>(pair) == invalid_idx;
+  }
+};
+
 template <typename edge_t>
 struct invalid_col_comm_rank_t {
   int32_t invalid_col_comm_rank{};
@@ -711,6 +721,19 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     }
   } else {
     if (!invalid_value) {
+      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+        sample_local_nbr_indices.begin(), get_dataframe_buffer_begin(sample_e_op_results)));
+      resize_dataframe_buffer(
+        sample_e_op_results,
+        thrust::distance(pair_first,
+                         thrust::remove_if(handle.get_thrust_policy(),
+                                           pair_first,
+                                           pair_first + sample_local_nbr_indices.size(),
+                                           check_invalid_t<edge_t, T>{
+                                             cugraph::ops::gnn::graph::INVALID_ID<edge_t>})),
+        handle.get_stream());
+      shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
+
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       thrust::inclusive_scan(handle.get_thrust_policy(),
                              (*sample_counts).begin(),
