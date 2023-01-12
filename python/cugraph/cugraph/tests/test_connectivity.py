@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -306,7 +306,7 @@ def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
 
     # cuGraph or nx 'input_type' should have this parameter set to None
     directed = None
-    if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+    if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
             dataset_path, cugraph_input_type, edgevals=True
         )
@@ -370,7 +370,7 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong, cugraph_input_type):
         api_type,
     ) = dataset_nxresults_strong
 
-    if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+    if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
             dataset_path, cugraph_input_type, edgevals=True
         )
