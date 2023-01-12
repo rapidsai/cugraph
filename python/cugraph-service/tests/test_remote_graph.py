@@ -732,3 +732,47 @@ def test_remote_graph_neighbor_sample_implicit_subgraph(
     assert (res_local["sources"] == res_remote["sources"]).all()
     assert (res_local["destinations"] == res_remote["destinations"]).all()
     assert (res_local["indices"] == res_remote["indices"]).all()
+
+
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
+def test_remote_graph_renumber_vertices(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    re_local = pG.renumber_vertices_by_type()
+    re_remote = rpG.renumber_vertices_by_type()
+
+    assert re_local == re_remote
+
+    for k in range(len(re_remote)):
+        start = re_remote["start"][k]
+        stop = re_remote["stop"][k]
+        for i in range(start, stop + 1):
+            assert (
+                rpG.get_vertex_data(vertex_ids=[i])[rpG.type_col_name][0]
+                == re_remote.index[k]
+            )
+
+
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
+def test_remote_graph_renumber_edges(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    re_local = pG.renumber_edges_by_type()
+    re_remote = rpG.renumber_edges_by_type()
+
+    assert re_local == re_remote
+
+    for k in range(len(re_remote)):
+        start = re_remote["start"][k]
+        stop = re_remote["stop"][k]
+        for i in range(start, stop + 1):
+            assert (
+                rpG.get_edge_data(edge_ids=[i])[rpG.type_col_name][0]
+                == re_remote.index[k]
+            )
