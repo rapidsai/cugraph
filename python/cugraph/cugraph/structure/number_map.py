@@ -557,14 +557,6 @@ class NumberMap:
             )
         num_edges = len(df)
 
-        """
-        if isinstance(df, dask_cudf.DataFrame):
-            is_mnmg = True
-        else:
-            is_mnmg = False
-        """
-
-
         return df, renumber_map
 
     @staticmethod
