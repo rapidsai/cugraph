@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -517,6 +517,9 @@ class NumberMap:
         renumber_map.implementation.numbered = renumbered
 
         if renumbered:
+            renumber_map.implementation.indirection_map(
+                df, src_col_names, dst_col_names
+            )
             df = renumber_map.add_internal_vertex_id(
                 df,
                 renumber_map.renumbered_src_col_name,
