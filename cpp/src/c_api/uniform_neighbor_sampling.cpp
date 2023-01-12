@@ -509,6 +509,9 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
+  // FIXME:  We need a mechanism to specify a seed.  We should be consistent across all of the
+  //   sampling/random walk algorithms (or really any algorithm that wants a seed)
+  
   CAPI_EXPECTS(
     (label == nullptr) ||
       (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(label)
