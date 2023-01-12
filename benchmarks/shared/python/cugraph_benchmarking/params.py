@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -112,20 +112,31 @@ fanout_5_10_15 = pytest.param(
     id="fanout=5_10_15",
 )
 
+# scaling the number of concurrent cugraph-service clients
+_num_clients = [2, 4, 8, 16, 32]
+num_clients = {}
+for nc in _num_clients:
+    num_clients[nc] = (
+        pytest.param(nc,
+                     id=f"num_clients={nc}",
+                     marks=[getattr(pytest.mark, f"num_clients_{nc}")],
+                     )
+    )
+
 # Parameters for Graph generation fixture
-# graph_obj_fixture_params = gen_fixture_params(
-#     (sg, karate),
-#     (sg, rmat["16_16"]),
-#     (sg, rmat["18_16"]),
-#     (sg, rmat["20_16"]),
-#     (sg, rmat["25_16"]),
-#     (sg, rmat["26_16"]),
-#     (snmg, rmat["26_16"]),
-#     (snmg, rmat["27_16"]),
-#     (snmg, rmat["28_16"]),
-#     (mnmg, rmat["29_16"]),
-#     (mnmg, rmat["30_16"]),
-# )
+graph_obj_fixture_params = gen_fixture_params(
+    (sg, rmat["20_16"]),
+    (sg, rmat["24_16"]),
+    (snmg, rmat["24_16"]),
+    (snmg, rmat["25_16"]),
+    (snmg, rmat["26_8"]),
+    (snmg, rmat["26_16"]),
+    (snmg, rmat["27_16"]),
+    (mnmg, rmat["28_16"]),
+    (mnmg, rmat["29_16"]),
+)
+# Uncomment the following test combinations for use with experiments/local dev
+"""
 graph_obj_fixture_params = gen_fixture_params(
     (sg, karate),
     (sg, rmat["16_4"]),
@@ -151,5 +162,5 @@ graph_obj_fixture_params = gen_fixture_params(
     (snmg, rmat["28_16"]),
     (mnmg, rmat["29_16"]),
     (mnmg, rmat["30_16"]),
-
 )
+"""

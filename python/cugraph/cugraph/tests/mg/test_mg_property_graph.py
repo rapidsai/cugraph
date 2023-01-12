@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -864,7 +864,7 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
-        df = pG.get_vertex_data(types=[key]).compute()
+        df = pG.get_vertex_data(types=[key]).compute().to_pandas()
         assert len(df) == stop - start + 1
         assert (
             df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))
@@ -906,7 +906,7 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
-        df = pG.get_edge_data(types=[key]).compute()
+        df = pG.get_edge_data(types=[key]).compute().to_pandas()
         assert len(df) == stop - start + 1
         actual = df[pG.edge_id_col_name]
         expected = actual._constructor(range(start, stop + 1))
@@ -916,6 +916,50 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
 
     empty_pG = MGPropertyGraph()
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
+
+
+def test_renumber_vertices_edges_dtypes(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    edgelist_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": cp.array([0, 5, 2, 3, 4, 3], dtype="int32"),
+                "dst": cp.array([2, 4, 4, 5, 1, 2], dtype="int32"),
+                "eid": cp.array([8, 7, 5, 2, 9, 1], dtype="int32"),
+            }
+        ),
+        npartitions=2,
+    )
+
+    vertex_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "v": cp.array([0, 1, 2, 3, 4, 5], dtype="int32"),
+                "p": [5, 10, 15, 20, 25, 30],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+    pG.add_vertex_data(
+        vertex_df, vertex_col_name="v", property_columns=["p"], type_name="vt1"
+    )
+    pG.add_edge_data(
+        edgelist_df,
+        vertex_col_names=["src", "dst"],
+        edge_id_col_name="eid",
+        type_name="et1",
+    )
+
+    pG.renumber_vertices_by_type()
+    vd = pG.get_vertex_data()
+    assert vd.index.dtype == cp.int32
+
+    pG.renumber_edges_by_type()
+    ed = pG.get_edge_data()
+    assert ed[pG.edge_id_col_name].dtype == cp.int32
 
 
 def test_add_data_noncontiguous(dask_client):

@@ -23,11 +23,9 @@ from cugraph.dask.common.mg_utils import get_visible_devices
 
 
 def start_dask_client(
-    enable_tcp_over_ucx=True,
-    enable_nvlink=True,
-    enable_infiniband=False,
-    enable_rdmacm=False,
-    net_devices=None,
+    protocol=None,
+    rmm_pool_size=None,
+    dask_worker_devices=None,
 ):
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     cluster = None
@@ -35,14 +33,23 @@ def start_dask_client(
     tempdir_object = None
 
     if dask_scheduler_file:
-        # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
-        initialize(
-            enable_tcp_over_ucx=enable_tcp_over_ucx,
-            enable_nvlink=enable_nvlink,
-            enable_infiniband=enable_infiniband,
-            enable_rdmacm=enable_rdmacm,
-            # net_devices="mlx5_0:1",
-        )
+        if protocol is not None:
+            print(
+                f"WARNING: {protocol=} is ignored in start_dask_client() when using "
+                "dask SCHEDULER_FILE"
+            )
+        if rmm_pool_size is not None:
+            print(
+                f"WARNING: {rmm_pool_size=} is ignored in start_dask_client() when "
+                "using dask SCHEDULER_FILE"
+            )
+        if dask_worker_devices is not None:
+            print(
+                f"WARNING: {dask_worker_devices=} is ignored in start_dask_client() "
+                "when using dask SCHEDULER_FILE"
+            )
+
+        initialize()
         client = Client(scheduler_file=dask_scheduler_file)
         print("\ndask_client created using " f"{dask_scheduler_file}")
     else:
@@ -51,10 +58,9 @@ def start_dask_client(
         tempdir_object = tempfile.TemporaryDirectory()
         cluster = LocalCUDACluster(
             local_directory=tempdir_object.name,
-            enable_tcp_over_ucx=enable_tcp_over_ucx,
-            enable_infiniband=enable_infiniband,
-            enable_nvlink=enable_nvlink,
-            enable_rdmacm=enable_rdmacm,
+            protocol=protocol,
+            rmm_pool_size=rmm_pool_size,
+            CUDA_VISIBLE_DEVICES=dask_worker_devices,
         )
         client = Client(cluster)
         client.wait_for_workers(len(get_visible_devices()))
