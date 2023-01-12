@@ -17,6 +17,7 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 import cupy
 import cudf
+import warnings
 import dask_cudf
 
 from pylibcugraph import (
@@ -941,6 +942,10 @@ class simpleDistributedGraphImpl:
             C/Pylibcugraph path
         """
 
+        if legacy_renum_only:
+            warning_msg = ("The parameter 'legacy_renum_only' is deprecated and will be removed.")
+            warnings.warn(warning_msg, DeprecationWarning)
+
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
@@ -957,7 +962,6 @@ class simpleDistributedGraphImpl:
             (
                 renumbered_ddf,
                 number_map,
-                aggregate_segment_offsets,
             ) = NumberMap.renumber_and_segment(
                 self.input_df,
                 self.source_columns,
@@ -968,7 +972,7 @@ class simpleDistributedGraphImpl:
 
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
-            self.aggregate_segment_offsets = aggregate_segment_offsets
+            #self.aggregate_segment_offsets = aggregate_segment_offsets
             self.properties.store_transposed = transposed
 
     def vertex_column_size(self):

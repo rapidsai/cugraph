@@ -22,6 +22,7 @@ import dask_cudf
 import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
+import warnings
 from cugraph.dask.structure import replication
 from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 
@@ -104,7 +105,6 @@ class simpleGraphImpl:
     # FIXME: Change to public function
     # FIXME: Make function more modular
     # edge_attr: None, weight, or (weight, id, type)
-    # FIXME: Remove legacy renum
     def __from_edgelist(
         self,
         input_df,
@@ -115,6 +115,9 @@ class simpleGraphImpl:
         legacy_renum_only=True,
         store_transposed=False,
     ):
+        if legacy_renum_only:
+            warning_msg = ("The parameter 'legacy_renum_only' is deprecated and will be removed.")
+            warnings.warn(warning_msg, DeprecationWarning)
 
         # Verify column names present in input DataFrame
         s_col = source
