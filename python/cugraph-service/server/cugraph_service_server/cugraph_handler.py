@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import cupy as cp
 import ucp
 import cudf
 import dask_cudf
+import rmm
 from cugraph import (
     batched_ego_graphs,
     uniform_neighbor_sample,
@@ -81,9 +82,10 @@ def call_algo(sg_algo_func, G, **kwargs):
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
             # Convert DataFrame into CuPy arrays for returning to the client
-            sources = result_ddf["sources"].compute().to_cupy()
-            destinations = result_ddf["destinations"].compute().to_cupy()
-            indices = result_ddf["indices"].compute().to_cupy()
+            result_df = result_ddf.compute()
+            sources = result_df["sources"].to_cupy()
+            destinations = result_df["destinations"].to_cupy()
+            indices = result_df["indices"].to_cupy()
         else:
             possible_args = [
                 "start_list",
@@ -382,12 +384,10 @@ class CugraphHandler:
 
     def initialize_dask_client(
         self,
+        protocol=None,
+        rmm_pool_size=None,
+        dask_worker_devices=None,
         dask_scheduler_file=None,
-        enable_tcp_over_ucx=False,
-        enable_infiniband=False,
-        enable_nvlink=False,
-        enable_rdmacm=False,
-        net_devices=None,
     ):
         """
         Initialize a dask client to be used for MG operations.
@@ -401,13 +401,23 @@ class CugraphHandler:
             tempdir_object = tempfile.TemporaryDirectory()
             cluster = LocalCUDACluster(
                 local_directory=tempdir_object.name,
-                enable_tcp_over_ucx=enable_tcp_over_ucx,
-                enable_infiniband=enable_infiniband,
-                enable_nvlink=enable_nvlink,
-                enable_rdmacm=enable_rdmacm,
+                protocol=protocol,
+                rmm_pool_size=rmm_pool_size,
+                CUDA_VISIBLE_DEVICES=dask_worker_devices,
             )
+            # Initialize the client to use RMM pool allocator if cluster is
+            # using it.
+            if rmm_pool_size is not None:
+                rmm.reinitialize(pool_allocator=True)
+
             self.__dask_client = Client(cluster)
-            self.__dask_client.wait_for_workers(len(get_visible_devices()))
+
+            if dask_worker_devices is not None:
+                # FIXME: this assumes a properly formatted string with commas
+                num_workers = len(dask_worker_devices.split(","))
+            else:
+                num_workers = len(get_visible_devices())
+            self.__dask_client.wait_for_workers(num_workers)
 
         if not Comms.is_initialized():
             Comms.initialize(p2p=True)
@@ -657,12 +667,12 @@ class CugraphHandler:
         try:
             if create_using == "":
                 create_using = None
-            else:
+            elif create_using is not None:
                 create_using = self.__parse_create_using_string(create_using)
             edge_weight_property = edge_weight_property or None
             if selection == "":
                 selection = None
-            else:
+            elif selection is not None:
                 selection = pG.select_edges(selection)
 
             # FIXME: create_using and selection should not be strings at this point
@@ -1000,6 +1010,7 @@ class CugraphHandler:
         result_host,
         result_port,
     ):
+        print("SERVER: running uns", flush=True)
         try:
             G = self._get_graph(graph_id)
             if isinstance(G, (MGPropertyGraph, PropertyGraph)):
