@@ -95,7 +95,6 @@ def input_combo(request):
         destination="dst",
         edge_attr="value",
         store_transposed=False,
-        legacy_renum_only=True,
     )
 
     parameters["MGGraph"] = dg
@@ -218,7 +217,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
     G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(
-        ddf, "src", "dst", "value", store_transposed=False, legacy_renum_only=True
+        ddf, "src", "dst", "value", store_transposed=False
     )
 
     # TODO: Incomplete, include more testing for tree graph as well as
@@ -273,7 +272,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
 
     G = cugraph.Graph()
     G.from_dask_cudf_edgelist(
-        df, source="src", destination="dst", legacy_renum_only=True
+        df, source="src", destination="dst"
     )
 
     start_list = cudf.Series([0], dtype="int32")
@@ -307,7 +306,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
     mg_G = cugraph.MultiGraph(directed=True)
     mg_G.from_dask_cudf_edgelist(
-        dask_df, source="src", destination="dst", renumber=True, legacy_renum_only=True
+        dask_df, source="src", destination="dst", renumber=True
     )
 
     output_df = cugraph.dask.uniform_neighbor_sample(
@@ -346,7 +345,6 @@ def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_sam
         destination="dst",
         edge_attr="value",
         store_transposed=False,
-        legacy_renum_only=True,
     )
     # Partition the dataframe to add in chunks
     srcs = dg.input_df["src"]

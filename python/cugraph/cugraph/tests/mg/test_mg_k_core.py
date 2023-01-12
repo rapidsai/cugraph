@@ -109,7 +109,6 @@ def input_expected_output(dask_client, input_combo):
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
     )
 
     input_combo["MGGraph"] = dg
@@ -169,7 +168,6 @@ def test_dask_k_core_invalid_input(dask_client):
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
         store_transposed=True,
     )
     with pytest.raises(ValueError):
@@ -181,7 +179,6 @@ def test_dask_k_core_invalid_input(dask_client):
         source="src",
         destination="dst",
         edge_attr="value",
-        legacy_renum_only=True,
         store_transposed=True,
     )
 

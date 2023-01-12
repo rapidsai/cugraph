@@ -46,8 +46,7 @@ datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
-    (IS_DIRECTED, "directed"),
-    ([True, False], "legacy_renum_only"),
+    (IS_DIRECTED, "directed")
 )
 
 
@@ -58,12 +57,11 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(
-        zip(("graph_file", "directed", "legacy_renum_only"), request.param)
+        zip(("graph_file", "directed"), request.param)
     )
 
     input_data_path = parameters["graph_file"]
     directed = parameters["directed"]
-    legacy_renum_only = parameters["legacy_renum_only"]
 
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -80,8 +78,7 @@ def input_combo(request):
         ddf,
         source="src",
         destination="dst",
-        edge_attr="value",
-        legacy_renum_only=legacy_renum_only,
+        edge_attr="value"
     )
 
     parameters["MGGraph"] = dg
@@ -136,6 +133,7 @@ def test_has_node_functionality(dask_client, input_combo):
 
 
 def test_create_mg_graph(dask_client, input_combo):
+    dask_client = dask_client[0]
     G = input_combo["MGGraph"]
     ddf = input_combo["input_df"]
     df = ddf.compute()

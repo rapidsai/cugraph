@@ -52,7 +52,7 @@ def test_dask_katz_centrality(dask_client, directed):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
+        ddf, "src", "dst", store_transposed=True
     )
 
     degree_max = dg.degree()["degree"].max().compute()
@@ -110,7 +110,7 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
+        ddf, "src", "dst", store_transposed=True
     )
 
     mg_res = dcg.katz_centrality(dg, max_iter=50, tol=1e-6)
@@ -156,7 +156,7 @@ def test_dask_katz_centrality_transposed_false(dask_client):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False
+        ddf, "src", "dst", store_transposed=False
     )
 
     warning_msg = (
