@@ -491,18 +491,6 @@ class NumberMap:
             renumber_type = "legacy"
         else:
             renumbered = False
-            renumber_type = "skip_renumbering"
-        """
-        else:
-            # The renumber_type 'experimental' only runs the C++
-            # renumbering
-            renumber_type = "experimental"
-
-        if legacy_renum_only and renumber_type == "experimental":
-            # The original dataframe will be returned.
-            renumber_type = "skip_renumbering"
-            renumbered = False
-        """
 
         renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type)
         if not isinstance(src_col_names, list):
@@ -554,7 +542,7 @@ class NumberMap:
                 preserve_order=preserve_order,
             )
         # FIXME: Check instead of renumbered = False; this will avoid creating a new env var
-        elif renumber_type == "skip_renumbering":
+        elif renumbered is False:
             # Update the renumbered source and destination column name
             # with the original input's source and destination name
             renumber_map.renumbered_src_col_name = src_col_names[0]
