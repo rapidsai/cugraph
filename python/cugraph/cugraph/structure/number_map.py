@@ -491,6 +491,7 @@ class NumberMap:
             renumber_type = "legacy"
         else:
             renumbered = False
+            renumber_type = "skip_renumbering"
 
         renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type)
         if not isinstance(src_col_names, list):
