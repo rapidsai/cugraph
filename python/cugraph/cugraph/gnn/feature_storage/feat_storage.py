@@ -10,8 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 from collections import defaultdict
 import cudf
 import cupy as cp
@@ -20,6 +18,9 @@ import dask_cudf
 from dask import dataframe as dd
 import dask
 import pandas as pd
+from cugraph.utilities.utils import import_optional
+
+torch = import_optional("torch")
 
 
 class FeatureStore:
@@ -56,6 +57,11 @@ class FeatureStore:
                 return _cast_to_numpy_ar(feat_obj)
             else:
                 raise ValueError(f"feat_obj of {type(feat_obj)} is not supported")
+        elif backend == "torch":
+            if isinstance(feat_obj, np.ndarray):
+                return torch.from_numpy(feat_obj)
+            elif isinstance(feat_obj, cp.ndarray):
+                return torch.as_tensor(feat_obj, device="cuda")
         elif backend == "dask_numpy":
             if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
                 return _create_dask_ar_from_ar(feat_obj.values, array_type="numpy")
@@ -74,7 +80,14 @@ class FeatureStore:
         else:
             raise ValueError(f"backend {backend} is not supported")
 
-    def get_data(self, indices, type_name, feat_name, compute_results=True):
+    def get_data(
+        self,
+        indices,
+        type_name,
+        feat_name,
+        compute_results=True,
+        _use_index_optimization=True,
+    ):
         ar = self.fd[type_name][feat_name]
         if isinstance(ar, dask.array.core.Array):
             # sort indices first to prevent shuffling at dask layer
@@ -87,7 +100,16 @@ class FeatureStore:
             ar = ar.take(indices_args.argsort(), axis=0)
             return ar
         else:
-            return ar[indices]
+            # TODO: See if needed
+            if _use_index_optimization:
+                indices_args = indices.argsort()
+                # sort indices
+                indices = indices.take(indices_args, axis=0)
+                ar = ar[indices]
+                ar = ar.take(indices_args.argsort(), axis=0)
+                return ar
+            else:
+                return ar[indices]
 
     def persist_feat_data(self):
         if self._client:
