@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ import dask_cudf
 from pylibcugraph import ResourceHandle
 from pylibcugraph import bfs as pylibcugraph_bfs
 
-from cugraph.structure.graph_classes import Graph, DiGraph
+from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
@@ -43,7 +43,7 @@ def _ensure_args(G, start, i_start, directed):
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+    if G_type is Graph or is_nx_graph_type(G_type):
         if directed is not None:
             raise TypeError("'directed' cannot be specified for a " "Graph-type input")
 
@@ -93,7 +93,7 @@ def _convert_df_to_output_type(df, input_type):
     Given a cudf.DataFrame df, convert it to a new type appropriate for the
     graph algos in this module, based on input_type.
     """
-    if input_type in [Graph, DiGraph]:
+    if input_type is Graph:
         return df
 
     elif is_nx_graph_type(input_type):
@@ -105,8 +105,8 @@ def _convert_df_to_output_type(df, input_type):
         #   predecessor: cupy.ndarray
         sorted_df = df.sort_values("vertex")
         if is_cp_matrix_type(input_type):
-            distances = cp.fromDlpack(sorted_df["distance"].to_dlpack())
-            preds = cp.fromDlpack(sorted_df["predecessor"].to_dlpack())
+            distances = cp.from_dlpack(sorted_df["distance"].to_dlpack())
+            preds = cp.from_dlpack(sorted_df["predecessor"].to_dlpack())
             return (distances, preds)
         else:
             distances = sorted_df["distance"].to_numpy()

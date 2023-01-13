@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,12 +14,31 @@
 from typing import Optional, Tuple, Any
 from enum import Enum
 
-import cupy
-
 from dataclasses import dataclass
 from collections import defaultdict
 from itertools import chain
 from functools import cached_property
+
+import warnings
+
+# numpy is always available
+import numpy as np
+
+# cuGraph or cuGraph-Service is required; each has its own version of
+# import_optional and we need to select the correct one.
+try:
+    from cugraph_service.client.remote_graph_utils import import_optional
+except ModuleNotFoundError:
+    try:
+        from cugraph.utilities.utils import import_optional
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            "cuGraph-PyG requires cuGraph" "or cuGraph-Service to be installed."
+        )
+
+# FIXME drop cupy support and make torch the only backend (#2995)
+cupy = import_optional("cupy")
+torch = import_optional("torch")
 
 
 class EdgeLayout(Enum):
@@ -74,7 +93,7 @@ class CuGraphEdgeAttr:
         return cls(*args, **kwargs)
 
 
-def EXPERIMENTAL__to_pyg(G, backend="torch"):
+def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_graph=None):
     """
         Returns the PyG wrappers for the provided PropertyGraph or
         MGPropertyGraph.
@@ -83,13 +102,20 @@ def EXPERIMENTAL__to_pyg(G, backend="torch"):
     ----------
     G : PropertyGraph or MGPropertyGraph
         The graph to produce PyG wrappers for.
+    renumber_graph: bool
+        Should usually be set to True.  If True, the vertices and edges
+        in the provided property graph will be renumbered so that they
+        are contiguous by type.  If the vertices and edges are already
+        contiguously renumbered by type, then this can be set to False.
 
     Returns
     -------
     Tuple (CuGraphStore, CuGraphStore)
         Wrappers for the provided property graph.
     """
-    store = EXPERIMENTAL__CuGraphStore(G, backend=backend)
+    store = EXPERIMENTAL__CuGraphStore(
+        G, backend=backend, renumber_graph=renumber_graph
+    )
     return (store, store)
 
 
@@ -178,7 +204,7 @@ class EXPERIMENTAL__CuGraphStore:
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
 
-    def __init__(self, G, reserved_keys=[], backend="torch"):
+    def __init__(self, G, backend="torch", renumber_graph=None):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
@@ -188,27 +214,35 @@ class EXPERIMENTAL__CuGraphStore:
         G : PropertyGraph or MGPropertyGraph
             The cuGraph property graph where the
             data is being stored.
-        reserved_keys : Properties in the graph that are not used for
-            training (the 'x' attribute will ignore these properties).
-        backend : The backend that manages tensors (default = 'torch')
+        backend : ('torch', 'cupy')
+            The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
+        renumber_graph : bool
+            If True, will renumber vertices and edges to have contiguous
+            ids per type.  If False, will not renumber vertices.  If not
+            specified, will renumber and raise a warning.
         """
 
-        # TODO ensure all x properties are float32 type
-        # TODO ensure y is of long type
+        # FIXME ensure all x properties are float32 type
+        # FIXME ensure y is of long type
         if None in G.edge_types:
             raise ValueError("Unspecified edge types not allowed in PyG")
 
+        # FIXME drop the cupy backend and remove these checks (#2995)
         if backend == "torch":
             from torch.utils.dlpack import from_dlpack
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
+            from torch import concatenate as concatenate
+            from torch import arange as arange
         elif backend == "cupy":
             from cupy import from_dlpack
             from cupy import int64 as vertex_dtype
             from cupy import float32 as property_dtype
             from cupy import searchsorted as searchsorted
+            from cupy import concatenate as concatenate
+            from cupy import arange as arange
         else:
             raise ValueError(f"Invalid backend {backend}.")
 
@@ -217,18 +251,20 @@ class EXPERIMENTAL__CuGraphStore:
         self.vertex_dtype = vertex_dtype
         self.property_dtype = property_dtype
         self.searchsorted = searchsorted
+        self.concatenate = concatenate
+        self.arange = arange
 
         self.__graph = G
         self.__subgraphs = {}
 
-        self.__reserved_keys = [
-            self.__graph.type_col_name,
-            self.__graph.vertex_col_name,
-        ] + list(reserved_keys)
-
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
         self.__infer_x_and_y_tensors()
+
+        # Must be called after __infer_x_and_y_tensors to
+        # avoid adding the old vertex id as a property when
+        # users do not specify it.
+        self.__renumber_graph(renumber_graph)
 
         self.__edge_types_to_attrs = {}
         for edge_type in self.__graph.edge_types:
@@ -269,6 +305,92 @@ class EXPERIMENTAL__CuGraphStore:
 
             self._edge_attr_cls = CuGraphEdgeAttr
 
+    def __renumber_graph(self, renumber_graph):
+        """
+        Renumbers the vertices and edges in this store's property graph
+        and sets the vertex offsets.
+        If renumber_graph is False, then renumber_vertices_by_type()
+        and renumber_edges_by_type()
+        are not called and the offsets are inferred from vertex counts.
+
+        If renumber_graph is None, it defaults to True, warns the
+        user of this default behavior, and saves the current ids as
+        <vertex_col>_old.
+
+        If renumber_graph is True, it calls renumber_vertices_by_type()
+        and renumber_edges_by_type(),
+        overwriting the current vertex and edge ids without saving them.
+        """
+        self.__old_vertex_col_name = None
+        self.__old_edge_col_name = None
+
+        if renumber_graph is None:
+            renumber_graph = True
+            self.__old_vertex_col_name = f"{self.__graph.vertex_col_name}_old"
+            self.__old_edge_col_name = f"{self.__graph.edge_id_col_name}_old"
+            warnings.warn(
+                f"renumber_graph not specified; renumbering by default "
+                f"and saving as {self.__old_vertex_col_name} "
+                f"and {self.__old_edge_col_name}"
+            )
+
+        if renumber_graph:
+            if self.is_remote and self.backend == "torch":
+                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
+                    prev_id_column=self.__old_vertex_col_name,
+                    backend="torch:cuda" if torch.has_cuda else "torch",
+                )
+            else:
+                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
+                    prev_id_column=self.__old_vertex_col_name
+                )
+
+            # FIXME: https://github.com/rapidsai/cugraph/issues/3059
+            # Currently renumbering edges is required if renumbering vertices or else
+            # there is a dask partitioning issue.
+            self.__graph.renumber_edges_by_type(prev_id_column=self.__old_edge_col_name)
+
+        else:
+            self.__vertex_type_offsets = {}
+            self.__vertex_type_offsets["stop"] = [
+                self.__graph.get_num_vertices(vt) for vt in self.__graph.vertex_types
+            ]
+            if self.__backend == "cupy":
+                self.__vertex_type_offsets["stop"] = cupy.array(
+                    self.__vertex_type_offsets["stop"]
+                )
+            else:
+                self.__vertex_type_offsets["stop"] = torch.tensor(
+                    self.__vertex_type_offsets["stop"]
+                )
+                if torch.has_cuda:
+                    self.__vertex_type_offsets["stop"] = self.__vertex_type_offsets[
+                        "stop"
+                    ].cuda()
+
+            cumsum = self.__vertex_type_offsets["stop"].cumsum(0)
+            self.__vertex_type_offsets["start"] = (
+                self.__vertex_type_offsets["stop"] - cumsum
+            )
+            self.__vertex_type_offsets["stop"] -= 1
+            self.__vertex_type_offsets["type"] = np.array(self.__graph.vertex_types)
+
+    @property
+    def _old_vertex_col_name(self):
+        """
+        Returns the name of the new property in the wrapped property graph where
+        the original vertex ids were stored, if this store did its own renumbering.
+        """
+        return self.__old_vertex_col_name
+
+    @property
+    def _old_edge_col_name(self):
+        """
+        Returns the name of the new property in the wrapped property graph where
+        the original edge ids were stored, if this store did its own renumbering.
+        """
+        return self.__old_edge_col_name
+
     @property
     def _edge_types_to_attrs(self):
         return dict(self.__edge_types_to_attrs)
@@ -290,25 +412,29 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def is_remote(self):
-        return self.__graph.is_remote()
+        pg_types = ["PropertyGraph", "MGPropertyGraph"]
+        if type(self.__graph).__name__ in pg_types:
+            return False
+        else:
+            return self.__graph.is_remote()
 
     @cached_property
     def _is_delayed(self):
         return self.is_multi_gpu and not self.is_remote
 
     def get_vertex_index(self, vtypes):
-        # TODO force the graph to use offsets and
-        # return these values based on offsets
-
         if isinstance(vtypes, str):
             vtypes = [vtypes]
 
-        ix = self.__graph.get_vertex_data(
-            types=vtypes, columns=[self.__graph.type_col_name]
-        )[self.__graph.vertex_col_name]
-
-        if self._is_delayed:
-            ix = ix.compute()
+        # FIXME always use torch, drop cupy (#2995)
+        if self.__backend == "torch":
+            ix = torch.tensor()
+        else:
+            ix = cupy.array()
+        for vtype in vtypes:
+            start = self.__vertex_type_offsets["start"][vtype]
+            stop = self.__vertex_type_offsets["stop"][vtype]
+            ix = self.concatenate(ix, self.arange(start, stop + 1, 1))
 
         return self.from_dlpack(ix.to_dlpack())
 
@@ -461,9 +587,10 @@ class EXPERIMENTAL__CuGraphStore:
         edge_types = tuple(sorted(edge_types))
 
         if edge_types not in self.__subgraphs:
-            query = f'(_TYPE_=="{edge_types[0]}")'
+            TCN = self.__graph.type_col_name
+            query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
-                query += f' | (_TYPE_=="{t}")'
+                query += f' | ({TCN}=="{t}")'
             selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
