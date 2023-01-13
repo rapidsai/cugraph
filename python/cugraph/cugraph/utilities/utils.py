@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -257,7 +257,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
 
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
-    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
+    etc.) and return a tuple of (cugraph Graph-type obj, original
     input obj type). If matrix_graph_type is specified, it is used as the
     cugraph Graph-type obj to create when converting from a matrix type.
     """
@@ -363,10 +363,9 @@ def is_nx_graph_type(g):
 
 def is_cugraph_graph_type(g):
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+    from cugraph.structure import Graph, MultiGraph
 
-    # FIXME: Remove DiGraph when support is dropped
-    return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
+    return g in [Graph, MultiGraph]
 
 
 def renumber_vertex_pair(input_graph, vertex_pair):

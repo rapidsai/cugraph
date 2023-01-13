@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ import time
 import pytest
 
 import cugraph
-import cupy
+import cupyx
 import cudf
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
@@ -116,7 +116,7 @@ def test_louvain_csr_graph(is_weighted):
     karate = DATASETS_UNDIRECTED[0]
     df = karate.get_edgelist()
 
-    M = cupy.sparse.coo_matrix(
+    M = cupyx.scipy.sparse.coo_matrix(
         (df["wgt"].to_cupy(), (df["src"].to_cupy(), df["dst"].to_cupy()))
     )
     M = M.tocsr()
