@@ -32,9 +32,9 @@ class FeatureStore:
             )
         self.backend = backend
 
-    def add_feature(self, feat_obj: Any, type_name: str, feat_name: str) -> None:
+    def add_data(self, feat_obj: Any, type_name: str, feat_name: str) -> None:
         """
-        Add the feature to the feature_storage class
+        Add the feature data to the feature_storage class
         Parameters:
         ----------
           feat_obj : array_like object
@@ -74,6 +74,18 @@ class FeatureStore:
         np.ndarray or torch.Tensor
             Array object of the backend type
         """
+        if type_name not in self.fd:
+            raise ValueError(
+                f"type_name {type_name} not found in"
+                f" feature store types: {list(self.fd.keys())}"
+            )
+
+        if feat_name not in self.fd[type_name]:
+            raise ValueError(
+                f"{feat_name} not found in features: {list(self.fd[type_name].keys())}"
+                f" of the type {type_name}"
+            )
+
         return self.fd[type_name][feat_name][indices]
 
     @staticmethod
