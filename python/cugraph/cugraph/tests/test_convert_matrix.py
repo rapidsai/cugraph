@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,7 +49,7 @@ def test_to_from_pandas(graph_file):
     nx_pdf = nx_pdf[sorted(nx_pdf.columns)]
     nx_pdf.sort_index(inplace=True)
 
-    # create a cugraph DiGraph and convert to pandas adjacency
+    # create a cugraph Directed Graph and convert to pandas adjacency
     cuG = cugraph.from_pandas_edgelist(
         M,
         source="0",
@@ -91,13 +91,17 @@ def test_from_to_numpy(graph_file):
     # Read in the graph
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
 
-    # create NetworkX and cugraph DiGraph
+    # create NetworkX and cugraph Directed Graph
     nxG = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph
     )
 
     cuG = cugraph.from_pandas_edgelist(
-        M, source="0", destination="1", edge_attr="weight", create_using=cugraph.DiGraph
+        M,
+        source="0",
+        destination="1",
+        edge_attr="weight",
+        create_using=cugraph.Graph(directed=True),
     )
 
     # convert graphs to numpy array
@@ -112,7 +116,9 @@ def test_from_to_numpy(graph_file):
 
     # Create graphs from numpy array
     new_nxG = nx.from_numpy_array(nparray_nx, create_using=nx.DiGraph)
-    new_cuG = cugraph.from_numpy_array(nparray_cu, create_using=cugraph.DiGraph)
+    new_cuG = cugraph.from_numpy_array(
+        nparray_cu, create_using=cugraph.Graph(directed=True)
+    )
 
     # Assert graphs are same
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
@@ -130,7 +136,9 @@ def test_from_to_numpy(graph_file):
 
     # Create graphs from numpy matrix
     new_nxG = nx.from_numpy_matrix(npmatrix_nx, create_using=nx.DiGraph)
-    new_cuG = cugraph.from_numpy_matrix(npmatrix_cu, create_using=cugraph.DiGraph)
+    new_cuG = cugraph.from_numpy_matrix(
+        npmatrix_cu, create_using=cugraph.Graph(directed=True)
+    )
 
     # Assert graphs are same
     exp_pdf = nx.to_pandas_edgelist(new_nxG)
@@ -185,10 +193,10 @@ def test_from_adjlist(graph_file):
         G1 = cugraph.from_adjlist(cu_offsets, cu_indices, cu_vals, create_using=33)
 
     G1 = cugraph.from_adjlist(
-        cu_offsets, cu_indices, cu_vals, create_using=cugraph.DiGraph
+        cu_offsets, cu_indices, cu_vals, create_using=cugraph.Graph(directed=True)
     )
     G2 = cugraph.from_adjlist(
-        pd_offsets, pd_indices, pd_vals, create_using=cugraph.DiGraph
+        pd_offsets, pd_indices, pd_vals, create_using=cugraph.Graph(directed=True)
     )
 
     assert G1.AdjList == G2.AdjList

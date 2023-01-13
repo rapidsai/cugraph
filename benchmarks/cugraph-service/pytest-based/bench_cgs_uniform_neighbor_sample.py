@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import os
 from pathlib import Path
 
@@ -37,6 +36,7 @@ from cugraph_service_client import RemoteGraph
 from cugraph_service_server.testing import utils
 
 from cugraph_benchmarking import params
+from cugraph_benchmarking.timer import TimerContext
 
 _seed = 42
 
@@ -44,22 +44,25 @@ _seed = 42
 def create_remote_graph(graph_data, is_mg, client):
     """
     Create a remote graph instance based on the data to be loaded/generated,
-    relying on server-side graph creation extensions.
+    relying on server-side graph creation extensions, return a tuple containing
+    the remote graph instance and the number of vertices it contains.
 
     The server extension is part of the
     "cugraph_service_server.testing.benchmark_server_extension" and is loaded
-    in the ensure_running_service_for_sampling() helper.
+    in the ensure_running_server_for_sampling() utility.
     """
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
         gid = client.call_graph_creation_extension(
             "create_graph_from_builtin_dataset", graph_data
         )
+        num_verts = client.get_num_vertices(graph_id=gid)
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
-        num_edges = (2**scale) * graph_data["edgefactor"]
+        num_verts = 2**scale
+        num_edges = num_verts * graph_data["edgefactor"]
         seed = _seed
         gid = client.call_graph_creation_extension(
             "create_graph_from_rmat_generator",
@@ -72,11 +75,11 @@ def create_remote_graph(graph_data, is_mg, client):
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
     G = RemoteGraph(client, gid)
-    return G
+    return (G, num_verts)
 
 
 def get_uniform_neighbor_sample_args(
-    G, seed, batch_size, fanout, with_replacement
+    G, num_verts, seed, batch_size, fanout, with_replacement
 ):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
@@ -91,17 +94,12 @@ def get_uniform_neighbor_sample_args(
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
-    num_verts = G.number_of_vertices()
-
-    if batch_size > num_verts:
-        num_start_verts = int(num_verts * 0.25)
-    else:
-        num_start_verts = batch_size
+    num_start_verts = batch_size
 
     # Create the start_list on the server, since generating a list of actual
     # IDs requires unrenumbering steps that cannot be easily done remotely.
     start_list = G._client.call_extension(
-        "gen_vertex_list", G._graph_id, num_start_verts, seed
+        "gen_vertex_list", G._graph_id, num_start_verts, num_verts
     )
 
     return {
@@ -109,66 +107,6 @@ def get_uniform_neighbor_sample_args(
         "fanout": fanout,
         "with_replacement": with_replacement,
     }
-
-
-def ensure_running_service_for_sampling(dask_scheduler_file=None,
-                                        start_local_cuda_cluster=False):
-    """
-    Returns a tuple containing a Popen object for the running cugraph-service
-    server subprocess, and a client object connected to it.  If a server was
-    detected already running, the Popen object will be None.
-    """
-    host = "localhost"
-    port = 9090
-    client = CugraphServiceClient(host, port)
-    server_process = None
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = utils.start_server_subprocess(
-            host=host,
-            port=port,
-            start_local_cuda_cluster=start_local_cuda_cluster,
-            dask_scheduler_file=dask_scheduler_file,
-        )
-
-    # Ensure the extensions needed for these benchmarks are loaded
-    required_graph_creation_extension_module = "benchmark_server_extension"
-    server_data = client.get_server_info()
-    # .stem excludes .py extensions, so it can match a python module name
-    loaded_graph_creation_extension_modules = [
-        Path(m).stem for m in server_data["graph_creation_extensions"]
-    ]
-    if (
-        required_graph_creation_extension_module
-        not in loaded_graph_creation_extension_modules
-    ):
-        modules_loaded = client.load_graph_creation_extensions(
-            "cugraph_service_server.testing.benchmark_server_extension"
-        )
-        if len(modules_loaded) < 1:
-            raise RuntimeError(
-                "failed to load graph creation extension "
-                f"{required_graph_creation_extension_module}"
-            )
-
-    loaded_extension_modules = [Path(m).stem for m in server_data["extensions"]]
-    if required_graph_creation_extension_module not in loaded_extension_modules:
-        modules_loaded = client.load_extensions(
-            "cugraph_service_server.testing.benchmark_server_extension"
-        )
-        if len(modules_loaded) < 1:
-            raise RuntimeError(
-                "failed to load extension "
-                f"{required_graph_creation_extension_module}"
-            )
-
-    return (server_process, client)
 
 
 def remote_uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=True):
@@ -198,18 +136,18 @@ def remote_graph_objs(request):
 
     # Ensure the appropriate server is running
     if gpu_config == "SG":
-        (server_process, cgs_client) = ensure_running_service_for_sampling()
+        (cgs_client, server_process) = utils.ensure_running_server_for_sampling()
         is_mg = False
 
     elif gpu_config == "SNMG":
         dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
         if dask_scheduler_file is None:
-            (server_process, cgs_client) = ensure_running_service_for_sampling(
+            (cgs_client, server_process) = utils.ensure_running_server_for_sampling(
                 start_local_cuda_cluster=True
             )
         else:
             assert Path(dask_scheduler_file).exists()
-            (server_process, cgs_client) = ensure_running_service_for_sampling(
+            (cgs_client, server_process) = utils.ensure_running_server_for_sampling(
                 dask_scheduler_file=dask_scheduler_file
             )
         is_mg = True
@@ -217,14 +155,12 @@ def remote_graph_objs(request):
     else:
         raise NotImplementedError(f"{gpu_config=}")
 
-    print("creating graph...")
-    st = time.perf_counter_ns()
-    G = create_remote_graph(graph_data, is_mg, cgs_client)
-    print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
+    with TimerContext("creating graph"):
+        (G, num_verts) = create_remote_graph(graph_data, is_mg, cgs_client)
 
     uns_func = remote_uniform_neighbor_sample
 
-    yield (G, uns_func)
+    yield (G, num_verts, uns_func)
 
     del G  # is this necessary?
     if server_process is not None:
@@ -244,11 +180,12 @@ def remote_graph_objs(request):
 def bench_cgs_uniform_neighbor_sample(
     gpubenchmark, remote_graph_objs, batch_size, fanout, with_replacement
 ):
-    (G, uniform_neighbor_sample_func) = remote_graph_objs
+    (G, num_verts, uniform_neighbor_sample_func) = remote_graph_objs
 
-    uns_args = get_uniform_neighbor_sample_args(
-        G, _seed, batch_size, fanout, with_replacement
-    )
+    with TimerContext("computing sampling args"):
+        uns_args = get_uniform_neighbor_sample_args(
+            G, num_verts, _seed, batch_size, fanout, with_replacement
+        )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
     result = gpubenchmark(
@@ -258,7 +195,9 @@ def bench_cgs_uniform_neighbor_sample(
         fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
     )
+    """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}
     dt = str(result.sources.dtype)
     llen = len(result.sources)
     print(f"\nresult list len: {llen} (x3), dtype={dt}, total bytes={3*llen*dtmap[dt]}")
+    """
