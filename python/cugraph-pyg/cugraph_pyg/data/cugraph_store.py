@@ -455,9 +455,9 @@ class EXPERIMENTAL__CuGraphStore:
         for vtype in vtypes:
             start = int(self.__vertex_type_offsets["start"][vtype])
             stop = int(self.__vertex_type_offsets["stop"][vtype])
-            ix = self.concatenate([ix, self.arange(start, stop + 1, 1, dtype='int64')])
+            ix = self.concatenate([ix, self.arange(start, stop + 1, 1, dtype=self.vertex_dtype)])
 
-        return self.from_dlpack(ix.__dlpack__())
+        return ix
 
     def put_edge_index(self, edge_index, edge_attr):
         """
@@ -653,10 +653,13 @@ class EXPERIMENTAL__CuGraphStore:
         if len(vtypes) == 1:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
+            # FIXME remove use of cudf
             noi_types = self.__graph.vertex_types_from_numerals(
-                self.searchsorted(
-                    self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
-                    nodes_of_interest,
+                cudf.from_dlpack(
+                    self.searchsorted(
+                        self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                        nodes_of_interest,
+                    ).__dlpack__()
                 )
             )
 
