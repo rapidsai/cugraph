@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ except ModuleNotFoundError:
         from cugraph.utilities.utils import import_optional
     except ModuleNotFoundError:
         raise ModuleNotFoundError(
-            "cuGraph-PyG requires cuGraph or cuGraph-Service to be installed."
+            "cuGraph-PyG requires cugraph or cugraph-service-client to be installed."
         )
 
 _transform_to_backend_dtype_1d = import_optional(

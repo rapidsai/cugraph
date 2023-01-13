@@ -183,8 +183,12 @@ def uniform_neighbor_sample(
             ].dtype,
         )
 
-    if with_edge_properties and batch_id_list is None:
-        batch_id_list = cp.zeros(len(start_list), dtype="int32")
+    if isinstance(batch_id_list, dask_cudf.Series):
+        batch_id_list = batch_id_list.compute()
+    elif with_edge_properties and batch_id_list is None:
+        batch_id_list = cudf.Series(
+            cp.zeros(len(start_list), dtype="int32")
+        )
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -211,19 +215,19 @@ def uniform_neighbor_sample(
     client = input_graph._client
 
     session_id = Comms.get_session_id()
-    perm = cp.array_split(start_list.index.values, input_graph._npartitions)
+    perm = cp.array_split(cp.arange(len(start_list), dtype=indices_t), input_graph._npartitions)
 
     result = [
         client.submit(
             _call_plc_uniform_neighbor_sample,
             session_id,
             input_graph._plc_graph[w],
-            start_list.loc[perm[i]],
+            start_list.iloc[perm[i]],
             fanout_vals,
             with_replacement,
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
-            batch_id_list=None if batch_id_list is None else batch_id_list[perm[i]],
+            batch_id_list=None if batch_id_list is None else batch_id_list.iloc[perm[i]],
             workers=[w],
             allow_other_workers=False,
             pure=False,

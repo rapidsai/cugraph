@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -237,7 +237,7 @@ class EXPERIMENTAL__CuGraphStore:
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
-            from torch import concat as concatenate
+            from torch import concatenate as concatenate
             from torch import arange as arange
         elif backend == "cupy":
             from cupy import from_dlpack
@@ -415,7 +415,11 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def is_remote(self):
-        return self.__graph.is_remote()
+        pg_types = ["PropertyGraph", "MGPropertyGraph"]
+        if type(self.__graph).__name__ in pg_types:
+            return False
+        else:
+            return self.__graph.is_remote()
 
     @cached_property
     def _is_delayed(self):
@@ -590,11 +594,11 @@ class EXPERIMENTAL__CuGraphStore:
             query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
                 query += f' | ({TCN}=="{t}")'
-            # selection = self.__graph.select_edges(query)
+            selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
-                # selection=selection,
+                selection=selection,
                 edge_weight_property=None,
                 default_edge_weight=1.0,
                 check_multi_edges=False,

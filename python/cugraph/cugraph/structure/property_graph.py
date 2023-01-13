@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -859,7 +859,8 @@ class EXPERIMENTAL__PropertyGraph:
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
 
-            df_out = df.reset_index(drop=True)
+            # Should not drop to ensure vertex ids are returned as a column.
+            df_out = df.reset_index(drop=False)
 
             # Preserve the dtype (vertex id type) to avoid cugraph algorithms
             # throwing errors due to a dtype mismatch
@@ -1265,7 +1266,9 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            df_out = df.reset_index(drop=True)
+
+            # Should not drop so the edge ids are returned as a column.
+            df_out = df.reset_index()
 
             # Preserve the dtype (edge id type) to avoid cugraph algorithms
             # throwing errors due to a dtype mismatch

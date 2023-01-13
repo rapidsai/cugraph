@@ -342,7 +342,8 @@ def test_uniform_neighbor_sample_edge_properties():
                 "seed": cudf.Series([0, 4], dtype="int32"),
                 "batch": cudf.Series([0, 1], dtype="int32"),
             }
-        )
+        ),
+        npartitions=2,
     )
 
     G = cugraph.Graph(directed=True)

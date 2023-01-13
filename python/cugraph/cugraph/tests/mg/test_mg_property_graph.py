@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -866,14 +866,12 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key]).compute().to_pandas()
         assert len(df) == stop - start + 1
-        assert (
-            df["_VERTEX_"] == df["_VERTEX_"]._constructor(range(start, stop + 1))
-        ).all()
+        assert (df["_VERTEX_"] == cudf.Series(range(start, stop + 1))).all()
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
             expected = sorted(x for x, *args in data[key][1])
-            expected = cur._constructor(sorted(x for x, *args in data[key][1]))
-            assert (cur.values == expected.values).all()
+            assert (cur == cudf.Series(expected, index=cur.index)).all()
+
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data().compute()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
@@ -908,9 +906,8 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key]).compute().to_pandas()
         assert len(df) == stop - start + 1
-        actual = df[pG.edge_id_col_name]
-        expected = actual._constructor(range(start, stop + 1))
-        assert (actual == expected).all()
+        assert (df[pG.edge_id_col_name] == cudf.Series(range(start, stop + 1))).all()
+
         if prev_id_column is not None:
             assert prev_id_column in df.columns
 

@@ -225,6 +225,11 @@ uniform_neighbor_sample_impl(
           handle, graph_view, edge_weight_view, edge_id_type_view, d_in, d_labels);
     }
 
+    // FIXME: potential optimization, continual resizing/copying
+    //        of these device vectors is inefficient.  If we're going to
+    //        do higher hop sampling it might be more efficient to create
+    //        a separate vector for each hop and concatenate them all
+    //        at the end rather than recopying each time.
     // resize accumulators:
     auto old_sz = d_result_dst.size();
     auto add_sz = d_out_dst.size();
@@ -237,10 +242,6 @@ uniform_neighbor_sample_impl(
     if (d_result_edge_id) d_result_edge_id->resize(new_sz, handle.get_stream());
     if (d_result_edge_type) d_result_edge_type->resize(new_sz, handle.get_stream());
     if (d_result_label) d_result_label->resize(new_sz, handle.get_stream());
-
-    raft::copy(d_result_src.begin() + old_sz, d_out_src.begin(), add_sz, handle.get_stream());
-
-    raft::copy(d_result_dst.begin() + old_sz, d_out_dst.begin(), add_sz, handle.get_stream());
 
     raft::copy(
       d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());

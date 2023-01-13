@@ -651,6 +651,7 @@ class NumberMap:
                         for (data, wf) in result
                     ]
                 )
+
                 if renumber_type == "legacy":
                     renumber_map.implementation.ddf = (
                         indirection_map.merge(
