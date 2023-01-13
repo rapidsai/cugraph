@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -397,7 +397,10 @@ def test_consolidation(graph_file):
         df, source="source", target="target", create_using=nx.DiGraph
     )
     G = cugraph.from_cudf_edgelist(
-        ddf, source="source", destination="target", create_using=cugraph.DiGraph
+        ddf,
+        source="source",
+        destination="target",
+        create_using=cugraph.Graph(directed=True),
     )
 
     t1 = time.time()
@@ -683,7 +686,7 @@ def test_graph_init_with_multigraph():
     cMG.from_cudf_edgelist(gdf, source="src", destination="dst")
     cugraph.Graph(m_graph=cMG)
 
-    cDiMG = cugraph.MultiDiGraph()  # deprecated, but should still work
+    cDiMG = cugraph.MultiGraph(directed=True)
     cDiMG.from_cudf_edgelist(gdf, source="src", destination="dst")
     cugraph.Graph(m_graph=cDiMG)
 

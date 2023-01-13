@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ import numpy as np
 import warnings
 
 import cudf
-from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+from cugraph.structure import Graph, MultiGraph
 from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
@@ -46,7 +46,7 @@ def _ensure_args(
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+    if G_type is Graph or is_nx_graph_type(G_type):
         # FIXME: Improve Graph-type checking
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
@@ -95,7 +95,7 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
     return_predecessors is only used for return values from cupy/scipy input
     types.
     """
-    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
+    if input_type in [Graph, MultiGraph]:
         return df
 
     elif is_nx_graph_type(input_type):
