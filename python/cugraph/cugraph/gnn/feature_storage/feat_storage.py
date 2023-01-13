@@ -85,8 +85,6 @@ class FeatureStore:
         indices,
         type_name,
         feat_name,
-        compute_results=True,
-        _use_index_optimization=True,
     ):
         ar = self.fd[type_name][feat_name]
         if isinstance(ar, dask.array.core.Array):
@@ -100,16 +98,7 @@ class FeatureStore:
             ar = ar.take(indices_args.argsort(), axis=0)
             return ar
         else:
-            # TODO: See if needed
-            if _use_index_optimization:
-                indices_args = indices.argsort()
-                # sort indices
-                indices = indices.take(indices_args, axis=0)
-                ar = ar[indices]
-                ar = ar.take(indices_args.argsort(), axis=0)
-                return ar
-            else:
-                return ar[indices]
+            return ar[indices]
 
     def persist_feat_data(self):
         if self._client:
