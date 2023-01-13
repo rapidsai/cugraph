@@ -11,12 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections import defaultdict
+from typing import Any, Union
 import cudf
 import cupy as cp
 import numpy as np
-import dask_cudf
-from dask import dataframe as dd
-import dask
 import pandas as pd
 from cugraph.utilities.utils import import_optional
 
@@ -24,129 +22,89 @@ torch = import_optional("torch")
 
 
 class FeatureStore:
-    def __init__(self, backend="numpy", client=None):
+    """The feature-store class used to store feature data for GNNS"""
+
+    def __init__(self, backend="numpy"):
         self.fd = defaultdict(dict)
-        if backend in ["dask_numpy", "dask_cupy"] and client is None:
-            raise ValueError(f"Please provide dask client for backend={type(backend)}")
+        if backend not in ["numpy", "torch"]:
+            raise ValueError(
+                f"backend {backend} not supported. Supported backends are numpy, torch"
+            )
         self.backend = backend
 
-        self._client = client
-
-    def add_feat_from_df(self, feat_obj, type_name, feat_name):
-        self.fd[type_name][feat_name] = self.cast_feat_obj_to_backend(
+    def add_feature(self, feat_obj: Any, type_name: str, feat_name: str) -> None:
+        """
+        Add the feature to the feature_storage class
+        Parameters:
+        ----------
+          feat_obj : array_like object
+            The feature object to save in feature store
+          type_name : str
+            The node-type/edge-type of the feature
+          feat_name: str
+            The name of the feature being stored
+        Returns:
+        -------
+            None
+        """
+        self.fd[type_name][feat_name] = self._cast_feat_obj_to_backend(
             feat_obj, self.backend
         )
 
-    @staticmethod
-    def cast_feat_obj_to_backend(feat_obj, backend):
-        if backend == "cupy":
-            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
-                return _cast_to_cupy_ar(feat_obj.values)
-            elif isinstance(feat_obj, (dask_cudf.DataFrame, dd.DataFrame)):
-                return _cast_to_cupy_ar(feat_obj.values.compute())
-            elif isinstance(feat_obj, (np.ndarray, cp.ndarray)):
-                return _cast_to_cupy_ar(feat_obj)
-            else:
-                raise ValueError(f"feat_obj of {type(feat_obj)} is not supported")
-        elif backend == "numpy":
-            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
-                return _cast_to_numpy_ar(feat_obj.values)
-            elif isinstance(feat_obj, (dask_cudf.DataFrame, dd.DataFrame)):
-                return feat_obj.values.map_blocks(_cast_to_numpy_ar).compute()
-            elif isinstance(feat_obj, (np.ndarray, cp.ndarray)):
-                return _cast_to_numpy_ar(feat_obj)
-            else:
-                raise ValueError(f"feat_obj of {type(feat_obj)} is not supported")
-        elif backend == "torch":
-            if isinstance(feat_obj, np.ndarray):
-                return torch.from_numpy(feat_obj)
-            elif isinstance(feat_obj, cp.ndarray):
-                return torch.as_tensor(feat_obj, device="cuda")
-        elif backend == "dask_numpy":
-            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
-                return _create_dask_ar_from_ar(feat_obj.values, array_type="numpy")
-            elif isinstance(feat_obj, (dask_cudf.DataFrame, dd.DataFrame)):
-                return feat_obj.values.map_blocks(_cast_to_numpy_ar)
-            else:
-                raise ValueError(f"feat_obj of {type(feat_obj)} is not supported")
-
-        elif backend == "dask_cupy":
-            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
-                return _create_dask_ar_from_ar(feat_obj.values, array_type="cupy")
-            elif isinstance(feat_obj, (dask_cudf.DataFrame, dd.DataFrame)):
-                return feat_obj.values.map_blocks(_cast_to_cupy_ar)
-            else:
-                raise ValueError(f"feat_obj of {type(feat_obj)} is not supported")
-        else:
-            raise ValueError(f"backend {backend} is not supported")
-
     def get_data(
         self,
-        indices,
-        type_name,
-        feat_name,
-    ):
-        ar = self.fd[type_name][feat_name]
-        if isinstance(ar, dask.array.core.Array):
-            # sort indices first to prevent shuffling at dask layer
-            # 70x speedup
-            indices_args = indices.argsort()
-            # sort indices
-            indices = indices.take(indices_args, axis=0)
-            ar = ar[indices].compute()
-            # unsort result to orignal requested order
-            ar = ar.take(indices_args.argsort(), axis=0)
-            return ar
-        else:
-            return ar[indices]
+        indices: Union[np.ndarray, torch.Tensor],
+        type_name: str,
+        feat_name: str,
+    ) -> Union[np.ndarray, torch.Tensor]:
+        """
+        Retrieve the feature data corresponding to the indices, type and feature name
 
-    def persist_feat_data(self):
-        if self._client:
-            n_workers = len(self._client.scheduler_info()["workers"])
-            nparts = n_workers * 2
-        else:
-            nparts = 1
-        self.fd = {
-            type_n: {fname: _persist_ar(ar, nparts) for fname, ar in type_d.items()}
-            for type_n, type_d in self.fd.items()
-        }
+        Parameters:
+        -----------
+        indices: np.ndarray or torch.Tensor
+            The indices of the values to extract.
+        type_name : str
+            The node-type/edge-type to store data
+        feat_name:
+            The feature name to retrieve data for
 
+        Returns:
+        --------
+        np.ndarray or torch.Tensor
+            Array object of the backend type
+        """
+        return self.fd[type_name][feat_name][indices]
 
-def get_evenly_divided_values(value_to_be_distributed, times):
-    return [
-        value_to_be_distributed // times + int(x < value_to_be_distributed % times)
-        for x in range(times)
-    ]
-
-
-def _repartition_dask_ar(ar, nparts):
-    chunk1, chunk2 = ar.chunks
-    new_chunk1 = get_evenly_divided_values(sum(chunk1), nparts)
-    new_chunks = tuple(new_chunk1), chunk2
-    ar = ar.rechunk(new_chunks).persist()
-    ar = ar.compute_chunk_sizes()
-    return ar
+    @staticmethod
+    def _cast_feat_obj_to_backend(feat_obj, backend: str):
+        if backend == "numpy":
+            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
+                return _cast_to_numpy_ar(feat_obj.values)
+            else:
+                return _cast_to_numpy_ar(feat_obj)
+        elif backend == "torch":
+            if isinstance(feat_obj, (cudf.DataFrame, pd.DataFrame)):
+                return _cast_to_torch_tensor(feat_obj.values)
+            else:
+                return _cast_to_torch_tensor(feat_obj)
 
 
-def _create_dask_ar_from_ar(ar, array_type="numpy"):
-    raise NotImplementedError
-
-
-def _persist_ar(ar, nparts):
-    if hasattr(ar, "persist"):
-        ar = ar.persist()
-        ar = ar.compute_chunk_sizes()
-        ar = _repartition_dask_ar(ar, nparts)
+def _cast_to_torch_tensor(ar):
+    if isinstance(ar, cp.ndarray):
+        ar = torch.as_tensor(ar, device="cuda")
+    elif isinstance(ar, np.ndarray):
+        ar = torch.from_numpy(ar)
+    else:
+        ar = torch.as_tensor(ar)
     return ar
 
 
 def _cast_to_numpy_ar(ar):
     if isinstance(ar, cp.ndarray):
         ar = ar.get()
+    elif type(ar).__name__ == "Tensor":
+        ar = ar.numpy()
     else:
         ar = np.asarray(ar)
     return ar
-
-
-def _cast_to_cupy_ar(ar):
-    return cp.asarray(ar)
