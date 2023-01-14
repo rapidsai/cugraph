@@ -605,6 +605,8 @@ class NumberMap:
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                    dtype=['int32', 'int32', 'float32'],
         ...                    header=None)
+        >>> df['0'] = df['0'].astype(str)
+        >>> df['1'] = df['1'].astype(str)
         >>> df, number_map = number_map.NumberMap.renumber(df, '0', '1')
         >>> G = cugraph.Graph()
         >>> G.from_cudf_edgelist(df,
