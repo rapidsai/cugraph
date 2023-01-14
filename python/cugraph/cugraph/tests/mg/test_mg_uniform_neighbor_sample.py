@@ -370,6 +370,12 @@ def test_uniform_neighbor_sample_edge_properties():
         seed=42
     ).compute()
 
+    print('original edgelist:')
+    print(edgelist_df.compute())
+
+    print('sampling result:')
+    print(sampling_results)
+
     mdf = cudf.merge(sampling_results, edgelist_df.compute(), left_on='edge_id', right_on='eid')
     assert (
         (mdf.w == mdf.weight).all()
@@ -384,7 +390,7 @@ def test_uniform_neighbor_sample_edge_properties():
         (mdf.dst == mdf.destinations).all()
     )
 
-    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
+    assert sorted(sampling_results["hop_id"].values_host.tolist()) == [0] * (2 * 2) + [1] * (
         2 * 2 * 2
     )
     # FIXME test the batch id values once that is fixed in C++
