@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -400,7 +400,7 @@ gather_one_hop_edgelist(
     }
   } else {
     if (edge_id_type_view) {
-      auto extracted_tuple = 
+      auto extracted_tuple =
         cugraph::extract_transform_v_frontier_outgoing_e(handle,
                                                          graph_view,
                                                          vertex_frontier.bucket(0),
@@ -555,7 +555,7 @@ sample_edges(
           int32_t{0},
           handle.get_stream());
 
-        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        label_offsets.begin(),
                        label_offsets.end(),
@@ -586,7 +586,7 @@ sample_edges(
           int32_t{0},
           handle.get_stream());
 
-        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        label_offsets.begin(),
                        label_offsets.end(),
@@ -619,7 +619,7 @@ sample_edges(
           int32_t{0},
           handle.get_stream());
 
-        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        label_offsets.begin(),
                        label_offsets.end(),
@@ -650,7 +650,7 @@ sample_edges(
           int32_t{0},
           handle.get_stream());
 
-        *labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
+        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        label_offsets.begin(),
                        label_offsets.end(),

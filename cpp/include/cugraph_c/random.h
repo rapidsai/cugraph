@@ -36,11 +36,10 @@ typedef struct {
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_rng_state_create(
-  const cugraph_resource_handle_t* handle,
-  uint64_t seed,
-  cugraph_rng_state_t** state,
-  cugraph_error_t** error);
+cugraph_error_code_t cugraph_rng_state_create(const cugraph_resource_handle_t* handle,
+                                              uint64_t seed,
+                                              cugraph_rng_state_t** state,
+                                              cugraph_error_t** error);
 
 /**
  * @brief    Destroy a Random Number Generator State

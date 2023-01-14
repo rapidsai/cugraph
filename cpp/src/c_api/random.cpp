@@ -39,7 +39,8 @@ extern "C" cugraph_error_code_t cugraph_rng_state_create(const cugraph_resource_
 
     if (p_handle->handle_->comms_initialized()) {
       // need to verify that every seed is different
-      auto seed_v = cugraph::host_scalar_allgather(p_handle->handle_->get_comms(), seed, p_handle->handle_->get_stream());
+      auto seed_v = cugraph::host_scalar_allgather(
+        p_handle->handle_->get_comms(), seed, p_handle->handle_->get_stream());
       std::sort(seed_v.begin(), seed_v.end());
       if (std::unique(seed_v.begin(), seed_v.end()) != seed_v.end()) {
         *error = reinterpret_cast<cugraph_error_t*>(
@@ -48,7 +49,8 @@ extern "C" cugraph_error_code_t cugraph_rng_state_create(const cugraph_resource_
       }
     }
 
-    *state = reinterpret_cast<cugraph_rng_state_t*>(new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{seed}});
+    *state = reinterpret_cast<cugraph_rng_state_t*>(
+      new cugraph::c_api::cugraph_rng_state_t{raft::random::RngState{seed}});
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
     *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
