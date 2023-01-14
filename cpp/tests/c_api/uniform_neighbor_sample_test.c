@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -342,8 +342,20 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, 1, INT32);
 
-  ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(
-    handle, graph, d_start_view, NULL, h_fan_out_view, FALSE, FALSE, &result, &ret_error);
+  cugraph_rng_state_t *rng_state;
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+
+  ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
+                                                                  graph,
+                                                                  d_start_view,
+                                                                  NULL,
+                                                                  h_fan_out_view,
+                                                                  rng_state,
+                                                                  FALSE,
+                                                                  FALSE,
+                                                                  &result,
+                                                                  &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(

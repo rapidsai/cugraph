@@ -81,7 +81,12 @@ class Tests_MGUniform_Neighbor_Sampling
     // to be included in sampling batches
     //
     constexpr float select_probability{0.9};
-    constexpr uint64_t seed{0};
+
+    // FIXME:  Update the tests to initialize RngState and use it instead
+    //         of seed...
+    uint64_t seed{static_cast<uint64_t>(handle_->get_comms().get_rank())};
+
+    raft::random::RngState rng_state(seed);
 
     rmm::device_uvector<float> random_numbers(mg_graph_view.local_vertex_partition_range_size(),
                                               handle_->get_stream());
@@ -158,6 +163,7 @@ class Tests_MGUniform_Neighbor_Sampling
                    raft::device_span<int32_t const>{batch_number.data(), batch_number.size()},
                    raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                                   uniform_neighbor_sampling_usecase.fanout.size()),
+                   rng_state,
                    uniform_neighbor_sampling_usecase.flag_replacement),
                  std::exception);
 #else
@@ -173,6 +179,7 @@ class Tests_MGUniform_Neighbor_Sampling
         raft::device_span<int32_t const>{batch_number.data(), batch_number.size()},
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
+        rng_state,
         uniform_neighbor_sampling_usecase.flag_replacement);
 
     if (uniform_neighbor_sampling_usecase.check_correctness) {

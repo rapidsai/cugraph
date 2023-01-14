@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup sampling Sampling algorithms
@@ -188,7 +189,7 @@ typedef struct {
 
 /**
  * @brief     Uniform Neighborhood Sampling
- * @deprecated This call should be replaced with cugraph_uniforrm_neighborhood_sampling
+ * @deprecated This call should be replaced with cugraph_uniform_neighborhood_sampling
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
@@ -235,6 +236,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
  * will not be labeled.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
+ * @param [in/out] rng_state State of the random number generator, updated with each call
  * @param [in]  with_replacement
  *                           Boolean value.  If true selection of edges is done with
  *                           replacement.  If false selection is done without replacement.
@@ -251,6 +253,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* label,
   const cugraph_type_erased_host_array_view_t* fan_out,
+  cugraph_rng_state_t* rng_state,
   bool_t with_replacement,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,

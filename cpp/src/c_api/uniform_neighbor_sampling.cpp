@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/random.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
@@ -165,6 +166,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   bool with_replacement_{false};
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
@@ -174,6 +176,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                     cugraph_type_erased_device_array_view_t const* start,
                                     cugraph_type_erased_device_array_view_t const* label,
                                     cugraph_type_erased_host_array_view_t const* fan_out,
+                                    cugraph_rng_state_t* rng_state,
                                     bool with_replacement,
                                     bool do_expensive_check)
     : abstract_functor(),
@@ -185,6 +188,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(label)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       with_replacement_(with_replacement),
       do_expensive_check_(do_expensive_check)
   {
@@ -260,6 +264,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
             ? std::make_optional(raft::device_span<int32_t>(label.data(), label.size()))
             : std::nullopt,
           raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
+          rng_state_->rng_state_,
           with_replacement_);
 
       std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
@@ -504,6 +509,7 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* label,
   const cugraph_type_erased_host_array_view_t* fan_out,
+  cugraph_rng_state_t* rng_state,
   bool_t with_replacement,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
@@ -511,7 +517,7 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
 {
   // FIXME:  We need a mechanism to specify a seed.  We should be consistent across all of the
   //   sampling/random walk algorithms (or really any algorithm that wants a seed)
-  
+
   CAPI_EXPECTS(
     (label == nullptr) ||
       (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(label)
@@ -536,6 +542,6 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
     *error);
 
   uniform_neighbor_sampling_functor functor{
-    handle, graph, start, label, fan_out, with_replacement, do_expensive_check};
+    handle, graph, start, label, fan_out, rng_state, with_replacement, do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

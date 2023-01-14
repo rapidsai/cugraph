@@ -148,7 +148,7 @@ uniform_neighbor_sample_impl(
   std::optional<rmm::device_uvector<int32_t>>& d_labels,
   raft::host_span<int32_t const> h_fan_out,
   bool with_replacement,
-  uint64_t seed)
+  raft::random::RngState& rng_state)
 {
 #ifdef NO_CUGRAPH_OPS
   CUGRAPH_FAIL(
@@ -178,7 +178,6 @@ uniform_neighbor_sample_impl(
   size_t comm_size{1};
 
   if constexpr (multi_gpu) {
-    seed += handle.get_comms().get_rank();
     comm_size = handle.get_comms().get_size();
   }
 
@@ -206,9 +205,6 @@ uniform_neighbor_sample_impl(
     std::optional<rmm::device_uvector<int32_t>> d_out_label{std::nullopt};
 
     if (k_level > 0) {
-      raft::random::RngState rng_state(seed);
-      seed += d_in.size() * k_level * comm_size;
-
       std::tie(d_out_src, d_out_dst, d_out_weight, d_out_edge_id, d_out_edge_type, d_out_label) =
         sample_edges(handle,
                      graph_view,
@@ -338,8 +334,8 @@ uniform_neighbor_sample(
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed)
+  raft::random::RngState& rng_state,
+  bool with_replacement)
 {
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
@@ -363,7 +359,7 @@ uniform_neighbor_sample(
                                               d_start_labels,
                                               fan_out,
                                               with_replacement,
-                                              seed);
+                                              rng_state);
 }
 
 }  // namespace cugraph

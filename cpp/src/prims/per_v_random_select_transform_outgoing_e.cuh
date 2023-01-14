@@ -228,16 +228,6 @@ struct copy_with_counter_t {
   }
 };
 
-template <typename edge_t, typename T>
-struct check_invalid_t {
-  edge_t invalid_idx{};
-
-  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
-  {
-    return thrust::get<0>(pair) == invalid_idx;
-  }
-};
-
 template <bool incoming,
           typename GraphViewType,
           typename VertexFrontierBucketType,

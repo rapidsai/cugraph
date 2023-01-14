@@ -1853,7 +1853,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * level
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
- * @param seed A seed to initialize the random number generator
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32 hop,
  * optional int32_t label)
@@ -1882,8 +1882,8 @@ uniform_neighbor_sample(
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement = true,
-  uint64_t seed         = 0);
+  raft::random::RngState& rng_state,
+  bool with_replacement = true);
 
 /*
  * @brief Compute triangle counts.

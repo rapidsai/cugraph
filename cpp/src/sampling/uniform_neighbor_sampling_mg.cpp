@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,8 +110,8 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed);
+  raft::random::RngState &rng_state,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -131,8 +131,8 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed);
+  raft::random::RngState &rng_state,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -152,8 +152,8 @@ uniform_neighbor_sample(
   raft::device_span<int64_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed);
+  raft::random::RngState &rng_state,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -173,8 +173,8 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed);
+  raft::random::RngState &rng_state,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -194,8 +194,8 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed);
+  raft::random::RngState &rng_state,
+  bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -215,7 +215,7 @@ uniform_neighbor_sample(
   raft::device_span<int64_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  bool with_replacement,
-  uint64_t seed);
+  raft::random::RngState &rng_state,
+  bool with_replacement);
 
 }  // namespace cugraph
