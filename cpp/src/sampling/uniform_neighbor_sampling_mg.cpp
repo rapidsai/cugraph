@@ -110,7 +110,7 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  raft::random::RngState &rng_state,
+  raft::random::RngState& rng_state,
   bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -131,7 +131,7 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  raft::random::RngState &rng_state,
+  raft::random::RngState& rng_state,
   bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -152,7 +152,7 @@ uniform_neighbor_sample(
   raft::device_span<int64_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  raft::random::RngState &rng_state,
+  raft::random::RngState& rng_state,
   bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -173,7 +173,7 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  raft::random::RngState &rng_state,
+  raft::random::RngState& rng_state,
   bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -194,7 +194,7 @@ uniform_neighbor_sample(
   raft::device_span<int32_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  raft::random::RngState &rng_state,
+  raft::random::RngState& rng_state,
   bool with_replacement);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -215,7 +215,7 @@ uniform_neighbor_sample(
   raft::device_span<int64_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int32_t const> fan_out,
-  raft::random::RngState &rng_state,
+  raft::random::RngState& rng_state,
   bool with_replacement);
 
 }  // namespace cugraph

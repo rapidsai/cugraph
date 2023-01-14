@@ -177,9 +177,7 @@ uniform_neighbor_sample_impl(
   int32_t hop{0};
   size_t comm_size{1};
 
-  if constexpr (multi_gpu) {
-    comm_size = handle.get_comms().get_size();
-  }
+  if constexpr (multi_gpu) { comm_size = handle.get_comms().get_size(); }
 
   for (auto&& k_level : h_fan_out) {
     // prep step for extracting out-degs(sources):
@@ -261,11 +259,12 @@ uniform_neighbor_sample_impl(
                  d_out_edge_type->begin(),
                  d_out_edge_type->size(),
                  handle.get_stream());
-    if (d_result_label)
+    if (d_result_label) {
       raft::copy(d_result_label->begin() + old_sz,
                  d_out_label->begin(),
                  d_out_label->size(),
                  handle.get_stream());
+    }
 
     d_in     = std::move(d_out_dst);
     d_labels = std::move(d_labels);

@@ -1831,12 +1831,12 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
- * Output from this function is a tuple of vectors (src, dst, edge_id, edge_type, weight, hop, label),
- * identifying the randomly selected edges.  src is the source vertex, dst is the destination
- * vertex, edge_id identifies the edge id, edge_type identifies the edge type, weight is the edge
- * weight, hop identifies which hop the edge was encountered in.  Label is optional, if input labels
- * are associated with the start vertices then the output label is provided correlating the
- * extracted edges with the label that they were extracted from.
+ * Output from this function is a tuple of vectors (src, dst, edge_id, edge_type, weight, hop,
+ * label), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * destination vertex, edge_id identifies the edge id, edge_type identifies the edge type, weight is
+ * the edge weight, hop identifies which hop the edge was encountered in.  Label is optional, if
+ * input labels are associated with the start vertices then the output label is provided correlating
+ * the extracted edges with the label that they were extracted from.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
