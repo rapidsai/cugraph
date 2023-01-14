@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,8 +73,12 @@ class Tests_Uniform_Neighbor_Sampling
     // to be included in sampling batches
     //
     constexpr float select_probability{0.9};
+
+    // FIXME:  Update the tests to initialize RngState and use it instead
+    //         of seed...
     constexpr uint64_t seed{0};
 
+    raft::random::RngState rng_state(seed);
     rmm::device_uvector<float> random_numbers(graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
     rmm::device_uvector<vertex_t> random_sources(graph_view.local_vertex_partition_range_size(),
@@ -131,6 +135,7 @@ class Tests_Uniform_Neighbor_Sampling
                    raft::device_span<int32_t const>{batch_number.data(), batch_number.size()},
                    raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                                   uniform_neighbor_sampling_usecase.fanout.size()),
+                   rng_state,
                    uniform_neighbor_sampling_usecase.flag_replacement),
                  std::exception);
 #else
@@ -146,6 +151,7 @@ class Tests_Uniform_Neighbor_Sampling
         raft::device_span<int32_t const>{batch_number.data(), batch_number.size()},
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
+        rng_state,
         uniform_neighbor_sampling_usecase.flag_replacement);
 
     if (uniform_neighbor_sampling_usecase.check_correctness) {
@@ -153,10 +159,8 @@ class Tests_Uniform_Neighbor_Sampling
       //  edges in the input graph
       rmm::device_uvector<vertex_t> vertices(2 * src_out.size(), handle.get_stream());
       raft::copy(vertices.data(), src_out.data(), src_out.size(), handle.get_stream());
-      raft::copy(vertices.data() + src_out.size(),
-                 dst_out.data(),
-                 dst_out.size(),
-                 handle.get_stream());
+      raft::copy(
+        vertices.data() + src_out.size(), dst_out.data(), dst_out.size(), handle.get_stream());
       thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
       auto vertices_end =
         thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end());

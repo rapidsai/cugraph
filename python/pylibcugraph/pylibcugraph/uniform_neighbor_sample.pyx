@@ -64,6 +64,11 @@ from pylibcugraph.utils cimport (
 from pylibcugraph.internal_types.sampling_result cimport (
     SamplingResult,
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_create,
+    cugraph_rng_state_free,
+    cugraph_rng_state_t,
+)
 
 def uniform_neighbor_sample(ResourceHandle resource_handle,
                             _GPUGraph input_graph,
@@ -72,7 +77,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             bool_t with_replacement,
                             bool_t do_expensive_check,
                             bool_t with_edge_properties=<bool_t>False,
-                            batch_id_list=None):
+                            batch_id_list=None,
+                            seed=42):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -109,6 +115,10 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     batch_id_list: list[int32] (Optional)
         List of int32 batch ids that is returned with each edge.  Optional
         argument, defaults to NULL, returning nothing.
+    
+    seed: int64 (Optional)
+        The random seed to use.  Should ideally be a different seed per GPU.
+        Defaults to 42.
 
     Returns
     -------
@@ -161,17 +171,29 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
+    cdef cugraph_rng_state_t* rng_state_ptr
+    error_code = cugraph_rng_state_create(
+        c_resource_handle_ptr,
+        <size_t>seed,
+        &rng_state_ptr,
+        &error_ptr,
+    )
+    assert_success(error_code, error_ptr, "cugraph_rng_state_create")
+
     error_code = cugraph_uniform_neighbor_sample_with_edge_properties(
         c_resource_handle_ptr,
         c_graph_ptr,
         start_ptr,
         batch_id_ptr,
         fan_out_ptr,
+        rng_state_ptr,
         with_replacement,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample_with_edge_properties")
+
+    cugraph_rng_state_free(rng_state_ptr)
 
     # Free the two input arrays that are no longer needed.
     cugraph_type_erased_device_array_view_free(start_ptr)

@@ -303,9 +303,9 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 def test_uniform_neighbor_sample_edge_properties():
     edgelist_df = cudf.DataFrame(
         {
-            "src": [0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2],
-            "dst": [1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4],
-            "eid": cudf.Series([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dtype="int64"),
+            "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype='int32'),
+            "dst": cudf.Series([1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4], dtype='int32'),
+            "eid": cudf.Series([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dtype="int32"),
             "etp": cudf.Series([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0], dtype="int32"),
             "w": [0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11],
         }
@@ -318,9 +318,9 @@ def test_uniform_neighbor_sample_edge_properties():
         }
     )
 
-    G = cugraph.Graph(directed=True)
+    G = cugraph.MultiGraph(directed=True)
     G.from_cudf_edgelist(
-        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"]
+        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"], legacy_renum_only=True,
     )
 
     sampling_results = uniform_neighbor_sample(

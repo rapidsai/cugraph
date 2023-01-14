@@ -89,6 +89,7 @@ def _call_plc_uniform_neighbor_sample(
     weight_t,
     with_edge_properties,
     batch_id_list,
+    seed,
 ):
     cp_arrays = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -99,6 +100,7 @@ def _call_plc_uniform_neighbor_sample(
         do_expensive_check=False,
         with_edge_properties=with_edge_properties,
         batch_id_list=batch_id_list,
+        seed=seed,
     )
     return convert_to_cudf(cp_arrays, weight_t, with_edge_properties)
 
@@ -110,6 +112,7 @@ def uniform_neighbor_sample(
     with_replacement=True,
     with_edge_properties=False,
     batch_id_list=None,
+    seed=42,
 ):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -141,6 +144,10 @@ def uniform_neighbor_sample(
     batch_id_list: list (int32)
         List of batch ids that will be returned with the sampled edges if
         with_edge_properties is set to True.
+    
+    seed: int64, optional (default=42)
+        The random seed to use.
+        Defaults to 42.
 
     Returns
     -------
@@ -182,6 +189,8 @@ def uniform_neighbor_sample(
                 input_graph.renumber_map.renumbered_src_col_name
             ].dtype,
         )
+    elif isinstance(start_list, dask_cudf.Series):
+        start_list = start_list.compute()
 
     if isinstance(batch_id_list, dask_cudf.Series):
         batch_id_list = batch_id_list.compute()
@@ -228,6 +237,7 @@ def uniform_neighbor_sample(
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
             batch_id_list=None if batch_id_list is None else batch_id_list.iloc[perm[i]],
+            seed=seed+i, # ensure different seed per GPU
             workers=[w],
             allow_other_workers=False,
             pure=False,

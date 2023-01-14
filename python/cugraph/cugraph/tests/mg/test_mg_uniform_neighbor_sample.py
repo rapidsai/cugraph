@@ -339,16 +339,16 @@ def test_uniform_neighbor_sample_edge_properties():
     start_df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
-                "seed": cudf.Series([0, 4], dtype="int32"),
+                "seed": cudf.Series([0, 4], dtype="int64"),
                 "batch": cudf.Series([0, 1], dtype="int32"),
             }
         ),
         npartitions=2,
     )
 
-    G = cugraph.Graph(directed=True)
+    G = cugraph.MultiGraph(directed=True)
     G.from_dask_cudf_edgelist(
-        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"]
+        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"], legacy_renum_only=True
     )
 
     sampling_results = uniform_neighbor_sample(
@@ -362,23 +362,23 @@ def test_uniform_neighbor_sample_edge_properties():
 
     edgelist_df.set_index("eid")
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["w"].values_host.tolist()
+        edgelist_df.loc[sampling_results.edge_id]["w"].compute().values_host.tolist()
         == sampling_results["weight"].values_host.tolist()
     )
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["etp"].values_host.tolist()
+        edgelist_df.loc[sampling_results.edge_id]["etp"].compute().values_host.tolist()
         == sampling_results["edge_type"].values_host.tolist()
     )
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["src"].values_host.tolist()
+        edgelist_df.loc[sampling_results.edge_id]["src"].compute().values_host.tolist()
         == sampling_results["sources"].values_host.tolist()
     )
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["dst"].values_host.tolist()
-        == sampling_results["destinations"].values_host.tolist()
+        edgelist_df.loc[sampling_results.edge_id]["dst"].compute().values_host.tolist()
+        == sampling_results["destinations"].compute().values_host.tolist()
     )
 
-    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
+    assert sampling_results["hop_id"].compute().values_host.tolist() == [0] * (2 * 2) + [1] * (
         2 * 2 * 2
     )
     # FIXME test the batch id values once that is fixed in C++

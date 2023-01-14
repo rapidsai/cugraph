@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,9 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
 )
-
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t,
+)
 
 cdef extern from "cugraph_c/sampling_algorithms.h":
     ###########################################################################
@@ -42,6 +44,7 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         const cugraph_type_erased_device_array_view_t* start,
         const cugraph_type_erased_device_array_view_t* label,
         const cugraph_type_erased_host_array_view_t* fan_out,
+        cugraph_rng_state_t* rng_state,
         bool_t with_replacement,
         bool_t do_expensive_check,
         cugraph_sample_result_t** result,
