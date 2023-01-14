@@ -360,25 +360,31 @@ def test_uniform_neighbor_sample_edge_properties():
         batch_id_list=start_df["batch"],
     ).compute()
 
-    edgelist_df.set_index("eid")
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=start_df["seed"].compute(),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        batch_id_list=start_df["batch"].compute(),
+        seed=42
+    ).compute()
+
+    mdf = cudf.merge(sampling_results, edgelist_df.compute(), left_on='edge_id', right_on='eid')
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["w"].compute().values_host.tolist()
-        == sampling_results["weight"].values_host.tolist()
+        (mdf.w == mdf.weight).all()
     )
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["etp"].compute().values_host.tolist()
-        == sampling_results["edge_type"].values_host.tolist()
+        (mdf.etp == mdf.edge_type).all()
     )
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["src"].compute().values_host.tolist()
-        == sampling_results["sources"].values_host.tolist()
+        (mdf.src == mdf.sources).all()
     )
     assert (
-        edgelist_df.loc[sampling_results.edge_id]["dst"].compute().values_host.tolist()
-        == sampling_results["destinations"].compute().values_host.tolist()
+        (mdf.dst == mdf.destinations).all()
     )
 
-    assert sampling_results["hop_id"].compute().values_host.tolist() == [0] * (2 * 2) + [1] * (
+    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
         2 * 2 * 2
     )
     # FIXME test the batch id values once that is fixed in C++

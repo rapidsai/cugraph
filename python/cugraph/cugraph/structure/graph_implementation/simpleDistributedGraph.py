@@ -257,8 +257,6 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
 
-        print(ddf.compute())
-
         self._client = default_client()
         self._plc_graph = {
             w: self._client.submit(
