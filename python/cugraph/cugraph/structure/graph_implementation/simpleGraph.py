@@ -640,10 +640,7 @@ class simpleGraphImpl:
             elif self.transposedadjlist is not None:
                 self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
-                df = self.edgelist.edgelist_df[
-                    [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
-                ]
-                self.properties.node_count = df.max().max() + 1
+                self.properties.node_count = len(self.nodes())
             else:
                 raise RuntimeError("Graph is Empty")
         return self.properties.node_count
