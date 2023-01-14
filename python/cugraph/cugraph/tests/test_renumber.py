@@ -47,6 +47,7 @@ def test_renumber_ips_cols():
     gdf["source_as_int"] = gdf["source_list"].str.ip2int()
     gdf["dest_as_int"] = gdf["dest_list"].str.ip2int()
 
+    # Brackets are added to the column names to trigger the python renumebring
     renumbered_gdf, renumber_map = NumberMap.renumber(
         gdf, ["source_as_int"], ["dest_as_int"], preserve_order=True
     )
@@ -80,6 +81,7 @@ def test_renumber_negative_col():
     gdf["original_src"] = gdf["source_list"]
     gdf["original_dst"] = gdf["dest_list"]
 
+    # Brackets are added to the column names to trigger the python renumebring
     renumbered_gdf, renumber_map = NumberMap.renumber(
         gdf, ["source_list"], ["dest_list"], preserve_order=True
     )
@@ -120,6 +122,7 @@ def test_renumber_files_col(graph_file):
     exp_src = cudf.Series([x + translate for x in sources.values_host])
     exp_dst = cudf.Series([x + translate for x in destinations.values_host])
 
+    # Brackets are added to the column names to trigger the python renumebring
     renumbered_df, renumber_map = NumberMap.renumber(
         gdf, ["src"], ["dst"], preserve_order=True
     )
@@ -159,6 +162,7 @@ def test_renumber_files_multi_col(graph_file):
     gdf["src"] = sources + translate
     gdf["dst"] = destinations + translate
 
+    # Brackets are added to the column names to trigger the python renumebring
     renumbered_df, renumber_map = NumberMap.renumber(
         gdf, ["src", "src_old"], ["dst", "dst_old"], preserve_order=True
     )
@@ -238,6 +242,7 @@ def test_renumber_unrenumber_non_default_vert_names():
         }
     )
 
+    # Brackets are added to the column names to trigger the python renumebring
     renumbered_df, number_map = NumberMap.renumber(input_gdf, ["col_a"], ["col_b"])
 
     some_result_gdf = cudf.DataFrame({"vertex": [0, 1, 2, 3]})
