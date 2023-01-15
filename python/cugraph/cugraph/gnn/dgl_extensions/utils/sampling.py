@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,11 +20,12 @@ import dask_cudf
 from cugraph.experimental import PropertyGraph
 from cugraph.experimental import MGPropertyGraph
 
-
-src_n = PropertyGraph.src_col_name
-dst_n = PropertyGraph.dst_col_name
+# Mapping to PG names for compatibility for now
+# not importing directly because we will likey remove PG from DGL UseCase
+src_n = "_SRC_"
+dst_n = "_DST_"
+eid_n = "_EDGE_ID_"
 type_n = PropertyGraph.type_col_name
-eid_n = PropertyGraph.edge_id_col_name
 vid_n = PropertyGraph.vertex_col_name
 
 
@@ -221,16 +222,51 @@ def sample_pg(
     fanout,
     edge_dir,
 ):
+    if isinstance(pg, MGPropertyGraph):
+        sample_f = cugraph.dask.uniform_neighbor_sample
+    else:
+        sample_f = cugraph.uniform_neighbor_sample
+
+    sampled_df = sample_cugraph_graphs(
+        sample_f,
+        has_multiple_etypes,
+        sgs_obj,
+        sgs_src_range_obj,
+        sg_node_dtype,
+        nodes_ar,
+        replace,
+        fanout,
+        edge_dir,
+    )
+
+    if has_multiple_etypes:
+        # Heterogeneous graph case
+        d = get_edgeid_type_d(pg, sampled_df["indices"], etypes)
+        return create_cp_result_ls(d)
+    else:
+        return (
+            sampled_df[src_n].values,
+            sampled_df[dst_n].values,
+            sampled_df["indices"].values,
+        )
+
+
+def sample_cugraph_graphs(
+    sample_f,
+    has_multiple_etypes,
+    sgs_obj,
+    sgs_src_range_obj,
+    sg_node_dtype,
+    nodes_ar,
+    replace,
+    fanout,
+    edge_dir,
+):
 
     if isinstance(nodes_ar, dict):
         nodes = {t: create_cudf_series_from_node_ar(n) for t, n in nodes_ar.items()}
     else:
         nodes = create_cudf_series_from_node_ar(nodes_ar)
-
-    if isinstance(pg, MGPropertyGraph):
-        sample_f = cugraph.dask.uniform_neighbor_sample
-    else:
-        sample_f = cugraph.uniform_neighbor_sample
 
     if has_multiple_etypes:
         # TODO: Convert into a single call when
@@ -271,16 +307,7 @@ def sample_pg(
     if isinstance(sampled_df, dask_cudf.DataFrame):
         sampled_df = sampled_df.compute()
 
-    if has_multiple_etypes:
-        # Heterogeneous graph case
-        d = get_edgeid_type_d(pg, sampled_df["indices"], etypes)
-        return create_cp_result_ls(d)
-    else:
-        return (
-            sampled_df[src_n].values,
-            sampled_df[dst_n].values,
-            sampled_df["indices"].values,
-        )
+    return sampled_df
 
 
 def create_cudf_series_from_node_ar(node_ar):
