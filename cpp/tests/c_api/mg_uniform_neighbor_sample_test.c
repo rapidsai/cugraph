@@ -20,6 +20,7 @@
 #include <cugraph_c/graph.h>
 
 #include <math.h>
+#include <unistd.h>
 
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
@@ -268,7 +269,6 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
   weight_t h_wgt[result_size];
   int h_labels[result_size];
   int h_hop[result_size];
-  size_t* h_counts;
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     handle, (byte_t*)h_srcs, result_src, &ret_error);
