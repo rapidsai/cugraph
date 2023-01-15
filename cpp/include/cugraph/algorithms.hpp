@@ -1881,8 +1881,8 @@ uniform_neighbor_sample(
     edge_property_view_t<edge_t,
                          thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
     edge_id_type_view,
-  rmm::device_uvector<vertex_t> &&starting_vertices,
-  std::optional<rmm::device_uvector<int32_t>> &&starting_labels,
+  rmm::device_uvector<vertex_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement = true);

@@ -125,10 +125,12 @@ class Tests_Uniform_Neighbor_Sampling
                      [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
                        int32_t index) { return index / batch_size; });
 
-    rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(),
-                                                      handle.get_stream());
+    rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
 
-    raft::copy(random_sources_copy.data(), random_sources.data(), random_sources.size(), handle.get_stream());
+    raft::copy(random_sources_copy.data(),
+               random_sources.data(),
+               random_sources.size(),
+               handle.get_stream());
 
 #ifdef NO_CUGRAPH_OPS
     EXPECT_THROW(cugraph::uniform_neighbor_sample(
