@@ -119,7 +119,10 @@ def random_walks(
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
+        # Ensure the 'start_vertices' have the same dtype as the edge list.
+        # Failing to do that may produce erroneous results.
+        vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+        start_vertices = cudf.Series(start_vertices, dtype=vertex_dtype)
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
