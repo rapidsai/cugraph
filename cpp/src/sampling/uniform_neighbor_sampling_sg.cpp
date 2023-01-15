@@ -107,8 +107,8 @@ uniform_neighbor_sample(
     edge_property_view_t<int32_t,
                          thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>>
     edge_id_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<int32_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement);
@@ -128,8 +128,8 @@ uniform_neighbor_sample(
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
     edge_id_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<int32_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement);
@@ -149,8 +149,8 @@ uniform_neighbor_sample(
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
     edge_id_type_view,
-  raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<int64_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement);
@@ -170,8 +170,8 @@ uniform_neighbor_sample(
     edge_property_view_t<int32_t,
                          thrust::zip_iterator<thrust::tuple<int32_t const*, int32_t const*>>>>
     edge_id_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<int32_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement);
@@ -191,8 +191,8 @@ uniform_neighbor_sample(
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
     edge_id_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<int32_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement);
@@ -212,8 +212,8 @@ uniform_neighbor_sample(
     edge_property_view_t<int64_t,
                          thrust::zip_iterator<thrust::tuple<int64_t const*, int32_t const*>>>>
     edge_id_type_view,
-  raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<int64_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement);

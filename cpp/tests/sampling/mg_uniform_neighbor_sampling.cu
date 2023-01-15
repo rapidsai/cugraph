@@ -152,6 +152,13 @@ class Tests_MGUniform_Neighbor_Sampling
                      [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
                        int32_t index) { return index / batch_size; });
 
+    rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle_->get_stream());
+
+    raft::copy(random_sources_copy.data(),
+               random_sources.data(),
+               random_sources.size(),
+               handle_->get_stream());
+
 #ifdef NO_CUGRAPH_OPS
     EXPECT_THROW(cugraph::uniform_neighbor_sample(
                    *handle_,
@@ -159,8 +166,8 @@ class Tests_MGUniform_Neighbor_Sampling
                    mg_graph_view,
                    mg_edge_weight_view,
                    std::nullopt,
-                   raft::device_span<vertex_t const>(random_sources.data(), random_sources.size()),
-                   raft::device_span<int32_t const>{batch_number.data(), batch_number.size()},
+                   std::move(random_sources_copy),
+                   std::move(batch_number),
                    raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                                   uniform_neighbor_sampling_usecase.fanout.size()),
                    rng_state,
@@ -175,8 +182,8 @@ class Tests_MGUniform_Neighbor_Sampling
         std::optional<cugraph::edge_property_view_t<
           edge_t,
           thrust::zip_iterator<thrust::tuple<edge_t const*, int32_t const*>>>>{std::nullopt},
-        raft::device_span<vertex_t const>(random_sources.data(), random_sources.size()),
-        raft::device_span<int32_t const>{batch_number.data(), batch_number.size()},
+        std::move(random_sources_copy),
+        std::move(batch_number),
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,
