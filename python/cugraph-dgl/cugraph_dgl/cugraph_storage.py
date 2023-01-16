@@ -26,6 +26,7 @@ from cugraph_dgl.utils.cugraph_storage_utils import (
     add_edge_ids_to_edges_dict,
     add_node_offset_to_edges_dict,
 )
+from cugraph_dgl.utils.feature_storage import dgl_FeatureStorage
 
 dgl = import_optional("dgl")
 F = import_optional("dgl.backend")
@@ -88,34 +89,22 @@ class CuGraphStorage:
          Examples
          --------
          The following example uses `CuGraphStorage` :
-            # TODO: Rework
             >>> from cugraph_dgl.cugraph_storage import CuGraphStorage
             >>> import cudf
-            >>> gs = CuGraphStorage(num_nodes_dict={'drug':3,
-                                                    'gene':2,
-                                                    'disease':1})
-            # add node data
-            >>> drug_df = cudf.DataFrame({'node_ids':[0,1,2],
-                                          'node_feat':[0.1,0.2,0.3]})
-            >>> gs.add_node_data(drug_df, "node_ids", ntype='drug')
-
-            # add edges and edge data
-            >>> drug_interacts_drug_df = cudf.DataFrame({'src':[0,1],
-                                                         'dst':[1,2],
-                                                         'edge_feat':[0.2,0.4]})})
-            >>> drug_interacts_gene = cudf.DataFrame({'src':[0,1],
-                                                      'dst':[0,1]})
-            >>> drug_treats_disease = cudf.DataFrame({'src':[1],
-                                                      'dst':[0]})
-            >>> gs.add_edge_data(drug_interacts_drug_df,
-                                 node_col_names=['src','dst'],
-                                 canonical_etype=('drug', 'interacts', 'drug'))
-            >>> gs.add_edge_data(drug_interacts_gene,
-                                 node_col_names=['src','dst'],
-                                 canonical_etype=('drug', 'interacts', 'gene'))
-            >>> gs.add_edge_data(drug_treats_disease,
-                                 node_col_names=['src','dst'],
-                                canonical_etype=('drug', 'treats', 'disease'))
+            >>> import torch
+            >>> num_nodes_dict={"drug": 3, "gene": 2, "disease": 1}
+            >>> drug_interacts_drug_df = cudf.DataFrame({"src": [0, 1], "dst": [1, 2]})
+            >>> drug_interacts_gene = cudf.DataFrame({"src": [0, 1], "dst": [0, 1]})
+            >>> drug_treats_disease = cudf.DataFrame({"src": [1], "dst": [0]})
+            >>> data_dict = {("drug", "interacts", "drug"):drug_interacts_drug_df,
+                 ("drug", "interacts", "gene"):drug_interacts_gene,
+                 ("drug", "treats", "disease"):drug_treats_disease }
+            >>> gs = CuGraphStorage(data_dict=data_dict, num_nodes_dict=num_nodes_dict)
+            >>> gs.ndata_storage.add_data(type_name='drug', feat_name='node_feat',
+                                          feat_obj=torch.as_tensor([0.1, 0.2, 0.3]))
+            >>> gs.edata_storage.add_data(type_name=("drug", "interacts", "drug"),
+                                          feat_name='edge_feat',
+                                          feat_obj=torch.as_tensor([0.2, 0.4]))
             >>> gs.ntypes
             ['disease', 'drug', 'gene']
             >>> gs.etypes
@@ -462,6 +451,34 @@ class CuGraphStorage:
             "global_uniform_negative_sampling not implemented yet"
         )
 
+    def get_node_storage(self, key: str, ntype: str = None):
+        """
+        Get storage object of node feature of
+        type :attr:`ntype` and name :attr:`key`
+        """
+        if ntype is None:
+            if len(self.ntypes) > 1:
+                raise ValueError(
+                    "ntype must be provided if multiple ntypes are present in the graph"
+                )
+            else:
+                ntype = self.ntype[0]
+        return dgl_FeatureStorage(self.ndata_storage, type_name=ntype, feat_name=key)
+
+    def get_edge_storage(self, key: str, etype: Optional[Tuple[str, str, str]] = None):
+        """
+        Get storage object of edge feature of
+        type :attr:`ntype` and name :attr:`key`
+        """
+        if etype is None:
+            if len(self.etypes) > 1:
+                raise ValueError(
+                    "etype must be provided if multiple etypes are present in the graph"
+                )
+            else:
+                etype = self.etypes[0]
+        return dgl_FeatureStorage(self.edata_storage, type_name=etype, feat_name=key)
+
     # Number of edges/nodes utils
     def num_nodes(self, ntype: str = None) -> int:
         """
@@ -544,7 +561,7 @@ class CuGraphStorage:
         if etype:
             if etype not in self.canonical_etypes:
                 etype = self.get_corresponding_canonical_etype(etype)
-            return self.num_edges[etype]
+            return self.num_edges_dict[etype]
         else:
             return self.total_number_of_edges
 

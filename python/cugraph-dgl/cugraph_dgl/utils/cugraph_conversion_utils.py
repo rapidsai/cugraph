@@ -37,7 +37,7 @@ def convert_to_column_major(t: torch.Tensor):
 def create_ar_from_tensor(t: torch.Tensor):
     t = convert_to_column_major(t)
     if t.device.type == "cuda":
-        ar = cp.as_array(t)
+        ar = cp.asarray(t)
     else:
         ar = t.numpy()
     return ar
@@ -85,4 +85,31 @@ def get_edges_dict_from_dgl_HeteroGraph(
     return etype_d
 
 
-# def add_ndata_from_data_dict(gs: CuGraphStorage, ):
+def add_ndata_from_dgl_HeteroGraph(gs, g):
+    for feat_name, feat in g.ndata.items():
+        if isinstance(feat, torch.Tensor):
+            assert len(g.ntypes) == 1
+            ntype = g.ntypes[0]
+            gs.ndata_storage.add_data(
+                feat_name=feat_name, type_name=ntype, feat_obj=feat
+            )
+        else:
+            for ntype, feat_t in feat.items():
+                gs.ndata_storage.add_data(
+                    feat_name=feat_name, type_name=ntype, feat_obj=feat_t
+                )
+
+
+def add_edata_from_dgl_HeteroGraph(gs, g):
+    for feat_name, feat in g.edata.items():
+        if isinstance(feat, torch.Tensor):
+            assert len(g.etypes) == 1
+            etype = g.etypes[0]
+            gs.edata_storage.add_data(
+                feat_name=feat_name, type_name=etype, feat_obj=feat
+            )
+        else:
+            for etype, feat_t in feat.items():
+                gs.edata_storage.add_data(
+                    feat_name=feat_name, type_name=etype, feat_obj=feat_t
+                )

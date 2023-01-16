@@ -15,11 +15,11 @@ from cugraph.utilities.utils import import_optional
 from cugraph_dgl import CuGraphStorage
 from cugraph_dgl.utils.cugraph_conversion_utils import (
     get_edges_dict_from_dgl_HeteroGraph,
+    add_ndata_from_dgl_HeteroGraph,
+    add_edata_from_dgl_HeteroGraph,
 )
 
 dgl = import_optional("dgl")
-# add_ndata_from_data_dict,
-# add_edata_from_data_dict)
 
 
 def cugraph_storage_from_heterograph(g, single_gpu: bool = True) -> CuGraphStorage:
@@ -34,6 +34,6 @@ def cugraph_storage_from_heterograph(g, single_gpu: bool = True) -> CuGraphStora
         single_gpu=single_gpu,
         idtype=g.idtype,
     )
-    # add_ndata_from_data_dict(gs, g.ndata)
-    # add_edata_from_data_dict(gs, g.edata)
+    add_ndata_from_dgl_HeteroGraph(gs, g)
+    add_edata_from_dgl_HeteroGraph(gs, g)
     return gs

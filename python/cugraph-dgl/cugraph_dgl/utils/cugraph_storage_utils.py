@@ -45,7 +45,14 @@ def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d):
     eids_data_dict = {}
     for etype, df in edge_data_dict.items():
         # Do not modify input by user
+        if len(df.columns) != 2:
+            raise ValueError(
+                "Provided dataframe in edge_dict contains more than 2 columns",
+                "DataFrame with only 2 columns is supported",
+                "Where first is treated as src and second as dst",
+            )
         df = df.copy(deep=False)
+        df = df.rename(columns={df.columns[0]: src_n, df.columns[1]: dst_n})
         df[eid_n] = 1
         df[eid_n] = df[eid_n].cumsum()
         df[eid_n] = df[eid_n] + edge_id_offset_d[etype] - 1
@@ -65,7 +72,7 @@ if isinstance(F, MissingModule):
     backend_dtype_to_np_dtype_dict = MissingModule("dgl")
 else:
     backend_dtype_to_np_dtype_dict = {
-        F.bool: np.bool,
+        F.bool: bool,
         F.uint8: np.uint8,
         F.int8: np.int8,
         F.int16: np.int16,
