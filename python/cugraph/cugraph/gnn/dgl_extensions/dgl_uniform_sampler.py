@@ -156,7 +156,7 @@ class DGLUniformSampler:
     @cached_property
     def extracted_subgraph(self):
         assert len(self.edge_list_dict) == 1
-        edge_list = self.edge_list_dict.values()[0]
+        edge_list = list(self.edge_list_dict.values())[0]
         return get_subgraph_and_src_range_from_edgelist(
             edge_list,
             is_mg=not (self.single_gpu),
@@ -166,7 +166,7 @@ class DGLUniformSampler:
     @cached_property
     def extracted_reverse_subgraph(self):
         assert len(self.edge_list_dict) == 1
-        edge_list = self.edge_list_dict.values()[0]
+        edge_list = list(self.edge_list_dict.values())[0]
         return get_subgraph_and_src_range_from_edgelist(
             edge_list, is_mg=not (self.single_gpu), reverse_edges=True
         )
