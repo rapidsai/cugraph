@@ -14,6 +14,8 @@
 
 import numpy
 from dask.distributed import wait
+from cugraph.dask.common.input_utils import get_distributed_data
+
 
 import dask_cudf
 import cudf
@@ -29,6 +31,8 @@ src_n = "sources"
 dst_n = "destinations"
 indices_n = "indices"
 
+start_col_name='_START_'
+batch_col_name='_BATCH_'
 
 def create_empty_df(indices_t, weight_t):
     df = cudf.DataFrame(
@@ -88,18 +92,19 @@ def _call_plc_uniform_neighbor_sample(
     with_replacement,
     weight_t,
     with_edge_properties,
-    batch_id_list,
     seed,
 ):
+    start_list_x = st_x[start_col_name]
+    batch_id_list_x = st_x[batch_col_name] if batch_col_name in st_x else None
     cp_arrays = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
-        start_list=st_x,
+        start_list=start_list_x,
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
         do_expensive_check=False,
         with_edge_properties=with_edge_properties,
-        batch_id_list=batch_id_list,
+        batch_id_list=batch_id_list_x,
         seed=seed,
     )
     return convert_to_cudf(cp_arrays, weight_t, with_edge_properties)
@@ -189,11 +194,7 @@ def uniform_neighbor_sample(
                 input_graph.renumber_map.renumbered_src_col_name
             ].dtype,
         )
-    elif isinstance(start_list, dask_cudf.Series):
-        start_list = start_list.compute()
 
-    if isinstance(batch_id_list, dask_cudf.Series):
-        batch_id_list = batch_id_list.compute()
     elif with_edge_properties and batch_id_list is None:
         batch_id_list = cudf.Series(
             cp.zeros(len(start_list), dtype="int32")
@@ -219,24 +220,36 @@ def uniform_neighbor_sample(
         indices_t = numpy.int32
 
     if input_graph.renumbered:
-        start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
+        start_list = input_graph.lookup_internal_vertex_id(start_list)
+
+    if isinstance(start_list, cudf.Series):
+        start_list = dask_cudf.from_cudf(start_list, npartitions=len(Comms.get_workers()))
+    if isinstance(batch_id_list, cudf.Series):
+        batch_id_list = dask_cudf.from_cudf(batch_id_list, npartitions=len(Comms.get_workers()))
+    
+    start_list = start_list.rename(start_col_name).to_frame()
+    if batch_id_list is not None:
+        ddf = start_list.join(batch_id_list.rename(batch_col_name))
+    else:
+        ddf = start_list
+    ddf = get_distributed_data(ddf)
+    wait(ddf)
+    ddf = ddf.worker_to_parts
 
     client = input_graph._client
 
     session_id = Comms.get_session_id()
-    perm = cp.array_split(cp.arange(len(start_list), dtype=indices_t), input_graph._npartitions)
 
     result = [
         client.submit(
             _call_plc_uniform_neighbor_sample,
             session_id,
             input_graph._plc_graph[w],
-            start_list.iloc[perm[i]],
+            ddf[w][0],
             fanout_vals,
             with_replacement,
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
-            batch_id_list=None if batch_id_list is None else batch_id_list.iloc[perm[i]],
             seed=seed+i, # ensure different seed per GPU
             workers=[w],
             allow_other_workers=False,
