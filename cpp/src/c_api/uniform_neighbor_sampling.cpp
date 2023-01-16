@@ -232,7 +232,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       rmm::device_uvector<vertex_t> start(start_->size_, handle_.get_stream());
       raft::copy(start.data(), start_->as_type<vertex_t>(), start.size(), handle_.get_stream());
 
-      rmm::device_uvector<int32_t> label(0, handle_.get_stream());
+      std::optional<rmm::device_uvector<int32_t>> label{std::nullopt};
 
       //
       // Need to renumber sources
@@ -249,8 +249,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       if (label_ != nullptr) {
         // FIXME: Making a copy because I couldn't get the raft::device_span of a const array
         // to construct properly.
-        label.resize(label_->size_, handle_.get_stream());
-        raft::copy(label.data(), label_->as_type<int32_t>(), label.size(), handle_.get_stream());
+        label = rmm::device_uvector<int32_t>(label_->size_, handle_.get_stream());
+        raft::copy(label->data(), label_->as_type<int32_t>(), label->size(), handle_.get_stream());
       }
 
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label] =
@@ -259,10 +259,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           (edge_properties != nullptr) ? std::make_optional(edge_properties->view()) : std::nullopt,
-          raft::device_span<vertex_t const>(start.data(), start.size()),
-          (label_ != nullptr)
-            ? std::make_optional(raft::device_span<int32_t>(label.data(), label.size()))
-            : std::nullopt,
+          std::move(start),
+          std::move(label),
           raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
           rng_state_->rng_state_,
           with_replacement_);

@@ -144,8 +144,8 @@ uniform_neighbor_sample_impl(
     edge_property_view_t<edge_t,
                          thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
     edge_id_type_view,
-  rmm::device_uvector<vertex_t>& d_in,
-  std::optional<rmm::device_uvector<int32_t>>& d_labels,
+  rmm::device_uvector<vertex_t>&& d_in,
+  std::optional<rmm::device_uvector<int32_t>>&& d_labels,
   raft::host_span<int32_t const> h_fan_out,
   bool with_replacement,
   raft::random::RngState& rng_state)
@@ -329,32 +329,18 @@ uniform_neighbor_sample(
     edge_property_view_t<edge_t,
                          thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
     edge_id_type_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_labels,
+  rmm::device_uvector<vertex_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement)
 {
-  rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
-  raft::copy(
-    d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
-
-  std::optional<rmm::device_uvector<int32_t>> d_start_labels{std::nullopt};
-  if (starting_labels) {
-    d_start_labels = std::make_optional(
-      rmm::device_uvector<int32_t>(starting_labels->size(), handle.get_stream()));
-    raft::copy(d_start_labels->data(),
-               starting_labels->data(),
-               starting_labels->size(),
-               handle.get_stream());
-  }
-
   return detail::uniform_neighbor_sample_impl(handle,
                                               graph_view,
                                               edge_weight_view,
                                               edge_id_type_view,
-                                              d_start_vs,
-                                              d_start_labels,
+                                              std::move(starting_vertices),
+                                              std::move(starting_labels),
                                               fan_out,
                                               with_replacement,
                                               rng_state);
