@@ -100,9 +100,9 @@ class CuGraphStorage:
                  ("drug", "interacts", "gene"):drug_interacts_gene,
                  ("drug", "treats", "disease"):drug_treats_disease }
             >>> gs = CuGraphStorage(data_dict=data_dict, num_nodes_dict=num_nodes_dict)
-            >>> gs.ndata_storage.add_data(type_name='drug', feat_name='node_feat',
+            >>> gs.add_node_data(ntype='drug', feat_name='node_feat',
                                           feat_obj=torch.as_tensor([0.1, 0.2, 0.3]))
-            >>> gs.edata_storage.add_data(type_name=("drug", "interacts", "drug"),
+            >>> gs.add_edge_data(canonical_etype=("drug", "interacts", "drug"),
                                           feat_name='edge_feat',
                                           feat_obj=torch.as_tensor([0.2, 0.4]))
             >>> gs.ntypes
@@ -163,9 +163,8 @@ class CuGraphStorage:
         )
         _edges_dict = add_edge_ids_to_edges_dict(data_dict, self._edge_id_offset_d)
         _edges_dict = add_node_offset_to_edges_dict(_edges_dict, self._node_id_offset_d)
-        self._edges_dict = _edges_dict
         self.uniform_sampler = DGLUniformSampler(
-            self._edges_dict, self._edge_id_range_d, self.single_gpu
+            _edges_dict, self._edge_id_range_d, self.single_gpu
         )
 
     def add_node_data(self, feat_obj: Sequence, ntype: str, feat_name: str):
@@ -213,9 +212,9 @@ class CuGraphStorage:
         None
         """
         _assert_valid_canonical_etype(canonical_etype)
-        self.edge_fs.add_data(
+        self.edata_storage.add_data(
             feat_obj=feat_obj,
-            type=canonical_etype,
+            type_name=canonical_etype,
             feat_name=feat_name,
         )
 

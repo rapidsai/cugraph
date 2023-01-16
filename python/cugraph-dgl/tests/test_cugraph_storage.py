@@ -62,14 +62,14 @@ def test_cugraphstore_basic_apis():
     }
     gs = CuGraphStorage(data_dict=data_dict, num_nodes_dict=num_nodes_dict)
     # add node data
-    gs.ndata_storage.add_data(
-        type_name="drug",
+    gs.add_node_data(
+        ntype="drug",
         feat_name="node_feat",
         feat_obj=th.as_tensor([0.1, 0.2, 0.3], dtype=th.float64),
     )
     # add edge data
-    gs.edata_storage.add_data(
-        type_name=("drug", "interacts", "drug"),
+    gs.add_edge_data(
+        canonical_etype=("drug", "interacts", "drug"),
         feat_name="edge_feat",
         feat_obj=th.as_tensor([0.2, 0.4], dtype=th.float64),
     )
