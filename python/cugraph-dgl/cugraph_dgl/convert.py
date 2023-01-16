@@ -11,13 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-
+from cugraph.utilities.utils import import_optional
 from cugraph_dgl import CuGraphStorage
+from cugraph_dgl.utils.cugraph_conversion_utils import (
+    get_edges_dict_from_dgl_HeteroGraph,
+)
 
-# from cugraph_dgl.utils.cugraph_conversion_utils import (
-#     add_edges_from_dgl_HeteroGraph,
-#     add_nodes_from_dgl_HeteroGraph,
-# )
+dgl = import_optional("dgl")
+# add_ndata_from_data_dict,
+# add_edata_from_data_dict)
 
 
 def cugraph_storage_from_heterograph(g, single_gpu: bool = True) -> CuGraphStorage:
@@ -25,12 +27,13 @@ def cugraph_storage_from_heterograph(g, single_gpu: bool = True) -> CuGraphStora
     Convert DGL Graph to CuGraphStorage graph
     """
     num_nodes_dict = {ntype: g.num_nodes(ntype) for ntype in g.ntypes}
+    edges_dict = get_edges_dict_from_dgl_HeteroGraph(g, single_gpu)
     gs = CuGraphStorage(
-        # data_dict
-        single_gpu=single_gpu,
+        data_dict=edges_dict,
         num_nodes_dict=num_nodes_dict,
+        single_gpu=single_gpu,
         idtype=g.idtype,
     )
-    # add_ndata_from_dgl_HeteroGraph(gs, g.ndata)
-    # add_edata_from_dgl_HeteroGraph(gs, g.edata)
+    # add_ndata_from_data_dict(gs, g.ndata)
+    # add_edata_from_data_dict(gs, g.edata)
     return gs

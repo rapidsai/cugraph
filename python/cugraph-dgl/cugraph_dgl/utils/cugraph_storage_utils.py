@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
+from cugraph.gnn.dgl_extensions.utils.sampling import eid_n
 from cugraph.utilities.utils import import_optional, MissingModule
 
 dgl = import_optional("dgl")
@@ -38,6 +39,16 @@ def _is_valid_canonical_etype(canonical_etype):
         if not isinstance(t, str):
             return False
     return True
+
+
+def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d):
+    eids_data_dict = {}
+    for etype, df in edge_data_dict.items():
+        df[eid_n] = 1
+        df[eid_n] = df[eid_n].cumsum()
+        df[eid_n] = df[eid_n] + edge_id_offset_d[etype] - 1
+        eids_data_dict[etype] = df
+    return eids_data_dict
 
 
 if isinstance(F, MissingModule):

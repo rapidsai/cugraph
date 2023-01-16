@@ -92,7 +92,9 @@ def sample_multiple_sgs(
     output_dfs = []
     for can_etype, sg in sgs.items():
         start_list_range = sgs_src_range_obj[can_etype]
-        can_etype = _convert_can_etype_s_to_tup(can_etype)
+        # TODO: Remove when we remove the existing cugraph stores
+        if isinstance(can_etype, str):
+            can_etype = _convert_can_etype_s_to_tup(can_etype)
         if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
             if edge_dir == "in":
                 subset_type = can_etype[2]
@@ -129,11 +131,9 @@ def sample_single_sg(
 ):
     if isinstance(start_list, dict):
         start_list = cudf.concat(list(start_list.values()))
-
     # Uniform sampling fails when the dtype
     # of the seed dtype is not same as the node dtype
     start_list = start_list.astype(start_list_dtype)
-
     # Filter start list by ranges
     # to enure the seed is with in index values
     # see below:
@@ -228,15 +228,15 @@ def sample_pg(
         sample_f = cugraph.uniform_neighbor_sample
 
     sampled_df = sample_cugraph_graphs(
-        sample_f,
-        has_multiple_etypes,
-        sgs_obj,
-        sgs_src_range_obj,
-        sg_node_dtype,
-        nodes_ar,
-        replace,
-        fanout,
-        edge_dir,
+        sample_f=sample_f,
+        has_multiple_etypes=has_multiple_etypes,
+        sgs_obj=sgs_obj,
+        sgs_src_range_obj=sgs_src_range_obj,
+        sg_node_dtype=sg_node_dtype,
+        nodes_ar=nodes_ar,
+        replace=replace,
+        fanout=fanout,
+        edge_dir=edge_dir,
     )
 
     if has_multiple_etypes:

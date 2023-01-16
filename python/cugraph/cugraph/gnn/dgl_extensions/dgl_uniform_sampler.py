@@ -31,7 +31,7 @@ class DGLUniformSampler:
     def __init__(self, edge_list_dict, edge_id_type_range_dict, single_gpu):
         self.edge_list_dict = edge_list_dict
         self.etype_id_dict = {
-            etype_id: etype
+            etype: etype_id
             for etype_id, etype in enumerate(edge_id_type_range_dict.keys())
         }
         self.etype_range_dict = {
@@ -48,7 +48,7 @@ class DGLUniformSampler:
         Parameters
         ----------
         nodes_ar : cupy array of node ids or dict with key of node type
-                   and value of node ids to sample neighbors from.
+                   and value of node ids gto sample neighbors from.
         fanout : int
             The number of edges to be sampled for each node on each edge type.
             If -1 is given all the neighboring edges for each node on
@@ -106,9 +106,8 @@ class DGLUniformSampler:
             sample_f = cugraph.dask.uniform_neighbor_sample
 
         sampled_df = sample_cugraph_graphs(
-            sample_f,
+            sample_f=sample_f,
             has_multiple_etypes=self.has_multiple_etypes,
-            etypes=self.etypes,
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
@@ -117,6 +116,7 @@ class DGLUniformSampler:
             fanout=fanout,
             edge_dir=edge_dir,
         )
+
         if self.has_multiple_etypes:
             # Heterogeneous graph case
             # Add type information
@@ -130,10 +130,11 @@ class DGLUniformSampler:
 
     def _get_edgeid_type_d(self, df):
         df["type"] = self._get_type_id_from_indices(
-            df["indices"], self.etype_id_range_dict
+            df["indices"], self.etype_range_dict
         )
         result_d = {
-            etype: df[df["type"] == etype_id] for etype, etype_id in self.etype_id_dict
+            etype: df[df["type"] == etype_id]
+            for etype, etype_id in self.etype_id_dict.items()
         }
         return {
             etype: (df[src_n].values, df[dst_n].values, df["indices"].values)
@@ -142,10 +143,14 @@ class DGLUniformSampler:
 
     @staticmethod
     def _get_type_id_from_indices(indices, etype_id_range_dict):
-        type_ser = cudf.Series(cp.full(-1, size=len(indices), dtype=cp.int32))
-        for etype_id, (start, stop) in etype_id_range_dict.values:
+        type_ser = cudf.Series(
+            cp.full(shape=len(indices), fill_value=-1, dtype=cp.int32)
+        )
+
+        for etype_id, (start, stop) in etype_id_range_dict.items():
             range_types = (start <= indices) & (indices < stop)
             type_ser[range_types] = etype_id
+
         return type_ser
 
     @cached_property
@@ -153,7 +158,9 @@ class DGLUniformSampler:
         assert len(self.edge_list_dict) == 1
         edge_list = self.edge_list_dict.values()[0]
         return get_subgraph_and_src_range_from_edgelist(
-            edge_list, reverse_edges=False, etype=None
+            edge_list,
+            is_mg=not (self.single_gpu),
+            reverse_edges=False,
         )
 
     @cached_property
@@ -161,7 +168,7 @@ class DGLUniformSampler:
         assert len(self.edge_list_dict) == 1
         edge_list = self.edge_list_dict.values()[0]
         return get_subgraph_and_src_range_from_edgelist(
-            edge_list, reverse_edges=True, etype=None
+            edge_list, is_mg=not (self.single_gpu), reverse_edges=True
         )
 
     @cached_property
@@ -173,7 +180,7 @@ class DGLUniformSampler:
                 sg_d[etype],
                 sg_src_range_d[etype],
             ) = get_subgraph_and_src_range_from_edgelist(
-                edge_list, reverse_edges=False, etype=etype
+                edge_list, is_mg=not (self.single_gpu), reverse_edges=False
             )
         return sg_d, sg_src_range_d
 
@@ -186,7 +193,7 @@ class DGLUniformSampler:
                 sg_d[etype],
                 sg_src_range_d[etype],
             ) = get_subgraph_and_src_range_from_edgelist(
-                edge_list, reverse_edges=True, etype=etype
+                edge_list, is_mg=not (self.single_gpu), reverse_edges=True
             )
         return sg_d, sg_src_range_d
 
@@ -196,7 +203,7 @@ class DGLUniformSampler:
 
     @cached_property
     def etypes(self):
-        return list(self.edge_list.dict.values())
+        return list(self.edge_list_dict.keys())
 
     def set_sg_node_dtype(self, sg):
         if hasattr(self, "_sg_node_dtype"):

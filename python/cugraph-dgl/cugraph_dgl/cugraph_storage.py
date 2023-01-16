@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 from typing import Optional, Sequence, Tuple, Dict, Union
-from collections import cached_property
+from functools import cached_property
 from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph.gnn import FeatureStore
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import DGLUniformSampler
@@ -23,6 +23,7 @@ import cupy as cp
 from cugraph_dgl.utils.cugraph_storage_utils import (
     _assert_valid_canonical_etype,
     backend_dtype_to_np_dtype_dict,
+    add_edge_ids_to_edges_dict,
 )
 
 dgl = import_optional("dgl")
@@ -151,16 +152,17 @@ class CuGraphStorage:
 
         cuda.select_device(device_id)
 
-        self._edges_dict = data_dict
         self.idtype = idtype
         self.id_np_type = backend_dtype_to_np_dtype_dict[idtype]
         self.num_nodes_dict = num_nodes_dict
         self._node_id_offset_d = self.__get_node_id_offset_d(self.num_nodes_dict)
         # Todo: Can possibly optimize by persisting edge-list
         # Trade-off memory for run-time
-        self.num_edges_dict = {k: len(v) for k, v in self._edges_dict.items()}
+        self.num_edges_dict = {k: len(v) for k, v in data_dict.items()}
         self._edge_id_offset_d = self.__get_edge_id_offset_d(self.num_edges_dict)
-        self._single_gpu = single_gpu
+        self._edges_dict = add_edge_ids_to_edges_dict(data_dict, self._edge_id_offset_d)
+
+        self.single_gpu = single_gpu
 
         self.ndata_storage = FeatureStore(backend="torch")
         self.ndata = self.ndata_storage.fd
@@ -307,7 +309,7 @@ class CuGraphStorage:
             }
             nodes = {k: cp.asarray(F.tensor(n)) for k, n in nodes.items()}
 
-        sampled_obj = self.uniform_sampler(
+        sampled_obj = self.uniform_sampler.sample_neighbors(
             nodes,
             fanout,
             edge_dir=edge_dir,
@@ -640,7 +642,7 @@ class CuGraphStorage:
 
     def __convert_to_dgl_tensor_d(
         self,
-        graph_data_d,
+        graph_sampled_data_d,
         o_dtype=None if isinstance(F, MissingModule) else F.int64,
     ):
 
@@ -650,22 +652,16 @@ class CuGraphStorage:
             src,
             dst,
             edge_id,
-        ) in graph_data_d.items():
+        ) in graph_sampled_data_d.items():
             src_type = canonical_etype[0]
             dst_type = canonical_etype[2]
-            if src is None:
-                src_t = F.tensor(data=[])
-                dst_t = F.tensor(data=[])
-                edge_id_t = F.tensor(data=[])
-            else:
-                src_t = F.as_tensor(src, device="cuda")
-                dst_t = F.as_tensor(dst, device="cuda")
-                edge_id_t = F.as_tensor(edge_id, device="cuda")
+            src_t = torch.as_tensor(src, device="cuda")
+            dst_t = torch.as_tensor(dst, device="cuda")
+            edge_id_t = torch.as_tensor(edge_id, device="cuda")
 
-                src_t = self.cugraph_n_id_to_dgl_id(src_t, src_type)
-                dst_t = self.cugraph_n_id_to_dgl_id(dst_t, dst_type)
-                edge_id_t = self.cugraph_e_id_to_dgl_id(edge_id_t, canonical_etype)
-
+            src_t = self.cugraph_n_id_to_dgl_id(src_t, src_type)
+            dst_t = self.cugraph_n_id_to_dgl_id(dst_t, dst_type)
+            edge_id_t = self.cugraph_e_id_to_dgl_id(edge_id_t, canonical_etype)
             graph_data_d[canonical_etype] = (src_t.to(o_dtype), dst_t.to(o_dtype))
             graph_eid_d[canonical_etype] = edge_id_t.to(o_dtype)
 
