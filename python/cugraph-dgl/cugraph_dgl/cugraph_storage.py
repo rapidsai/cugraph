@@ -24,6 +24,7 @@ from cugraph_dgl.utils.cugraph_storage_utils import (
     _assert_valid_canonical_etype,
     backend_dtype_to_np_dtype_dict,
     add_edge_ids_to_edges_dict,
+    add_node_offset_to_edges_dict,
 )
 
 dgl = import_optional("dgl")
@@ -160,7 +161,6 @@ class CuGraphStorage:
         # Trade-off memory for run-time
         self.num_edges_dict = {k: len(v) for k, v in data_dict.items()}
         self._edge_id_offset_d = self.__get_edge_id_offset_d(self.num_edges_dict)
-        self._edges_dict = add_edge_ids_to_edges_dict(data_dict, self._edge_id_offset_d)
 
         self.single_gpu = single_gpu
 
@@ -172,6 +172,9 @@ class CuGraphStorage:
         self._edge_id_range_d = self.__get_edge_id_range_d(
             self._edge_id_offset_d, self.num_canonical_edges_dict
         )
+        _edges_dict = add_edge_ids_to_edges_dict(data_dict, self._edge_id_offset_d)
+        _edges_dict = add_node_offset_to_edges_dict(_edges_dict, self._node_id_offset_d)
+        self._edges_dict = _edges_dict
         self.uniform_sampler = DGLUniformSampler(
             self._edges_dict, self._edge_id_range_d, self.single_gpu
         )
@@ -332,7 +335,7 @@ class CuGraphStorage:
             src_ids = torch.as_tensor(src_ids, device="cuda")
             dst_ids = torch.as_tensor(dst_ids, device="cuda")
             edge_ids = torch.as_tensor(edge_ids, device="cuda")
-            total_number_of_nodes = self.total_number_of_nodes()
+            total_number_of_nodes = self.total_number_of_nodes
             sampled_graph = dgl.graph(
                 (src_ids, dst_ids),
                 num_nodes=total_number_of_nodes,

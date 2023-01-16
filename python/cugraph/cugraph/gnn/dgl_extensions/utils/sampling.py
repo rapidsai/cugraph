@@ -114,10 +114,7 @@ def sample_multiple_sgs(
         empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
         return empty_df.astype(cp.int32)
 
-    if isinstance(output_dfs[0], dask_cudf.DataFrame):
-        return dask_cudf.concat(output_dfs, ignore_index=True)
-    else:
-        return cudf.concat(output_dfs, ignore_index=True)
+    return cudf.concat(output_dfs, ignore_index=True)
 
 
 def sample_single_sg(
@@ -141,12 +138,17 @@ def sample_single_sg(
     start_list = start_list[
         (start_list >= start_list_range[0]) & (start_list <= start_list_range[1])
     ]
+    if len(start_list) == 0:
+        empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
+        return empty_df
     sampled_df = sample_f(
         sg,
         start_list=start_list,
         fanout_vals=[fanout],
         with_replacement=with_replacement,
     )
+    if isinstance(sampled_df, dask_cudf.DataFrame):
+        sampled_df = sampled_df.compute()
     return sampled_df
 
 
