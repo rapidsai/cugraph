@@ -63,6 +63,11 @@ def _create_df_from_edge_ar(src_ar, dst_ar, single_gpu=True):
     if single_gpu:
         df = cudf.DataFrame(data={src_n: src_ar, dst_n: dst_ar})
     else:
+        if isinstance(src_ar, cp.ndarray):
+            src_ar = src_ar.get()
+        if isinstance(dst_ar, cp.ndarray):
+            dst_ar = dst_ar.get()
+
         df = pd.DataFrame(data={src_n: src_ar, dst_n: dst_ar})
         # Only save stuff in host memory
         df = dd.from_pandas(df, npartitions=npartitions).persist()
