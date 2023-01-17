@@ -16,10 +16,10 @@ from __future__ import annotations
 from typing import Dict, Tuple, Union
 
 import cudf
+import pandas as pd
+import dask.dataframe as dd
 import dask_cudf
-import dask.array as da
 from dask.distributed import get_client
-import numpy as np
 import cupy as cp
 from cugraph.utilities.utils import import_optional
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import src_n, dst_n
@@ -49,27 +49,24 @@ def _create_edge_frame(src_t: torch.Tensor, dst_t: torch.Tensor, single_gpu: boo
     """
     src_ar = create_ar_from_tensor(src_t)
     dst_ar = create_ar_from_tensor(dst_t)
-    edge_ar = np.stack([src_ar, dst_ar], axis=1)
-    edge_df = _create_df_from_edge_ar(edge_ar, single_gpu=single_gpu)
+    edge_df = _create_df_from_edge_ar(src_ar, dst_ar, single_gpu=single_gpu)
     edge_df = edge_df.rename(
         columns={edge_df.columns[0]: src_n, edge_df.columns[1]: dst_n}
     )
     return edge_df
 
 
-def _create_df_from_edge_ar(ar, single_gpu=True):
+def _create_df_from_edge_ar(src_ar, dst_ar, single_gpu=True):
     if not single_gpu:
-        n_workers = len(get_client().scheduler_info()["workers"])
-        n_partitions = n_workers * 2
-
-    n_rows, _ = ar.shape
+        nworkers = len(get_client().scheduler_info()["workers"])
+        npartitions = nworkers * 1
     if single_gpu:
-        ar = cp.asarray(ar)
-        df = cudf.DataFrame(data=ar)
+        df = cudf.DataFrame(data={src_n: src_ar, dst_n: dst_ar})
     else:
-        chunksize = (n_rows + n_partitions - 1) // n_partitions
-        ar = da.from_array(ar, chunks=(chunksize, -1)).map_blocks(cp.asarray)
-        df = ar.to_dask_dataframe()
+        df = pd.DataFrame(data={src_n: src_ar, dst_n: dst_ar})
+        # Only save stuff in host memory
+        df = dd.from_pandas(df, npartitions=npartitions).persist()
+        df = df.map_partitions(cudf.DataFrame.from_pandas)
 
     df = df.reset_index(drop=True)
     return df

@@ -55,9 +55,7 @@ def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=Fal
         # lands
         create_subgraph_f = subgraph.from_dask_cudf_edgelist
         renumber = True
-        edge_list = edge_list.persist()
         src_range = edge_list[src_n].min().compute(), edge_list[src_n].max().compute()
-
     else:
         # Note: We have to keep renumber = False
         # to handle cases when the seed_nodes is not present in subgraph
@@ -74,6 +72,10 @@ def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=Fal
         # FIXME: renumber=False is not supported for MNMG algos
         legacy_renum_only=True,
     )
+    if hasattr(subgraph, "input_df"):
+        subgraph.input_df = None
+
+    del edge_list
 
     return subgraph, src_range
 

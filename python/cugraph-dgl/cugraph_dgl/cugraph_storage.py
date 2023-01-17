@@ -161,7 +161,9 @@ class CuGraphStorage:
         self._edge_id_range_d = self.__get_edge_id_range_d(
             self._edge_id_offset_d, self.num_canonical_edges_dict
         )
-        _edges_dict = add_edge_ids_to_edges_dict(data_dict, self._edge_id_offset_d)
+        _edges_dict = add_edge_ids_to_edges_dict(
+            data_dict, self._edge_id_offset_d, self.id_np_type
+        )
         _edges_dict = add_node_offset_to_edges_dict(_edges_dict, self._node_id_offset_d)
         self.uniform_sampler = DGLUniformSampler(
             _edges_dict, self._edge_id_range_d, self.single_gpu

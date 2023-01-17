@@ -41,7 +41,7 @@ def _is_valid_canonical_etype(canonical_etype):
     return True
 
 
-def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d):
+def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d, id_dtype):
     eids_data_dict = {}
     for etype, df in edge_data_dict.items():
         # Do not modify input by user
@@ -53,7 +53,7 @@ def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d):
             )
         df = df.copy(deep=False)
         df = df.rename(columns={df.columns[0]: src_n, df.columns[1]: dst_n})
-        df[eid_n] = 1
+        df[eid_n] = id_dtype(1)
         df[eid_n] = df[eid_n].cumsum()
         df[eid_n] = df[eid_n] + edge_id_offset_d[etype] - 1
         eids_data_dict[etype] = df
