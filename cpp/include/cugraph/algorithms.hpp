@@ -1831,7 +1831,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
- * Output from this function is a tuple of vectors (src, dst, weight_t, edge_id, edge_type, hop,
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
  * label), identifying the randomly selected edges.  src is the source vertex, dst is the
  * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was

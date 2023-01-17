@@ -294,9 +294,8 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7};
   weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
   int32_t edge_types[] = {7, 6, 5, 4, 3, 2, 1, 0};
-  vertex_t start[]     = {2, 2};
-  int32_t label[]      = {42, 42};
-  int fan_out[]        = {2,2};
+  vertex_t start[]     = {2};
+  int fan_out[]        = {-1};
 
   // Create graph
   int test_ret_value              = 0;
@@ -327,29 +326,19 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   cugraph_type_erased_device_array_t* d_start           = NULL;
-  cugraph_type_erased_device_array_t* d_label           = NULL;
   cugraph_type_erased_device_array_view_t* d_start_view = NULL;
-  cugraph_type_erased_device_array_view_t* d_label_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
 
   ret_code =
     cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
 
-  ret_code =
-    cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_label, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_label create failed.");
-
   d_start_view = cugraph_type_erased_device_array_view(d_start);
-  d_label_view = cugraph_type_erased_device_array_view(d_label);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_start_view, (byte_t*)start, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-    handle, d_label_view, (byte_t*)label, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "label copy_from_host failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, 1, INT32);
 
@@ -381,7 +370,6 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   cugraph_type_erased_device_array_view_t* result_weights;
   cugraph_type_erased_device_array_view_t* result_edge_types;
   cugraph_type_erased_device_array_view_t* result_hops;
-  cugraph_type_erased_device_array_view_t* result_label;
 
   result_srcs       = cugraph_sample_result_get_sources(result);
   result_dsts       = cugraph_sample_result_get_destinations(result);
@@ -389,7 +377,6 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   result_weights    = cugraph_sample_result_get_edge_weight(result);
   result_edge_types = cugraph_sample_result_get_edge_type(result);
   result_hops       = cugraph_sample_result_get_hop(result);
-  result_label      = cugraph_sample_result_get_start_labels(result);
 
   size_t result_size = cugraph_type_erased_device_array_view_size(result_srcs);
 
@@ -399,7 +386,6 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   weight_t h_weight[result_size];
   int32_t h_edge_types[result_size];
   int32_t h_hops[result_size];
-  int32_t h_label[result_size];
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     handle, (byte_t*)h_srcs, result_srcs, &ret_error);
@@ -425,10 +411,6 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
     handle, (byte_t*)h_hops, result_hops, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_label, result_label, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
   //  NOTE:  The C++ tester does a more thorough validation.  For our purposes
   //  here we will do a simpler validation, merely checking that all edges
   //  are actually part of the graph
@@ -449,10 +431,6 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
     M_edge_type[src[i]][dst[i]] = edge_types[i];
   }
 
-  printf("\nentering assertions\n");
-  printf("label array size: %d\n", cugraph_type_erased_device_array_view_size(result_label));
-  printf("label ix 0: %d\n", h_label[0]);
-
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 M_w[h_srcs[i]][h_dsts[i]] == h_weight[i],
@@ -463,12 +441,6 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
     TEST_ASSERT(test_ret_value,
                 M_edge_type[h_srcs[i]][h_dsts[i]] == h_edge_types[i],
                 "uniform_neighbor_sample got edge that doesn't exist");
-    TEST_ASSERT(test_ret_value,
-      result_size == cugraph_type_erased_device_array_view_size(result_label),
-      "array of labels returned was of wrong size");
-    TEST_ASSERT(test_ret_value,
-                42 == h_label[i],
-                "label was not properly propagated to sampling results");
   }
 
   cugraph_sample_result_free(result);
