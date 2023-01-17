@@ -217,7 +217,7 @@ def pagerank(
         if G.renumbered is True:
             personalization = renumber_vertices(G, personalization)
 
-            personalization = ensure_valid_dtype(G, personalization, "personalization")
+        personalization = ensure_valid_dtype(G, personalization, "personalization")
 
         vertex, pagerank_values = pylibcugraph_p_pagerank(
             resource_handle=ResourceHandle(),
