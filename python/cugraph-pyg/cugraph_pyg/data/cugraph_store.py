@@ -323,7 +323,7 @@ class EXPERIMENTAL__CuGraphStore:
 
             self._edge_attr_cls = CuGraphEdgeAttr
 
-    def __renumber_graph(self, renumber_graph:bool) -> None:
+    def __renumber_graph(self, renumber_graph: bool) -> None:
         """
         Renumbers the vertices and edges in this store's property graph
         and sets the vertex offsets.
@@ -391,7 +391,9 @@ class EXPERIMENTAL__CuGraphStore:
                 cumsum - self.__vertex_type_offsets["stop"]
             )
             self.__vertex_type_offsets["stop"] = cumsum - 1
-            self.__vertex_type_offsets["type"] = np.array(sorted(self.__graph.vertex_types), dtype='str')
+            self.__vertex_type_offsets["type"] = np.array(
+                sorted(self.__graph.vertex_types), dtype="str"
+            )
 
     @property
     def _old_vertex_col_name(self) -> str:
@@ -448,14 +450,16 @@ class EXPERIMENTAL__CuGraphStore:
         if self.__backend == "torch":
             ix = torch.tensor([], dtype=torch.int64)
         else:
-            ix = cupy.array([], dtype='int64')
+            ix = cupy.array([], dtype="int64")
 
         if isinstance(self.__vertex_type_offsets, dict):
             vtypes = np.searchsorted(self.__vertex_type_offsets["type"], vtypes)
         for vtype in vtypes:
             start = int(self.__vertex_type_offsets["start"][vtype])
             stop = int(self.__vertex_type_offsets["stop"][vtype])
-            ix = self.concatenate([ix, self.arange(start, stop + 1, 1, dtype=self.vertex_dtype)])
+            ix = self.concatenate(
+                [ix, self.arange(start, stop + 1, 1, dtype=self.vertex_dtype)]
+            )
 
         return ix
 
@@ -657,7 +661,9 @@ class EXPERIMENTAL__CuGraphStore:
             noi_types = self.__graph.vertex_types_from_numerals(
                 cudf.from_dlpack(
                     self.searchsorted(
-                        self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                        self.from_dlpack(
+                            self.__vertex_type_offsets["stop"].__dlpack__()
+                        ),
                         nodes_of_interest,
                     ).__dlpack__()
                 )
@@ -759,7 +765,9 @@ class EXPERIMENTAL__CuGraphStore:
     def put_tensor(self, tensor, attr) -> None:
         raise NotImplementedError("Adding properties not supported.")
 
-    def create_named_tensor(self, attr_name: str, properties: List[str], vertex_type: str, dtype: str) -> None:
+    def create_named_tensor(
+        self, attr_name: str, properties: List[str], vertex_type: str, dtype: str
+    ) -> None:
         """
         Create a named tensor that contains a subset of
         properties in the graph.
