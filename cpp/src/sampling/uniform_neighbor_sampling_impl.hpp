@@ -250,13 +250,14 @@ uniform_neighbor_sample_impl(
     detail::scalar_fill(handle, d_result_hop.data() + old_sz, add_sz, hop);
 
     if (d_result_weight)
-      raft::copy(
-        d_result_weight->begin() + old_sz, d_out_weight->begin(), add_sz, handle.get_stream());
-
+      raft::copy(d_result_weight->begin() + old_sz,
+                 d_out_weight->begin(),
+                 d_out_weight->size(),
+                 handle.get_stream());
     if (d_result_edge_type)
       raft::copy(d_result_edge_type->begin() + old_sz,
                  d_out_edge_type->begin(),
-                 add_sz,
+                 d_out_edge_type->size(),
                  handle.get_stream());
     if (d_result_label) {
       raft::copy(d_result_label->begin() + old_sz,

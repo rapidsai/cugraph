@@ -611,8 +611,8 @@ extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
   delete internal_pointer->wgt_;
   delete internal_pointer->hop_;
   delete internal_pointer->label_;
+  delete internal_pointer->edge_id_;
   delete internal_pointer->count_;
-
   delete internal_pointer;
 }
 
