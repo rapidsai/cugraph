@@ -32,7 +32,9 @@ extern "C" void cugraph_free_resource_handle(cugraph_resource_handle_t* handle)
 {
   auto internal = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t*>(handle);
   if (internal->allocated_) {
-    printf("in cugraph_free_resource_handle, cugraph_resource_handle = %p, raft handle = %p\n", internal, internal->handle_);
+    printf("in cugraph_free_resource_handle, cugraph_resource_handle = %p, raft handle = %p\n",
+           internal,
+           internal->handle_);
     delete internal->handle_;
   }
   delete internal;
