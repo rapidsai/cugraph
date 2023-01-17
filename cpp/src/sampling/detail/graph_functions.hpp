@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +78,43 @@ gather_one_hop_edgelist(
   bool do_expensive_check = false);
 
 /**
+ * @brief Gather edge list for specified vertices
+ *
+ * Collect all the edges that are present in the adjacency lists on the current gpu
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param active_majors Device vector containing all the vertex id that are processed by
+ * gpus in the column communicator
+ * @return A tuple of device vectors containing the majors, minors, optional weights,
+ *  optional edge ids, optional edge types and optional label
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>>
+gather_one_hop_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<edge_t,
+                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
+    edge_id_type_view,
+  rmm::device_uvector<vertex_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  bool do_expensive_check = false);
+
+/**
  * @brief Randomly sample edges from the adjacency list of specified vertices
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
@@ -103,6 +140,47 @@ sample_edges(raft::handle_t const& handle,
              rmm::device_uvector<vertex_t> const& active_majors,
              size_t fanout,
              bool with_replacement);
+
+/**
+ * @brief Randomly sample edges from the adjacency list of specified vertices
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state Random number generator state
+ * @param graph_view Non-owning graph object.
+ * @param active_majors Device vector containing all the vertex id that are processed by
+ * gpus in the column communicator
+ * @param fanout How many edges to sample for each vertex
+ * @param with_replacement If true sample with replacement, otherwise sample without replacement
+ * @param invalid_vertex_id Value to use for an invalid vertex
+ * @return A tuple of device vectors containing the majors, minors, optional weights,
+ *  optional edge ids, optional edge types and optional label
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>>
+sample_edges(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<edge_t,
+                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
+    edge_id_type_view,
+  raft::random::RngState& rng_state,
+  rmm::device_uvector<vertex_t> const& active_majors,
+  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  size_t fanout,
+  bool with_replacement);
 
 }  // namespace detail
 }  // namespace cugraph
