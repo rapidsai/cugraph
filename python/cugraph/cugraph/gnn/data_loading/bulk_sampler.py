@@ -91,18 +91,21 @@ class EXPERIMENTAL__BulkSampler:
         if self.size >= self.saturation_level:
             self.flush()
 
-    def flush(self):
+    def flush(self) -> None:
         """
         Computes all uncomputed batches
         """
         end = min(self.__saturation_level, len(self.__batches))
 
-        samples = cugraph.uniform_neighbor_sample(
-            G=self.__graph,
+        sample_fn = cugraph.dask.uniform_neighbor_sample if isinstance(self.__batches, dask_cudf.DataFrame) else cugraph.uniform_neighbor_sample
+
+        # TODO semaphore check to prevent concurrent calls to uniform_neighbor_sample
+        samples = sample_fn(
+            self.__graph,
+            **self.__sample_call_args,
             start_list=self.__batches[self.start_col_name][:end],
-            with_edge_properties=True,
             batch_id_list=self.__batches[self.batch_col_name][:end],
-            **self.__sample_call_args
+            with_edge_properties=True,
         )
 
         if len(self.__batches) > end:
@@ -112,9 +115,16 @@ class EXPERIMENTAL__BulkSampler:
         
         self.__write(samples)
 
-    def __write(self, samples):
+    def __write(self, samples:Union[cudf.DataFrame, dask_cudf.DataFrame]) -> None:
+        # Ensure each rank writes to its own partition so there is no conflict
         outer_partition = f'rank={self.__rank}'
-        samples.to_parquet(
-            os.path.join(self.__output_path, outer_partition),
-            partition_cols=['batch_id', 'hop_id']
-        )
+        if isinstance(samples, dask_cudf.DataFrame):
+            samples.to_parquet(
+                os.path.join(self.__output_path, outer_partition),
+                partition_on=['batch_id', 'hop_id']
+            )
+        else:
+            samples.to_parquet(
+                os.path.join(self.__output_path, outer_partition),
+                partition_cols=['batch_id', 'hop_id']
+            )

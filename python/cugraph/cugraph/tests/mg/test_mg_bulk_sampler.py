@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+import dask_cudf
 import cupy
 import cugraph
 from cugraph.experimental.datasets import karate
@@ -20,13 +21,14 @@ from cugraph.experimental import BulkSampler
 import tempfile
 import os
 
-def test_bulk_sampler_simple():
+def test_bulk_sampler_simple(dask_client):
     el = karate.get_edgelist().reset_index().rename(columns={'index':'eid'})
     el['eid'] = el['eid'].astype('int32')
     el['etp'] = cupy.int32(0)
-    
+    el = dask_cudf.from_cudf(el, npartitions=2)
+
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(el, source='src', destination='dst', edge_attr=['wgt', 'eid', 'etp'], legacy_renum_only=True)
+    G.from_dask_cudf_edgelist(el, source='src', destination='dst', edge_attr=['wgt', 'eid', 'etp'], legacy_renum_only=True)
 
     tempdir_object = tempfile.TemporaryDirectory()
     bs = BulkSampler(
@@ -41,11 +43,12 @@ def test_bulk_sampler_simple():
         'start':cudf.Series([0,5,10], dtype='int32'),
         'batch':cudf.Series([0,0,1], dtype='int32'),
     })
+    batches = dask_cudf.from_cudf(batches, npartitions=2)
 
     bs.add_batches(batches, start_col_name='start', batch_col_name='batch')
     bs.flush()
 
-    samples = cugraph.uniform_neighbor_sample(G, batches['start'], [2,2], False,True, batches['batch'],seed=99)
+    samples = cugraph.dask.uniform_neighbor_sample(G, batches['start'], [2,2], False,True, batches['batch'],seed=99).compute()
     recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, 'rank=0'))
     
     assert recovered_samples.edge_id.sort_values().values_host.tolist() == samples.edge_id.sort_values().values_host.tolist()
