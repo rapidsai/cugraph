@@ -49,6 +49,3 @@ def dask_client():
     rmm.reinitialize(pool_allocator=True)
 
     yield client
-
-    #stop_dask_client(client)    
-    #print("\ndask_client fixture: client.close() called")
