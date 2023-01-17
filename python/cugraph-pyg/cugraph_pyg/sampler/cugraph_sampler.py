@@ -24,7 +24,6 @@ except ModuleNotFoundError:
 
 from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
 
-# FIXME try to remove cudf requirement
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
@@ -145,31 +144,16 @@ class EXPERIMENTAL__CuGraphSampler:
             # conversion required by cugraph api
             list(num_neighbors),
             replace,
-            with_edge_properties=True,
         )
 
-        # We make the assumption that the sample must fit on a single device
-        if is_multi_gpu:
-            sampling_results = sampling_results.compute()
+        concat_fn = dask_cudf.concat if is_multi_gpu else cudf.concat
 
-        """
-        nodes_of_interest, indices_of_interest = cupy.unique(
-            cudf.concat(
-                [sampling_results.destinations, sampling_results.sources]
-            ).to_cupy(),
-            return_index=True
-        )
-
-        ioi_div = indices_of_interest < len(sampling_results)
-        ioi_src = indices_of_interest[ioi_div]
-        ioi_dst = indices_of_interest[~ioi_div]
-        edge_types_of_interest_src = sampling_results.edge_type[ioi_src]
-        edge_types_of_interest_dst = sampling_results.edge_type[ioi_dst]
-        """
-
-        nodes_of_interest = cudf.concat(
-            [sampling_results.sources, sampling_results.destinations]
+        nodes_of_interest = concat_fn(
+            [sampling_results.destinations, sampling_results.sources]
         ).unique()
+
+        if is_multi_gpu:
+            nodes_of_interest = nodes_of_interest.compute()
 
         # Get the grouped node index (for creating the renumbered grouped edge index)
         noi_index = self.__graph_store._get_vertex_groups_from_sample(nodes_of_interest)
