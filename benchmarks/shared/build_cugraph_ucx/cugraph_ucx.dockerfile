@@ -54,39 +54,11 @@ RUN gpuci_mamba_retry install -y -c pytorch -c rapidsai-nightly -c rapidsai -c c
     setuptools \
     tqdm
 
-<<<<<<< HEAD
-RUN mamba install -c conda-forge -c rapidsai-nightly -c rapidsai -y \
-    ninja \
-    versioneer \
-    scikit-build \
-    cmake=3.23.1 \
-    cython \
-    scikit-build=0.13.1 \
-    pytest \
-    pytest-cov \
-    rapids-pytest-benchmark \
-    py \
-    networkx=2.5.1 \
-    scipy
-=======
->>>>>>> 8d6da9cbc1c3017b46b6f259095b22cacfee4871
 
 # Build ucx from source with IB support 
 # on 1.14.x
 RUN conda remove --force -y ucx ucx-proc
 
-<<<<<<< HEAD
-ADD build-ucx.sh /home/build-ucx.sh
-RUN chmod 744 ./home/build-ucx.sh & bash ./home/build-ucx.sh
-
-ADD test_client_bandwidth.py  /home/test_client_bandwidth.py
-RUN chmod 777 /home/test_client_bandwidth.py
-ADD test_cugraph_sampling.py  /home/test_cugraph_sampling.py
-RUN chmod 777 /home/test_cugraph_sampling.py
-
-ENV PATH /opt/conda/env/bin:$PATH
-WORKDIR /home/
-=======
 ADD build-ucx.sh /root/build-ucx.sh
 RUN chmod 744 /root/build-ucx.sh & bash /root/build-ucx.sh
 
@@ -98,4 +70,3 @@ RUN chmod 777 /root/test_cugraph_sampling.py
 
 ENV PATH /opt/conda/env/bin:$PATH
 WORKDIR /root/
->>>>>>> 8d6da9cbc1c3017b46b6f259095b22cacfee4871
