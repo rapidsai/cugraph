@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,8 +130,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           rmm::device_uvector<edge_t>(edge_ids_->size_, handle_.get_stream());
 
         raft::copy<edge_t>(edgelist_edge_ids.data(),
-                           edge_type_ids_->as_type<edge_t>(),
-                           edge_type_ids_->size_,
+                           edge_ids_->as_type<edge_t>(),
+                           edge_ids_->size_,
                            handle_.get_stream());
 
         edgelist_edge_tuple =
@@ -488,7 +488,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   CAPI_EXPECTS(
     (edge_type_ids == nullptr && edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
     CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: Edge id type must match edge type",
+    "Invalid input arguments: Edge id type must match edge (src/dst) type",
     *error);
 
   CAPI_EXPECTS((edge_type_ids == nullptr && edge_ids == nullptr) ||
