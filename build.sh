@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 
 # cugraph build script
 
@@ -242,7 +242,7 @@ if buildAll || hasArg libcugraph; then
             CUGRAPH_CMAKE_CUDA_ARCHITECTURES="NATIVE"
             echo "Building for the architecture of the GPU in the system..."
         else
-            CUGRAPH_CMAKE_CUDA_ARCHITECTURES="ALL"
+            CUGRAPH_CMAKE_CUDA_ARCHITECTURES="RAPIDS"
             echo "Building for *ALL* supported GPU architectures..."
         fi
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}

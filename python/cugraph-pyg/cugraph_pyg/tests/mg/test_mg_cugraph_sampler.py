@@ -125,6 +125,7 @@ def test_neighbor_sample(basic_property_graph_1):
         # FIXME The following line should be num_neighbors=[-1] but
         # there is currently a bug in MG uniform_neighbor_sample.
         # Once this bug is fixed, this line should be changed.
+        # (Issue #2427)
         num_neighbors=[10],
         replace=True,
         directed=True,
@@ -172,7 +173,6 @@ def test_neighbor_sample(basic_property_graph_1):
     base_df = base_df.sort_values(cols)
     base_df = base_df.reset_index().drop("index", axis=1)
 
-    print(noi_groups)
     numbering = noi_groups["t1"]
     renumber_df = cudf.Series(range(len(numbering)), index=numbering)
 

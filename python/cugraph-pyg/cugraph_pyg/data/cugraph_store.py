@@ -252,7 +252,7 @@ class EXPERIMENTAL__CuGraphStore:
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
-            from torch import concat as concatenate
+            from torch import concatenate as concatenate
             from torch import arange as arange
         elif backend == "cupy":
             from cupy import from_dlpack
@@ -612,11 +612,11 @@ class EXPERIMENTAL__CuGraphStore:
             query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
                 query += f' | ({TCN}=="{t}")'
-            # selection = self.__graph.select_edges(query)
+            selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
             sg = self.__graph.extract_subgraph(
-                # selection=selection,
+                selection=selection,
                 edge_weight_property=self.__graph.type_col_name,
                 default_edge_weight=1.0,
                 check_multi_edges=False,

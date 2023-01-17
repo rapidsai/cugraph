@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,6 @@ from .graph_implementation import (
 )
 import cudf
 import dask_cudf
-import warnings
 
 from cugraph.utilities.utils import import_optional
 
@@ -688,15 +687,6 @@ class Graph:
     # def properties():
 
 
-class DiGraph(Graph):
-    def __init__(self, m_graph=None):
-        warnings.warn(
-            "DiGraph is deprecated, use Graph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(DiGraph, self).__init__(m_graph, directed=True)
-
-
 class MultiGraph(Graph):
     """
     A Multigraph; a Graph containing more than one edge between vertex pairs.
@@ -712,16 +702,6 @@ class MultiGraph(Graph):
         """
         # TO DO: Call coloring algorithm
         return True
-
-
-class MultiDiGraph(MultiGraph):
-    def __init__(self):
-        warnings.warn(
-            "MultiDiGraph is deprecated,\
-                use MultiGraph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(MultiDiGraph, self).__init__(directed=True)
 
 
 class Tree(Graph):
@@ -918,30 +898,6 @@ class BiPartiteGraph(NPartiteGraph):
         This does not parse the graph to check if it is bipartite.
         """
         return True
-
-
-class BiPartiteDiGraph(BiPartiteGraph):
-    """
-    A Directed Bipartite Graph
-    """
-
-    def __init__(self):
-        warnings.warn(
-            "BiPartiteDiGraph is deprecated,\
- use BiPartiteGraph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(BiPartiteDiGraph, self).__init__(directed=True)
-
-
-class NPartiteDiGraph(NPartiteGraph):
-    def __init__(self):
-        warnings.warn(
-            "NPartiteDiGraph is deprecated,\
- use NPartiteGraph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(NPartiteGraph, self).__init__(directed=True)
 
 
 def is_directed(G):
