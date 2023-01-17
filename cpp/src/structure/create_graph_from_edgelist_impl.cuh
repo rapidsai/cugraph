@@ -601,7 +601,6 @@ create_graph_from_edgelist_impl(
                       thrust::tuple<edge_t, edge_type_t>>(std::move(*edge_partition_id_type_pairs));
   }
 
-
   // These checks occur here now that the tuple should have been redistributed.
   CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
                     (edgelist_srcs.size() == std::get<0>((*edgelist_id_type_pairs)).size()),

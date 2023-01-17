@@ -330,10 +330,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         return self.get_vertices()
 
     def vertex_types_from_numerals(self, nums):
-        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
+        return (
+            self.__vertex_prop_dataframe[self.type_col_name]
+            .dtype.categories.to_series()
+            .iloc[nums]
+            .reset_index(drop=True)
+        )
 
     def edge_types_from_numerals(self, nums):
-        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories.to_series().iloc[nums].reset_index(drop=True)
+        return (
+            self.__edge_prop_dataframe[self.type_col_name]
+            .dtype.categories.to_series()
+            .iloc[nums]
+            .reset_index(drop=True)
+        )
 
     def add_vertex_data(
         self,
@@ -1285,8 +1295,12 @@ class EXPERIMENTAL__MGPropertyGraph:
             if edge_attr is not None:
                 col_names.append(edge_attr)
 
-        edge_prop_df = edge_prop_df.reset_index().drop([col for col in edge_prop_df if col not in col_names], axis=1)
-        edge_prop_df = edge_prop_df.repartition(npartitions=self.__num_workers * 4).persist()
+        edge_prop_df = edge_prop_df.reset_index().drop(
+            [col for col in edge_prop_df if col not in col_names], axis=1
+        )
+        edge_prop_df = edge_prop_df.repartition(
+            npartitions=self.__num_workers * 4
+        ).persist()
 
         G.from_dask_cudf_edgelist(
             edge_prop_df,
