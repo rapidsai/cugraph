@@ -902,7 +902,6 @@ class CugraphServiceClient:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
-        create_with_edge_info=False,
         graph_id=defaults.graph_id,
     ):
         """
@@ -967,7 +966,6 @@ class CugraphServiceClient:
             check_multi_edges,
             renumber_graph,
             add_edge_data,
-            create_with_edge_info,
             graph_id,
         )
 

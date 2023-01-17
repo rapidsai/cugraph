@@ -571,7 +571,6 @@ class RemoteGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
-        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -626,7 +625,6 @@ class RemoteGraph:
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
             default_edge_weight=default_edge_weight,
-            create_with_edge_info=create_with_edge_info,
             graph_id=self.__graph_id,
         )
 

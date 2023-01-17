@@ -172,8 +172,7 @@ service CugraphService {
                        5:bool check_multi_edges,
                        6:bool renumber_graph,
                        7:bool add_edge_data,
-                       8:bool create_with_edge_info,
-                       9:i32 graph_id
+                       8:i32 graph_id
                        ) throws (1:CugraphServiceError e),
 
   binary get_graph_vertex_data(1:GraphVertexEdgeID vertex_id,
