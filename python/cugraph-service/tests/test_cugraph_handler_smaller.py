@@ -18,6 +18,7 @@ from inspect import signature
 
 from cugraph_service_client.exceptions import CugraphServiceError
 
+
 class ExtensionServerFacade:
     def __init__(self, cugraph_handler):
         self.__handler = cugraph_handler
@@ -200,12 +201,11 @@ class CugraphHandler:
 
         raise CugraphServiceError(f"extension {func_name} was not found")
 
+
 print("start test")
 
 handler = CugraphHandler()
-num_loaded = handler.load_graph_creation_extensions(
-    "tests/extensions"
-)
+num_loaded = handler.load_graph_creation_extensions("tests/extensions")
 assert len(num_loaded) == 1
 
 gid1 = handler.call_graph_creation_extension(

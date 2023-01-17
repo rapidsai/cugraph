@@ -19,7 +19,7 @@ from cugraph.experimental import datasets
 def create_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     print("new calling create_graph_from_built_in_dataset: ", dataset_name)
     dataset_obj = getattr(datasets, dataset_name)
-    return None;
-    #return dataset_obj.get_graph(fetch=True)
+    return None
+    # return dataset_obj.get_graph(fetch=True)
 
 ### Next debugging step... unroll this.  What's in get_graph?
