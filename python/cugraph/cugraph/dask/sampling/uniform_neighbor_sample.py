@@ -30,14 +30,15 @@ from cugraph.dask.comms import comms as Comms
 src_n = "sources"
 dst_n = "destinations"
 indices_n = "indices"
-weight_n = 'weight'
-edge_id_n = 'edge_id'
-edge_type_n = 'edge_type'
-batch_id_n = 'batch_id'
-hop_id_n = 'hop_id'
+weight_n = "weight"
+edge_id_n = "edge_id"
+edge_type_n = "edge_type"
+batch_id_n = "batch_id"
+hop_id_n = "hop_id"
 
-start_col_name='_START_'
-batch_col_name='_BATCH_'
+start_col_name = "_START_"
+batch_col_name = "_BATCH_"
+
 
 def create_empty_df(indices_t, weight_t):
     df = cudf.DataFrame(
@@ -49,6 +50,7 @@ def create_empty_df(indices_t, weight_t):
     )
     return df
 
+
 def create_empty_df_with_edge_props(indices_t, weight_t):
     df = cudf.DataFrame(
         {
@@ -56,12 +58,13 @@ def create_empty_df_with_edge_props(indices_t, weight_t):
             dst_n: numpy.empty(shape=0, dtype=indices_t),
             weight_n: numpy.empty(shape=0, dtype=weight_t),
             edge_id_n: numpy.empty(shape=0, dtype=indices_t),
-            edge_type_n: numpy.empty(shape=0, dtype='int32'),
-            batch_id_n: numpy.empty(shape=0, dtype='int32'),
-            hop_id_n: numpy.empty(shape=0, dtype='int32'),
+            edge_type_n: numpy.empty(shape=0, dtype="int32"),
+            batch_id_n: numpy.empty(shape=0, dtype="int32"),
+            hop_id_n: numpy.empty(shape=0, dtype="int32"),
         }
     )
     return df
+
 
 def convert_to_cudf(cp_arrays, weight_t, with_edge_properties):
     """
@@ -167,7 +170,7 @@ def uniform_neighbor_sample(
     batch_id_list: list (int32)
         List of batch ids that will be returned with the sampled edges if
         with_edge_properties is set to True.
-    
+
     seed: int64, optional (default=42)
         The random seed to use.
         Defaults to 42.
@@ -214,9 +217,7 @@ def uniform_neighbor_sample(
         )
 
     elif with_edge_properties and batch_id_list is None:
-        batch_id_list = cudf.Series(
-            cp.zeros(len(start_list), dtype="int32")
-        )
+        batch_id_list = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -239,7 +240,7 @@ def uniform_neighbor_sample(
 
     if input_graph.renumbered:
         start_list = input_graph.lookup_internal_vertex_id(start_list)
-    
+
     start_list = start_list.rename(start_col_name).to_frame()
     if batch_id_list is not None:
         ddf = start_list.join(batch_id_list.rename(batch_col_name))
@@ -248,10 +249,7 @@ def uniform_neighbor_sample(
 
     if isinstance(ddf, cudf.DataFrame):
         splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
-        ddf = {
-            w: [ddf.iloc[splits[i]]]
-            for i,w in enumerate(Comms.get_workers())
-        }
+        ddf = {w: [ddf.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
 
     else:
         ddf = get_distributed_data(ddf)
@@ -272,7 +270,7 @@ def uniform_neighbor_sample(
             with_replacement,
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
-            seed=seed+i, # ensure different seed per GPU
+            seed=seed + i,  # ensure different seed per GPU
             workers=[w],
             allow_other_workers=False,
             pure=False,
@@ -280,11 +278,13 @@ def uniform_neighbor_sample(
         for i, w in enumerate(Comms.get_workers())
     ]
 
-    empty_df = create_empty_df_with_edge_props(indices_t, weight_t) if with_edge_properties else create_empty_df(indices_t, weight_t)
+    empty_df = (
+        create_empty_df_with_edge_props(indices_t, weight_t)
+        if with_edge_properties
+        else create_empty_df(indices_t, weight_t)
+    )
 
-    ddf = dask_cudf.from_delayed(
-        result, meta=empty_df, verify_meta=False
-    ).persist()
+    ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
     wait(ddf)
     wait([r.release() for r in result])
 

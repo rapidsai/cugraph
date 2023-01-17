@@ -19,10 +19,19 @@ import cudf
 import dask_cudf
 import cugraph
 
+
 class EXPERIMENTAL__BulkSampler:
-    start_col_name = '_START_'
-    batch_col_name = '_BATCH_'
-    def __init__(self, output_path:str, graph, saturation_level:int=200_000, rank:int=0, **kwargs):
+    start_col_name = "_START_"
+    batch_col_name = "_BATCH_"
+
+    def __init__(
+        self,
+        output_path: str,
+        graph,
+        saturation_level: int = 200_000,
+        rank: int = 0,
+        **kwargs,
+    ):
         """
         Constructs a new BulkSampler
 
@@ -46,15 +55,15 @@ class EXPERIMENTAL__BulkSampler:
         self.__rank = rank
         self.__batches = None
         self.__sample_call_args = kwargs
-    
+
     @property
     def rank(self) -> int:
         return self.__rank
-    
+
     @property
     def saturation_level(self) -> int:
         return self.__saturation_level
-    
+
     @property
     def size(self) -> int:
         if self.__batches is None:
@@ -62,7 +71,12 @@ class EXPERIMENTAL__BulkSampler:
         else:
             return len(self.__batches)
 
-    def add_batches(self, df: Union[cudf.DataFrame, dask_cudf.DataFrame], start_col_name:str, batch_col_name:str) -> None:
+    def add_batches(
+        self,
+        df: Union[cudf.DataFrame, dask_cudf.DataFrame],
+        start_col_name: str,
+        batch_col_name: str,
+    ) -> None:
         """
         Adds batches to this BulkSampler.
 
@@ -78,16 +92,24 @@ class EXPERIMENTAL__BulkSampler:
         Returns
         -------
         """
-        df = df.rename(columns={start_col_name: self.start_col_name, batch_col_name: self.batch_col_name})
+        df = df.rename(
+            columns={
+                start_col_name: self.start_col_name,
+                batch_col_name: self.batch_col_name,
+            }
+        )
 
         if self.__batches is None:
             self.__batches = df
         else:
-            if type(df) == type(self.__batches):
+            if isinstance(df, type(self.__batches)):
                 self.__batches = self.__batches.append(df)
             else:
-                raise TypeError('Provided batches must match the dataframe type of previous batches!')
-        
+                raise TypeError(
+                    "Provided batches must match the dataframe"
+                    " type of previous batches!"
+                )
+
         if self.size >= self.saturation_level:
             self.flush()
 
@@ -97,7 +119,11 @@ class EXPERIMENTAL__BulkSampler:
         """
         end = min(self.__saturation_level, len(self.__batches))
 
-        sample_fn = cugraph.dask.uniform_neighbor_sample if isinstance(self.__batches, dask_cudf.DataFrame) else cugraph.uniform_neighbor_sample
+        sample_fn = (
+            cugraph.dask.uniform_neighbor_sample
+            if isinstance(self.__batches, dask_cudf.DataFrame)
+            else cugraph.uniform_neighbor_sample
+        )
 
         # TODO semaphore check to prevent concurrent calls to uniform_neighbor_sample
         samples = sample_fn(
@@ -112,19 +138,19 @@ class EXPERIMENTAL__BulkSampler:
             self.__batches = self.__batches[end:]
         else:
             self.__batches = None
-        
+
         self.__write(samples)
 
-    def __write(self, samples:Union[cudf.DataFrame, dask_cudf.DataFrame]) -> None:
+    def __write(self, samples: Union[cudf.DataFrame, dask_cudf.DataFrame]) -> None:
         # Ensure each rank writes to its own partition so there is no conflict
-        outer_partition = f'rank={self.__rank}'
+        outer_partition = f"rank={self.__rank}"
         if isinstance(samples, dask_cudf.DataFrame):
             samples.to_parquet(
                 os.path.join(self.__output_path, outer_partition),
-                partition_on=['batch_id', 'hop_id']
+                partition_on=["batch_id", "hop_id"],
             )
         else:
             samples.to_parquet(
                 os.path.join(self.__output_path, outer_partition),
-                partition_cols=['batch_id', 'hop_id']
+                partition_cols=["batch_id", "hop_id"],
             )
