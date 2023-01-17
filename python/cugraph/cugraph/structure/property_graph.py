@@ -1769,7 +1769,11 @@ class EXPERIMENTAL__PropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property in edge_prop_df.columns:
+            if edge_weight_property == self.type_col_name:
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
+                edge_prop_df["temp_type_col"] = prop_col
+                edge_weight_property = "temp_type_col"
+            elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
                 prop_col = edge_prop_df.index.to_series()
@@ -2218,13 +2222,6 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return True if this is a multi-gpu graph.  Always returns False for
         PropertyGraph.
-        """
-        return False
-
-    def is_remote(self):
-        """
-        Return True if this graph is stored remotely.  Always returns False
-        for PropertyGraph since it is always local.
         """
         return False
 
