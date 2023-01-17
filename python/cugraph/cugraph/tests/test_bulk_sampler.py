@@ -17,6 +17,8 @@ import cugraph
 from cugraph.experimental.datasets import karate
 from cugraph.experimental import BulkSampler
 
+import tempfile
+
 def test_bulk_sampler_simple():
     el = karate.get_edgelist().reset_index().rename(columns={'index':'eid'})
     el['eid'] = el['eid'].astype('int32')
@@ -25,8 +27,9 @@ def test_bulk_sampler_simple():
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source='src', destination='dst', edge_attr=['wgt', 'eid', 'etp'], legacy_renum_only=True)
 
+    tempdir_object = tempfile.TemporaryDirectory()
     bs = BulkSampler(
-        output_path='/tmp/samples',
+        output_path='/tmp/samples2',
         graph=G,
         fanout_vals=[2,2],
         with_replacement=False
@@ -39,3 +42,7 @@ def test_bulk_sampler_simple():
 
     bs.add_batches(batches, start_col_name='start', batch_col_name='batch')
     bs.flush()
+
+    
+    assert False
+    #assert len(cudf.read_parquet(tempdir_object.name)) == len(batches)
