@@ -239,20 +239,24 @@ def uniform_neighbor_sample(
 
     if input_graph.renumbered:
         start_list = input_graph.lookup_internal_vertex_id(start_list)
-
-    if isinstance(start_list, cudf.Series):
-        start_list = dask_cudf.from_cudf(start_list, npartitions=len(Comms.get_workers()))
-    if isinstance(batch_id_list, cudf.Series):
-        batch_id_list = dask_cudf.from_cudf(batch_id_list, npartitions=len(Comms.get_workers()))
     
     start_list = start_list.rename(start_col_name).to_frame()
     if batch_id_list is not None:
         ddf = start_list.join(batch_id_list.rename(batch_col_name))
     else:
         ddf = start_list
-    ddf = get_distributed_data(ddf)
-    wait(ddf)
-    ddf = ddf.worker_to_parts
+
+    if isinstance(ddf, cudf.DataFrame):
+        splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
+        ddf = {
+            w: [ddf.iloc[splits[i]]]
+            for i,w in enumerate(Comms.get_workers())
+        }
+
+    else:
+        ddf = get_distributed_data(ddf)
+        wait(ddf)
+        ddf = ddf.worker_to_parts
 
     client = input_graph._client
 
