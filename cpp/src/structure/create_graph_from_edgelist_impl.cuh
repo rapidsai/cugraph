@@ -274,12 +274,16 @@ create_graph_from_edgelist_impl(
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_weights.size().");
+  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
+                    (edgelist_srcs.size() == std::get<0>((*edgelist_id_type_pairs)).size()),
+                  "Invalid input arguments: edgelist_srcs.size() != "
+                  "std::get<0>((*edgelist_id_type_pairs)).size().");
+  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
+                    (edgelist_srcs.size() == std::get<1>((*edgelist_id_type_pairs)).size()),
+                  "Invalid input arguments: edgelist_srcs.size() != "
+                  "std::get<1>((*edgelist_id_type_pairs)).size().");
   CUGRAPH_EXPECTS(renumber,
                   "Invalid input arguments: renumber should be true if multi_gpu is true.");
-  // edgelist_id_pairs may be mismatched depending on how edges were distributed.
-  // This function is responsible for redistributing the tuple.
-  // The sizes of that tuple are checked at the end of this function to ensure it was
-  // redistributed correctly.
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
@@ -600,16 +604,6 @@ create_graph_from_edgelist_impl(
       edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                       thrust::tuple<edge_t, edge_type_t>>(std::move(*edge_partition_id_type_pairs));
   }
-
-  // These checks occur here now that the tuple should have been redistributed.
-  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
-                    (edgelist_srcs.size() == std::get<0>((*edgelist_id_type_pairs)).size()),
-                  "Invalid input arguments: edgelist_srcs.size() != "
-                  "std::get<0>((*edgelist_id_type_pairs)).size().");
-  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
-                    (edgelist_srcs.size() == std::get<1>((*edgelist_id_type_pairs)).size()),
-                  "Invalid input arguments: edgelist_srcs.size() != "
-                  "std::get<1>((*edgelist_id_type_pairs)).size().");
 
   return std::make_tuple(
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(
