@@ -24,17 +24,19 @@ import warnings
 # numpy is always available
 import numpy as np
 
-# cuGraph or cuGraph-Service is required; each has its own version of
-# import_optional and we need to select the correct one.
+# cuGraph is required
 try:
-    from cugraph_service.client.remote_graph_utils import import_optional
+    from cugraph.utilities.utils import import_optional
 except ModuleNotFoundError:
-    try:
-        from cugraph.utilities.utils import import_optional
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            "cuGraph-PyG requires cuGraph" "or cuGraph-Service to be installed."
-        )
+    raise ModuleNotFoundError(
+        "cuGraph-PyG requires cuGraph to be installed."
+    )
+
+# FIXME remove these imports and replace PG with FeatureStore
+from cugraph.experimental import (
+    PropertyGraph,
+    MGPropertyGraph
+)
 
 # FIXME drop cupy support and make torch the only backend (#2995)
 cupy = import_optional("cupy")
@@ -334,16 +336,11 @@ class EXPERIMENTAL__CuGraphStore:
                 f"and {self.__old_edge_col_name}"
             )
 
+        # FIXME Remove all renumbering logic permanently and require this already be done.
         if renumber_graph:
-            if self.is_remote and self.backend == "torch":
-                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
-                    prev_id_column=self.__old_vertex_col_name,
-                    backend="torch:cuda" if torch.has_cuda else "torch",
-                )
-            else:
-                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
-                    prev_id_column=self.__old_vertex_col_name
-                )
+            self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
+                prev_id_column=self.__old_vertex_col_name
+            )
 
             # FIXME: https://github.com/rapidsai/cugraph/issues/3059
             # Currently renumbering edges is required if renumbering vertices or else
@@ -400,27 +397,8 @@ class EXPERIMENTAL__CuGraphStore:
         return self.__backend
 
     @cached_property
-    def is_multi_gpu(self):
-        """
-        Whether the backing cugraph is a multi-gpu instance.
-        Returns
-        -------
-        bool
-            True if the backing graph is a multi-gpu graph.
-        """
-        return self.__graph.is_multi_gpu()
-
-    @cached_property
-    def is_remote(self):
-        pg_types = ["PropertyGraph", "MGPropertyGraph"]
-        if type(self.__graph).__name__ in pg_types:
-            return False
-        else:
-            return self.__graph.is_remote()
-
-    @cached_property
     def _is_delayed(self):
-        return self.is_multi_gpu and not self.is_remote
+        return isinstance(self.__graph, MGPropertyGraph)
 
     def get_vertex_index(self, vtypes):
         if isinstance(vtypes, str):
@@ -952,24 +930,3 @@ class EXPERIMENTAL__CuGraphStore:
 
     def __len__(self):
         return len(self.get_all_tensor_attrs())
-
-
-def edge_type_to_str(edge_type):
-    """
-    Converts the PyG (src, type, dst) edge representation into
-    the equivalent C++ representation.
-
-    Parameters
-    ----------
-    edge_type : tuple (src, type,dst)
-        The PyG (src, type, dst) tuple edge representation
-        to convert to the C++ representation.
-
-    Returns
-    -------
-    str
-    The edge type in a single string of the form src__type__dst.
-    """
-    # Since C++ cannot take dictionaries with tuples as key as input, edge type
-    # triplets need to be converted into single strings.
-    return edge_type if isinstance(edge_type, str) else "__".join(edge_type)
