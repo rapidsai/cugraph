@@ -1700,7 +1700,6 @@ class EXPERIMENTAL__PropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
-        create_with_edge_info=False,
     ):
         """
         Create a Graph from the edges in edge_prop_df.

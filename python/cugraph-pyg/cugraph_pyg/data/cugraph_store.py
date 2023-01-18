@@ -626,7 +626,6 @@ class EXPERIMENTAL__CuGraphStore:
                 check_multi_edges=False,
                 renumber_graph=True,
                 add_edge_data=False,
-                create_with_edge_info=False,
             )
             self.__subgraphs[edge_types] = sg
 
@@ -964,7 +963,7 @@ class EXPERIMENTAL__CuGraphStore:
         raise NotImplementedError("Removing features not supported")
 
     def _infer_unspecified_attr(self, attr: CuGraphTensorAttr) -> CuGraphTensorAttr:
-        if attr.properties == _field_status.UNSET:
+c        if attr.properties == _field_status.UNSET:
             # attempt to infer property names
             if attr.group_name in self._tensor_attr_dict:
                 for n in self._tensor_attr_dict[attr.group_name]:
