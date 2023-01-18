@@ -152,5 +152,5 @@ class EXPERIMENTAL__BulkSampler:
         else:
             samples.to_parquet(
                 os.path.join(self.__output_path, outer_partition),
-                partition_cols=["hop_id"],
+                partition_cols=["batch_id"],
             )
