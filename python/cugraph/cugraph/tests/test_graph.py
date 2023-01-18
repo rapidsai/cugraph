@@ -740,6 +740,7 @@ def test_create_graph_with_edge_ids(graph_file):
     assert G.is_directed()
     assert not H.is_directed()
 
+
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_density(graph_file):

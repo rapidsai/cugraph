@@ -701,7 +701,7 @@ class Graph:
         num_e = self._Impl.number_of_edges(directed_edges=True)
         num_v = self._Impl.number_of_vertices()
 
-        density = (factor * num_e) / (num_v * (num_v -1))
+        density = (factor * num_e) / (num_v * (num_v - 1))
         return density
 
     # TODO: Add function
