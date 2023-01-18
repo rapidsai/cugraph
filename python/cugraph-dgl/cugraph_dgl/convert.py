@@ -22,7 +22,7 @@ from cugraph_dgl.utils.cugraph_conversion_utils import (
 dgl = import_optional("dgl")
 
 
-def cugraph_storage_from_heterograph(g, single_gpu: bool = True) -> CuGraphStorage:
+def cugraph_storage_from_heterograph(g: DGLGraph, single_gpu: bool = True) -> CuGraphStorage:
     """
     Convert DGL Graph to CuGraphStorage graph
     """
