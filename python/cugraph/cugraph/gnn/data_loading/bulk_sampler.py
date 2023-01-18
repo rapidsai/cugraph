@@ -147,7 +147,7 @@ class EXPERIMENTAL__BulkSampler:
         if isinstance(samples, dask_cudf.DataFrame):
             samples.to_parquet(
                 os.path.join(self.__output_path, outer_partition),
-                partition_on=["batch_id", "hop_id"],
+                partition_on=["batch_id"],
             )
         else:
             samples.to_parquet(
