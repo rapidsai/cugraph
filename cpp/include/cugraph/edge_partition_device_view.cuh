@@ -92,16 +92,12 @@ struct local_degree_op_t {
   }
 };
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t>
 class edge_partition_device_view_base_t {
  public:
   edge_partition_device_view_base_t(raft::device_span<edge_t const> offsets,
-                                    raft::device_span<vertex_t const> indices,
-                                    std::optional<raft::device_span<weight_t const>> weights)
-    : offsets_(offsets),
-      indices_(indices),
-      weights_(weights ? thrust::optional<raft::device_span<weight_t const>>(*weights)
-                       : thrust::nullopt)
+                                    raft::device_span<vertex_t const> indices)
+    : offsets_(offsets), indices_(indices)
   {
   }
 
@@ -112,21 +108,15 @@ class edge_partition_device_view_base_t {
 
   __host__ __device__ edge_t const* offsets() const { return offsets_.data(); }
   __host__ __device__ vertex_t const* indices() const { return indices_.data(); }
-  __host__ __device__ thrust::optional<weight_t const*> weights() const
-  {
-    return weights_ ? thrust::optional<weight_t const*>{(*weights_).data()} : thrust::nullopt;
-  }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
-  __device__ thrust::tuple<vertex_t const*, thrust::optional<weight_t const*>, edge_t> local_edges(
+  __device__ thrust::tuple<vertex_t const*, edge_t, edge_t> local_edges(
     vertex_t major_idx) const noexcept
   {
     auto edge_offset  = offsets_[major_idx];
     auto local_degree = offsets_[major_idx + 1] - edge_offset;
     auto indices      = indices_.data() + edge_offset;
-    auto weights = weights_ ? thrust::optional<weight_t const*>{(*weights_).data() + edge_offset}
-                            : thrust::nullopt;
-    return thrust::make_tuple(indices, weights, local_degree);
+    return thrust::make_tuple(indices, edge_offset, local_degree);
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
@@ -142,30 +132,20 @@ class edge_partition_device_view_base_t {
   // should be trivially copyable to device
   raft::device_span<edge_t const> offsets_{nullptr};
   raft::device_span<vertex_t const> indices_{nullptr};
-  thrust::optional<raft::device_span<weight_t const>> weights_{thrust::nullopt};
 };
 
 }  // namespace detail
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename Enable = void>
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 class edge_partition_device_view_t;
 
 // multi-GPU version
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class edge_partition_device_view_t<vertex_t,
-                                   edge_t,
-                                   weight_t,
-                                   multi_gpu,
-                                   std::enable_if_t<multi_gpu>>
-  : public detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public detail::edge_partition_device_view_base_t<vertex_t, edge_t> {
  public:
-  edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
-    : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
-        view.offsets(), view.indices(), view.weights()),
+  edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, multi_gpu> view)
+    : detail::edge_partition_device_view_base_t<vertex_t, edge_t>(view.offsets(), view.indices()),
       dcs_nzd_vertices_(detail::to_thrust_optional(view.dcs_nzd_vertices())),
       major_hypersparse_first_(detail::to_thrust_optional(view.major_hypersparse_first())),
       major_range_first_(view.major_range_first()),
@@ -359,17 +339,12 @@ class edge_partition_device_view_t<vertex_t,
 };
 
 // single-GPU version
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class edge_partition_device_view_t<vertex_t,
-                                   edge_t,
-                                   weight_t,
-                                   multi_gpu,
-                                   std::enable_if_t<!multi_gpu>>
-  : public detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+class edge_partition_device_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public detail::edge_partition_device_view_base_t<vertex_t, edge_t> {
  public:
-  edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
-    : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
-        view.offsets(), view.indices(), view.weights()),
+  edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, multi_gpu> view)
+    : detail::edge_partition_device_view_base_t<vertex_t, edge_t>(view.offsets(), view.indices()),
       number_of_vertices_(view.major_range_last())
   {
   }

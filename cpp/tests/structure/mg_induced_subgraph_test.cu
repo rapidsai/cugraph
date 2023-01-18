@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 
@@ -26,10 +25,11 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -63,28 +63,30 @@ class Tests_MGInducedSubgraph
   {
     auto [induced_subgraph_usecase, input_usecase] = param;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, induced_subgraph_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     int my_rank = handle_->get_comms().get_rank();
 
@@ -138,7 +140,7 @@ class Tests_MGInducedSubgraph
         h_sg_subgraph_offsets[i + 1] = sg_start + vertices.size();
       }
 
-      vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
 
       raft::copy(d_subgraph_vertices.data() + start,
@@ -164,7 +166,7 @@ class Tests_MGInducedSubgraph
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG induced-subgraph");
     }
 
     auto [d_subgraph_edgelist_majors,
@@ -174,16 +176,16 @@ class Tests_MGInducedSubgraph
       cugraph::extract_induced_subgraphs(
         *handle_,
         mg_graph_view,
+        mg_edge_weight_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
-        true);
+        false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG InducedSubgraph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (induced_subgraph_usecase.check_correctness) {
@@ -237,8 +239,12 @@ class Tests_MGInducedSubgraph
                                                         size_t{d_subgraph_offsets.size() - 1},
                                                         handle_->get_stream());
 
-      auto [sg_graph, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_, mg_graph_view, std::optional<rmm::device_uvector<vertex_t>>{std::nullopt}, false);
+      auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        false);
 
       if (my_rank == 0) {
         auto d_sg_subgraph_offsets = cugraph::test::to_device(*handle_, h_sg_subgraph_offsets);
@@ -250,6 +256,7 @@ class Tests_MGInducedSubgraph
           cugraph::extract_induced_subgraphs(
             *handle_,
             sg_graph.view(),
+            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
             raft::device_span<size_t const>(d_sg_subgraph_offsets.data(),
                                             d_sg_subgraph_offsets.size()),
             raft::device_span<vertex_t const>(d_sg_subgraph_vertices.data(),

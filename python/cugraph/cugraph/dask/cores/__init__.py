@@ -12,3 +12,4 @@
 # limitations under the License.
 
 from .core_number import core_number
+from .k_core import k_core

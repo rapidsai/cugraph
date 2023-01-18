@@ -26,7 +26,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -136,7 +136,6 @@ void update_edge_major_property(raft::handle_t const& handle,
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
   auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -166,7 +165,7 @@ void update_edge_major_property(raft::handle_t const& handle,
     auto edge_partition_keys = edge_major_property_output.keys();
     for (int i = 0; i < col_comm_size; ++i) {
       auto edge_partition =
-        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+        edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
           graph_view.local_edge_partition_view(i));
 
       if (i == col_comm_rank) {
@@ -369,7 +368,6 @@ void update_edge_minor_property(raft::handle_t const& handle,
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
   auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -404,7 +402,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     }
 
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(size_t{0}));
     auto edge_partition_keys = edge_minor_property_output.keys();
     for (int i = 0; i < row_comm_size; ++i) {

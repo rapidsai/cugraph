@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,11 @@ import cudf
 import numpy as np
 
 import cugraph
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import (
+    import_optional,
+    MissingModule,
+    create_list_series_from_2d_ar,
+)
 
 pd = import_optional("pandas")
 
@@ -179,6 +183,10 @@ class EXPERIMENTAL__PropertyGraph:
         # values (eg. int64 to float64, since NaN is a float).
         self.__vertex_prop_dtypes = {}
         self.__edge_prop_dtypes = {}
+
+        # Lengths of the properties that are vectors
+        self.__vertex_vector_property_lengths = {}
+        self.__edge_vector_property_lengths = {}
 
         # Add unique edge IDs to the __edge_prop_dataframe by simply
         # incrementing this counter. Remains None if user provides edge IDs.
@@ -494,11 +502,17 @@ class EXPERIMENTAL__PropertyGraph:
         return self.get_vertices()
 
     def add_vertex_data(
-        self, dataframe, vertex_col_name, type_name=None, property_columns=None
+        self,
+        dataframe,
+        vertex_col_name,
+        type_name=None,
+        property_columns=None,
+        vector_properties=None,
+        vector_property=None,
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -516,6 +530,21 @@ class EXPERIMENTAL__PropertyGraph:
             List of column names in dataframe to be added as properties. All
             other columns in the dataframe will be ignored. If not specified, all
             columns in dataframe are added.
+        vector_properties : dict of string to list of strings, optional
+            A dict of vector properties to create from columns in the dataframe.
+            Each vector property stores an array for each vertex.
+            The dict keys are the new vector property names, and the dict values
+            should be Python lists of column names from which to create the vector
+            property. Columns used to create vector properties won't be added to
+            the property graph by default, but may be included as properties by
+            including them in the property_columns argument.
+            Use ``PropertyGraph.vertex_vector_property_to_array`` to convert a
+            vertex vector property to an array.
+        vector_property : string, optional
+            If provided, all columns not included in other arguments will be used
+            to create a vector property with the given name. This is often used
+            for convenience instead of ``vector_properties`` when all input
+            properties should be converted to a vector property.
 
         Returns
         -------
@@ -573,6 +602,14 @@ class EXPERIMENTAL__PropertyGraph:
                     "property_columns contains column(s) not found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
+            existing_vectors = (
+                set(property_columns) & self.__vertex_vector_property_lengths.keys()
+            )
+            if existing_vectors:
+                raise ValueError(
+                    "Non-vector property columns cannot be added to existing "
+                    f"vector properties: {', '.join(sorted(existing_vectors))}"
+                )
 
         # Save the DataFrame and Series types for future instantiations
         if self.__dataframe_type is None or self.__series_type is None:
@@ -585,6 +622,39 @@ class EXPERIMENTAL__PropertyGraph:
                     "the PropertyGraph was already initialized "
                     f"using type {self.__dataframe_type}"
                 )
+        TCN = self.type_col_name
+        if vector_properties is not None:
+            invalid_keys = {self.vertex_col_name, TCN}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            self._check_vector_properties(
+                dataframe,
+                vector_properties,
+                self.__vertex_vector_property_lengths,
+                invalid_keys,
+            )
+        if vector_property is not None:
+            invalid_keys = {self.vertex_col_name, TCN, vertex_col_name}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            if vector_properties:
+                invalid_keys.update(*vector_properties.values())
+            d = {
+                vector_property: [
+                    col for col in dataframe.columns if col not in invalid_keys
+                ]
+            }
+            invalid_keys.remove(vertex_col_name)
+            self._check_vector_properties(
+                dataframe,
+                d,
+                self.__vertex_vector_property_lengths,
+                invalid_keys,
+            )
+            # Update vector_properties, but don't mutate the original
+            if vector_properties is not None:
+                d.update(vector_properties)
+            vector_properties = d
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -592,9 +662,24 @@ class EXPERIMENTAL__PropertyGraph:
         self.__vertex_type_value_counts = None  # Could update instead
 
         # Add `type_name` to the TYPE categorical dtype if necessary
-        TCN = self.type_col_name
         is_first_data = self.__vertex_prop_dataframe is None
         if is_first_data:
+            # Initialize the __vertex_prop_dataframe using the same type
+            # as the incoming dataframe.
+            self.__vertex_prop_dataframe = self.__dataframe_type(
+                columns=[self.vertex_col_name, TCN]
+            )
+            # Initialize the new columns to the same dtype as the appropriate
+            # column in the incoming dataframe, since the initial merge may not
+            # result in the same dtype. (see
+            # https://github.com/rapidsai/cudf/issues/9981)
+            self.__vertex_prop_dataframe = self.__update_dataframe_dtypes(
+                self.__vertex_prop_dataframe,
+                {self.vertex_col_name: dataframe[vertex_col_name].dtype},
+            )
+            self.__vertex_prop_dataframe.set_index(self.vertex_col_name, inplace=True)
+
+            # Use categorical dtype for the type column
             if self.__series_type is cudf.Series:
                 cat_class = cudf.CategoricalDtype
             else:
@@ -634,6 +719,15 @@ class EXPERIMENTAL__PropertyGraph:
             )
         else:
             column_names_to_drop = {vertex_col_name}
+        if vector_properties:
+            # Drop vector property source columns by default
+            more_to_drop = set().union(*vector_properties.values())
+            if property_columns is not None:
+                more_to_drop.difference_update(property_columns)
+            column_names_to_drop |= more_to_drop
+            column_names_to_drop -= vector_properties.keys()
+            self._create_vector_properties(tmp_df, vector_properties)
+
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
         # Save the original dtypes for each new column so they can be restored
@@ -735,11 +829,14 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -755,7 +852,16 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            return df.reset_index()
+
+            # Should not drop to ensure vertex ids are returned as a column.
+            df_out = df.reset_index(drop=False)
+
+            # Preserve the dtype (vertex id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__vertex_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
+            return df_out
         return None
 
     def add_edge_data(
@@ -765,6 +871,8 @@ class EXPERIMENTAL__PropertyGraph:
         edge_id_col_name=None,
         type_name=None,
         property_columns=None,
+        vector_properties=None,
+        vector_property=None,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -792,6 +900,21 @@ class EXPERIMENTAL__PropertyGraph:
             List of column names in the dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             property columns in the dataframe are added.
+        vector_properties : dict of string to list of strings, optional
+            A dict of vector properties to create from columns in the dataframe.
+            Each vector property stores an array for each edge.
+            The dict keys are the new vector property names, and the dict values
+            should be Python lists of column names from which to create the vector
+            property. Columns used to create vector properties won't be added to
+            the property graph by default, but may be included as properties by
+            including them in the property_columns argument.
+            Use ``PropertyGraph.edge_vector_property_to_array`` to convert an
+            edge vector property to an array.
+        vector_property : string, optional
+            If provided, all columns not included in other arguments will be used
+            to create a vector property with the given name. This is often used
+            for convenience instead of ``vector_properties`` when all input
+            properties should be converted to a vector property.
 
         Returns
         -------
@@ -855,6 +978,14 @@ class EXPERIMENTAL__PropertyGraph:
                     "property_columns contains column(s) not found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
+            existing_vectors = (
+                set(property_columns) & self.__vertex_vector_property_lengths.keys()
+            )
+            if existing_vectors:
+                raise ValueError(
+                    "Non-vector property columns cannot be added to existing "
+                    f"vector properties: {', '.join(sorted(existing_vectors))}"
+                )
 
         # Save the DataFrame and Series types for future instantiations
         if self.__dataframe_type is None or self.__series_type is None:
@@ -880,15 +1011,71 @@ class EXPERIMENTAL__PropertyGraph:
                 "edge data must be added using automatically generated IDs."
             )
 
+        TCN = self.type_col_name
+        if vector_properties is not None:
+            invalid_keys = {self.src_col_name, self.dst_col_name, TCN}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            self._check_vector_properties(
+                dataframe,
+                vector_properties,
+                self.__edge_vector_property_lengths,
+                invalid_keys,
+            )
+        if vector_property is not None:
+            invalid_keys = {
+                self.src_col_name,
+                self.dst_col_name,
+                TCN,
+                vertex_col_names[0],
+                vertex_col_names[1],
+            }
+            if property_columns:
+                invalid_keys.update(property_columns)
+            if vector_properties:
+                invalid_keys.update(*vector_properties.values())
+            d = {
+                vector_property: [
+                    col for col in dataframe.columns if col not in invalid_keys
+                ]
+            }
+            invalid_keys.difference_update(vertex_col_names)
+            self._check_vector_properties(
+                dataframe,
+                d,
+                self.__edge_vector_property_lengths,
+                invalid_keys,
+            )
+            # Update vector_properties, but don't mutate the original
+            if vector_properties is not None:
+                d.update(vector_properties)
+            vector_properties = d
+
         # Clear the cached value for num_vertices since more could be added in
         # this method. This method cannot affect __node_type_value_counts
         self.__num_vertices = None
         self.__edge_type_value_counts = None  # Could update instead
 
         # Add `type_name` to the categorical dtype if necessary
-        TCN = self.type_col_name
         is_first_data = self.__edge_prop_dataframe is None
         if is_first_data:
+            self.__edge_prop_dataframe = self.__dataframe_type(
+                columns=[self.src_col_name, self.dst_col_name, TCN]
+            )
+            # Initialize the new columns to the same dtype as the appropriate
+            # column in the incoming dataframe, since the initial merge may not
+            # result in the same dtype. (see
+            # https://github.com/rapidsai/cudf/issues/9981)
+            self.__edge_prop_dataframe = self.__update_dataframe_dtypes(
+                self.__edge_prop_dataframe,
+                {
+                    self.src_col_name: dataframe[vertex_col_names[0]].dtype,
+                    self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
+                },
+            )
+            self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+
+            # Use categorical dtype for the type column
             if self.__series_type is cudf.Series:
                 cat_class = cudf.CategoricalDtype
             else:
@@ -941,6 +1128,16 @@ class EXPERIMENTAL__PropertyGraph:
             )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
+
+        if vector_properties:
+            # Drop vector property source columns by default
+            more_to_drop = set().union(*vector_properties.values())
+            if property_columns is not None:
+                more_to_drop.difference_update(property_columns)
+            column_names_to_drop |= more_to_drop
+            column_names_to_drop -= vector_properties.keys()
+            self._create_vector_properties(tmp_df, vector_properties)
+
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
         # Save the original dtypes for each new column so they can be restored
@@ -1033,11 +1230,14 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1060,7 +1260,16 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            return df.reset_index()
+
+            # Should not drop so the edge ids are returned as a column.
+            df_out = df.reset_index()
+
+            # Preserve the dtype (edge id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__edge_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
+            return df_out
 
         return None
 
@@ -1635,9 +1844,14 @@ class EXPERIMENTAL__PropertyGraph:
 
         return G
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(self, prev_id_column=None):
         """
         Renumber vertex IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the vertex ID before renumbering.
 
         Returns
         -------
@@ -1681,6 +1895,13 @@ class EXPERIMENTAL__PropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+        if (
+            prev_id_column is not None
+            and prev_id_column in self.__vertex_prop_dataframe
+        ):
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
@@ -1695,7 +1916,9 @@ class EXPERIMENTAL__PropertyGraph:
                 TCN
             ].astype(cat_dtype)
 
+        index_dtype = self.__vertex_prop_dataframe.index.dtype
         df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
+        df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
             self.__edge_prop_dataframe[self.src_col_name] = self.__edge_prop_dataframe[
@@ -1704,7 +1927,10 @@ class EXPERIMENTAL__PropertyGraph:
             self.__edge_prop_dataframe[self.dst_col_name] = self.__edge_prop_dataframe[
                 self.dst_col_name
             ].map(mapper)
-        df.drop(columns=[self.vertex_col_name], inplace=True)
+        if prev_id_column is None:
+            df.drop(columns=[self.vertex_col_name], inplace=True)
+        else:
+            df.rename(columns={self.vertex_col_name: prev_id_column}, inplace=True)
         df.index.name = self.vertex_col_name
         self.__vertex_prop_dataframe = df
         rv = self._vertex_type_value_counts.sort_index().cumsum().to_frame("stop")
@@ -1712,9 +1938,14 @@ class EXPERIMENTAL__PropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def renumber_edges_by_type(self):
+    def renumber_edges_by_type(self, prev_id_column=None):
         """
         Renumber edge IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
 
         Returns
         -------
@@ -1753,9 +1984,12 @@ class EXPERIMENTAL__PropertyGraph:
         """
         TCN = self.type_col_name
 
-        # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        if prev_id_column is not None and prev_id_column in self.__edge_prop_dataframe:
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
@@ -1770,14 +2004,196 @@ class EXPERIMENTAL__PropertyGraph:
                 cat_dtype
             )
 
-        self.__edge_prop_dataframe = self.__edge_prop_dataframe.sort_values(
-            by=TCN, ignore_index=True
-        )
-        self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+        df = self.__edge_prop_dataframe
+        index_dtype = df.index.dtype
+        if prev_id_column is None:
+            df = df.sort_values(by=TCN, ignore_index=True)
+        else:
+            df = df.sort_values(by=TCN)
+            df.index.name = prev_id_column
+            df.reset_index(inplace=True)
+        df.index = df.index.astype(index_dtype)
+        df.index.name = self.edge_id_col_name
+        self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
+
+    def vertex_vector_property_to_array(
+        self, df, col_name, fillvalue=None, *, missing="ignore"
+    ):
+        """Convert a known vertex vector property in a DataFrame to an array.
+
+        Parameters
+        ----------
+        df : cudf.DataFrame or pandas.DataFrame
+            If cudf.DataFrame, the result will be a cupy.ndarray.
+            If pandas.DataFrame, the result will be a numpy.ndarray.
+        col_name : str
+            The column name in the DataFrame to convert to an array.
+            This vector property should have been created by PropertyGraph.
+        fillvalue : scalar or list, optional (default None)
+            Fill value for rows with missing vector data.  If it is a list,
+            it must be the correct size of the vector property.  If fillvalue is None,
+            then behavior if missing data is controlled by ``missing`` keyword.
+            Leave this as None for better performance if all rows should have data.
+        missing : {"ignore", "error"}
+            If "ignore", empty or null rows without vector data will be skipped
+            when creating the array, so output array shape will be
+            [# of non-empty rows] by [size of vector property].
+            When "error", RuntimeError will be raised if there are any empty rows.
+            Ignored if fillvalue is given.
+
+        Returns
+        -------
+        cupy.ndarray or numpy.ndarray
+        """
+        if col_name not in self.__vertex_vector_property_lengths:
+            raise ValueError(f"{col_name!r} is not a known vertex vector property")
+        length = self.__vertex_vector_property_lengths[col_name]
+        return self._get_vector_property(df, col_name, length, fillvalue, missing)
+
+    def edge_vector_property_to_array(
+        self, df, col_name, fillvalue=None, *, missing="ignore"
+    ):
+        """Convert a known edge vector property in a DataFrame to an array.
+
+        Parameters
+        ----------
+        df : cudf.DataFrame or pandas.DataFrame
+            If cudf.DataFrame, the result will be a cupy.ndarray.
+            If pandas.DataFrame, the result will be a numpy.ndarray.
+        col_name : str
+            The column name in the DataFrame to convert to an array.
+            This vector property should have been created by PropertyGraph.
+        fillvalue : scalar or list, optional (default None)
+            Fill value for rows with missing vector data.  If it is a list,
+            it must be the correct size of the vector property.  If fillvalue is None,
+            then behavior if missing data is controlled by ``missing`` keyword.
+            Leave this as None for better performance if all rows should have data.
+        missing : {"ignore", "error"}
+            If "ignore", empty or null rows without vector data will be skipped
+            when creating the array, so output array shape will be
+            [# of non-empty rows] by [size of vector property].
+            When "error", RuntimeError will be raised if there are any empty rows.
+            Ignored if fillvalue is given.
+
+        Returns
+        -------
+        cupy.ndarray or numpy.ndarray
+        """
+        if col_name not in self.__edge_vector_property_lengths:
+            raise ValueError(f"{col_name!r} is not a known edge vector property")
+        length = self.__edge_vector_property_lengths[col_name]
+        return self._get_vector_property(df, col_name, length, fillvalue, missing)
+
+    def _check_vector_properties(
+        self, df, vector_properties, vector_property_lengths, invalid_keys
+    ):
+        """Check if vector_properties is valid and update vector_property_lengths"""
+        df_cols = set(df.columns)
+        for key, columns in vector_properties.items():
+            if key in invalid_keys:
+                raise ValueError(
+                    "Cannot assign new vector property to existing "
+                    f"non-vector property: {key}"
+                )
+            if isinstance(columns, str):
+                # If df[columns] is a ListDtype column, should we allow it?
+                raise TypeError(
+                    f"vector property columns for {key!r} should be a list; "
+                    f"got a str ({columns!r})"
+                )
+            if not df_cols.issuperset(columns):
+                missing = ", ".join(set(columns) - df_cols)
+                raise ValueError(
+                    f"Dataframe does not have columns for vector property {key!r}:"
+                    f"{missing}"
+                )
+            if not columns:
+                raise ValueError("Empty vector property columns for {key!r}!")
+            if vector_property_lengths.get(key, len(columns)) != len(columns):
+                prev_length = vector_property_lengths[key]
+                new_length = len(columns)
+                raise ValueError(
+                    f"Wrong size for vector property {key}; got {new_length}, but "
+                    f"this vector property already exists with size {prev_length}"
+                )
+        for key, columns in vector_properties.items():
+            vector_property_lengths[key] = len(columns)
+
+    @staticmethod
+    def _create_vector_properties(df, vector_properties):
+        vectors = {}
+        for key, columns in vector_properties.items():
+            values = df[columns].values
+            if isinstance(df, cudf.DataFrame):
+                vectors[key] = create_list_series_from_2d_ar(values, index=df.index)
+            else:
+                vectors[key] = [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        np.ascontiguousarray(values, like=values), len(df)
+                    )
+                ]
+        for key, vec in vectors.items():
+            df[key] = vec
+
+    def _get_vector_property(self, df, col_name, length, fillvalue, missing):
+        if type(df) is not self.__dataframe_type:
+            raise TypeError(
+                f"Expected type {self.__dataframe_type}; got type {type(df)}"
+            )
+        if col_name not in df.columns:
+            raise ValueError(f"Column name {col_name} is not in the columns of df")
+        if missing not in {"error", "ignore"}:
+            raise ValueError(
+                f'missing keyword must be one of "error" or "ignore"; got {missing!r}'
+            )
+        if fillvalue is not None:
+            try:
+                fill = list(fillvalue)
+            except Exception:
+                fill = [fillvalue] * length
+            else:
+                if len(fill) != length:
+                    raise ValueError(
+                        f"Wrong size of list as fill value; got {len(fill)}, "
+                        f"expected {length}"
+                    )
+            s = df[col_name].copy()  # copy b/c we mutate below
+        else:
+            s = df[col_name]
+        if self.__series_type is cudf.Series:
+            if df.dtypes[col_name] != "list":
+                raise TypeError(
+                    "Wrong dtype for vector property; expected 'list', "
+                    f"got {df.dtypes[col_name]}"
+                )
+            if fillvalue is not None:
+                s[s.isnull()] = fill
+            # This returns a writable view (i.e., no copies!)
+            rv = s._data.columns[0].children[-1].values.reshape(-1, length)
+        else:
+            if df.dtypes[col_name] != object:
+                raise TypeError(
+                    "Wrong dtype for vector property; expected 'object', "
+                    f"got {df.dtypes[col_name]}"
+                )
+            if fillvalue is not None:
+                a = np.empty(1, dtype=object)
+                a[0] = np.array(fill)
+                s[s.isnull()] = a
+            else:
+                s = s[s.notnull()]
+            rv = np.vstack(s.to_numpy())
+        if fillvalue is None and missing == "error" and rv.shape[0] != len(df):
+            raise RuntimeError(
+                f"Vector property {col_name!r} has empty rows! "
+                'Provide a fill value or use `missing="ignore"` to ignore empty rows.'
+            )
+        return rv
 
     def is_multi_gpu(self):
         """

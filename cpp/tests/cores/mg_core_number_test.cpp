@@ -16,7 +16,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -27,10 +26,11 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -67,26 +67,27 @@ class Tests_MGCoreNumber
   {
     using weight_t = float;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -99,7 +100,7 @@ class Tests_MGCoreNumber
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Core number");
     }
 
     cugraph::core_number(*handle_,
@@ -112,9 +113,8 @@ class Tests_MGCoreNumber
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG Core Number took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. copmare SG & MG results
@@ -135,8 +135,8 @@ class Tests_MGCoreNumber
 
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             *handle_, input_usecase, false, false, true, true);
 

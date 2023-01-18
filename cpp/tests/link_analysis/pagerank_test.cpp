@@ -15,7 +15,6 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -24,9 +23,10 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -154,25 +154,26 @@ class Tests_PageRank
     auto [pagerank_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, input_usecase, pagerank_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     std::optional<std::vector<vertex_t>> h_personalization_vertices{std::nullopt};
     std::optional<std::vector<result_t>> h_personalization_values{std::nullopt};
@@ -232,12 +233,13 @@ class Tests_PageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("PageRank");
     }
 
     cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       graph_view,
+      edge_weight_view,
       std::nullopt,
       d_personalization_vertices
         ? std::optional<vertex_t const*>{(*d_personalization_vertices).data()}
@@ -255,26 +257,37 @@ class Tests_PageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "PageRank took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (pagerank_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, true, false> unrenumbered_graph(handle);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        unrenumbered_edge_weights{std::nullopt};
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             handle, input_usecase, pagerank_usecase.test_weighted, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      auto unrenumbered_edge_weight_view =
+        renumber
+          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
+                                       : std::nullopt)
+          : edge_weight_view;
 
       auto h_offsets = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
       auto h_indices = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().indices());
       auto h_weights = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().weights());
+        handle,
+        unrenumbered_edge_weights ? std::make_optional<raft::device_span<weight_t const>>(
+                                      (*unrenumbered_edge_weights).view().value_firsts()[0],
+                                      (*unrenumbered_edge_weights).view().edge_counts()[0])
+                                  : std::nullopt);
 
       std::optional<std::vector<vertex_t>> h_unrenumbered_personalization_vertices{std::nullopt};
       std::optional<std::vector<result_t>> h_unrenumbered_personalization_values{std::nullopt};

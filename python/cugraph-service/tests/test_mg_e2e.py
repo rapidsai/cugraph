@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ from pathlib import Path
 import pytest
 import cupy as cp
 
+from cugraph_service_server.testing import utils
 from . import data
-from . import utils
 
 
 ###############################################################################
@@ -42,7 +42,7 @@ def mg_server():
     from cugraph_service_client.exceptions import CugraphServiceError
 
     server_process = None
-    host = "localhost"
+    host = "0.0.0.0"
     port = 9090
     client = CugraphServiceClient(host, port)
 
@@ -56,22 +56,23 @@ def mg_server():
         # testing is done.
 
         dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
+        start_local_cuda_cluster = False
         if dask_scheduler_file is None:
-            raise EnvironmentError(
-                "Environment variable SCHEDULER_FILE must "
-                "be set to the path to a dask scheduler "
-                "json file"
-            )
-        dask_scheduler_file = Path(dask_scheduler_file)
-        if not dask_scheduler_file.exists():
-            raise FileNotFoundError(
-                "env var SCHEDULER_FILE is set to "
-                f"{dask_scheduler_file}, which does not "
-                "exist."
-            )
+            start_local_cuda_cluster = True
+        else:
+            dask_scheduler_file = Path(dask_scheduler_file)
+            if not dask_scheduler_file.exists():
+                raise FileNotFoundError(
+                    "env var SCHEDULER_FILE is set to "
+                    f"{dask_scheduler_file}, which does not "
+                    "exist."
+                )
 
         server_process = utils.start_server_subprocess(
-            host=host, port=port, dask_scheduler_file=dask_scheduler_file
+            host=host,
+            port=port,
+            start_local_cuda_cluster=start_local_cuda_cluster,
+            dask_scheduler_file=dask_scheduler_file,
         )
 
         # yield control to the tests, cleanup on return
@@ -257,7 +258,7 @@ def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded)
     # graph type. Ideally, users should not need to know the graph type.
     assert "MG" in client_of_mg_server._get_graph_type()
 
-    graph_id = client_of_mg_server.extract_subgraph(allow_multi_edges=True)
+    graph_id = client_of_mg_server.extract_subgraph(check_multi_edges=True)
     client_of_mg_server.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
 
@@ -478,3 +479,27 @@ def test_extension_adds_graph(
     # is unloaded from the server before returning
     for mod_name in ext_mod_names:
         client.unload_extension_module(mod_name)
+
+
+def test_inside_asyncio_event_loop(
+    client_of_sg_server_on_device_1_large_property_graph_loaded, result_device_id
+):
+    import asyncio
+
+    client, graph_id = client_of_sg_server_on_device_1_large_property_graph_loaded
+
+    start_list = [1, 2, 3]
+    fanout_vals = [2, 2, 2]
+    with_replacement = True
+
+    async def uns():
+        return client.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=graph_id,
+            result_device=result_device_id,
+        )
+
+    # ensure call succeeds; have confirmed this fails without fix in client
+    assert asyncio.run(uns()) is not None

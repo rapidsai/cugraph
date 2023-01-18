@@ -162,5 +162,71 @@ collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, double, true>(
   double default_value,
   bool do_expensive_check);
 
+template rmm::device_uvector<int32_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, int32_t, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  rmm::device_uvector<int32_t>&& d_values,
+  rmm::device_uvector<int32_t> const& number_map,
+  int32_t local_vertex_first,
+  int32_t local_vertex_last,
+  int32_t default_value,
+  bool do_expensive_check);
+
+template rmm::device_uvector<int64_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, int64_t, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  rmm::device_uvector<int64_t>&& d_values,
+  rmm::device_uvector<int32_t> const& number_map,
+  int32_t local_vertex_first,
+  int32_t local_vertex_last,
+  int64_t default_value,
+  bool do_expensive_check);
+
+template rmm::device_uvector<int64_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  rmm::device_uvector<int64_t>&& d_values,
+  rmm::device_uvector<int64_t> const& number_map,
+  int64_t local_vertex_first,
+  int64_t local_vertex_last,
+  int64_t default_value,
+  bool do_expensive_check);
+
+template rmm::device_uvector<int32_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, int32_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  rmm::device_uvector<int32_t>&& d_values,
+  rmm::device_uvector<int32_t> const& number_map,
+  int32_t local_vertex_first,
+  int32_t local_vertex_last,
+  int32_t default_value,
+  bool do_expensive_check);
+
+template rmm::device_uvector<int64_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int32_t, int64_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  rmm::device_uvector<int64_t>&& d_values,
+  rmm::device_uvector<int32_t> const& number_map,
+  int32_t local_vertex_first,
+  int32_t local_vertex_last,
+  int64_t default_value,
+  bool do_expensive_check);
+
+template rmm::device_uvector<int64_t>
+collect_local_vertex_values_from_ext_vertex_value_pairs<int64_t, int64_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  rmm::device_uvector<int64_t>&& d_values,
+  rmm::device_uvector<int64_t> const& number_map,
+  int64_t local_vertex_first,
+  int64_t local_vertex_last,
+  int64_t default_value,
+  bool do_expensive_check);
+
 }  // namespace detail
 }  // namespace cugraph

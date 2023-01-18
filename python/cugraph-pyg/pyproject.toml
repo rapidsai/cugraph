@@ -1,0 +1,13 @@
+# Copyright (c) 2022, NVIDIA CORPORATION.
+
+[build-system]
+
+requires = [
+    "wheel",
+    "setuptools",
+    "scikit-build>=0.13.1",
+    "ninja",
+]
+
+[tool.black]
+extend-exclude = "versioneer.py"

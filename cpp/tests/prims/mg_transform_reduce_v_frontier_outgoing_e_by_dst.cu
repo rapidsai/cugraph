@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -29,17 +28,18 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/edge_partition_view.hpp>
-#include <cugraph/graph_view.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <sstream>
@@ -63,7 +63,8 @@ struct e_op_t {
   __device__ auto operator()(key_t optionally_tagged_src,
                              vertex_t dst,
                              property_t src_val,
-                             property_t dst_val) const
+                             property_t dst_val,
+                             thrust::nullopt_t) const
   {
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       if constexpr (std::is_same_v<payload_t, void>) {
@@ -124,7 +125,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       static_assert(thrust::tuple_size<payload_t>::value == size_t{2});
     }
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
@@ -135,19 +136,20 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, is_multi_gpu> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu>(
         *handle_, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -195,7 +197,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG transform_reduce_v_frontier_outgoing_e_by_dst");
     }
 
     auto mg_new_frontier_key_buffer =
@@ -210,6 +212,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         mg_vertex_frontier.bucket(bucket_idx_cur),
         mg_src_prop.view(),
         mg_dst_prop.view(),
+        cugraph::edge_dummy_property_t{}.view(),
         e_op_t<key_t, vertex_t, property_t, payload_t>{},
         cugraph::reduce_op::null{});
     } else {
@@ -220,6 +223,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
           mg_vertex_frontier.bucket(bucket_idx_cur),
           mg_src_prop.view(),
           mg_dst_prop.view(),
+          cugraph::edge_dummy_property_t{}.view(),
           e_op_t<key_t, vertex_t, property_t, payload_t>{},
           cugraph::reduce_op::plus<payload_t>{});
     }
@@ -227,10 +231,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG transform_reduce_v_frontier_outgoing_e_by_dst took " << elapsed_time * 1e-6
-                << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. compare SG & MG results
@@ -298,11 +300,11 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             cugraph::get_dataframe_buffer_begin(mg_aggregate_payload_buffer));
         }
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, !is_multi_gpu> sg_graph(
-          *handle_);
-        std::tie(sg_graph, std::ignore) = cugraph::test::
+        cugraph::graph_t<vertex_t, edge_t, store_transposed, !is_multi_gpu> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::
           construct_graph<vertex_t, edge_t, weight_t, store_transposed, !is_multi_gpu>(
             *handle_, input_usecase, false, false);
+
         auto sg_graph_view = sg_graph.view();
 
         auto sg_vertex_prop = cugraph::test::generate<vertex_t, property_t>::vertex_property(
@@ -350,6 +352,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             sg_vertex_frontier.bucket(bucket_idx_cur),
             sg_src_prop.view(),
             sg_dst_prop.view(),
+            cugraph::edge_dummy_property_t{}.view(),
             e_op_t<key_t, vertex_t, property_t, payload_t>{},
             cugraph::reduce_op::null{});
         } else {
@@ -360,6 +363,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
               sg_vertex_frontier.bucket(bucket_idx_cur),
               sg_src_prop.view(),
               sg_dst_prop.view(),
+              cugraph::edge_dummy_property_t{}.view(),
               e_op_t<key_t, vertex_t, property_t, payload_t>{},
               cugraph::reduce_op::plus<payload_t>{});
         }

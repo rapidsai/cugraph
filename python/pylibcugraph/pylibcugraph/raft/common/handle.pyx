@@ -39,14 +39,14 @@ cdef class Handle:
 
     .. code-block:: python
 
-        from raft.common import Stream, Handle
+        from pylibraft.common import Stream, Handle
         stream = Stream()
         handle = Handle(stream)
 
         # call algos here
 
         # final sync of all work launched in the stream of this handle
-        # this is same as `raft.cuda.Stream.sync()` call, but safer in case
+        # this is same as `pylibraft.cuda.Stream.sync()` call, but safer in case
         # the default stream inside the `handle_t` is being used
         handle.sync()
         del handle  # optional!

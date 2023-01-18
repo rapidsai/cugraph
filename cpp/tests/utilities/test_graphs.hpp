@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -202,10 +202,11 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     CUGRAPH_EXPECTS(
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
       "Invalid template parameter: scale_ too large for vertex_t.");
-    // generate in multi-partitions to limit peak memory usage (thrust::sort &
-    // shuffle_edgelist_by_gpu_id requires a temporary buffer with the size of the original data)
-    // With the current implementation, the temporary memory requirement is roughly 50% of the
-    // original data with num_partitions_per_gpu = 2. If we use cuMemAddressReserve
+    // Generate in multi-partitions to limit peak memory usage (thrust::sort &
+    // shuffle_vertex_pairs_to_local_gpu_by_edge_partitioning requires a temporary buffer with the
+    // size of the original data). With the current implementation, the temporary memory requirement
+    // is roughly 50% of the original data with num_partitions_per_gpu = 2. If we use
+    // cuMemAddressReserve
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
     size_t constexpr num_partitions_per_gpu = 2;
@@ -304,12 +305,17 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       if (multi_gpu) {
         std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
                  store_transposed ? tmp_src_v : tmp_dst_v,
-                 tmp_weights_v) =
-          cugraph::detail::shuffle_edgelist_by_gpu_id(
+                 tmp_weights_v,
+                 std::ignore) =
+          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                      vertex_t,
+                                                                                      weight_t,
+                                                                                      int32_t>(
             handle,
             store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
             store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
-            std::move(tmp_weights_v));
+            std::move(tmp_weights_v),
+            std::nullopt);
       }
 
       src_partitions.push_back(std::move(tmp_src_v));
@@ -354,7 +360,8 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     translate(handle, vertex_v);
 
     if (multi_gpu) {
-      vertex_v = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(vertex_v));
+      vertex_v = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(vertex_v));
     }
 
     return std::make_tuple(
@@ -598,7 +605,10 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu,
           typename input_usecase_t>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<cugraph::edge_property_t<
+             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+             weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 construct_graph(raft::handle_t const& handle,
                 input_usecase_t const& input_usecase,
@@ -617,9 +627,12 @@ construct_graph(raft::handle_t const& handle,
 
   if (drop_multi_edges) { sort_and_remove_multi_edges(handle, d_src_v, d_dst_v, d_weights_v); }
 
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, std::ignore, renumber_map) = cugraph::
+  std::tie(graph, edge_weights, std::ignore, renumber_map) = cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(d_vertices_v),
@@ -630,7 +643,7 @@ construct_graph(raft::handle_t const& handle,
       cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
       renumber);
 
-  return std::make_tuple(std::move(graph), std::move(renumber_map));
+  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }
 
 namespace legacy {

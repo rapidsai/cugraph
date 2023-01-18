@@ -12,33 +12,42 @@
 # limitations under the License.
 
 import os
-import shutil
 
 from setuptools import find_packages, Command
 from skbuild import setup
 
-from setuputils import get_environment_option
-
 import versioneer
 
 
-INSTALL_REQUIRES = ["numba", "cython"]
+cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 
-CUDA_HOME = get_environment_option("CUDA_HOME")
+INSTALL_REQUIRES = [
+    "numba",
+    "dask-cuda",
+    f"rmm{cuda_suffix}",
+    f"cudf{cuda_suffix}",
+    f"raft-dask{cuda_suffix}",
+    f"dask-cudf{cuda_suffix}",
+    f"pylibcugraph{cuda_suffix}",
+    "cupy-cuda11x",
+]
 
-if not CUDA_HOME:
-    path_to_cuda_gdb = shutil.which("cuda-gdb")
-    if path_to_cuda_gdb is None:
-        raise OSError(
-            "Could not locate CUDA. "
-            "Please set the environment variable "
-            "CUDA_HOME to the path to the CUDA installation "
-            "and try again."
-        )
-    CUDA_HOME = os.path.dirname(os.path.dirname(path_to_cuda_gdb))
-
-if not os.path.isdir(CUDA_HOME):
-    raise OSError("Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}")
+extras_require = {
+    "test": [
+        "pytest",
+        "pytest-xdist",
+        "pytest-benchmark",
+        "scipy",
+        "numpy",
+        "pandas",
+        "networkx>=2.5.1",
+        "scikit-learn>=0.23.1",
+        "python-louvain",
+        # cudf will use fsspec but is protocol independent. cugraph tests
+        # specifically require http for the test files it asks cudf to read.
+        "fsspec[http]>=0.6.0",
+    ]
+}
 
 
 class CleanCommand(Command):
@@ -69,6 +78,7 @@ class CleanCommand(Command):
 
 cmdclass = versioneer.get_cmdclass()
 cmdclass["clean"] = CleanCommand
+
 PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
 PACKAGE_DATA["cugraph.experimental.datasets"].extend(
@@ -79,8 +89,22 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 )
 
 
+# Ensure that wheel version patching works for nightlies.
+if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
+    orig_get_versions = versioneer.get_versions
+
+    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
+
+    def get_versions():
+        data = orig_get_versions()
+        data["version"] = version_override
+        return data
+
+    versioneer.get_versions = get_versions
+
+
 setup(
-    name="cugraph",
+    name=f"cugraph{cuda_suffix}",
     description="cuGraph - RAPIDS GPU Graph Analytics",
     version=versioneer.get_version(),
     classifiers=[
@@ -93,12 +117,12 @@ setup(
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
-    setup_requires=["Cython>=0.29,<0.30"],
     packages=find_packages(include=["cugraph", "cugraph.*"]),
     package_data=PACKAGE_DATA,
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
-    license="Apache",
+    license="Apache 2.0",
     cmdclass=cmdclass,
     zip_safe=False,
+    extras_require=extras_require,
 )

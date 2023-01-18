@@ -19,7 +19,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cstddef>
@@ -33,13 +33,6 @@
  */
 
 namespace cugraph {
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-struct edgelist_t {
-  raft::device_span<vertex_t const> srcs{};
-  raft::device_span<vertex_t const> dsts{};
-  std::optional<raft::device_span<weight_t const>> weights{};
-};
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 struct graph_meta_t;
@@ -72,53 +65,35 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
 // graph_t is an owning graph class (note that graph_view_t is a non-owning graph class)
 template <typename vertex_t,
           typename edge_t,
-          typename weight_t,
           bool store_transposed,
           bool multi_gpu,
           typename Enable = void>
 class graph_t;
 
 // multi-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
-  : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public detail::graph_base_t<vertex_t, edge_t> {
  public:
   using vertex_type                           = vertex_t;
   using edge_type                             = edge_t;
-  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu          = multi_gpu;
 
-  graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
-
-  // FIXME: to be deleted once we retire cython.cu
-  graph_t(raft::handle_t const& handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check = false);
+  graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t>() {}
 
   graph_t(
     raft::handle_t const& handle,
     std::vector<rmm::device_uvector<edge_t>>&& edge_partition_offsets,
     std::vector<rmm::device_uvector<vertex_t>>&& edge_partition_indices,
-    std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_partition_weights,
     std::optional<std::vector<rmm::device_uvector<vertex_t>>>&& edge_partition_dcs_nzd_vertices,
     graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
     bool do_expensive_check = false);
 
-  bool is_weighted() const { return edge_partition_weights_.has_value(); }
-
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
     std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-    auto weights = edge_partition_weights_ ? std::make_optional<std::vector<weight_t const*>>(
-                                               (*edge_partition_weights_).size(), nullptr)
-                                           : std::nullopt;
     auto dcs_nzd_vertices      = edge_partition_dcs_nzd_vertices_
                                    ? std::make_optional<std::vector<vertex_t const*>>(
                                   (*edge_partition_dcs_nzd_vertices_).size(), nullptr)
@@ -130,7 +105,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = edge_partition_offsets_[i].data();
       indices[i] = edge_partition_indices_[i].data();
-      if (weights) { (*weights)[i] = (*edge_partition_weights_)[i].data(); }
       if (dcs_nzd_vertices) {
         (*dcs_nzd_vertices)[i]      = (*edge_partition_dcs_nzd_vertices_)[i].data();
         (*dcs_nzd_vertex_counts)[i] = (*edge_partition_dcs_nzd_vertex_counts_)[i];
@@ -221,11 +195,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       }
     }
 
-    return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
       offsets,
       indices,
-      weights,
       dcs_nzd_vertices,
       dcs_nzd_vertex_counts,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
@@ -247,7 +220,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
  private:
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices_{};
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{std::nullopt};
 
   // nzd: nonzero (local) degree
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
@@ -291,47 +263,32 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 };
 
 // single-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
-  : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public detail::graph_base_t<vertex_t, edge_t> {
  public:
   using vertex_type                           = vertex_t;
   using edge_type                             = edge_t;
-  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu          = multi_gpu;
 
   graph_t(raft::handle_t const& handle)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
+    : detail::graph_base_t<vertex_t, edge_t>(),
       offsets_(0, handle.get_stream()),
       indices_(0, handle.get_stream()){};
-
-  // FIXME: to be deleted once we retire cython.cu
-  graph_t(raft::handle_t const& handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
           rmm::device_uvector<edge_t>&& offsets,
           rmm::device_uvector<vertex_t>&& indices,
-          std::optional<rmm::device_uvector<weight_t>>&& weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
-  bool is_weighted() const { return weights_.has_value(); }
-
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
-    return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
       offsets_.data(),
       indices_.data(),
-      weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{this->number_of_vertices(),
                                                                        this->number_of_edges(),
                                                                        this->graph_properties(),
@@ -341,7 +298,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
  private:
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
-  std::optional<rmm::device_uvector<weight_t>> weights_{std::nullopt};
 
   // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
   std::optional<std::vector<vertex_t>> segment_offsets_{};

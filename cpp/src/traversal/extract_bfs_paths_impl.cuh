@@ -27,7 +27,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -137,10 +137,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> shrink_ex
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   vertex_t const* distances,
   vertex_t const* predecessors,
   vertex_t const* destinations,

@@ -75,16 +75,12 @@ def test_leiden(graph_file):
 
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_leiden_nx(graph_file):
-    edgevals = True
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
 
-    if edgevals:
-        G = nx.from_pandas_edgelist(NM, create_using=nx.Graph(), source="0", target="1")
-    else:
-        G = nx.from_pandas_edgelist(
-            NM, create_using=nx.Graph(), source="0", target="1", edge_attr="2"
-        )
+    G = nx.from_pandas_edgelist(
+        NM, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
+    )
 
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)

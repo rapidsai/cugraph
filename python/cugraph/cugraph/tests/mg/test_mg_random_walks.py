@@ -11,16 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.dask as dcg
 import gc
-import pytest
-import cugraph
-import dask_cudf
 import random
 
-# from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing import utils
+import pytest
+import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
+import cugraph
+
+# from cugraph.dask.common.mg_utils import is_single_gpu
+import cugraph.dask as dcg
 from cugraph.experimental.datasets import DATASETS_SMALL, karate_asymmetric
 
 
@@ -42,7 +43,7 @@ IS_DIRECTED = [True, False]
 
 datasets = DATASETS_SMALL + [karate_asymmetric]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
 )
@@ -201,6 +202,7 @@ def input_graph(request):
     return dg
 
 
+@pytest.mark.cugraph_ops
 def test_dask_random_walks(dask_client, benchmark, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)

@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,78 +15,28 @@
 import importlib
 import random
 
-
 import pytest
-
-from . import data, utils
-
-import cudf
-import cupy
 import pandas as pd
 import numpy as np
-
+import cupy
+import cudf
 import cugraph
-from cugraph.gnn.pyg_extensions.loader.dispatch import call_cugraph_algorithm
 from cugraph.experimental import PropertyGraph
+
 from cugraph_service_client import RemoteGraph
+from . import data
+
+
+# FIXME: Remove this once these pass in the CI environment.
+pytest.skip(
+    reason="FIXME: many of these tests fail in CI and are currently run "
+    "manually only in dev environments.",
+    allow_module_level=True,
+)
 
 ###############################################################################
 # fixtures
-
-
-@pytest.fixture(scope="module")
-def server():
-    """
-    Start a cugraph_service server, stop it when done with the fixture.
-    """
-    from cugraph_service_client import CugraphServiceClient
-    from cugraph_service_client.exceptions import CugraphServiceError
-
-    host = "localhost"
-    port = 9090
-    client = CugraphServiceClient(host, port)
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-        yield
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = utils.start_server_subprocess(host=host, port=port)
-
-        # yield control to the tests, cleanup on return
-        yield
-
-        # tests are done, now stop the server
-        print("\nTerminating server...", end="", flush=True)
-        server_process.terminate()
-        server_process.wait(timeout=60)
-        print("done.", flush=True)
-
-
-@pytest.fixture(scope="function")
-def client(server):
-    """
-    Creates a client instance to the running server, closes the client when the
-    fixture is no longer used by tests.
-    """
-    from cugraph_service_client import CugraphServiceClient, defaults
-
-    client = CugraphServiceClient(defaults.host, defaults.port)
-
-    for gid in client.get_graph_ids():
-        client.delete_graph(gid)
-
-    # FIXME: should this fixture always unconditionally unload all extensions?
-    # client.unload_graph_creation_extensions()
-
-    # yield control to the tests
-    yield client
-
-    # tests are done, now stop the server
-    client.close()
+# The fixtures used in these tests are defined here and in conftest.py
 
 
 @pytest.fixture(scope="function")
@@ -209,7 +159,6 @@ def pG_with_property_csvs_loaded():
     return pG
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -229,7 +178,6 @@ def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_load
         assert graph_info[k] == expected_results[k]
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     # FIXME update this when edges() method issue is resolved.
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
@@ -249,7 +197,6 @@ def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     ).all()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_property_type_names(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
@@ -262,7 +209,6 @@ def test_property_type_names(
     assert rpG.edge_types == pG.edge_types
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -282,7 +228,6 @@ def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_lo
         assert rpG.get_num_edges(type=type) == pG.get_num_edges(type=type)
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_get_vertex_data(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
@@ -328,7 +273,6 @@ def test_get_vertex_data(
         assert (expected_vd[col] == vd[col]).all()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_get_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -388,7 +332,6 @@ def test_add_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_l
     raise NotImplementedError()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_get_vertices(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -405,7 +348,6 @@ def test_get_vertices_with_selection(
     raise NotImplementedError()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 @pytest.mark.parametrize(
     "create_using",
     [
@@ -481,7 +423,6 @@ def test_extract_subgraph(
     )
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -526,7 +467,6 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
         assert rpg_edge_data[col].tolist() == pg_edge_data[col].values_host.tolist()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -587,7 +527,6 @@ def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_lo
         assert rpg_edge_data[i + 4].tolist() == pg_edge_data[col].values_host.tolist()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_backend_numpy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
@@ -651,8 +590,7 @@ except ModuleNotFoundError:
     torch = None
 
 
-# @pytest.mark.skipif(torch is None, reason="torch not available")
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
+@pytest.mark.skipif(torch is None, reason="torch not available")
 @pytest.mark.parametrize("torch_backend", ["torch", "torch:0", "torch:cuda"])
 def test_backend_torch(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded, torch_backend
@@ -713,10 +651,14 @@ def test_backend_torch(
         assert rpg_edge_data[i + 4].tolist() == pg_edge_data[col].values_host.tolist()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_remote_graph_neighbor_sample(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
+    # FIXME: consider moving the call dispatcher into cugraph-service-client or
+    # cugraph proper. Import it here for now to allow tests to run in an
+    # environment without cugraph-pyg.
+    from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
+
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
     selection = '_TYPE_=="transactions"'
@@ -754,10 +696,14 @@ def test_remote_graph_neighbor_sample(
     assert (res_local["indices"] == res_remote["indices"]).all()
 
 
-@pytest.mark.skip(reason="FIXME: this may fail in CI")
 def test_remote_graph_neighbor_sample_implicit_subgraph(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
+    # FIXME: consider moving the call dispatcher into cugraph-service-client or
+    # cugraph proper. Import it here for now to allow tests to run in an
+    # environment without cugraph-pyg.
+    from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
+
     rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
@@ -786,3 +732,47 @@ def test_remote_graph_neighbor_sample_implicit_subgraph(
     assert (res_local["sources"] == res_remote["sources"]).all()
     assert (res_local["destinations"] == res_remote["destinations"]).all()
     assert (res_local["indices"] == res_remote["indices"]).all()
+
+
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
+def test_remote_graph_renumber_vertices(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    re_local = pG.renumber_vertices_by_type()
+    re_remote = rpG.renumber_vertices_by_type()
+
+    assert re_local == re_remote
+
+    for k in range(len(re_remote)):
+        start = re_remote["start"][k]
+        stop = re_remote["stop"][k]
+        for i in range(start, stop + 1):
+            assert (
+                rpG.get_vertex_data(vertex_ids=[i])[rpG.type_col_name][0]
+                == re_remote.index[k]
+            )
+
+
+@pytest.mark.skip(reason="FIXME: this may fail in CI")
+def test_remote_graph_renumber_edges(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    re_local = pG.renumber_edges_by_type()
+    re_remote = rpG.renumber_edges_by_type()
+
+    assert re_local == re_remote
+
+    for k in range(len(re_remote)):
+        start = re_remote["start"][k]
+        stop = re_remote["stop"][k]
+        for i in range(start, stop + 1):
+            assert (
+                rpG.get_edge_data(edge_ids=[i])[rpG.type_col_name][0]
+                == re_remote.index[k]
+            )

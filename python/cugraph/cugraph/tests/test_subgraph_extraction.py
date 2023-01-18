@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,7 @@ def setup_function():
 ###############################################################################
 def compare_edges(cg, nxg):
     edgelist_df = cg.view_edge_list()
-    assert cg.edgelist.weights is False
+
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
         assert nxg.has_edge(edgelist_df["src"].iloc[i], edgelist_df["dst"].iloc[i])
@@ -40,16 +40,13 @@ def compare_edges(cg, nxg):
 
 
 def cugraph_call(M, verts, directed=True):
-    # directed is used to create either a Graph or DiGraph so the returned
     # cugraph can be compared to nx graph of same type.
-    if directed:
-        G = cugraph.DiGraph()
-    else:
-        G = cugraph.Graph()
-    cu_M = cudf.DataFrame()
-    cu_M["src"] = cudf.Series(M["0"])
-    cu_M["dst"] = cudf.Series(M["1"])
-    G.from_cudf_edgelist(cu_M, source="src", destination="dst")
+    G = cugraph.Graph(directed=directed)
+
+    cu_M = cudf.from_pandas(M)
+
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="weight")
+
     cu_verts = cudf.Series(verts)
     return cugraph.subgraph(G, cu_verts)
 
@@ -73,8 +70,8 @@ def test_subgraph_extraction_DiGraph(graph_file):
     verts[0] = 0
     verts[1] = 1
     verts[2] = 17
-    cu_sg = cugraph_call(M, verts)
-    nx_sg = nx_call(M, verts)
+    cu_sg = cugraph_call(M, verts, True)
+    nx_sg = nx_call(M, verts, True)
     assert compare_edges(cu_sg, nx_sg)
 
 
@@ -103,10 +100,12 @@ def test_subgraph_extraction_Graph_nx(graph_file):
 
     if directed:
         G = nx.from_pandas_edgelist(
-            M, source="0", target="1", create_using=nx.DiGraph()
+            M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
         )
     else:
-        G = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
+        G = nx.from_pandas_edgelist(
+            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        )
 
     nx_sub = nx.subgraph(G, verts)
 
@@ -125,11 +124,15 @@ def test_subgraph_extraction_multi_column(graph_file):
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
     cu_M["dst_0"] = cudf.Series(M["1"])
+    cu_M["weight"] = cudf.Series(M["weight"])
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+        cu_M,
+        source=["src_0", "src_1"],
+        destination=["dst_0", "dst_1"],
+        edge_attr="weight",
     )
 
     verts = cudf.Series([0, 1, 17])
@@ -140,7 +143,7 @@ def test_subgraph_extraction_multi_column(graph_file):
     sG1 = cugraph.subgraph(G1, verts_G1)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0", edge_attr="weight")
 
     sG2 = cugraph.subgraph(G2, verts)
 
@@ -164,7 +167,9 @@ def test_subgraph_extraction_graph_not_renumbered():
     verts = np.array([0, 1, 2], dtype=np.int32)
     sverts = cudf.Series(verts)
     G = cugraph.Graph()
-    G.from_cudf_edgelist(gdf, source="src", destination="dst", renumber=False)
+    G.from_cudf_edgelist(
+        gdf, source="src", destination="dst", edge_attr="wgt", renumber=False
+    )
     Sg = cugraph.subgraph(G, sverts)
 
     assert Sg.number_of_vertices() == 3

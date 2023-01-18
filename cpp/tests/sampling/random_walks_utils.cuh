@@ -18,7 +18,7 @@
 #include <rmm/exec_policy.hpp>
 #include <sampling/random_walks.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <algorithm>
 #include <iostream>

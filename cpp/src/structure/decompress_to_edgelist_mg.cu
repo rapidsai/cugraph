@@ -24,7 +24,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 decompress_to_edgelist<int32_t, int32_t, float, false, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -33,7 +34,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 decompress_to_edgelist<int32_t, int32_t, float, true, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -42,7 +44,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 decompress_to_edgelist<int32_t, int32_t, double, false, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -51,7 +54,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 decompress_to_edgelist<int32_t, int32_t, double, true, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -60,7 +64,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 decompress_to_edgelist<int32_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -69,7 +74,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
 decompress_to_edgelist<int32_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -78,7 +84,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 decompress_to_edgelist<int32_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -87,7 +94,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
 decompress_to_edgelist<int32_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int32_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -96,7 +104,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
 decompress_to_edgelist<int64_t, int64_t, float, false, true>(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<raft::device_span<int64_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -105,7 +114,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
 decompress_to_edgelist<int64_t, int64_t, float, true, true>(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<raft::device_span<int64_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -114,7 +124,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
 decompress_to_edgelist<int64_t, int64_t, double, false, true>(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int64_t const>> renumber_map,
   bool do_expensive_check);
 
@@ -123,7 +134,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
 decompress_to_edgelist<int64_t, int64_t, double, true, true>(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<raft::device_span<int64_t const>> renumber_map,
   bool do_expensive_check);
 

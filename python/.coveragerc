@@ -1,7 +1,10 @@
 # Configuration file for Python coverage tests
 [run]
 include = cugraph/cugraph/*
+          cugraph-pyg/cugraph_pyg/*
+          cugraph-service/*
           pylibcugraph/pylibcugraph/*
 omit = cugraph/cugraph/tests/*
+       cugraph-pyg/cugraph_pyg/tests/*
+       cugraph-service/tests/*
        pylibcugraph/pylibcugraph/tests/*
-

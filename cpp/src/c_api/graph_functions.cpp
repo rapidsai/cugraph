@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,13 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
         second_copy.data(), second_->as_type<vertex_t>(), second_->size_, handle_.get_stream());
 
       if constexpr (multi_gpu) {
-        // FIXME: shuffle first_copy/second_copy
+        std::tie(first_copy, second_copy, std::ignore, std::ignore) =
+          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<
+            vertex_t,
+            edge_t,
+            weight_t,
+            edge_type_type_t>(
+            handle_, std::move(first_copy), std::move(second_copy), std::nullopt, std::nullopt);
       }
 
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
@@ -122,8 +128,7 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
@@ -148,7 +153,8 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
 
         if constexpr (multi_gpu) {
           start_vertices =
-            cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(start_vertices));
+            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(start_vertices));
         }
       } else {
         start_vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());

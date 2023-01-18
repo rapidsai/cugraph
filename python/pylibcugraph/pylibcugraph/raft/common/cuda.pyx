@@ -52,7 +52,7 @@ cdef class Stream:
 
     .. code-block:: python
 
-        from raft.common.cuda import Stream
+        from pylibraft.common.cuda import Stream
         stream = Stream()
         stream.sync()
         del stream  # optional!

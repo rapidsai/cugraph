@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,17 +19,11 @@ namespace cugraph {
 
 // SG instantiation
 
-template class graph_t<int32_t, int32_t, float, true, false>;
-template class graph_t<int32_t, int32_t, float, false, false>;
-template class graph_t<int32_t, int32_t, double, true, false>;
-template class graph_t<int32_t, int32_t, double, false, false>;
-template class graph_t<int32_t, int64_t, float, true, false>;
-template class graph_t<int32_t, int64_t, float, false, false>;
-template class graph_t<int32_t, int64_t, double, true, false>;
-template class graph_t<int32_t, int64_t, double, false, false>;
-template class graph_t<int64_t, int64_t, float, true, false>;
-template class graph_t<int64_t, int64_t, float, false, false>;
-template class graph_t<int64_t, int64_t, double, true, false>;
-template class graph_t<int64_t, int64_t, double, false, false>;
+template class graph_t<int32_t, int32_t, true, false>;
+template class graph_t<int32_t, int32_t, false, false>;
+template class graph_t<int32_t, int64_t, true, false>;
+template class graph_t<int32_t, int64_t, false, false>;
+template class graph_t<int64_t, int64_t, true, false>;
+template class graph_t<int64_t, int64_t, false, false>;
 
 }  // namespace cugraph

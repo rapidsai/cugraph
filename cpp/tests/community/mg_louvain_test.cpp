@@ -18,18 +18,18 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -87,7 +87,10 @@ class Tests_MGLouvain
                           int rank,
                           weight_t mg_modularity)
   {
-    cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
+    cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+      sg_edge_weights{std::nullopt};
     rmm::device_uvector<vertex_t> d_clustering_v(0, handle_->get_stream());
     weight_t sg_modularity{-1.0};
 
@@ -106,7 +109,7 @@ class Tests_MGLouvain
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
         handle, d_edgelist_srcs, d_edgelist_dsts, d_renumber_map_gathered_v);
 
-      std::tie(sg_graph, std::ignore, std::ignore) =
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
         cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
           handle,
           std::move(d_vertices),
@@ -121,25 +124,37 @@ class Tests_MGLouvain
     std::for_each(
       thrust::make_counting_iterator<size_t>(0),
       thrust::make_counting_iterator<size_t>(dendrogram.num_levels()),
-      [&dendrogram, &sg_graph, &d_clustering_v, &sg_modularity, &handle, resolution, rank](
-        size_t i) {
+      [&dendrogram,
+       &sg_graph,
+       &sg_edge_weights,
+       &d_clustering_v,
+       &sg_modularity,
+       &handle,
+       resolution,
+       rank](size_t i) {
         auto d_dendrogram_gathered_v = cugraph::test::device_gatherv(
           handle, dendrogram.get_level_ptr_nocheck(i), dendrogram.get_level_size_nocheck(i));
 
         if (rank == 0) {
-          auto graph_view = sg_graph.view();
+          auto sg_graph_view = sg_graph.view();
+          auto sg_edge_weight_view =
+            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-          d_clustering_v.resize(graph_view.number_of_vertices(), handle_->get_stream());
+          d_clustering_v.resize(sg_graph_view.number_of_vertices(), handle_->get_stream());
 
-          std::tie(std::ignore, sg_modularity) =
-            cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
+          std::tie(std::ignore, sg_modularity) = cugraph::louvain(handle,
+                                                                  sg_graph_view,
+                                                                  sg_edge_weight_view,
+                                                                  d_clustering_v.data(),
+                                                                  size_t{1},
+                                                                  resolution);
 
           EXPECT_TRUE(
             cugraph::test::renumbered_vectors_same(handle, d_clustering_v, d_dendrogram_gathered_v))
             << "(i = " << i << "), sg_modularity = " << sg_modularity;
 
-          std::tie(sg_graph, std::ignore) =
-            cugraph::coarsen_graph(handle, graph_view, d_dendrogram_gathered_v.data(), false);
+          std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::coarsen_graph(
+            handle, sg_graph_view, sg_edge_weight_view, d_dendrogram_gathered_v.data(), false);
         }
       });
 
@@ -156,43 +171,47 @@ class Tests_MGLouvain
   {
     auto [louvain_usecase, input_usecase] = param;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Louvain");
     }
 
-    auto [dendrogram, mg_modularity] = cugraph::louvain(
-      *handle_, mg_graph_view, louvain_usecase.max_level_, louvain_usecase.resolution_);
+    auto [dendrogram, mg_modularity] =
+      cugraph::louvain<vertex_t, edge_t, weight_t, true>(*handle_,
+                                                         mg_graph_view,
+                                                         mg_edge_weight_view,
+                                                         louvain_usecase.max_level_,
+                                                         louvain_usecase.resolution_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG Louvain took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (louvain_usecase.check_correctness_) {

@@ -34,6 +34,13 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 def calc_k_cores(graph_file, directed=True):
     # directed is used to create either a Graph or DiGraph so the returned
     # cugraph can be compared to nx graph of same type.
@@ -67,7 +74,6 @@ def compare_edges(cg, nxg):
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_Graph(graph_file):
-    gc.collect()
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
@@ -76,7 +82,6 @@ def test_k_core_Graph(graph_file):
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_Graph_nx(graph_file):
-    gc.collect()
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
     Gnx = nx.from_pandas_edgelist(NM, source="0", target="1", create_using=nx.Graph())
@@ -88,7 +93,6 @@ def test_k_core_Graph_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_corenumber_multicolumn(graph_file):
-    gc.collect()
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)
     cu_M.rename(columns={"0": "src_0", "1": "dst_0"}, inplace=True)
@@ -103,17 +107,34 @@ def test_k_core_corenumber_multicolumn(graph_file):
     corenumber_G1 = cugraph.core_number(G1)
     corenumber_G1.rename(columns={"core_number": "values"}, inplace=True)
     corenumber_G1 = corenumber_G1[["0_vertex", "1_vertex", "values"]]
-
+    corenumber_G1 = None
     ck_res = cugraph.k_core(G1, core_number=corenumber_G1)
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
-    ck_exp = cugraph.k_core(G2)
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0", renumber=False)
+
+    corenumber_G2 = cugraph.core_number(G2)
+    corenumber_G2.rename(columns={"core_number": "values"}, inplace=True)
+    corenumber_G2 = corenumber_G2[["vertex", "values"]]
+    ck_exp = cugraph.k_core(G2, core_number=corenumber_G2)
 
     # FIXME: Replace with multi-column view_edge_list()
     edgelist_df = ck_res.edgelist.edgelist_df
     edgelist_df_res = ck_res.unrenumber(edgelist_df, "src")
     edgelist_df_res = ck_res.unrenumber(edgelist_df_res, "dst")
+
     for i in range(len(edgelist_df_res)):
         assert ck_exp.has_edge(
             edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
         )
+
+
+def test_k_core_invalid_input():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    with pytest.raises(ValueError):
+        cugraph.k_core(G)
+
+    G = karate.get_graph()
+    degree_type = "invalid"
+    with pytest.raises(ValueError):
+        cugraph.k_core(G, degree_type=degree_type)

@@ -31,7 +31,7 @@
 #include <thrust/functional.h>
 #include <thrust/reduce.h>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 //
 // Some mental noodling on this.
@@ -297,9 +297,9 @@ template <typename vertex_t,
           typename VertexIterator>
 rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  VertexIterator vertices_begin,
-  VertexIterator vertices_end,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool const do_expensive_check)
@@ -377,9 +377,9 @@ template <typename vertex_t,
           typename VertexIterator>
 rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  VertexIterator vertices_begin,
-  VertexIterator vertices_end,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool const normalized,
   bool const do_expensive_check)
 {
@@ -394,7 +394,8 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool const normalized,
   bool const include_endpoints,
@@ -437,7 +438,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool const normalized,
   bool const do_expensive_check)

@@ -1,0 +1,49 @@
+# Copyright (c) 2022, NVIDIA CORPORATION.
+
+# Usage:
+#   conda build -c rapidsai -c conda-forge -c nvidia .
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set py_version = environ['CONDA_PY'] %}
+
+package:
+  name: cugraph-pyg
+  version: {{ version }}
+
+source:
+  git_url: ../../..
+
+build:
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  string: py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+  script_env:
+    - PARALLEL_LEVEL
+  preserve_egg_dir: True
+
+requirements:
+  build:
+    - sysroot_{{ target_platform }} {{ sysroot_version }}
+  host:
+    - cython >=0.29,<0.30
+    - python x.x
+    - scikit-build >=0.13.1
+    # FIXME: this pin can be removed once we move to the GitHub Actions build process
+    - setuptools <=65.2.0
+  run:
+    - distributed >=2022.12.0
+    - numba >=0.56.2
+    - numpy
+    - pytorch <=1.12.1
+    # - pyg (uncomment once pyg 2.2 is released)
+
+# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
+tests:                                 # [linux64]
+  imports:                             # [linux64]
+    - cugraph_pyg                      # [linux64]
+    # - cugraph_service (uncomment once cugraph-service int. tests ready)
+
+about:
+  home: https://rapids.ai/
+  license: Apache-2.0
+  license_file: ../../../LICENSE
+  summary: cuGraph-pyg library

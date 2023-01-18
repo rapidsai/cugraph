@@ -25,7 +25,8 @@ namespace cugraph {
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>, rmm::device_uvector<int32_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<int32_t, int32_t, float, false, false> const& gview,
+               graph_view_t<int32_t, int32_t, false, false> const& gview,
+               std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
                int32_t const* ptr_d_start,
                int32_t num_paths,
                int32_t max_depth,
@@ -35,7 +36,8 @@ template std::
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<int32_t, int64_t, float, false, false> const& gview,
+               graph_view_t<int32_t, int64_t, false, false> const& gview,
+               std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
                int32_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
@@ -45,7 +47,8 @@ template std::
 template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<int64_t, int64_t, float, false, false> const& gview,
+               graph_view_t<int64_t, int64_t, false, false> const& gview,
+               std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
                int64_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
@@ -57,7 +60,8 @@ template std::
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>, rmm::device_uvector<int32_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<int32_t, int32_t, double, false, false> const& gview,
+               graph_view_t<int32_t, int32_t, false, false> const& gview,
+               std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
                int32_t const* ptr_d_start,
                int32_t num_paths,
                int32_t max_depth,
@@ -67,7 +71,8 @@ template std::
 template std::
   tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<int32_t, int64_t, double, false, false> const& gview,
+               graph_view_t<int32_t, int64_t, false, false> const& gview,
+               std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
                int32_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,
@@ -77,7 +82,8 @@ template std::
 template std::
   tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<int64_t, int64_t, double, false, false> const& gview,
+               graph_view_t<int64_t, int64_t, false, false> const& gview,
+               std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
                int64_t const* ptr_d_start,
                int64_t num_paths,
                int64_t max_depth,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include <cugraph/algorithms.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <gtest/gtest.h>
@@ -35,14 +35,15 @@ struct test_jaccard_t {
            static_cast<weight_t>(u_size + v_size - intersection_count);
   }
 
-  template <typename graph_view_t>
-  auto run(raft::handle_t const& handle,
-           graph_view_t const& graph_view,
-           std::tuple<raft::device_span<typename graph_view_t::vertex_type const>,
-                      raft::device_span<typename graph_view_t::vertex_type const>> vertex_pairs,
-           bool use_weights) const
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool use_weights) const
   {
-    return cugraph::jaccard_coefficients(handle, graph_view, vertex_pairs, use_weights);
+    return cugraph::jaccard_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
 };
 
@@ -55,14 +56,15 @@ struct test_sorensen_t {
     return static_cast<weight_t>(2 * intersection_count) / static_cast<weight_t>(u_size + v_size);
   }
 
-  template <typename graph_view_t>
-  auto run(raft::handle_t const& handle,
-           graph_view_t const& graph_view,
-           std::tuple<raft::device_span<typename graph_view_t::vertex_type const>,
-                      raft::device_span<typename graph_view_t::vertex_type const>> vertex_pairs,
-           bool use_weights) const
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool use_weights) const
   {
-    return cugraph::sorensen_coefficients(handle, graph_view, vertex_pairs, use_weights);
+    return cugraph::sorensen_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
 };
 
@@ -76,14 +78,15 @@ struct test_overlap_t {
            static_cast<weight_t>(std::min(u_size, v_size));
   }
 
-  template <typename graph_view_t>
-  auto run(raft::handle_t const& handle,
-           graph_view_t const& graph_view,
-           std::tuple<raft::device_span<typename graph_view_t::vertex_type const>,
-                      raft::device_span<typename graph_view_t::vertex_type const>> vertex_pairs,
-           bool use_weights) const
+  template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+  auto run(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+    bool use_weights) const
   {
-    return cugraph::overlap_coefficients(handle, graph_view, vertex_pairs, use_weights);
+    return cugraph::overlap_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -26,9 +25,10 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -62,47 +62,54 @@ class Tests_MGEdgeBetweennessCentrality
 
     auto [betweenness_usecase, input_usecase] = param;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      handle_->get_comms().barrier();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, betweenness_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
-    auto graph_view = graph.view();
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<vertex_t> d_seeds(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      rmm::device_uvector<vertex_t> d_seeds(graph_view.number_of_vertices(), handle_->get_stream());
+      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(),
+                                            handle_->get_stream());
       cugraph::detail::sequence_fill(
         handle_->get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
 
       d_seeds = cugraph::test::randomly_select(*handle_, d_seeds, betweenness_usecase.num_seeds);
     }
 
-    d_seeds = cugraph::detail::shuffle_ext_vertices_by_gpu_id(*handle_, std::move(d_seeds));
+    d_seeds = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_seeds));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      handle_->get_comms().barrier();
+      hr_timer.start("MG edge betweenness centrality");
     }
 
 #if 0
     auto d_centralities = cugraph::edge_betweenness_centrality(
       *handle_,
-      graph_view,
+      mg_graph_view,
+      mg_edge_weight_view,
       std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
@@ -110,7 +117,8 @@ class Tests_MGEdgeBetweennessCentrality
 #else
     EXPECT_THROW(cugraph::edge_betweenness_centrality(
                    *handle_,
-                   graph_view,
+                   mg_graph_view,
+                   mg_edge_weight_view,
                    std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
                      raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
                    betweenness_usecase.normalized,
@@ -120,9 +128,9 @@ class Tests_MGEdgeBetweennessCentrality
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "Edge Betweenness Centrality took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (betweenness_usecase.check_correctness) {

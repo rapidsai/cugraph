@@ -15,9 +15,9 @@ import random
 
 import pytest
 import cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils
 from cugraph import uniform_neighbor_sample
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
@@ -36,7 +36,7 @@ IS_DIRECTED = [True, False]
 
 datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
@@ -127,6 +127,7 @@ def simple_unweighted_input_expected_output(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
@@ -212,6 +213,7 @@ def test_uniform_neighbor_sample_simple(input_combo):
             )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_uniform_neighbor_sample_tree(directed):
 
@@ -272,6 +274,7 @@ def test_uniform_neighbor_sample_tree(directed):
     assert set(start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
 
 
+@pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
     test_data = simple_unweighted_input_expected_output
 

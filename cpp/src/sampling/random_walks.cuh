@@ -21,10 +21,11 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <utilities/graph_utils.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
@@ -156,35 +157,21 @@ struct rrandom_gen_t {
   seed_t seed_;           // seed to be used for current batch
 };
 
-// classes abstracting the next vertex extraction mechanism:
-//
-// primary template, purposely undefined
-template <typename graph_t,
-          typename index_t  = typename graph_t::edge_type,
-          typename enable_t = void>
-struct col_indx_extract_t;
-
-// specialization for single-gpu functionality:
-//
-template <typename graph_t, typename index_t>
-struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_gpu == false>> {
-  using vertex_t = typename graph_t::vertex_type;
-  using edge_t   = typename graph_t::edge_type;
-  using weight_t = typename graph_t::weight_type;
-
+template <typename vertex_t, typename edge_t, typename weight_t, typename index_t>
+struct col_indx_extract_t {
   col_indx_extract_t(raft::handle_t const& handle,
-                     graph_t const& graph,
+                     graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      edge_t* p_d_crt_out_degs,
                      index_t* p_d_sizes,
                      index_t num_paths,
                      index_t max_depth)
     : handle_(handle),
-      col_indices_(graph.local_edge_partition_view().indices().data()),
-      row_offsets_(graph.local_edge_partition_view().offsets().data()),
-      values_(
-        graph.local_edge_partition_view().weights()
-          ? std::optional<weight_t const*>{(*(graph.local_edge_partition_view().weights())).data()}
-          : std::nullopt),
+      col_indices_(graph_view.local_edge_partition_view().indices().data()),
+      row_offsets_(graph_view.local_edge_partition_view().offsets().data()),
+      values_(edge_weight_view
+                ? std::optional<weight_t const*>{(*edge_weight_view).value_firsts()[0]}
+                : std::nullopt),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),
@@ -349,14 +336,12 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
  *        (10) the triplet made of the 2 coalesced vectors and d_sizes is then returned;
  *
  */
-template <typename graph_t,
-          typename random_engine_t =
-            rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
-          typename index_t = typename graph_t::edge_type>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename random_engine_t = rrandom_gen_t<vertex_t, edge_t>,
+          typename index_t         = edge_t>
 struct random_walker_t {
-  using vertex_t     = typename graph_t::vertex_type;
-  using edge_t       = typename graph_t::edge_type;
-  using weight_t     = typename graph_t::weight_type;
   using seed_t       = typename random_engine_t::seed_type;
   using real_t       = typename random_engine_t::real_type;
   using rnd_engine_t = random_engine_t;
@@ -428,7 +413,8 @@ struct random_walker_t {
   //
   template <typename selector_t>
   void step(
-    graph_t const& graph,
+    graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+    std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     selector_t const& selector,
     seed_t seed,
     original::device_vec_t<vertex_t>& d_coalesced_v,  // crt coalesced vertex set
@@ -447,12 +433,14 @@ struct random_walker_t {
     // dst extraction from dst indices:
     // (d_crt_out_degs to be maintained internally by col_extractor)
     //
-    col_indx_extract_t<graph_t> col_extractor(handle_,
-                                              graph,
-                                              original::raw_ptr(d_crt_out_degs),
-                                              original::raw_ptr(d_paths_sz),
-                                              num_paths_,
-                                              max_depth_);
+    col_indx_extract_t<vertex_t, edge_t, weight_t, index_t> col_extractor(
+      handle_,
+      graph_view,
+      edge_weight_view,
+      original::raw_ptr(d_crt_out_degs),
+      original::raw_ptr(d_paths_sz),
+      num_paths_,
+      max_depth_);
 
     // The following steps update the next entry in each path,
     // except the paths that reached sinks;
@@ -656,9 +644,10 @@ struct random_walker_t {
       [] __device__(auto crt_out_deg) { return crt_out_deg > 0; });
   }
 
-  original::device_vec_t<edge_t> get_out_degs(graph_t const& graph) const
+  original::device_vec_t<edge_t> get_out_degs(
+    graph_view_t<vertex_t, edge_t, false, false> const& graph_view) const
   {
-    return graph.compute_out_degrees(handle_);
+    return graph_view.compute_out_degrees(handle_);
   }
 
   vertex_t get_vertex_padding_value(void) const { return vertex_padding_value_; }
@@ -723,34 +712,32 @@ struct random_walker_t {
  * entries;
  */
 template <
-  typename graph_t,
+  typename vertex_t,
+  typename edge_t,
+  typename weight_t,
   typename selector_t,
-  typename traversal_t = original::horizontal_traversal_t,
-  typename random_engine_t =
-    rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
+  typename traversal_t      = original::horizontal_traversal_t,
+  typename random_engine_t  = rrandom_gen_t<vertex_t, edge_t>,
   typename seeding_policy_t = original::clock_seeding_t<typename random_engine_t::seed_type>,
-  typename index_t          = typename graph_t::edge_type>
-std::enable_if_t<graph_t::is_multi_gpu == false,
-                 std::tuple<original::device_vec_t<typename graph_t::vertex_type>,
-                            original::device_vec_t<typename graph_t::weight_type>,
-                            original::device_vec_t<index_t>,
-                            typename random_engine_t::seed_type>>
+  typename index_t          = edge_t>
+std::tuple<original::device_vec_t<vertex_t>,
+           original::device_vec_t<weight_t>,
+           original::device_vec_t<index_t>,
+           typename random_engine_t::seed_type>
 random_walks_impl(
   raft::handle_t const& handle,
-  graph_t const& graph,
-  original::device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
+  graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  original::device_const_vector_view<vertex_t, index_t>& d_v_start,
   index_t max_depth,
   selector_t const& selector,
   bool use_padding        = false,
   seeding_policy_t seeder = original::clock_seeding_t<typename random_engine_t::seed_type>{})
 {
-  using vertex_t = typename graph_t::vertex_type;
-  using edge_t   = typename graph_t::edge_type;
-  using weight_t = typename graph_t::weight_type;
-  using seed_t   = typename random_engine_t::seed_type;
-  using real_t   = typename random_engine_t::real_type;
+  using seed_t = typename random_engine_t::seed_type;
+  using real_t = typename random_engine_t::real_type;
 
-  vertex_t num_vertices = graph.number_of_vertices();
+  vertex_t num_vertices = graph_view.number_of_vertices();
 
   auto how_many_valid = thrust::count_if(handle.get_thrust_policy(),
                                          d_v_start.begin(),
@@ -765,10 +752,11 @@ random_walks_impl(
   auto num_paths = d_v_start.size();
   auto stream    = handle.get_stream();
 
-  random_walker_t<graph_t, random_engine_t> rand_walker{handle,
-                                                        graph.number_of_vertices(),
-                                                        static_cast<index_t>(num_paths),
-                                                        static_cast<index_t>(max_depth)};
+  random_walker_t<vertex_t, edge_t, weight_t, random_engine_t> rand_walker{
+    handle,
+    graph_view.number_of_vertices(),
+    static_cast<index_t>(num_paths),
+    static_cast<index_t>(max_depth)};
 
   // pre-allocate num_paths * max_depth;
   //
@@ -805,7 +793,8 @@ random_walks_impl(
 
   // traverse paths:
   //
-  traversor(graph,
+  traversor(graph_view,
+            edge_weight_view,
             rand_walker,
             selector,
             seed0,
@@ -837,64 +826,6 @@ random_walks_impl(
                                                    // case, to avoid unnecessary allocations
       seed0);                                      // also return seed for repro
   }
-}
-
-/**
- * @brief returns random walks (RW) from starting sources, where each path is of given maximum
- * length. Multi-GPU specialization.
- *
- * @tparam graph_t Type of graph (view).
- * @tparam traversal_t Traversal policy. Either horizontal (faster but requires more memory) or
- * vertical. Defaults to horizontal.
- * @tparam random_engine_t Type of random engine used to generate RW.
- * @tparam seeding_policy_t Random engine seeding policy: variable or fixed (for reproducibility).
- * Defaults to variable, clock dependent.
- * @tparam index_t Indexing type. Defaults to edge_type.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph Graph object to generate RW on.
- * @param d_v_start Device (view) set of starting vertex indices for the RW. number(RW) ==
- * d_v_start.size().
- * @param max_depth maximum length of RWs.
- * @param use_padding (optional) specifies if return uses padded format (true), or coalesced
- * (compressed) format; when padding is used the output is a matrix of vertex paths and a matrix of
- * edges paths (weights); in this case the matrices are stored in row major order; the vertex path
- * matrix is padded with `num_vertices` values and the weight matrix is padded with `0` values;
- * @param seeder (optional) is object providing the random seeding mechanism. Defaults to local
- * clock time as initial seed.
- * @return std::tuple<device_vec_t<vertex_t>, device_vec_t<weight_t>,
- * device_vec_t<index_t>> Triplet of either padded or coalesced RW paths; in the coalesced case
- * (default), the return consists of corresponding vertex and edge weights for each, and
- * corresponding path sizes. This is meant to minimize the number of DF's to be passed to the Python
- * layer. The meaning of "coalesced" here is that a 2D array of paths of different sizes is
- * represented as a 1D contiguous array. In the padded case the return is a matrix of num_paths x
- * max_depth vertex paths; and num_paths x (max_depth-1) edge (weight) paths, with an empty array of
- * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
- * entries;
- */
-template <
-  typename graph_t,
-  typename selector_t,
-  typename traversal_t = original::horizontal_traversal_t,
-  typename random_engine_t =
-    rrandom_gen_t<typename graph_t::vertex_type, typename graph_t::edge_type>,
-  typename seeding_policy_t = original::clock_seeding_t<typename random_engine_t::seed_type>,
-  typename index_t          = typename graph_t::edge_type>
-std::enable_if_t<graph_t::is_multi_gpu == true,
-                 std::tuple<original::device_vec_t<typename graph_t::vertex_type>,
-                            original::device_vec_t<typename graph_t::weight_type>,
-                            original::device_vec_t<index_t>,
-                            typename random_engine_t::seed_type>>
-random_walks_impl(
-  raft::handle_t const& handle,
-  graph_t const& graph,
-  original::device_const_vector_view<typename graph_t::vertex_type, index_t>& d_v_start,
-  index_t max_depth,
-  selector_t const& selector,
-  bool use_padding        = false,
-  seeding_policy_t seeder = original::clock_seeding_t<typename random_engine_t::seed_type>{})
-{
-  CUGRAPH_FAIL("Not implemented yet.");
 }
 
 // provides conversion to (coalesced) path to COO format:
@@ -1078,23 +1009,22 @@ struct coo_convertor_t {
  * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
  * entries;
  */
-template <typename graph_t, typename index_t>
-std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
-           rmm::device_uvector<typename graph_t::weight_type>,
-           rmm::device_uvector<index_t>>
-random_walks(raft::handle_t const& handle,
-             graph_t const& graph,
-             typename graph_t::vertex_type const* ptr_d_start,
-             index_t num_paths,
-             index_t max_depth,
-             bool use_padding,
-             std::unique_ptr<sampling_params_t> sampling_strategy)
+template <typename vertex_t, typename edge_t, typename weight_t, typename index_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>, rmm::device_uvector<index_t>>
+  random_walks(raft::handle_t const& handle,
+               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+               vertex_t const* ptr_d_start,
+               index_t num_paths,
+               index_t max_depth,
+               bool use_padding,
+               std::unique_ptr<sampling_params_t> sampling_strategy)
 {
-  using vertex_t = typename graph_t::vertex_type;
-  using edge_t   = typename graph_t::edge_type;
-  using weight_t = typename graph_t::weight_type;
-  using real_t   = float;  // random engine type;
+  using real_t = float;  // random engine type;
   // FIXME: this should not be hardcoded; at least tag-dispatched
+
+  if constexpr (multi_gpu) { CUGRAPH_FAIL("unimplemented."); }
 
   // 0-copy const device view:
   //
@@ -1138,11 +1068,17 @@ random_walks(raft::handle_t const& handle,
 
   if (use_vertical_strategy) {
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
-      detail::original::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+      CUGRAPH_EXPECTS(edge_weight_view.has_value(), "biased selector requires edge weights.");
+      auto out_weight_sums = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+      detail::original::biased_selector_t<vertex_t, edge_t, weight_t, real_t> selector{
+        handle, graph_view, *edge_weight_view, real_t{0}, out_weight_sums.data()};
 
-      auto quad_tuple = detail::
-        random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
-          handle, graph, d_v_start, max_depth, selector, use_padding);
+      auto quad_tuple = detail::random_walks_impl<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  decltype(selector),
+                                                  detail::original::vertical_traversal_t>(
+        handle, graph_view, edge_weight_view, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
       //
@@ -1160,12 +1096,15 @@ random_walks(raft::handle_t const& handle,
 
       CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
 
-      detail::original::node2vec_selector_t<graph_t, real_t> selector{
-        handle, graph, real_t{0}, p, q, alpha_num_paths};
+      detail::original::node2vec_selector_t<vertex_t, edge_t, weight_t, real_t> selector{
+        handle, graph_view, edge_weight_view, real_t{0}, p, q, alpha_num_paths};
 
-      auto quad_tuple = detail::
-        random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
-          handle, graph, d_v_start, max_depth, selector, use_padding);
+      auto quad_tuple = detail::random_walks_impl<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  decltype(selector),
+                                                  detail::original::vertical_traversal_t>(
+        handle, graph_view, edge_weight_view, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
       //
@@ -1173,11 +1112,15 @@ random_walks(raft::handle_t const& handle,
                              std::move(std::get<1>(quad_tuple)),
                              std::move(std::get<2>(quad_tuple)));
     } else {
-      detail::original::uniform_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+      detail::original::uniform_selector_t<vertex_t, edge_t, weight_t, real_t> selector{
+        handle, graph_view, edge_weight_view, real_t{0}};
 
-      auto quad_tuple = detail::
-        random_walks_impl<graph_t, decltype(selector), detail::original::vertical_traversal_t>(
-          handle, graph, d_v_start, max_depth, selector, use_padding);
+      auto quad_tuple = detail::random_walks_impl<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  decltype(selector),
+                                                  detail::original::vertical_traversal_t>(
+        handle, graph_view, edge_weight_view, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
       //
@@ -1187,10 +1130,13 @@ random_walks(raft::handle_t const& handle,
     }
   } else {  // horizontal traversal strategy
     if (selector_type == static_cast<int>(sampling_strategy_t::BIASED)) {
-      detail::original::biased_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+      CUGRAPH_EXPECTS(edge_weight_view.has_value(), "biased selector requires edge weights.");
+      auto out_weight_sums = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+      detail::original::biased_selector_t<vertex_t, edge_t, weight_t, real_t> selector{
+        handle, graph_view, *edge_weight_view, real_t{0}, out_weight_sums.data()};
 
-      auto quad_tuple =
-        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      auto quad_tuple = detail::random_walks_impl(
+        handle, graph_view, edge_weight_view, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
       //
@@ -1208,11 +1154,11 @@ random_walks(raft::handle_t const& handle,
 
       CUGRAPH_EXPECTS(q > roundoff, "node2vec q parameter is too small.");
 
-      detail::original::node2vec_selector_t<graph_t, real_t> selector{
-        handle, graph, real_t{0}, p, q, alpha_num_paths};
+      detail::original::node2vec_selector_t<vertex_t, edge_t, weight_t, real_t> selector{
+        handle, graph_view, edge_weight_view, real_t{0}, p, q, alpha_num_paths};
 
-      auto quad_tuple =
-        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      auto quad_tuple = detail::random_walks_impl(
+        handle, graph_view, edge_weight_view, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
       //
@@ -1220,10 +1166,11 @@ random_walks(raft::handle_t const& handle,
                              std::move(std::get<1>(quad_tuple)),
                              std::move(std::get<2>(quad_tuple)));
     } else {
-      detail::original::uniform_selector_t<graph_t, real_t> selector{handle, graph, real_t{0}};
+      detail::original::uniform_selector_t<vertex_t, edge_t, weight_t, real_t> selector{
+        handle, graph_view, edge_weight_view, real_t{0}};
 
-      auto quad_tuple =
-        detail::random_walks_impl(handle, graph, d_v_start, max_depth, selector, use_padding);
+      auto quad_tuple = detail::random_walks_impl(
+        handle, graph_view, edge_weight_view, d_v_start, max_depth, selector, use_padding);
       // ignore last element of the quad, seed,
       // since it's meant for testing / debugging, only:
       //

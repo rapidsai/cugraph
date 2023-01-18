@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -29,6 +30,7 @@
 #include <cugraph-ops/graph/sampling.hpp>
 #endif
 
+#include <cuda/atomic>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/iterator/constant_iterator.h>
@@ -79,6 +81,16 @@ struct convert_pair_to_triplet_t {
   }
 };
 
+template <typename edge_t, typename T>
+struct check_invalid_t {
+  edge_t invalid_idx{};
+
+  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
+  {
+    return thrust::get<0>(pair) == invalid_idx;
+  }
+};
+
 template <typename edge_t>
 struct invalid_col_comm_rank_t {
   int32_t invalid_col_comm_rank{};
@@ -89,39 +101,35 @@ struct invalid_col_comm_rank_t {
 };
 
 template <typename GraphViewType,
-          typename UniqueKeyIdxIterator,
           typename KeyIterator,
-          typename OffsetIterator,
           typename LocalNbrIdxIterator,
           typename OutputValueIterator,
-          typename OutputCountIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
-struct transform_and_count_local_nbr_indices_t {
+struct transform_local_nbr_indices_t {
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
-  edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>
-    edge_partition{};
-  UniqueKeyIdxIterator unique_key_idx_first{};
+  edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu> edge_partition{};
+  thrust::optional<size_t const*> local_key_indices{thrust::nullopt};
   KeyIterator key_first{};
-  OffsetIterator offset_first{};
   LocalNbrIdxIterator local_nbr_idx_first{};
   OutputValueIterator output_value_first{};
-  thrust::optional<OutputCountIterator> output_count_first{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input;
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input;
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input;
   EdgeOp e_op{};
   edge_t invalid_idx{};
   thrust::optional<T> invalid_value{thrust::nullopt};
+  size_t K{};
 
   __device__ void operator()(size_t i) const
   {
-    auto key_idx = *(unique_key_idx_first + i);
+    auto key_idx = local_key_indices ? (*local_key_indices)[i] : (i / K);
     auto key     = *(key_first + key_idx);
     vertex_t major{};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -131,87 +139,92 @@ struct transform_and_count_local_nbr_indices_t {
     }
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{thrust::nullopt};
+    edge_t edge_offset{0};
     [[maybe_unused]] edge_t local_degree{0};
     if constexpr (GraphViewType::is_multi_gpu) {
       auto major_hypersparse_first = edge_partition.major_hypersparse_first();
       if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
-          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(
+          thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
             edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
             *major_hypersparse_idx);
         }
       } else {
-        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
       }
     } else {
-      thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
-    auto start_offset = *(offset_first + i);
-    auto end_offset   = *(offset_first + (i + 1));
+    auto local_nbr_idx = *(local_nbr_idx_first + i);
+    if (local_nbr_idx != invalid_idx) {
+      auto minor        = indices[local_nbr_idx];
+      auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
 
-    size_t num_valid_local_nbr_indices{0};
-    for (size_t i = start_offset; i < end_offset; ++i) {
-      auto local_nbr_idx = *(local_nbr_idx_first + i);
-      if (local_nbr_idx != invalid_idx) {
-        assert(local_nbr_idx < local_degree);
-        auto minor        = indices[local_nbr_idx];
-        auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-
-        std::conditional_t<GraphViewType::is_storage_transposed, vertex_t, key_t>
-          key_or_src{};  // key if major
-        std::conditional_t<GraphViewType::is_storage_transposed, key_t, vertex_t>
-          key_or_dst{};  // key if major
-        if constexpr (GraphViewType::is_storage_transposed) {
-          key_or_src = minor;
-          key_or_dst = key;
-        } else {
-          key_or_src = key;
-          key_or_dst = minor;
-        }
-        auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-        auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        *(output_value_first + i) = evaluate_edge_op<GraphViewType,
-                                                     key_t,
-                                                     EdgePartitionSrcValueInputWrapper,
-                                                     EdgePartitionDstValueInputWrapper,
-                                                     EdgeOp>()
-                                      .compute(key_or_src,
-                                               key_or_dst,
-                                               weights ? (*weights)[local_nbr_idx] : weight_t{1.0},
-                                               edge_partition_src_value_input.get(src_offset),
-                                               edge_partition_dst_value_input.get(dst_offset),
-                                               e_op);
-        ++num_valid_local_nbr_indices;
-      } else if (invalid_value) {
-        *(output_value_first + i) = *invalid_value;
+      std::conditional_t<GraphViewType::is_storage_transposed, vertex_t, key_t>
+        key_or_src{};  // key if major
+      std::conditional_t<GraphViewType::is_storage_transposed, key_t, vertex_t>
+        key_or_dst{};  // key if major
+      if constexpr (GraphViewType::is_storage_transposed) {
+        key_or_src = minor;
+        key_or_dst = key;
       } else {
-        assert(output_count_first);
+        key_or_src = key;
+        key_or_dst = minor;
       }
+      auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+      auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+      *(output_value_first + i) =
+        e_op(key_or_src,
+             key_or_dst,
+             edge_partition_src_value_input.get(src_offset),
+             edge_partition_dst_value_input.get(dst_offset),
+             edge_partition_e_value_input.get(edge_offset + local_nbr_idx));
+    } else if (invalid_value) {
+      *(output_value_first + i) = *invalid_value;
     }
-    if (output_count_first) { *(*output_count_first + key_idx) = num_valid_local_nbr_indices; }
   }
 };
 
-template <typename InputIterator, typename OutputIterator>
-struct copy_and_fill_sample_e_op_results_t {
-  raft::device_span<size_t const> sample_counts{};
-  raft::device_span<size_t const> sample_displacements{};
-  InputIterator input_first{};
-  OutputIterator output_first{};
+template <typename edge_t>
+struct count_valids_t {
+  raft::device_span<edge_t const> sample_local_nbr_indices{};
   size_t K{};
-  typename thrust::iterator_traits<OutputIterator>::value_type invalid_value;
+  edge_t invalid_idx{};
 
-  __device__ void operator()(size_t i) const
+  __device__ size_t operator()(size_t i) const
   {
-    auto num_valid_samples = sample_counts[i];
-    for (size_t j = 0; j < num_valid_samples; ++j) {  // copy
-      *(output_first + K * i + j) = *(input_first + sample_displacements[i] + j);
-    }
-    for (size_t j = num_valid_samples; j < K; ++j) {  // fill
-      *(output_first + K * i + j) = invalid_value;
-    }
+    auto first = sample_local_nbr_indices.begin() + i * K;
+    return static_cast<size_t>(
+      thrust::distance(first, thrust::find(thrust::seq, first, first + K, invalid_idx)));
+  }
+};
+
+struct count_t {
+  raft::device_span<size_t> sample_counts{};
+
+  __device__ void operator()(size_t key_idx) const
+  {
+    cuda::std::atomic_ref<size_t> counter(sample_counts[key_idx]);
+    counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+  }
+};
+
+template <typename T, typename Iterator>
+struct copy_with_counter_t {
+  raft::device_span<size_t> sample_counts{};
+  thrust::optional<raft::device_span<size_t const>> sample_offsets{};
+  Iterator output_first{};
+  size_t K{};
+
+  __device__ void operator()(thrust::tuple<T, size_t> pair) const
+  {
+    auto e_op_result = thrust::get<0>(pair);
+    auto key_idx     = thrust::get<1>(pair);
+    cuda::std::atomic_ref<size_t> counter(*(sample_counts.begin() + key_idx));
+    auto sample_idx    = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
+    auto output_offset = (sample_offsets ? (*sample_offsets)[key_idx] : key_idx * K) + sample_idx;
+    *(output_first + output_offset) = e_op_result;
   }
 };
 
@@ -220,6 +233,7 @@ template <bool incoming,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
@@ -229,10 +243,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 VertexFrontierBucketType const& frontier,
                                 EdgeSrcValueInputWrapper edge_src_value_input,
                                 EdgeDstValueInputWrapper edge_dst_value_input,
-#if 0  // FIXME: This will be necessary to include edge IDs in the output.
-       // Primitives API should be updated to support this in a consistent way.
-                               EdgeValueInputWrapper egde_value_input,
-#endif
+                                EdgeValueInputWrapper edge_value_input,
                                 EdgeOp e_op,
                                 raft::random::RngState& rng_state,
                                 size_t K,
@@ -243,7 +254,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 #ifndef NO_CUGRAPH_OPS
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
   using key_buffer_t =
     decltype(allocate_dataframe_buffer<key_t>(size_t{0}, rmm::cuda_stream_view{}));
@@ -268,17 +278,30 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                        edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeDstValueInputWrapper::value_iterator>>>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
-  static_assert(std::is_same_v<typename evaluate_edge_op<GraphViewType,
-                                                         key_t,
-                                                         EdgeSrcValueInputWrapper,
-                                                         EdgeDstValueInputWrapper,
-                                                         EdgeOp>::result_type,
-                               T>);
+  static_assert(std::is_same_v<
+                typename detail::edge_op_result_type<key_t,
+                                                     vertex_t,
+                                                     typename EdgeSrcValueInputWrapper::value_type,
+                                                     typename EdgeDstValueInputWrapper::value_type,
+                                                     typename EdgeValueInputWrapper::value_type,
+                                                     EdgeOp>::type,
+                T>);
 
   CUGRAPH_EXPECTS(K >= size_t{1},
                   "Invalid input argument: invalid K, K should be a positive integer.");
+
+  auto col_comm_size =
+    GraphViewType::is_multi_gpu
+      ? handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size()
+      : int{1};
 
   if (do_expensive_check) {
     // FIXME: better re-factor this check function?
@@ -310,7 +333,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   auto frontier_key_last  = frontier.end();
 
   std::vector<size_t> local_frontier_sizes{};
-  if constexpr (GraphViewType::is_multi_gpu) {
+  if (col_comm_size > 1) {
     auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     local_frontier_sizes = host_scalar_allgather(
       col_comm,
@@ -329,11 +352,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   // 1. aggregate frontier
 
   auto aggregate_local_frontier_keys =
-    GraphViewType::is_multi_gpu
+    (col_comm_size > 1)
       ? std::make_optional<key_buffer_t>(
           local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream())
       : std::nullopt;
-  if constexpr (GraphViewType::is_multi_gpu) {
+  if (col_comm_size > 1) {
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     device_allgatherv(col_comm,
                       frontier_key_first,
@@ -346,21 +369,21 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   // 2. compute degrees
 
   auto aggregate_local_frontier_local_degrees =
-    GraphViewType::is_multi_gpu
+    (col_comm_size > 1)
       ? std::make_optional<rmm::device_uvector<edge_t>>(
           local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream())
       : std::nullopt;
   rmm::device_uvector<edge_t> frontier_degrees(frontier.size(), handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     vertex_t const* edge_partition_frontier_major_first{nullptr};
 
     auto edge_partition_frontier_key_first =
-      (GraphViewType::is_multi_gpu ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
-                                   : frontier_key_first) +
+      ((col_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
+                           : frontier_key_first) +
       local_frontier_displacements[i];
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       edge_partition_frontier_major_first = edge_partition_frontier_key_first;
@@ -373,7 +396,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                         local_frontier_sizes[i]),
       handle.get_stream());
 
-    if constexpr (GraphViewType::is_multi_gpu) {
+    if (col_comm_size > 1) {
       // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
       // to the output array
       thrust::copy(
@@ -387,12 +410,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   auto frontier_gathered_local_degrees =
-    GraphViewType::is_multi_gpu
+    (col_comm_size > 1)
       ? std::make_optional<rmm::device_uvector<edge_t>>(size_t{0}, handle.get_stream())
       : std::nullopt;
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+  if (col_comm_size > 1) {
+    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
     std::tie(frontier_gathered_local_degrees, std::ignore) =
       shuffle_values(col_comm,
@@ -430,12 +452,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
                           // neighbors are distributed in col_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};  // relevant only when multi-GPU
+    std::nullopt};  // relevant only when (col_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+  if (col_comm_size > 1) {
+    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
     sample_key_indices =
       rmm::device_uvector<size_t>(sample_local_nbr_indices.size(), handle.get_stream());
@@ -506,21 +527,17 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   // 5. transform
 
-  auto sample_counts =
-    (!GraphViewType::is_multi_gpu && !invalid_value)
-      ? std::make_optional<rmm::device_uvector<size_t>>(frontier.size(), handle.get_stream())
-      : std::nullopt;
   auto sample_e_op_results = allocate_dataframe_buffer<T>(
     local_frontier_sample_displacements.back() + local_frontier_sample_counts.back(),
     handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     auto edge_partition_frontier_key_first =
-      (GraphViewType::is_multi_gpu ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
-                                   : frontier_key_first) +
+      ((col_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
+                           : frontier_key_first) +
       local_frontier_displacements[i];
     auto edge_partition_sample_local_nbr_index_first =
       sample_local_nbr_indices.begin() + local_frontier_sample_displacements[i];
@@ -539,94 +556,61 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         edge_partition_src_input_device_view_t(edge_src_value_input, i);
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
-    if constexpr (GraphViewType::is_multi_gpu) {
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          (*sample_key_indices).begin() + local_frontier_sample_displacements[i],
-                          (*sample_key_indices).begin() + local_frontier_sample_displacements[i] +
-                            local_frontier_sample_counts[i],
-                          edge_partition_sample_local_nbr_index_first);
-      auto num_unique_key_indices =
-        thrust::count_if(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(local_frontier_sample_counts[i]),
-                         is_first_in_run_t<size_t const*>{(*sample_key_indices).data() +
-                                                          local_frontier_sample_displacements[i]});
-      rmm::device_uvector<size_t> unique_key_indices(num_unique_key_indices, handle.get_stream());
-      rmm::device_uvector<size_t> unique_key_local_nbr_idx_counts(num_unique_key_indices,
-                                                                  handle.get_stream());
-      thrust::reduce_by_key(handle.get_thrust_policy(),
-                            (*sample_key_indices).begin() + local_frontier_sample_displacements[i],
-                            (*sample_key_indices).begin() + local_frontier_sample_displacements[i] +
-                              local_frontier_sample_counts[i],
-                            thrust::make_constant_iterator(edge_t{1}),
-                            unique_key_indices.begin(),
-                            unique_key_local_nbr_idx_counts.begin());
-      rmm::device_uvector<size_t> unique_key_local_nbr_idx_offsets(num_unique_key_indices + 1,
-                                                                   handle.get_stream());
-      unique_key_local_nbr_idx_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             unique_key_local_nbr_idx_counts.begin(),
-                             unique_key_local_nbr_idx_counts.end(),
-                             unique_key_local_nbr_idx_offsets.begin() + 1);
-      auto offset_first = unique_key_local_nbr_idx_offsets.begin();
+    if (col_comm_size > 1) {
+      auto edge_partition_sample_key_index_first =
+        (*sample_key_indices).begin() + local_frontier_sample_displacements[i];
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(unique_key_indices.size()),
-        transform_and_count_local_nbr_indices_t<GraphViewType,
-                                                decltype(unique_key_indices.begin()),
-                                                decltype(edge_partition_frontier_key_first),
-                                                decltype(offset_first),
-                                                decltype(
-                                                  edge_partition_sample_local_nbr_index_first),
-                                                decltype(edge_partition_sample_e_op_result_first),
-                                                size_t*,
-                                                edge_partition_src_input_device_view_t,
-                                                edge_partition_dst_input_device_view_t,
-                                                EdgeOp,
-                                                T>{edge_partition,
-                                                   unique_key_indices.begin(),
-                                                   edge_partition_frontier_key_first,
-                                                   offset_first,
-                                                   edge_partition_sample_local_nbr_index_first,
-                                                   edge_partition_sample_e_op_result_first,
-                                                   thrust::nullopt,
-                                                   edge_partition_src_value_input,
-                                                   edge_partition_dst_value_input,
-                                                   e_op,
-                                                   cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
-                                                   to_thrust_optional(invalid_value)});
+        thrust::make_counting_iterator(local_frontier_sample_counts[i]),
+        transform_local_nbr_indices_t<GraphViewType,
+                                      decltype(edge_partition_frontier_key_first),
+                                      decltype(edge_partition_sample_local_nbr_index_first),
+                                      decltype(edge_partition_sample_e_op_result_first),
+                                      edge_partition_src_input_device_view_t,
+                                      edge_partition_dst_input_device_view_t,
+                                      edge_partition_e_input_device_view_t,
+                                      EdgeOp,
+                                      T>{
+          edge_partition,
+          thrust::make_optional(edge_partition_sample_key_index_first),
+          edge_partition_frontier_key_first,
+          edge_partition_sample_local_nbr_index_first,
+          edge_partition_sample_e_op_result_first,
+          edge_partition_src_value_input,
+          edge_partition_dst_value_input,
+          edge_partition_e_value_input,
+          e_op,
+          cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
+          to_thrust_optional(invalid_value),
+          K});
     } else {
-      auto offset_first = thrust::make_transform_iterator(thrust::make_counting_iterator(size_t{0}),
-                                                          multiplier_t<size_t>{K});
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(frontier.size()),
-        transform_and_count_local_nbr_indices_t<
-          GraphViewType,
-          decltype(thrust::make_counting_iterator(size_t{0})),
-          decltype(edge_partition_frontier_key_first),
-          decltype(offset_first),
-          decltype(edge_partition_sample_local_nbr_index_first),
-          decltype(edge_partition_sample_e_op_result_first),
-          size_t*,
-          edge_partition_src_input_device_view_t,
-          edge_partition_dst_input_device_view_t,
-          EdgeOp,
-          T>{edge_partition,
-             thrust::make_counting_iterator(size_t{0}),
-             edge_partition_frontier_key_first,
-             offset_first,
-             edge_partition_sample_local_nbr_index_first,
-             edge_partition_sample_e_op_result_first,
-             sample_counts ? thrust::optional<size_t*>((*sample_counts).data()) : thrust::nullopt,
-             edge_partition_src_value_input,
-             edge_partition_dst_value_input,
-             e_op,
-             cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
-             to_thrust_optional(invalid_value)});
+        thrust::make_counting_iterator(frontier.size() * K),
+        transform_local_nbr_indices_t<GraphViewType,
+                                      decltype(edge_partition_frontier_key_first),
+                                      decltype(edge_partition_sample_local_nbr_index_first),
+                                      decltype(edge_partition_sample_e_op_result_first),
+                                      edge_partition_src_input_device_view_t,
+                                      edge_partition_dst_input_device_view_t,
+                                      edge_partition_e_input_device_view_t,
+                                      EdgeOp,
+                                      T>{edge_partition,
+                                         thrust::nullopt,
+                                         edge_partition_frontier_key_first,
+                                         edge_partition_sample_local_nbr_index_first,
+                                         edge_partition_sample_e_op_result_first,
+                                         edge_partition_src_value_input,
+                                         edge_partition_dst_value_input,
+                                         edge_partition_e_value_input,
+                                         e_op,
+                                         cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
+                                         to_thrust_optional(invalid_value),
+                                         K});
     }
   }
 
@@ -635,81 +619,93 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   auto sample_offsets = invalid_value ? std::nullopt
                                       : std::make_optional<rmm::device_uvector<size_t>>(
                                           frontier.size() + 1, handle.get_stream());
-  if (GraphViewType::is_multi_gpu) {
+  if (col_comm_size > 1) {
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
-    std::vector<size_t> rx_counts{};
-    std::tie(sample_e_op_results, rx_counts) =
+    std::tie(sample_e_op_results, std::ignore) =
       shuffle_values(col_comm,
                      get_dataframe_buffer_begin(sample_e_op_results),
                      local_frontier_sample_counts,
                      handle.get_stream());
     std::tie(sample_key_indices, std::ignore) = shuffle_values(
       col_comm, (*sample_key_indices).begin(), local_frontier_sample_counts, handle.get_stream());
-    // FIXME: better refactor this sort-and-reduce-by-key
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        (*sample_key_indices).begin(),
-                        (*sample_key_indices).end(),
-                        get_dataframe_buffer_begin(sample_e_op_results));
-    auto num_unique_key_indices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator(size_t{0}),
-                       thrust::make_counting_iterator((*sample_key_indices).size()),
-                       is_first_in_run_t<size_t const*>{(*sample_key_indices).data()});
-    rmm::device_uvector<size_t> unique_key_indices(num_unique_key_indices, handle.get_stream());
-    rmm::device_uvector<size_t> unique_key_sample_counts(num_unique_key_indices,
-                                                         handle.get_stream());
-    thrust::reduce_by_key(handle.get_thrust_policy(),
-                          (*sample_key_indices).begin(),
-                          (*sample_key_indices).end(),
-                          thrust::make_constant_iterator(edge_t{1}),
-                          unique_key_indices.begin(),
-                          unique_key_sample_counts.begin());
-    sample_counts = rmm::device_uvector<size_t>(frontier.size(), handle.get_stream());
-    thrust::fill(
-      handle.get_thrust_policy(), (*sample_counts).begin(), (*sample_counts).end(), size_t{0});
-    thrust::scatter(handle.get_thrust_policy(),
-                    unique_key_sample_counts.begin(),
-                    unique_key_sample_counts.end(),
-                    unique_key_indices.begin(),
-                    (*sample_counts).begin());
+
+    rmm::device_uvector<size_t> sample_counts(frontier.size(), handle.get_stream());
+    thrust::fill(handle.get_thrust_policy(), sample_counts.begin(), sample_counts.end(), size_t{0});
+    auto input_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+      get_dataframe_buffer_begin(sample_e_op_results), (*sample_key_indices).begin()));
     if (invalid_value) {
-      rmm::device_uvector<size_t> sample_displacements((*sample_counts).size(),
-                                                       handle.get_stream());
-      thrust::exclusive_scan(handle.get_thrust_policy(),
-                             (*sample_counts).begin(),
-                             (*sample_counts).end(),
-                             sample_displacements.begin());
       auto tmp_sample_e_op_results =
         allocate_dataframe_buffer<T>(frontier.size() * K, handle.get_stream());
-      auto input_first  = get_dataframe_buffer_begin(sample_e_op_results);
-      auto output_first = get_dataframe_buffer_begin(tmp_sample_e_op_results);
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(frontier.size()),
-        copy_and_fill_sample_e_op_results_t<decltype(input_first), decltype(output_first)>{
-          raft::device_span<size_t const>((*sample_counts).data(), (*sample_counts).size()),
-          raft::device_span<size_t const>(sample_displacements.data(), sample_displacements.size()),
-          input_first,
-          output_first,
-          K,
-          *invalid_value});
+      auto tmp_sample_e_op_result_first = get_dataframe_buffer_begin(tmp_sample_e_op_results);
+      thrust::fill(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(tmp_sample_e_op_results),
+                   get_dataframe_buffer_end(tmp_sample_e_op_results),
+                   *invalid_value);
+      thrust::for_each(handle.get_thrust_policy(),
+                       input_pair_first,
+                       input_pair_first + size_dataframe_buffer(sample_e_op_results),
+                       copy_with_counter_t<T, decltype(tmp_sample_e_op_result_first)>{
+                         raft::device_span<size_t>(sample_counts.data(), sample_counts.size()),
+                         thrust::nullopt,
+                         tmp_sample_e_op_result_first,
+                         K});
       sample_e_op_results = std::move(tmp_sample_e_op_results);
     } else {
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        (*sample_key_indices).begin(),
+        (*sample_key_indices).end(),
+        count_t{raft::device_span<size_t>(sample_counts.data(), sample_counts.size())});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       thrust::inclusive_scan(handle.get_thrust_policy(),
-                             (*sample_counts).begin(),
-                             (*sample_counts).end(),
+                             sample_counts.begin(),
+                             sample_counts.end(),
                              (*sample_offsets).begin() + 1);
+      auto tmp_sample_e_op_results = allocate_dataframe_buffer<T>(
+        (*sample_offsets).back_element(handle.get_stream()), handle.get_stream());
+      auto tmp_sample_e_op_result_first = get_dataframe_buffer_begin(tmp_sample_e_op_results);
+      thrust::fill(
+        handle.get_thrust_policy(), sample_counts.begin(), sample_counts.end(), size_t{0});
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        input_pair_first,
+        input_pair_first + size_dataframe_buffer(sample_e_op_results),
+        copy_with_counter_t<T, decltype(tmp_sample_e_op_result_first)>{
+          raft::device_span<size_t>(sample_counts.data(), sample_counts.size()),
+          raft::device_span<size_t const>((*sample_offsets).data(), (*sample_offsets).size()),
+          tmp_sample_e_op_result_first,
+          K});
+      sample_e_op_results = std::move(tmp_sample_e_op_results);
     }
   } else {
     if (!invalid_value) {
+      rmm::device_uvector<size_t> sample_counts(frontier.size(), handle.get_stream());
+      thrust::tabulate(
+        handle.get_thrust_policy(),
+        sample_counts.begin(),
+        sample_counts.end(),
+        count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
+                                                               sample_local_nbr_indices.size()),
+                               K,
+                               cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       thrust::inclusive_scan(handle.get_thrust_policy(),
-                             (*sample_counts).begin(),
-                             (*sample_counts).end(),
+                             sample_counts.begin(),
+                             sample_counts.end(),
                              (*sample_offsets).begin() + 1);
+      auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+        sample_local_nbr_indices.begin(), get_dataframe_buffer_begin(sample_e_op_results)));
+      resize_dataframe_buffer(
+        sample_e_op_results,
+        thrust::distance(pair_first,
+                         thrust::remove_if(handle.get_thrust_policy(),
+                                           pair_first,
+                                           pair_first + sample_local_nbr_indices.size(),
+                                           check_invalid_t<edge_t, T>{
+                                             cugraph::ops::gnn::graph::INVALID_ID<edge_t>})),
+        handle.get_stream());
+      shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
     }
   }
 
@@ -729,6 +725,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeBiasOp Type of the quaternary (or quinary) edge operator to set-up selection bias
  * values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
@@ -748,12 +745,16 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_bias_op Quaternary (or quinary) operator takes edge source, edge destination, (optional
- * edge weight), property values for the source, and property values for the destination and returns
- * a graph weight type bias value to be used in biased random selection.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be collected in the output. This function is called only for the selected edges.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_bias_op Quinary operator takes edge source, edge destination, property values for the
+ * source, destination, and edge and returns a floating point bias value to be used in biased random
+ * selection.
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns a value to be collected in the output. This function is called
+ * only for the selected edges.
  * @param K Number of outgoing edges to select per (tagged-)vertex.
  * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
  * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
@@ -774,6 +775,7 @@ template <typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeBiasOp,
           typename EdgeOp,
           typename T>
@@ -784,10 +786,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          VertexFrontierBucketType const& frontier,
                                          EdgeSrcValueInputWrapper edge_src_value_input,
                                          EdgeDstValueInputWrapper edge_dst_value_input,
-#if 0  // FIXME: This will be necessary to include edge IDs in the output.
-       // Primitives API should be updated to support this in a consistent way.
-                               EdgeValueInputWrapper egde_value_input,
-#endif
+                                         EdgeValueInputWrapper egde_value_input,
                                          EdgeBiasOp e_bias_op,
                                          EdgeOp e_op,
                                          raft::random::RngState& rng_state,
@@ -813,6 +812,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -830,9 +830,13 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be collected in the output. This function is called only for the selected edges.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns a value to be collected in the output. This function is called
+ * only for the selected edges.
  * @param K Number of outgoing edges to select per (tagged-)vertex.
  * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
  * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
@@ -853,6 +857,7 @@ template <typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
@@ -862,10 +867,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          VertexFrontierBucketType const& frontier,
                                          EdgeSrcValueInputWrapper edge_src_value_input,
                                          EdgeDstValueInputWrapper edge_dst_value_input,
-#if 0  // FIXME: This will be necessary to include edge IDs in the output.
-       // Primitives API should be updated to support this in a consistent way.
-                               EdgeValueInputWrapper egde_value_input,
-#endif
+                                         EdgeValueInputWrapper edge_value_input,
                                          EdgeOp e_op,
                                          raft::random::RngState& rng_state,
                                          size_t K,
@@ -878,6 +880,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                                         frontier,
                                                         edge_src_value_input,
                                                         edge_dst_value_input,
+                                                        edge_value_input,
                                                         e_op,
                                                         rng_state,
                                                         K,

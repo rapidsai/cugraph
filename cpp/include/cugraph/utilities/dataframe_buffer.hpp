@@ -17,7 +17,7 @@
 
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -108,39 +108,44 @@ auto allocate_dataframe_buffer(size_t buffer_size, rmm::cuda_stream_view stream_
     std::make_index_sequence<tuple_size>(), buffer_size, stream_view);
 }
 
-template <typename Type>
-void resize_dataframe_buffer(Type& buffer,
+template <typename BufferType>
+void resize_dataframe_buffer(BufferType& buffer,
                              size_t new_buffer_size,
                              rmm::cuda_stream_view stream_view)
 {
-  if constexpr (is_std_tuple_of_arithmetic_vectors<Type>::value) {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
+  if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
     std::apply([new_buffer_size,
                 stream_view](auto&&... args) { (args.resize(new_buffer_size, stream_view), ...); },
                buffer);
-  } else if constexpr (is_arithmetic_vector<Type, rmm::device_uvector>::value) {
+  } else {
     buffer.resize(new_buffer_size, stream_view);
   }
 }
 
-template <typename Type>
-void shrink_to_fit_dataframe_buffer(Type& buffer, rmm::cuda_stream_view stream_view)
+template <typename BufferType>
+void shrink_to_fit_dataframe_buffer(BufferType& buffer, rmm::cuda_stream_view stream_view)
 {
-  if constexpr (is_std_tuple_of_arithmetic_vectors<Type>::value) {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
+  if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
     std::apply([stream_view](auto&&... args) { (args.shrink_to_fit(stream_view), ...); }, buffer);
-  } else if constexpr (is_arithmetic_vector<Type, rmm::device_uvector>::value) {
+  } else {
     buffer.shrink_to_fit(stream_view);
   }
 }
 
-template <typename Type>
-size_t size_dataframe_buffer(Type& buffer)
+template <typename BufferType>
+size_t size_dataframe_buffer(BufferType& buffer)
 {
-  if constexpr (is_std_tuple_of_arithmetic_vectors<Type>::value) {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
+  if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
     return std::get<0>(buffer).size();
-  } else if constexpr (is_arithmetic_vector<Type, rmm::device_uvector>::value) {
+  } else {
     return buffer.size();
   }
-  return size_t{};
 }
 
 template <typename BufferType,
@@ -214,10 +219,12 @@ auto get_dataframe_buffer_cend(BufferType& buffer)
 template <typename BufferType, typename Op>
 void transform(const BufferType& input, BufferType& output, Op&& op)
 {
-  if constexpr (is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
+  if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
     size_t constexpr tuple_size = std::tuple_size<BufferType>::value;
     detail::transform_tuple_impl(std::make_index_sequence<tuple_size>(), input, output, op);
-  } else if constexpr (is_arithmetic_vector<BufferType, rmm::device_uvector>::value) {
+  } else {
     std::invoke(op, input, output);
   }
 }
