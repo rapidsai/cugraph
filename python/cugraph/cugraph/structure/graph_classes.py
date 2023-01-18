@@ -683,6 +683,27 @@ class Graph:
         """
         self._Impl._nodes["all_nodes"] = cudf.Series(nodes)
 
+    def density(self):
+        """
+        Return the density of the graph.
+        Density is the measure of how many edges are in the graph versus
+        the max number of edges that could be present.
+        Note:  This function does not work on multigraph since there
+        is no theoretical max number of edges
+        """
+        if self.is_multigraph():
+            raise TypeError("G cannot be a Multigraph")
+        if self.is_directed():
+            factor = 1
+        else:
+            factor = 2
+
+        num_e = self._Impl.number_of_edges(directed_edges=True)
+        num_v = self._Impl.number_of_vertices()
+
+        density = (factor * num_e) / (num_v * (num_v -1))
+        return density
+
     # TODO: Add function
     # def properties():
 
