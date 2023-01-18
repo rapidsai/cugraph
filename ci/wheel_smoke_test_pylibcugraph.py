@@ -14,6 +14,12 @@
 import cupy
 from pylibcugraph import ResourceHandle, GraphProperties, SGGraph, pagerank
 
+# an import statement that reveals a problem with cusolver
+from pylibcugraph.components._connectivity import (
+    strongly_connected_components,
+)
+
+
 if __name__ == "__main__":
     src_array = cupy.asarray([100, 201, 302], dtype="int32")
     dst_array = cupy.asarray([201, 302, 403], dtype="int32")

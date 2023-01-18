@@ -83,8 +83,8 @@ jobs:
       package-name: pylibcugraph
       # On arm also need to install cupy from the specific webpage.
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
-      test-smoketest: "python ci/wheel_smoke_test_pylibcugraph.py"
+      test-unittest: "scanelf -l -s 'cusolverDnDestroy' | grep cusolverDnDestroy ; RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+      test-smoketest: "scanelf -l -s 'cusolverDnDestroy' | grep cusolverDnDestroy ; python ci/wheel_smoke_test_pylibcugraph.py"
   wheel-build-cugraph:
     needs: wheel-tests-pylibcugraph
     secrets: inherit
@@ -110,5 +110,5 @@ jobs:
       test-before-amd64: "pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
       # On arm also need to install cupy from the specific webpage.
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/cugraph/cugraph/tests"
+      test-unittest: "scanelf -l -s 'cusolverDnDestroy' | grep cusolverDnDestroy ; RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/cugraph/cugraph/tests"
       test-smoketest: "scanelf -l -s 'cusolverDnDestroy' | grep cusolverDnDestroy ; python ci/wheel_smoke_test_cugraph.py"
