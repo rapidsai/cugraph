@@ -123,8 +123,16 @@ class EXPERIMENTAL__CuGraphSampler:
 
         index = cudf.from_dlpack(index.__dlpack__())
 
-        sample_fn = cugraph.dask.uniform_neighbor_sample if self.__graph_store._is_delayed else cugraph.uniform_neighbor_sample
-        concat_fn = dask_cudf.concat if self.__graph_store._is_delayed else cudf.concat
+        sample_fn = (
+            cugraph.dask.uniform_neighbor_sample
+            if self.__graph_store._is_delayed
+            else cugraph.uniform_neighbor_sample
+        )
+        concat_fn = (
+            dask_cudf.concat
+            if self.__graph_store._is_delayed
+            else cudf.concat
+        )
 
         sampling_results = sample_fn(
             G,
