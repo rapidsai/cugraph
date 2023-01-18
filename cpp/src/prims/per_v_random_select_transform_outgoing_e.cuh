@@ -81,6 +81,16 @@ struct convert_pair_to_triplet_t {
   }
 };
 
+template <typename edge_t, typename T>
+struct check_invalid_t {
+  edge_t invalid_idx{};
+
+  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
+  {
+    return thrust::get<0>(pair) == invalid_idx;
+  }
+};
+
 template <typename edge_t>
 struct invalid_col_comm_rank_t {
   int32_t invalid_col_comm_rank{};
@@ -215,16 +225,6 @@ struct copy_with_counter_t {
     auto sample_idx    = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
     auto output_offset = (sample_offsets ? (*sample_offsets)[key_idx] : key_idx * K) + sample_idx;
     *(output_first + output_offset) = e_op_result;
-  }
-};
-
-template <typename edge_t, typename T>
-struct check_invalid_t {
-  edge_t invalid_idx{};
-
-  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
-  {
-    return thrust::get<0>(pair) == invalid_idx;
   }
 };
 
