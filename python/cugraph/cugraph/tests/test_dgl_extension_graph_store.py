@@ -485,7 +485,7 @@ def test_sampling_homogeneous_gs_out_dir():
 
         output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
         output_df = output_df.sort_values(by=["src", "dst"])
-        output_df = output_df.reset_index(drop=True)
+        output_df = output_df.reset_index(drop=True).astype(np.int64)
 
         expected_df = cudf.DataFrame(
             {"src": expected_out[seed][0], "dst": expected_out[seed][1]}
@@ -533,7 +533,7 @@ def test_sampling_homogeneous_gs_in_dir():
 
         output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
         output_df = output_df.sort_values(by=["src", "dst"])
-        output_df = output_df.reset_index(drop=True)
+        output_df = output_df.reset_index(drop=True).astype(np.int64)
 
         expected_df = cudf.DataFrame(
             {"src": expected_in[seed][0], "dst": expected_in[seed][1]}
