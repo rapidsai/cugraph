@@ -371,7 +371,6 @@ def test_uniform_neighbor_sample_edge_properties():
         with_replacement=False,
         with_edge_properties=True,
         batch_id_list=start_df["batch"].compute(),
-        seed=42,
     ).compute()
 
     print("original edgelist:")
@@ -426,7 +425,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
-        seed=5,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -482,7 +480,6 @@ def test_uniform_neighbor_sample_without_dask_inputs():
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
-        seed=5,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]

@@ -34,6 +34,7 @@ set(cython_sources
     node2vec.pyx
     pagerank.pyx
     personalized_pagerank.pyx
+    random.pyx
     resource_handle.pyx
     sssp.pyx
     triangle_count.pyx
