@@ -28,15 +28,10 @@ import numpy as np
 try:
     from cugraph.utilities.utils import import_optional
 except ModuleNotFoundError:
-    raise ModuleNotFoundError(
-        "cuGraph-PyG requires cuGraph to be installed."
-    )
+    raise ModuleNotFoundError("cuGraph-PyG requires cuGraph to be installed.")
 
 # FIXME remove these imports and replace PG with FeatureStore
-from cugraph.experimental import (
-    PropertyGraph,
-    MGPropertyGraph
-)
+from cugraph.experimental import MGPropertyGraph
 
 # FIXME drop cupy support and make torch the only backend (#2995)
 cupy = import_optional("cupy")
@@ -336,7 +331,8 @@ class EXPERIMENTAL__CuGraphStore:
                 f"and {self.__old_edge_col_name}"
             )
 
-        # FIXME Remove all renumbering logic permanently and require this already be done.
+        # FIXME Remove all renumbering logic permanently
+        # and require this already be done.
         if renumber_graph:
             self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
                 prev_id_column=self.__old_vertex_col_name
