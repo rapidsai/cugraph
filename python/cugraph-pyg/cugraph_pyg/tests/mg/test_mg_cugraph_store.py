@@ -333,11 +333,10 @@ def test_renumber_edges(graph):
         {
             "sources": eoi_df[pG.src_col_name].compute(),
             "destinations": eoi_df[pG.dst_col_name].compute(),
-            "edge_id": eoi_df[pG.edge_id_col_name].compute(),
-            "edge_type": eoi_df[pG.type_col_name].cat.codes.astype("int32").compute(),
+            "indices": eoi_df[pG.type_col_name].cat.codes.astype("int32").compute(),
         }
-    ).reset_index()
-    print(sdf)
+    ).reset_index(drop=True)
+    
     row, col = graph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
 
     for etype in row:

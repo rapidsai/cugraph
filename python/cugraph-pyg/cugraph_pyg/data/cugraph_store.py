@@ -661,7 +661,7 @@ class EXPERIMENTAL__CuGraphStore:
                 cudf.from_dlpack(
                     self.searchsorted(
                         self.from_dlpack(
-                            self.__vertex_type_offsets["stop"].__dlpack__()
+                            self.__vertex_type_offsets["stop"].to_dlpack()
                         ),
                         nodes_of_interest,
                     ).__dlpack__()
@@ -963,7 +963,7 @@ class EXPERIMENTAL__CuGraphStore:
         raise NotImplementedError("Removing features not supported")
 
     def _infer_unspecified_attr(self, attr: CuGraphTensorAttr) -> CuGraphTensorAttr:
-c        if attr.properties == _field_status.UNSET:
+        if attr.properties == _field_status.UNSET:
             # attempt to infer property names
             if attr.group_name in self._tensor_attr_dict:
                 for n in self._tensor_attr_dict[attr.group_name]:
