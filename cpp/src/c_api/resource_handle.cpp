@@ -21,8 +21,22 @@
 extern "C" cugraph_resource_handle_t* cugraph_create_resource_handle(void* raft_handle)
 {
   try {
+#if 0
     return reinterpret_cast<cugraph_resource_handle_t*>(
       new cugraph::c_api::cugraph_resource_handle_t(raft_handle));
+#else
+    auto xxx = new cugraph::c_api::cugraph_resource_handle_t(raft_handle);
+
+    printf("in cugraph_free_resource_handle, cugraph_resource_handle = %p, raft handle = %p\n",
+           xxx,
+           raft_handle);
+    if (xxx->allocated_)
+      std::cout << "allocated = True" << std::endl;
+    else
+      std::cout << "allocated = False" << std::endl;
+
+    return reinterpret_cast<cugraph_resource_handle_t*>(xxx);
+#endif
   } catch (...) {
     return nullptr;
   }
