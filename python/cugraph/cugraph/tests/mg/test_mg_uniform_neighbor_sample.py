@@ -348,7 +348,11 @@ def test_uniform_neighbor_sample_edge_properties():
 
     G = cugraph.MultiGraph(directed=True)
     G.from_dask_cudf_edgelist(
-        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"], legacy_renum_only=True
+        edgelist_df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
     )
 
     sampling_results = uniform_neighbor_sample(
@@ -367,77 +371,142 @@ def test_uniform_neighbor_sample_edge_properties():
         with_replacement=False,
         with_edge_properties=True,
         batch_id_list=start_df["batch"].compute(),
-        seed=42
+        seed=42,
     ).compute()
 
-    print('original edgelist:')
+    print("original edgelist:")
     print(edgelist_df.compute())
 
-    print('sampling result:')
+    print("sampling result:")
     print(sampling_results)
 
-    mdf = cudf.merge(sampling_results, edgelist_df.compute(), left_on='edge_id', right_on='eid')
-    assert (
-        (mdf.w == mdf.weight).all()
+    mdf = cudf.merge(
+        sampling_results, edgelist_df.compute(), left_on="edge_id", right_on="eid"
     )
-    assert (
-        (mdf.etp == mdf.edge_type).all()
-    )
-    assert (
-        (mdf.src == mdf.sources).all()
-    )
-    assert (
-        (mdf.dst == mdf.destinations).all()
-    )
+    assert (mdf.w == mdf.weight).all()
+    assert (mdf.etp == mdf.edge_type).all()
+    assert (mdf.src == mdf.sources).all()
+    assert (mdf.dst == mdf.destinations).all()
 
-    assert sorted(sampling_results["hop_id"].values_host.tolist()) == [0] * (2 * 2) + [1] * (
-        2 * 2 * 2
-    )
+    assert sorted(sampling_results["hop_id"].values_host.tolist()) == [0] * (2 * 2) + [
+        1
+    ] * (2 * 2 * 2)
     # FIXME test the batch id values once that is fixed in C++
 
+
 def test_uniform_neighbor_sample_edge_properties_self_loops():
-    df = dask_cudf.from_cudf(cudf.DataFrame({
-        'src': [0,1,2],
-        'dst': [0,1,2],
-        'eid': [2,4,6],
-        'etp': cudf.Series([1,1,2], dtype='int32'),
-        'w':[0.0,0.1,0.2]
-    }), npartitions=2)
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2],
+                "dst": [0, 1, 2],
+                "eid": [2, 4, 6],
+                "etp": cudf.Series([1, 1, 2], dtype="int32"),
+                "w": [0.0, 0.1, 0.2],
+            }
+        ),
+        npartitions=2,
+    )
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(df, source='src', destination='dst', edge_attr=['w','eid','etp'], legacy_renum_only=True)
+    G.from_dask_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
 
-    sampling_results = cugraph.dask.uniform_neighbor_sample(G, start_list=dask_cudf.from_cudf(cudf.Series([0,1,2]),npartitions=2), batch_id_list=dask_cudf.from_cudf(cudf.Series([1,1,1], dtype='int32'), npartitions=2), fanout_vals=[2,2], with_replacement=False, with_edge_properties=True, seed=5).compute()
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=dask_cudf.from_cudf(cudf.Series([0, 1, 2]), npartitions=2),
+        batch_id_list=dask_cudf.from_cudf(
+            cudf.Series([1, 1, 1], dtype="int32"), npartitions=2
+        ),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        seed=5,
+    ).compute()
 
-    assert sorted(sampling_results.sources.values_host.tolist()) == [0,0,1,1,2,2]
-    assert sorted(sampling_results.destinations.values_host.tolist()) == [0,0,1,1,2,2]
-    assert sorted(sampling_results.weight.values_host.tolist()) == [0.0,0.0,0.1,0.1,0.2,0.2]
-    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2,2,4,4,6,6]
-    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1,1,1,1,2,2]
-    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1,1,1,1,1,1]
-    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0,0,0,1,1,1]
+    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+    ]
+    assert sorted(sampling_results.weight.values_host.tolist()) == [
+        0.0,
+        0.0,
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+    ]
+    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2, 2, 4, 4, 6, 6]
+    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
+    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
+    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
+
 
 def test_uniform_neighbor_sample_without_dask_inputs():
-    df = dask_cudf.from_cudf(cudf.DataFrame({
-        'src': [0,1,2],
-        'dst': [0,1,2],
-        'eid': [2,4,6],
-        'etp': cudf.Series([1,1,2], dtype='int32'),
-        'w':[0.0,0.1,0.2]
-    }), npartitions=2)
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2],
+                "dst": [0, 1, 2],
+                "eid": [2, 4, 6],
+                "etp": cudf.Series([1, 1, 2], dtype="int32"),
+                "w": [0.0, 0.1, 0.2],
+            }
+        ),
+        npartitions=2,
+    )
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(df, source='src', destination='dst', edge_attr=['w','eid','etp'], legacy_renum_only=True)
+    G.from_dask_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
 
-    sampling_results = cugraph.dask.uniform_neighbor_sample(G, start_list=cudf.Series([0,1,2]), batch_id_list=cudf.Series([1,1,1], dtype='int32'), fanout_vals=[2,2], with_replacement=False, with_edge_properties=True, seed=5).compute()
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=cudf.Series([0, 1, 2]),
+        batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        seed=5,
+    ).compute()
 
-    assert sorted(sampling_results.sources.values_host.tolist()) == [0,0,1,1,2,2]
-    assert sorted(sampling_results.destinations.values_host.tolist()) == [0,0,1,1,2,2]
-    assert sorted(sampling_results.weight.values_host.tolist()) == [0.0,0.0,0.1,0.1,0.2,0.2]
-    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2,2,4,4,6,6]
-    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1,1,1,1,2,2]
-    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1,1,1,1,1,1]
-    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0,0,0,1,1,1]
+    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+    ]
+    assert sorted(sampling_results.weight.values_host.tolist()) == [
+        0.0,
+        0.0,
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+    ]
+    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2, 2, 4, 4, 6, 6]
+    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
+    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
+    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
+
 
 # =============================================================================
 # Benchmarks

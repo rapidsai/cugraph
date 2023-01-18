@@ -60,7 +60,7 @@ def input_combo(request):
     indices_type = parameters["indices_type"]
 
     input_data_path = parameters["graph_file"].get_path()
-    print('data path:', input_data_path)
+    print("data path:", input_data_path)
     directed = parameters["directed"]
 
     df = cudf.read_csv(
@@ -156,7 +156,6 @@ def test_uniform_neighbor_sample_simple(input_combo):
 
     print(input_df)
     print(result_nbr)
-
 
     # multi edges are dropped to easily verify that each edge in the
     # results is present in the input dataframe
@@ -303,8 +302,8 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 def test_uniform_neighbor_sample_edge_properties():
     edgelist_df = cudf.DataFrame(
         {
-            "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype='int32'),
-            "dst": cudf.Series([1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4], dtype='int32'),
+            "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype="int32"),
+            "dst": cudf.Series([1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4], dtype="int32"),
             "eid": cudf.Series([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dtype="int32"),
             "etp": cudf.Series([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0], dtype="int32"),
             "w": [0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11],
@@ -320,7 +319,11 @@ def test_uniform_neighbor_sample_edge_properties():
 
     G = cugraph.MultiGraph(directed=True)
     G.from_cudf_edgelist(
-        edgelist_df, source="src", destination="dst", edge_attr=["w", "eid", "etp"], legacy_renum_only=True,
+        edgelist_df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
     )
 
     sampling_results = uniform_neighbor_sample(
@@ -355,24 +358,55 @@ def test_uniform_neighbor_sample_edge_properties():
     )
     # FIXME test the batch id values once that is fixed in C++
 
+
 def test_uniform_neighbor_sample_edge_properties_self_loops():
-    df = cudf.DataFrame({
-        'src': [0,1,2],
-        'dst': [0,1,2],
-        'eid': [2,4,6],
-        'etp': cudf.Series([1,1,2], dtype='int32'),
-        'w':[0.0,0.1,0.2]
-    })
+    df = cudf.DataFrame(
+        {
+            "src": [0, 1, 2],
+            "dst": [0, 1, 2],
+            "eid": [2, 4, 6],
+            "etp": cudf.Series([1, 1, 2], dtype="int32"),
+            "w": [0.0, 0.1, 0.2],
+        }
+    )
 
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(df, source='src', destination='dst', edge_attr=['w','eid','etp'], legacy_renum_only=True)
+    G.from_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
 
-    sampling_results = cugraph.uniform_neighbor_sample(G, start_list=cudf.Series([0,1,2]), batch_id_list=cudf.Series([1,1,1], dtype='int32'), fanout_vals=[2,2], with_replacement=False, with_edge_properties=True, seed=5)
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        start_list=cudf.Series([0, 1, 2]),
+        batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        seed=5,
+    )
 
-    assert sorted(sampling_results.sources.values_host.tolist()) == [0,0,1,1,2,2]
-    assert sorted(sampling_results.destinations.values_host.tolist()) == [0,0,1,1,2,2]
-    assert sorted(sampling_results.weight.values_host.tolist()) == [0.0,0.0,0.1,0.1,0.2,0.2]
-    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2,2,4,4,6,6]
-    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1,1,1,1,2,2]
-    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1,1,1,1,1,1]
-    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0,0,0,1,1,1]
+    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+    ]
+    assert sorted(sampling_results.weight.values_host.tolist()) == [
+        0.0,
+        0.0,
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+    ]
+    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2, 2, 4, 4, 6, 6]
+    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
+    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
+    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
