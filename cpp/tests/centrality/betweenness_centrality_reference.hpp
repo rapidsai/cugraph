@@ -106,6 +106,8 @@ void ref_endpoints_accumulation(std::vector<weight_t>& result,
     }
     if (w != source) { result[w] += deltas[w] + 1; }
   }
+
+  raft::print_host_vector("result", result.data(), std::min(size_t{10}, result.size()), std::cout);
 }
 
 template <typename vertex_t, typename weight_t>

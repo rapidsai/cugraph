@@ -27,9 +27,9 @@ namespace test {
 template <typename vertex_t, typename weight_t>
 void betweenness_centrality_validate(
   raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>& d_cugraph_vertex_ids,
+  std::optional<rmm::device_uvector<vertex_t>> const& d_cugraph_vertex_ids,
   rmm::device_uvector<weight_t>& d_cugraph_results,
-  std::optional<rmm::device_uvector<vertex_t>>& d_reference_vertex_ids,
+  std::optional<rmm::device_uvector<vertex_t>> const& d_reference_vertex_ids,
   rmm::device_uvector<weight_t>& d_reference_results);
 
 template <typename vertex_t, typename weight_t>

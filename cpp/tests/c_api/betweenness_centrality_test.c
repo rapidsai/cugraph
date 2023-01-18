@@ -54,9 +54,6 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
 
   ret_code = cugraph_betweenness_centrality(
     p_handle, p_graph, num_vertices_to_sample, NULL, FALSE, FALSE, FALSE, &p_result, &ret_error);
-#if 1
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_betweenness_centrality should have failed");
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_betweenness_centrality failed.");
@@ -79,13 +76,16 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    printf("  %d: %g\n", (int) h_vertices[i], (float) h_centralities[i]);
+  }
+  
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.001),
                 "centralities results don't match");
   }
 
   cugraph_centrality_result_free(p_result);
-#endif
 
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
@@ -108,7 +108,7 @@ int test_betweenness_centrality()
   double epsilon        = 1e-6;
   size_t max_iterations = 200;
 
-  // Betweenness centrality wants store_transposed = FAlSE
+  // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
     h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, 5);
 }

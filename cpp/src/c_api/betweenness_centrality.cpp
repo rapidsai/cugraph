@@ -87,6 +87,8 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
+      std::cout << "C API, num_vertices_ = " << num_vertices_ << ", vertex_list = " << vertex_list_ << std::endl;
+
       auto centralities = cugraph::betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,

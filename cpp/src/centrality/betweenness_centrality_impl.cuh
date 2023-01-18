@@ -15,34 +15,279 @@
  */
 #pragma once
 
+#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
+#include <prims/update_v_frontier.cuh>
+#include <prims/vertex_frontier.cuh>
+
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device_view.cuh>
+
+#include <thrust/functional.h>
+#include <thrust/reduce.h>
 
 #include <raft/handle.hpp>
+
+//
+// Some mental noodling on this.
+//
+// I need to think about this perhaps from fundamental principals rather
+// than the bias of the Brandes algorithm.
+//
+// I could do a regular BFS without computing predecessors, but computing
+// the distance array, I could use that as a start.  For Brandes I would
+// need to compute the sigma array, but is that really necessary in parallel?
+//
+// Then if I do per_v_transform_reduce_outgoing_e, (or whatever it's called),
+// where the distance is the src and dst property, I can discover my back
+// pointers by distance[src] + 1 == distance[dst].  No need to create an array
+// of back pointers to do that.
+//
+// The trick then, is to use these two approaches to compute betweenness.
+//
+// The formula for BC(v) is the sum over all (s,t) where s != v != t of
+// sigma_st(v) / sigma_st.  Sigma_st(v) is the number of shortest paths
+// that pass through vertex v, whereas sigma_st is the total number of shortest
+// paths.
+
+namespace {
+
+template <typename vertex_t, typename value_t>
+struct brandes_e_op_t {
+  const vertex_t max_vertex_t{std::numeric_limits<vertex_t>::max()};
+
+  __device__ thrust::optional<value_t> operator()(vertex_t,
+                                                  vertex_t,
+                                                  value_t src_property,
+                                                  vertex_t dst_property) const
+  {
+    thrust::optional<value_t> result{thrust::nullopt};
+    return (dst_property < max_vertex_t) ? result : thrust::make_optional(src_property);
+  }
+};
+
+}  // namespace
 
 namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void brandes_bfs(const raft::handle_t& handle,
-                 graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                 vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier)
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes_bfs(
+  const raft::handle_t& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  vertex_frontier_t<vertex_t, void, multi_gpu, true>& vertex_frontier,
+  bool do_expensive_check)
 {
   //
   // Do BFS with a multi-output.  If we're on hop k and multiple vertices arrive at vertex v,
   // add all predecessors to the predecessor list, don't just arbitrarily pick one.
   //
   // Predecessors could be a CSR if that's helpful for doing the backwards tracing
+  constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+  constexpr int bucket_idx_cur{0};
+  constexpr int bucket_idx_next{1};
+
+  rmm::device_uvector<vertex_t> sigma(graph_view.local_vertex_partition_range_size(),
+                                      handle.get_stream());
+  rmm::device_uvector<vertex_t> distance(graph_view.local_vertex_partition_range_size(),
+                                         handle.get_stream());
+  detail::scalar_fill(handle, distance.data(), distance.size(), invalid_distance);
+  detail::scalar_fill(handle, sigma.data(), sigma.size(), vertex_t{0});
+
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, vertex_t>
+    src_sigma(handle, graph_view);
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, vertex_t>
+    dst_distance(handle, graph_view);
+
+  auto vertex_partition =
+    vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+
+  if (vertex_frontier.bucket(bucket_idx_cur).size() > 0) {
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      vertex_frontier.bucket(bucket_idx_cur).begin(),
+      vertex_frontier.bucket(bucket_idx_cur).end(),
+      [d_sigma = sigma.begin(), d_distance = distance.begin(), vertex_partition] __device__(
+        auto v) {
+        auto offset        = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v);
+        d_distance[offset] = 0;
+        d_sigma[offset]    = 1;
+      });
+  }
+
+  edge_t hop{0};
+
+  while (true) {
+    update_edge_src_property(handle, graph_view, sigma.begin(), src_sigma);
+    update_edge_dst_property(handle, graph_view, distance.begin(), dst_distance);
+
+    auto [new_frontier, new_sigma] =
+      transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                    graph_view,
+                                                    vertex_frontier.bucket(bucket_idx_cur),
+                                                    src_sigma.view(),
+                                                    dst_distance.view(),
+                                                    brandes_e_op_t<vertex_t, edge_t>{},
+                                                    reduce_op::plus<edge_t>());
+
+    update_v_frontier(handle,
+                      graph_view,
+                      std::move(new_frontier),
+                      std::move(new_sigma),
+                      vertex_frontier,
+                      std::vector<size_t>{bucket_idx_next},
+                      thrust::make_zip_iterator(distance.begin(), sigma.begin()),
+                      thrust::make_zip_iterator(distance.begin(), sigma.begin()),
+                      [hop] __device__(auto v, auto old_values, auto v_sigma) {
+                        vertex_t next_distance = thrust::get<0>(old_values) == invalid_distance
+                                                   ? (hop + 1)
+                                                   : thrust::get<0>(old_values);
+                        return thrust::make_tuple(
+                          thrust::make_optional(bucket_idx_next),
+                          thrust::make_optional(thrust::make_tuple(next_distance, v_sigma)));
+                      });
+
+    vertex_frontier.bucket(bucket_idx_cur).clear();
+    vertex_frontier.bucket(bucket_idx_cur).shrink_to_fit();
+    vertex_frontier.swap_buckets(bucket_idx_cur, bucket_idx_next);
+    if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
+
+    ++hop;
+  }
+
+  return std::make_tuple(std::move(distance), std::move(sigma));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void accumulate_vertex_results(rmm::device_uvector<weight_t>& centralities,
-                               result,
-                               bool with_endpoints)
+void accumulate_vertex_results(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  rmm::device_uvector<weight_t>& centralities,
+  rmm::device_uvector<vertex_t>&& distance,
+  rmm::device_uvector<vertex_t>&& sigma,
+  bool with_endpoints,
+  bool do_expensive_check)
 {
+  constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
+
+  vertex_t diameter = thrust::transform_reduce(
+    handle.get_thrust_policy(),
+    distance.begin(),
+    distance.end(),
+    [] __device__(auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
+    vertex_t{0},
+    thrust::maximum<vertex_t>());
+
+  if constexpr (multi_gpu) {
+    diameter = host_scalar_allreduce(
+      handle.get_comms(), diameter, raft::comms::op_t::MAX, handle.get_stream());
+  }
+
+  rmm::device_uvector<weight_t> delta(sigma.size(), handle.get_stream());
+  detail::scalar_fill(handle, delta.data(), delta.size(), weight_t{0});
+
+  if (with_endpoints) {
+    vertex_t count = thrust::transform_reduce(
+      handle.get_thrust_policy(),
+      distance.begin(),
+      distance.end(),
+      [] __device__(auto d) { return (d == invalid_distance) ? vertex_t{0} : 1; },
+      vertex_t{0},
+      thrust::plus<vertex_t>());
+
+    if constexpr (multi_gpu) {
+      count = host_scalar_allreduce(
+        handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    thrust::transform(handle.get_thrust_policy(),
+                      distance.begin(),
+                      distance.end(),
+                      centralities.begin(),
+                      centralities.begin(),
+                      [count] __device__(auto d, auto centrality) {
+                        if (d == vertex_t{0}) {
+                          return centrality + static_cast<weight_t>(count - 1);
+                        } else if (d == invalid_distance) {
+                          return centrality;
+                        } else {
+                          return centrality + weight_t{1};
+                        }
+                      });
+  }
+
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>,
+                      thrust::tuple<vertex_t, vertex_t, weight_t>>
+    src_properties(handle, graph_view);
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>,
+                      thrust::tuple<vertex_t, vertex_t, weight_t>>
+    dst_properties(handle, graph_view);
+
+  update_edge_src_property(
+    handle,
+    graph_view,
+    thrust::make_zip_iterator(distance.begin(), sigma.begin(), delta.begin()),
+    src_properties);
+  update_edge_dst_property(
+    handle,
+    graph_view,
+    thrust::make_zip_iterator(distance.begin(), sigma.begin(), delta.begin()),
+    dst_properties);
+
+  // FIXME: To do this efficiently, I need an efficient
+  //   transform_reduce_v_frontier_incoming_e_by_src on an untransposed
+  //   graph, which does not currently exist.
   //
-  // Traverse back pointers to update centralities
+  //   For now this will do a O(E) pass over all edges over the diameter
+  //   of the graph.
   //
+  // Based on Brandes algorithm, we want to follow back pointers in non-increasing
+  // distance from S to compute delta
+  //
+  for (vertex_t d = diameter; d > 1; --d) {
+    per_v_transform_reduce_outgoing_e(
+      handle,
+      graph_view,
+      src_properties.view(),
+      dst_properties.view(),
+      [d] __device__(auto, auto, auto, auto src_props, auto dst_props) {
+        if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
+          auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
+          auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
+          auto delta_w = thrust::get<2>(dst_props);
+
+          return (sigma_v / sigma_w) * (1 + delta_w);
+        } else {
+          return weight_t{0};
+        }
+      },
+      weight_t{0},
+      delta.begin(),
+      do_expensive_check);
+
+    update_edge_src_property(
+      handle,
+      graph_view,
+      thrust::make_zip_iterator(distance.begin(), sigma.begin(), delta.begin()),
+      src_properties);
+    update_edge_dst_property(
+      handle,
+      graph_view,
+      thrust::make_zip_iterator(distance.begin(), sigma.begin(), delta.begin()),
+      dst_properties);
+
+    thrust::transform(handle.get_thrust_policy(),
+                      centralities.begin(),
+                      centralities.end(),
+                      delta.begin(),
+                      centralities.begin(),
+                      thrust::plus<weight_t>());
+  }
 }
 
 template <typename vertex_t,
@@ -66,6 +311,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
+  detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
 
   size_t num_sources = thrust::distance(vertices_begin, vertices_end);
   std::vector<size_t> source_starts{{0, num_sources}};
@@ -73,7 +319,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   if constexpr (multi_gpu) {
     auto source_counts =
-      host_scalar_allgather(handle.get_comms(), num_local_sources, handle.get_stream());
+      host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
+
     num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
     source_starts.resize(source_counts.size() + 1);
     source_starts[0] = 0;
@@ -81,26 +328,43 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     my_rank = handle.get_comms().get_rank();
   }
 
+  //
+  // FIXME: This could be more efficient using something akin to the
+  // technique in WCC.  Take the entire set of sources, insert them into
+  // a tagged frontier (tagging each source with itself).  Then we can
+  // expand from multiple sources concurrently. The challenge is managing
+  // the memory explosion.
+  //
   for (size_t source_idx = 0; source_idx < num_sources; ++source_idx) {
     //
     //  BFS
+    //
     constexpr size_t bucket_idx_cur  = 0;
     constexpr size_t bucket_idx_next = 1;
     constexpr size_t num_buckets     = 2;
 
-    vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(
-      handle, num_buckets);
+    vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-    if ((source_idx >= source_starts[my_rank]) && (source_idx < source_starts[my_rank + 1]))
+    if ((source_idx >= source_starts[my_rank]) && (source_idx < source_starts[my_rank + 1])) {
       vertex_frontier.bucket(bucket_idx_cur)
         .insert(vertices_begin + (source_idx - source_starts[my_rank]),
                 vertices_begin + (source_idx - source_starts[my_rank]) + 1);
+    }
 
     //
     //  Now we need to do modified BFS
     //
-    auto result = brandes_bfs(handle, graph_view, vertex_frontier);
-    accumulate_vertex_results(centralities, result, count_endpoints);
+    // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
+    //         keep the GPUs busy.  But we can't run too many at once or we will run out of
+    //         memory. Need to investigate options to improve this performance
+    auto [distance, sigma] = brandes_bfs(handle, graph_view, vertex_frontier, do_expensive_check);
+    accumulate_vertex_results(handle,
+                              graph_view,
+                              centralities,
+                              std::move(distance),
+                              std::move(sigma),
+                              include_endpoints,
+                              do_expensive_check);
   }
 
   return centralities;
@@ -120,57 +384,9 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool const do_expensive_check)
 {
   CUGRAPH_FAIL("Not Implemented");
-#if 0
-  //
-  // Betweenness Centrality algorithm based on the Brandes Algorithm (2001)
-  //
-  if (do_expensive_check) {}
-
-  // FIXME:  Not sure how to compute the number of results here?
-  //         Or how to return these.
-  //  For now, let's ignore edge betweenness and focus on vertex betweenness.
-  //  It might be that we wait until we have edge ids and we can use the edge id
-  //  as the basis for an index here.
-  rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-
-  size_t num_sources = thrust::distance(vertices_begin, vertices_end);
-  std::vector<size_t> source_starts{{0, num_sources}};
-  int my_rank = 0;
-
-  if constexpr (multi_gpu) {
-    auto source_counts =
-      host_scalar_allgather(handle.get_comms(), num_local_sources, handle.get_stream());
-    num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
-    source_starts.resize(source_counts.size() + 1);
-    source_starts[0] = 0;
-    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_starts.begin() + 1);
-    my_rank = handle.get_comms().get_rank();
-  }
-
-  for (size_t source_idx = 0 ; source_idx < num_sources ; ++source_idx) {
-    //
-    //  BFS
-    constexpr size_t bucket_idx_cur  = 0;
-    constexpr size_t bucket_idx_next = 1;
-    constexpr size_t num_buckets     = 2;
-
-    vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
-                                                                                         num_buckets);
-
-    if ((source_idx >= source_starts[my_rank]) && (source_idx < source_starts[my_rank+1]))
-      vertex_frontier.bucket(bucket_idx_cur).insert(vertices_begin + (source_idx - source_starts[my_rank]),
-                                                    vertices_begin + (source_idx - source_starts[my_rank]) + 1);
-
-    //
-    //  Now we need to do modified BFS
-    //
-    auto result = brandes_bfs(handle,graph_view,vertex_frontier);
-    accumulate_edge_centrality(centralities, result);
-  }
-
-  return centralities;
-#endif
+  // Edge betweenness is computed like vertex betweenness, but you accumulate
+  // centrality on each edge.  We need to adapt this to support edge properties
+  // properly.
 }
 
 }  // namespace detail
@@ -185,10 +401,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const do_expensive_check)
 {
   if (vertices) {
-    if (std::hold_alternative<vertex_t>(vertices)) {
-      rmm::device_uvector<vertex_t> select_vertices(std::get<vertex_t>(vertices),
+    if (std::holds_alternative<vertex_t>(*vertices)) {
+      rmm::device_uvector<vertex_t> select_vertices(std::get<vertex_t>(*vertices),
                                                     handle.get_stream());
-      // Populate with random vertices
+      // TODO: Populate with random vertices
       return detail::betweenness_centrality(handle,
                                             graph_view,
                                             select_vertices.begin(),
@@ -197,14 +413,14 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                                             include_endpoints,
                                             do_expensive_check);
     } else {
-      auto provided_vertices = std::get<raft::device_span<vertex_t const>>(vertices),
-           return detail::betweenness_centrality(handle,
-                                                 graph_view,
-                                                 provided_vertices.begin(),
-                                                 provided_vertices.end(),
-                                                 normalized,
-                                                 include_endpoints,
-                                                 do_expensive_check);
+      auto provided_vertices = std::get<raft::device_span<vertex_t const>>(*vertices);
+      return detail::betweenness_centrality(handle,
+                                            graph_view,
+                                            provided_vertices.begin(),
+                                            provided_vertices.end(),
+                                            normalized,
+                                            include_endpoints,
+                                            do_expensive_check);
     }
   } else {
     return detail::betweenness_centrality(
@@ -227,26 +443,26 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool const do_expensive_check)
 {
   if (vertices) {
-    if (std::hold_alternative<vertex_t>(vertices)) {
-      rmm::device_uvector<vertex_t> select_vertices(std::get<vertex_t>(vertices),
+    if (std::holds_alternative<vertex_t>(*vertices)) {
+      rmm::device_uvector<vertex_t> select_vertices(std::get<vertex_t>(*vertices),
                                                     handle.get_stream());
-      // Populate with random vertices
+      // TODO: Populate with random vertices
       return detail::betweenness_centrality(handle,
                                             graph_view,
                                             select_vertices.begin(),
                                             select_vertices.end(),
                                             normalized,
-                                            include_endpoints,
+                                            false,
                                             do_expensive_check);
     } else {
-      auto provided_vertices = std::get<raft::device_span<vertex_t const>>(vertices),
-           return detail::betweenness_centrality(handle,
-                                                 graph_view,
-                                                 provided_vertices.begin(),
-                                                 provided_vertices.end(),
-                                                 normalized,
-                                                 include_endpoints,
-                                                 do_expensive_check);
+      auto provided_vertices = std::get<raft::device_span<vertex_t const>>(*vertices);
+      return detail::betweenness_centrality(handle,
+                                            graph_view,
+                                            provided_vertices.begin(),
+                                            provided_vertices.end(),
+                                            normalized,
+                                            false,
+                                            do_expensive_check);
     }
   } else {
     return detail::betweenness_centrality(
@@ -255,7 +471,7 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
       normalized,
-      include_endpoints,
+      false,
       do_expensive_check);
   }
 }
