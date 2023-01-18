@@ -11,7 +11,6 @@ files:
       - common_python_test
       - cpp_build
       - cudatoolkit
-      - doc
       - python_build
       - test_notebook
       - test_python
@@ -20,6 +19,12 @@ files:
     includes:
       - checks
       - py_version
+  docs:
+    output: none
+    includes:
+      - cudatoolkit
+      - py_version
+      - docs_build
   test_cpp:
     output: none
     includes:
@@ -133,7 +138,7 @@ dependencies:
           - scikit-build>=0.13.1
           - ucx-proc=*=gpu
           - ucx-py=0.30.*
-  doc:
+  docs_build:
     common:
       - output_types: [conda]
         packages:
@@ -143,6 +148,8 @@ dependencies:
           - pydata-sphinx-theme
           - recommonmark
           - sphinx
+          - sphinx_rtd_theme
+          - ipython
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
