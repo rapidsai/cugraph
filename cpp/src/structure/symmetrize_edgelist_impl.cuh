@@ -179,6 +179,7 @@ struct to_lower_triangular_t {
 
 namespace detail {
 
+// FIXME: This function should be modified to support edge id/type
 template <typename vertex_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
@@ -290,12 +291,17 @@ symmetrize_edgelist(raft::handle_t const& handle,
   // 2. shuffle the (to-be-flipped) upper triangular edges
 
   if constexpr (multi_gpu) {
-    std::tie(upper_triangular_minors, upper_triangular_majors, upper_triangular_weights) =
-      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+    std::tie(
+      upper_triangular_minors, upper_triangular_majors, upper_triangular_weights, std::ignore) =
+      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                         vertex_t,
+                                                                         weight_t,
+                                                                         int32_t>(
         handle,
         std::move(upper_triangular_minors),
         std::move(upper_triangular_majors),
-        std::move(upper_triangular_weights));
+        std::move(upper_triangular_weights),
+        std::nullopt);
   }
 
   // 3. merge the lower triangular and the (flipped) upper triangular edges
@@ -467,12 +473,17 @@ symmetrize_edgelist(raft::handle_t const& handle,
   }
 
   if constexpr (multi_gpu) {
-    std::tie(upper_triangular_majors, upper_triangular_minors, upper_triangular_weights) =
-      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+    std::tie(
+      upper_triangular_majors, upper_triangular_minors, upper_triangular_weights, std::ignore) =
+      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                         vertex_t,
+                                                                         weight_t,
+                                                                         int32_t>(
         handle,
         std::move(upper_triangular_majors),
         std::move(upper_triangular_minors),
-        std::move(upper_triangular_weights));
+        std::move(upper_triangular_weights),
+        std::nullopt);
   }
 
   edgelist_majors  = std::move(merged_lower_triangular_majors);
