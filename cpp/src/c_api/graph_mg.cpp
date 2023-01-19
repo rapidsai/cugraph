@@ -126,8 +126,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           rmm::device_uvector<edge_t>(edge_ids_->size_, handle_.get_stream());
 
         raft::copy<edge_t>(edgelist_edge_ids.data(),
-                           edge_type_ids_->as_type<edge_t>(),
-                           edge_type_ids_->size_,
+                           edge_ids_->as_type<edge_t>(),
+                           edge_ids_->size_,
                            handle_.get_stream());
 
         edgelist_edge_tuple =
@@ -137,13 +137,14 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       // Here's the error.  If store_transposed is true then this needs to be flipped...
       std::tie(store_transposed ? edgelist_dsts : edgelist_srcs,
                store_transposed ? edgelist_srcs : edgelist_dsts,
-               edgelist_weights) =
-        cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                    weight_t>(
+               edgelist_weights,
+               edgelist_edge_tuple) =
+        cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
           handle_,
           std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
           std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
-          std::move(edgelist_weights));
+          std::move(edgelist_weights),
+          std::move(edgelist_edge_tuple));
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
@@ -325,7 +326,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   CAPI_EXPECTS(
     (edge_type_ids == nullptr && edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
     CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: Edge id type must match edge type",
+    "Invalid input arguments: Edge id type must match edge (src/dst) type",
     *error);
 
   CAPI_EXPECTS((edge_type_ids == nullptr && edge_ids == nullptr) ||

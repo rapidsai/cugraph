@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -239,4 +239,28 @@ struct thrust_tuple_get {
   }
 };
 
+namespace detail {
+template <typename Iterator,
+          typename std::enable_if_t<std::is_arithmetic<
+            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+auto to_thrust_tuple(Iterator iter)
+{
+  return thrust::make_tuple(iter);
+}
+
+template <typename Iterator,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<
+            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+auto to_thrust_tuple(Iterator iter)
+{
+  return iter.get_iterator_tuple();
+}
+
+template <typename T, typename... Ts>
+decltype(auto) get_first_of_pack(T&& t, Ts&&...)
+{
+  return std::forward<T>(t);
+}
+
+}  // namespace detail
 }  // namespace cugraph

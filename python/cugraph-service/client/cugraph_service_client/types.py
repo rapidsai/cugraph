@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ GraphVertexEdgeID = spec.GraphVertexEdgeID
 BatchedEgoGraphsResult = spec.BatchedEgoGraphsResult
 Node2vecResult = spec.Node2vecResult
 UniformNeighborSampleResult = spec.UniformNeighborSampleResult
+Offsets = spec.Offsets
 
 
 class UnionWrapper:

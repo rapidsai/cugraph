@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,11 +30,8 @@ from cugraph.community import (
 
 from cugraph.structure import (
     Graph,
-    DiGraph,
     MultiGraph,
-    MultiDiGraph,
     BiPartiteGraph,
-    BiPartiteDiGraph,
     from_edgelist,
     from_cudf_edgelist,
     from_pandas_edgelist,
