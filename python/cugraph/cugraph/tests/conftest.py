@@ -32,13 +32,7 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    client, cluster = start_dask_client(
-        enable_tcp_over_ucx=True,
-        enable_nvlink=True,
-        enable_infiniband=True,
-        enable_rdmacm=True,
-        # net_devices="mlx5_0:1",
-    )
+    client, cluster = start_dask_client(protocol="tcp")
 
     yield client
 
