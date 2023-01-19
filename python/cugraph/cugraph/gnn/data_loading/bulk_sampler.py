@@ -120,9 +120,9 @@ class EXPERIMENTAL__BulkSampler:
         end = min(self.__saturation_level, len(self.__batches))
 
         sample_fn = (
-            cugraph.dask.uniform_neighbor_sample
-            if isinstance(self.__batches, dask_cudf.DataFrame)
-            else cugraph.uniform_neighbor_sample
+            cugraph.uniform_neighbor_sample
+            if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
+            else cugraph.dask.uniform_neighbor_sample
         )
 
         # TODO semaphore check to prevent concurrent calls to uniform_neighbor_sample
