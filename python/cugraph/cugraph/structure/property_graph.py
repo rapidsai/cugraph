@@ -2221,13 +2221,6 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return False
 
-    def is_remote(self):
-        """
-        Return True if this graph is stored remotely.  Always returns False
-        for PropertyGraph since it is always local.
-        """
-        return False
-
     @classmethod
     def is_multigraph(cls, df):
         """

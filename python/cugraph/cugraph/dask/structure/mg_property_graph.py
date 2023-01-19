@@ -1650,13 +1650,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         return True
 
-    def is_remote(self):
-        """
-        Return True if this graph is stored remotely.  Always returns False
-        for MGPropertyGraph since it is always local.
-        """
-        return False
-
     @classmethod
     def is_multigraph(cls, df):
         """
