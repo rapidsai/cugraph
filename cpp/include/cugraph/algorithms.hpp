@@ -35,7 +35,6 @@
 
 #include <optional>
 #include <tuple>
-#include <variant>
 
 /** @ingroup cpp_api
  *  @{
@@ -314,11 +313,8 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  *
  * The current implementation does not support a weighted graph.
  *
- * If @p vertices is an optional variant.  If it is not specified the algorithm
- * will compute exact betweenness (compute betweenness using a traversal from all vertices).
- *
- * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by
- * random sampling @p vertices as the seeds of the traversals.
+ * If @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
+ * (compute betweenness using a traversal from all vertices).
  *
  * If @p vertices is specified as a device_span, it will compute approximate betweenness
  * using the provided @p vertices as the seeds of the traversals.
@@ -335,9 +331,8 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  * @param graph_view Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view. Currently,
  * edge_weight_view.has_value() should be false as we don't support weighted graphs, yet.
- * @param vertices Optional, if specified this provides either a vertex_t count of how many
- *         random seeds to select, or a device_span identifying a list of pre-selected vertices
- *         to use as seeds for the traversals for approximating betweenness.
+ * @param vertices Optional, if specified this provides a device_span identifying a list of
+ * pre-selected vertices to use as seeds for the traversals for approximating betweenness.
  * @param normalized         A flag indicating results should be normalized
  * @param include_endpoints  A flag indicating whether endpoints of a path should be counted
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -349,7 +344,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
   bool const normalized         = true,
   bool const include_endpoints  = false,
   bool const do_expensive_check = false);
@@ -360,11 +355,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
  * pass through this edge. The weight parameter is currenlty not supported
  *
- * If @p vertices is an optional variant.  If it is not specified the algorithm
- * will compute exact betweenness (compute betweenness using a traversal from all vertices).
- *
- * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by
- * random sampling @p vertices as the seeds of the traversals.
+ * If @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
+ * (compute betweenness using a traversal from all vertices).
  *
  * If @p vertices is specified as a device_span, it will compute approximate betweenness
  * using the provided @p vertices as the seeds of the traversals.
@@ -381,9 +373,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param graph_view Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view. Currently,
  * edge_weight_view.has_value() should be false as we don't support weighted graphs, yet.
- * @param vertices Optional, if specified this provides either a vertex_t count of how many
- *         random seeds to select, or a device_span identifying a list of pre-selected vertices
- *         to use as seeds for the traversals for approximating betweenness.
+ * @param vertices Optional, if specified this provides a device_span identifying a list of
+ * pre-selected vertices to use as seeds for the traversals for approximating betweenness.
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
@@ -394,7 +385,7 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
   bool normalized         = true,
   bool do_expensive_check = false);
 

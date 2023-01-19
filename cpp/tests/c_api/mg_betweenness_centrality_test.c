@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,17 +42,28 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
 
   cugraph_graph_t* p_graph              = NULL;
   cugraph_centrality_result_t* p_result = NULL;
+  cugraph_rng_state_t* rng_state        = NULL;
+
+  int rank = cugraph_resource_handle_get_rank(handle);
+
+  ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "failed to create rng_state.");
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
-  ret_code = cugraph_betweenness_centrality(
-    handle, p_graph, num_vertices_to_sample, NULL, FALSE, FALSE, FALSE, &p_result, &ret_error);
-#if 1
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_betweenness_centrality should have failed");
-#else
+  ret_code = cugraph_betweenness_centrality(handle,
+                                            p_graph,
+                                            num_vertices_to_sample,
+                                            rng_state,
+                                            NULL,
+                                            FALSE,
+                                            FALSE,
+                                            FALSE,
+                                            &p_result,
+                                            &ret_error);
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_betweenness_centrality failed.");
 
@@ -86,7 +97,6 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_centrality_result_free(p_result);
-#endif
 
   cugraph_mg_graph_free(p_graph);
   cugraph_error_free(ret_error);
@@ -103,14 +113,14 @@ int test_betweenness_centrality(const cugraph_resource_handle_t* handle)
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0.236374, 0.292046, 0.458369, 0.605472, 0.190544, 0.495814};
+  weight_t h_result[] = {0, 7.33333, 1.66667, 4.33333, 1.66667, 1};
 
-  double epsilon        = 1e-6;
-  size_t max_iterations = 200;
-
+  // NOTE: Randomly selecting vertices in MG varies by the GPU topology,
+  //  so we'll specify selecting all to get deterministic results for the test.
+  //
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
-    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, 5);
+    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, num_vertices);
 }
 
 /******************************************************************************/

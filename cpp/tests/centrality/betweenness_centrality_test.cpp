@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ class Tests_BetweennessCentrality
       handle,
       graph_view,
       edge_weight_view,
-      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+      std::make_optional<raft::device_span<vertex_t const>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints,
@@ -112,7 +112,8 @@ class Tests_BetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
-      auto [h_offsets, h_indices, h_wgt] = cugraph::test::graph_to_host_csr(handle, graph_view);
+      auto [h_offsets, h_indices, h_wgt] =
+        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
       auto h_seeds = cugraph::test::to_host(handle, d_seeds);
 
       auto h_reference_centralities = betweenness_centrality_reference(

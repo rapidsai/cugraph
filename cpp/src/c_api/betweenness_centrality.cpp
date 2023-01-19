@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,12 @@
 #include <c_api/abstract_functor.hpp>
 #include <c_api/centrality_result.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/random.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
@@ -34,6 +36,7 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
   size_t num_vertices_{};
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_list_{};
   bool_t normalized_{};
   bool_t include_endpoints_{};
@@ -43,6 +46,7 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
   betweenness_centrality_functor(cugraph_resource_handle_t const* handle,
                                  cugraph_graph_t* graph,
                                  size_t num_vertices,
+                                 cugraph_rng_state_t* rng_state,
                                  cugraph_type_erased_device_array_view_t const* vertex_list,
                                  bool_t normalized,
                                  bool_t include_endpoints,
@@ -51,6 +55,7 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       num_vertices_(num_vertices),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       vertex_list_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         vertex_list)),
       normalized_(normalized),
@@ -90,20 +95,66 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      std::cout << "C API, num_vertices_ = " << num_vertices_ << ", vertex_list = " << vertex_list_ << std::endl;
+      rmm::device_uvector<vertex_t> local_vertices(0, handle_.get_stream());
+
+      std::optional<raft::device_span<vertex_t const>> vertex_span{std::nullopt};
+      if (vertex_list_ != nullptr) {
+        local_vertices.resize(vertex_list_->size_, handle_.get_stream());
+        raft::copy(local_vertices.data(),
+                   vertex_list_->as_type<vertex_t>(),
+                   vertex_list_->size_,
+                   handle_.get_stream());
+
+        if constexpr (multi_gpu) {
+          local_vertices =
+            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(local_vertices));
+        }
+
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+          handle_,
+          local_vertices.data(),
+          local_vertices.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
+
+        vertex_span =
+          raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()};
+      } else if (num_vertices_ > 0) {
+        if (!multi_gpu || (handle_.get_comms().get_rank() == 0)) {
+          local_vertices = cugraph::select_random_vertices(handle_,
+                                                           rng_state_->rng_state_,
+                                                           graph_view.number_of_vertices(),
+                                                           static_cast<vertex_t>(num_vertices_),
+                                                           false);
+        }
+
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+          handle_,
+          local_vertices.data(),
+          local_vertices.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
+
+        if constexpr (multi_gpu) {
+          local_vertices =
+            cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(local_vertices), graph_view.vertex_partition_range_lasts());
+        }
+
+        vertex_span =
+          raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()};
+      }
 
       auto centralities = cugraph::betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
         (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        num_vertices_ > 0
-          ? std::make_optional(std::variant<vertex_t, raft::device_span<vertex_t const>>(
-              static_cast<vertex_t>(num_vertices_)))
-        : vertex_list_ == NULL
-          ? std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>{std::nullopt}
-          : std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
-              raft::device_span<vertex_t const>{vertex_list_->as_type<vertex_t const>(),
-                                                vertex_list_->size_}),
+        vertex_span,
         normalized_,
         include_endpoints_,
         do_expensive_check_);
@@ -123,6 +174,7 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
   size_t num_vertices_{};
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_list_{};
   bool_t normalized_{};
   bool do_expensive_check_{};
@@ -131,6 +183,7 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
   edge_betweenness_centrality_functor(cugraph_resource_handle_t const* handle,
                                       cugraph_graph_t* graph,
                                       size_t num_vertices,
+                                      cugraph_rng_state_t* rng_state,
                                       cugraph_type_erased_device_array_view_t const* vertex_list,
                                       bool_t normalized,
                                       bool do_expensive_check)
@@ -138,6 +191,7 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       num_vertices_(num_vertices),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       vertex_list_(reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
         vertex_list)),
       normalized_(normalized),
@@ -176,19 +230,50 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
+      rmm::device_uvector<vertex_t> local_vertices(0, handle_.get_stream());
+
+      std::optional<raft::device_span<vertex_t const>> vertex_span{std::nullopt};
+      if (vertex_list_ != nullptr) {
+        local_vertices.resize(vertex_list_->size_, handle_.get_stream());
+        raft::copy(local_vertices.data(),
+                   vertex_list_->as_type<vertex_t>(),
+                   vertex_list_->size_,
+                   handle_.get_stream());
+
+        if constexpr (multi_gpu) {
+          local_vertices =
+            cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+              handle_, std::move(local_vertices));
+        }
+
+        cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
+          handle_,
+          local_vertices.data(),
+          local_vertices.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          do_expensive_check_);
+
+        vertex_span =
+          raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()};
+      } else if (num_vertices_ > 0) {
+        local_vertices = cugraph::select_random_vertices(handle_,
+                                                         rng_state_->rng_state_,
+                                                         graph_view.number_of_vertices(),
+                                                         static_cast<vertex_t>(num_vertices_),
+                                                         false);
+
+        vertex_span =
+          raft::device_span<vertex_t const>{local_vertices.data(), local_vertices.size()};
+      }
+
       auto centralities =
         cugraph::edge_betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          num_vertices_ > 0
-            ? std::make_optional(std::variant<vertex_t, raft::device_span<vertex_t const>>{
-                static_cast<vertex_t>(num_vertices_)})
-          : vertex_list_ == NULL
-            ? std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>{std::nullopt}
-            : std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
-                raft::device_span<vertex_t const>{vertex_list_->as_type<vertex_t const>(),
-                                                  vertex_list_->size_}),
+          vertex_span,
           normalized_,
           do_expensive_check_);
 
@@ -210,6 +295,7 @@ extern "C" cugraph_error_code_t cugraph_betweenness_centrality(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t num_vertices,
+  cugraph_rng_state_t* rng_state,
   const cugraph_type_erased_device_array_view_t* vertex_list,
   bool_t normalized,
   bool_t include_endpoints,
@@ -222,8 +308,14 @@ extern "C" cugraph_error_code_t cugraph_betweenness_centrality(
                "Cannot specify both num_vertices and vertex_list",
                *error);
 
-  betweenness_centrality_functor functor(
-    handle, graph, num_vertices, vertex_list, normalized, include_endpoints, do_expensive_check);
+  betweenness_centrality_functor functor(handle,
+                                         graph,
+                                         num_vertices,
+                                         rng_state,
+                                         vertex_list,
+                                         normalized,
+                                         include_endpoints,
+                                         do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -232,6 +324,7 @@ extern "C" cugraph_error_code_t cugraph_edge_betweenness_centrality(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t num_vertices,
+  cugraph_rng_state_t* rng_state,
   const cugraph_type_erased_device_array_view_t* vertex_list,
   bool_t normalized,
   bool_t do_expensive_check,
@@ -244,7 +337,7 @@ extern "C" cugraph_error_code_t cugraph_edge_betweenness_centrality(
                *error);
 
   edge_betweenness_centrality_functor functor(
-    handle, graph, num_vertices, vertex_list, normalized, do_expensive_check);
+    handle, graph, num_vertices, rng_state, vertex_list, normalized, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

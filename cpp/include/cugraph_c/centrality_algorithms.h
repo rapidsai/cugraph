@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
+#include <cugraph_c/random.h>
 
 /** @defgroup centrality Centrality algorithms
  *  @ingroup c_api
@@ -250,6 +251,8 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
  * @param [in]  num_vertices       Number of vertices to randomly sample
+ * @param [in/out] rng_state       Pointer to random number generator state object, required
+ *                                 if num_vertices > 0
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
  *                                 to use as seeds for BFS
  * @param [in]  normalized         Normalize
@@ -268,6 +271,7 @@ cugraph_error_code_t cugraph_betweenness_centrality(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t num_vertices,
+  cugraph_rng_state_t* rng_state,
   const cugraph_type_erased_device_array_view_t* vertex_list,
   bool_t normalized,
   bool_t include_endpoints,
@@ -334,6 +338,8 @@ void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* resul
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
  * @param [in]  num_vertices       Number of vertices to randomly sample
+ * @param [in/out] rng_state       Pointer to random number generator state object, required
+ *                                 if num_vertices > 0
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
  *                                 to use as seeds for BFS
  * @param [in]  normalized         Normalize
@@ -348,6 +354,7 @@ cugraph_error_code_t cugraph_edge_betweenness_centrality(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t num_vertices,
+  cugraph_rng_state_t* rng_state,
   const cugraph_type_erased_device_array_view_t* vertex_list,
   bool_t normalized,
   bool_t do_expensive_check,

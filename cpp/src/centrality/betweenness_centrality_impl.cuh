@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,37 +34,19 @@
 #include <raft/core/handle.hpp>
 
 //
-// Some mental noodling on this.
-//
-// I need to think about this perhaps from fundamental principals rather
-// than the bias of the Brandes algorithm.
-//
-// I could do a regular BFS without computing predecessors, but computing
-// the distance array, I could use that as a start.  For Brandes I would
-// need to compute the sigma array, but is that really necessary in parallel?
-//
-// Then if I do per_v_transform_reduce_outgoing_e, (or whatever it's called),
-// where the distance is the src and dst property, I can discover my back
-// pointers by distance[src] + 1 == distance[dst].  No need to create an array
-// of back pointers to do that.
-//
-// The trick then, is to use these two approaches to compute betweenness.
-//
 // The formula for BC(v) is the sum over all (s,t) where s != v != t of
 // sigma_st(v) / sigma_st.  Sigma_st(v) is the number of shortest paths
 // that pass through vertex v, whereas sigma_st is the total number of shortest
 // paths.
-
 namespace {
 
-template <typename vertex_t, typename value_t>
+template <typename vertex_t>
 struct brandes_e_op_t {
   const vertex_t max_vertex_t{std::numeric_limits<vertex_t>::max()};
 
-  __device__ thrust::optional<value_t> operator()(vertex_t,
-                                                  vertex_t,
-                                                  value_t src_property,
-                                                  vertex_t dst_property) const
+  template <typename value_t, typename ignore_t>
+  __device__ thrust::optional<value_t> operator()(
+    vertex_t, vertex_t, value_t src_property, vertex_t dst_property, ignore_t) const
   {
     thrust::optional<value_t> result{thrust::nullopt};
     return (dst_property < max_vertex_t) ? result : thrust::make_optional(src_property);
@@ -78,8 +60,9 @@ namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes_bfs(
-  const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_frontier_t<vertex_t, void, multi_gpu, true>& vertex_frontier,
   bool do_expensive_check)
 {
@@ -99,10 +82,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes
   detail::scalar_fill(handle, distance.data(), distance.size(), invalid_distance);
   detail::scalar_fill(handle, sigma.data(), sigma.size(), vertex_t{0});
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, vertex_t>
-    src_sigma(handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, vertex_t>
-    dst_distance(handle, graph_view);
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> src_sigma(
+    handle, graph_view);
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> dst_distance(
+    handle, graph_view);
 
   auto vertex_partition =
     vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
@@ -132,7 +115,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes
                                                     vertex_frontier.bucket(bucket_idx_cur),
                                                     src_sigma.view(),
                                                     dst_distance.view(),
-                                                    brandes_e_op_t<vertex_t, edge_t>{},
+                                                    cugraph::edge_dummy_property_t{}.view(),
+                                                    brandes_e_op_t<vertex_t>{},
                                                     reduce_op::plus<edge_t>());
 
     update_v_frontier(handle,
@@ -166,7 +150,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void accumulate_vertex_results(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   rmm::device_uvector<weight_t>& centralities,
   rmm::device_uvector<vertex_t>&& distance,
   rmm::device_uvector<vertex_t>&& sigma,
@@ -221,10 +206,10 @@ void accumulate_vertex_results(
                       });
   }
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
                       thrust::tuple<vertex_t, vertex_t, weight_t>>
     src_properties(handle, graph_view);
-  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>,
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
                       thrust::tuple<vertex_t, vertex_t, weight_t>>
     dst_properties(handle, graph_view);
 
@@ -255,7 +240,8 @@ void accumulate_vertex_results(
       graph_view,
       src_properties.view(),
       dst_properties.view(),
-      [d] __device__(auto, auto, auto, auto src_props, auto dst_props) {
+      cugraph::edge_dummy_property_t{}.view(),
+      [d] __device__(auto, auto, auto src_props, auto dst_props, auto) {
         if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
           auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
           auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
@@ -267,6 +253,7 @@ void accumulate_vertex_results(
         }
       },
       weight_t{0},
+      reduce_op::plus<weight_t>{},
       delta.begin(),
       do_expensive_check);
 
@@ -296,10 +283,11 @@ template <typename vertex_t,
           bool multi_gpu,
           typename VertexIterator>
 rmm::device_uvector<weight_t> betweenness_centrality(
-  const raft::handle_t& handle,
+  raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
+  VertexIterator vertices_begin,
+  VertexIterator vertices_end,
   bool const normalized,
   bool const include_endpoints,
   bool const do_expensive_check)
@@ -339,9 +327,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     //
     //  BFS
     //
-    constexpr size_t bucket_idx_cur  = 0;
-    constexpr size_t bucket_idx_next = 1;
-    constexpr size_t num_buckets     = 2;
+    constexpr size_t bucket_idx_cur = 0;
+    constexpr size_t num_buckets    = 2;
 
     vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
@@ -357,9 +344,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     // FIXME:  This has an inefficiency in early iterations, as it doesn't have enough work to
     //         keep the GPUs busy.  But we can't run too many at once or we will run out of
     //         memory. Need to investigate options to improve this performance
-    auto [distance, sigma] = brandes_bfs(handle, graph_view, vertex_frontier, do_expensive_check);
+    auto [distance, sigma] =
+      brandes_bfs(handle, graph_view, edge_weight_view, vertex_frontier, do_expensive_check);
     accumulate_vertex_results(handle,
                               graph_view,
+                              edge_weight_view,
                               centralities,
                               std::move(distance),
                               std::move(sigma),
@@ -379,7 +368,7 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check)
 {
@@ -396,37 +385,25 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool const do_expensive_check)
 {
   if (vertices) {
-    if (std::holds_alternative<vertex_t>(*vertices)) {
-      rmm::device_uvector<vertex_t> select_vertices(std::get<vertex_t>(*vertices),
-                                                    handle.get_stream());
-      // TODO: Populate with random vertices
-      return detail::betweenness_centrality(handle,
-                                            graph_view,
-                                            select_vertices.begin(),
-                                            select_vertices.end(),
-                                            normalized,
-                                            include_endpoints,
-                                            do_expensive_check);
-    } else {
-      auto provided_vertices = std::get<raft::device_span<vertex_t const>>(*vertices);
-      return detail::betweenness_centrality(handle,
-                                            graph_view,
-                                            provided_vertices.begin(),
-                                            provided_vertices.end(),
-                                            normalized,
-                                            include_endpoints,
-                                            do_expensive_check);
-    }
+    return detail::betweenness_centrality(handle,
+                                          graph_view,
+                                          edge_weight_view,
+                                          vertices->begin(),
+                                          vertices->end(),
+                                          normalized,
+                                          include_endpoints,
+                                          do_expensive_check);
   } else {
     return detail::betweenness_centrality(
       handle,
       graph_view,
+      edge_weight_view,
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
       normalized,
@@ -440,36 +417,24 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check)
 {
   if (vertices) {
-    if (std::holds_alternative<vertex_t>(*vertices)) {
-      rmm::device_uvector<vertex_t> select_vertices(std::get<vertex_t>(*vertices),
-                                                    handle.get_stream());
-      // TODO: Populate with random vertices
-      return detail::betweenness_centrality(handle,
-                                            graph_view,
-                                            select_vertices.begin(),
-                                            select_vertices.end(),
-                                            normalized,
-                                            false,
-                                            do_expensive_check);
-    } else {
-      auto provided_vertices = std::get<raft::device_span<vertex_t const>>(*vertices);
-      return detail::betweenness_centrality(handle,
-                                            graph_view,
-                                            provided_vertices.begin(),
-                                            provided_vertices.end(),
-                                            normalized,
-                                            false,
-                                            do_expensive_check);
-    }
+    return detail::betweenness_centrality(handle,
+                                          graph_view,
+                                          edge_weight_view,
+                                          vertices->begin(),
+                                          vertices->end(),
+                                          normalized,
+                                          false,
+                                          do_expensive_check);
   } else {
     return detail::betweenness_centrality(
       handle,
       graph_view,
+      edge_weight_view,
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
       normalized,

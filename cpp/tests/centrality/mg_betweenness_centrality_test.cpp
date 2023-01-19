@@ -118,7 +118,7 @@ class Tests_MGBetweennessCentrality
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+      std::make_optional<raft::device_span<vertex_t const>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints,
@@ -137,16 +137,21 @@ class Tests_MGBetweennessCentrality
       d_seeds = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()});
 
-      auto [sg_graph, sg_edge_weights, sg_renumber_map] =
-        cugraph::test::mg_graph_to_sg_graph(*handle_, mg_graph_view, mg_renumber_map, true);
+      auto [sg_graph, sg_edge_weights, sg_renumber_map] = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        // Preserve renumbering of MG graph when creating SG graph
+        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        false);
 
       if (my_rank == 0) {
         auto d_reference_centralities = cugraph::betweenness_centrality(
           *handle_,
           sg_graph.view(),
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
-          std::optional<vertex_t>{std::nullopt},
-          std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
+          std::make_optional<raft::device_span<vertex_t const>>(
+            raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
           betweenness_usecase.normalized,
           betweenness_usecase.include_endpoints,
           do_expensive_check);

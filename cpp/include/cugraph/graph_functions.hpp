@@ -21,6 +21,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
@@ -874,5 +875,24 @@ weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/**
+ * @brief Select random vertices
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param  rng_state The RngState instance holding pseudo-random number generator state.
+ * @param  num_vertices The number of vertices in the graph
+ * @param  select_count The number of vertices to select from the graph
+ * @param  with_replacement If true, select with replacement, if false select without replacement
+ * @return Device vector of selected vertices.
+ */
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> select_random_vertices(raft::handle_t const& handle,
+                                                     raft::random::RngState& rng_state,
+                                                     vertex_t num_vertices,
+                                                     vertex_t select_count,
+                                                     bool with_replacement);
 
 }  // namespace cugraph
