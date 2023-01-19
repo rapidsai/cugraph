@@ -12,8 +12,12 @@
 # limitations under the License.
 
 import pytest
+import os
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+from cugraph.dask.comms import comms as Comms
 
-from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
+import rmm
 
 # module-wide fixtures
 
@@ -32,9 +36,16 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    client, cluster = start_dask_client(protocol="tcp")
+    n_devices = os.getenv("DASK_NUM_WORKERS", 4)
+    n_devices = int(n_devices)
+
+    visible_devices = ",".join([str(i) for i in range(1, n_devices + 1)])
+
+    cluster = LocalCUDACluster(
+        protocol="ucx", rmm_pool_size="25GB", CUDA_VISIBLE_DEVICES=visible_devices
+    )
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    rmm.reinitialize(pool_allocator=True)
 
     yield client
-
-    stop_dask_client(client)
-    print("\ndask_client fixture: client.close() called")
