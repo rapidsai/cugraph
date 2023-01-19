@@ -36,7 +36,7 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    n_devices = os.getenv("DASK_NUM_WORKERS", 4)
+    n_devices = os.getenv("DASK_NUM_WORKERS", 2)
     n_devices = int(n_devices)
 
     visible_devices = ",".join([str(i) for i in range(1, n_devices + 1)])
