@@ -803,7 +803,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                     self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
                 },
             )
-            temp_dataframe.index.name = self.edge_id_col_name
+            temp_dataframe.index = temp_dataframe.index.rename(self.edge_id_col_name)
             if edge_id_col_name is not None:
                 temp_dataframe.index = temp_dataframe.index.astype(
                     dataframe[edge_id_col_name].dtype
@@ -1358,16 +1358,16 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         df = self.__vertex_prop_dataframe
         index_dtype = df.index.dtype
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        cat_dtype = df.dtypes[TCN]
+        df[TCN] = df[TCN].astype(str)
+
+        # Include self.vertex_col_name when sorting by values to ensure we can
+        # evenly distribute the data across workers.
+        df = df.reset_index().persist()
+        df = df.sort_values(by=[TCN, self.vertex_col_name], ignore_index=True).persist()
         if self.__edge_prop_dataframe is not None:
-            # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
-            cat_dtype = df.dtypes[self.type_col_name]
-            df[self.type_col_name] = df[self.type_col_name].astype(str)
-
-            df = df.reset_index().sort_values(by=TCN)
-
-            # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
-            df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
-
             new_name = f"new_{self.vertex_col_name}"
             df[new_name] = 1
             df[new_name] = df[new_name].cumsum() - 1
@@ -1387,6 +1387,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             self.__edge_prop_dataframe.index = self.__edge_prop_dataframe.index.astype(
                 edge_index_dtype
             )
+            self.__edge_prop_dataframe.index = self.__edge_prop_dataframe.index.rename(
+                self.edge_id_col_name
+            )
             if prev_id_column is None:
                 df[self.vertex_col_name] = df[new_name]
                 del df[new_name]
@@ -1398,13 +1401,13 @@ class EXPERIMENTAL__MGPropertyGraph:
                     }
                 )
         else:
-            if prev_id_column is None:
-                df = df.sort_values(by=self.type_col_name, ignore_index=True)
-            else:
-                df.index.name = prev_id_column
-                df = df.sort_values(by=self.type_col_name).reset_index()
+            if prev_id_column is not None:
+                df[prev_id_column] = df[self.vertex_col_name]
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        df[TCN] = df[TCN].astype(cat_dtype)
 
         df[self.vertex_col_name] = df[self.vertex_col_name].astype(index_dtype)
         self.__vertex_prop_dataframe = (
@@ -1451,11 +1454,14 @@ class EXPERIMENTAL__MGPropertyGraph:
         cat_dtype = df.dtypes[self.type_col_name]
         df[self.type_col_name] = df[self.type_col_name].astype(str)
 
-        if prev_id_column is None:
-            df = df.sort_values(by=self.type_col_name, ignore_index=True)
-        else:
-            df.index = df.index.rename(prev_id_column)
-            df = df.sort_values(by=self.type_col_name).reset_index()
+        # Include self.edge_id_col_name when sorting by values to ensure we can
+        # evenly distribute the data across workers.
+        df = df.reset_index().persist()
+        df = df.sort_values(
+            by=[self.type_col_name, self.edge_id_col_name], ignore_index=True
+        ).persist()
+        if prev_id_column is not None:
+            df[prev_id_column] = df[self.edge_id_col_name]
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)

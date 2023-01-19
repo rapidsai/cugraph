@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,3 +86,15 @@ int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle
                                        bool_t is_symmetric,
                                        cugraph_graph_t** p_graph,
                                        cugraph_error_t** ret_error);
+
+int create_mg_test_graph_with_properties(const cugraph_resource_handle_t* p_handle,
+                                         int32_t* h_src,
+                                         int32_t* h_dst,
+                                         int32_t* h_idx,
+                                         int32_t* h_type,
+                                         float* h_wgt,
+                                         size_t num_edges,
+                                         bool_t store_transposed,
+                                         bool_t is_symmetric,
+                                         cugraph_graph_t** p_graph,
+                                         cugraph_error_t** ret_error);
