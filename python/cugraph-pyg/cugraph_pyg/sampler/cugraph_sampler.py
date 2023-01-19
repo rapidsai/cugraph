@@ -128,11 +128,7 @@ class EXPERIMENTAL__CuGraphSampler:
             if self.__graph_store._is_delayed
             else cugraph.uniform_neighbor_sample
         )
-        concat_fn = (
-            dask_cudf.concat
-            if self.__graph_store._is_delayed
-            else cudf.concat
-        )
+        concat_fn = dask_cudf.concat if self.__graph_store._is_delayed else cudf.concat
 
         sampling_results = sample_fn(
             G,
@@ -159,7 +155,7 @@ class EXPERIMENTAL__CuGraphSampler:
         )
 
         out = (noi_index, row_dict, col_dict, None)
-        
+
         # FIXME no longer allow torch_geometric to be missing.
         if isinstance(torch_geometric, MissingModule):
             return {"out": out, "metadata": metadata}
