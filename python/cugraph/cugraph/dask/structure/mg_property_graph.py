@@ -1360,6 +1360,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             self.__edge_prop_dataframe.index = self.__edge_prop_dataframe.index.astype(
                 edge_index_dtype
             )
+            self.__edge_prop_dataframe.index = self.__edge_prop_dataframe.index.rename(
+                self.edge_id_col_name
+            )
             if prev_id_column is None:
                 df[self.vertex_col_name] = df[new_name]
                 del df[new_name]
