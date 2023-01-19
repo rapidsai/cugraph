@@ -313,7 +313,7 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  *
  * The current implementation does not support a weighted graph.
  *
- * If @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
+ * @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
  * (compute betweenness using a traversal from all vertices).
  *
  * If @p vertices is specified as a device_span, it will compute approximate betweenness
@@ -355,7 +355,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
  * pass through this edge. The weight parameter is currenlty not supported
  *
- * If @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
+ * @p vertices is optional.  If it is not specified the algorithm will compute exact betweenness
  * (compute betweenness using a traversal from all vertices).
  *
  * If @p vertices is specified as a device_span, it will compute approximate betweenness

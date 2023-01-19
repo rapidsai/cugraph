@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,8 +106,6 @@ void ref_endpoints_accumulation(std::vector<weight_t>& result,
     }
     if (w != source) { result[w] += deltas[w] + 1; }
   }
-
-  raft::print_host_vector("result", result.data(), std::min(size_t{10}, result.size()), std::cout);
 }
 
 template <typename vertex_t, typename weight_t>
