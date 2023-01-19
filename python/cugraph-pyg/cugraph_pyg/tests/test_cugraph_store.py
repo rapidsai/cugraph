@@ -299,7 +299,7 @@ def test_renumber_edges(graph):
             "indices": eoi_df[pG.type_col_name].cat.codes,
         }
     ).reset_index(drop=True)
-    
+
     row, col = graph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
 
     for etype in row:

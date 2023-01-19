@@ -255,10 +255,7 @@ class EXPERIMENTAL__CuGraphStore:
         self._tensor_attr_dict = defaultdict(list)
 
         # Infer number of edges from the edge index dict
-        num_edges_dict = {
-            pyg_can_edge_type: len(ei[0])
-            for pyg_can_edge_type, ei in G
-        }
+        num_edges_dict = {pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G}
 
         self.__infer_offsets(num_nodes_dict, num_edges_dict)
         self.__infer_existing_tensors(F)
@@ -268,28 +265,20 @@ class EXPERIMENTAL__CuGraphStore:
 
         self.__features = F
         self.__graph = self.__construct_graph(G)
-        self.__subgraphs = {} 
+        self.__subgraphs = {}
 
     def __make_offsets(self, input_dict):
         offsets = {}
-        offsets["stop"] = [
-            input_dict[v] for v in sorted(input_dict.keys())
-        ]
+        offsets["stop"] = [input_dict[v] for v in sorted(input_dict.keys())]
         if self.__backend == "cupy":
-            offsets["stop"] = cupy.array(
-                offsets["stop"]
-            )
+            offsets["stop"] = cupy.array(offsets["stop"])
         else:
-            offsets["stop"] = torch.tensor(
-                offsets["stop"]
-            )
+            offsets["stop"] = torch.tensor(offsets["stop"])
             if torch.has_cuda:
                 offsets["stop"] = offsets["stop"].cuda()
 
         cumsum = offsets["stop"].cumsum(0)
-        offsets["start"] = (
-            cumsum - offsets["stop"]
-        )
+        offsets["start"] = cumsum - offsets["stop"]
         offsets["stop"] = cumsum - 1
 
         offsets["type"] = np.array(sorted(input_dict.keys()))
@@ -301,12 +290,11 @@ class EXPERIMENTAL__CuGraphStore:
         self.__vertex_type_offsets = self.__make_offsets(num_nodes_dict)
         self.__edge_type_offsets = self.__make_offsets(num_edges_dict)
 
-    
     def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
-            
+
             src_offset = self.searchsorted(self.__vertex_type_offsets["type"], src_type)
             srcs -= self.__vertex_type_offsets["start"][src_offset]
 
@@ -315,44 +303,58 @@ class EXPERIMENTAL__CuGraphStore:
 
             edge_info[pyg_can_edge_type] = (srcs, dsts)
 
+        na_src = self.concatenate(
+            [
+                edge_info[pyg_can_edge_type][0]
+                for pyg_can_edge_type in sorted(edge_info.keys())
+            ]
+        )
 
-        na_src = self.concatenate([
-            edge_info[pyg_can_edge_type][0]
-            for pyg_can_edge_type in sorted(edge_info.keys())
-        ])
+        na_dst = self.concatenate(
+            [
+                edge_info[pyg_can_edge_type][1]
+                for pyg_can_edge_type in sorted(edge_info.keys())
+            ]
+        )
 
-        na_dst = self.concatenate([
-            edge_info[pyg_can_edge_type][1]
-            for pyg_can_edge_type in sorted(edge_info.keys())
-        ])
+        na_etp = self.concatenate(
+            [
+                np.array(
+                    [i]
+                    * (
+                        self.__vertex_type_offsets["stop"]
+                        - self.__vertex_type_offsets["stop"]
+                        + 1
+                    )
+                )
+                for i in range(len(self.__vertex_type_offsets["start"]))
+            ]
+        )
 
-        na_etp = self.concatenate([
-            np.array([i]*(self.__vertex_type_offsets["stop"] - self.__vertex_type_offsets["stop"] + 1))
-            for i in range(len(self.__vertex_type_offsets["start"]))
-        ])
-
-        df = pandas.DataFrame({
-            'src': na_src,
-            'dst': na_dst,
-            'w': np.zeros(len(na_src)),
-            'eid': np.arange(len(na_src)),
-            'etp': na_etp
-        })
+        df = pandas.DataFrame(
+            {
+                "src": na_src,
+                "dst": na_dst,
+                "w": np.zeros(len(na_src)),
+                "eid": np.arange(len(na_src)),
+                "etp": na_etp,
+            }
+        )
 
         if multi_gpu:
             nworkers = len(get_client().scheduler_info()["workers"])
             npartitions = nworkers * 1
             df = dd.from_pandas(df, npartitions=npartitions).persist()
             df = df.map_partitions(cudf.DataFrame.from_pandas)
-        
+
         df = df.reset_index(drop=True)
-        
+
         graph = cugraph.MultiGraph(directed=True)
         if multi_gpu:
             graph.from_dask_cudf_edgelist(df)
         else:
             graph.from_cudf_edgelist(df)
-        
+
         return graph
 
     @property
@@ -539,7 +541,7 @@ class EXPERIMENTAL__CuGraphStore:
                 "Subgraphing is currently unsupported, please"
                 " specify all edge types in the graph."
             )
-        
+
         return self.__graph
 
     def _get_vertex_groups_from_sample(self, nodes_of_interest: cudf.Series) -> dict:
@@ -564,17 +566,13 @@ class EXPERIMENTAL__CuGraphStore:
         if len(vtypes) == 1:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
-            noi_type_indices = \
-                self.searchsorted(
-                    self.from_dlpack(
-                        self.__vertex_type_offsets["stop"].to_dlpack()
-                    ),
-                    nodes_of_interest,
-                )
-            
+            noi_type_indices = self.searchsorted(
+                self.from_dlpack(self.__vertex_type_offsets["stop"].to_dlpack()),
+                nodes_of_interest,
+            )
+
             noi_types = vtypes[noi_type_indices]
             noi_starts = self.__vertex_type_offsets["start"][noi_type_indices]
-            
 
             noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
 
@@ -654,8 +652,7 @@ class EXPERIMENTAL__CuGraphStore:
                 # Get the de-offsetted sources
                 sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
                 sources_ix = self.searchsorted(
-                    self.__vertex_type_offsets["stop"],
-                    sources
+                    self.__vertex_type_offsets["stop"], sources
                 )
                 sources -= self.__vertex_type_offsets["start"][sources_ix]
 
@@ -669,8 +666,7 @@ class EXPERIMENTAL__CuGraphStore:
                     sampling_results.destinations.loc[ix].to_dlpack()
                 )
                 destinations_ix = self.searchsorted(
-                    self.__vertex_type_offsets["stop"],
-                    destinations
+                    self.__vertex_type_offsets["stop"], destinations
                 )
                 destinations -= self.__vertex_type_offsets["start"][destinations_ix]
 
@@ -733,7 +729,7 @@ class EXPERIMENTAL__CuGraphStore:
                     attr_name=attr_name,
                     properties=None,
                     vertex_type=vt,
-                    dtype=attr_dtype
+                    dtype=attr_dtype,
                 )
 
     def get_all_tensor_attrs(self) -> List[CuGraphTensorAttr]:
@@ -748,48 +744,35 @@ class EXPERIMENTAL__CuGraphStore:
         idx = attr.index
         if isinstance(idx, cupy.ndarray):
             idx = idx.get()
-        elif isinstance(idx. torch.Tensor):
+        elif isinstance(idx.torch.Tensor):
             idx = idx.cpu()
 
         if cols is None:
-            t = self.__features.get_data(
-                idx,
-                attr.group_name,
-                attr.attr_name
-            )
+            t = self.__features.get_data(idx, attr.group_name, attr.attr_name)
 
             return t.cuda()
 
         else:
-            t = self.__features.get_data(
-                idx,
-                attr.group_name,
-                cols[0]
-            )
+            t = self.__features.get_data(idx, attr.group_name, cols[0])
 
             if len(t.shape) == 1:
-                if self.backend == 'torch':
+                if self.backend == "torch":
                     t = torch.tensor([t])
                 else:
                     t = cupy.array([t])
-            
+
             for col in cols[1:]:
-                u = self.__features.get_data(
-                    idx,
-                    attr.group_name,
-                    col
-                )
+                u = self.__features.get_data(idx, attr.group_name, col)
 
                 if len(u.shape) == 1:
-                    if self.backend == 'torch':
+                    if self.backend == "torch":
                         u = torch.tensor([u])
                     else:
                         u = cupy.array([u])
-                
+
                 t = torch.concatenate([t, u])
-            
+
             return t.cuda()
-            
 
     def _multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:
         return [self._get_tensor(attr) for attr in attrs]
