@@ -255,7 +255,7 @@ class EXPERIMENTAL__CuGraphStore:
         self._tensor_attr_dict = defaultdict(list)
 
         # Infer number of edges from the edge index dict
-        num_edges_dict = {pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G}
+        num_edges_dict = {pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G.items()}
 
         self.__infer_offsets(num_nodes_dict, num_edges_dict)
         self.__infer_existing_tensors(F)
@@ -283,51 +283,61 @@ class EXPERIMENTAL__CuGraphStore:
 
         offsets["type"] = np.array(sorted(input_dict.keys()))
 
+        return offsets
+
     def __infer_offsets(self, num_nodes_dict, num_edges_dict) -> None:
         """
         Sets the vertex offsets for this store.
         """
         self.__vertex_type_offsets = self.__make_offsets(num_nodes_dict)
-        self.__edge_type_offsets = self.__make_offsets(num_edges_dict)
+
+        # Need to convert tuples to string in order to use searchsorted
+        # Can convert back using x.split('__')
+        # Lexicographic ordering is unchanged.
+        self.__edge_type_offsets = self.__make_offsets({
+            '__'.join(pyg_can_edge_type): n
+            for pyg_can_edge_type, n in num_edges_dict.items()
+        })
 
     def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
 
-            src_offset = self.searchsorted(self.__vertex_type_offsets["type"], src_type)
-            srcs -= self.__vertex_type_offsets["start"][src_offset]
+            src_offset = np.searchsorted(self.__vertex_type_offsets["type"], src_type)
+            srcs += int(self.__vertex_type_offsets["start"][src_offset])
 
-            dst_offset = self.searchsorted(self.__vertex_type_offsets["type"], dst_type)
-            dsts -= self.__vertex_type_offsets["start"][dst_offset]
+            dst_offset = np.searchsorted(self.__vertex_type_offsets["type"], dst_type)
+            dsts += int(self.__vertex_type_offsets["start"][dst_offset])
 
             edge_info[pyg_can_edge_type] = (srcs, dsts)
 
-        na_src = self.concatenate(
+        na_src = np.concatenate(
             [
                 edge_info[pyg_can_edge_type][0]
                 for pyg_can_edge_type in sorted(edge_info.keys())
             ]
         )
 
-        na_dst = self.concatenate(
+        na_dst = np.concatenate(
             [
                 edge_info[pyg_can_edge_type][1]
                 for pyg_can_edge_type in sorted(edge_info.keys())
             ]
         )
 
-        na_etp = self.concatenate(
+        na_etp = np.concatenate(
             [
                 np.array(
                     [i]
-                    * (
-                        self.__vertex_type_offsets["stop"]
-                        - self.__vertex_type_offsets["stop"]
+                    * int(
+                        self.__edge_type_offsets["stop"][i]
+                        - self.__edge_type_offsets["start"][i]
                         + 1
-                    )
+                    ),
+                    dtype='int32'
                 )
-                for i in range(len(self.__vertex_type_offsets["start"]))
+                for i in range(len(self.__edge_type_offsets["start"]))
             ]
         )
 
@@ -346,14 +356,28 @@ class EXPERIMENTAL__CuGraphStore:
             npartitions = nworkers * 1
             df = dd.from_pandas(df, npartitions=npartitions).persist()
             df = df.map_partitions(cudf.DataFrame.from_pandas)
+        else:
+            df = cudf.from_pandas(df)
 
         df = df.reset_index(drop=True)
 
         graph = cugraph.MultiGraph(directed=True)
         if multi_gpu:
-            graph.from_dask_cudf_edgelist(df)
+            graph.from_dask_cudf_edgelist(
+                df,
+                source='src',
+                destination='dst',
+                edge_attr=['w','eid','etp'],
+                legacy_renum_only=True
+            )
         else:
-            graph.from_cudf_edgelist(df)
+            graph.from_cudf_edgelist(
+                df,
+                source='src',
+                destination='dst',
+                edge_attr=['w','eid','etp'],
+                legacy_renum_only=True
+            )
 
         return graph
 
@@ -367,7 +391,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
-        return isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
+        return isinstance(self.__graph._plc_graph, pylibcugraph.graphs.MGGraph)
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
@@ -433,42 +457,34 @@ class EXPERIMENTAL__CuGraphStore:
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
 
-        if isinstance(attr.edge_type, str):
-            edge_type = attr.edge_type
+        if self._is_delayed:
+            src_col_name = self.__graph.renumber_map.renumbered_src_col_name
+            dst_col_name = self.__graph.renumber_map.renumbered_dst_col_name
         else:
-            edge_type = attr.edge_type[1]
+            src_col_name = self.__graph.srcCol
+            dst_col_name = self.__graph.dstCol
 
         # If there is only one edge type (homogeneous graph) then
         # bypass the edge filters for a significant speed improvement.
-        if len(self.__graph.edge_types) == 1:
-            if list(self.__graph.edge_types)[0] != edge_type:
+        if len(self.__edge_types_to_attrs) == 1:
+            if attr.edge_type not in self.__edge_types_to_attrs:
                 raise ValueError(
-                    f"Requested edge type {edge_type}" "is not present in graph."
+                    f"Requested edge type {attr.edge_type}" "is not present in graph."
                 )
 
-            df = self.__graph.get_edge_data(
-                edge_ids=None,
-                types=None,
-                columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
-            )
+            df = self.__graph.edgelist.edgelist_df[[src_col_name, dst_col_name]]
         else:
-            if isinstance(attr.edge_type, str):
-                edge_type = attr.edge_type
-            else:
-                edge_type = attr.edge_type[1]
-
-            # FIXME unrestricted edge type names
-            df = self.__graph.get_edge_data(
-                edge_ids=None,
-                types=[edge_type],
-                columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
-            )
+            coli = np.searchsorted(self.__edge_type_offsets["type"], '__'.join(attr.edge_type))
+            
+            df = self.__graph.edgelist.edgelist_df[[src_col_name, dst_col_name, self.__graph.edgeTypeCol]]
+            df = df[df[self.__graph.edgeTypeCol] == coli]
+            df = df[[src_col_name, dst_col_name]]
 
         if self._is_delayed:
             df = df.compute()
 
-        src = self.from_dlpack(df[self.__graph.src_col_name].to_dlpack())
-        dst = self.from_dlpack(df[self.__graph.dst_col_name].to_dlpack())
+        src = self.from_dlpack(df[src_col_name].to_dlpack())
+        dst = self.from_dlpack(df[dst_col_name].to_dlpack())
 
         if self.__backend == "torch":
             src = src.to(self.vertex_dtype)
@@ -641,12 +657,15 @@ class EXPERIMENTAL__CuGraphStore:
             dst = self.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
         else:
+            # This will retrieve the single string representation.
+            # It needs to be converted to a tuple in the for loop below.
             eoi_types = self.__edge_type_offsets["type"][
                 sampling_results.indices.astype("int32")
             ]
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
 
-            for pyg_can_edge_type, ix in eoi_types.items():
+            for pyg_can_edge_type_str, ix in eoi_types.items():
+                pyg_can_edge_type = pyg_can_edge_type_str.split('__')
                 src_type, edge_type, dst_type = pyg_can_edge_type
 
                 # Get the de-offsetted sources

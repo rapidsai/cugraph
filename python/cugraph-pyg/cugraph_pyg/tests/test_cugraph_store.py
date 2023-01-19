@@ -12,135 +12,144 @@
 # limitations under the License.
 
 import cugraph
-from cugraph.experimental import PropertyGraph
-from cugraph_pyg.data import to_pyg
 from cugraph_pyg.data.cugraph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
     EdgeLayout,
 )
+from cugraph_pyg.data import CuGraphStore
 
 import cudf
 import cupy
+import numpy as np
 
 import pytest
 
+from cugraph.gnn import FeatureStore
 
 @pytest.fixture
-def basic_property_graph_1():
-    pG = PropertyGraph()
-    pG.add_edge_data(
-        cudf.DataFrame({"src": [0, 0, 1, 2, 2, 3], "dst": [1, 2, 4, 3, 4, 1]}),
-        vertex_col_names=["src", "dst"],
-        type_name="pig",
+def basic_graph_1():
+    G = {
+        ("vt1", "pig", "vt1"): [
+            np.array([0,0,1,2,2,3]),
+            np.array([1,2,4,3,4,1])
+        ]
+    }
+
+    N = {
+        "vt1": 5
+    }
+
+    F = FeatureStore()
+    F.add_data(
+        np.array([100, 200, 300, 400, 500]),
+        type_name="vt1",
+        feat_name="prop1"
     )
 
-    pG.add_vertex_data(
-        cudf.DataFrame(
-            {
-                "prop1": [100, 200, 300, 400, 500],
-                "prop2": [5, 4, 3, 2, 1],
-                "id": [0, 1, 2, 3, 4],
-            }
-        ),
-        vertex_col_name="id",
+    F.add_data(
+        np.array([5,4,3,2,1]),
+        type_name="vt1",
+        feat_name="prop2"
     )
 
-    return pG
-
-
-@pytest.fixture
-def multi_edge_property_graph_1():
-    df = cudf.DataFrame(
-        {
-            "src": [0, 0, 1, 2, 2, 3, 3, 1, 2, 4],
-            "dst": [1, 2, 4, 3, 3, 1, 2, 4, 4, 3],
-            "edge_type": [
-                "pig",
-                "dog",
-                "cat",
-                "pig",
-                "cat",
-                "pig",
-                "dog",
-                "pig",
-                "cat",
-                "dog",
-            ],
-        }
-    )
-
-    pG = PropertyGraph()
-    for edge_type in df.edge_type.unique().to_pandas():
-        pG.add_edge_data(
-            df[df.edge_type == edge_type],
-            vertex_col_names=["src", "dst"],
-            type_name=edge_type,
-        )
-
-    pG.add_vertex_data(
-        cudf.DataFrame(
-            {
-                "prop1": [100, 200, 300, 400, 500],
-                "prop2": [5, 4, 3, 2, 1],
-                "id": [0, 1, 2, 3, 4],
-            }
-        ),
-        vertex_col_name="id",
-    )
-
-    return pG
+    return F, G, N
 
 
 @pytest.fixture
-def multi_edge_multi_vertex_property_graph_1():
-    df = cudf.DataFrame(
-        {
-            "src": [0, 0, 1, 2, 2, 3, 3, 1, 2, 4],
-            "dst": [1, 2, 4, 3, 3, 1, 2, 4, 4, 3],
-            "edge_type": [
-                "horse",
-                "horse",
-                "duck",
-                "duck",
-                "mongoose",
-                "cow",
-                "cow",
-                "mongoose",
-                "duck",
-                "snake",
-            ],
-        }
+def multi_edge_graph_1():
+    G = {
+        ("vt1", "pig", "vt1"): [
+            np.array([0,2,3,1]),
+            np.array([1,3,1,4])
+        ],
+        ("vt1", "dog", "vt1"): [
+            np.array([0,3,4]),
+            np.array([2,2,3])
+        ],
+        ("vt1", "cat", "vt1"): [
+            np.array([1,2,2]),
+            np.array([4,3,4]),
+        ]
+    }
+
+    N = {
+        "vt1": 5
+    }
+
+    F = FeatureStore()
+    F.add_data(
+        np.array([100,200,300,400,500]),
+        type_name="vt1",
+        feat_name="prop1"
     )
 
-    pG = PropertyGraph()
-    for edge_type in df.edge_type.unique().to_pandas():
-        pG.add_edge_data(
-            df[df.edge_type == edge_type],
-            vertex_col_names=["src", "dst"],
-            type_name=edge_type,
-        )
-
-    vdf = cudf.DataFrame(
-        {
-            "prop1": [100, 200, 300, 400, 500],
-            "prop2": [5, 4, 3, 2, 1],
-            "id": [0, 1, 2, 3, 4],
-            "vertex_type": [
-                "brown",
-                "brown",
-                "brown",
-                "black",
-                "black",
-            ],
-        }
+    F.add_data(
+        np.array([5,4,3,2,1]),
+        type_name="vt1",
+        feat_name="prop2"
     )
 
-    for vertex_type in vdf.vertex_type.unique().to_pandas():
-        vd = vdf[vdf.vertex_type == vertex_type].drop("vertex_type", axis=1)
-        pG.add_vertex_data(vd, vertex_col_name="id", type_name=vertex_type)
+    return F, G, N
 
-    return pG
+
+@pytest.fixture
+def multi_edge_multi_vertex_graph_1():
+
+    G = {
+        ("brown", "horse", "brown"): [
+            np.array([0,0]),
+            np.array([1,2]),
+        ],
+        ("brown", "duck", "black"): [
+            np.array([1,1,2]),
+            np.array([1,0,1]),
+        ],
+        ("brown", "mongoose", "black"): [
+            np.array([2,1]),
+            np.array([0,1]),
+        ],
+        ("black", "cow", "brown"): [
+            np.array([0,0]),
+            np.array([1,2]),
+        ],
+        ("black", "snake", "black"): [
+            np.array([1]),
+            np.array([0]),
+        ]
+    }
+
+    N = {
+        "brown": 3,
+        "black": 2
+    }
+
+    F = FeatureStore()
+    F.add_data(
+        np.array([100,200,300]),
+        type_name="brown",
+        feat_name="prop1"
+    )
+    
+    F.add_data(
+        np.array([400,500]),
+        type_name="black",
+        feat_name="prop1"
+    )
+
+    F.add_data(
+        np.array([5,4,3]),
+        type_name="brown",
+        feat_name="prop2"
+    )
+
+    F.add_data(
+        np.array([2, 1]),
+        type_name="black",
+        feat_name="prop2"
+    )
+
+    return F, G, N
 
 
 def test_tensor_attr():
@@ -191,75 +200,65 @@ def test_edge_attr():
 
 @pytest.fixture(
     params=[
-        "basic_property_graph_1",
-        "multi_edge_property_graph_1",
-        "multi_edge_multi_vertex_property_graph_1",
+        "basic_graph_1",
+        "multi_edge_graph_1",
+        "multi_edge_multi_vertex_graph_1",
     ]
 )
 def graph(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.fixture(params=["basic_property_graph_1", "multi_edge_property_graph_1"])
+@pytest.fixture(params=["basic_graph_1", "multi_edge_graph_1"])
 def single_vertex_graph(request):
     return request.getfixturevalue(request.param)
 
 
 def test_get_edge_index(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
 
-    for edge_type in pG.edge_types:
-        src, dst = graph_store.get_edge_index(
-            edge_type=edge_type, layout="coo", is_sorted=False
+    for pyg_can_edge_type in G:
+        print(pyg_can_edge_type)
+        src, dst = cugraph_store.get_edge_index(
+            edge_type=pyg_can_edge_type,
+            layout="coo",
+            is_sorted=False
         )
 
-        assert pG.get_num_edges(edge_type) == len(src)
-        assert pG.get_num_edges(edge_type) == len(dst)
+        assert G[pyg_can_edge_type][0].tolist() == src.get().tolist()
+        assert G[pyg_can_edge_type][1].tolist() == dst.get().tolist()
 
-        edge_data = pG.get_edge_data(
-            types=[edge_type], columns=[pG.src_col_name, pG.dst_col_name]
-        )
-        edge_df = cudf.DataFrame({"src": src, "dst": dst})
-        edge_df["counter"] = 1
-
-        merged_df = cudf.merge(
-            edge_data,
-            edge_df,
-            left_on=[pG.src_col_name, pG.dst_col_name],
-            right_on=["src", "dst"],
-        )
-
-        assert merged_df.counter.sum() == len(src)
+        # check actual values
+        print(src,dst)
 
 
 def test_edge_types(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
 
-    eta = graph_store._edge_types_to_attrs
-    assert eta.keys() == pG.edge_types
+    eta = cugraph_store._edge_types_to_attrs
+    assert eta.keys() == G.keys()
 
     for attr_name, attr_repr in eta.items():
-        assert pG.get_num_edges(attr_name) == attr_repr.size[-1]
-        assert attr_name == attr_repr.edge_type[1]
+        assert len(G[attr_name][0]) == attr_repr.size[-1]
+        assert attr_name == attr_repr.edge_type
 
 
 def test_get_subgraph(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
 
-    for edge_type in pG.edge_types:
-        sg = graph_store._subgraph([edge_type])
-        assert isinstance(sg, cugraph.Graph)
-        assert sg.number_of_edges() == pG.get_num_edges(edge_type)
+    if len(G.keys()) > 1:
+        for edge_type in G.keys():
+            # Subgraphing is not implemented yet and should raise an error
+            with pytest.raises(ValueError):
+                sg = cugraph_store._subgraph([edge_type])
 
-    sg = graph_store._subgraph(pG.edge_types)
-    assert isinstance(sg, cugraph.Graph)
+    sg = cugraph_store._subgraph(list(G.keys()))
+    assert isinstance(sg, cugraph.MultiGraph)
 
-    # duplicate edges are automatically dropped in from_edgelist
-    cols = [pG.src_col_name, pG.dst_col_name, pG.type_col_name]
-    num_edges = pG.get_edge_data(columns=cols)[cols].drop_duplicates().shape[0]
+    num_edges = sum([len(v[0]) for v in G.values()])
     assert sg.number_of_edges() == num_edges
 
 
@@ -402,8 +401,8 @@ def test_get_tensor_unspec_props(graph):
         assert t.tolist() == data.tolist()
 
 
-def test_multi_get_tensor_unspec_props(multi_edge_multi_vertex_property_graph_1):
-    pG = multi_edge_multi_vertex_property_graph_1
+def test_multi_get_tensor_unspec_props(multi_edge_multi_vertex_graph_1):
+    pG = multi_edge_multi_vertex_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
 
     idx = cupy.array([0, 1, 2, 3, 4])

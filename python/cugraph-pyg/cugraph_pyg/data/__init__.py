@@ -14,7 +14,5 @@
 from cugraph_pyg.utilities.api_tools import experimental_warning_wrapper
 
 from cugraph_pyg.data.cugraph_store import EXPERIMENTAL__CuGraphStore
-from cugraph_pyg.data.cugraph_store import EXPERIMENTAL__to_pyg
 
 CuGraphStore = experimental_warning_wrapper(EXPERIMENTAL__CuGraphStore)
-to_pyg = experimental_warning_wrapper(EXPERIMENTAL__to_pyg)
