@@ -30,7 +30,6 @@ from typing import Union
 from typing import Tuple
 from typing import List
 
-# FIXME try to remove cudf requirement
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
