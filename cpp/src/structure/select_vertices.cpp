@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
 
 #include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>

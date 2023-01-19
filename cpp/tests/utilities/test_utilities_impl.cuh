@@ -19,8 +19,8 @@
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/graph_functions.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <raft/core/device_span.hpp>
 
@@ -201,7 +201,8 @@ mg_graph_to_sg_graph(
   }
 
   rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
-  cugraph::detail::sequence_fill(handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
+  cugraph::detail::sequence_fill(
+    handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
 
   graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
