@@ -19,24 +19,28 @@ from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
-import warnings
-
 # numpy is always available
 import numpy as np
+import pandas
 
 # cuGraph is required
 try:
-    from cugraph.utilities.utils import import_optional
+    import cugraph
+    import pylibcugraph
 except ModuleNotFoundError:
     raise ModuleNotFoundError("cuGraph-PyG requires cuGraph to be installed.")
 
-# FIXME remove these imports and replace PG with FeatureStore
-from cugraph.experimental import MGPropertyGraph
+
+from cugraph.utilities.utils import import_optional, MissingModule
+import cudf
+
+import dask.dataframe as dd
+import dask_cudf
+from dask.distributed import get_client
 
 # FIXME drop cupy support and make torch the only backend (#2995)
 cupy = import_optional("cupy")
 torch = import_optional("torch")
-cugraph = import_optional("cugraph")
 cugraph_service_client = import_optional("cugraph_service_client")
 
 Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
@@ -102,32 +106,6 @@ class CuGraphEdgeAttr:
             if isinstance(elem, dict):
                 return cls(**elem)
         return cls(*args, **kwargs)
-
-
-def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_graph=None) -> Tuple:
-    """
-        Returns the PyG wrappers for the provided PropertyGraph or
-        MGPropertyGraph.
-
-    Parameters
-    ----------
-    G : PropertyGraph or MGPropertyGraph
-        The graph to produce PyG wrappers for.
-    renumber_graph: bool
-        Should usually be set to True.  If True, the vertices and edges
-        in the provided property graph will be renumbered so that they
-        are contiguous by type.  If the vertices and edges are already
-        contiguously renumbered by type, then this can be set to False.
-
-    Returns
-    -------
-    Tuple (CuGraphStore, CuGraphStore)
-        Wrappers for the provided property graph.
-    """
-    store = EXPERIMENTAL__CuGraphStore(
-        G, backend=backend, renumber_graph=renumber_graph
-    )
-    return (store, store)
 
 
 _field_status = Enum("FieldStatus", "UNSET")
@@ -215,28 +193,37 @@ class EXPERIMENTAL__CuGraphStore:
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
 
-    def __init__(self, G, backend: str = "torch", renumber_graph: bool = None):
+    # TODO allow (and possibly require) separate stores for node, edge attrs
+    # For now edge attrs are entirely unsupported.
+    # TODO add an "expensive check" argument that ensures the graph store
+    # and feature store are valid and compatible with PyG.
+    def __init__(self, F, G, num_nodes_dict, backend: str = "torch"):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
-
         Parameters
         ----------
-        G : PropertyGraph or MGPropertyGraph
-            The cuGraph property graph where the
-            data is being stored.
-        backend : ('torch', 'cupy')
+        F : cugraph.gnn.FeatureStore (Required)
+            The feature store containing this graph's features.
+            Typed lexicographic-ordered numbering convention
+            should match that of the graph.
+        G : dict[tuple[tensor]] (Required)
+            Dictionary of edge indices.
+            i.e. {
+                ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+            }
+            Note: the internal cugraph representation will use
+            offsetted vertex and edge ids.
+        num_nodes_dict : dict (Required)
+            A dictionary mapping each node type to the count of nodes
+            of that type in the graph.
+        backend : ('torch', 'cupy') (Required)
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
-        renumber_graph : bool
-            If True, will renumber vertices and edges to have contiguous
-            ids per type.  If False, will not renumber vertices.  If not
-            specified, will renumber and raise a warning.
         """
 
-        # FIXME ensure all x properties are float32 type
-        # FIXME ensure y is of long type
-        if None in G.edge_types:
+        if None in G:
             raise ValueError("Unspecified edge types not allowed in PyG")
 
         # FIXME drop the cupy backend and remove these checks (#2995)
@@ -265,124 +252,110 @@ class EXPERIMENTAL__CuGraphStore:
         self.concatenate = concatenate
         self.arange = arange
 
-        self.__graph = G
-        self.__subgraphs = {}
-
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
-        self.__infer_x_and_y_tensors()
 
-        # Must be called after __infer_x_and_y_tensors to
-        # avoid adding the old vertex id as a property when
-        # users do not specify it.
-        self.__renumber_graph(renumber_graph)
+        # Infer number of edges from the edge index dict
+        num_edges_dict = {
+            pyg_can_edge_type: len(ei[0])
+            for pyg_can_edge_type, ei in G
+        }
 
-        self.__edge_types_to_attrs = {}
-        for edge_type in self.__graph.edge_types:
-            edges = self.__graph.get_edge_data(types=[edge_type])
-            dsts = edges[self.__graph.dst_col_name].unique()
-            srcs = edges[self.__graph.src_col_name].unique()
+        self.__infer_offsets(num_nodes_dict, num_edges_dict)
+        self.__infer_existing_tensors(F)
+        self.__infer_edge_types(num_edges_dict)
 
-            if self._is_delayed:
-                dsts = dsts.compute()
-                srcs = srcs.compute()
+        self._edge_attr_cls = CuGraphEdgeAttr
 
-            dst_types = self.__graph.get_vertex_data(
-                vertex_ids=dsts.values_host, columns=[self.__graph.type_col_name]
-            )[self.__graph.type_col_name].unique()
+        self.__features = F
+        self.__graph = self.__construct_graph(G)
+        self.__subgraphs = {} 
 
-            src_types = self.__graph.get_vertex_data(
-                vertex_ids=srcs.values_host, columns=[self.__graph.type_col_name]
-            )[self.__graph.type_col_name].unique()
-
-            if self._is_delayed:
-                dst_types = dst_types.compute()
-                src_types = src_types.compute()
-
-            err_string = (
-                f"Edge type {edge_type} associated" "with multiple src/dst type pairs"
+    def __make_offsets(self, input_dict):
+        offsets = {}
+        offsets["stop"] = [
+            input_dict[v] for v in sorted(input_dict.keys())
+        ]
+        if self.__backend == "cupy":
+            offsets["stop"] = cupy.array(
+                offsets["stop"]
             )
-            if len(dst_types) > 1 or len(src_types) > 1:
-                raise TypeError(err_string)
-
-            pyg_edge_type = (src_types[0], edge_type, dst_types[0])
-
-            self.__edge_types_to_attrs[edge_type] = CuGraphEdgeAttr(
-                edge_type=pyg_edge_type,
-                layout=EdgeLayout.COO,
-                is_sorted=False,
-                size=(len(edges), len(edges)),
-            )
-
-            self._edge_attr_cls = CuGraphEdgeAttr
-
-    def __renumber_graph(self, renumber_graph: bool) -> None:
-        """
-        Renumbers the vertices and edges in this store's property graph
-        and sets the vertex offsets.
-        If renumber_graph is False, then renumber_vertices_by_type()
-        and renumber_edges_by_type()
-        are not called and the offsets are inferred from vertex counts.
-
-        If renumber_graph is None, it defaults to True, warns the
-        user of this default behavior, and saves the current ids as
-        <vertex_col>_old.
-
-        If renumber_graph is True, it calls renumber_vertices_by_type()
-        and renumber_edges_by_type(),
-        overwriting the current vertex and edge ids without saving them.
-        """
-        self.__old_vertex_col_name = None
-        self.__old_edge_col_name = None
-
-        if renumber_graph is None:
-            renumber_graph = True
-            self.__old_vertex_col_name = f"{self.__graph.vertex_col_name}_old"
-            self.__old_edge_col_name = f"{self.__graph.edge_id_col_name}_old"
-            warnings.warn(
-                f"renumber_graph not specified; renumbering by default "
-                f"and saving as {self.__old_vertex_col_name} "
-                f"and {self.__old_edge_col_name}"
-            )
-
-        # FIXME Remove all renumbering logic permanently
-        # and require this already be done.
-        if renumber_graph:
-            self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
-                prev_id_column=self.__old_vertex_col_name
-            )
-
-            # FIXME: https://github.com/rapidsai/cugraph/issues/3059
-            # Currently renumbering edges is required if renumbering vertices or else
-            # there is a dask partitioning issue.
-            self.__graph.renumber_edges_by_type(prev_id_column=self.__old_edge_col_name)
-
         else:
-            self.__vertex_type_offsets = {}
-            self.__vertex_type_offsets["stop"] = [
-                self.__graph.get_num_vertices(vt) for vt in self.__graph.vertex_types
-            ]
-            if self.__backend == "cupy":
-                self.__vertex_type_offsets["stop"] = cupy.array(
-                    self.__vertex_type_offsets["stop"]
-                )
-            else:
-                self.__vertex_type_offsets["stop"] = torch.tensor(
-                    self.__vertex_type_offsets["stop"]
-                )
-                if torch.has_cuda:
-                    self.__vertex_type_offsets["stop"] = self.__vertex_type_offsets[
-                        "stop"
-                    ].cuda()
+            offsets["stop"] = torch.tensor(
+                offsets["stop"]
+            )
+            if torch.has_cuda:
+                offsets["stop"] = offsets["stop"].cuda()
 
-            cumsum = self.__vertex_type_offsets["stop"].cumsum(0)
-            self.__vertex_type_offsets["start"] = (
-                cumsum - self.__vertex_type_offsets["stop"]
-            )
-            self.__vertex_type_offsets["stop"] = cumsum - 1
-            self.__vertex_type_offsets["type"] = np.array(
-                sorted(self.__graph.vertex_types), dtype="str"
-            )
+        cumsum = offsets["stop"].cumsum(0)
+        offsets["start"] = (
+            cumsum - offsets["stop"]
+        )
+        offsets["stop"] = cumsum - 1
+
+        offsets["type"] = np.array(sorted(input_dict.keys()))
+
+    def __infer_offsets(self, num_nodes_dict, num_edges_dict) -> None:
+        """
+        Sets the vertex offsets for this store.
+        """
+        self.__vertex_type_offsets = self.__make_offsets(num_nodes_dict)
+        self.__edge_type_offsets = self.__make_offsets(num_edges_dict)
+
+    
+    def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
+        for pyg_can_edge_type in sorted(edge_info.keys()):
+            src_type, _, dst_type = pyg_can_edge_type
+            srcs, dsts = edge_info[pyg_can_edge_type]
+            
+            src_offset = self.searchsorted(self.__vertex_type_offsets["type"], src_type)
+            srcs -= self.__vertex_type_offsets["start"][src_offset]
+
+            dst_offset = self.searchsorted(self.__vertex_type_offsets["type"], dst_type)
+            dsts -= self.__vertex_type_offsets["start"][dst_offset]
+
+            edge_info[pyg_can_edge_type] = (srcs, dsts)
+
+
+        na_src = self.concatenate([
+            edge_info[pyg_can_edge_type][0]
+            for pyg_can_edge_type in sorted(edge_info.keys())
+        ])
+
+        na_dst = self.concatenate([
+            edge_info[pyg_can_edge_type][1]
+            for pyg_can_edge_type in sorted(edge_info.keys())
+        ])
+
+        na_etp = self.concatenate([
+            np.array([i]*(self.__vertex_type_offsets["stop"] - self.__vertex_type_offsets["stop"] + 1))
+            for i in range(len(self.__vertex_type_offsets["start"]))
+        ])
+
+        df = pandas.DataFrame({
+            'src': na_src,
+            'dst': na_dst,
+            'w': np.zeros(len(na_src)),
+            'eid': np.arange(len(na_src)),
+            'etp': na_etp
+        })
+
+        if multi_gpu:
+            nworkers = len(get_client().scheduler_info()["workers"])
+            npartitions = nworkers * 1
+            df = dd.from_pandas(df, npartitions=npartitions).persist()
+            df = df.map_partitions(cudf.DataFrame.from_pandas)
+        
+        df = df.reset_index(drop=True)
+        
+        graph = cugraph.MultiGraph(directed=True)
+        if multi_gpu:
+            graph.from_dask_cudf_edgelist(df)
+        else:
+            graph.from_cudf_edgelist(df)
+        
+        return graph
+        
 
     @property
     def _old_vertex_col_name(self) -> str:
@@ -410,7 +383,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
-        return isinstance(self.__graph, MGPropertyGraph)
+        return isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
@@ -563,13 +536,13 @@ class EXPERIMENTAL__CuGraphStore:
             raise KeyError(f"An edge corresponding to '{edge_attr}' was not " f"found")
         return edge_index
 
-    def _subgraph(self, edge_types: List[str]) -> StructuralGraphType:
+    def _subgraph(self, edge_types: List[tuple]) -> StructuralGraphType:
         """
         Returns a subgraph with edges limited to those of a given type
 
         Parameters
         ----------
-        edge_types : list of edge types
+        edge_types : list of pyg canonical edge types
             Directly references the graph's internal edge types.  Does
             not accept PyG edge type tuples.
 
@@ -579,27 +552,13 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
-        edge_types = tuple(sorted(edge_types))
-
-        if edge_types not in self.__subgraphs:
-            TCN = self.__graph.type_col_name
-            query = f'({TCN}=="{edge_types[0]}")'
-            for t in edge_types[1:]:
-                query += f' | ({TCN}=="{t}")'
-            selection = self.__graph.select_edges(query)
-
-            # FIXME enforce int type
-            sg = self.__graph.extract_subgraph(
-                selection=selection,
-                edge_weight_property=self.__graph.type_col_name,
-                default_edge_weight=1.0,
-                check_multi_edges=False,
-                renumber_graph=True,
-                add_edge_data=False,
+        if set(edge_types) != set(self.__edge_types_to_attrs.keys()):
+            raise ValueError(
+                "Subgraphing is currently unsupported, please"
+                " specify all edge types in the graph."
             )
-            self.__subgraphs[edge_types] = sg
-
-        return self.__subgraphs[edge_types]
+        
+        return self.__graph
 
     def _get_vertex_groups_from_sample(self, nodes_of_interest: cudf.Series) -> dict:
         """
@@ -611,9 +570,6 @@ class EXPERIMENTAL__CuGraphStore:
         Example Input: [5, 2, 10, 11, 8]
         Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
 
-        Note: "renumbering" here refers to generating a new set of vertex
-        and edge ids for the outputted subgraph that
-        follow PyG's conventions, allowing easy construction of a HeteroData object.
         """
 
         nodes_of_interest = self.from_dlpack(
@@ -622,21 +578,21 @@ class EXPERIMENTAL__CuGraphStore:
 
         noi_index = {}
 
-        vtypes = list(self.__graph.vertex_types)
+        vtypes = self.__graph.vertex_type_offsets["type"]
         if len(vtypes) == 1:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
-            # FIXME remove use of cudf
-            noi_types = self.__graph.vertex_types_from_numerals(
-                cudf.from_dlpack(
-                    self.searchsorted(
-                        self.from_dlpack(
-                            self.__vertex_type_offsets["stop"].to_dlpack()
-                        ),
-                        nodes_of_interest,
-                    ).__dlpack__()
+            noi_type_indices = \
+                self.searchsorted(
+                    self.from_dlpack(
+                        self.__vertex_type_offsets["stop"].to_dlpack()
+                    ),
+                    nodes_of_interest,
                 )
-            )
+            
+            noi_types = vtypes[noi_type_indices]
+            noi_starts = self.__vertex_type_offsets["start"][noi_type_indices]
+            
 
             noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
 
@@ -644,7 +600,8 @@ class EXPERIMENTAL__CuGraphStore:
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
                 ix = self.from_dlpack(ix.to_dlpack())
-                noi_index[type_name] = nodes_of_interest[ix]
+                # subtract off the offsets
+                noi_index[type_name] = nodes_of_interest[ix] - noi_starts[ix]
 
         return noi_index
 
@@ -687,16 +644,12 @@ class EXPERIMENTAL__CuGraphStore:
                 ('red', 'etype3', 'blue'): [1]
             }
 
-        Note: "renumbering" here refers to generating a new set of vertex and edge ids
-        for the outputted subgraph that follow PyG's conventions, allowing easy
-        construction of a HeteroData object.
         """
-        # print(sampling_results.edge_type.value_counts())
         row_dict = {}
         col_dict = {}
         if len(self.__edge_types_to_attrs) == 1:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
-            src_type, edge_type, dst_type = t_pyg_type
+            src_type, _, dst_type = t_pyg_type
 
             sources = self.from_dlpack(sampling_results.sources.to_dlpack())
             src_id_table = noi_index[src_type]
@@ -708,23 +661,38 @@ class EXPERIMENTAL__CuGraphStore:
             dst = self.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
         else:
-            eoi_types = self.__graph.edge_types_from_numerals(
+            eoi_types = self.__edge_type_offsets["type"][
                 sampling_results.indices.astype("int32")
-            )
+            ]
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
 
-            for cugraph_type_name, ix in eoi_types.items():
-                t_pyg_type = self.__edge_types_to_attrs[cugraph_type_name].edge_type
-                src_type, edge_type, dst_type = t_pyg_type
+            for pyg_can_edge_type, ix in eoi_types.items():
+                src_type, edge_type, dst_type = pyg_can_edge_type
 
+                # Get the de-offsetted sources
                 sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
+                sources_ix = self.searchsorted(
+                    self.__vertex_type_offsets["stop"],
+                    sources
+                )
+                sources -= self.__vertex_type_offsets["start"][sources_ix]
+
+                # Create the row entry for this type
                 src_id_table = noi_index[src_type]
                 src = self.searchsorted(src_id_table, sources)
                 row_dict[t_pyg_type] = src
 
+                # Get the de-offsetted destinations
                 destinations = self.from_dlpack(
                     sampling_results.destinations.loc[ix].to_dlpack()
                 )
+                destinations_ix = self.searchsorted(
+                    self.__vertex_type_offsets["stop"],
+                    destinations
+                )
+                destinations -= self.__vertex_type_offsets["start"][destinations_ix]
+
+                # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
                 dst = self.searchsorted(dst_id_table, destinations)
                 col_dict[t_pyg_type] = dst
@@ -746,7 +714,7 @@ class EXPERIMENTAL__CuGraphStore:
         attr_name : str
             The name of the tensor within its group.
         properties : list[str]
-            The properties in the PropertyGraph the rows
+            The properties the rows
             of the tensor correspond to.
         vertex_type : str
             The vertex type associated with this new tensor property.
@@ -760,27 +728,31 @@ class EXPERIMENTAL__CuGraphStore:
             )
         )
 
-    def __infer_x_and_y_tensors(self) -> None:
-        """
-        Infers the x and y default tensor attributes/features.
-        Currently unable to handle cases where properties differ across
-        vertex types due to the high amount of computation overhead
-        required.  Will resolve with future updates to PropertyGraph.
-        See issue #2942 for more details.
-        """
-        prop_names = self.__graph.vertex_property_names
-        add_y_property = False
-        if "y" in prop_names:
-            prop_names.remove("y")
-            add_y_property = True
+    def __infer_edge_types(self, num_edges_dict) -> None:
+        self.__edge_types_to_attrs = {}
 
-        for vtype in self.__graph.vertex_types:
-            if add_y_property:
-                self.create_named_tensor("y", ["y"], vtype, self.vertex_dtype)
+        for pyg_can_edge_type in sorted(num_edges_dict.keys()):
+            sz = num_edges_dict[pyg_can_edge_type]
+            self.__edge_types_to_attrs[pyg_can_edge_type] = CuGraphEdgeAttr(
+                edge_type=pyg_can_edge_type,
+                layout=EdgeLayout.COO,
+                is_sorted=False,
+                size=(sz, sz),
+            )
 
-            # FIXME use the new vector property feature in PropertyGraph
-            # (graph_dl issue #96)
-            self.create_named_tensor("x", prop_names, vtype, self.property_dtype)
+    def __infer_existing_tensors(self, F) -> None:
+        """
+        Infers the tensor attributes/features.
+        """
+        for attr_name, types_with_attr in F.get_feature_list().items():
+            for vt in types_with_attr:
+                attr_dtype = F.get_data(np.array([0]), vt, attr_name)
+                self.create_named_tensor(
+                    attr_name=attr_name,
+                    properties=None,
+                    vertex_type=vt,
+                    dtype=attr_dtype
+                )
 
     def get_all_tensor_attrs(self) -> List[CuGraphTensorAttr]:
         r"""Obtains all tensor attributes stored in this feature store."""
@@ -788,48 +760,54 @@ class EXPERIMENTAL__CuGraphStore:
         it = chain.from_iterable(self._tensor_attr_dict.values())
         return [CuGraphTensorAttr.cast(c) for c in it]
 
-    def __get_tensor_from_dataframe(self, df, attr):
-        df = df[attr.properties]
-
-        if self._is_delayed:
-            df = df.compute()
-
-        # FIXME handle vertices without properties
-        output = self.from_dlpack(df.to_dlpack())
-
-        # FIXME look up the dtypes for x and other properties
-        if output.dtype != attr.dtype:
-            if self.__backend == "torch":
-                output = output.to(self.property_dtype)
-            elif self.__backend == "cupy":
-                output = output.astype(self.property_dtype)
-            else:
-                raise ValueError(f"invalid backend {self.__backend}")
-
-        return output
-
     def _get_tensor(self, attr: CuGraphTensorAttr) -> TensorType:
-        if attr.attr_name == "x":
-            cols = None
-        else:
-            cols = attr.properties
+        cols = attr.properties
 
         idx = attr.index
-        if self.__backend == "torch" and not idx.is_cuda:
-            idx = idx.cuda()
-        idx = cupy.from_dlpack(idx.__dlpack__())
+        if isinstance(idx, cupy.ndarray):
+            idx = idx.get()
+        elif isinstance(idx. torch.Tensor):
+            idx = idx.cpu()
 
-        if len(self.__graph.vertex_types) == 1:
-            # make sure we don't waste computation if there's only 1 type
-            df = self.__graph.get_vertex_data(
-                vertex_ids=idx.get(), types=None, columns=cols
+        if cols is None:
+            t = self.__features.get_data(
+                idx,
+                attr.group_name,
+                attr.attr_name
             )
+
+            return t.cuda()
+
         else:
-            df = self.__graph.get_vertex_data(
-                vertex_ids=idx.get(), types=[attr.group_name], columns=cols
+            t = self.__features.get_data(
+                idx,
+                attr.group_name,
+                cols[0]
             )
 
-        return self.__get_tensor_from_dataframe(df, attr)
+            if len(t.shape) == 1:
+                if self.backend == 'torch':
+                    t = torch.tensor([t])
+                else:
+                    t = cupy.array([t])
+            
+            for col in cols[1:]:
+                u = self.__features.get_data(
+                    idx,
+                    attr.group_name,
+                    col
+                )
+
+                if len(u.shape) == 1:
+                    if self.backend == 'torch':
+                        u = torch.tensor([u])
+                    else:
+                        u = cupy.array([u])
+                
+                t = torch.concatenate([t, u])
+            
+            return t.cuda()
+            
 
     def _multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:
         return [self._get_tensor(attr) for attr in attrs]
