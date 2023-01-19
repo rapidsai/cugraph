@@ -33,12 +33,26 @@ from pylibcugraph.resource_handle cimport (
 )
 
 import time
+import os
+import socket
+
+def generate_default_seed():
+    h = hash(
+            (
+                socket.gethostname(),
+                os.getpid(),
+                time.perf_counter_ns()
+            )
+        )
+    
+    # reinterpret as unsigned
+    return h & (2**64 - 1)
 
 class global_random_instance_wrapper:
     global_random_instance = None
 
 cdef class CuGraphRandomState:    
-    def __cinit__(self, ResourceHandle resource_handle, seed=time.perf_counter_ns()):
+    def __cinit__(self, ResourceHandle resource_handle, seed=generate_default_seed()):
         cdef cugraph_error_code_t error_code
         cdef cugraph_error_t* error_ptr
 
@@ -67,7 +81,7 @@ cdef class CuGraphRandomState:
         return global_random_instance_wrapper.global_random_instance
     
     @classmethod
-    def initialize(cls, resource_handle, seed=time.perf_counter_ns()):
+    def initialize(cls, resource_handle, seed=generate_default_seed()):
         global_random_instance_wrapper.global_random_instance = CuGraphRandomState(resource_handle, seed)
 
     @classmethod

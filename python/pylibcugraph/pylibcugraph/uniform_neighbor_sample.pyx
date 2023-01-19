@@ -71,8 +71,6 @@ from pylibcugraph.random cimport (
     CuGraphRandomState
 )
 
-import time
-
 def uniform_neighbor_sample(ResourceHandle resource_handle,
                             _GPUGraph input_graph,
                             start_list,
