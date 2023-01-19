@@ -30,7 +30,8 @@ rapids-mamba-retry install \
   cugraph-pyg \
   cugraph-service-server \
   cugraph-service-client \
-  libcugraph_etl
+  libcugraph_etl \
+  cugraph_dgl
 
 
 # Build Doxygen docs
