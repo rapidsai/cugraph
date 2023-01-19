@@ -355,23 +355,6 @@ class EXPERIMENTAL__CuGraphStore:
             graph.from_cudf_edgelist(df)
         
         return graph
-        
-
-    @property
-    def _old_vertex_col_name(self) -> str:
-        """
-        Returns the name of the new property in the wrapped property graph where
-        the original vertex ids were stored, if this store did its own renumbering.
-        """
-        return self.__old_vertex_col_name
-
-    @property
-    def _old_edge_col_name(self) -> str:
-        """
-        Returns the name of the new property in the wrapped property graph where
-        the original edge ids were stored, if this store did its own renumbering.
-        """
-        return self.__old_edge_col_name
 
     @property
     def _edge_types_to_attrs(self) -> dict:
