@@ -1048,7 +1048,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
-        create_with_edge_info=False,
     ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -1170,7 +1169,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
-            create_with_edge_info=create_with_edge_info,
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
@@ -1185,7 +1183,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
-        create_with_edge_info=False,
     ):
 
         """
@@ -1224,9 +1221,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
-        elif default_edge_weight or create_with_edge_info:
-            if default_edge_weight is None:
-                default_edge_weight = cupy.float32(1)
+        elif default_edge_weight:
             edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
         else:
@@ -1283,17 +1278,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             raise ValueError("currently, renumber_graph must be set to True for MG")
         legacy_renum_only = True
 
-        if create_with_edge_info:
-            TCN = f"{self.type_col_name}_codes"
-            edge_prop_df[TCN] = edge_prop_df[self.type_col_name].cat.codes.astype(
-                "int32"
-            )
-            edge_attr = [edge_attr, self.edge_id_col_name, TCN]
-            col_names = [self.src_col_name, self.dst_col_name] + edge_attr
-        else:
-            col_names = [self.src_col_name, self.dst_col_name]
-            if edge_attr is not None:
-                col_names.append(edge_attr)
+        col_names = [self.src_col_name, self.dst_col_name]
+        if edge_attr is not None:
+            col_names.append(edge_attr)
 
         edge_prop_df = edge_prop_df.reset_index().drop(
             [col for col in edge_prop_df if col not in col_names], axis=1
