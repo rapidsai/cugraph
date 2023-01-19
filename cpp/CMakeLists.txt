@@ -452,16 +452,17 @@ if(CUDA_STATIC_RUNTIME)
   target_include_directories(cugraph_c PUBLIC ${_includes})
   # Add CTK include paths because we make our CTK library links private below
   target_include_directories(cugraph_c SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+  set(_ctk_static_suffix "_static")
 endif()
 
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                CUDA::cublas
-                CUDA::curand
-                CUDA::cusolver
-                CUDA::cusparse
+                CUDA::cublas${_ctk_static_suffix}
+                CUDA::curand${_ctk_static_suffix}
+                CUDA::cusolver${_ctk_static_suffix}
+                CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
