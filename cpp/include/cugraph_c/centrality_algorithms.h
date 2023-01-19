@@ -19,8 +19,8 @@
 #include <cugraph_c/array.h>
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
-#include <cugraph_c/resource_handle.h>
 #include <cugraph_c/random.h>
+#include <cugraph_c/resource_handle.h>
 
 /** @defgroup centrality Centrality algorithms
  *  @ingroup c_api
