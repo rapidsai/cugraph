@@ -18,12 +18,12 @@ from cugraph_dgl.utils.cugraph_conversion_utils import (
     add_ndata_from_dgl_HeteroGraph,
     add_edata_from_dgl_HeteroGraph,
 )
-
 dgl = import_optional("dgl")
 
 
-def cugraph_storage_from_heterograph(g: dgl.DGLGraph,
-                                     single_gpu: bool = True) -> CuGraphStorage:
+def cugraph_storage_from_heterograph(
+    g: dgl.DGLGraph, single_gpu: bool = True
+) -> CuGraphStorage:
     """
     Convert DGL Graph to CuGraphStorage graph
     """
