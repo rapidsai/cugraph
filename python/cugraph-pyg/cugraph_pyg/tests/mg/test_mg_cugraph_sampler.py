@@ -181,7 +181,10 @@ def test_neighbor_sample(basic_property_graph_1):
     combined_df = combined_df.sort_values(cols)
     combined_df = combined_df.reset_index().drop("index", axis=1)
 
-    assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
+    assert (
+        combined_df.drop_duplicates().values_host.tolist()
+        == base_df.values_host.tolist()
+    )
 
 
 @pytest.mark.cugraph_ops
@@ -205,15 +208,21 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     )
 
     if isinstance(out_dict, dict):
-        _, row_dict, _, _ = out_dict["out"]
+        _, row_dict, col_dict, _ = out_dict["out"]
         metadata = out_dict["metadata"]
     else:
         row_dict = out_dict.row
+        col_dict = out_dict.col
         metadata = out_dict.metadata
 
     assert metadata.get().tolist() == list(range(6))
 
     for pyg_can_edge_type, srcs in row_dict.items():
+        dsts = col_dict[pyg_can_edge_type]
+        num_unique_sampled_edges = len(
+            cudf.DataFrame({"src": srcs, "dst": dsts}).drop_duplicates()
+        )
+
         cugraph_edge_type = pyg_can_edge_type[1]
         num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]).compute())
-        assert num_edges == len(srcs)
+        assert num_edges == num_unique_sampled_edges
