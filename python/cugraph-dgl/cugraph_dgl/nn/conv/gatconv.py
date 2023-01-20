@@ -93,9 +93,7 @@ class GATConv(nn.Module):
         self.negative_slope = negative_slope
 
         self.fc = nn.Linear(in_feats, out_feats * num_heads, bias=False)
-        self.attn_weights = nn.Parameter(
-            torch.Tensor(2 * num_heads * out_feats)
-        )
+        self.attn_weights = nn.Parameter(torch.Tensor(2 * num_heads * out_feats))
 
         if bias:
             self.bias = nn.Parameter(torch.Tensor(num_heads * out_feats))
