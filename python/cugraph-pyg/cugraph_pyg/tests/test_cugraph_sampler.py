@@ -96,6 +96,7 @@ def multi_edge_multi_vertex_property_graph_1():
 
 
 @pytest.mark.cugraph_ops
+@pytest.mark.skip(reason="deprecated API")
 def test_neighbor_sample(basic_property_graph_1):
     pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -152,6 +153,7 @@ def test_neighbor_sample(basic_property_graph_1):
 
 
 @pytest.mark.cugraph_ops
+@pytest.mark.skip(reason="deprecated API")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
