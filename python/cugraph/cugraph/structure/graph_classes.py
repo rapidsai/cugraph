@@ -688,11 +688,22 @@ class Graph:
         Return the density of the graph.
         Density is the measure of how many edges are in the graph versus
         the max number of edges that could be present.
-        Note:  This function does not work on multigraph since there
-        is no theoretical max number of edges
+
+        Returns
+        -------
+        density : float
+            Density is the measure of how many edges are in the graph versus
+            the max number of edges that could be present.
+        
+        Examples
+        --------
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> DiG = cugraph.Graph(directed=True)
+        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> density = G.density()
+
         """
-        if self.is_multigraph():
-            raise TypeError("G cannot be a Multigraph")
         if self.is_directed():
             factor = 1
         else:
@@ -723,6 +734,9 @@ class MultiGraph(Graph):
         """
         # TO DO: Call coloring algorithm
         return True
+    def density(self):
+        raise TypeError("Multigraph does not support density since number of edges is infinite.")
+        
 
 
 class Tree(Graph):
