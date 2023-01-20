@@ -29,31 +29,22 @@ from cugraph.gnn import FeatureStore
 
 from random import randint
 
+
 @pytest.fixture
 def basic_graph_1():
     G = {
         ("vt1", "pig", "vt1"): [
-            np.array([0,0,1,2,2,3]),
-            np.array([1,2,4,3,4,1])
+            np.array([0, 0, 1, 2, 2, 3]),
+            np.array([1, 2, 4, 3, 4, 1]),
         ]
     }
 
-    N = {
-        "vt1": 5
-    }
+    N = {"vt1": 5}
 
     F = FeatureStore()
-    F.add_data(
-        np.array([100, 200, 300, 400, 500]),
-        type_name="vt1",
-        feat_name="prop1"
-    )
+    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
 
-    F.add_data(
-        np.array([5,4,3,2,1]),
-        type_name="vt1",
-        feat_name="prop2"
-    )
+    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
 
     return F, G, N
 
@@ -61,36 +52,20 @@ def basic_graph_1():
 @pytest.fixture
 def multi_edge_graph_1():
     G = {
-        ("vt1", "pig", "vt1"): [
-            np.array([0,2,3,1]),
-            np.array([1,3,1,4])
-        ],
-        ("vt1", "dog", "vt1"): [
-            np.array([0,3,4]),
-            np.array([2,2,3])
-        ],
+        ("vt1", "pig", "vt1"): [np.array([0, 2, 3, 1]), np.array([1, 3, 1, 4])],
+        ("vt1", "dog", "vt1"): [np.array([0, 3, 4]), np.array([2, 2, 3])],
         ("vt1", "cat", "vt1"): [
-            np.array([1,2,2]),
-            np.array([4,3,4]),
-        ]
+            np.array([1, 2, 2]),
+            np.array([4, 3, 4]),
+        ],
     }
 
-    N = {
-        "vt1": 5
-    }
+    N = {"vt1": 5}
 
     F = FeatureStore()
-    F.add_data(
-        np.array([100,200,300,400,500]),
-        type_name="vt1",
-        feat_name="prop1"
-    )
+    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
 
-    F.add_data(
-        np.array([5,4,3,2,1]),
-        type_name="vt1",
-        feat_name="prop2"
-    )
+    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
 
     return F, G, N
 
@@ -100,56 +75,37 @@ def multi_edge_multi_vertex_graph_1():
 
     G = {
         ("brown", "horse", "brown"): [
-            np.array([0,0]),
-            np.array([1,2]),
+            np.array([0, 0]),
+            np.array([1, 2]),
         ],
         ("brown", "duck", "black"): [
-            np.array([1,1,2]),
-            np.array([1,0,1]),
+            np.array([1, 1, 2]),
+            np.array([1, 0, 1]),
         ],
         ("brown", "mongoose", "black"): [
-            np.array([2,1]),
-            np.array([0,1]),
+            np.array([2, 1]),
+            np.array([0, 1]),
         ],
         ("black", "cow", "brown"): [
-            np.array([0,0]),
-            np.array([1,2]),
+            np.array([0, 0]),
+            np.array([1, 2]),
         ],
         ("black", "snake", "black"): [
             np.array([1]),
             np.array([0]),
-        ]
+        ],
     }
 
-    N = {
-        "brown": 3,
-        "black": 2
-    }
+    N = {"brown": 3, "black": 2}
 
     F = FeatureStore()
-    F.add_data(
-        np.array([100,200,300]),
-        type_name="brown",
-        feat_name="prop1"
-    )
-    
-    F.add_data(
-        np.array([400,500]),
-        type_name="black",
-        feat_name="prop1"
-    )
+    F.add_data(np.array([100, 200, 300]), type_name="brown", feat_name="prop1")
 
-    F.add_data(
-        np.array([5,4,3]),
-        type_name="brown",
-        feat_name="prop2"
-    )
+    F.add_data(np.array([400, 500]), type_name="black", feat_name="prop1")
 
-    F.add_data(
-        np.array([2, 1]),
-        type_name="black",
-        feat_name="prop2"
-    )
+    F.add_data(np.array([5, 4, 3]), type_name="brown", feat_name="prop2")
+
+    F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
 
     return F, G, N
 
@@ -218,13 +174,11 @@ def single_vertex_graph(request):
 
 def test_get_edge_index(graph):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
     for pyg_can_edge_type in G:
         src, dst = cugraph_store.get_edge_index(
-            edge_type=pyg_can_edge_type,
-            layout="coo",
-            is_sorted=False
+            edge_type=pyg_can_edge_type, layout="coo", is_sorted=False
         )
 
         assert G[pyg_can_edge_type][0].tolist() == src.get().tolist()
@@ -233,7 +187,7 @@ def test_get_edge_index(graph):
 
 def test_edge_types(graph):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
     eta = cugraph_store._edge_types_to_attrs
     assert eta.keys() == G.keys()
@@ -245,7 +199,7 @@ def test_edge_types(graph):
 
 def test_get_subgraph(graph):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
     if len(G.keys()) > 1:
         for edge_type in G.keys():
@@ -262,29 +216,33 @@ def test_get_subgraph(graph):
 
 def test_renumber_vertices_basic(single_vertex_graph):
     F, G, N = single_vertex_graph
-    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    nodes_of_interest = cudf.from_dlpack(cupy.random.randint(0, sum(N.values()), 3).__dlpack__())
+    nodes_of_interest = cudf.from_dlpack(
+        cupy.random.randint(0, sum(N.values()), 3).__dlpack__()
+    )
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
-    assert index['vt1'].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
-    
+    assert index["vt1"].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
+
 
 def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    nodes_of_interest = cudf.from_dlpack(cupy.random.randint(0, sum(N.values()), 3).__dlpack__()).unique()
+    nodes_of_interest = cudf.from_dlpack(
+        cupy.random.randint(0, sum(N.values()), 3).__dlpack__()
+    ).unique()
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
-    
-    black_nodes = nodes_of_interest[nodes_of_interest<=1]
-    brown_nodes = nodes_of_interest[nodes_of_interest>1] - 2
-    
+
+    black_nodes = nodes_of_interest[nodes_of_interest <= 1]
+    brown_nodes = nodes_of_interest[nodes_of_interest > 1] - 2
+
     if len(black_nodes) > 0:
-        assert index['black'].get().tolist() == sorted(black_nodes.values_host.tolist())
+        assert index["black"].get().tolist() == sorted(black_nodes.values_host.tolist())
     if len(brown_nodes) > 0:
-        assert index['brown'].get().tolist() == sorted(brown_nodes.values_host.tolist())
+        assert index["brown"].get().tolist() == sorted(brown_nodes.values_host.tolist())
 
 
 def test_renumber_edges(graph):
@@ -294,44 +252,42 @@ def test_renumber_edges(graph):
     """
 
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
     v_offsets = [N[v] for v in sorted(N.keys())]
     v_offsets = cupy.array(v_offsets)
 
     cumsum = v_offsets.cumsum(0)
     v_offsets = cumsum - v_offsets
-    v_offsets = {
-        k: int(v_offsets[i])
-        for i, k in enumerate(sorted(N.keys()))
-    }
+    v_offsets = {k: int(v_offsets[i]) for i, k in enumerate(sorted(N.keys()))}
 
     e_num = {
-        pyg_can_edge_type: i
-        for i, pyg_can_edge_type in enumerate(sorted(G.keys()))
+        pyg_can_edge_type: i for i, pyg_can_edge_type in enumerate(sorted(G.keys()))
     }
 
-    eoi_src = cupy.array([], dtype='int64')
-    eoi_dst = cupy.array([], dtype='int64')
-    eoi_type = cupy.array([], dtype='int32')
+    eoi_src = cupy.array([], dtype="int64")
+    eoi_dst = cupy.array([], dtype="int64")
+    eoi_type = cupy.array([], dtype="int32")
     for pyg_can_edge_type, ei in G.items():
         src_type, _, dst_type = pyg_can_edge_type
 
-        c = randint(0, len(ei[0])) # number to select
+        c = randint(0, len(ei[0]))  # number to select
         sel = np.random.randint(0, len(ei[0]), c)
 
         src_i = cupy.array(ei[0][sel]) + v_offsets[src_type]
         dst_i = cupy.array(ei[1][sel]) + v_offsets[dst_type]
         eoi_src = cupy.concatenate([eoi_src, src_i])
         eoi_dst = cupy.concatenate([eoi_dst, dst_i])
-        eoi_type = cupy.concatenate([eoi_type, cupy.array([e_num[pyg_can_edge_type]] * c)])
-    
+        eoi_type = cupy.concatenate(
+            [eoi_type, cupy.array([e_num[pyg_can_edge_type]] * c)]
+        )
+
     nodes_of_interest = (
         cudf.from_dlpack(cupy.concatenate([eoi_src, eoi_dst]).__dlpack__())
         .unique()
         .sort_values()
     )
-    
+
     noi_index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
     sdf = cudf.DataFrame(
@@ -343,12 +299,14 @@ def test_renumber_edges(graph):
     ).reset_index(drop=True)
 
     row, col = cugraph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
-    
+
     for pyg_can_edge_type in G:
-        df = cudf.DataFrame({
-            'src':G[pyg_can_edge_type][0],
-            'dst':G[pyg_can_edge_type][1],
-        })
+        df = cudf.DataFrame(
+            {
+                "src": G[pyg_can_edge_type][0],
+                "dst": G[pyg_can_edge_type][1],
+            }
+        )
 
         G[pyg_can_edge_type] = df
 
@@ -361,211 +319,123 @@ def test_renumber_edges(graph):
         for i in range(len(src)):
             src_i = int(src[i])
             dst_i = int(dst[i])
-            
+
             df = G[pyg_can_edge_type]
-            df = df[df.src==src_i]
-            df = df[df.dst==dst_i]
+            df = df[df.src == src_i]
+            df = df[df.dst == dst_i]
             # Ensure only 1 entry matches
             assert len(df) == 1
-            
-            
+
 
 def test_get_tensor(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    vertex_types = pG.vertex_types
-    for vertex_type in vertex_types:
-        for property_name in pG.vertex_property_names:
-            if property_name != "vertex_type":
-                base_series = pG.get_vertex_data(
-                    types=[vertex_type], columns=[property_name]
+    for feature_name, feature_on_types in F.get_feature_list().items():
+        for type_name in feature_on_types:
+            v_ids = np.arange(N[type_name])
+            base_series = F.get_data(
+                v_ids,
+                type_name=type_name,
+                feat_name=feature_name,
+            ).tolist()
+
+            tsr = (
+                cugraph_store.get_tensor(
+                    type_name, feature_name, v_ids, None, cupy.int64
                 )
+                .get()
+                .tolist()
+            )
 
-                vertex_ids = base_series[pG.vertex_col_name].to_cupy()
-                base_series = base_series[property_name].to_cupy()
-
-                tsr = feature_store.get_tensor(
-                    vertex_type, property_name, vertex_ids, [property_name], cupy.int64
-                )
-
-                assert list(tsr) == list(base_series)
+            assert tsr == base_series
 
 
 def test_multi_get_tensor(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    vertex_types = pG.vertex_types
-    for vertex_type in vertex_types:
-        for property_name in pG.vertex_property_names:
-            if property_name != "vertex_type":
-                base_series = pG.get_vertex_data(
-                    types=[vertex_type], columns=[property_name]
+    for vertex_type in sorted(N.keys()):
+        v_ids = np.arange(N[vertex_type])
+        feat_names = list(F.get_feature_list().keys())
+        base_series = None
+        for feat_name in feat_names:
+            if base_series is None:
+                base_series = F.get_data(v_ids, vertex_type, feat_name)
+            else:
+                base_series = np.stack(
+                    [base_series, F.get_data(v_ids, vertex_type, feat_name)]
                 )
 
-                vertex_ids = base_series[pG.vertex_col_name].to_cupy()
-                base_series = base_series[property_name].to_cupy()
+        tsr = cugraph_store.multi_get_tensor(
+            [
+                CuGraphTensorAttr(vertex_type, feat_name, v_ids)
+                for feat_name in feat_names
+            ]
+        )
 
-                tsr = feature_store.multi_get_tensor(
-                    [
-                        [
-                            vertex_type,
-                            property_name,
-                            vertex_ids,
-                            [property_name],
-                            cupy.int64,
-                        ]
-                    ]
-                )
-                assert len(tsr) == 1
-                tsr = tsr[0]
-
-                assert list(tsr) == list(base_series)
+        assert np.stack(tsr).get().tolist() == base_series.tolist()
 
 
 def test_get_all_tensor_attrs(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
     tensor_attrs = []
-    for vertex_type in pG.vertex_types:
-        tensor_attrs.append(
-            CuGraphTensorAttr(
-                vertex_type, "x", properties=["prop1", "prop2"], dtype=cupy.float32
+    for vertex_type in sorted(N.keys()):
+        for prop in ["prop1", "prop2"]:
+            tensor_attrs.append(
+                CuGraphTensorAttr(
+                    vertex_type,
+                    prop,
+                    properties=None,
+                    dtype=F.get_data([0], vertex_type, "prop1").dtype,
+                )
             )
-        )
 
-    assert tensor_attrs == list(feature_store.get_all_tensor_attrs())
+    for t in tensor_attrs:
+        print(t)
 
+    print("\n\n")
 
-def test_get_tensor_unspec_props(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    for t in cugraph_store.get_all_tensor_attrs():
+        print(t)
 
-    idx = cupy.array([0, 1, 2, 3, 4])
-
-    for vertex_type in pG.vertex_types:
-        t = feature_store.get_tensor(vertex_type, "x", idx)
-
-        data = pG.get_vertex_data(
-            vertex_ids=cudf.Series(idx), types=vertex_type, columns=["prop1", "prop2"]
-        )[["prop1", "prop2"]].to_cupy(dtype=cupy.float32)
-
-        assert t.tolist() == data.tolist()
+    assert sorted(tensor_attrs, key=lambda a: (a.group_name, a.attr_name)) == sorted(
+        cugraph_store.get_all_tensor_attrs(), key=lambda a: (a.group_name, a.attr_name)
+    )
 
 
-def test_multi_get_tensor_unspec_props(multi_edge_multi_vertex_graph_1):
-    pG = multi_edge_multi_vertex_graph_1
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+@pytest.mark.skip("not implemented")
+def test_get_tensor_spec_props(graph):
+    pass
 
-    idx = cupy.array([0, 1, 2, 3, 4])
-    vertex_types = pG.vertex_types
 
-    tensors_to_get = []
-    for vertex_type in sorted(vertex_types):
-        tensors_to_get.append(CuGraphTensorAttr(vertex_type, "x", idx))
-
-    tensors = feature_store.multi_get_tensor(tensors_to_get)
-    assert tensors[0].tolist() == [[400.0, 2.0], [500.0, 1.0]]
-    assert tensors[1].tolist() == [[100.0, 5.0], [200.0, 4.0], [300.0, 3.0]]
+@pytest.mark.skip("not implemented")
+def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1):
+    pass
 
 
 def test_get_tensor_from_tensor_attrs(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    tensor_attrs = feature_store.get_all_tensor_attrs()
+    tensor_attrs = cugraph_store.get_all_tensor_attrs()
     for tensor_attr in tensor_attrs:
-        tensor_attr.index = cupy.array([0, 1, 2, 3, 4])
-        data = pG.get_vertex_data(
-            vertex_ids=cudf.Series(tensor_attr.index),
-            types=tensor_attr.group_name,
-            columns=tensor_attr.properties,
-        )[tensor_attr.properties].to_cupy(dtype=tensor_attr.dtype)
+        v_ids = np.arange(N[tensor_attr.group_name])
+        data = F.get_data(v_ids, tensor_attr.group_name, tensor_attr.attr_name)
 
-        assert feature_store.get_tensor(tensor_attr).tolist() == data.tolist()
+        tensor_attr.index = v_ids
+        assert cugraph_store.get_tensor(tensor_attr).tolist() == data.tolist()
 
 
 def test_get_tensor_size(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    vertex_types = pG.vertex_types
-    for vertex_type in vertex_types:
-        for property_name in pG.vertex_property_names:
-            if property_name != "vertex_type":
-                base_series = pG.get_vertex_data(
-                    types=[vertex_type], columns=[property_name]
-                )
+    tensor_attrs = cugraph_store.get_all_tensor_attrs()
+    for tensor_attr in tensor_attrs:
+        sz = N[tensor_attr.group_name]
 
-                vertex_ids = base_series[pG.vertex_col_name].to_cupy()
-                size = feature_store.get_tensor_size(
-                    vertex_type, property_name, vertex_ids, [property_name], cupy.int64
-                )
-
-                assert len(base_series) == size
-
-
-def test_get_x(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-
-    vertex_types = pG.vertex_types
-    for vertex_type in vertex_types:
-        base_df = pG.get_vertex_data(types=[vertex_type])
-
-        base_x = (
-            base_df.drop(pG.vertex_col_name, axis=1)
-            .drop(graph_store._old_vertex_col_name, axis=1)
-            .drop(pG.type_col_name, axis=1)
-            .to_cupy()
-            .astype("float32")
-        )
-
-        vertex_ids = base_df[pG.vertex_col_name].to_cupy()
-
-        tsr = feature_store.get_tensor(
-            vertex_type, "x", vertex_ids, ["prop1", "prop2"], cupy.int64
-        )
-
-        for t, b in zip(tsr, base_x):
-            assert list(t) == list(b)
-
-
-def test_get_x_with_pre_renumber(graph):
-    pG = graph
-    pG.renumber_vertices_by_type()
-    feature_store, graph_store = to_pyg(pG, backend="cupy", renumber_graph=False)
-
-    vertex_types = pG.vertex_types
-    for vertex_type in vertex_types:
-        base_df = pG.get_vertex_data(types=[vertex_type])
-
-        base_x = (
-            base_df.drop(pG.vertex_col_name, axis=1)
-            .drop(pG.type_col_name, axis=1)
-            .to_cupy()
-            .astype("float32")
-        )
-
-        vertex_ids = base_df[pG.vertex_col_name].to_cupy()
-
-        tsr = feature_store.get_tensor(
-            vertex_type, "x", vertex_ids, ["prop1", "prop2"], cupy.int64
-        )
-
-        for t, b in zip(tsr, base_x):
-            assert list(t) == list(b)
-
-
-def test_get_x_bad_dtype(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-    pass
-
-
-def test_named_tensor(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-    pass
+        tensor_attr.index = np.arange(sz)
+        assert cugraph_store.get_tensor_size(tensor_attr) == sz
