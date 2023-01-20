@@ -32,7 +32,7 @@ cdef class Handle:
     """
     Handle is a lightweight python wrapper around the corresponding C++ class
     of handle_t exposed by RAFT's C++ interface. Refer to the header file
-    raft/handle.hpp for interface level details of this struct
+    raft/core/handle.hpp for interface level details of this struct
 
     Examples
     --------
