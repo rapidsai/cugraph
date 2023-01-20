@@ -27,6 +27,8 @@ import pytest
 
 from cugraph.gnn import FeatureStore
 
+from random import randint
+
 @pytest.fixture
 def basic_graph_1():
     G = {
@@ -219,7 +221,6 @@ def test_get_edge_index(graph):
     cugraph_store = CuGraphStore(F, G, N, backend='cupy')
 
     for pyg_can_edge_type in G:
-        print(pyg_can_edge_type)
         src, dst = cugraph_store.get_edge_index(
             edge_type=pyg_can_edge_type,
             layout="coo",
@@ -228,9 +229,6 @@ def test_get_edge_index(graph):
 
         assert G[pyg_can_edge_type][0].tolist() == src.get().tolist()
         assert G[pyg_can_edge_type][1].tolist() == dst.get().tolist()
-
-        # check actual values
-        print(src,dst)
 
 
 def test_edge_types(graph):
@@ -262,59 +260,115 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
-def test_renumber_vertices(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
+def test_renumber_vertices_basic(single_vertex_graph):
+    F, G, N = single_vertex_graph
+    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
 
-    nodes_of_interest = pG.get_vertices().sample(3)
-    vc_actual = pG.get_vertex_data(nodes_of_interest)[pG.type_col_name].value_counts()
-    index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
+    nodes_of_interest = cudf.from_dlpack(cupy.random.randint(0, sum(N.values()), 3).__dlpack__())
 
-    for vtype in index:
-        assert len(index[vtype]) == vc_actual[vtype]
+    index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
+    assert index['vt1'].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
+    
+
+def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph_1):
+    F, G, N = multi_edge_multi_vertex_graph_1
+    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+
+    nodes_of_interest = cudf.from_dlpack(cupy.random.randint(0, sum(N.values()), 3).__dlpack__()).unique()
+
+    index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
+    
+    black_nodes = nodes_of_interest[nodes_of_interest<=1]
+    brown_nodes = nodes_of_interest[nodes_of_interest>1] - 2
+    
+    if len(black_nodes) > 0:
+        assert index['black'].get().tolist() == sorted(black_nodes.values_host.tolist())
+    if len(brown_nodes) > 0:
+        assert index['brown'].get().tolist() == sorted(brown_nodes.values_host.tolist())
 
 
 def test_renumber_edges(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-    eoi_df = pG.get_edge_data().sample(4)
+    """
+    FIXME this test is not very good and should be replaced,
+    probably with a test that uses known good values.
+    """
+
+    F, G, N = graph
+    cugraph_store = CuGraphStore(F, G, N, backend='cupy')
+
+    v_offsets = [N[v] for v in sorted(N.keys())]
+    v_offsets = cupy.array(v_offsets)
+
+    cumsum = v_offsets.cumsum(0)
+    v_offsets = cumsum - v_offsets
+    v_offsets = {
+        k: int(v_offsets[i])
+        for i, k in enumerate(sorted(N.keys()))
+    }
+
+    e_num = {
+        pyg_can_edge_type: i
+        for i, pyg_can_edge_type in enumerate(sorted(G.keys()))
+    }
+
+    eoi_src = cupy.array([], dtype='int64')
+    eoi_dst = cupy.array([], dtype='int64')
+    eoi_type = cupy.array([], dtype='int32')
+    for pyg_can_edge_type, ei in G.items():
+        src_type, _, dst_type = pyg_can_edge_type
+
+        c = randint(0, len(ei[0])) # number to select
+        sel = np.random.randint(0, len(ei[0]), c)
+
+        src_i = cupy.array(ei[0][sel]) + v_offsets[src_type]
+        dst_i = cupy.array(ei[1][sel]) + v_offsets[dst_type]
+        eoi_src = cupy.concatenate([eoi_src, src_i])
+        eoi_dst = cupy.concatenate([eoi_dst, dst_i])
+        eoi_type = cupy.concatenate([eoi_type, cupy.array([e_num[pyg_can_edge_type]] * c)])
+    
     nodes_of_interest = (
-        cudf.concat([eoi_df[pG.src_col_name], eoi_df[pG.dst_col_name]])
+        cudf.from_dlpack(cupy.concatenate([eoi_src, eoi_dst]).__dlpack__())
         .unique()
         .sort_values()
     )
-    vd = pG.get_vertex_data(nodes_of_interest)
-    noi_index = {
-        vd[pG.type_col_name]
-        .cat.categories[gg[0]]: vd.loc[gg[1].values_host][pG.vertex_col_name]
-        .to_cupy()
-        for gg in vd.groupby(pG.type_col_name).groups.items()
-    }
+    
+    noi_index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
     sdf = cudf.DataFrame(
         {
-            "sources": eoi_df[pG.src_col_name],
-            "destinations": eoi_df[pG.dst_col_name],
-            "indices": eoi_df[pG.type_col_name].cat.codes,
+            "sources": eoi_src,
+            "destinations": eoi_dst,
+            "indices": eoi_type,
         }
     ).reset_index(drop=True)
 
-    row, col = graph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
+    row, col = cugraph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
+    
+    for pyg_can_edge_type in G:
+        df = cudf.DataFrame({
+            'src':G[pyg_can_edge_type][0],
+            'dst':G[pyg_can_edge_type][1],
+        })
 
-    for etype in row:
-        stype, ctype, dtype = etype
-        src = noi_index[stype][row[etype]]
-        dst = noi_index[dtype][col[etype]]
+        G[pyg_can_edge_type] = df
+
+    for pyg_can_edge_type in row:
+        stype, _, dtype = pyg_can_edge_type
+        src = noi_index[stype][row[pyg_can_edge_type]]
+        dst = noi_index[dtype][col[pyg_can_edge_type]]
         assert len(src) == len(dst)
 
         for i in range(len(src)):
             src_i = int(src[i])
             dst_i = int(dst[i])
-            f = eoi_df[eoi_df[pG.src_col_name] == src_i]
-            f = f[f[pG.dst_col_name] == dst_i]
-            f = f[f[pG.type_col_name] == ctype]
-            assert len(f) == 1  # make sure we match exactly 1 edge
-
+            
+            df = G[pyg_can_edge_type]
+            df = df[df.src==src_i]
+            df = df[df.dst==dst_i]
+            # Ensure only 1 entry matches
+            assert len(df) == 1
+            
+            
 
 def test_get_tensor(graph):
     pG = graph

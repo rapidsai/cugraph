@@ -300,29 +300,31 @@ class EXPERIMENTAL__CuGraphStore:
         })
 
     def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
+        # Ensure the original dict is not modified.
+        edge_info_cg = {}
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
 
             src_offset = np.searchsorted(self.__vertex_type_offsets["type"], src_type)
-            srcs += int(self.__vertex_type_offsets["start"][src_offset])
+            srcs_t = srcs + int(self.__vertex_type_offsets["start"][src_offset])
 
             dst_offset = np.searchsorted(self.__vertex_type_offsets["type"], dst_type)
-            dsts += int(self.__vertex_type_offsets["start"][dst_offset])
+            dsts_t = dsts + int(self.__vertex_type_offsets["start"][dst_offset])
 
-            edge_info[pyg_can_edge_type] = (srcs, dsts)
+            edge_info_cg[pyg_can_edge_type] = (srcs_t, dsts_t)
 
         na_src = np.concatenate(
             [
-                edge_info[pyg_can_edge_type][0]
-                for pyg_can_edge_type in sorted(edge_info.keys())
+                edge_info_cg[pyg_can_edge_type][0]
+                for pyg_can_edge_type in sorted(edge_info_cg.keys())
             ]
         )
 
         na_dst = np.concatenate(
             [
-                edge_info[pyg_can_edge_type][1]
-                for pyg_can_edge_type in sorted(edge_info.keys())
+                edge_info_cg[pyg_can_edge_type][1]
+                for pyg_can_edge_type in sorted(edge_info_cg.keys())
             ]
         )
 
@@ -473,7 +475,12 @@ class EXPERIMENTAL__CuGraphStore:
                 )
 
             df = self.__graph.edgelist.edgelist_df[[src_col_name, dst_col_name]]
+            src_offset = 0
+            dst_offset = 0
         else:
+            src_type, _, dst_type = attr.edge_type
+            src_offset = int(self.__vertex_type_offsets['start'][np.searchsorted(self.__vertex_type_offsets["type"], src_type)])
+            dst_offset = int(self.__vertex_type_offsets['start'][np.searchsorted(self.__vertex_type_offsets["type"], dst_type)])
             coli = np.searchsorted(self.__edge_type_offsets["type"], '__'.join(attr.edge_type))
             
             df = self.__graph.edgelist.edgelist_df[[src_col_name, dst_col_name, self.__graph.edgeTypeCol]]
@@ -483,8 +490,8 @@ class EXPERIMENTAL__CuGraphStore:
         if self._is_delayed:
             df = df.compute()
 
-        src = self.from_dlpack(df[src_col_name].to_dlpack())
-        dst = self.from_dlpack(df[dst_col_name].to_dlpack())
+        src = self.from_dlpack(df[src_col_name].to_dlpack()) - src_offset
+        dst = self.from_dlpack(df[dst_col_name].to_dlpack()) - dst_offset
 
         if self.__backend == "torch":
             src = src.to(self.vertex_dtype)
@@ -578,16 +585,16 @@ class EXPERIMENTAL__CuGraphStore:
 
         noi_index = {}
 
-        vtypes = self.__graph.vertex_type_offsets["type"]
+        vtypes = cudf.Series(self.__vertex_type_offsets["type"])
         if len(vtypes) == 1:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
             noi_type_indices = self.searchsorted(
-                self.from_dlpack(self.__vertex_type_offsets["stop"].to_dlpack()),
+                self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
                 nodes_of_interest,
             )
 
-            noi_types = vtypes[noi_type_indices]
+            noi_types = vtypes.iloc[noi_type_indices].reset_index(drop=True)
             noi_starts = self.__vertex_type_offsets["start"][noi_type_indices]
 
             noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
@@ -659,14 +666,14 @@ class EXPERIMENTAL__CuGraphStore:
         else:
             # This will retrieve the single string representation.
             # It needs to be converted to a tuple in the for loop below.
-            eoi_types = self.__edge_type_offsets["type"][
+            eoi_types = cudf.Series(self.__edge_type_offsets["type"]).iloc[
                 sampling_results.indices.astype("int32")
-            ]
+            ].reset_index(drop=True)
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
-                pyg_can_edge_type = pyg_can_edge_type_str.split('__')
-                src_type, edge_type, dst_type = pyg_can_edge_type
+                pyg_can_edge_type = tuple(pyg_can_edge_type_str.split('__'))
+                src_type, _, dst_type = pyg_can_edge_type
 
                 # Get the de-offsetted sources
                 sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
@@ -678,7 +685,7 @@ class EXPERIMENTAL__CuGraphStore:
                 # Create the row entry for this type
                 src_id_table = noi_index[src_type]
                 src = self.searchsorted(src_id_table, sources)
-                row_dict[t_pyg_type] = src
+                row_dict[pyg_can_edge_type] = src
 
                 # Get the de-offsetted destinations
                 destinations = self.from_dlpack(
@@ -692,7 +699,7 @@ class EXPERIMENTAL__CuGraphStore:
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
                 dst = self.searchsorted(dst_id_table, destinations)
-                col_dict[t_pyg_type] = dst
+                col_dict[pyg_can_edge_type] = dst
 
         return row_dict, col_dict
 
