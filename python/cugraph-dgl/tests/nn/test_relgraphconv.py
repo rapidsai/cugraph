@@ -42,8 +42,8 @@ def test_relgraphconv_equality(
 ):
     RelGraphConv = dgl.nn.RelGraphConv
     CuGraphRelGraphConv = cugraph_dgl.nn.RelGraphConv
-
     device = "cuda"
+
     in_feat, out_feat, num_rels = 10, 2, 3
     args = (in_feat, out_feat, num_rels)
     kwargs = {

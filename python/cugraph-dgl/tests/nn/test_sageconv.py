@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 from cugraph.utilities.utils import import_optional
 from .common import create_graph1
 
-th = import_optional("torch")
+torch = import_optional("torch")
 dgl = import_optional("dgl")
 
 options = {
@@ -36,42 +36,44 @@ options = {
 def test_SAGEConv_equality(idtype_int, max_in_degree, to_block):
     SAGEConv = dgl.nn.SAGEConv
     CuGraphSAGEConv = cugraph_dgl.nn.SAGEConv
-
     device = "cuda"
+
     in_feat, out_feat = 5, 2
+    # TODO(tingyu66): re-enable bias after upgrading DGL to 1.0 in conda env
     kwargs = {"aggregator_type": "mean", "bias": False}
     g = create_graph1().to(device)
     if idtype_int:
         g = g.int()
     if to_block:
         g = dgl.to_block(g)
-    feat = th.rand(g.num_src_nodes(), in_feat).to(device)
+    feat = torch.rand(g.num_src_nodes(), in_feat).to(device)
 
-    th.manual_seed(0)
+    torch.manual_seed(0)
     conv1 = SAGEConv(in_feat, out_feat, **kwargs).to(device)
 
-    th.manual_seed(0)
-    kwargs["max_in_degree"] = max_in_degree
+    torch.manual_seed(0)
     conv2 = CuGraphSAGEConv(in_feat, out_feat, **kwargs).to(device)
 
-    with th.no_grad():
+    with torch.no_grad():
         conv2.linear.weight.data[:, :in_feat] = conv1.fc_neigh.weight.data
         conv2.linear.weight.data[:, in_feat:] = conv1.fc_self.weight.data
+        # conv2.linear.bias.data[:] = conv1.fc_self.bias.data
 
     out1 = conv1(g, feat)
-    out2 = conv2(g, feat)
-    assert th.allclose(out1, out2, atol=1e-06)
+    out2 = conv2(g, feat, max_in_degree=max_in_degree)
+    assert torch.allclose(out1, out2, atol=1e-06)
 
-    grad_out = th.rand_like(out1)
+    grad_out = torch.rand_like(out1)
     out1.backward(grad_out)
     out2.backward(grad_out)
-    assert th.allclose(
+    assert torch.allclose(
         conv1.fc_neigh.weight.grad,
         conv2.linear.weight.grad[:, :in_feat],
         atol=1e-6,
     )
-    assert th.allclose(
+    assert torch.allclose(
         conv1.fc_self.weight.grad,
         conv2.linear.weight.grad[:, in_feat:],
         atol=1e-6,
     )
+    # assert torch.allclose(conv1.fc_self.bias.grad, conv2.linear.bias.grad, atol=1e-6)
