@@ -18,6 +18,8 @@ import dask_cudf
 import cugraph.dask as dcg
 from cugraph.utilities.utils import import_optional, create_list_series_from_2d_ar
 
+from typing import Union
+
 pd = import_optional("pandas")
 
 
@@ -329,7 +331,21 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         return self.get_vertices()
 
-    def vertex_types_from_numerals(self, nums):
+    def vertex_types_from_numerals(self, nums: Union[cudf.Series, pd.Series]) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string vertex type names given the numeric category labels.
+        Note: Does not accept or return dask_cudf Series.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+        
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
         return (
             self.__vertex_prop_dataframe[self.type_col_name]
             .dtype.categories.to_series()
@@ -337,7 +353,21 @@ class EXPERIMENTAL__MGPropertyGraph:
             .reset_index(drop=True)
         )
 
-    def edge_types_from_numerals(self, nums):
+    def edge_types_from_numerals(self, nums: Union[cudf.Series, pd.Series]) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string edge type names given the numeric category labels.
+        Note: Does not accept or return dask_cudf Series.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+        
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
         return (
             self.__edge_prop_dataframe[self.type_col_name]
             .dtype.categories.to_series()
