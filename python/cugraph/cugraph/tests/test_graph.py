@@ -372,6 +372,7 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_consolidation(graph_file):
     cluster = LocalCUDACluster()
