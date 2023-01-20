@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 import os
 
+import rmm
 import numba.cuda
 
 from dask_cuda import LocalCUDACluster
@@ -98,3 +99,19 @@ def teardown_local_dask_cluster(cluster, client):
     Comms.destroy()
     client.close()
     cluster.close()
+
+
+def start_dask_client():
+    n_devices = os.getenv("DASK_NUM_WORKERS", 2)
+    n_devices = int(n_devices)
+
+    visible_devices = ",".join([str(i) for i in range(1, n_devices + 1)])
+
+    cluster = LocalCUDACluster(
+        protocol="ucx", rmm_pool_size="25GB", CUDA_VISIBLE_DEVICES=visible_devices
+    )
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    rmm.reinitialize(pool_allocator=True)
+
+    return cluster, client

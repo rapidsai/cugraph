@@ -328,14 +328,14 @@ cdef class MGGraph(_GPUGraph):
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
         assert_CAI_type(weight_array, "weight_array", True)
-        if edge_id_array is not None:
-            assert_CAI_type(edge_id_array, "edge_id_array")
-            if len(edge_id_array) != len(src_array):
-                raise ValueError('Edge id array must be same length as edgelist')
-        if edge_type_array is not None:
-            assert_CAI_type(edge_type_array, "edge_type_array")
-            if len(edge_type_array) != len(src_array):
-                raise ValueError('Edge type array must be same length as edgelist')
+
+        assert_CAI_type(edge_id_array, "edge_id_array", True)
+        if edge_id_array is not None and len(edge_id_array) != len(src_array):
+            raise ValueError('Edge id array must be same length as edgelist')
+        
+        assert_CAI_type(edge_type_array, "edge_type_array", True)
+        if edge_type_array is not None and len(edge_type_array) != len(src_array):
+            raise ValueError('Edge type array must be same length as edgelist')
 
         # FIXME: assert that src_array and dst_array have the same type
 

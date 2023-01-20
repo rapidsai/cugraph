@@ -277,7 +277,7 @@ def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, 
     Helper for fixtures returning Nx results and params.
     """
     random.seed(seed)
-    start_vertex = random.sample(Gnx.nodes(), 1)[0]
+    start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
 
     nx_values = nx.single_source_shortest_path_length(
         Gnx, start_vertex, cutoff=depth_limit
