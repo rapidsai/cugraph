@@ -20,22 +20,26 @@ except ModuleNotFoundError:
 from cugraph.utilities.utils import import_optional
 from .common import create_graph1
 
-th = import_optional("torch")
+torch = import_optional("torch")
 dgl = import_optional("dgl")
 
 options = {
     "idtype_int": [False, True],
     "max_in_degree": [None, 8],
     "regularizer": [None, "basis"],
+    "self_loop": [False, True],
     "to_block": [False, True],
 }
 
 
 @pytest.mark.parametrize("to_block", options["to_block"])
+@pytest.mark.parametrize("self_loop", options["self_loop"])
 @pytest.mark.parametrize("regularizer", options["regularizer"])
 @pytest.mark.parametrize("max_in_degree", options["max_in_degree"])
 @pytest.mark.parametrize("idtype_int", options["idtype_int"])
-def test_relgraphconv_equality(idtype_int, max_in_degree, regularizer, to_block):
+def test_relgraphconv_equality(
+    idtype_int, max_in_degree, regularizer, self_loop, to_block
+):
     RelGraphConv = dgl.nn.RelGraphConv
     CuGraphRelGraphConv = cugraph_dgl.nn.RelGraphConv
 
@@ -46,31 +50,36 @@ def test_relgraphconv_equality(idtype_int, max_in_degree, regularizer, to_block)
         "num_bases": 2,
         "regularizer": regularizer,
         "bias": False,
-        "self_loop": False,
+        "self_loop": self_loop,
     }
     g = create_graph1().to(device)
-    g.edata[dgl.ETYPE] = th.randint(num_rels, (g.num_edges(),)).to(device)
+    g.edata[dgl.ETYPE] = torch.randint(num_rels, (g.num_edges(),)).to(device)
     if idtype_int:
         g = g.int()
     if to_block:
         g = dgl.to_block(g)
-    feat = th.rand(g.num_src_nodes(), in_feat).to(device)
+    feat = torch.rand(g.num_src_nodes(), in_feat).to(device)
 
-    th.manual_seed(0)
+    torch.manual_seed(0)
     conv1 = RelGraphConv(*args, **kwargs).to(device)
 
-    th.manual_seed(0)
-    kwargs["max_in_degree"] = max_in_degree
+    torch.manual_seed(0)
     kwargs["apply_norm"] = False
     conv2 = CuGraphRelGraphConv(*args, **kwargs).to(device)
 
     out1 = conv1(g, feat, g.edata[dgl.ETYPE])
-    out2 = conv2(g, feat, g.edata[dgl.ETYPE])
-    assert th.allclose(out1, out2, atol=1e-06)
+    out2 = conv2(g, feat, g.edata[dgl.ETYPE], max_in_degree=max_in_degree)
+    assert torch.allclose(out1, out2, atol=1e-06)
 
-    grad_out = th.rand_like(out1)
+    grad_out = torch.rand_like(out1)
     out1.backward(grad_out)
     out2.backward(grad_out)
-    assert th.allclose(conv1.linear_r.W.grad, conv2.W.grad, atol=1e-6)
+
+    end = -1 if self_loop else None
+    assert torch.allclose(conv1.linear_r.W.grad, conv2.W.grad[:end], atol=1e-6)
+
+    if self_loop:
+        assert torch.allclose(conv1.loop_weight.grad, conv2.W.grad[-1], atol=1e-6)
+
     if regularizer is not None:
-        assert th.allclose(conv1.linear_r.coeff.grad, conv2.coeff.grad, atol=1e-6)
+        assert torch.allclose(conv1.linear_r.coeff.grad, conv2.coeff.grad, atol=1e-6)
