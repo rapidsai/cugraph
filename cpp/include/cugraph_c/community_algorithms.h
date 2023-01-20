@@ -112,6 +112,32 @@ cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
                                      cugraph_error_t** error);
 
 /**
+ * @brief     Compute Leiden
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  max_level    Maximum level in hierarchy
+ * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.
+ *                           This changes the size of the communities.  Higher resolutions
+ *                           lead to more smaller communities, lower resolutions lead to
+ *                           fewer larger communities.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out] result       Output from the Louvain call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
+                                    cugraph_graph_t* graph,
+                                    size_t max_level,
+                                    double resolution,
+                                    bool_t do_expensive_check,
+                                    cugraph_heirarchical_clustering_result_t** result,
+                                    cugraph_error_t** error);
+
+/**
  * @brief     Get heirarchical clustering vertices
  */
 cugraph_type_erased_device_array_view_t* cugraph_heirarchical_clustering_result_get_vertices(
