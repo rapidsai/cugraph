@@ -12,10 +12,7 @@
 # limitations under the License.
 
 import pytest
-from cugraph.dask.common.mg_utils import (
-    start_dask_client,
-    teardown_local_dask_cluster
-)
+from cugraph.dask.common.mg_utils import start_dask_client, teardown_local_dask_cluster
 
 # module-wide fixtures
 

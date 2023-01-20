@@ -501,12 +501,6 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
-    def vertex_types_from_numerals(self, nums):
-        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
-
-    def edge_types_from_numerals(self, nums):
-        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
-
     def add_vertex_data(
         self,
         dataframe,

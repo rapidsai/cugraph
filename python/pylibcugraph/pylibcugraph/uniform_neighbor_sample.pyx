@@ -135,8 +135,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
 
     assert_CAI_type(start_list, "start_list")
-    if batch_id_list is not None:
-        assert_CAI_type(batch_id_list, "batch_id_list")
+    assert_CAI_type(batch_id_list, "batch_id_list", True)
     assert_AI_type(h_fan_out, "h_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
