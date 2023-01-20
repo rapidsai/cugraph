@@ -40,33 +40,33 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_resource_handle_t* p_handle   = NULL;
-  cugraph_graph_t* p_graph              = NULL;
-  cugraph_centrality_result_t* p_result = NULL;
-  cugraph_rng_state_t* rng_state        = NULL;
+  cugraph_resource_handle_t* handle                   = NULL;
+  cugraph_graph_t* p_graph                            = NULL;
+  cugraph_centrality_result_t* p_result               = NULL;
+  cugraph_rng_state_t* rng_state                      = NULL;
+  cugraph_type_erased_device_array_t* seeds           = NULL;
+  cugraph_type_erased_device_array_view_t* seeds_view = NULL;
 
-  p_handle = cugraph_create_resource_handle(NULL);
-  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
+  handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
-  ret_code = cugraph_rng_state_create(p_handle, 0, &rng_state, &ret_error);
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "failed to create rng_state.");
 
   ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_betweenness_centrality(p_handle,
-                                            p_graph,
-                                            num_vertices_to_sample,
-                                            rng_state,
-                                            NULL,
-                                            FALSE,
-                                            FALSE,
-                                            FALSE,
-                                            &p_result,
-                                            &ret_error);
+  ret_code = cugraph_select_random_vertices(
+    handle, p_graph, rng_state, num_vertices_to_sample, &seeds, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "select random seeds failed.");
+
+  seeds_view = cugraph_type_erased_device_array_view(seeds);
+
+  ret_code = cugraph_betweenness_centrality(
+    handle, p_graph, seeds_view, FALSE, FALSE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_betweenness_centrality failed.");
@@ -81,11 +81,11 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   weight_t h_centralities[num_vertices];
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    p_handle, (byte_t*)h_vertices, vertices, &ret_error);
+    handle, (byte_t*)h_vertices, vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    p_handle, (byte_t*)h_centralities, centralities, &ret_error);
+    handle, (byte_t*)h_centralities, centralities, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
@@ -96,8 +96,10 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
 
   cugraph_centrality_result_free(p_result);
 
+  cugraph_type_erased_device_array_view_free(seeds_view);
+  cugraph_type_erased_device_array_free(seeds);
   cugraph_sg_graph_free(p_graph);
-  cugraph_free_resource_handle(p_handle);
+  cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
 
   return test_ret_value;

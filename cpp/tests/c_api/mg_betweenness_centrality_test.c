@@ -40,9 +40,11 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph              = NULL;
-  cugraph_centrality_result_t* p_result = NULL;
-  cugraph_rng_state_t* rng_state        = NULL;
+  cugraph_graph_t* p_graph                            = NULL;
+  cugraph_centrality_result_t* p_result               = NULL;
+  cugraph_rng_state_t* rng_state                      = NULL;
+  cugraph_type_erased_device_array_t* seeds           = NULL;
+  cugraph_type_erased_device_array_view_t* seeds_view = NULL;
 
   int rank = cugraph_resource_handle_get_rank(handle);
 
@@ -54,11 +56,14 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
+  ret_code =  cugraph_select_random_vertices(handle, p_graph, rng_state, num_vertices_to_sample, &seeds, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "select random seeds failed.");
+
+  seeds_view = cugraph_type_erased_device_array_view(seeds);
+
   ret_code = cugraph_betweenness_centrality(handle,
                                             p_graph,
-                                            num_vertices_to_sample,
-                                            rng_state,
-                                            NULL,
+                                            seeds_view,
                                             FALSE,
                                             FALSE,
                                             FALSE,
@@ -98,6 +103,8 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
 
   cugraph_centrality_result_free(p_result);
 
+  cugraph_type_erased_device_array_view_free(seeds_view);
+  cugraph_type_erased_device_array_free(seeds);
   cugraph_mg_graph_free(p_graph);
   cugraph_error_free(ret_error);
 

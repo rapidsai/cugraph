@@ -368,7 +368,8 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<raft::device_span<vertex_t const>> vertices,
+  VertexIterator vertices_begin,
+  VertexIterator vertices_end,
   bool const normalized,
   bool const do_expensive_check)
 {
@@ -422,23 +423,21 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool const do_expensive_check)
 {
   if (vertices) {
-    return detail::betweenness_centrality(handle,
-                                          graph_view,
-                                          edge_weight_view,
-                                          vertices->begin(),
-                                          vertices->end(),
-                                          normalized,
-                                          false,
-                                          do_expensive_check);
+    return detail::edge_betweenness_centrality(handle,
+                                               graph_view,
+                                               edge_weight_view,
+                                               vertices->begin(),
+                                               vertices->end(),
+                                               normalized,
+                                               do_expensive_check);
   } else {
-    return detail::betweenness_centrality(
+    return detail::edge_betweenness_centrality(
       handle,
       graph_view,
       edge_weight_view,
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
       normalized,
-      false,
       do_expensive_check);
   }
 }

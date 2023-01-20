@@ -236,25 +236,18 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
 /**
  * @brief     Compute betweenness centrality
  *
- * Betweenness can be computed exactly by specifying num_vertices as 0 and
- * vertex_list as NULL.  This will compute betweenness centrality by doing a
- * traversal from every vertex and counting the frequency that a vertex appears on
- * a shortest path.
+ * Betweenness can be computed exactly by specifying This will compute betweenness centrality by
+ * doing a traversal from every vertex and counting the frequency that a vertex appears on a
+ * shortest path.
  *
- * Approximate betweenness can be computed either by specifying num_vertices > 0,
- * which will randomly pick the specified number of seeds; or by specifying a
- * list of vertices that should be used as seeds for the BFS.
- *
- * Specifying both num_vertices > 0 and vertex_list as non-null will result in an
- * error as the request is ambiguous.
+ * Approximate betweenness can be computed specifying a list of vertices that should be
+ * used as seeds for the traversals.  Note that the function cugraph_select_random_vertices can be
+ * used to create a list of seeds.
  *
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
- * @param [in]  num_vertices       Number of vertices to randomly sample
- * @param [in/out] rng_state       Pointer to random number generator state object, required
- *                                 if num_vertices > 0
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
- *                                 to use as seeds for BFS
+ *                                 to use as seeds for betweenness approximation
  * @param [in]  normalized         Normalize
  * @param [in]  include_endpoints  The traditional formulation of betweenness centrality does not
  *                                 include endpoints when considering a vertex to be on a shortest
@@ -270,8 +263,6 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
 cugraph_error_code_t cugraph_betweenness_centrality(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  size_t num_vertices,
-  cugraph_rng_state_t* rng_state,
   const cugraph_type_erased_device_array_view_t* vertex_list,
   bool_t normalized,
   bool_t include_endpoints,
@@ -323,25 +314,18 @@ void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* resul
 /**
  * @brief     Compute edge betweenness centrality
  *
- * Edge betweenness can be computed exactly by specifying num_vertices as 0 and
- * vertex_list as NULL.  This will compute betweenness centrality by doing a
- * traversal from every vertex and counting the frequency that a edge appears on
- * a shortest path.
+ * Edge betweenness can be computed exactly by specifying vertex_list as NULL.  This will compute
+ * betweenness centrality by doing a traversal from every vertex and counting the frequency that a
+ * edge appears on a shortest path.
  *
- * Approximate betweenness can be computed either by specifying num_vertices > 0,
- * which will randomly pick the specified number of seeds; or by specifying a
- * list of vertices that should be used as seeds for the BFS.
- *
- * Specifying both num_vertices > 0 and vertex_list as non-null will result in an
- * error as the request is ambiguous.
+ * Approximate betweenness can be computed specifying a list of vertices that should be
+ * used as seeds for the traversals.  Note that the function cugraph_select_random_vertices can be
+ * used to create a list of seeds.
  *
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
- * @param [in]  num_vertices       Number of vertices to randomly sample
- * @param [in/out] rng_state       Pointer to random number generator state object, required
- *                                 if num_vertices > 0
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
- *                                 to use as seeds for BFS
+ *                                 to use as seeds for traversals
  * @param [in]  normalized         Normalize
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
@@ -353,8 +337,6 @@ void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* resul
 cugraph_error_code_t cugraph_edge_betweenness_centrality(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  size_t num_vertices,
-  cugraph_rng_state_t* rng_state,
   const cugraph_type_erased_device_array_view_t* vertex_list,
   bool_t normalized,
   bool_t do_expensive_check,
