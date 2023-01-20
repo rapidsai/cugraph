@@ -409,3 +409,35 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
     assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
     assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
+
+
+def test_uniform_neighbor_sample_empty_start_list():
+    df = cudf.DataFrame(
+        {
+            "src": [0, 1, 2],
+            "dst": [0, 1, 2],
+            "eid": [2, 4, 6],
+            "etp": cudf.Series([1, 1, 2], dtype="int32"),
+            "w": [0.0, 0.1, 0.2],
+        }
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        start_list=cudf.Series([], dtype="int64"),
+        batch_id_list=cudf.Series([], dtype="int32"),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+    )
+
+    assert sampling_results.empty
