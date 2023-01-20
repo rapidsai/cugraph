@@ -44,7 +44,7 @@ __Create the conda development environment__
 # create the conda environment (assuming in base `cugraph` directory)
 
 # for CUDA 11.5
-conda env create --name cugraph_dev --file conda/environments/all_cuda-115_arch-x86_64.yaml
+conda env create --name cugraph_dev --file conda/environments/all_cuda-118_arch-x86_64.yaml
 
 # activate the environment
 conda activate cugraph_dev
