@@ -97,7 +97,6 @@ class EXPERIMENTAL__BulkSampler:
     ) -> None:
         """
         Adds batches to this BulkSampler.
-        Must be in order of ascending batch id.
 
         Parameters
         ----------
@@ -135,13 +134,11 @@ class EXPERIMENTAL__BulkSampler:
     def flush(self, skip_partition_size_check=False) -> None:
         """
         Computes all uncomputed batches
-        Assumes the __batches dataframe is in order by ascending batch id.
         """
         min_batch_id = self.__batches[self.batch_col_name].min()
-        max_batch_id = self.__batches[self.batch_col_name].max()
         if isinstance(self.__batches, dask_cudf.DataFrame):
             min_batch_id = min_batch_id.compute()
-            max_batch_id = max_batch_id.compute()
+        min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_saturation_level = self.saturation_level // partition_size
@@ -151,7 +148,8 @@ class EXPERIMENTAL__BulkSampler:
         else:
             npartitions = partitions_per_saturation_level
 
-        end_exclusive = npartitions * partition_size
+        max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
+        batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
 
         sample_fn = (
             cugraph.uniform_neighbor_sample
@@ -163,23 +161,21 @@ class EXPERIMENTAL__BulkSampler:
         samples = sample_fn(
             self.__graph,
             **self.__sample_call_args,
-            start_list=self.__batches[self.start_col_name][:end_exclusive],
-            batch_id_list=self.__batches[self.batch_col_name][:end_exclusive],
+            start_list=self.__batches[self.start_col_name][batch_id_filter],
+            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
             with_edge_properties=True,
         )
 
-        if len(self.__batches) > end_exclusive:
-            self.__batches = self.__batches[end_exclusive:]
-        else:
+        self.__batches = self.__batches[~batch_id_filter]
+        if len(self.__batches) == 0:
             self.__batches = None
 
-        self.__write(samples, min_batch_id, max_batch_id, npartitions)
+        self.__write(samples, min_batch_id, npartitions)
 
     def __write(
         self,
         samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
         min_batch_id: int,
-        max_batch_id: int,
         npartitions: int,
     ) -> None:
         # Ensure each rank writes to its own partition so there is no conflict
