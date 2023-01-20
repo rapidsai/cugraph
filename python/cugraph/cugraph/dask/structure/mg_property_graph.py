@@ -1207,8 +1207,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             # the weights interpreted as types.
             if edge_weight_property == self.type_col_name:
                 prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
-                edge_prop_df["temp_type_col"] = prop_col
-                edge_weight_property = "temp_type_col"
+                edge_prop_df["_temp_type_col"] = prop_col
+                edge_weight_property = "_temp_type_col"
             elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
