@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -60,7 +60,7 @@ def setup_function():
 
 @pytest.mark.parametrize("v1_size, v2_size, weight_limit", SPARSE_SIZES)
 def test_hungarian(v1_size, v2_size, weight_limit):
-    v1, g, m = create_random_bipartite(v1_size, v2_size, weight_limit, np.float)
+    v1, g, m = create_random_bipartite(v1_size, v2_size, weight_limit, np.float64)
 
     start = timer()
     cugraph_cost, matching = cugraph.hungarian(g, v1)
