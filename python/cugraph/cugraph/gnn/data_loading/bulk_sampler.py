@@ -14,10 +14,12 @@
 import os
 
 from typing import Union
+from math import ceil
 
 import cudf
 import dask_cudf
 import cugraph
+import pylibcugraph
 
 
 class EXPERIMENTAL__BulkSampler:
@@ -26,9 +28,11 @@ class EXPERIMENTAL__BulkSampler:
 
     def __init__(
         self,
+        batch_size: int,
         output_path: str,
         graph,
         saturation_level: int = 200_000,
+        batches_per_partition=100,
         rank: int = 0,
         **kwargs,
     ):
@@ -37,21 +41,27 @@ class EXPERIMENTAL__BulkSampler:
 
         Parameters
         ----------
+        batch_size: int
+            The size of each batch.
         output_path: str
             The directory where results will be stored.
         graph: cugraph.Graph
             The cugraph graph to operate upon.
         saturation_level: int (optional, default=200,000)
             The number of samples that can be made within a single call.
+        batches_per_partition: int (optional, default=100)
+            The number of batches outputted to a single parquet partition.
         rank: int (optional, default=0)
             The rank of this sampler.  Used to isolate this sampler from
             others that may be running on other nodes.
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
+        self.__batch_size = batch_size
         self.__output_path = output_path
         self.__graph = graph
         self.__saturation_level = saturation_level
+        self.__batches_per_partition = batches_per_partition
         self.__rank = rank
         self.__batches = None
         self.__sample_call_args = kwargs
@@ -63,6 +73,14 @@ class EXPERIMENTAL__BulkSampler:
     @property
     def saturation_level(self) -> int:
         return self.__saturation_level
+
+    @property
+    def batch_size(self) -> int:
+        return self.__batch_size
+
+    @property
+    def batches_per_partition(self) -> int:
+        return self.__batches_per_partition
 
     @property
     def size(self) -> int:
@@ -79,6 +97,7 @@ class EXPERIMENTAL__BulkSampler:
     ) -> None:
         """
         Adds batches to this BulkSampler.
+        Must be in order of ascending batch id.
 
         Parameters
         ----------
@@ -110,14 +129,29 @@ class EXPERIMENTAL__BulkSampler:
                     " type of previous batches!"
                 )
 
-        if self.size >= self.saturation_level:
+        while self.size >= self.saturation_level:
             self.flush()
 
-    def flush(self) -> None:
+    def flush(self, skip_partition_size_check=False) -> None:
         """
         Computes all uncomputed batches
+        Assumes the __batches dataframe is in order by ascending batch id.
         """
-        end = min(self.__saturation_level, len(self.__batches))
+        min_batch_id = self.__batches[self.batch_col_name].min()
+        max_batch_id = self.__batches[self.batch_col_name].max()
+        if isinstance(self.__batches, dask_cudf.DataFrame):
+            min_batch_id = min_batch_id.compute()
+            max_batch_id = max_batch_id.compute()
+
+        partition_size = self.batches_per_partition * self.batch_size
+        partitions_per_saturation_level = self.saturation_level // partition_size
+
+        if skip_partition_size_check:
+            npartitions = int(ceil(len(self.__batches) / partition_size))
+        else:
+            npartitions = partitions_per_saturation_level
+
+        end_exclusive = npartitions * partition_size
 
         sample_fn = (
             cugraph.uniform_neighbor_sample
@@ -129,28 +163,46 @@ class EXPERIMENTAL__BulkSampler:
         samples = sample_fn(
             self.__graph,
             **self.__sample_call_args,
-            start_list=self.__batches[self.start_col_name][:end],
-            batch_id_list=self.__batches[self.batch_col_name][:end],
+            start_list=self.__batches[self.start_col_name][:end_exclusive],
+            batch_id_list=self.__batches[self.batch_col_name][:end_exclusive],
             with_edge_properties=True,
         )
 
-        if len(self.__batches) > end:
-            self.__batches = self.__batches[end:]
+        if len(self.__batches) > end_exclusive:
+            self.__batches = self.__batches[end_exclusive:]
         else:
             self.__batches = None
 
-        self.__write(samples)
+        self.__write(samples, min_batch_id, max_batch_id, npartitions)
 
-    def __write(self, samples: Union[cudf.DataFrame, dask_cudf.DataFrame]) -> None:
+    def __write(
+        self,
+        samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
+        min_batch_id: int,
+        max_batch_id: int,
+        npartitions: int,
+    ) -> None:
         # Ensure each rank writes to its own partition so there is no conflict
         outer_partition = f"rank={self.__rank}"
-        if isinstance(samples, dask_cudf.DataFrame):
-            samples.to_parquet(
-                os.path.join(self.__output_path, outer_partition),
-                partition_on=["batch_id"],
+        outer_partition_path = os.path.join(self.__output_path, outer_partition)
+        os.makedirs(outer_partition_path, exist_ok=True)
+
+        for partition_k in range(npartitions):
+            ix_partition_start_inclusive = (
+                min_batch_id + partition_k * self.batches_per_partition
             )
-        else:
-            samples.to_parquet(
-                os.path.join(self.__output_path, outer_partition),
-                partition_cols=["batch_id"],
+            ix_partition_end_inclusive = (
+                min_batch_id + (partition_k + 1) * self.batches_per_partition - 1
+            )
+
+            inner_path = os.path.join(
+                outer_partition_path,
+                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}",
+            )
+
+            f = (samples.batch_id >= ix_partition_start_inclusive) & (
+                samples.batch_id <= ix_partition_end_inclusive
+            )
+            samples[f].to_parquet(
+                inner_path,
             )
