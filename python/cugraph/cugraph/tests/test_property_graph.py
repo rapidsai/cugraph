@@ -2306,16 +2306,38 @@ def test_types_from_numerals():
     )
 
     pG = PropertyGraph()
-    
+
     pG.add_edge_data(df_edgelist_cow, vertex_col_names=["src", "dst"], type_name="cow")
     pG.add_edge_data(df_edgelist_pig, vertex_col_names=["src", "dst"], type_name="pig")
-    
+
     pG.add_vertex_data(df_props_duck, vertex_col_name="id", type_name="duck")
     pG.add_vertex_data(df_props_goose, vertex_col_name="id", type_name="goose")
 
-    assert pG.vertex_types_from_numerals(cudf.Series([0,1,0,0,1,0,1,1])).values_host.tolist() == ['duck','goose','duck','duck','goose','duck','goose','goose']
-    assert pG.edge_types_from_numerals(cudf.Series([1,1,0,1,1,0,0,1,1])).values_host.tolist() == ['pig','pig','cow','pig','pig','cow','cow','pig','pig']
-    
+    assert pG.vertex_types_from_numerals(
+        cudf.Series([0, 1, 0, 0, 1, 0, 1, 1])
+    ).values_host.tolist() == [
+        "duck",
+        "goose",
+        "duck",
+        "duck",
+        "goose",
+        "duck",
+        "goose",
+        "goose",
+    ]
+    assert pG.edge_types_from_numerals(
+        cudf.Series([1, 1, 0, 1, 1, 0, 0, 1, 1])
+    ).values_host.tolist() == [
+        "pig",
+        "pig",
+        "cow",
+        "pig",
+        "pig",
+        "cow",
+        "cow",
+        "pig",
+        "pig",
+    ]
 
 
 # =============================================================================

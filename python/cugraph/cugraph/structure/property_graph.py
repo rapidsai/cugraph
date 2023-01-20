@@ -503,7 +503,9 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
-    def vertex_types_from_numerals(self, nums:Union[cudf.Series, pd.Series]) -> Union[cudf.Series, pd.Series]:
+    def vertex_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
         """
         Returns the string vertex type names given the numeric category labels.
 
@@ -511,7 +513,7 @@ class EXPERIMENTAL__PropertyGraph:
         ----------
         nums: Union[cudf.Series, pandas.Series] (Required)
             The list of numeric category labels to convert.
-        
+
         Returns
         -------
         Union[cudf.Series, pd.Series]
@@ -519,7 +521,9 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
 
-    def edge_types_from_numerals(self, nums:Union[cudf.Series, pd.Series]) -> Union[cudf.Series, pd.Series]:
+    def edge_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
         """
         Returns the string edge type names given the numeric category labels.
 
@@ -527,7 +531,7 @@ class EXPERIMENTAL__PropertyGraph:
         ----------
         nums: Union[cudf.Series, pandas.Series] (Required)
             The list of numeric category labels to convert.
-        
+
         Returns
         -------
         Union[cudf.Series, pd.Series]
