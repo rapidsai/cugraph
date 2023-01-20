@@ -26,7 +26,6 @@ import pandas
 # cuGraph is required
 try:
     import cugraph
-    import pylibcugraph
 except ModuleNotFoundError:
     raise ModuleNotFoundError("cuGraph-PyG requires cuGraph to be installed.")
 
@@ -196,7 +195,9 @@ class EXPERIMENTAL__CuGraphStore:
     # For now edge attrs are entirely unsupported.
     # TODO add an "expensive check" argument that ensures the graph store
     # and feature store are valid and compatible with PyG.
-    def __init__(self, F, G, num_nodes_dict, backend: str = "torch"):
+    def __init__(
+        self, F, G, num_nodes_dict, backend: str = "torch", multi_gpu: bool = False
+    ):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
@@ -220,6 +221,9 @@ class EXPERIMENTAL__CuGraphStore:
         backend : ('torch', 'cupy') (Required)
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
+        multi_gpu : bool (Required)
+            Whether the store should be backed by a multi-GPU graph.
+            Requires dask to have been set up.
         """
 
         if None in G:
@@ -266,7 +270,7 @@ class EXPERIMENTAL__CuGraphStore:
         self._edge_attr_cls = CuGraphEdgeAttr
 
         self.__features = F
-        self.__graph = self.__construct_graph(G)
+        self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
         self.__subgraphs = {}
 
     def __make_offsets(self, input_dict):
@@ -351,7 +355,9 @@ class EXPERIMENTAL__CuGraphStore:
             {
                 "src": na_src,
                 "dst": na_dst,
-                "w": np.zeros(len(na_src)),
+                # FIXME use the edge type property
+                # "w": np.zeros(len(na_src)),
+                "w": na_etp,
                 "eid": np.arange(len(na_src)),
                 "etp": na_etp,
             }
@@ -397,7 +403,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
-        return isinstance(self.__graph._plc_graph, pylibcugraph.graphs.MGGraph)
+        return isinstance(self.__graph._plc_graph, dict)
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
@@ -575,6 +581,8 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
+        print(edge_types)
+        print(self.__edge_types_to_attrs.keys())
         if set(edge_types) != set(self.__edge_types_to_attrs.keys()):
             raise ValueError(
                 "Subgraphing is currently unsupported, please"
@@ -687,6 +695,7 @@ class EXPERIMENTAL__CuGraphStore:
                 .iloc[sampling_results.indices.astype("int32")]
                 .reset_index(drop=True)
             )
+            print("eoi_types:", eoi_types)
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
