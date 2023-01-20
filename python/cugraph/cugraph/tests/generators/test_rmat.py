@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,6 +74,7 @@ def teardown_module():
 
 
 ###############################################################################
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
 @pytest.mark.parametrize("mg", _mg_values, ids=_mg_test_ids)
 def test_rmat_edgelist(scale, mg):
@@ -97,6 +98,7 @@ def test_rmat_edgelist(scale, mg):
     assert len(df_to_check) == num_edges
 
 
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_type", _graph_types, ids=_graph_test_ids)
 @pytest.mark.parametrize("mg", _mg_values, ids=_mg_test_ids)
 def test_rmat_return_type(graph_type, mg):
