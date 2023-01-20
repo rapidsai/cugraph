@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 from typing import Optional, Tuple, Any
 from enum import Enum
 
@@ -18,8 +20,6 @@ from dataclasses import dataclass
 from collections import defaultdict
 from itertools import chain
 from functools import cached_property
-
-import warnings
 
 # numpy is always available
 import numpy as np
@@ -34,8 +34,8 @@ except ModuleNotFoundError:
 from cugraph.experimental import MGPropertyGraph
 
 # FIXME drop cupy support and make torch the only backend (#2995)
-cupy = import_optional("cupy")
 torch = import_optional("torch")
+cupy = import_optional("cupy")
 
 
 class EdgeLayout(Enum):
