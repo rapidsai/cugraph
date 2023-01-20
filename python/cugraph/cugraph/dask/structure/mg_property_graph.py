@@ -18,6 +18,8 @@ import dask_cudf
 import cugraph.dask as dcg
 from cugraph.utilities.utils import import_optional, create_list_series_from_2d_ar
 
+from typing import Union
+
 pd = import_optional("pandas")
 
 
@@ -328,6 +330,54 @@ class EXPERIMENTAL__MGPropertyGraph:
         Alias for get_vertices()
         """
         return self.get_vertices()
+
+    def vertex_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string vertex type names given the numeric category labels.
+        Note: Does not accept or return dask_cudf Series.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
+        return (
+            self.__vertex_prop_dataframe[self.type_col_name]
+            .dtype.categories.to_series()
+            .iloc[nums]
+            .reset_index(drop=True)
+        )
+
+    def edge_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string edge type names given the numeric category labels.
+        Note: Does not accept or return dask_cudf Series.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
+        return (
+            self.__edge_prop_dataframe[self.type_col_name]
+            .dtype.categories.to_series()
+            .iloc[nums]
+            .reset_index(drop=True)
+        )
 
     def add_vertex_data(
         self,
@@ -920,7 +970,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-
                 try:
                     df = df.loc[edge_ids]
                 except TypeError:
@@ -1168,6 +1217,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         renumber_graph=True,
         add_edge_data=True,
     ):
+
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
@@ -1186,7 +1236,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property in edge_prop_df.columns:
+            # Also allow the type column to be specified as the edge weight
+            # property so that uniform_neighbor_sample can be called with
+            # the weights interpreted as types.
+            if edge_weight_property == self.type_col_name:
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
+                edge_prop_df["_temp_type_col"] = prop_col
+                edge_weight_property = "_temp_type_col"
+            elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
                 prop_col = edge_prop_df.index.to_series()
@@ -1264,6 +1321,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         col_names = [self.src_col_name, self.dst_col_name]
         if edge_attr is not None:
             col_names.append(edge_attr)
+
+        edge_prop_df = edge_prop_df.reset_index().drop(
+            [col for col in edge_prop_df if col not in col_names], axis=1
+        )
+        edge_prop_df = edge_prop_df.repartition(
+            npartitions=self.__num_workers * 4
+        ).persist()
 
         G.from_dask_cudf_edgelist(
             edge_prop_df[col_names],
