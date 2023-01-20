@@ -1202,6 +1202,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
+            # Also allow the type column to be specified as the edge weight
+            # property so that uniform_neighbor_sample can be called with
+            # the weights interpreted as types.
             if edge_weight_property == self.type_col_name:
                 prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
                 edge_prop_df["temp_type_col"] = prop_col
