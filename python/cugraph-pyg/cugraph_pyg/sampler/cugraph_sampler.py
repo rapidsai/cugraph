@@ -11,13 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cuGraph is required
-try:
-    import cugraph
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(
-        "cuGraph extensions for PyG require cuGraph to be installed."
-    )
+
+import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf

@@ -21,14 +21,9 @@ from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
-# numpy is always available
 import numpy as np
 
-# cuGraph is required
-try:
-    from cugraph.utilities.utils import import_optional
-except ModuleNotFoundError:
-    raise ModuleNotFoundError("cuGraph-PyG requires cuGraph to be installed.")
+from cugraph.utilities.utils import import_optional
 
 # FIXME remove these imports and replace PG with FeatureStore
 from cugraph.experimental import MGPropertyGraph
