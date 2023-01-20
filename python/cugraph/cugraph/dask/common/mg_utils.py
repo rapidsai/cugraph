@@ -100,6 +100,7 @@ def teardown_local_dask_cluster(cluster, client):
     client.close()
     cluster.close()
 
+
 def start_dask_client():
     n_devices = os.getenv("DASK_NUM_WORKERS", 2)
     n_devices = int(n_devices)
