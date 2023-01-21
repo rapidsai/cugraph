@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,12 +17,15 @@ import dask_cudf
 import pytest
 import pandas as pd
 import cudf
+import cupy as cp
+import numpy as np
 from cudf.testing import assert_frame_equal, assert_series_equal
+from cupy.testing import assert_array_equal
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 from cugraph.experimental.datasets import cyber
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.testing import utils
+from cugraph.experimental.datasets import netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -162,7 +165,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="module", params=df_types_fixture_params)
@@ -175,7 +178,7 @@ def net_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"
+    netscience_csv = netscience.get_path()
     source_col_name = "src"
     dest_col_name = "dst"
 
@@ -254,7 +257,7 @@ def dataset1_PropertyGraph(request):
     return (pG, dataset1)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def dataset1_MGPropertyGraph(dask_client):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
@@ -365,7 +368,7 @@ def net_MGPropertyGraph(dask_client):
     """
     from cugraph.experimental import MGPropertyGraph
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
+    input_data_path = str(netscience.get_path())
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -846,11 +849,14 @@ def test_get_data_empty_graphs(dask_client):
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
-def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
 
     (pG, data) = dataset1_MGPropertyGraph
-    df_id_ranges = pG.renumber_vertices_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_vertices_by_type("merchant_size")
+    df_id_ranges = pG.renumber_vertices_by_type(prev_id_column)
     expected = {
         "merchants": [0, 4],  # stop is inclusive
         "users": [5, 8],
@@ -858,9 +864,14 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
-        df = pG.get_vertex_data(types=[key]).compute()
+        df = pG.get_vertex_data(types=[key]).compute().to_pandas()
+        df = df.reset_index(drop=True)
         assert len(df) == stop - start + 1
-        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+        assert (df["_VERTEX_"] == pd.Series(range(start, stop + 1))).all()
+        if prev_id_column is not None:
+            cur = df[prev_id_column].sort_values()
+            expected = sorted(x for x, *args in data[key][1])
+            assert (cur == pd.Series(expected, index=cur.index)).all()
 
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data().compute()
@@ -868,21 +879,24 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
     assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
 
     empty_pG = MGPropertyGraph()
-    assert empty_pG.renumber_vertices_by_type() is None
+    assert empty_pG.renumber_vertices_by_type(prev_id_column) is None
 
     # Test when vertex IDs only exist in edge data
     df = cudf.DataFrame({"src": [99998], "dst": [99999]})
     df = dask_cudf.from_cudf(df, npartitions=1)
     empty_pG.add_edge_data(df, ["src", "dst"])
     with pytest.raises(NotImplementedError, match="only exist in edge"):
-        empty_pG.renumber_vertices_by_type()
+        empty_pG.renumber_vertices_by_type(prev_id_column)
 
 
-def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
 
     (pG, data) = dataset1_MGPropertyGraph
-    df_id_ranges = pG.renumber_edges_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_edges_by_type("time")
+    df_id_ranges = pG.renumber_edges_by_type(prev_id_column)
     expected = {
         "referrals": [0, 5],  # stop is inclusive
         "relationships": [6, 9],
@@ -891,12 +905,60 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
-        df = pG.get_edge_data(types=[key]).compute()
+        df = pG.get_edge_data(types=[key]).compute().to_pandas()
+        df = df.reset_index(drop=True)
         assert len(df) == stop - start + 1
-        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        assert (df[pG.edge_id_col_name] == pd.Series(range(start, stop + 1))).all()
+
+        if prev_id_column is not None:
+            assert prev_id_column in df.columns
 
     empty_pG = MGPropertyGraph()
-    assert empty_pG.renumber_edges_by_type() is None
+    assert empty_pG.renumber_edges_by_type(prev_id_column) is None
+
+
+def test_renumber_vertices_edges_dtypes(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    edgelist_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": cp.array([0, 5, 2, 3, 4, 3], dtype="int32"),
+                "dst": cp.array([2, 4, 4, 5, 1, 2], dtype="int32"),
+                "eid": cp.array([8, 7, 5, 2, 9, 1], dtype="int32"),
+            }
+        ),
+        npartitions=2,
+    )
+
+    vertex_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "v": cp.array([0, 1, 2, 3, 4, 5], dtype="int32"),
+                "p": [5, 10, 15, 20, 25, 30],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+    pG.add_vertex_data(
+        vertex_df, vertex_col_name="v", property_columns=["p"], type_name="vt1"
+    )
+    pG.add_edge_data(
+        edgelist_df,
+        vertex_col_names=["src", "dst"],
+        edge_id_col_name="eid",
+        type_name="et1",
+    )
+
+    pG.renumber_vertices_by_type()
+    vd = pG.get_vertex_data()
+    assert vd.index.dtype == cp.int32
+
+    pG.renumber_edges_by_type()
+    ed = pG.get_edge_data()
+    assert ed[pG.edge_id_col_name].dtype == cp.int32
 
 
 def test_add_data_noncontiguous(dask_client):
@@ -957,6 +1019,229 @@ def test_add_data_noncontiguous(dask_client):
             cur_df["edge_type"],
             check_names=False,
         )
+
+
+def test_vertex_vector_property(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    (merchants, users, transactions, relationships, referrals) = dataset1.values()
+
+    pG = MGPropertyGraph()
+    m_df = cudf.DataFrame(columns=merchants[0], data=merchants[1])
+    merchants_df = dask_cudf.from_cudf(m_df, npartitions=2)
+    with pytest.raises(ValueError):
+        # Column doesn't exist
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": ["merchant_location", "BAD_NAME"]},
+        )
+    with pytest.raises(ValueError):
+        # Using reserved name
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={
+                pG.type_col_name: ["merchant_location", "merchant_size"]
+            },
+        )
+    with pytest.raises(TypeError):
+        # String value invalid
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": "merchant_location"},
+        )
+    with pytest.raises(ValueError):
+        # Length-0 vector not allowed
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": []},
+        )
+    pG.add_vertex_data(
+        merchants_df,
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        vector_properties={
+            "vec1": ["merchant_location", "merchant_size", "merchant_num_employees"]
+        },
+    )
+    df = pG.get_vertex_data()
+    expected_columns = {
+        pG.vertex_col_name,
+        pG.type_col_name,
+        "merchant_sales",
+        "merchant_name",
+        "vec1",
+    }
+    assert set(df.columns) == expected_columns
+    expected = m_df[
+        ["merchant_location", "merchant_size", "merchant_num_employees"]
+    ].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1").compute()
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec1)
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1", missing="error").compute()
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec1)
+    with pytest.raises(ValueError):
+        pG.vertex_vector_property_to_array(df, "BAD_NAME")
+
+    u_df = cudf.DataFrame(columns=users[0], data=users[1])
+    users_df = dask_cudf.from_cudf(u_df, npartitions=2)
+    with pytest.raises(ValueError):
+        # Length doesn't match existing vector
+        pG.add_vertex_data(
+            users_df,
+            type_name="users",
+            vertex_col_name="user_id",
+            property_columns=["vertical"],
+            vector_properties={"vec1": ["user_location", "vertical"]},
+        )
+    with pytest.raises(ValueError):
+        # Can't assign property to existing vector column
+        pG.add_vertex_data(
+            users_df.assign(vec1=users_df["user_id"]),
+            type_name="users",
+            vertex_col_name="user_id",
+            property_columns=["vec1"],
+        )
+
+    pG.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        property_columns=["vertical"],
+        vector_properties={"vec2": ["user_location", "vertical"]},
+    )
+    expected_columns.update({"vec2", "vertical"})
+    df = pG.get_vertex_data()
+    assert set(df.columns) == expected_columns
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1").compute()
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec1)
+    with pytest.raises(RuntimeError):
+        pG.vertex_vector_property_to_array(df, "vec1", missing="error").compute()
+
+    pGusers = MGPropertyGraph()
+    pGusers.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        vector_property="vec3",
+    )
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2").compute()
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    df2 = pGusers.get_vertex_data()
+    assert set(df2.columns) == {pG.vertex_col_name, pG.type_col_name, "vec3"}
+    vec3 = pGusers.vertex_vector_property_to_array(df2, "vec3").compute()
+    vec3 = vec3[np.lexsort(vec3.T)]  # may be jumbled, so sort
+    assert_array_equal(vec2, vec3)
+
+    vec1filled = pG.vertex_vector_property_to_array(
+        df, "vec1", 0, missing="error"
+    ).compute()
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    expectedfilled = np.concatenate([cp.zeros((4, 3), int), expected])
+    assert_array_equal(expectedfilled, vec1filled)
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", [0, 0, 0]).compute()
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    assert_array_equal(expectedfilled, vec1filled)
+
+    with pytest.raises(ValueError, match="expected 3"):
+        pG.vertex_vector_property_to_array(df, "vec1", [0, 0]).compute()
+
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2").compute()
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    expected = u_df[["user_location", "vertical"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec2)
+    with pytest.raises(TypeError):
+        # Column is wrong type to be a vector
+        pG.vertex_vector_property_to_array(
+            df.rename(columns={"vec1": "vertical", "vertical": "vec1"}), "vec1"
+        )
+    with pytest.raises(ValueError):
+        # Vector column doesn't exist in dataframe
+        pG.vertex_vector_property_to_array(df.rename(columns={"vec1": "moved"}), "vec1")
+    with pytest.raises(TypeError):
+        # Bad type
+        pG.vertex_vector_property_to_array(42, "vec1")
+
+
+def test_edge_vector_property(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    df1 = cudf.DataFrame(
+        {
+            "src": [0, 1],
+            "dst": [1, 2],
+            "feat_0": [1, 2],
+            "feat_1": [10, 20],
+            "feat_2": [10, 20],
+        }
+    )
+    dd1 = dask_cudf.from_cudf(df1, npartitions=2)
+    df2 = cudf.DataFrame(
+        {
+            "src": [2, 3],
+            "dst": [1, 2],
+            "feat_0": [0.5, 0.2],
+            "feat_1": [1.5, 1.2],
+        }
+    )
+    dd2 = dask_cudf.from_cudf(df2, npartitions=2)
+    pG = MGPropertyGraph()
+    pG.add_edge_data(
+        dd1, ("src", "dst"), vector_properties={"vec1": ["feat_0", "feat_1", "feat_2"]}
+    )
+    df = pG.get_edge_data()
+    expected_columns = {
+        pG.edge_id_col_name,
+        pG.src_col_name,
+        pG.dst_col_name,
+        pG.type_col_name,
+        "vec1",
+    }
+    assert set(df.columns) == expected_columns
+    expected = df1[["feat_0", "feat_1", "feat_2"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+
+    pGalt = MGPropertyGraph()
+    pGalt.add_edge_data(dd1, ("src", "dst"), vector_property="vec1")
+    dfalt = pG.get_edge_data()
+
+    for cur_pG, cur_df in [(pG, df), (pGalt, dfalt)]:
+        vec1 = cur_pG.edge_vector_property_to_array(cur_df, "vec1").compute()
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+        vec1 = cur_pG.edge_vector_property_to_array(
+            cur_df, "vec1", missing="error"
+        ).compute()
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+
+    pG.add_edge_data(
+        dd2, ("src", "dst"), vector_properties={"vec2": ["feat_0", "feat_1"]}
+    )
+    df = pG.get_edge_data()
+    expected_columns.add("vec2")
+    assert set(df.columns) == expected_columns
+    expected = df2[["feat_0", "feat_1"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+    vec2 = pG.edge_vector_property_to_array(df, "vec2").compute()
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    assert_array_equal(vec2, expected)
+    with pytest.raises(RuntimeError):
+        pG.edge_vector_property_to_array(df, "vec2", missing="error").compute()
 
 
 def test_fillna_vertices():
@@ -1099,3 +1384,32 @@ def bench_add_edges_cyber(gpubenchmark, dask_client, N):
         assert len(df) == len(cyber_df)
 
     gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_rows", [1_000_000])
+@pytest.mark.parametrize("n_feats", [128])
+def bench_get_vector_features(gpubenchmark, dask_client, n_rows, n_feats):
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+    df = dask_cudf.from_cudf(df, npartitions=16)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+    pG = MGPropertyGraph()
+    pG.add_edge_data(
+        df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+    )
+
+    def func(pG):
+        df = pG.get_edge_data(edge_ids=cp.arange(0, 100_000))
+        df = df.compute()
+
+    gpubenchmark(func, pG)

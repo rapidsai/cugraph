@@ -19,7 +19,7 @@
 #include <cudf/table/table.hpp>
 #include <cudf/types.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace etl {

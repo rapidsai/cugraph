@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ namespace cugraph {
 // MG instantiation
 
 template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+                          graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                           int32_t* core_numbers,
                           k_core_degree_type_t degree_type,
                           size_t k_first,
@@ -29,15 +29,7 @@ template void core_number(raft::handle_t const& handle,
                           bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-                          int32_t* core_numbers,
-                          k_core_degree_type_t degree_type,
-                          size_t k_first,
-                          size_t k_last,
-                          bool do_expensive_check);
-
-template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+                          graph_view_t<int32_t, int64_t, false, true> const& graph_view,
                           int64_t* core_numbers,
                           k_core_degree_type_t degree_type,
                           size_t k_first,
@@ -45,23 +37,7 @@ template void core_number(raft::handle_t const& handle,
                           bool do_expensive_check);
 
 template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-                          int64_t* core_numbers,
-                          k_core_degree_type_t degree_type,
-                          size_t k_first,
-                          size_t k_last,
-                          bool do_expensive_check);
-
-template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-                          int64_t* core_numbers,
-                          k_core_degree_type_t degree_type,
-                          size_t k_first,
-                          size_t k_last,
-                          bool do_expensive_check);
-
-template void core_number(raft::handle_t const& handle,
-                          graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                          graph_view_t<int64_t, int64_t, false, true> const& graph_view,
                           int64_t* core_numbers,
                           k_core_degree_type_t degree_type,
                           size_t k_first,

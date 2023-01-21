@@ -17,7 +17,9 @@ import numpy as np
 import scipy
 
 import cudf
-from cudf.testing import assert_series_equal
+from cudf.testing import assert_series_equal, assert_frame_equal
+
+from cugraph.experimental import overlap as exp_overlap
 
 import cugraph
 from cugraph.testing import utils
@@ -50,11 +52,17 @@ def compare_overlap(cu_coeff, cpu_coeff):
 def cugraph_call(benchmark_callable, graph_file, pairs, edgevals=False):
     # Device data
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+        create_using=cugraph.Graph(directed=False), ignore_weights=not edgevals
     )
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
-    df = df.sort_values(by=["source", "destination"])
+    df = df.sort_values(by=["first", "second"]).reset_index(drop=True)
+    if not edgevals:
+        # experimental overlap currently only supports unweighted graphs
+        df_exp = exp_overlap(G, pairs)
+        df_exp = df_exp.sort_values(by=["first", "second"]).reset_index(drop=True)
+        assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
+
     return df["overlap_coeff"].to_numpy()
 
 
@@ -113,6 +121,7 @@ def read_csv(request):
     graph_file = request.param
     dataset_path = graph_file.get_path()
     Mnx = utils.read_csv_for_nx(dataset_path)
+
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
@@ -131,6 +140,7 @@ def extract_two_hop(read_csv):
         .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
+
     return pairs
 
 
@@ -177,12 +187,37 @@ def test_overlap_multi_column(graph_file):
     vertex_pair = vertex_pair[:5]
 
     df_res = cugraph.overlap(G1, vertex_pair)
+    df_plc_exp = exp_overlap(G1, vertex_pair)
+
+    df_plc_exp = df_plc_exp.rename(
+        columns={
+            "0_src": "0_source",
+            "0_dst": "0_destination",
+            "1_src": "1_source",
+            "1_dst": "1_destination",
+        }
+    )
+    overlap_res = df_res["overlap_coeff"].sort_values().reset_index(drop=True)
+    overlap_plc_exp = df_plc_exp["overlap_coeff"].sort_values().reset_index(drop=True)
+    assert_series_equal(overlap_res, overlap_plc_exp)
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
-    expected = df_exp.sort_values("source").reset_index()
+    actual = df_res.sort_values("0_first").reset_index()
+    expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
+
+
+def test_weighted_exp_overlap():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph()
+    with pytest.raises(ValueError):
+        exp_overlap(G)
+
+    G = karate.get_graph(ignore_weights=True)
+    use_weight = True
+    with pytest.raises(ValueError):
+        exp_overlap(G, use_weight=use_weight)

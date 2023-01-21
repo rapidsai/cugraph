@@ -24,13 +24,12 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+template <typename vertex_t, typename edge_t>
 class edge_partition_view_base_t {
  public:
   edge_partition_view_base_t(raft::device_span<edge_t const> offsets,
-                             raft::device_span<vertex_t const> indices,
-                             std::optional<raft::device_span<weight_t const>> weights)
-    : offsets_(offsets), indices_(indices), weights_(weights)
+                             raft::device_span<vertex_t const> indices)
+    : offsets_(offsets), indices_(indices)
   {
   }
 
@@ -38,31 +37,24 @@ class edge_partition_view_base_t {
 
   raft::device_span<edge_t const> offsets() const { return offsets_; }
   raft::device_span<vertex_t const> indices() const { return indices_; }
-  std::optional<raft::device_span<weight_t const>> weights() const { return weights_; }
 
  private:
   raft::device_span<edge_t const> offsets_{};
   raft::device_span<vertex_t const> indices_{};
-  std::optional<raft::device_span<weight_t const>> weights_{std::nullopt};
 };
 
 }  // namespace detail
 
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          typename Enable = void>
+template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 class edge_partition_view_t;
 
 // multi-GPU version
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
-  : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public detail::edge_partition_view_base_t<vertex_t, edge_t> {
  public:
   edge_partition_view_t(raft::device_span<edge_t const> offsets,
                         raft::device_span<vertex_t const> indices,
-                        std::optional<raft::device_span<weight_t const>> weights,
                         std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
                         std::optional<vertex_t> major_hypersparse_first,
                         vertex_t major_range_first,
@@ -70,7 +62,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
                         vertex_t minor_range_first,
                         vertex_t minor_range_last,
                         vertex_t major_value_start_offset)
-    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(offsets, indices, weights),
+    : detail::edge_partition_view_base_t<vertex_t, edge_t>(offsets, indices),
       dcs_nzd_vertices_(dcs_nzd_vertices),
       major_hypersparse_first_(major_hypersparse_first),
       major_range_first_(major_range_first),
@@ -109,15 +101,14 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
 };
 
 // single-GPU version
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>
-  : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+class edge_partition_view_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public detail::edge_partition_view_base_t<vertex_t, edge_t> {
  public:
   edge_partition_view_t(raft::device_span<edge_t const> offsets,
                         raft::device_span<vertex_t const> indices,
-                        std::optional<raft::device_span<weight_t const>> weights,
                         vertex_t number_of_vertices)
-    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(offsets, indices, weights),
+    : detail::edge_partition_view_base_t<vertex_t, edge_t>(offsets, indices),
       number_of_vertices_(number_of_vertices)
   {
   }

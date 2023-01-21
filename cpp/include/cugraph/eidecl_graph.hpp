@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,68 +16,36 @@
 #pragma once
 
 namespace cugraph {
-extern template class graph_t<int32_t, int32_t, float, true, true, void>;
-extern template class graph_t<int32_t, int32_t, float, true, false, void>;
-extern template class graph_t<int32_t, int32_t, float, false, true, void>;
-extern template class graph_t<int32_t, int32_t, float, false, false, void>;
-extern template class graph_t<int32_t, int32_t, double, true, true, void>;
-extern template class graph_t<int32_t, int32_t, double, true, false, void>;
-extern template class graph_t<int32_t, int32_t, double, false, true, void>;
-extern template class graph_t<int32_t, int32_t, double, false, false, void>;
-extern template class graph_t<int32_t, int64_t, float, true, true, void>;
-extern template class graph_t<int32_t, int64_t, float, true, false, void>;
-extern template class graph_t<int32_t, int64_t, float, false, true, void>;
-extern template class graph_t<int32_t, int64_t, float, false, false, void>;
-extern template class graph_t<int32_t, int64_t, double, true, true, void>;
-extern template class graph_t<int32_t, int64_t, double, true, false, void>;
-extern template class graph_t<int32_t, int64_t, double, false, true, void>;
-extern template class graph_t<int32_t, int64_t, double, false, false, void>;
-extern template class graph_t<int64_t, int32_t, float, true, true, void>;
-extern template class graph_t<int64_t, int32_t, float, true, false, void>;
-extern template class graph_t<int64_t, int32_t, float, false, true, void>;
-extern template class graph_t<int64_t, int32_t, float, false, false, void>;
-extern template class graph_t<int64_t, int32_t, double, true, true, void>;
-extern template class graph_t<int64_t, int32_t, double, true, false, void>;
-extern template class graph_t<int64_t, int32_t, double, false, true, void>;
-extern template class graph_t<int64_t, int32_t, double, false, false, void>;
-extern template class graph_t<int64_t, int64_t, float, true, true, void>;
-extern template class graph_t<int64_t, int64_t, float, true, false, void>;
-extern template class graph_t<int64_t, int64_t, float, false, true, void>;
-extern template class graph_t<int64_t, int64_t, float, false, false, void>;
-extern template class graph_t<int64_t, int64_t, double, true, true, void>;
-extern template class graph_t<int64_t, int64_t, double, true, false, void>;
-extern template class graph_t<int64_t, int64_t, double, false, true, void>;
-extern template class graph_t<int64_t, int64_t, double, false, false, void>;
-extern template class graph_view_t<int32_t, int32_t, float, true, true, void>;
-extern template class graph_view_t<int32_t, int32_t, float, true, false, void>;
-extern template class graph_view_t<int32_t, int32_t, float, false, true, void>;
-extern template class graph_view_t<int32_t, int32_t, float, false, false, void>;
-extern template class graph_view_t<int32_t, int32_t, double, true, true, void>;
-extern template class graph_view_t<int32_t, int32_t, double, true, false, void>;
-extern template class graph_view_t<int32_t, int32_t, double, false, true, void>;
-extern template class graph_view_t<int32_t, int32_t, double, false, false, void>;
-extern template class graph_view_t<int32_t, int64_t, float, true, true, void>;
-extern template class graph_view_t<int32_t, int64_t, float, true, false, void>;
-extern template class graph_view_t<int32_t, int64_t, float, false, true, void>;
-extern template class graph_view_t<int32_t, int64_t, float, false, false, void>;
-extern template class graph_view_t<int32_t, int64_t, double, true, true, void>;
-extern template class graph_view_t<int32_t, int64_t, double, true, false, void>;
-extern template class graph_view_t<int32_t, int64_t, double, false, true, void>;
-extern template class graph_view_t<int32_t, int64_t, double, false, false, void>;
-extern template class graph_view_t<int64_t, int32_t, float, true, true, void>;
-extern template class graph_view_t<int64_t, int32_t, float, true, false, void>;
-extern template class graph_view_t<int64_t, int32_t, float, false, true, void>;
-extern template class graph_view_t<int64_t, int32_t, float, false, false, void>;
-extern template class graph_view_t<int64_t, int32_t, double, true, true, void>;
-extern template class graph_view_t<int64_t, int32_t, double, true, false, void>;
-extern template class graph_view_t<int64_t, int32_t, double, false, true, void>;
-extern template class graph_view_t<int64_t, int32_t, double, false, false, void>;
-extern template class graph_view_t<int64_t, int64_t, float, true, true, void>;
-extern template class graph_view_t<int64_t, int64_t, float, true, false, void>;
-extern template class graph_view_t<int64_t, int64_t, float, false, true, void>;
-extern template class graph_view_t<int64_t, int64_t, float, false, false, void>;
-extern template class graph_view_t<int64_t, int64_t, double, true, true, void>;
-extern template class graph_view_t<int64_t, int64_t, double, true, false, void>;
-extern template class graph_view_t<int64_t, int64_t, double, false, true, void>;
-extern template class graph_view_t<int64_t, int64_t, double, false, false, void>;
+extern template class graph_t<int32_t, int32_t, true, true, void>;
+extern template class graph_t<int32_t, int32_t, true, false, void>;
+extern template class graph_t<int32_t, int32_t, false, true, void>;
+extern template class graph_t<int32_t, int32_t, false, false, void>;
+extern template class graph_t<int32_t, int64_t, true, true, void>;
+extern template class graph_t<int32_t, int64_t, true, false, void>;
+extern template class graph_t<int32_t, int64_t, false, true, void>;
+extern template class graph_t<int32_t, int64_t, false, false, void>;
+extern template class graph_t<int64_t, int32_t, true, true, void>;
+extern template class graph_t<int64_t, int32_t, true, false, void>;
+extern template class graph_t<int64_t, int32_t, false, true, void>;
+extern template class graph_t<int64_t, int32_t, false, false, void>;
+extern template class graph_t<int64_t, int64_t, true, true, void>;
+extern template class graph_t<int64_t, int64_t, true, false, void>;
+extern template class graph_t<int64_t, int64_t, false, true, void>;
+extern template class graph_t<int64_t, int64_t, false, false, void>;
+extern template class graph_view_t<int32_t, int32_t, true, true, void>;
+extern template class graph_view_t<int32_t, int32_t, true, false, void>;
+extern template class graph_view_t<int32_t, int32_t, false, true, void>;
+extern template class graph_view_t<int32_t, int32_t, false, false, void>;
+extern template class graph_view_t<int32_t, int64_t, true, true, void>;
+extern template class graph_view_t<int32_t, int64_t, true, false, void>;
+extern template class graph_view_t<int32_t, int64_t, false, true, void>;
+extern template class graph_view_t<int32_t, int64_t, false, false, void>;
+extern template class graph_view_t<int64_t, int32_t, true, true, void>;
+extern template class graph_view_t<int64_t, int32_t, true, false, void>;
+extern template class graph_view_t<int64_t, int32_t, false, true, void>;
+extern template class graph_view_t<int64_t, int32_t, false, false, void>;
+extern template class graph_view_t<int64_t, int64_t, true, true, void>;
+extern template class graph_view_t<int64_t, int64_t, true, false, void>;
+extern template class graph_view_t<int64_t, int64_t, false, true, void>;
+extern template class graph_view_t<int64_t, int64_t, false, false, void>;
 }  // namespace cugraph

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
@@ -28,7 +29,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -143,7 +144,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   raft::handle_t const& handle,
-  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const edge_partition,
+  edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> const edge_partition,
+  std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>
+    edge_partition_weight_view,
   vertex_t const* major_label_first,
   EdgeMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets,
@@ -157,13 +160,14 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   rmm::device_uvector<vertex_t> edgelist_majors(edge_partition.number_of_edges(),
                                                 handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = edge_partition.weights()
+  auto edgelist_weights = edge_partition_weight_view
                             ? std::make_optional<rmm::device_uvector<weight_t>>(
                                 edgelist_majors.size(), handle.get_stream())
                             : std::nullopt;
   detail::decompress_edge_partition_to_edgelist(
     handle,
     edge_partition,
+    edge_partition_weight_view,
     edgelist_majors.data(),
     edgelist_minors.data(),
     edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
@@ -231,21 +235,26 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
 
 namespace detail {
 
+// FIXME: This function needs to be updated to support edge id/type
 // multi-GPU version
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<multi_gpu,
-                 std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool renumber,
-  bool do_expensive_check)
+std::enable_if_t<
+  multi_gpu,
+  std::tuple<
+    graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+    std::optional<
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
+    std::optional<rmm::device_uvector<vertex_t>>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+              vertex_t const* labels,
+              bool renumber,
+              bool do_expensive_check)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -272,10 +281,8 @@ coarsen_graph(
 
   std::conditional_t<
     store_transposed,
-    edge_src_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                        vertex_t>,
-    edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                        vertex_t>>
+    edge_src_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>,
+    edge_dst_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, vertex_t>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
     update_edge_src_property(handle, graph_view, labels, edge_minor_labels);
@@ -286,8 +293,8 @@ coarsen_graph(
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_minors{};
   auto coarsened_edgelist_weights =
-    graph_view.is_weighted() ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>({})
-                             : std::nullopt;
+    edge_weight_view ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>({})
+                     : std::nullopt;
   coarsened_edgelist_majors.reserve(graph_view.number_of_local_edge_partitions());
   coarsened_edgelist_minors.reserve(coarsened_edgelist_majors.size());
   if (coarsened_edgelist_weights) {
@@ -314,8 +321,13 @@ coarsen_graph(
     auto [edgelist_majors, edgelist_minors, edgelist_weights] =
       decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
         handle,
-        edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+        edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
           graph_view.local_edge_partition_view(i)),
+        edge_weight_view
+          ? std::make_optional<
+              detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
+              *edge_weight_view, i)
+          : std::nullopt,
         major_labels.data(),
         edge_minor_labels.view(),
         graph_view.local_edge_partition_segment_offsets(i),
@@ -323,11 +335,16 @@ coarsen_graph(
 
     // 1-2. globally shuffle
 
-    std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
-                                                  std::move(edgelist_majors),
-                                                  std::move(edgelist_minors),
-                                                  std::move(edgelist_weights));
+    std::tie(edgelist_majors, edgelist_minors, edgelist_weights, std::ignore) =
+      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                  edge_t,
+                                                                                  weight_t,
+                                                                                  int32_t>(
+        handle,
+        std::move(edgelist_majors),
+        std::move(edgelist_minors),
+        std::move(edgelist_weights),
+        std::nullopt);
 
     // 1-3. groupby and coarsen again
 
@@ -439,11 +456,17 @@ coarsen_graph(
                                                                 reversed_edgelist_majors.begin())));
     }
 
-    std::tie(reversed_edgelist_majors, reversed_edgelist_minors, reversed_edgelist_weights) =
-      cugraph::detail::shuffle_edgelist_by_gpu_id(handle,
-                                                  std::move(reversed_edgelist_majors),
-                                                  std::move(reversed_edgelist_minors),
-                                                  std::move(reversed_edgelist_weights));
+    std::tie(
+      reversed_edgelist_majors, reversed_edgelist_minors, reversed_edgelist_weights, std::ignore) =
+      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                  edge_t,
+                                                                                  weight_t,
+                                                                                  int32_t>(
+        handle,
+        std::move(reversed_edgelist_majors),
+        std::move(reversed_edgelist_minors),
+        std::move(reversed_edgelist_weights),
+        std::nullopt);
 
     auto output_offset = concatenated_edgelist_majors.size();
 
@@ -489,7 +512,8 @@ coarsen_graph(
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  unique_labels = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(unique_labels));
+  unique_labels = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+    handle, std::move(unique_labels));
 
   thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
   unique_labels.resize(
@@ -500,9 +524,12 @@ coarsen_graph(
 
   // 4. create a graph
 
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(coarsened_graph, std::ignore, renumber_map) =
+  std::tie(coarsened_graph, edge_weights, std::ignore, renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
@@ -517,6 +544,7 @@ coarsen_graph(
       do_expensive_check);
 
   return std::make_tuple(std::move(coarsened_graph),
+                         std::move(edge_weights),
                          std::optional<rmm::device_uvector<vertex_t>>{std::move(*renumber_map)});
 }
 
@@ -526,15 +554,19 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::enable_if_t<!multi_gpu,
-                 std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                            std::optional<rmm::device_uvector<vertex_t>>>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool renumber,
-  bool do_expensive_check)
+std::enable_if_t<
+  !multi_gpu,
+  std::tuple<
+    graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+    std::optional<
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
+    std::optional<rmm::device_uvector<vertex_t>>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+              vertex_t const* labels,
+              bool renumber,
+              bool do_expensive_check)
 {
   if (do_expensive_check) {
     if (!renumber) {
@@ -554,8 +586,13 @@ coarsen_graph(
   auto [coarsened_edgelist_majors, coarsened_edgelist_minors, coarsened_edgelist_weights] =
     decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
       handle,
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
         graph_view.local_edge_partition_view()),
+      edge_weight_view
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
+            *edge_weight_view, 0)
+        : std::nullopt,
       labels,
       detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
@@ -636,9 +673,12 @@ coarsen_graph(
     thrust::sequence(handle.get_thrust_policy(), vertices.begin(), vertices.end(), vertex_t{0});
   }
 
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(coarsened_graph, std::ignore, renumber_map) =
+  std::tie(coarsened_graph, edge_weights, std::ignore, renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::optional<rmm::device_uvector<vertex_t>>{std::move(vertices)},
@@ -652,7 +692,8 @@ coarsen_graph(
       renumber,
       do_expensive_check);
 
-  return std::make_tuple(std::move(coarsened_graph), std::move(*renumber_map));
+  return std::make_tuple(
+    std::move(coarsened_graph), std::move(edge_weights), std::move(*renumber_map));
 }
 
 }  // namespace detail
@@ -662,17 +703,20 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           std::optional<rmm::device_uvector<vertex_t>>>
-coarsen_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t const* labels,
-  bool renumber,
-  bool do_expensive_check)
+std::tuple<
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
+coarsen_graph(raft::handle_t const& handle,
+              graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+              vertex_t const* labels,
+              bool renumber,
+              bool do_expensive_check)
 {
-  do_expensive_check = true;
-  return detail::coarsen_graph(handle, graph_view, labels, renumber, do_expensive_check);
+  return detail::coarsen_graph(
+    handle, graph_view, edge_weight_view, labels, renumber, do_expensive_check);
 }
 
 }  // namespace cugraph

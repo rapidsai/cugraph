@@ -25,9 +25,9 @@
 namespace cugraph {
 namespace detail {
 
-template <typename NodeTypeT, typename EdgeTypeT, typename WeightT>
+template <typename NodeTypeT, typename EdgeTypeT>
 ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
-  graph_view_t<NodeTypeT, EdgeTypeT, WeightT, false, false> const& gview)
+  graph_view_t<NodeTypeT, EdgeTypeT, false, false> const& gview)
 {
   ops::gnn::graph::fg_csr<EdgeTypeT> graph;
   graph.n_nodes   = gview.number_of_vertices();
@@ -39,9 +39,9 @@ ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
   return graph;
 }
 
-template <typename NodeTypeT, typename EdgeTypeT, typename WeightT>
+template <typename NodeTypeT, typename EdgeTypeT>
 std::tuple<ops::gnn::graph::fg_csr<EdgeTypeT>, NodeTypeT> get_graph_and_max_degree(
-  graph_view_t<NodeTypeT, EdgeTypeT, WeightT, false, false> const& gview)
+  graph_view_t<NodeTypeT, EdgeTypeT, false, false> const& gview)
 {
   // FIXME this is sufficient for now, but if there is a fast (cached) way
   // of getting max degree, use that instead

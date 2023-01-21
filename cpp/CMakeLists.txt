@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.12.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 23.02.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -79,9 +79,21 @@ option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
+option(USE_RAFT_STATIC "Build raft as a static library" OFF)
+option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
+option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
+option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
+option(ALLOW_CLONE_CUGRAPH_OPS "Whether to attempt to clone cugraph-ops when a local version is not available" OFF)
+
+message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
+message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUGRAPH_OPS_STATIC=${CUGRAPH_USE_CUGRAPH_OPS_STATIC}")
+message(VERBOSE "CUGRAPH: CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL=${CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL}")
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
+
+# CUDA runtime
+rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph-exports
@@ -143,7 +155,7 @@ rapids_cpm_init()
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
 include(${rapids-cmake-dir}/cpm/cuco.cmake)
-rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports)
+rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports INSTALL_EXPORT_SET cugraph-exports)
 
 include(cmake/thirdparty/get_raft.cmake)
 
@@ -167,7 +179,7 @@ endif()
 
 set(CUGRAPH_SOURCES
     src/detail/shuffle_vertices.cu
-    src/detail/shuffle_edgelist.cu
+    src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/sampling/random_walks_mg.cu
@@ -242,6 +254,7 @@ set(CUGRAPH_SOURCES
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
     src/structure/induced_subgraph_mg.cu
+    src/structure/select_vertices.cpp
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
@@ -324,15 +337,25 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
+if(CUDA_STATIC_RUNTIME)
+  get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
+  target_include_directories(cugraph PUBLIC ${_includes})
+  # Add CTK include paths because we make our CTK library links private below
+  target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+endif()
+
 ################################################################################
 # - link libraries -------------------------------------------------------------
 if (USE_CUGRAPH_OPS)
     target_link_libraries(cugraph
         PUBLIC
+            rmm::rmm
             cugraph-ops::cugraph-ops++
-            raft::raft
-    	    raft::distance
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -340,9 +363,12 @@ if (USE_CUGRAPH_OPS)
 else()
     target_link_libraries(cugraph
         PUBLIC
-            raft::raft
-   	        raft::distance
+            rmm::rmm
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -377,6 +403,7 @@ add_library(cugraph_c
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
+        src/c_api/random.cpp
         src/c_api/similarity.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
@@ -422,6 +449,13 @@ target_include_directories(cugraph_c
         "$<INSTALL_INTERFACE:include>"
 )
 
+if(CUDA_STATIC_RUNTIME)
+  get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
+  target_include_directories(cugraph_c PUBLIC ${_includes})
+  # Add CTK include paths because we make our CTK library links private below
+  target_include_directories(cugraph_c SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+endif()
+
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
@@ -430,11 +464,14 @@ target_link_libraries(cugraph_c
                 CUDA::curand
                 CUDA::cusolver
                 CUDA::cusparse
-                raft::raft
-     	        raft::distance
+                rmm::rmm
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
 )
 
 ################################################################################
@@ -461,7 +498,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
         DESTINATION include/cugraph)
 
 install(TARGETS cugraph_c
-        DESTINATION ${lib_dir})
+        DESTINATION ${lib_dir}
+        EXPORT cugraph-exports)
 
 install(DIRECTORY include/cugraph_c/
         DESTINATION include/cugraph_c)

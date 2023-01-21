@@ -18,14 +18,14 @@
 // Author: Alex Fender afender@nvidia.com
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/error.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/error.hpp>
+#include <raft/core/handle.hpp>
 
 #include <cuda_profiler_api.h>
 
@@ -79,8 +79,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
     int m, k, nnz;
     MM_typecode mc;
 
-    HighResClock hr_clock;
-    double time_tmp;
+    HighResTimer hr_timer{};
 
     FILE* fpin = fopen(param.matrix_file.c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.matrix_file << ") failure.";
@@ -119,14 +118,14 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     cudaDeviceSynchronize();
 
-    hr_clock.start();
+    hr_timer.start("MST");
     cudaProfilerStart();
     auto mst_edges = cugraph::minimum_spanning_tree<int, int, T>(handle, G);
     cudaProfilerStop();
 
     cudaDeviceSynchronize();
-    hr_clock.stop(&time_tmp);
-    std::cout << "mst_time: " << time_tmp << " us" << std::endl;
+    hr_timer.stop();
+    hr_timer.display_and_clear(std::cout);
 
     auto expected_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(G_unique->view().edge_data),

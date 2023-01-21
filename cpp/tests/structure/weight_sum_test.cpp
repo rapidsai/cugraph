@@ -22,8 +22,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -87,18 +87,26 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
   {
     raft::handle_t handle{};
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
-    std::tie(graph, std::ignore) = cugraph::test::
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                               weight_t>>
+      edge_weights{std::nullopt};
+    std::tie(graph, edge_weights, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, true, false);
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     auto h_offsets =
       cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
     auto h_indices =
       cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
-    auto h_weights =
-      cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
+    auto h_weights = cugraph::test::to_host(
+      handle,
+      raft::device_span<weight_t const>((*edge_weight_view).value_firsts()[0],
+                                        (*edge_weight_view).edge_counts()[0]));
 
     std::vector<weight_t> h_reference_in_weight_sums(graph_view.number_of_vertices());
     std::vector<weight_t> h_reference_out_weight_sums(graph_view.number_of_vertices());
@@ -119,8 +127,9 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto d_in_weight_sums  = cugraph::compute_in_weight_sums(handle, graph_view);
-    auto d_out_weight_sums = cugraph::compute_out_weight_sums(handle, graph_view);
+    auto d_in_weight_sums = cugraph::compute_in_weight_sums(handle, graph_view, *edge_weight_view);
+    auto d_out_weight_sums =
+      cugraph::compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -27,8 +28,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/execution_policy.h>
@@ -53,21 +54,21 @@ int32_t constexpr transform_reduce_e_kernel_block_size = 128;
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void trasnform_reduce_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
-  using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
@@ -88,23 +89,23 @@ __global__ void trasnform_reduce_e_hypersparse(
     auto major_idx =
       major_start_offset + idx;  // major_offset != major_idx in the hypersparse region
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{thrust::nullopt};
+    edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_idx);
-    auto sum                                    = thrust::transform_reduce(
+    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_idx);
+    auto sum                                        = thrust::transform_reduce(
       thrust::seq,
       thrust::make_counting_iterator(edge_t{0}),
       thrust::make_counting_iterator(local_degree),
       [&edge_partition,
        &edge_partition_src_value_input,
        &edge_partition_dst_value_input,
+       &edge_partition_e_value_input,
        &e_op,
        major,
        indices,
-       weights] __device__(auto i) {
+       edge_offset] __device__(auto i) {
         auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
         auto minor        = indices[i];
-        auto weight       = weights ? (*weights)[i] : weight_t{1.0};
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
         auto src          = GraphViewType::is_storage_transposed ? minor : major;
         auto dst          = GraphViewType::is_storage_transposed ? major : minor;
@@ -112,17 +113,11 @@ __global__ void trasnform_reduce_e_hypersparse(
           GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
         auto dst_offset =
           GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-        return evaluate_edge_op<GraphViewType,
-                                vertex_t,
-                                EdgePartitionSrcValueInputWrapper,
-                                EdgePartitionDstValueInputWrapper,
-                                EdgeOp>()
-          .compute(src,
-                   dst,
-                   weight,
-                   edge_partition_src_value_input.get(src_offset),
-                   edge_partition_dst_value_input.get(dst_offset),
-                   e_op);
+        return e_op(src,
+                    dst,
+                    edge_partition_src_value_input.get(src_offset),
+                    edge_partition_dst_value_input.get(dst_offset),
+                    edge_partition_e_value_input.get(edge_offset + i));
       },
       e_op_result_t{},
       edge_property_add);
@@ -132,29 +127,29 @@ __global__ void trasnform_reduce_e_hypersparse(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void trasnform_reduce_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
-  using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -170,44 +165,38 @@ __global__ void trasnform_reduce_e_low_degree(
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{thrust::nullopt};
+    edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
-    auto sum                                    = thrust::transform_reduce(
+    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
+    auto sum                                        = thrust::transform_reduce(
       thrust::seq,
       thrust::make_counting_iterator(edge_t{0}),
       thrust::make_counting_iterator(local_degree),
       [&edge_partition,
        &edge_partition_src_value_input,
        &edge_partition_dst_value_input,
+       &edge_partition_e_value_input,
        &e_op,
        major_offset,
        indices,
-       weights] __device__(auto i) {
+       edge_offset] __device__(auto i) {
         auto minor        = indices[i];
-        auto weight       = weights ? (*weights)[i] : weight_t{1.0};
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
         auto src          = GraphViewType::is_storage_transposed
-                                                                 ? minor
-                                                                 : edge_partition.major_from_major_offset_nocheck(major_offset);
+                                                                     ? minor
+                                                                     : edge_partition.major_from_major_offset_nocheck(major_offset);
         auto dst          = GraphViewType::is_storage_transposed
-                                                                 ? edge_partition.major_from_major_offset_nocheck(major_offset)
-                                                                 : minor;
+                                                                     ? edge_partition.major_from_major_offset_nocheck(major_offset)
+                                                                     : minor;
         auto src_offset =
           GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
         auto dst_offset =
           GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-        return evaluate_edge_op<GraphViewType,
-                                vertex_t,
-                                EdgePartitionSrcValueInputWrapper,
-                                EdgePartitionDstValueInputWrapper,
-                                EdgeOp>()
-          .compute(src,
-                   dst,
-                   weight,
-                   edge_partition_src_value_input.get(src_offset),
-                   edge_partition_dst_value_input.get(dst_offset),
-                   e_op);
+        return e_op(src,
+                    dst,
+                    edge_partition_src_value_input.get(src_offset),
+                    edge_partition_dst_value_input.get(dst_offset),
+                    edge_partition_e_value_input.get(edge_offset + i));
       },
       e_op_result_t{},
       edge_property_add);
@@ -217,29 +206,29 @@ __global__ void trasnform_reduce_e_low_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void trasnform_reduce_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
-  using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -256,12 +245,11 @@ __global__ void trasnform_reduce_e_mid_degree(
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{thrust::nullopt};
+    edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       auto minor        = indices[i];
-      auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
       auto src          = GraphViewType::is_storage_transposed
                             ? minor
@@ -273,46 +261,40 @@ __global__ void trasnform_reduce_e_mid_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          vertex_t,
-                                          EdgePartitionSrcValueInputWrapper,
-                                          EdgePartitionDstValueInputWrapper,
-                                          EdgeOp>()
-                           .compute(src,
-                                    dst,
-                                    weight,
-                                    edge_partition_src_value_input.get(src_offset),
-                                    edge_partition_dst_value_input.get(dst_offset),
-                                    e_op);
-      e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
+      auto e_op_result = e_op(src,
+                              dst,
+                              edge_partition_src_value_input.get(src_offset),
+                              edge_partition_dst_value_input.get(dst_offset),
+                              edge_partition_e_value_input.get(edge_offset + i));
+      e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x * (blockDim.x / raft::warp_size());
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
 __global__ void trasnform_reduce_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
   typename GraphViewType::vertex_type major_range_first,
   typename GraphViewType::vertex_type major_range_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultIterator result_iter /* size 1 */,
   EdgeOp e_op)
 {
   using vertex_t      = typename GraphViewType::vertex_type;
   using edge_t        = typename GraphViewType::edge_type;
-  using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
   auto major_start_offset =
@@ -326,12 +308,11 @@ __global__ void trasnform_reduce_e_high_degree(
   while (idx < static_cast<size_t>(major_range_last - major_range_first)) {
     auto major_offset = major_start_offset + idx;
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{thrust::nullopt};
+    edge_t edge_offset{};
     edge_t local_degree{};
-    thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+    thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       auto minor        = indices[i];
-      auto weight       = weights ? (*weights)[i] : weight_t{1.0};
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
       auto src          = GraphViewType::is_storage_transposed
                             ? minor
@@ -343,24 +324,18 @@ __global__ void trasnform_reduce_e_high_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          vertex_t,
-                                          EdgePartitionSrcValueInputWrapper,
-                                          EdgePartitionDstValueInputWrapper,
-                                          EdgeOp>()
-                           .compute(src,
-                                    dst,
-                                    weight,
-                                    edge_partition_src_value_input.get(src_offset),
-                                    edge_partition_dst_value_input.get(dst_offset),
-                                    e_op);
-      e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
+      auto e_op_result = e_op(src,
+                              dst,
+                              edge_partition_src_value_input.get(src_offset),
+                              edge_partition_dst_value_input.get(dst_offset),
+                              edge_partition_e_value_input.get(edge_offset + i));
+      e_op_result_sum  = edge_property_add(e_op_result_sum, e_op_result);
     }
     idx += gridDim.x;
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 }  // namespace detail
@@ -373,6 +348,7 @@ __global__ void trasnform_reduce_e_high_degree(
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -388,9 +364,12 @@ __global__ void trasnform_reduce_e_high_degree(
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be reduced.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns a value to be reduced.
  * @param init Initial value to be added to the reduced @p edge_op outputs.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Transform-reduced @p edge_op outputs.
@@ -398,12 +377,14 @@ __global__ void trasnform_reduce_e_high_degree(
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 T transform_reduce_e(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
                      EdgeSrcValueInputWrapper edge_src_value_input,
                      EdgeDstValueInputWrapper edge_dst_value_input,
+                     EdgeValueInputWrapper edge_value_input,
                      EdgeOp e_op,
                      T init,
                      bool do_expensive_check = false)
@@ -412,7 +393,6 @@ T transform_reduce_e(raft::handle_t const& handle,
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -434,6 +414,12 @@ T transform_reduce_e(raft::handle_t const& handle,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeDstValueInputWrapper::value_iterator>>>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator>>;
 
   if (do_expensive_check) {
     // currently, nothing to do
@@ -449,7 +435,7 @@ T transform_reduce_e(raft::handle_t const& handle,
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
@@ -463,6 +449,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         edge_partition_src_input_device_view_t(edge_src_value_input, i);
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     if (segment_offsets) {
@@ -481,6 +468,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition.major_range_first() + (*segment_offsets)[1],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
+            edge_partition_e_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -495,6 +483,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition.major_range_first() + (*segment_offsets)[2],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
+            edge_partition_e_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -509,6 +498,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition.major_range_first() + (*segment_offsets)[3],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
+            edge_partition_e_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -521,6 +511,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
+            edge_partition_e_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -537,6 +528,7 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition.major_range_last(),
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
+            edge_partition_e_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -566,6 +558,7 @@ T transform_reduce_e(raft::handle_t const& handle,
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -580,29 +573,34 @@ T transform_reduce_e(raft::handle_t const& handle,
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be reduced.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns a value to be reduced.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Transform-reduced @p edge_op outputs.
  */
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp>
 auto transform_reduce_e(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
                         EdgeSrcValueInputWrapper edge_src_value_input,
                         EdgeDstValueInputWrapper edge_dst_value_input,
+                        EdgeValueInputWrapper edge_value_input,
                         EdgeOp e_op,
                         bool do_expensive_check = false)
 {
   using vertex_t    = typename GraphViewType::vertex_type;
-  using weight_t    = typename GraphViewType::weight_type;
   using src_value_t = typename EdgeSrcValueInputWrapper::value_type;
   using dst_value_t = typename EdgeDstValueInputWrapper::value_type;
+  using e_value_t   = typename EdgeValueInputWrapper::value_type;
   using T           = typename detail::
-    edge_op_result_type<vertex_t, vertex_t, weight_t, src_value_t, dst_value_t, EdgeOp>::type;
+    edge_op_result_type<vertex_t, vertex_t, src_value_t, dst_value_t, e_value_t, EdgeOp>::type;
   static_assert(!std::is_same_v<T, void>);
 
   if (do_expensive_check) {
@@ -610,7 +608,7 @@ auto transform_reduce_e(raft::handle_t const& handle,
   }
 
   return transform_reduce_e(
-    handle, graph_view, edge_src_value_input, edge_dst_value_input, e_op, T{});
+    handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_value_input, e_op, T{});
 }
 
 }  // namespace cugraph

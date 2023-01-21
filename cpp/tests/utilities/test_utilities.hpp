@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <raft/handle.hpp>
-#include <raft/span.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/core/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -133,7 +133,10 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<
+             cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                                      weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
@@ -175,8 +178,10 @@ decltype(auto) make_graph(raft::handle_t const& handle,
     raft::update_device((*d_w).data(), (*v_w).data(), (*d_w).size(), handle.get_stream());
   }
 
-  cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-  std::tie(graph, std::ignore, std::ignore) =
+  cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+  std::optional<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+    edge_weights{std::nullopt};
+  std::tie(graph, edge_weights, std::ignore, std::ignore) =
     cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
       handle,
       std::nullopt,
@@ -187,7 +192,7 @@ decltype(auto) make_graph(raft::handle_t const& handle,
       cugraph::graph_properties_t{false, false},
       false);
 
-  return graph;
+  return std::make_tuple(std::move(graph), std::move(edge_weights));
 }
 
 // compares single GPU CSR graph data:
@@ -453,6 +458,7 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   return v;
 }
 
+// If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -461,9 +467,10 @@ template <typename vertex_t,
 std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
 graph_to_host_coo(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
-    graph_view);
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
+// If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -472,15 +479,20 @@ template <typename vertex_t,
 std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
 graph_to_host_csr(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
-    graph_view);
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
+// Only the rank 0 GPU holds the valid data
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
+           std::optional<cugraph::edge_property_t<
+             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+             weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, true> const& graph_view,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<rmm::device_uvector<vertex_t>> const& number_map,
   bool renumber);
 

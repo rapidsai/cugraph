@@ -23,12 +23,13 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
@@ -62,10 +63,8 @@ struct e_op_t {
                // will eat-up more memory with no benefit in performance in large-scale).
   vertex_t dst_first{};  // relevant only if multi_gpu is true
 
-  __device__ thrust::optional<vertex_t> operator()(vertex_t src,
-                                                   vertex_t dst,
-                                                   thrust::nullopt_t,
-                                                   thrust::nullopt_t) const
+  __device__ thrust::optional<vertex_t> operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
   {
     bool push{};
     if constexpr (multi_gpu) {
@@ -237,6 +236,7 @@ void bfs(raft::handle_t const& handle,
                                                       vertex_frontier.bucket(bucket_idx_cur),
                                                       edge_src_dummy_property_t{}.view(),
                                                       edge_dst_dummy_property_t{}.view(),
+                                                      edge_dummy_property_t{}.view(),
 #if 1
                                                       e_op,
 #else
@@ -244,7 +244,7 @@ void bfs(raft::handle_t const& handle,
           // communication in updating dst_visited_flags (+ using atomics) vs reduced number of
           // pushes (leading to both less computation & communication in reduction)
           [vertex_partition, distances] __device__(
-            vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+            vertex_t src, vertex_t dst, auto, auto, auto) {
             auto push = true;
             if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
               auto distance =
@@ -288,9 +288,9 @@ void bfs(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void bfs(raft::handle_t const& handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+         graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
          vertex_t const* sources,

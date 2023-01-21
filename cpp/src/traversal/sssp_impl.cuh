@@ -30,7 +30,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -53,7 +53,7 @@ struct e_op_t {
   weight_t cutoff{};
 
   __device__ thrust::optional<thrust::tuple<weight_t, vertex_t>> operator()(
-    vertex_t src, vertex_t dst, weight_t w, weight_t src_val, thrust::nullopt_t) const
+    vertex_t src, vertex_t dst, weight_t src_val, thrust::nullopt_t, weight_t w) const
   {
     auto push         = true;
     auto new_distance = src_val + w;
@@ -75,17 +75,17 @@ struct e_op_t {
 
 namespace detail {
 
-template <typename GraphViewType, typename PredecessorIterator>
+template <typename GraphViewType, typename weight_t, typename PredecessorIterator>
 void sssp(raft::handle_t const& handle,
           GraphViewType const& push_graph_view,
-          typename GraphViewType::weight_type* distances,
+          edge_property_view_t<typename GraphViewType::edge_type, weight_t const*> edge_weight_view,
+          weight_t* distances,
           PredecessorIterator predecessor_first,
           typename GraphViewType::vertex_type source_vertex,
-          typename GraphViewType::weight_type cutoff,
+          weight_t cutoff,
           bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
@@ -104,9 +104,6 @@ void sssp(raft::handle_t const& handle,
 
   CUGRAPH_EXPECTS(push_graph_view.is_valid_vertex(source_vertex),
                   "Invalid input argument: source vertex out-of-range.");
-  CUGRAPH_EXPECTS(push_graph_view.is_weighted(),
-                  "Invalid input argument: an unweighted graph is passed to SSSP, BFS is more "
-                  "efficient for unweighted graphs.");
 
   if (do_expensive_check) {
     auto num_negative_edge_weights =
@@ -114,9 +111,10 @@ void sssp(raft::handle_t const& handle,
                  push_graph_view,
                  edge_src_dummy_property_t{}.view(),
                  edge_dst_dummy_property_t{}.view(),
-                 [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
+                 edge_weight_view,
+                 [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w < 0.0; });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
-                    "Invalid input argument: input graph should have non-negative edge weights.");
+                    "Invalid input argument: input edge weights should have non-negative values.");
   }
 
   // 2. initialize distances and predecessors
@@ -147,7 +145,8 @@ void sssp(raft::handle_t const& handle,
     push_graph_view,
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
-    [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) {
+    edge_weight_view,
+    [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) {
       return thrust::make_tuple(weight_t{1.0}, w);
     },
     thrust::make_tuple(weight_t{0.0}, weight_t{0.0}));
@@ -204,6 +203,7 @@ void sssp(raft::handle_t const& handle,
           ? edge_src_distances.view()
           : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
         edge_dst_dummy_property_t{}.view(),
+        edge_weight_view,
         e_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
           vertex_partition, distances, cutoff},
         reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
@@ -271,7 +271,8 @@ void sssp(raft::handle_t const& handle,
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void sssp(raft::handle_t const& handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+          graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+          edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
           weight_t* distances,
           vertex_t* predecessors,
           vertex_t source_vertex,
@@ -279,11 +280,18 @@ void sssp(raft::handle_t const& handle,
           bool do_expensive_check)
 {
   if (predecessors != nullptr) {
-    detail::sssp(
-      handle, graph_view, distances, predecessors, source_vertex, cutoff, do_expensive_check);
+    detail::sssp(handle,
+                 graph_view,
+                 edge_weight_view,
+                 distances,
+                 predecessors,
+                 source_vertex,
+                 cutoff,
+                 do_expensive_check);
   } else {
     detail::sssp(handle,
                  graph_view,
+                 edge_weight_view,
                  distances,
                  thrust::make_discard_iterator(),
                  source_vertex,

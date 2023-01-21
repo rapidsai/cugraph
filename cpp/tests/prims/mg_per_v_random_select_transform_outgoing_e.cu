@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -28,18 +27,26 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
-
-#include <cugraph/graph_view.hpp>
+#if 1  // for random seed selection
+#include <cugraph/utilities/shuffle_comm.cuh>
+#endif
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/tuple.h>
+#if 1  // for random seed selection
+#include <thrust/random.h>
+#include <thrust/shuffle.h>
+#endif
 
 #include <gtest/gtest.h>
 
@@ -51,10 +58,8 @@ struct e_op_t {
                                                       cugraph::to_thrust_tuple(property_t{}),
                                                       cugraph::to_thrust_tuple(property_t{})));
 
-  __device__ result_t operator()(vertex_t src,
-                                 vertex_t dst,
-                                 property_t src_prop,
-                                 property_t dst_prop) const
+  __device__ result_t operator()(
+    vertex_t src, vertex_t dst, property_t src_prop, property_t dst_prop, thrust::nullopt_t) const
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
       static_assert(thrust::tuple_size<property_t>::value == size_t{2});
@@ -71,6 +76,7 @@ struct e_op_t {
 };
 
 struct Prims_Usecase {
+  size_t num_seeds{0};
   size_t K{0};
   bool with_replacement{false};
   bool use_invalid_value{false};
@@ -84,7 +90,16 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
  public:
   Tests_MGPerVRandomSelectTransformOutgoingE() {}
 
-  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+  static void SetUpTestCase()
+  {
+    handle_ = cugraph::test::initialize_mg_handle();
+#if 1  // FIXME: for benchmarking, delete once benchmarking is finished.
+    cugraph::test::enforce_p2p_initialization(handle_->get_comms(), handle_->get_stream());
+    cugraph::test::enforce_p2p_initialization(
+      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()),
+      handle_->get_stream());
+#endif
+  }
 
   static void TearDownTestCase() { handle_.reset(); }
 
@@ -95,7 +110,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
   template <typename vertex_t, typename edge_t, typename weight_t, typename property_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
@@ -105,19 +120,20 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -133,12 +149,58 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     auto mg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
+    // FIXME: better refactor this random seed generation code for reuse
+#if 1
     auto mg_vertex_buffer = rmm::device_uvector<vertex_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
     thrust::sequence(handle_->get_thrust_policy(),
-                     cugraph::get_dataframe_buffer_begin(mg_vertex_buffer),
-                     cugraph::get_dataframe_buffer_end(mg_vertex_buffer),
+                     mg_vertex_buffer.begin(),
+                     mg_vertex_buffer.end(),
                      mg_graph_view.local_vertex_partition_range_first());
+
+    thrust::shuffle(handle_->get_thrust_policy(),
+                    mg_vertex_buffer.begin(),
+                    mg_vertex_buffer.end(),
+                    thrust::default_random_engine());
+
+    std::vector<size_t> tx_value_counts(comm_size);
+    for (int i = 0; i < comm_size; ++i) {
+      tx_value_counts[i] =
+        mg_vertex_buffer.size() / comm_size +
+        (static_cast<size_t>(i) < static_cast<size_t>(mg_vertex_buffer.size() % comm_size) ? 1 : 0);
+    }
+    std::tie(mg_vertex_buffer, std::ignore) = cugraph::shuffle_values(
+      handle_->get_comms(), mg_vertex_buffer.begin(), tx_value_counts, handle_->get_stream());
+    thrust::shuffle(handle_->get_thrust_policy(),
+                    mg_vertex_buffer.begin(),
+                    mg_vertex_buffer.end(),
+                    thrust::default_random_engine());
+
+    auto num_seeds =
+      std::min(prims_usecase.num_seeds, static_cast<size_t>(mg_graph_view.number_of_vertices()));
+    auto num_seeds_this_gpu =
+      num_seeds / comm_size +
+      (static_cast<size_t>(comm_rank) < static_cast<size_t>(num_seeds % comm_size ? 1 : 0));
+
+    auto buffer_sizes = cugraph::host_scalar_allgather(
+      handle_->get_comms(), mg_vertex_buffer.size(), handle_->get_stream());
+    auto min_buffer_size = *std::min_element(buffer_sizes.begin(), buffer_sizes.end());
+    if (min_buffer_size <= num_seeds / comm_size) {
+      auto new_sizes    = std::vector<size_t>(comm_size, min_buffer_size);
+      auto num_deficits = num_seeds - min_buffer_size * comm_size;
+      for (int i = 0; i < comm_size; ++i) {
+        auto delta = std::min(num_deficits, mg_vertex_buffer.size() - new_sizes[i]);
+        new_sizes[i] += delta;
+        num_deficits -= delta;
+      }
+      num_seeds_this_gpu = new_sizes[comm_rank];
+    }
+    mg_vertex_buffer.resize(num_seeds_this_gpu, handle_->get_stream());
+    mg_vertex_buffer.shrink_to_fit(handle_->get_stream());
+
+    mg_vertex_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(mg_vertex_buffer), mg_graph_view.vertex_partition_range_lasts());
+#endif
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
@@ -165,7 +227,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG per_v_random_select_transform_outgoing_e");
     }
 
     auto [sample_offsets, sample_e_op_results] =
@@ -174,6 +236,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                                         mg_vertex_frontier.bucket(bucket_idx_cur),
                                                         mg_src_prop.view(),
                                                         mg_dst_prop.view(),
+                                                        cugraph::edge_dummy_property_t{}.view(),
                                                         e_op_t<vertex_t, property_t>{},
                                                         rng_state,
                                                         prims_usecase.K,
@@ -183,10 +246,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG per_v_random_select_transform_outgoing_e took " << elapsed_time * 1e-6
-                << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. validate MG results
@@ -196,8 +257,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(*handle_);
-      std::tie(unrenumbered_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
+      std::tie(unrenumbered_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           *handle_, input_usecase, prims_usecase.test_weighted, false);
       auto unrenumbered_graph_view = unrenumbered_graph.view();
@@ -358,6 +419,22 @@ TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt32Int32FloatTupl
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
+TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt32Int64FloatTupleIntFloat)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt64Int64FloatTupleIntFloat)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
 TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
@@ -372,14 +449,30 @@ TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt32Int32Float)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
+TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt32Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGPerVRandomSelectTransformOutgoingE_Rmat, CheckInt64Int64Float)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{size_t{4}, false, false, false, true},
-                      Prims_Usecase{size_t{4}, false, true, false, true},
-                      Prims_Usecase{size_t{4}, true, false, false, true},
-                      Prims_Usecase{size_t{4}, true, true, false, true}),
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -388,21 +481,27 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{4}, false, false, false, true},
-                                       Prims_Usecase{size_t{4}, false, true, false, true},
-                                       Prims_Usecase{size_t{4}, true, false, false, true},
-                                       Prims_Usecase{size_t{4}, true, true, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{1000}, size_t{4}, false, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, false, true, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, false, false, true},
+                      Prims_Usecase{size_t{1000}, size_t{4}, true, true, false, true}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{4}, false, false, false, false},
-                                       Prims_Usecase{size_t{4}, false, true, false, false},
-                                       Prims_Usecase{size_t{4}, true, false, false, false},
-                                       Prims_Usecase{size_t{4}, true, true, false, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{10000000}, size_t{25}, false, false, false, false},
+                      Prims_Usecase{size_t{10000000}, size_t{25}, false, true, false, false},
+                      Prims_Usecase{size_t{10000000}, size_t{25}, true, false, false, false},
+                      Prims_Usecase{size_t{10000000}, size_t{25}, true, true, false, false}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

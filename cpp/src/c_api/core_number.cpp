@@ -64,12 +64,10 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
-        if (error_code_ != CUGRAPH_SUCCESS)
-          ;
+        if (error_code_ != CUGRAPH_SUCCESS) return;
       }
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
 
@@ -80,14 +78,13 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
 
       auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
 
-      cugraph::core_number<vertex_t, edge_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        core_numbers.data(),
-        degree_type,
-        size_t{0},
-        std::numeric_limits<size_t>::max(),
-        do_expensive_check_);
+      cugraph::core_number<vertex_t, edge_t, multi_gpu>(handle_,
+                                                        graph_view,
+                                                        core_numbers.data(),
+                                                        degree_type,
+                                                        size_t{0},
+                                                        std::numeric_limits<size_t>::max(),
+                                                        do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());

@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cugraph/edge_property.hpp>
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -30,10 +31,12 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
-egonet_reference(raft::handle_t const& handle,
-                 cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
-                 raft::device_span<vertex_t const> ego_sources,
-                 int radius);
+egonet_reference(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  raft::device_span<vertex_t const> ego_sources,
+  int radius);
 
 template <typename vertex_t, typename weight_t>
 void egonet_validate(raft::handle_t const& handle,

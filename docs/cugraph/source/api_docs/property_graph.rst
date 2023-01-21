@@ -1,7 +1,7 @@
 ====================
 Property Graph
 ====================
-.. currentmodule:: cugraph.structure.property_graph
+.. currentmodule:: cugraph.experimental
 
 
 Property Graph
@@ -9,21 +9,21 @@ Property Graph
 .. autosummary::
    :toctree: api/
 
-   EXPERIMENTAL__PropertySelection
-   EXPERIMENTAL__PropertyGraph
-   EXPERIMENTAL__PropertyGraph.add_edge_data
-   EXPERIMENTAL__PropertyGraph.add_vertex_data
-   EXPERIMENTAL__PropertyGraph.annotate_dataframe
-   EXPERIMENTAL__PropertyGraph.edge_props_to_graph
-   EXPERIMENTAL__PropertyGraph.extract_subgraph
-   EXPERIMENTAL__PropertyGraph.get_edge_data
-   EXPERIMENTAL__PropertyGraph.get_num_edges
-   EXPERIMENTAL__PropertyGraph.get_num_vertices
-   EXPERIMENTAL__PropertyGraph.get_vertex_data
-   EXPERIMENTAL__PropertyGraph.get_vertices
-   EXPERIMENTAL__PropertyGraph.has_duplicate_edges
-   EXPERIMENTAL__PropertyGraph.is_multigraph
-   EXPERIMENTAL__PropertyGraph.renumber_edges_by_type
-   EXPERIMENTAL__PropertyGraph.renumber_vertices_by_type
-   EXPERIMENTAL__PropertyGraph.select_edges
-   EXPERIMENTAL__PropertyGraph.select_vertices
+   PropertySelection
+   PropertyGraph
+   PropertyGraph.add_edge_data
+   PropertyGraph.add_vertex_data
+   PropertyGraph.annotate_dataframe
+   PropertyGraph.edge_props_to_graph
+   PropertyGraph.extract_subgraph
+   PropertyGraph.get_edge_data
+   PropertyGraph.get_num_edges
+   PropertyGraph.get_num_vertices
+   PropertyGraph.get_vertex_data
+   PropertyGraph.get_vertices
+   PropertyGraph.has_duplicate_edges
+   PropertyGraph.is_multigraph
+   PropertyGraph.renumber_edges_by_type
+   PropertyGraph.renumber_vertices_by_type
+   PropertyGraph.select_edges
+   PropertyGraph.select_vertices

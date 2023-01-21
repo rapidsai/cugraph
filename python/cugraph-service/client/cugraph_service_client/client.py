@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph_service_client.remote_graph_utils import import_optional, MissingModule
+
+import numpy as np
+
 from functools import wraps
 from collections.abc import Sequence
 import pickle
@@ -19,7 +23,6 @@ import ucp
 import asyncio
 import threading
 
-import cupy as cp
 
 from cugraph_service_client import defaults
 from cugraph_service_client.remote_graph import RemoteGraph
@@ -30,6 +33,83 @@ from cugraph_service_client.types import (
     UniformNeighborSampleResult,
 )
 from cugraph_service_client.cugraph_service_thrift import create_client
+
+cp = import_optional("cupy")
+cudf = import_optional("cudf")
+pandas = import_optional("pandas")
+
+cupy_installed = not isinstance(cp, MissingModule)
+cudf_installed = not isinstance(cudf, MissingModule)
+pandas_installed = not isinstance(pandas, MissingModule)
+
+
+class RunAsyncioThread(threading.Thread):
+    """
+    This class provides a thread whose purpose is to start a new
+    event loop and call the provided function.
+    """
+
+    def __init__(self, func, args, kwargs):
+        """
+        Parameters
+        ----------
+        func : function
+            The function that will be run.
+        *args : args
+            The arguments to the given function.
+        **kwargs : kwargs
+            The keyword arguments to the given function.
+        """
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        self.result = None
+        super().__init__()
+
+    def run(self):
+        """
+        Runs this thread's previously-provided function inside
+        a new event loop.  Returns the result.
+
+        Returns
+        -------
+        The returned object of the previously-provided function.
+        """
+        self.result = asyncio.run(self.func(*self.args, **self.kwargs))
+
+
+def run_async(func, *args, **kwargs):
+    """
+    If no loop is running on the current thread,
+    this method calls func using a new event
+    loop using asyncio.run.  If a loop is running, this
+    method starts a new thread, and calls func on a new
+    event loop in the new thread.
+
+    Parameters
+    ----------
+    func : function
+        The function that will be run.
+    *args : args
+        The arguments to the given function.
+    **kwargs : kwargs
+        The keyword arguments to the given function.
+
+    Returns
+    -------
+    The output of the given function.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None:
+        thread = RunAsyncioThread(func, args, kwargs)
+        thread.start()
+        thread.join()
+        return thread.result
+    else:
+        return asyncio.run(func(*args, **kwargs))
 
 
 class DeviceArrayAllocator:
@@ -791,6 +871,28 @@ class CugraphServiceClient:
         )
 
     @__server_connection
+    def renumber_vertices_by_type(
+        self, prev_id_column=None, graph_id=defaults.graph_id
+    ):
+        """
+        Renumbers the vertices in the graph referenced by graph id to be contiguous
+        by vertex type.  Returns the start and end vertex id ranges for each type.
+        """
+        if prev_id_column is None:
+            prev_id_column = ""
+        return self.__client.renumber_vertices_by_type(prev_id_column, graph_id)
+
+    @__server_connection
+    def renumber_edges_by_type(self, prev_id_column=None, graph_id=defaults.graph_id):
+        """
+        Renumbers the edges in the graph referenced by graph id to be contiguous
+        by edge type.  Returns the start and end edge id ranges for each type.
+        """
+        if prev_id_column is None:
+            prev_id_column = ""
+        return self.__client.renumber_edges_by_type(prev_id_column, graph_id)
+
+    @__server_connection
     def extract_subgraph(
         self,
         create_using=None,
@@ -1197,12 +1299,17 @@ class CugraphServiceClient:
             result.indices: CuPy array
                 Contains the indices from the sampling result for path reconstruction
         """
+
         if result_device is not None:
-            result_obj = asyncio.run(
-                self.__uniform_neighbor_sample_to_device(
-                    start_list, fanout_vals, with_replacement, graph_id, result_device
-                )
+            result_obj = run_async(
+                self.__uniform_neighbor_sample_to_device,
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                result_device,
             )
+
         else:
             result_obj = self.__client.uniform_neighbor_sample(
                 start_list,
@@ -1433,9 +1540,26 @@ class CugraphServiceClient:
 
     @staticmethod
     def __get_vertex_edge_id_obj(id_or_ids):
-        # FIXME: do not assume all values are int32
+        # Force np.ndarray
+        if not isinstance(id_or_ids, (int, Sequence, np.ndarray)):
+            if cupy_installed and isinstance(id_or_ids, cp.ndarray):
+                id_or_ids = id_or_ids.get()
+            elif cudf_installed and isinstance(id_or_ids, cudf.Series):
+                id_or_ids = id_or_ids.values_host
+            elif pandas_installed and isinstance(id_or_ids, pandas.Series):
+                id_or_ids = id_or_ids.to_numpy()
+            else:
+                raise ValueError(
+                    f"No available module for processing {type(id_or_ids)}"
+                )
+
         if isinstance(id_or_ids, Sequence):
-            vert_edge_id_obj = GraphVertexEdgeID(int32_ids=id_or_ids)
+            vert_edge_id_obj = GraphVertexEdgeID(int64_ids=id_or_ids)
+        elif isinstance(id_or_ids, np.ndarray):
+            if id_or_ids.dtype == "int32":
+                vert_edge_id_obj = GraphVertexEdgeID(int32_ids=id_or_ids)
+            elif id_or_ids.dtype == "int64":
+                vert_edge_id_obj = GraphVertexEdgeID(int64_ids=id_or_ids)
         else:
-            vert_edge_id_obj = GraphVertexEdgeID(int32_id=id_or_ids)
+            vert_edge_id_obj = GraphVertexEdgeID(int64_id=id_or_ids)
         return vert_edge_id_obj

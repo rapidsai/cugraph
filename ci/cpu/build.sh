@@ -29,12 +29,19 @@ fi
 export GPUCI_CONDA_RETRY_MAX=1
 export GPUCI_CONDA_RETRY_SLEEP=30
 
+# Workaround to keep Jenkins builds working
+# until we migrate fully to GitHub Actions
+export RAPIDS_CUDA_VERSION="${CUDA}"
+export SCCACHE_BUCKET=rapids-sccache
+export SCCACHE_REGION=us-west-2
+export SCCACHE_IDLE_TIMEOUT=32768
+
 # Use Ninja to build
 export CMAKE_GENERATOR="Ninja"
 export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
 
 # ucx-py version
-export UCX_PY_VERSION='0.29.*'
+export UCX_PY_VERSION='0.30.*'
 
 # Whether to keep `dask/label/dev` channel in the env. If INSTALL_DASK_MAIN=0,
 # `dask/label/dev` channel is removed.
@@ -115,6 +122,8 @@ if [ "$BUILD_CUGRAPH" == "1" ]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
     gpuci_logger "cugraph-service"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service --python=$PYTHON
+    gpuci_logger "cugraph-pyg"
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-pyg --python=$PYTHON
     gpuci_logger "cugraph-dgl"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-dgl --python=$PYTHON -c dglteam -c pytorch
   else
@@ -124,6 +133,8 @@ if [ "$BUILD_CUGRAPH" == "1" ]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
     gpuci_logger "cugraph-service"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_logger "cugraph-pyg"
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-pyg -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
     gpuci_logger "cugraph-dgl"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-dgl -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON -c dglteam -c pytorch
 
@@ -138,5 +149,6 @@ fi
 # UPLOAD - Conda packages
 ################################################################################
 
-gpuci_logger "Upload conda packages"
-source ci/cpu/upload.sh
+# Uploads disabled due to new GH Actions implementation
+# gpuci_logger "Upload conda pkgs"
+# source ci/cpu/upload.sh

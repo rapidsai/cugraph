@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,8 @@ struct invalid_or_outside_local_vertex_partition_range_t {
 
 template <typename vertex_t>
 struct is_not_self_loop_t {
-  __device__ bool operator()(vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t) const
+  __device__ bool operator()(
+    vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
   {
     return src != dst;
   }
@@ -73,10 +74,8 @@ struct is_two_or_greater_t {
 
 template <typename vertex_t>
 struct in_two_core_t {
-  __device__ bool operator()(vertex_t,
-                             vertex_t,
-                             uint8_t src_in_two_core,
-                             uint8_t dst_in_two_core) const
+  __device__ bool operator()(
+    vertex_t, vertex_t, uint8_t src_in_two_core, uint8_t dst_in_two_core, thrust::nullopt_t) const
   {
     return (src_in_two_core == uint8_t{1}) && (dst_in_two_core == uint8_t{1});
   }
@@ -87,7 +86,8 @@ struct low_to_high_degree_t {
   __device__ bool operator()(vertex_t src,
                              vertex_t dst,
                              edge_t src_out_degree,
-                             edge_t dst_out_degree) const
+                             edge_t dst_out_degree,
+                             thrust::nullopt_t) const
   {
     return (src_out_degree < dst_out_degree) ? true
                                              : (((src_out_degree == dst_out_degree) &&
@@ -142,13 +142,15 @@ struct vertex_offset_from_vertex_t {
 
 }  // namespace
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void triangle_count(raft::handle_t const& handle,
-                    graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                    graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                     std::optional<raft::device_span<vertex_t const>> vertices,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check)
 {
+  using weight_t = float;  // dummy
+
   // 1. Check input arguments.
 
   CUGRAPH_EXPECTS(
@@ -192,26 +194,27 @@ void triangle_count(raft::handle_t const& handle,
 
   // 2. Exclude self-loops (FIXME: better mask-out once we add masking support).
 
-  std::optional<graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>> modified_graph{std::nullopt};
-  std::optional<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>> modified_graph_view{
-    std::nullopt};
+  std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
+  std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
-    rmm::device_uvector<vertex_t> srcs(size_t{0}, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts(size_t{0}, handle.get_stream());
-    std::tie(srcs, dsts, std::ignore) = extract_if_e(handle,
-                                                     graph_view,
-                                                     edge_src_dummy_property_t{}.view(),
-                                                     edge_dst_dummy_property_t{}.view(),
-                                                     is_not_self_loop_t<vertex_t>{});
+    auto [srcs, dsts] = extract_if_e(handle,
+                                     graph_view,
+                                     edge_src_dummy_property_t{}.view(),
+                                     edge_dst_dummy_property_t{}.view(),
+                                     is_not_self_loop_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore) = detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-        handle, std::move(srcs), std::move(dsts), std::nullopt);
+      std::tie(srcs, dsts, std::ignore, std::ignore) =
+        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                           edge_t,
+                                                                           weight_t,
+                                                                           int32_t>(
+          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt);
     }
 
-    std::tie(*modified_graph, std::ignore, renumber_map) =
+    std::tie(*modified_graph, std::ignore, std::ignore, renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
@@ -255,21 +258,23 @@ void triangle_count(raft::handle_t const& handle,
       handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores);
     update_edge_dst_property(
       handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores);
-    rmm::device_uvector<vertex_t> srcs(size_t{0}, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts(size_t{0}, handle.get_stream());
-    std::tie(srcs, dsts, std::ignore) = extract_if_e(handle,
-                                                     cur_graph_view,
-                                                     edge_src_in_two_cores.view(),
-                                                     edge_dst_in_two_cores.view(),
-                                                     in_two_core_t<vertex_t>{});
+    auto [srcs, dsts] = extract_if_e(handle,
+                                     cur_graph_view,
+                                     edge_src_in_two_cores.view(),
+                                     edge_dst_in_two_cores.view(),
+                                     in_two_core_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore) = detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-        handle, std::move(srcs), std::move(dsts), std::nullopt);
+      std::tie(srcs, dsts, std::ignore, std::ignore) =
+        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                           edge_t,
+                                                                           weight_t,
+                                                                           int32_t>(
+          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-    std::tie(*modified_graph, std::ignore, tmp_renumber_map) =
+    std::tie(*modified_graph, std::ignore, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
@@ -309,21 +314,23 @@ void triangle_count(raft::handle_t const& handle,
                                                                                cur_graph_view);
     update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
     update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
-    rmm::device_uvector<vertex_t> srcs(size_t{0}, handle.get_stream());
-    rmm::device_uvector<vertex_t> dsts(size_t{0}, handle.get_stream());
-    std::tie(srcs, dsts, std::ignore) = extract_if_e(handle,
-                                                     cur_graph_view,
-                                                     edge_src_out_degrees.view(),
-                                                     edge_dst_out_degrees.view(),
-                                                     low_to_high_degree_t<vertex_t, edge_t>{});
+    auto [srcs, dsts] = extract_if_e(handle,
+                                     cur_graph_view,
+                                     edge_src_out_degrees.view(),
+                                     edge_dst_out_degrees.view(),
+                                     low_to_high_degree_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore) = detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-        handle, std::move(srcs), std::move(dsts), std::nullopt);
+      std::tie(srcs, dsts, std::ignore, std::ignore) =
+        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                           edge_t,
+                                                                           weight_t,
+                                                                           int32_t>(
+          handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-    std::tie(*modified_graph, std::ignore, tmp_renumber_map) =
+    std::tie(*modified_graph, std::ignore, std::ignore, tmp_renumber_map) =
       create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,

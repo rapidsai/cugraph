@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,14 @@
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -50,7 +51,6 @@ template <typename GraphViewType,
 struct call_e_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu>
     edge_partition{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
@@ -60,37 +60,31 @@ struct call_e_op_t {
   template <typename Edge>
   __device__ bool operator()(Edge e) const
   {
-    static_assert((thrust::tuple_size<Edge>::value == 2) || (thrust::tuple_size<Edge>::value == 3));
+    static_assert(thrust::tuple_size<Edge>::value == 2);
 
     using vertex_t = typename GraphViewType::vertex_type;
-    using weight_t = typename GraphViewType::weight_type;
+    using edge_t   = typename GraphViewType::edge_type;
 
-    auto major = thrust::get<0>(e);
-    auto minor = thrust::get<1>(e);
-    weight_t weight{1.0};
-    if constexpr (thrust::tuple_size<Edge>::value == 3) { weight = thrust::get<2>(e); }
+    auto major        = thrust::get<0>(e);
+    auto minor        = thrust::get<1>(e);
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
     auto src          = GraphViewType::is_storage_transposed ? minor : major;
     auto dst          = GraphViewType::is_storage_transposed ? major : minor;
     auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
     auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-    return !evaluate_edge_op<GraphViewType,
-                             vertex_t,
-                             EdgePartitionSrcValueInputWrapper,
-                             EdgePartitionDstValueInputWrapper,
-                             EdgeOp>()
-              .compute(src,
-                       dst,
-                       weight,
-                       edge_partition_src_value_input.get(src_offset),
-                       edge_partition_dst_value_input.get(dst_offset),
-                       e_op);
+    return !e_op(src,
+                 dst,
+                 edge_partition_src_value_input.get(src_offset),
+                 edge_partition_dst_value_input.get(dst_offset),
+                 thrust::nullopt);
   }
 };
 
 }  // namespace detail
 
+// FIXME: better rename this primitive to extract_transform_e and update to return a vector of @p
+// e_op outputs (matching extract_transform_v_frontier_outgoing_e).
 /**
  * @brief Iterate over the entire set of edges and return an edge list with the edges with @p
  * edge_op evaluated to be true.
@@ -129,8 +123,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeOp>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>,
-           std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
+           rmm::device_uvector<typename GraphViewType::vertex_type>>
 extract_if_e(raft::handle_t const& handle,
              GraphViewType const& graph_view,
              EdgeSrcValueInputWrapper edge_src_value_input,
@@ -140,7 +133,7 @@ extract_if_e(raft::handle_t const& handle,
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
+  using weight_t = float;  // dummy
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
@@ -177,15 +170,11 @@ extract_if_e(raft::handle_t const& handle,
 
   rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-  auto edgelist_weights = graph_view.is_weighted()
-                            ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                edgelist_majors.size(), handle.get_stream())
-                            : std::nullopt;
 
   size_t cur_size{0};
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     edge_partition_src_input_device_view_t edge_partition_src_value_input{};
@@ -200,60 +189,40 @@ extract_if_e(raft::handle_t const& handle,
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
-    detail::decompress_edge_partition_to_edgelist(
+    detail::decompress_edge_partition_to_edgelist<vertex_t,
+                                                  edge_t,
+                                                  weight_t,
+                                                  GraphViewType::is_multi_gpu>(
       handle,
       edge_partition,
+      std::nullopt,
       edgelist_majors.data() + cur_size,
       edgelist_minors.data() + cur_size,
-      edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
-                       : std::nullopt,
+      std::nullopt,
       graph_view.local_edge_partition_segment_offsets(i));
-    if (edgelist_weights) {
-      auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-        edgelist_majors.begin(), edgelist_minors.begin(), (*edgelist_weights).begin()));
-      cur_size += static_cast<size_t>(thrust::distance(
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
+    cur_size += static_cast<size_t>(thrust::distance(
+      edge_first + cur_size,
+      thrust::remove_if(
+        handle.get_thrust_policy(),
         edge_first + cur_size,
-        thrust::remove_if(handle.get_thrust_policy(),
-                          edge_first + cur_size,
-                          edge_first + cur_size + edgelist_edge_counts[i],
-                          detail::call_e_op_t<GraphViewType,
-                                              edge_partition_src_input_device_view_t,
-                                              edge_partition_dst_input_device_view_t,
-                                              EdgeOp>{edge_partition,
-                                                      edge_partition_src_value_input,
-                                                      edge_partition_dst_value_input,
-                                                      e_op})));
-    } else {
-      auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
-      cur_size += static_cast<size_t>(thrust::distance(
-        edge_first + cur_size,
-        thrust::remove_if(handle.get_thrust_policy(),
-                          edge_first + cur_size,
-                          edge_first + cur_size + edgelist_edge_counts[i],
-                          detail::call_e_op_t<GraphViewType,
-                                              edge_partition_src_input_device_view_t,
-                                              edge_partition_dst_input_device_view_t,
-                                              EdgeOp>{edge_partition,
-                                                      edge_partition_src_value_input,
-                                                      edge_partition_dst_value_input,
-                                                      e_op})));
-    }
+        edge_first + cur_size + edgelist_edge_counts[i],
+        detail::call_e_op_t<GraphViewType,
+                            edge_partition_src_input_device_view_t,
+                            edge_partition_dst_input_device_view_t,
+                            EdgeOp>{
+          edge_partition, edge_partition_src_value_input, edge_partition_dst_value_input, e_op})));
   }
 
   edgelist_majors.resize(cur_size, handle.get_stream());
   edgelist_minors.resize(edgelist_majors.size(), handle.get_stream());
   edgelist_majors.shrink_to_fit(handle.get_stream());
   edgelist_minors.shrink_to_fit(handle.get_stream());
-  if (edgelist_weights) {
-    (*edgelist_weights).resize(edgelist_majors.size(), handle.get_stream());
-    (*edgelist_weights).shrink_to_fit(handle.get_stream());
-  }
 
   return std::make_tuple(
     std::move(GraphViewType::is_storage_transposed ? edgelist_minors : edgelist_majors),
-    std::move(GraphViewType::is_storage_transposed ? edgelist_majors : edgelist_minors),
-    std::move(edgelist_weights));
+    std::move(GraphViewType::is_storage_transposed ? edgelist_majors : edgelist_minors));
 }
 
 }  // namespace cugraph

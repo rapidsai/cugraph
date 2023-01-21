@@ -32,8 +32,8 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -75,53 +75,20 @@ int32_t constexpr update_v_frontier_from_outgoing_e_kernel_block_size = 512;
 template <typename key_t,
           typename payload_t,
           typename vertex_t,
-          typename weight_t,
           typename src_value_t,
           typename dst_value_t,
+          typename e_value_t,
           typename EdgeOp>
-struct call_e_op_with_w_t {
+struct call_e_op_t {
   EdgeOp e_op{};
 
   __device__ thrust::optional<
     std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
                        thrust::tuple<key_t, payload_t>,
                        std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>
-  operator()(key_t key, vertex_t dst, weight_t w, src_value_t sv, dst_value_t dv) const
+  operator()(key_t key, vertex_t dst, src_value_t sv, dst_value_t dv, e_value_t ev) const
   {
-    auto e_op_result = e_op(key, dst, w, sv, dv);
-    if (e_op_result.has_value()) {
-      if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-        return dst;
-      } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(dst, *e_op_result);
-      } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(dst, *e_op_result);
-      } else {
-        return thrust::make_tuple(thrust::make_tuple(dst, thrust::get<0>(*e_op_result)),
-                                  thrust::get<1>(*e_op_result));
-      }
-    } else {
-      return thrust::nullopt;
-    }
-  }
-};
-
-template <typename key_t,
-          typename payload_t,
-          typename vertex_t,
-          typename src_value_t,
-          typename dst_value_t,
-          typename EdgeOp>
-struct call_e_op_without_w_t {
-  EdgeOp e_op{};
-
-  __device__ thrust::optional<
-    std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
-                       thrust::tuple<key_t, payload_t>,
-                       std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>
-  operator()(key_t key, vertex_t dst, src_value_t sv, dst_value_t dv) const
-  {
-    auto e_op_result = e_op(key, dst, sv, dv);
+    auto e_op_result = e_op(key, dst, sv, dv, ev);
     if (e_op_result.has_value()) {
       if constexpr (std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
         return dst;
@@ -219,7 +186,6 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
 
   size_t ret{0};
@@ -240,7 +206,7 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   }
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -285,6 +251,7 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -301,14 +268,17 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns
- * 1) thrust::nullopt (if invalid and to be discarded); 2) dummy (but valid) thrust::optional object
- * (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and
- * ReduceOp::value_type is void); 3) a tag (if vertices are tagged and ReduceOp::value_type is
- * void); 4) a value to be reduced using the @p reduce_op (if vertices are not tagged and
- * ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be reduced (if vertices
- * are tagged and ReduceOp::value_type is not void).
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns 1) thrust::nullopt (if invalid and to be discarded); 2) dummy
+ * (but valid) thrust::optional object (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices
+ * are not tagged and ReduceOp::value_type is void); 3) a tag (if vertices are tagged and
+ * ReduceOp::value_type is void); 4) a value to be reduced using the @p reduce_op (if vertices are
+ * not tagged and ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be
+ * reduced (if vertices are tagged and ReduceOp::value_type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
@@ -322,6 +292,7 @@ template <typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp>
 std::conditional_t<
@@ -337,6 +308,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                               VertexFrontierBucketType const& frontier,
                                               EdgeSrcValueInputWrapper edge_src_value_input,
                                               EdgeDstValueInputWrapper edge_dst_value_input,
+                                              EdgeValueInputWrapper edge_value_input,
                                               EdgeOp e_op,
                                               ReduceOp reduce_op,
                                               bool do_expensive_check = false)
@@ -346,7 +318,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
-  using weight_t  = typename GraphViewType::weight_type;
   using key_t     = typename VertexFrontierBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
 
@@ -356,25 +327,13 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
-  std::conditional_t<std::is_invocable_v<EdgeOp,
-                                         key_t,
-                                         vertex_t,
-                                         weight_t,
-                                         typename EdgeSrcValueInputWrapper::value_type,
-                                         typename EdgeDstValueInputWrapper::value_type>,
-                     detail::call_e_op_with_w_t<key_t,
-                                                payload_t,
-                                                vertex_t,
-                                                weight_t,
-                                                typename EdgeSrcValueInputWrapper::value_type,
-                                                typename EdgeDstValueInputWrapper::value_type,
-                                                EdgeOp>,
-                     detail::call_e_op_without_w_t<key_t,
-                                                   payload_t,
-                                                   vertex_t,
-                                                   typename EdgeSrcValueInputWrapper::value_type,
-                                                   typename EdgeDstValueInputWrapper::value_type,
-                                                   EdgeOp>>
+  detail::call_e_op_t<key_t,
+                      payload_t,
+                      vertex_t,
+                      typename EdgeSrcValueInputWrapper::value_type,
+                      typename EdgeDstValueInputWrapper::value_type,
+                      typename EdgeValueInputWrapper::value_type,
+                      EdgeOp>
     e_op_wrapper{e_op};
 
   auto [key_buffer, payload_buffer] =
@@ -383,6 +342,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                                                                     frontier,
                                                                     edge_src_value_input,
                                                                     edge_dst_value_input,
+                                                                    edge_value_input,
                                                                     e_op_wrapper,
                                                                     do_expensive_check);
 

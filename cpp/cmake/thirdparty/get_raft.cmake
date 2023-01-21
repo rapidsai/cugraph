@@ -19,29 +19,38 @@ set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINO
 
 function(find_and_configure_raft)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN)
+    set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
     if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_raft}")
         message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning raft locally.")
         set(CPM_DOWNLOAD_raft ON)
+    elseif(PKG_USE_RAFT_STATIC AND (NOT CPM_raft_SOURCE))
+      message(STATUS "CUGRAPH: Cloning raft locally to build static libraries.")
+      set(CPM_DOWNLOAD_raft ON)
+    endif()
+
+    set(BUILD_RAFT_SHARED ON)
+    if(PKG_USE_RAFT_STATIC)
+      set(BUILD_RAFT_SHARED OFF)
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
+      COMPONENTS distance
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            FIND_PACKAGE_ARGUMENTS "COMPONENTS distance"
             OPTIONS
                 "RAFT_COMPILE_LIBRARIES OFF"
                 "RAFT_COMPILE_DIST_LIBRARY ON"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
+                "BUILD_SHARED_LIBS ${BUILD_RAFT_SHARED}"
                 "RAFT_ENABLE_cuco_DEPENDENCY OFF"
     )
 
@@ -64,4 +73,5 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         # force local raft clone in build directory
                         # even if it's already installed.
                         CLONE_ON_PIN     ON
+                        USE_RAFT_STATIC ${USE_RAFT_STATIC}
                         )

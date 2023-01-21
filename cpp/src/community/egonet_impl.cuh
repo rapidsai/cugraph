@@ -15,13 +15,19 @@
  */
 #pragma once
 
+//#define TIMING
+
 #include <utilities/graph_utils.cuh>
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
@@ -35,10 +41,7 @@
 #include <thrust/remove.h>
 #include <thrust/transform.h>
 
-#include <utilities/high_res_timer.hpp>
-
 #include <cstddef>
-#include <cugraph/algorithms.hpp>
 #include <memory>
 #include <numeric>
 #include <tuple>
@@ -65,7 +68,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract(raft::handle_t const& handle,
-        cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+        cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
         raft::device_span<vertex_t const> source_vertex,
         vertex_t radius,
         bool do_expensive_check)
@@ -132,15 +136,15 @@ extract(raft::handle_t const& handle,
         source = raft::device_span<vertex_t const>{source_vertex.data(), size_t{0}};
     }
 
-    cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(multi_gpu ? handle : light_handle,
-                                                        graph_view,
-                                                        reached[i].data(),
-                                                        nullptr,
-                                                        source.data(),
-                                                        source.size(),
-                                                        direction_optimizing,
-                                                        radius,
-                                                        do_expensive_check);
+    cugraph::bfs<vertex_t, edge_t, multi_gpu>(multi_gpu ? handle : light_handle,
+                                              graph_view,
+                                              reached[i].data(),
+                                              nullptr,
+                                              source.data(),
+                                              source.size(),
+                                              direction_optimizing,
+                                              radius,
+                                              do_expensive_check);
 
     // identify reached vertex ids from distance array
     thrust::transform(
@@ -195,13 +199,14 @@ extract(raft::handle_t const& handle,
 
 #ifdef TIMING
   hr_timer.stop();
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 #endif
 
   // extract
   return cugraph::extract_induced_subgraphs(
     handle,
     graph_view,
+    edge_weight_view,
     raft::device_span<size_t const>(neighbors_offsets.data(), neighbors_offsets.size()),
     raft::device_span<vertex_t const>(neighbors.data(), neighbors.size()),
     do_expensive_check);
@@ -217,7 +222,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
             vertex_t* source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius)
@@ -231,6 +237,7 @@ extract_ego(raft::handle_t const& handle,
 
   return extract(handle,
                  graph_view,
+                 edge_weight_view,
                  raft::device_span<vertex_t const>{source_vertex, static_cast<size_t>(n_subgraphs)},
                  radius,
                  false);
@@ -242,7 +249,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
             raft::device_span<vertex_t const> source_vertex,
             vertex_t radius,
             bool do_expensive_check)
@@ -250,7 +258,7 @@ extract_ego(raft::handle_t const& handle,
   CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
   CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
 
-  return extract(handle, graph_view, source_vertex, radius, do_expensive_check);
+  return extract(handle, graph_view, edge_weight_view, source_vertex, radius, do_expensive_check);
 }
 
 }  // namespace cugraph

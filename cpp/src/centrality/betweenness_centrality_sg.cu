@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,93 +18,106 @@
 namespace cugraph {
 
 // SG instantiation
-template rmm::device_uvector<float> betweenness_centrality(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
-  bool const normalized,
-  bool const include_endpoints,
-  bool do_expensive_check);
 
 template rmm::device_uvector<float> betweenness_centrality(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool do_expensive_check);
 
 template rmm::device_uvector<float> betweenness_centrality(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  std::optional<std::variant<int64_t, raft::device_span<int64_t const>>> vertices,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
+  bool const normalized,
+  bool const include_endpoints,
+  bool do_expensive_check);
+
+template rmm::device_uvector<float> betweenness_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool do_expensive_check);
 
 template rmm::device_uvector<double> betweenness_centrality(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool do_expensive_check);
 
 template rmm::device_uvector<double> betweenness_centrality(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool do_expensive_check);
 
 template rmm::device_uvector<double> betweenness_centrality(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  std::optional<std::variant<int64_t, raft::device_span<int64_t const>>> vertices,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> vertices,
   bool const normalized,
   bool const include_endpoints,
   bool do_expensive_check);
 
 template rmm::device_uvector<float> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check);
 
 template rmm::device_uvector<float> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check);
 
 template rmm::device_uvector<float> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  std::optional<std::variant<int64_t, raft::device_span<int64_t const>>> vertices,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check);
 
 template rmm::device_uvector<double> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check);
 
 template rmm::device_uvector<double> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  std::optional<std::variant<int32_t, raft::device_span<int32_t const>>> vertices,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int32_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check);
 
 template rmm::device_uvector<double> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  std::optional<std::variant<int64_t, raft::device_span<int64_t const>>> vertices,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
+  std::optional<raft::device_span<int64_t const>> vertices,
   bool const normalized,
   bool const do_expensive_check);
 

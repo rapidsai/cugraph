@@ -16,16 +16,30 @@ import random
 import pytest
 import cudf
 import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 import cugraph
 from cugraph.testing import utils
 from cugraph.dask import uniform_neighbor_sample
 
+# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
+# fixture will be available automatically. Check that this fixture is available
+# by trying to import rapids_pytest_benchmark, and if that fails, set
+# "gpubenchmark" to the standard "benchmark" fixture provided by
+# pytest-benchmark.
+try:
+    import rapids_pytest_benchmark  # noqa: F401
+except ImportError:
+    import pytest_benchmark
+
+    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
@@ -39,7 +53,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
 ]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
@@ -111,6 +125,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]
@@ -186,6 +201,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
             )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
@@ -244,6 +260,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     assert set(start_list).issubset(set(result_nbr_vertices))
 
 
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
         {
@@ -278,6 +295,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     assert sorted(actual_dst) == sorted(expected_dst)
 
 
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
     # This ensures that the starts are properly distributed
@@ -300,3 +318,42 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     )
 
     assert len(output_df.compute()) == 3
+
+
+# =============================================================================
+# Benchmarks
+# =============================================================================
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
+def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
+    input_data_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "int32"],
+    )
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        store_transposed=False,
+        legacy_renum_only=True,
+    )
+    # Partition the dataframe to add in chunks
+    srcs = dg.input_df["src"]
+    start_list = srcs[:n_samples].compute()
+
+    def func():
+        _ = cugraph.dask.uniform_neighbor_sample(dg, start_list, [10])
+        del _
+
+    gpubenchmark(func)

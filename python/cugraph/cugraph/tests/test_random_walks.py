@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +43,7 @@ def calc_random_walks(graph_file, directed=False, max_depth=None, use_padding=Fa
     parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed (DiGraph) or undirected (Graph).
+        The graph can be either directed or undirected.
         Weights in the graph are ignored.
         Use weight parameter if weights need to be considered
         (currently not supported)
@@ -127,6 +127,7 @@ def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
         )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(graph_file, directed):
@@ -145,6 +146,7 @@ def test_random_walks_coalesced(graph_file, directed):
     assert df["weight_offsets"].to_numpy().tolist() == w_offsets
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_padded(graph_file, directed):
@@ -172,7 +174,7 @@ def test_random_walks(
     df_G['dst_0'] = df_G['dst'] + 1000
 
     if directed:
-        G = cugraph.DiGraph()
+        G = cugraph.Graph(directed=True)
     else:
         G = cugraph.Graph()
     G.from_cudf_edgelist(df_G, source=['src', 'src_0'],

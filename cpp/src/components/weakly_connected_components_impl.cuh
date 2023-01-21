@@ -30,7 +30,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -190,6 +190,7 @@ struct e_op_t {
   __device__ thrust::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
                                                    vertex_t dst,
                                                    thrust::nullopt_t,
+                                                   thrust::nullopt_t,
                                                    thrust::nullopt_t) const
   {
     auto tag        = thrust::get<1>(tagged_src);
@@ -270,7 +271,6 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
@@ -304,11 +304,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     static_cast<edge_t>(handle.get_device_properties().multiProcessorCount) * edge_t{1024};
 
   size_t num_levels{0};
-  graph_t<vertex_t,
-          edge_t,
-          typename GraphViewType::weight_type,
-          GraphViewType::is_storage_transposed,
-          GraphViewType::is_multi_gpu>
+  graph_t<vertex_t, edge_t, GraphViewType::is_storage_transposed, GraphViewType::is_multi_gpu>
     level_graph(handle);
   rmm::device_uvector<vertex_t> level_renumber_map(0, handle.get_stream());
   std::vector<rmm::device_uvector<vertex_t>> level_component_vectors{};
@@ -579,6 +575,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur),
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
         e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
           GraphViewType::is_multi_gpu
             ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
@@ -727,11 +724,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       }
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-      std::tie(level_graph, std::ignore, tmp_renumber_map) =
+      std::tie(level_graph, std::ignore, std::ignore, tmp_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
-                                   weight_t,
-                                   int32_t,
+                                   float /* dummy */,
+                                   int32_t /* dummy */,
                                    GraphViewType::is_storage_transposed,
                                    GraphViewType::is_multi_gpu>(handle,
                                                                 std::nullopt,
@@ -780,12 +777,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
 }  // namespace
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  vertex_t* components,
-  bool do_expensive_check)
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void weakly_connected_components(raft::handle_t const& handle,
+                                 graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                                 vertex_t* components,
+                                 bool do_expensive_check)
 {
   weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
 }

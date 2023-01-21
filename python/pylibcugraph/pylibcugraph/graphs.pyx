@@ -327,7 +327,7 @@ cdef class MGGraph(_GPUGraph):
                             f"{type(do_expensive_check)}")
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
-        assert_CAI_type(weight_array, "weight_array")
+        assert_CAI_type(weight_array, "weight_array", True)
         if edge_id_array is not None:
             assert_CAI_type(edge_id_array, "edge_id_array")
         if edge_type_array is not None:

@@ -16,7 +16,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -27,10 +26,11 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -59,29 +59,30 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(SSSP_Usecase const& sssp_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < mg_graph_view.number_of_vertices())
@@ -97,11 +98,12 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG SSSP.");
     }
 
     cugraph::sssp(*handle_,
                   mg_graph_view,
+                  *mg_edge_weight_view,
                   d_mg_distances.data(),
                   d_mg_predecessors.data(),
                   static_cast<vertex_t>(sssp_usecase.source),
@@ -110,9 +112,8 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG SSSP took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. copmare SG & MG results
@@ -144,12 +145,17 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+        std::optional<
+          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+          sg_edge_weights{std::nullopt};
+        std::tie(sg_graph, sg_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             *handle_, input_usecase, true, false);
 
         auto sg_graph_view = sg_graph.view();
+        auto sg_edge_weight_view =
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
@@ -168,6 +174,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
 
         cugraph::sssp(*handle_,
                       sg_graph_view,
+                      *sg_edge_weight_view,
                       d_sg_distances.data(),
                       d_sg_predecessors.data(),
                       unrenumbered_source,
@@ -179,8 +186,10 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
           cugraph::test::to_host(*handle_, sg_graph_view.local_edge_partition_view().offsets());
         auto h_sg_indices =
           cugraph::test::to_host(*handle_, sg_graph_view.local_edge_partition_view().indices());
-        auto h_sg_weights =
-          cugraph::test::to_host(*handle_, *(sg_graph_view.local_edge_partition_view().weights()));
+        auto h_sg_weights = cugraph::test::to_host(
+          *handle_,
+          raft::device_span<weight_t const>((*sg_edge_weight_view).value_firsts()[0],
+                                            (*sg_edge_weight_view).edge_counts()[0]));
 
         auto h_mg_aggregate_distances = cugraph::test::to_host(*handle_, d_mg_aggregate_distances);
         auto h_mg_aggregate_predecessors =

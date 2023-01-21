@@ -16,7 +16,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -25,10 +24,11 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -58,26 +58,25 @@ class Tests_MGTransposeStorage
   void run_current_test(TransposeStorage_Usecase const& transpose_storage_usecase,
                         input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, transpose_storage_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 2. run MG transpose storage
@@ -88,15 +87,21 @@ class Tests_MGTransposeStorage
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG transpose storage");
     }
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, !store_transposed, true>
-      mg_storage_transposed_graph(*handle_);
-    std::tie(mg_storage_transposed_graph, d_mg_renumber_map_labels) =
+    cugraph::graph_t<vertex_t, edge_t, !store_transposed, true> mg_storage_transposed_graph(
+      *handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, true>,
+                               weight_t>>
+      mg_storage_transposed_edge_weights{std::nullopt};
+    std::tie(
+      mg_storage_transposed_graph, mg_storage_transposed_edge_weights, d_mg_renumber_map_labels) =
       cugraph::transpose_graph_storage(
         *handle_,
         std::move(mg_graph),
+        std::move(mg_edge_weights),
         d_mg_renumber_map_labels
           ? std::optional<rmm::device_uvector<vertex_t>>{std::move(*d_mg_renumber_map_labels)}
           : std::nullopt);
@@ -104,9 +109,8 @@ class Tests_MGTransposeStorage
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG transpose storage took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. copmare SG & MG results
@@ -117,6 +121,9 @@ class Tests_MGTransposeStorage
       auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
         *handle_,
         mg_storage_transposed_graph.view(),
+        mg_storage_transposed_edge_weights
+          ? std::make_optional((*mg_storage_transposed_edge_weights).view())
+          : std::nullopt,
         d_mg_renumber_map_labels
           ? std::make_optional<raft::device_span<vertex_t const>>(
               (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size())
@@ -137,8 +144,12 @@ class Tests_MGTransposeStorage
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+        std::optional<
+          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                   weight_t>>
+          sg_edge_weights{std::nullopt};
+        std::tie(sg_graph, sg_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             *handle_, input_usecase, transpose_storage_usecase.test_weighted, false);
 
@@ -147,6 +158,7 @@ class Tests_MGTransposeStorage
         auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
           *handle_,
           sg_graph.view(),
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
         // 3-5. compare

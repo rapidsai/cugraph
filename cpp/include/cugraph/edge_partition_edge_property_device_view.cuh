@@ -39,6 +39,8 @@ class edge_partition_edge_property_device_view_t {
     value_first_ = view.value_firsts()[partition_idx];
   }
 
+  __host__ __device__ ValueIterator value_first() { return value_first_; }
+
   __device__ ValueIterator get_iter(edge_t offset) const { return value_first_ + offset; }
 
   __device__ value_type get(edge_t offset) const { return *get_iter(offset); }

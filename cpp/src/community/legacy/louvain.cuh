@@ -15,21 +15,20 @@
  */
 #pragma once
 
+//#define TIMING
+
 #include <cugraph/legacy/graph.hpp>
 
 #include <converters/legacy/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <cugraph/dendrogram.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
-
-//#define TIMING
-
-#ifdef TIMING
-#include <utilities/high_res_timer.hpp>
-#endif
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>
@@ -197,7 +196,7 @@ class Louvain {
       shrink_graph(current_graph);
     }
 
-    timer_display(std::cout);
+    timer_display_and_clear(std::cout);
 
     return best_modularity;
   }
@@ -218,10 +217,10 @@ class Louvain {
 #endif
   }
 
-  void timer_display(std::ostream& os)
+  void timer_display_and_clear(std::ostream& os)
   {
 #ifdef TIMING
-    hr_timer_.display(os);
+    hr_timer_.display_and_clear(os);
 #endif
   }
 

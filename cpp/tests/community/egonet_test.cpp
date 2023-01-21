@@ -16,7 +16,6 @@
 #include <community/egonet_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -24,9 +23,10 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -55,7 +55,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
   {
     auto [egonet_usecase, input_usecase] = param;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     auto n_streams   = std::min(egonet_usecase.ego_sources_.size(), size_t{128});
     auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
@@ -65,21 +65,22 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, egonet_usecase.test_weighted_, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<vertex_t> d_ego_sources(egonet_usecase.ego_sources_.size(),
                                                 handle.get_stream());
@@ -98,21 +99,21 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Egonet");
     }
 
     auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_wgt, d_ego_edgelist_offsets] =
       cugraph::extract_ego(
         handle,
         graph_view,
+        edge_weight_view,
         raft::device_span<vertex_t const>{d_ego_sources.data(), egonet_usecase.ego_sources_.size()},
         egonet_usecase.radius_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "Egonet took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (egonet_usecase.check_correctness_) {
@@ -120,6 +121,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
         cugraph::test::egonet_reference(
           handle,
           graph_view,
+          edge_weight_view,
           raft::device_span<vertex_t const>{d_ego_sources.data(), d_ego_sources.size()},
           egonet_usecase.radius_);
 

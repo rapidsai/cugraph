@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,6 +27,7 @@ from pylibcugraph import (
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
+from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 import cugraph.dask.comms.comms as Comms
 
 
@@ -85,6 +86,7 @@ class simpleDistributedGraphImpl:
             elif values.dtype == "int64":
                 values = values.astype("float64")
         else:
+            # Some algos require the graph to be weighted
             values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
@@ -332,7 +334,19 @@ class simpleDistributedGraphImpl:
         """
         if self.properties.node_count is None:
             if self.edgelist is not None:
-                ddf = self.edgelist.edgelist_df[["src", "dst"]]
+                if self.renumbered is True:
+                    src_col_name = self.renumber_map.renumbered_src_col_name
+                    dst_col_name = self.renumber_map.renumbered_dst_col_name
+                # FIXME: from_dask_cudf_edgelist() currently requires
+                # renumber=True for MG, so this else block will not be
+                # used. Should this else block be removed and added back when
+                # the restriction is removed?
+                else:
+                    src_col_name = "src"
+                    dst_col_name = "dst"
+
+                ddf = self.edgelist.edgelist_df[[src_col_name, dst_col_name]]
+                # ddf = self.edgelist.edgelist_df[["src", "dst"]]
                 self.properties.node_count = ddf.max().max().compute() + 1
             else:
                 raise RuntimeError("Graph is Empty")
@@ -635,15 +649,115 @@ class simpleDistributedGraphImpl:
 
         return df
 
-    def to_directed(self, DiG):
+    def get_two_hop_neighbors(self, start_vertices=None):
         """
-        Return a directed representation of the graph.
-        This function sets the type of graph as DiGraph() and returns the
-        directed view.
+        Compute vertex pairs that are two hops apart. The resulting pairs are
+        sorted before returning.
 
         Returns
         -------
-        G : DiGraph
+        df : cudf.DataFrame
+            df[first] : cudf.Series
+                the first vertex id of a pair, if an external vertex id
+                is defined by only one column
+            df[second] : cudf.Series
+                the second vertex id of a pair, if an external vertex id
+                is defined by only one column
+        """
+
+        if isinstance(start_vertices, int):
+            start_vertices = [start_vertices]
+
+        if isinstance(start_vertices, list):
+            start_vertices = cudf.Series(start_vertices)
+
+        if start_vertices is not None:
+            if self.renumbered:
+                start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
+                start_vertices_type = self.edgelist.edgelist_df.dtypes[0]
+            else:
+                start_vertices_type = self.input_df.dtypes[0]
+
+            if not isinstance(start_vertices, (dask_cudf.Series)):
+                start_vertices = dask_cudf.from_cudf(
+                    start_vertices,
+                    npartitions=min(self._npartitions, len(start_vertices)),
+                )
+                start_vertices = start_vertices.astype(start_vertices_type)
+
+            start_vertices = get_distributed_data(start_vertices)
+            wait(start_vertices)
+            start_vertices = start_vertices.worker_to_parts
+
+        def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
+            return pylibcugraph_get_two_hop_neighbors(
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                graph=mg_graph_x,
+                start_vertices=start_vertices,
+                do_expensive_check=False,
+            )
+
+        if start_vertices is not None:
+            result = [
+                self._client.submit(
+                    _call_plc_two_hop_neighbors,
+                    Comms.get_session_id(),
+                    self._plc_graph[w],
+                    start_vertices[w][0],
+                    workers=[w],
+                    allow_other_workers=False,
+                )
+                for w in Comms.get_workers()
+            ]
+        else:
+            result = [
+                self._client.submit(
+                    _call_plc_two_hop_neighbors,
+                    Comms.get_session_id(),
+                    self._plc_graph[w],
+                    start_vertices,
+                    workers=[w],
+                    allow_other_workers=False,
+                )
+                for w in Comms.get_workers()
+            ]
+
+        wait(result)
+
+        def convert_to_cudf(cp_arrays):
+            """
+            Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
+            """
+            first, second = cp_arrays
+            df = cudf.DataFrame()
+            df["first"] = first
+            df["second"] = second
+            return df
+
+        cudf_result = [
+            self._client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+        ]
+
+        wait(cudf_result)
+        ddf = dask_cudf.from_delayed(cudf_result).persist()
+        wait(ddf)
+
+        # Wait until the inactive futures are released
+        wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+
+        if self.properties.renumbered:
+            ddf = self.renumber_map.unrenumber(ddf, "first")
+            ddf = self.renumber_map.unrenumber(ddf, "second")
+
+        return ddf
+
+    def to_directed(self, G):
+        """
+        Return a directed representation of the graph.
+
+        Returns
+        -------
+        G : Graph(directed=True)
             A directed graph with the same nodes, and each edge (u,v,weights)
             replaced by two directed edges (u,v,weights) and (v,u,weights).
 
@@ -747,7 +861,19 @@ class simpleDistributedGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        return self.view_edge_list()[["src", "dst"]]
+        if self.renumbered is True:
+            src_col_name = self.renumber_map.renumbered_src_col_name
+            dst_col_name = self.renumber_map.renumbered_dst_col_name
+            # FIXME: from_dask_cudf_edgelist() currently requires
+            # renumber=True for MG, so this else block will not be
+            # used. Should this else block be removed and added back when
+            # the restriction is removed?
+        else:
+            src_col_name = "src"
+            dst_col_name = "dst"
+
+        # return self.view_edge_list()[["src", "dst"]]
+        return self.view_edge_list()[[src_col_name, dst_col_name]]
 
     def nodes(self):
         """

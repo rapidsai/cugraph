@@ -13,18 +13,17 @@
 // Author: Andrei Schaffer aschaffer@nvidia.com
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
-#include <cuda_profiler_api.h>
-
-#include <rmm/device_vector.hpp>
-
 #include <converters/legacy/COOtoCSR.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <rmm/device_vector.hpp>
+
+#include <cuda_profiler_api.h>
 
 #include <algorithm>
 #include <iterator>
@@ -80,8 +79,7 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     int m, k, nnz;  //
     MM_typecode mc;
 
-    HighResClock hr_clock;
-    double time_tmp;
+    HighResTimer hr_timer{};
 
     FILE* fpin = fopen(param.get_matrix_file().c_str(), "r");
     ASSERT_NE(fpin, nullptr) << "fopen (" << param.get_matrix_file() << ") failure.";
@@ -121,11 +119,11 @@ struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
     rmm::device_vector<int> d_labels(m);
 
     if (cugraph::test::g_perf) {
-      hr_clock.start();
+      hr_timer.start("WCC");
       cugraph::connected_components<int, int, float>(
         G, cugraph::cugraph_cc_t::CUGRAPH_WEAK, d_labels.data().get());
       cudaDeviceSynchronize();
-      hr_clock.stop(&time_tmp);
+      auto time_tmp = hr_timer.stop();
       weakly_cc_time.push_back(time_tmp);
     } else {
       cudaProfilerStart();
