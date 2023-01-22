@@ -14,13 +14,24 @@
 import os
 import numpy as np
 import rmm
-import cudf
+import cudf as cudf_sg
 import cugraph
 from cugraph.generators import rmat
 from cugraph.structure import NumberMap
 
+import dask
+import dask_cudf as cudf_mg
+import cugraph.dask as dask_cugraph
+
+from dask.distributed import Client, wait
+from dask_cuda import LocalCUDACluster
+from cugraph.dask.comms import comms as Comms
+
+cudf = None
+
 import argparse
 import ast
+
 
 """
 Create a synthetic graph that is similar to a citation network and in 
@@ -49,11 +60,24 @@ author_paper_dir = "/author__writes__paper"
 author_institute_dir = "/author__affiliated_with__institution"
 
 def setup_sg():
+    global cudf
+    cudf = cudf_sg
+
     # Set RMM to allocate all memory as managed memory
     rmm.mr.set_current_device_resource(rmm.mr.ManagedMemoryResource())
     assert(rmm.is_initialized())
 
 def setup_mg():
+    global cudf
+    cudf = cudf_mg
+
+    print("Setup MG")
+
+    cluster = LocalCUDACluster()
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+
+
     pass
 
 
@@ -104,7 +128,7 @@ def create_base_labeled_features(num: int) -> np.array:
 
 
 
-def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False) -> cudf.DataFrame:
+def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False):
     """
     Create data via RMAT and return a COO DataFrame.
     The RMAT paramaters match what Graph500 uses for {a,b,c} argumemnts.
@@ -148,11 +172,11 @@ def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False) -> cudf.DataFra
     clean_coo = NumberMap.renumber(rmat_df, src_col_names="src", dst_col_names="dst")[0]
     del rmat_df
 
-    clean_coo.rename(columns={"renumbered_src": "src", "renumbered_dst": "dst"}, inplace=True)
+    clean_coo = clean_coo.rename(columns={"renumbered_src": "src", "renumbered_dst": "dst"})
     return clean_coo
 
 
-def dec_df_update(df, num_items, col_name) -> cudf.DataFrame:
+def dec_df_update(df, num_items, col_name):
     df2 = df[df['count'] > 1]
     df2['count'] = df2['count'] - 1
     siz = len(df2)
@@ -189,7 +213,10 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
     name = "edge"
     save_data(args.format, dir, name, coo)
 
-    max_id = max( coo['src'].max(),  coo['dst'].max())
+    if args.mg:
+        max_id = max( coo['src'].max().compute(),  coo['dst'].max().compute())
+    else:
+        max_id = max( coo['src'].max(),  coo['dst'].max())
     del coo
     return max_id
 
@@ -202,7 +229,10 @@ def create_papers_data(args, max_id, siz):
     num_labeled = int(siz * args.papersLabeledPercent)
 
     # create just a list of nodes
-    nodes = cudf.DataFrame()
+    if args.mg:
+        nodes = cudf_mg.from_cudf(cudf.sg.DataFrame(), npartitions=2)
+    else:
+        nodes = cudf.DataFrame()
 
     # create an np.array of random numbers
     ran = np.random.randint( 0,(max_id + 1), size=siz)
@@ -214,7 +244,11 @@ def create_papers_data(args, max_id, siz):
 
     # selected just the labeld nodes
     labeled_df = (nodes['label'].loc[nodes["label"] == 1]).to_frame().reset_index()
-    labeled_df.drop(columns=["label"], inplace=True)
+
+    if args.mg:
+        labeled_df = labeled_df.drop(columns=["label"])
+    else:
+        labeled_df.drop(columns=["label"], inplace=True)
 
     # Save the list
     dir = args.outdir + paper_dir
@@ -224,7 +258,10 @@ def create_papers_data(args, max_id, siz):
     # some cleanup
     del ran
     del labeled_df
-    nodes.drop(columns=["rand"], inplace=True)
+    if args.mg:
+        nodes = nodes.drop(columns=["rand"])
+    else:
+        nodes.drop(columns=["rand"], inplace=True)
 
     # Now paper features
     num_f = args.papersNumFeatures
@@ -242,7 +279,12 @@ def create_papers_data(args, max_id, siz):
         nodes[col_name] = cudf.Series(ran)
         nodes[col_name].loc[nodes["label"] == 1] = labeled_features[x] + nodes['noise']
 
-    nodes.drop(columns=["label","noise"], inplace=True)
+    if args.mg:
+        nodes = nodes.drop(columns=["label","noise"])
+    else:
+        nodes.drop(columns=["label","noise"], inplace=True)
+
+
 
     # Save the features
     dir = args.outdir + paper_dir
@@ -268,7 +310,12 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
     df['count'] = cudf.Series(a)
     df['count'].loc[df['count'] < low] = low
     df.reset_index(inplace=True)
-    df.rename(columns={"index": "author"}, inplace=True)
+
+    if args.mg:
+        df = df.rename(columns={"index": "author"})
+    else:
+        df.rename(columns={"index": "author"}, inplace=True)
+
     df['author'] = df['author'] + start_id
 
     # add a random paper id
@@ -276,7 +323,10 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
     df['paper'] = cudf.Series(paper_ids)
 
     # what is the max 'count' - number of papers written?
-    max_p = int(df['count'].max())
+    if args.mg:
+        max_p = int(df['count'].max().compute())
+    else:
+        max_p = int(df['count'].max())
 
     auth_paper_array = [None] * max_p
     index = 0
@@ -294,7 +344,10 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
     data = cudf.concat(auth_paper_array)
     del auth_paper_array
 
-    data.drop(columns=["count"], inplace=True)
+    if args.mg:
+        data = data.drop(columns=["count"])
+    else:
+        data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes paper data")
     dir = args.outdir + author_paper_dir
@@ -339,7 +392,10 @@ def create_author_institute_data(args, start_id, num_authors):
     df['institution'] = cudf.Series(work_ids)
 
     # what is the max 'count' - number of insitutions?
-    max_i = int(df['count'].max())
+    if args.mg:
+        max_i = int(df['count'].max().compute())
+    else:
+        max_i = int(df['count'].max())
 
     auth_work_array = [None] * max_i
     index = 0
@@ -357,7 +413,10 @@ def create_author_institute_data(args, start_id, num_authors):
     data = cudf.concat(auth_work_array)
     del auth_work_array
 
-    data.drop(columns=["count"], inplace=True)
+    if args.mg:
+        data = data.drop(columns=["count"])
+    else:
+        data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes works at institution")
     dir = args.outdir + author_institute_dir
@@ -498,6 +557,13 @@ def parse_args() -> argparse.Namespace:
                         required=False,
                         )
 
+    parser.add_argument(
+                        "-mgVisibleGPUs",
+                        type=arg_to_list, 
+                        default=[],
+                        help="Visible GPUS in a MG setting",
+                        required=False,
+                        )
 
     args = parser.parse_args()
 
@@ -516,6 +582,9 @@ def main() -> None:
         setup_mg()
     else:
         setup_sg()
+
+    print(f"Running in MG mode is {args.mg}")
+
 
     # Create directories
     setup_directories(args.outdir)
