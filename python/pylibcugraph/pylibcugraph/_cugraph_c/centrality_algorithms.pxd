@@ -161,7 +161,6 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_betweenness_centrality(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            size_t num_vertices,
             const cugraph_type_erased_device_array_view_t* vertex_list,
             bool_t normalized,
             bool_t include_endpoints,

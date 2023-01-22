@@ -57,7 +57,6 @@ from pylibcugraph.utils cimport (
 
 def betweenness_centrality(ResourceHandle resource_handle,
                            _GPUGraph graph,
-                           size_t num_vertices,
                            vertex_list,
                            bool_t normalized,
                            bool_t include_endpoints,
@@ -77,9 +76,6 @@ def betweenness_centrality(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-
-    num_vertices : size_t
-        Number of vertices to randomly sample.
     
     normalized : bool_t
         Normalization will ensure that values are in [0, 1].
@@ -113,7 +109,6 @@ def betweenness_centrality(ResourceHandle resource_handle,
 
     error_code = cugraph_betweenness_centrality(c_resource_handle_ptr,
                                                 c_graph_ptr,
-                                                num_vertices,
                                                 vertex_list_view_ptr,
                                                 normalized,
                                                 include_endpoints,
