@@ -71,6 +71,7 @@ from pylibcugraph.random cimport (
     CuGraphRandomState
 )
 
+# TODO accept cupy/numpy random state in addition to raw seed.
 def uniform_neighbor_sample(ResourceHandle resource_handle,
                             _GPUGraph input_graph,
                             start_list,
@@ -79,7 +80,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             bool_t do_expensive_check,
                             bool_t with_edge_properties=<bool_t>False,
                             batch_id_list=None,
-                            CuGraphRandomState rng_state=None):
+                            random_state=None):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -117,9 +118,10 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         List of int32 batch ids that is returned with each edge.  Optional
         argument, defaults to NULL, returning nothing.
 
-    rng_state: CuGraphRandomState (Optional)
+    random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
-        defaults to the global random state if not provided.
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
 
     Returns
     -------
@@ -171,13 +173,11 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    if rng_state is None:
-        if not CuGraphRandomState.is_initialized():
-            CuGraphRandomState.initialize(resource_handle)
-        rng_state = CuGraphRandomState.get()
+    
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
 
     cdef cugraph_rng_state_t* rng_state_ptr = \
-        rng_state.rng_state_ptr
+        cg_rng_state.rng_state_ptr
     error_code = cugraph_uniform_neighbor_sample_with_edge_properties(
         c_resource_handle_ptr,
         c_graph_ptr,
