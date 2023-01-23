@@ -11,13 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cuGraph is required
-try:
-    import cugraph
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(
-        "cuGraph extensions for PyG require cuGraph to be installed."
-    )
+import cugraph
 
 
 from typing import (
@@ -35,7 +29,6 @@ import cudf
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
-cupy = import_optional("cupy")
 torch = import_optional("torch")
 
 HeteroSamplerOutput = (

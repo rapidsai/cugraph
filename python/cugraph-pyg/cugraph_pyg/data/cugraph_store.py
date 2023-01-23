@@ -29,11 +29,12 @@ import cugraph
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
 
+# FIXME drop cupy support and make torch the only backend (#2995)
+import cupy
+
 import dask.dataframe as dd
 from dask.distributed import get_client
 
-# FIXME drop cupy support and make torch the only backend (#2995)
-import cupy
 
 torch = import_optional("torch")
 
