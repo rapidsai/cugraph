@@ -15,8 +15,10 @@
  */
 #pragma once
 
+#include <prims/count_if_v.cuh>
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_v.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
@@ -42,14 +44,13 @@ namespace {
 
 template <typename vertex_t>
 struct brandes_e_op_t {
-  const vertex_t max_vertex_t{std::numeric_limits<vertex_t>::max()};
+  const vertex_t invalid_distance_{std::numeric_limits<vertex_t>::max()};
 
   template <typename value_t, typename ignore_t>
   __device__ thrust::optional<value_t> operator()(
-    vertex_t, vertex_t, value_t src_property, vertex_t dst_property, ignore_t) const
+    vertex_t, vertex_t, value_t src_sigma, vertex_t dst_distance, ignore_t) const
   {
-    thrust::optional<value_t> result{thrust::nullopt};
-    return (dst_property < max_vertex_t) ? result : thrust::make_optional(src_property);
+    return (dst_distance == invalid_distance_) ? thrust::make_optional(src_sigma) : thrust::nullopt;
   }
 };
 
@@ -117,7 +118,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes
                                                     dst_distance.view(),
                                                     cugraph::edge_dummy_property_t{}.view(),
                                                     brandes_e_op_t<vertex_t>{},
-                                                    reduce_op::plus<edge_t>());
+                                                    reduce_op::plus<vertex_t>());
 
     update_v_frontier(handle,
                       graph_view,
@@ -128,12 +129,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes
                       thrust::make_zip_iterator(distance.begin(), sigma.begin()),
                       thrust::make_zip_iterator(distance.begin(), sigma.begin()),
                       [hop] __device__(auto v, auto old_values, auto v_sigma) {
-                        vertex_t next_distance = thrust::get<0>(old_values) == invalid_distance
-                                                   ? (hop + 1)
-                                                   : thrust::get<0>(old_values);
                         return thrust::make_tuple(
                           thrust::make_optional(bucket_idx_next),
-                          thrust::make_optional(thrust::make_tuple(next_distance, v_sigma)));
+                          thrust::make_optional(thrust::make_tuple(hop + 1, v_sigma)));
                       });
 
     vertex_frontier.bucket(bucket_idx_cur).clear();
@@ -152,7 +150,7 @@ void accumulate_vertex_results(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  rmm::device_uvector<weight_t>& centralities,
+  raft::device_span<weight_t> centralities,
   rmm::device_uvector<vertex_t>&& distance,
   rmm::device_uvector<vertex_t>&& sigma,
   bool with_endpoints,
@@ -160,35 +158,25 @@ void accumulate_vertex_results(
 {
   constexpr vertex_t invalid_distance = std::numeric_limits<vertex_t>::max();
 
-  vertex_t diameter = thrust::transform_reduce(
-    handle.get_thrust_policy(),
+  vertex_t diameter = transform_reduce_v(
+    handle,
+    graph_view,
     distance.begin(),
-    distance.end(),
-    [] __device__(auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
+    [] __device__(auto, auto d) { return (d == invalid_distance) ? vertex_t{0} : d; },
     vertex_t{0},
-    thrust::maximum<vertex_t>());
-
-  if constexpr (multi_gpu) {
-    diameter = host_scalar_allreduce(
-      handle.get_comms(), diameter, raft::comms::op_t::MAX, handle.get_stream());
-  }
+    reduce_op::maximum<vertex_t>{},
+    do_expensive_check);
 
   rmm::device_uvector<weight_t> delta(sigma.size(), handle.get_stream());
   detail::scalar_fill(handle, delta.data(), delta.size(), weight_t{0});
 
   if (with_endpoints) {
-    vertex_t count = thrust::transform_reduce(
-      handle.get_thrust_policy(),
+    vertex_t count = count_if_v(
+      handle,
+      graph_view,
       distance.begin(),
-      distance.end(),
-      [] __device__(auto d) { return (d == invalid_distance) ? vertex_t{0} : 1; },
-      vertex_t{0},
-      thrust::plus<vertex_t>());
-
-    if constexpr (multi_gpu) {
-      count = host_scalar_allreduce(
-        handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
-    }
+      [] __device__(auto, auto d) { return (d != invalid_distance); },
+      do_expensive_check);
 
     thrust::transform(handle.get_thrust_policy(),
                       distance.begin(),
@@ -302,7 +290,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   detail::scalar_fill(handle, centralities.data(), centralities.size(), weight_t{0});
 
   size_t num_sources = thrust::distance(vertices_begin, vertices_end);
-  std::vector<size_t> source_starts{{0, num_sources}};
+  std::vector<size_t> source_offsets{{0, num_sources}};
   int my_rank = 0;
 
   if constexpr (multi_gpu) {
@@ -310,9 +298,9 @@ rmm::device_uvector<weight_t> betweenness_centrality(
       host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
 
     num_sources = std::accumulate(source_counts.begin(), source_counts.end(), 0);
-    source_starts.resize(source_counts.size() + 1);
-    source_starts[0] = 0;
-    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_starts.begin() + 1);
+    source_offsets.resize(source_counts.size() + 1);
+    source_offsets[0] = 0;
+    std::inclusive_scan(source_counts.begin(), source_counts.end(), source_offsets.begin() + 1);
     my_rank = handle.get_comms().get_rank();
   }
 
@@ -332,10 +320,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
     vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-    if ((source_idx >= source_starts[my_rank]) && (source_idx < source_starts[my_rank + 1])) {
+    if ((source_idx >= source_offsets[my_rank]) && (source_idx < source_offsets[my_rank + 1])) {
       vertex_frontier.bucket(bucket_idx_cur)
-        .insert(vertices_begin + (source_idx - source_starts[my_rank]),
-                vertices_begin + (source_idx - source_starts[my_rank]) + 1);
+        .insert(vertices_begin + (source_idx - source_offsets[my_rank]),
+                vertices_begin + (source_idx - source_offsets[my_rank]) + 1);
     }
 
     //
@@ -349,7 +337,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
     accumulate_vertex_results(handle,
                               graph_view,
                               edge_weight_view,
-                              centralities,
+                              raft::device_span<weight_t>{centralities.data(), centralities.size()},
                               std::move(distance),
                               std::move(sigma),
                               include_endpoints,

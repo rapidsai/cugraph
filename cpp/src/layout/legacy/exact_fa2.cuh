@@ -82,7 +82,8 @@ void exact_fa2(raft::handle_t const& handle,
   d_swinging   = swinging.data();
   d_traction   = traction.data();
 
-  uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, uint64_t{0});
+  raft::random::RngState rng_state{0};
+  uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, rng_state);
 
   if (x_start && y_start) {
     raft::copy(pos, x_start, n, stream_view.value());

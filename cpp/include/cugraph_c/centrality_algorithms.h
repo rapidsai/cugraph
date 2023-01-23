@@ -247,7 +247,7 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
- *                                 to use as seeds for betweenness approximation
+ *                                 to use as seeds for betweenness centrality approximation
  * @param [in]  normalized         Normalize
  * @param [in]  include_endpoints  The traditional formulation of betweenness centrality does not
  *                                 include endpoints when considering a vertex to be on a shortest
@@ -325,7 +325,7 @@ void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* resul
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
- *                                 to use as seeds for traversals
+ *                                 to use as seeds for betweenness centrality approximation
  * @param [in]  normalized         Normalize
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).

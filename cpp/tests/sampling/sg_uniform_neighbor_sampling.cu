@@ -85,7 +85,7 @@ class Tests_Uniform_Neighbor_Sampling
                                                  handle.get_stream());
 
     cugraph::detail::uniform_random_fill(
-      handle.get_stream(), random_numbers.data(), random_numbers.size(), float{0}, float{1}, seed);
+      handle.get_stream(), random_numbers.data(), random_numbers.size(), float{0}, float{1}, rng_state);
 
     auto random_sources_end = thrust::copy_if(
       handle.get_thrust_policy(),
@@ -107,7 +107,7 @@ class Tests_Uniform_Neighbor_Sampling
     //  Now we'll assign the vertices to batches
     //
     cugraph::detail::uniform_random_fill(
-      handle.get_stream(), random_numbers.data(), random_numbers.size(), float{0}, float{1}, seed);
+      handle.get_stream(), random_numbers.data(), random_numbers.size(), float{0}, float{1}, rng_state);
 
     thrust::sort_by_key(handle.get_thrust_policy(),
                         random_numbers.begin(),

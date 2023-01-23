@@ -65,8 +65,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
                       num_edges_generated;
 
+    // FIXME: This should be passed as a parameter instead of the seed
+    raft::random::RngState rng_state(seed);
     detail::uniform_random_fill(
-      handle.get_stream(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, seed);
+      handle.get_stream(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, rng_state);
     seed += num_edges_to_generate * 2 * scale;
 
     thrust::transform(

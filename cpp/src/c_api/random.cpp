@@ -62,21 +62,26 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
           graph_->graph_);
 
       auto graph_view = graph->view();
+      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> local_vertices(0, handle_.get_stream());
 
       if (!multi_gpu || (handle_.get_comms().get_rank() == 0)) {
-        local_vertices = cugraph::select_random_vertices(handle_,
-                                                         rng_state_->rng_state_,
-                                                         graph_view.number_of_vertices(),
-                                                         static_cast<vertex_t>(num_vertices_),
-                                                         false);
+        local_vertices = cugraph::select_random_vertices(
+          handle_, graph_view, rng_state_->rng_state_, static_cast<vertex_t>(num_vertices_), false);
       }
 
       if constexpr (multi_gpu) {
-        local_vertices = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-          handle_, std::move(local_vertices));
+        local_vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+          handle_, std::move(local_vertices), graph_view.vertex_partition_range_lasts());
       }
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                            local_vertices.data(),
+                                                            local_vertices.size(),
+                                                            number_map->data(),
+                                                            graph_view.vertex_partition_range_lasts(),
+                                                            false);
 
       result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(local_vertices,
                                                                        graph_->vertex_type_);
