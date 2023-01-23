@@ -205,4 +205,5 @@ class EXPERIMENTAL__BulkSampler:
             )
             samples[f].to_parquet(
                 inner_path,
+                index=False
             )
