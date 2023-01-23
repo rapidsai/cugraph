@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,11 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
-    cugraph_sample_result_get_index,
+    cugraph_sample_result_get_edge_weight,
+    cugraph_sample_result_get_edge_id,
+    cugraph_sample_result_get_edge_type,
+    cugraph_sample_result_get_hop,
+    cugraph_sample_result_get_start_labels,
     cugraph_sample_result_free,
 )
 from pylibcugraph.utils cimport (
@@ -73,12 +77,55 @@ cdef class SamplingResult:
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
-    def get_indices(self):
+    def get_edge_weights(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "
                              "non-NULL value first.")
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
-            cugraph_sample_result_get_index(self.c_sample_result_ptr)
+            cugraph_sample_result_get_edge_weight(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    def get_indices(self):
+        return self.get_edge_weights()
+    
+    def get_edge_ids(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_edge_id(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
+    def get_edge_types(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_edge_type(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+    
+    def get_batch_ids(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_start_labels(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+                                
+    def get_hop_ids(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_hop(self.c_sample_result_ptr)
         )
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)

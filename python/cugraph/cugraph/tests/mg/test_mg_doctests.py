@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,11 +34,12 @@ def _is_public_name(name):
 
 
 def _is_python_module(member):
-    return os.path.splitext(member.__file__)[1] == ".py"
+    member_file = getattr(member, "__file__", "")
+    return os.path.splitext(member_file)[1] == ".py"
 
 
 def _module_from_library(member, libname):
-    return libname in member.__module__
+    return libname in getattr(member, "__file__", "")
 
 
 def _find_doctests_in_docstring(finder, member):
