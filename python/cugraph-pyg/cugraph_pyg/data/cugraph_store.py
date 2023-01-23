@@ -23,32 +23,24 @@ from functools import cached_property
 import numpy as np
 import pandas
 
-# cuGraph is required
 import cugraph
-
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
 
+# FIXME drop cupy support and make torch the only backend (#2995)
+import cupy
+
 import dask.dataframe as dd
 from dask.distributed import get_client
 
-# FIXME drop cupy support and make torch the only backend (#2995)
-cupy = import_optional("cupy")
+
 torch = import_optional("torch")
-cugraph_service_client = import_optional("cugraph_service_client")
 
 Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
 NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 
 TensorType = Union[Tensor, NdArray]
-CuGraphGraph = None if isinstance(cugraph, MissingModule) else cugraph.MultiGraph
-CGSGraph = (
-    None
-    if isinstance(cugraph_service_client, MissingModule)
-    else cugraph_service_client.RemoteGraph
-)
-StructuralGraphType = Union[CuGraphGraph, CGSGraph]
 
 
 class EdgeLayout(Enum):
@@ -562,7 +554,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise KeyError(f"An edge corresponding to '{edge_attr}' was not " f"found")
         return edge_index
 
-    def _subgraph(self, edge_types: List[tuple] = None) -> StructuralGraphType:
+    def _subgraph(self, edge_types: List[tuple]) -> cugraph.MultiGraph:
         """
         Returns a subgraph with edges limited to those of a given type
 
