@@ -135,6 +135,9 @@ class EXPERIMENTAL__BulkSampler:
         """
         Computes all uncomputed batches
         """
+        if self.__batches is None:
+                warnings.warn("Tried to flush with no batches left"); 
+                return 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
             min_batch_id = min_batch_id.compute()
@@ -157,7 +160,6 @@ class EXPERIMENTAL__BulkSampler:
             else cugraph.dask.uniform_neighbor_sample
         )
 
-        # TODO semaphore check to prevent concurrent calls to uniform_neighbor_sample
         samples = sample_fn(
             self.__graph,
             **self.__sample_call_args,
@@ -195,7 +197,7 @@ class EXPERIMENTAL__BulkSampler:
 
             inner_path = os.path.join(
                 outer_partition_path,
-                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}",
+                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}.parquet",
             )
 
             f = (samples.batch_id >= ix_partition_start_inclusive) & (
