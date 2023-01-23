@@ -49,7 +49,7 @@ def _module_from_library(member, libname):
 
 
 def _file_from_library(member, libname):
-    return libname in member.__file__
+    return libname in getattr(member, "__file__", "")
 
 
 def _find_modules_in_obj(finder, obj, obj_name, criteria=None):
