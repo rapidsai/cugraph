@@ -56,3 +56,5 @@ from pylibcugraph.egonet import ego_graph
 from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
+
+from pylibcugraph.betweenness_centrality import betweenness_centrality
