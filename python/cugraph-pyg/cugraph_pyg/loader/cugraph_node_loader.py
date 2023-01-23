@@ -25,7 +25,7 @@ from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.loader.filter import _filter_cugraph_store
 from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
 
-from typing import Union, Tuple, Sequence, Callable, Optional
+from typing import Union, Tuple, Sequence, List
 
 torch_geometric = import_optional("torch_geometric")
 
@@ -41,6 +41,10 @@ class EXPERIMENTAL__BulkSampleLoader:
         edge_types: Sequence[Tuple[str]] = None,
         directory=None,
         rank=0,
+        # Sampler args
+        num_neighbors: List[int] = [1, 1],
+        replace: bool = True,
+        # Other kwargs for the BulkSampler
         **kwargs,
     ):
         """
@@ -92,6 +96,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             self.__directory.name,
             self.__graph_store._subgraph(edge_types),
             rank=rank,
+            fanout_vals=num_neighbors,
+            with_replacement=replace,
             **kwargs,
         )
 
@@ -179,11 +185,8 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
     def __init__(
         self,
         data: Union[CuGraphStore, Tuple[CuGraphStore, CuGraphStore]],
-        input_nodes: Sequence = None,
-        input_time: Sequence = None,
-        transform: Callable = None,
-        transform_sampler_output: Optional[Callable] = None,
-        input_id: Optional[Sequence] = None,
+        input_nodes: Sequence,
+        batch_size: int,
         **kwargs,
     ):
         """
@@ -192,27 +195,17 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         data: CuGraphStore or (CuGraphStore, CuGraphStore)
             The CuGraphStore or stores where the graph/feature data is held.
 
-        node_sampler: CuGraphSampler
-            The cugraph sampler performing sampling operations.
+        batch_size: int
+            The number of input nodes in each batch.
 
         input_nodes: Tensor
             The input nodes for *this* loader.  If there are multiple loaders,
             the appropriate split should be given for this loader.
 
-        input_time: Tensor
-            Input times for temporal loading.  Currently unsupported.
-
-        transform: Unsure if this will be supported
-
-        transform_sampler_output: Unsure if this will be supported
-
-        input_id: Unsure if this will be supported
-
-        shuffle: bool (optional, default=False)
-            If True, the input nodes will be shuffled and batches will be
-            randomized.  If False, the input nodes will be iterated upon
-            in order.
-
+        **kwargs: kwargs
+            Keyword arguments to pass through for sampling.
+            i.e. "shuffle", "fanout"
+            See BulkSampleLoader.
         """
 
         # Allow passing in a feature store and graph store as a tuple, as
@@ -224,14 +217,15 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
             self.__feature_store = data
             self.__graph_store = data
 
+        self.__batch_size = batch_size
         self.__input_nodes = input_nodes
         self.inner_loader_args = kwargs
 
     def __iter__(self):
         return EXPERIMENTAL__BulkSampleLoader(
-            self.__sampler,
+            self.__feature_store,
+            self.__graph_store,
             self.__input_nodes,
-            self.__shuffle,
             self.__batch_size,
             **self.inner_loader_args,
         )
