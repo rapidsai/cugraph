@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import os
+import warnings
 
 from typing import Union
 from math import ceil
@@ -136,8 +137,8 @@ class EXPERIMENTAL__BulkSampler:
         Computes all uncomputed batches
         """
         if self.__batches is None:
-                warnings.warn("Tried to flush with no batches left"); 
-                return 
+            warnings.warn("Tried to flush with no batches left")
+            return
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
             min_batch_id = min_batch_id.compute()
@@ -197,16 +198,14 @@ class EXPERIMENTAL__BulkSampler:
 
             inner_path = os.path.join(
                 outer_partition_path,
-                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}.parquet",
+                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}"
+                ".parquet",
             )
 
             f = (samples.batch_id >= ix_partition_start_inclusive) & (
                 samples.batch_id <= ix_partition_end_inclusive
             )
-           if len(samples[f])==0:
-              break
+            if len(samples[f]) == 0:
+                break
 
-            samples[f].to_parquet(
-                inner_path,
-                index=False
-            )
+            samples[f].to_parquet(inner_path, index=False)
