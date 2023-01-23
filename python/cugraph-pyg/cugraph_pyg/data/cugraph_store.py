@@ -562,7 +562,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise KeyError(f"An edge corresponding to '{edge_attr}' was not " f"found")
         return edge_index
 
-    def _subgraph(self, edge_types: List[tuple]) -> StructuralGraphType:
+    def _subgraph(self, edge_types: List[tuple] = None) -> StructuralGraphType:
         """
         Returns a subgraph with edges limited to those of a given type
 
@@ -578,12 +578,13 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
-        print(edge_types)
-        print(self.__edge_types_to_attrs.keys())
-        if set(edge_types) != set(self.__edge_types_to_attrs.keys()):
+        if edge_types is not None and set(edge_types) != set(
+            self.__edge_types_to_attrs.keys()
+        ):
             raise ValueError(
                 "Subgraphing is currently unsupported, please"
-                " specify all edge types in the graph."
+                " specify all edge types in the graph or leave"
+                " this argument empty."
             )
 
         return self.__graph
@@ -650,7 +651,7 @@ class EXPERIMENTAL__CuGraphStore:
         Example Input: Series({
                 'sources': [0, 5, 11, 3],
                 'destinations': [8, 2, 3, 5]},
-                'indices': [1, 3, 5, 14]
+                'edge_type': [1, 3, 5, 14]
             }),
             {
                 'blue_vertex': [0, 5],
@@ -689,10 +690,10 @@ class EXPERIMENTAL__CuGraphStore:
             # It needs to be converted to a tuple in the for loop below.
             eoi_types = (
                 cudf.Series(self.__edge_type_offsets["type"])
-                .iloc[sampling_results.indices.astype("int32")]
+                .iloc[sampling_results.edge_type.astype("int32")]
                 .reset_index(drop=True)
             )
-            print("eoi_types:", eoi_types)
+
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
