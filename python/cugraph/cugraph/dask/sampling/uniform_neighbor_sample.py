@@ -39,6 +39,9 @@ hop_id_n = "hop_id"
 start_col_name = "_START_"
 batch_col_name = "_BATCH_"
 
+start_col_name = "_START_"
+batch_col_name = "_BATCH_"
+
 
 def create_empty_df(indices_t, weight_t):
     df = cudf.DataFrame(
