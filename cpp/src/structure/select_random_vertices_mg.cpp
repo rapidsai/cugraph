@@ -20,21 +20,42 @@ namespace cugraph {
 
 template rmm::device_uvector<int32_t> select_random_vertices(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   raft::random::RngState& rng_state,
   int32_t select_count,
   bool with_replacement);
 
 template rmm::device_uvector<int32_t> select_random_vertices(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
   raft::random::RngState& rng_state,
   int32_t select_count,
   bool with_replacement);
 
 template rmm::device_uvector<int64_t> select_random_vertices(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
+  raft::random::RngState& rng_state,
+  int64_t select_count,
+  bool with_replacement);
+
+template rmm::device_uvector<int32_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+  raft::random::RngState& rng_state,
+  int32_t select_count,
+  bool with_replacement);
+
+template rmm::device_uvector<int32_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+  raft::random::RngState& rng_state,
+  int32_t select_count,
+  bool with_replacement);
+
+template rmm::device_uvector<int64_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
   raft::random::RngState& rng_state,
   int64_t select_count,
   bool with_replacement);

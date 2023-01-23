@@ -344,6 +344,20 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               do_expensive_check);
   }
 
+  if (normalized) {
+    if (graph_view.number_of_vertices() > 2) {
+      thrust::transform(handle.get_thrust_policy(),
+                        centralities.begin(),
+                        centralities.end(),
+                        centralities.begin(),
+                        [scale_factor = static_cast<weight_t>(
+                           (graph_view.number_of_vertices() - 1) *
+                           (graph_view.number_of_vertices() - 2))] __device__(auto centrality) {
+                          return centrality / scale_factor;
+                        });
+    }
+  }
+
   return centralities;
 }
 
