@@ -590,7 +590,8 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
         thrust::make_counting_iterator(num_segments * K),
         [K,
          high_partition_over_sampling_K,
-         seed_indices           = thrust::get<1>(high_first.get_iterator_tuple()) + seeds_to_sort_per_iteration * i,
+         seed_indices =
+           thrust::get<1>(high_first.get_iterator_tuple()) + seeds_to_sort_per_iteration * i,
          tmp_sample_nbr_indices = tmp_sample_nbr_indices.data(),
          sample_nbr_indices     = sample_nbr_indices.data()] __device__(size_t i) {
           auto seed_idx   = *(seed_indices + i / K);
