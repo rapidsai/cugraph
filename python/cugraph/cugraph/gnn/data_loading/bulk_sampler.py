@@ -203,6 +203,9 @@ class EXPERIMENTAL__BulkSampler:
             f = (samples.batch_id >= ix_partition_start_inclusive) & (
                 samples.batch_id <= ix_partition_end_inclusive
             )
+           if len(samples[f])==0:
+              break
+
             samples[f].to_parquet(
                 inner_path,
                 index=False
