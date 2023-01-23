@@ -30,19 +30,22 @@ rapids-mamba-retry install \
   cugraph-pyg \
   cugraph-service-server \
   cugraph-service-client \
-  libcugraph_etl \
-  cugraph-dgl
+  libcugraph_etl
+
+# This command installs `cugraph-dgl` without its dependencies
+# since this package can currently only run in `11.6` CTK environments
+# due to the dependency version specifications in its conda recipe.
+rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 
 
 # Build Doxygen docs
-gpuci_logger "Build Doxygen docs"
-# wget "https://raw.githubusercontent.com/rapidsai/docs/gh-pages/api/librmm/${VERSION_NUMBER}/rmm.tag" || echo "Failed to download rmm Doxygen tag"
+rapids-logger "Build Doxygen docs"
 pushd cpp/doxygen
 doxygen Doxyfile
 popd
 
 # Build Python docs
-gpuci_logger "Build Sphinx docs"
+rapids-logger "Build Sphinx docs"
 pushd docs/cugraph
 sphinx-build -b dirhtml source _html
 sphinx-build -b text source _text
@@ -50,7 +53,7 @@ popd
 
 
 if [[ ${RAPIDS_BUILD_TYPE} == "branch" ]]; then
-  aws s3 sync --delete python/docs/_html "s3://rapidsai-docs/rmm/${VERSION_NUMBER}/html"
-  aws s3 sync --delete python/docs/_text "s3://rapidsai-docs/rmm/${VERSION_NUMBER}/txt"
-  aws s3 sync --delete doxygen/html "s3://rapidsai-docs/librmm/${VERSION_NUMBER}/html"
+  aws s3 sync --delete docs/cugraph/_html "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/html"
+  aws s3 sync --delete docs/cugraph/_text "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/txt"
+  aws s3 sync --delete cpp/doxygen "s3://rapidsai-docs/libcugraph/${VERSION_NUMBER}/html"
 fi
