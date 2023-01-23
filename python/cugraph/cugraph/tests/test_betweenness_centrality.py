@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.:
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.:
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -160,7 +160,7 @@ def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype
     # And the sampling is operated on Gnx.nodes() directly
     # We first mimic acquisition of the nodes to compare with same sources
     random.seed(seed)  # It will be called again in nx's call
-    sources = random.sample(Gnx.nodes(), k)
+    sources = random.sample(list(Gnx.nodes()), k)
     df = cugraph.betweenness_centrality(
         G,
         k=sources,

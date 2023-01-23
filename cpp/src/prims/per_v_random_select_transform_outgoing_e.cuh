@@ -84,6 +84,16 @@ struct convert_pair_to_triplet_t {
   }
 };
 
+template <typename edge_t, typename T>
+struct check_invalid_t {
+  edge_t invalid_idx{};
+
+  __device__ bool operator()(thrust::tuple<edge_t, T> pair) const
+  {
+    return thrust::get<0>(pair) == invalid_idx;
+  }
+};
+
 template <typename edge_t>
 struct invalid_col_comm_rank_t {
   int32_t invalid_col_comm_rank{};
