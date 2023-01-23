@@ -128,7 +128,7 @@ class EXPERIMENTAL__BulkSampler:
                     " type of previous batches!"
                 )
 
-        while self.size >= self.saturation_level:
+        if self.size >= self.saturation_level:
             self.flush()
 
     def flush(self, skip_partition_size_check=False) -> None:
@@ -167,10 +167,12 @@ class EXPERIMENTAL__BulkSampler:
         )
 
         self.__batches = self.__batches[~batch_id_filter]
+        self.__write(samples, min_batch_id, npartitions)
+
         if len(self.__batches) == 0:
             self.__batches = None
-
-        self.__write(samples, min_batch_id, npartitions)
+        else:
+            self.flush()
 
     def __write(
         self,
