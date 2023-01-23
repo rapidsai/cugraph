@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -282,7 +282,11 @@ def test_sample_result():
         resource_handle,
         device_sources=cp.arange(1e8, dtype="int32"),
         device_destinations=cp.arange(1, 1e8 + 1, dtype="int32"),
-        device_indices=cp.arange(1e8, dtype="int32"),
+        device_weights=cp.arange(1e8 + 2, dtype="float32"),
+        device_edge_id=cp.arange(1e8 + 3, dtype="int32"),
+        device_edge_type=cp.arange(1e8 + 4, dtype="int32"),
+        device_hop=cp.arange(1e8 + 5, dtype="int32"),
+        device_batch_label=cp.arange(1e8 + 6, dtype="int32"),
     )
 
     assert free_memory_before > device.mem_info[0]
