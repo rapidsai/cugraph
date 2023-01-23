@@ -160,7 +160,6 @@ class EXPERIMENTAL__BulkSampler:
             else cugraph.dask.uniform_neighbor_sample
         )
 
-        # TODO semaphore check to prevent concurrent calls to uniform_neighbor_sample
         samples = sample_fn(
             self.__graph,
             **self.__sample_call_args,
