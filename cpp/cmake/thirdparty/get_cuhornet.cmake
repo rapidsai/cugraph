@@ -21,7 +21,7 @@ function(find_and_configure_cuhornet)
     FetchContent_Declare(
         cuhornet
         GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-        GIT_TAG           5d32b389db1bdde0b4102aad5739df0ab6f67d0d
+        GIT_TAG           17467c88abe2b76df456614575c02f7e9cbfd02d
         SOURCE_SUBDIR     hornet
     )
     FetchContent_GetProperties(cuhornet)
