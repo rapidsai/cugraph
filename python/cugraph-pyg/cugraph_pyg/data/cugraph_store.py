@@ -23,12 +23,8 @@ from functools import cached_property
 import numpy as np
 import pandas
 
-# cuGraph is required
-try:
-    import cugraph
-except ModuleNotFoundError:
-    raise ModuleNotFoundError("cuGraph-PyG requires cuGraph to be installed.")
 
+import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
@@ -37,9 +33,9 @@ import dask.dataframe as dd
 from dask.distributed import get_client
 
 # FIXME drop cupy support and make torch the only backend (#2995)
-cupy = import_optional("cupy")
+import cupy
+
 torch = import_optional("torch")
-cugraph_service_client = import_optional("cugraph_service_client")
 
 Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
 NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
