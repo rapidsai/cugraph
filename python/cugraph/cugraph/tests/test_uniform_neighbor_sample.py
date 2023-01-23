@@ -386,6 +386,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
+        random_state=80,
     )
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -438,6 +439,7 @@ def test_uniform_neighbor_sample_empty_start_list():
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
+        random_state=32,
     )
 
     assert sampling_results.empty

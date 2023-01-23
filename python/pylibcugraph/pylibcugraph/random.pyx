@@ -44,28 +44,16 @@ def generate_default_seed():
                 time.perf_counter_ns()
             )
         )
-    
-    # reinterpret as unsigned
-    return h & (2**64 - 1)
 
-class global_random_instance_wrapper:
-    global_random_instance = None
+    return h
 
 cdef class CuGraphRandomState:
     """
         This class wraps a cugraph_rng_state_t instance, which represents a
-        random state.  Users can opt to use the global random state by
-        calling is_initialized(), initialize(), and get(), which are class
-        methods, or they can create their own random state variable by
-        calling this class's constructor.
-
-        Pylibcugraph algorithms that require a random state will use the
-        global random state if no random state is provided by the user.
-        In this case, the pylibcugraph algorithm is responsible for
-        initializing the global random state if necessary.
+        random state.
     """
 
-    def __cinit__(self, ResourceHandle resource_handle, seed=generate_default_seed()):
+    def __cinit__(self, ResourceHandle resource_handle, seed=None):
         """
         Constructs a new CuGraphRandomState instance.
 
@@ -73,7 +61,7 @@ cdef class CuGraphRandomState:
         ----------
         resource_handle: pylibcugraph.ResourceHandle (Required)
             The cugraph resource handle for this process.
-        seed: unsigned int (Optional)
+        seed: int (Optional)
             The random seed of this random state object.
             Defaults to the hash of the hostname, pid, and time.
 
@@ -86,6 +74,12 @@ cdef class CuGraphRandomState:
             resource_handle.c_resource_handle_ptr
         
         cdef cugraph_rng_state_t* new_rng_state_ptr
+
+        if seed is None:
+            seed = generate_default_seed()
+        
+        # reinterpret as unsigned
+        seed &= (2**64 - 1)
 
         error_code = cugraph_rng_state_create(
             c_resource_handle_ptr,
@@ -103,42 +97,3 @@ cdef class CuGraphRandomState:
         free to destroy the underlying C++ object.
         """
         cugraph_rng_state_free(self.rng_state_ptr)
-
-    @classmethod
-    def get(cls):
-        """
-        Class method that returns the global random state instance.  If the
-        global random state instance has not been initialized, an error
-        is thrown instead.
-        """
-        if global_random_instance_wrapper.global_random_instance is None:
-            raise ValueError('Global random state has not been initialized!')
-        return global_random_instance_wrapper.global_random_instance
-    
-    @classmethod
-    def initialize(cls, resource_handle, seed=generate_default_seed()):
-        """
-        Class method that initializes the global random state.  If the
-        global random state was already initialized, the old instance
-        is cleaned up and replaced with the new instance.
-
-        Parameters
-        ----------
-        resource_handle: pylibcugraph.ResourceHandle (Required)
-            The cugraph resource handle for this process.
-        seed: unsigned int (Optional)
-            The random seed of this random state object.
-            Defaults to the hash of the hostname, pid, and time.
-        """
-        global_random_instance_wrapper.global_random_instance = CuGraphRandomState(resource_handle, seed)
-
-    @classmethod
-    def is_initialized(cls):
-        """
-        Class method that checks if the global random state was initialized or not.
-
-        Returns
-        -------
-        True if the global random state instance has been initialized, False otherwise.
-        """
-        return global_random_instance_wrapper.global_random_instance is not None
