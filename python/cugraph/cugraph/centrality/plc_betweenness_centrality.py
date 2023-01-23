@@ -25,7 +25,7 @@ import warnings
 import numpy as np
 
 
-def betweenness_centrality(
+def plc_betweenness_centrality(
     G,
     k=None,
     vertex_list=None,
@@ -120,6 +120,7 @@ def betweenness_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    # FIXME: Should we raise an error if the graph created is weighted?
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
@@ -134,6 +135,7 @@ def betweenness_centrality(
         )
         warnings.warn(warning_msg, UserWarning)
 
+    # FIXME: Should we now remove this paramter?
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
     else:
@@ -142,6 +144,7 @@ def betweenness_centrality(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
+    # FIXME: Should we now remove this paramter?
     if seed is not None:
         warning_msg = (
             "This parameter is deprecated and will be remove " "in the next release."
@@ -156,7 +159,10 @@ def betweenness_centrality(
     if isinstance(k)
     """
     num_vertices = None
-    vertex_list = None
+
+    # vertex_list = None
+    vertex_list = _initialize_vertices(G, k, seed)
+    """
     if isinstance(k, int):
         num_vertices = k
     elif isinstance(k, (cudf.Series, cudf.DataFrame)):
@@ -178,11 +184,10 @@ def betweenness_centrality(
                 )
             else:
                 vertex_list = G.lookup_internal_vertex_id(vertex_list)
-
+    """
     vertices, values = pylibcugraph_betweenness_centrality(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
-        num_vertices=num_vertices,
         vertex_list=vertex_list,
         normalized=normalized,
         include_endpoints=endpoints,
@@ -204,3 +209,26 @@ def betweenness_centrality(
         return dict
     else:
         return df
+
+
+def _initialize_vertices(G, k, seed):
+    vertices = None
+    numpy_vertices = None
+    if k is not None:
+        if isinstance(k, int):
+            # FIXME: intialize the 'vertex_list' with select_random_vertices from the CAPI 
+            # vertices = _initialize_vertices_from_indices_sampling(G, k, seed)
+            pass
+        elif isinstance(k, list):
+            vertices = _initialize_vertices_from_identifiers_list(G, k)
+        numpy_vertices = np.array(vertices, dtype=np.int32)
+
+    return vertices
+
+
+def _initialize_vertices_from_identifiers_list(G, identifiers):
+    vertices = identifiers
+    if G.renumbered:
+        vertices = G.lookup_internal_vertex_id(cudf.Series(vertices))
+
+    return vertices
