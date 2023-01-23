@@ -12,6 +12,7 @@
 # limitations under the License.
 import gc
 import random
+import os
 
 import pytest
 import cudf
@@ -448,6 +449,43 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
     assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
     assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
+
+
+@pytest.mark.parametrize("with_replacement", [True, False])
+@pytest.mark.skipif(
+    int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
+)
+def test_uniform_neighbor_edge_properties_sample_small_start_list(with_replacement):
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2],
+                "dst": [0, 1, 2],
+                "eid": [2, 4, 6],
+                "etp": cudf.Series([1, 1, 2], dtype="int32"),
+                "w": [0.0, 0.1, 0.2],
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=cudf.Series([0]),
+        fanout_vals=[10, 25],
+        with_replacement=with_replacement,
+        with_edge_properties=True,
+        batch_id_list=cudf.Series([10], dtype="int32"),
+    )
 
 
 def test_uniform_neighbor_sample_without_dask_inputs():

@@ -45,13 +45,6 @@ Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
 NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 
 TensorType = Union[Tensor, NdArray]
-CuGraphGraph = None if isinstance(cugraph, MissingModule) else cugraph.MultiGraph
-CGSGraph = (
-    None
-    if isinstance(cugraph_service_client, MissingModule)
-    else cugraph_service_client.RemoteGraph
-)
-StructuralGraphType = Union[CuGraphGraph, CGSGraph]
 
 
 class EdgeLayout(Enum):
@@ -565,7 +558,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise KeyError(f"An edge corresponding to '{edge_attr}' was not " f"found")
         return edge_index
 
-    def _subgraph(self, edge_types: List[tuple]) -> StructuralGraphType:
+    def _subgraph(self, edge_types: List[tuple]) -> cugraph.MultiGraph:
         """
         Returns a subgraph with edges limited to those of a given type
 
@@ -581,8 +574,6 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
-        print(edge_types)
-        print(self.__edge_types_to_attrs.keys())
         if set(edge_types) != set(self.__edge_types_to_attrs.keys()):
             raise ValueError(
                 "Subgraphing is currently unsupported, please"

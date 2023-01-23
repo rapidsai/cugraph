@@ -44,15 +44,29 @@ def generate_default_seed():
                 time.perf_counter_ns()
             )
         )
-    
-    # reinterpret as unsigned
-    return h & (2**64 - 1)
 
-class global_random_instance_wrapper:
-    global_random_instance = None
+    return h
 
-cdef class CuGraphRandomState:    
-    def __cinit__(self, ResourceHandle resource_handle, seed=generate_default_seed()):
+cdef class CuGraphRandomState:
+    """
+        This class wraps a cugraph_rng_state_t instance, which represents a
+        random state.
+    """
+
+    def __cinit__(self, ResourceHandle resource_handle, seed=None):
+        """
+        Constructs a new CuGraphRandomState instance.
+
+        Parameters
+        ----------
+        resource_handle: pylibcugraph.ResourceHandle (Required)
+            The cugraph resource handle for this process.
+        seed: int (Optional)
+            The random seed of this random state object.
+            Defaults to the hash of the hostname, pid, and time.
+
+        """
+
         cdef cugraph_error_code_t error_code
         cdef cugraph_error_t* error_ptr
 
@@ -60,6 +74,12 @@ cdef class CuGraphRandomState:
             resource_handle.c_resource_handle_ptr
         
         cdef cugraph_rng_state_t* new_rng_state_ptr
+
+        if seed is None:
+            seed = generate_default_seed()
+        
+        # reinterpret as unsigned
+        seed &= (2**64 - 1)
 
         error_code = cugraph_rng_state_create(
             c_resource_handle_ptr,
@@ -72,18 +92,8 @@ cdef class CuGraphRandomState:
         self.rng_state_ptr = new_rng_state_ptr
     
     def __dealloc__(self):
+        """
+        Destroys this CuGraphRandomState instance.  Properly calls
+        free to destroy the underlying C++ object.
+        """
         cugraph_rng_state_free(self.rng_state_ptr)
-
-    @classmethod
-    def get(cls):
-        if global_random_instance_wrapper.global_random_instance is None:
-            raise ValueError('Global random state has not been initialized!')
-        return global_random_instance_wrapper.global_random_instance
-    
-    @classmethod
-    def initialize(cls, resource_handle, seed=generate_default_seed()):
-        global_random_instance_wrapper.global_random_instance = CuGraphRandomState(resource_handle, seed)
-
-    @classmethod
-    def is_initialized(cls):
-        return global_random_instance_wrapper.global_random_instance is not None

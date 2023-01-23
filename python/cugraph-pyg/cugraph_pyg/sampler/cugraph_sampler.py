@@ -38,7 +38,6 @@ torch_geometric = import_optional("torch_geometric")
 cupy = import_optional("cupy")
 torch = import_optional("torch")
 
-
 HeteroSamplerOutput = (
     None
     if isinstance(torch_geometric, MissingModule)
