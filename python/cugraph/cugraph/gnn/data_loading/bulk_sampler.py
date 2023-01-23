@@ -193,7 +193,7 @@ class EXPERIMENTAL__BulkSampler:
 
             inner_path = os.path.join(
                 outer_partition_path,
-                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}",
+                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}.parquet",
             )
 
             f = (samples.batch_id >= ix_partition_start_inclusive) & (
