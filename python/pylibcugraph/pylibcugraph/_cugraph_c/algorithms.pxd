@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -178,6 +178,31 @@ cdef extern from "cugraph_c/algorithms.h":
 
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_index(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_weight(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_id(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_type(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_hop(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_start_labels(
             cugraph_sample_result_t* result
         )
 

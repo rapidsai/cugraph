@@ -28,7 +28,7 @@ dependencies:
 - libraft-headers=23.02.*
 - librmm=23.02.*
 - nccl>=2.9.9
-- networkx>=2.5.1,<3.0
+- networkx>=2.5.1
 - ninja
 - notebook>=0.5.0
 - nvcc_linux-64=11.5
