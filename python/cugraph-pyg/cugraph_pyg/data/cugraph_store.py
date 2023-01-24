@@ -626,7 +626,6 @@ class EXPERIMENTAL__CuGraphStore:
                 check_multi_edges=False,
                 renumber_graph=True,
                 add_edge_data=False,
-                create_with_edge_info=False,
             )
             self.__subgraphs[edge_types] = sg
 
@@ -662,7 +661,7 @@ class EXPERIMENTAL__CuGraphStore:
                 cudf.from_dlpack(
                     self.searchsorted(
                         self.from_dlpack(
-                            self.__vertex_type_offsets["stop"].__dlpack__()
+                            self.__vertex_type_offsets["stop"].to_dlpack()
                         ),
                         nodes_of_interest,
                     ).__dlpack__()
