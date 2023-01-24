@@ -478,6 +478,9 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
     weight_type = data_type_id_t::FLOAT32;
   }
 
+  // FIXME:  The combination of edge_ids != nullptr, edge_type_ids == nullptr
+  //         logically should be valid, but the code will currently break if
+  //         that is that is specified
   CAPI_EXPECTS(
     (edge_type_ids == nullptr && edge_ids == nullptr) ||
       (edge_type_ids != nullptr && edge_ids != nullptr),
