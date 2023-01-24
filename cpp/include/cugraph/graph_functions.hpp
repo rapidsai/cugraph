@@ -895,10 +895,7 @@ weight_t compute_total_edge_weight(
  * @param  with_replacement If true, select with replacement, if false select without replacement
  * @return Device vector of selected vertices.
  */
-template <typename vertex_t,
-          typename edge_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,

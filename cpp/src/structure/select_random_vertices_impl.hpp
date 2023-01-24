@@ -29,10 +29,7 @@
 
 namespace cugraph {
 
-template <typename vertex_t,
-          typename edge_t,
-          bool store_transposed,
-          bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
@@ -57,7 +54,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     if (select_count == graph_view.number_of_vertices()) {
       detail::sequence_fill(handle.get_stream(), result.data(), result.size(), vertex_t{0});
     } else {
-      rmm::device_scalar<vertex_t> d_num_vertices(graph_view.number_of_vertices(), handle.get_stream());
+      rmm::device_scalar<vertex_t> d_num_vertices(graph_view.number_of_vertices(),
+                                                  handle.get_stream());
 
       cugraph::ops::gnn::graph::get_sampling_index(result.data(),
                                                    rng_state,

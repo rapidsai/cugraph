@@ -76,12 +76,13 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
           handle_, std::move(local_vertices), graph_view.vertex_partition_range_lasts());
       }
 
-      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
-                                                            local_vertices.data(),
-                                                            local_vertices.size(),
-                                                            number_map->data(),
-                                                            graph_view.vertex_partition_range_lasts(),
-                                                            false);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        local_vertices.data(),
+        local_vertices.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_type_erased_device_array_t(local_vertices,
                                                                        graph_->vertex_type_);
