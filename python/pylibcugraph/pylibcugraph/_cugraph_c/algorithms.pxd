@@ -258,14 +258,3 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )
-    
-    # random vertices selection
-    cdef cugraph_error_code_t \
-        cugraph_select_random_vertices(
-            const cugraph_resource_handle_t* handle,
-            const cugraph_graph_t* graph,
-            cugraph_rng_state_t* rng_state,
-            size_t num_vertices,
-            cugraph_type_erased_device_array_t** vertices,
-            cugraph_error_t** error
-        )
