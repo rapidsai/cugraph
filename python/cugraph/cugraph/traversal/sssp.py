@@ -109,8 +109,8 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
         if return_predecessors:
             if is_cp_matrix_type(input_type):
                 return (
-                    cp.fromDlpack(sorted_df["distance"].to_dlpack()),
-                    cp.fromDlpack(sorted_df["predecessor"].to_dlpack()),
+                    cp.from_dlpack(sorted_df["distance"].to_dlpack()),
+                    cp.from_dlpack(sorted_df["predecessor"].to_dlpack()),
                 )
             else:
                 return (
@@ -119,7 +119,7 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
                 )
         else:
             if is_cp_matrix_type(input_type):
-                return cp.fromDlpack(sorted_df["distance"].to_dlpack())
+                return cp.from_dlpack(sorted_df["distance"].to_dlpack())
             else:
                 return sorted_df["distance"].to_numpy()
     else:

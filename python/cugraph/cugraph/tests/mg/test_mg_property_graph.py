@@ -1358,6 +1358,88 @@ def test_fillna_edges():
     )
 
 
+def test_types_from_numerals(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    df_edgelist_cow = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 7, 2, 0, 1],
+                "dst": [1, 1, 1, 3, 2],
+                "val": [1, 3, 2, 3, 3],
+            }
+        ),
+        npartitions=2,
+    )
+
+    df_edgelist_pig = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [3, 1, 4, 5, 6],
+                "dst": [1, 6, 5, 6, 7],
+                "val": [5, 4, 5, 5, 2],
+            }
+        ),
+        npartitions=2,
+    )
+
+    df_props_duck = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "id": [0, 1, 2, 3],
+                "a": [0, 1, 6, 2],
+                "b": [2, 1, 2, 2],
+            }
+        ),
+        npartitions=2,
+    )
+
+    df_props_goose = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "id": [4, 5, 6, 7],
+                "a": [5, 4, 1, 8],
+                "b": [2, 3, 8, 9],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+
+    pG.add_edge_data(df_edgelist_cow, vertex_col_names=["src", "dst"], type_name="cow")
+    pG.add_edge_data(df_edgelist_pig, vertex_col_names=["src", "dst"], type_name="pig")
+
+    pG.add_vertex_data(df_props_duck, vertex_col_name="id", type_name="duck")
+    pG.add_vertex_data(df_props_goose, vertex_col_name="id", type_name="goose")
+
+    assert pG.vertex_types_from_numerals(
+        cudf.Series([0, 1, 0, 0, 1, 0, 1, 1])
+    ).values_host.tolist() == [
+        "duck",
+        "goose",
+        "duck",
+        "duck",
+        "goose",
+        "duck",
+        "goose",
+        "goose",
+    ]
+    assert pG.edge_types_from_numerals(
+        cudf.Series([1, 1, 0, 1, 1, 0, 0, 1, 1])
+    ).values_host.tolist() == [
+        "pig",
+        "pig",
+        "cow",
+        "pig",
+        "pig",
+        "cow",
+        "cow",
+        "pig",
+        "pig",
+    ]
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
