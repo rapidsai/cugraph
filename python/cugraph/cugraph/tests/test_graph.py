@@ -729,12 +729,20 @@ def test_create_graph_with_edge_ids(graph_file):
     with pytest.raises(ValueError):
         G = cugraph.Graph()
         G.from_cudf_edgelist(
-            el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+            el,
+            source="0",
+            destination="1",
+            edge_attr=["2", "id", "etype"],
+            legacy_renum_only=True,
         )
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(
-        el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+        el,
+        source="0",
+        destination="1",
+        edge_attr=["2", "id", "etype"],
+        legacy_renum_only=True,
     )
 
     H = G.to_undirected()
