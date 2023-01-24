@@ -117,9 +117,50 @@ def test_bulk_sampler_remainder(dask_client):
 
     for x in range(0, 6, 2):
         subdir = f"{x}-{x+1}"
-        df = cudf.read_parquet(os.path.join(tld, f"batch={subdir}"))
+        df = cudf.read_parquet(os.path.join(tld, f"batch={subdir}.parquet"))
 
         assert x in df.batch_id.values_host.tolist()
         assert (x + 1) in df.batch_id.values_host.tolist()
 
-    assert (cudf.read_parquet(os.path.join(tld, "batch=6-7")).batch_id == 6).all()
+    assert (
+        cudf.read_parquet(os.path.join(tld, "batch=6-7.parquet")).batch_id == 6
+    ).all()
+
+
+def test_bulk_sampler_mg_graph_sg_input(dask_client):
+    el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
+    el["eid"] = el["eid"].astype("int32")
+    el["etp"] = cupy.int32(0)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        dask_cudf.from_cudf(el, npartitions=2),
+        source="src",
+        destination="dst",
+        edge_attr=["wgt", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    tempdir_object = tempfile.TemporaryDirectory()
+    bs = BulkSampler(
+        batch_size=2,
+        output_path=tempdir_object.name,
+        graph=G,
+        fanout_vals=[2, 2],
+        with_replacement=False,
+    )
+
+    batches = cudf.DataFrame(
+        {
+            "start": cudf.Series([0, 5, 10, 15], dtype="int32"),
+            "batch": cudf.Series([0, 0, 1, 1], dtype="int32"),
+        }
+    )
+
+    bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
+    bs.flush(skip_partition_size_check=True)
+
+    recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
+
+    for b in batches["batch"].unique().values_host.tolist():
+        assert b in recovered_samples["batch_id"].values_host.tolist()

@@ -103,15 +103,18 @@ def test_bulk_sampler_remainder():
 
     tld = os.path.join(tempdir_object.name, "rank=0")
     recovered_samples = cudf.read_parquet(tld)
+    print(os.listdir(tld))
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
     for x in range(0, 6, 2):
         subdir = f"{x}-{x+1}"
-        df = cudf.read_parquet(os.path.join(tld, f"batch={subdir}"))
+        df = cudf.read_parquet(os.path.join(tld, f"batch={subdir}.parquet"))
 
         assert x in df.batch_id.values_host.tolist()
         assert (x + 1) in df.batch_id.values_host.tolist()
 
-    assert (cudf.read_parquet(os.path.join(tld, "batch=6-7")).batch_id == 6).all()
+    assert (
+        cudf.read_parquet(os.path.join(tld, "batch=6-7.parquet")).batch_id == 6
+    ).all()
