@@ -85,7 +85,6 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         self.__feature_store = feature_store
         self.__graph_store = graph_store
-        self.__batch_size = batch_size
         self.__rank = rank
         self.__next_batch = 0
 
@@ -100,6 +99,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             with_replacement=replace,
             **kwargs,
         )
+        self.__batches_per_partition = bulk_sampler.batches_per_partition
 
         # Make sure indices are in cupy
         all_indices = cupy.from_dlpack(all_indices.__dlpack__())
@@ -114,12 +114,15 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Split into batches
         all_indices = cupy.split(all_indices, len(all_indices) // batch_size)
+        print("all_indices:", all_indices)
 
-        for batch_num, batch_start in enumerate(range(0, len(all_indices), batch_size)):
+        self.__num_batches = 0
+        for batch_num, batch_i in enumerate(all_indices):
+            self.__num_batches += 1
             bulk_sampler.add_batches(
                 cudf.DataFrame(
                     {
-                        "start": all_indices[batch_start],
+                        "start": batch_i,
                         "batch": cupy.full(batch_size, batch_num, dtype="int32"),
                     }
                 ),
@@ -129,34 +132,37 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         bulk_sampler.flush()
 
-        self.__end_exclusive = batch_size
+        self.__end_exclusive = 0
 
     def __next__(self):
         # Quit iterating if there are no batches left
-        if self.__next_batch >= self.num_batches:
+        if self.__next_batch >= self.__num_batches:
             raise StopIteration
 
         # Load the next set of sampling results if necessary
         if self.__next_batch >= self.__end_exclusive:
             # Read the next parquet file into memory
             rank_path = os.path.join(self.__directory.name, f"rank={self.__rank}")
+
             parquet_path = os.path.join(
                 rank_path,
                 f"batch={self.__end_exclusive}"
-                f"-{self.__end_exclusive + self.__batch_size - 1}.parquet",
+                f"-{self.__end_exclusive + self.__batches_per_partition - 1}.parquet",
             )
 
-            self.__end_exclusive += self.__batch_size
+            self.__end_exclusive += self.__batches_per_partition
             self.__data = cudf.read_parquet(parquet_path)
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
-        sampler_output = _sampler_output_from_sampling_results(self.__data[f])
+        sampler_output = _sampler_output_from_sampling_results(
+            self.__data[f], self.__graph_store
+        )
 
         # Get ready for next iteration
         # If there is no next iteration, make sure results are deleted
         self.__next_batch += 1
-        if self.__next_batch >= self.num_batches:
+        if self.__next_batch >= self.__num_batches:
             del self.__directory
 
         # Get and return the sampled subgraph

@@ -554,7 +554,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise KeyError(f"An edge corresponding to '{edge_attr}' was not " f"found")
         return edge_index
 
-    def _subgraph(self, edge_types: List[tuple]) -> cugraph.MultiGraph:
+    def _subgraph(self, edge_types: List[tuple] = None) -> cugraph.MultiGraph:
         """
         Returns a subgraph with edges limited to those of a given type
 
@@ -693,7 +693,9 @@ class EXPERIMENTAL__CuGraphStore:
                 src_type, _, dst_type = pyg_can_edge_type
 
                 # Get the de-offsetted sources
-                sources = self.from_dlpack(sampling_results.sources.loc[ix].to_dlpack())
+                sources = self.from_dlpack(
+                    sampling_results.sources.iloc[ix].to_dlpack()
+                )
                 sources_ix = self.searchsorted(
                     self.__vertex_type_offsets["stop"], sources
                 )
@@ -706,7 +708,7 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Get the de-offsetted destinations
                 destinations = self.from_dlpack(
-                    sampling_results.destinations.loc[ix].to_dlpack()
+                    sampling_results.destinations.iloc[ix].to_dlpack()
                 )
                 destinations_ix = self.searchsorted(
                     self.__vertex_type_offsets["stop"], destinations

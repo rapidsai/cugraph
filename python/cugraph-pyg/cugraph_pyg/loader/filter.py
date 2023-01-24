@@ -38,7 +38,7 @@ def _filter_cugraph_store(
     for attr in graph_store.get_all_edge_attrs():
         key = attr.edge_type
         if key in row_dict and key in col_dict:
-            edge_index = cupy.stack([row_dict[key], col_dict[key]], dim=0)
+            edge_index = cupy.stack([row_dict[key], col_dict[key]])
             data[attr.edge_type] = {}
             data[attr.edge_type]["edge_index"] = edge_index
 
@@ -49,8 +49,7 @@ def _filter_cugraph_store(
             attr.index = node_dict[attr.group_name]
             required_attrs.append(attr)
             data[attr.group_name] = {}
-            data["num_nodes"] = attr.index.size(0)
-
+            data["num_nodes"] = attr.index.size
     tensors = feature_store.multi_get_tensor(required_attrs)
     for i, attr in enumerate(required_attrs):
         data[attr.group_name][attr.attr_name] = tensors[i]
