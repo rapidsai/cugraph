@@ -107,8 +107,8 @@ def test_from_to_numpy(graph_file):
     # convert graphs to numpy array
     nparray_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().values_host)
     nparray_cu = cugraph.to_numpy_array(cuG)
-    npmatrix_nx = nx.to_numpy_matrix(nxG, nodelist=cuG.nodes().values_host)
-    npmatrix_cu = cugraph.to_numpy_matrix(cuG)
+    npmatrix_nx = nx.to_numpy_array(nxG, nodelist=cuG.nodes().values_host)
+    npmatrix_cu = cugraph.to_numpy_array(cuG)
 
     # Compare arrays and matrices
     assert np.array_equal(nparray_nx, nparray_cu)
@@ -135,8 +135,8 @@ def test_from_to_numpy(graph_file):
     assert exp_pdf.equals(res_pdf)
 
     # Create graphs from numpy matrix
-    new_nxG = nx.from_numpy_matrix(npmatrix_nx, create_using=nx.DiGraph)
-    new_cuG = cugraph.from_numpy_matrix(
+    new_nxG = nx.from_numpy_array(npmatrix_nx, create_using=nx.DiGraph)
+    new_cuG = cugraph.from_numpy_array(
         npmatrix_cu, create_using=cugraph.Graph(directed=True)
     )
 

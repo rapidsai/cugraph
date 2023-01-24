@@ -134,12 +134,18 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       });
 
     auto h_vertex_partition_range_lasts = mg_graph_view.vertex_partition_range_lasts();
-    std::tie(std::get<0>(mg_vertex_pair_buffer), std::get<1>(mg_vertex_pair_buffer), std::ignore) =
+    std::tie(std::get<0>(mg_vertex_pair_buffer),
+             std::get<1>(mg_vertex_pair_buffer),
+             std::ignore,
+             std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                  weight_t>(
+                                                                                  edge_t,
+                                                                                  weight_t,
+                                                                                  int32_t>(
         *handle_,
         std::move(std::get<0>(mg_vertex_pair_buffer)),
         std::move(std::get<1>(mg_vertex_pair_buffer)),
+        std::nullopt,
         std::nullopt,
         h_vertex_partition_range_lasts);
 
