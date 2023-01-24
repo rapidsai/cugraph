@@ -147,7 +147,7 @@ dependencies:
           - numpydoc
           - pydata-sphinx-theme
           - recommonmark
-          - sphinx
+          - sphinx<6
           - sphinx_rtd_theme
           - ipython
           - sphinxcontrib-websupport
