@@ -60,7 +60,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes_bfs(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> brandes_bfs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -76,14 +76,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> brandes
   constexpr int bucket_idx_cur{0};
   constexpr int bucket_idx_next{1};
 
-  rmm::device_uvector<vertex_t> sigma(graph_view.local_vertex_partition_range_size(),
-                                      handle.get_stream());
+  rmm::device_uvector<edge_t> sigma(graph_view.local_vertex_partition_range_size(),
+                                    handle.get_stream());
   rmm::device_uvector<vertex_t> distance(graph_view.local_vertex_partition_range_size(),
                                          handle.get_stream());
   detail::scalar_fill(handle, distance.data(), distance.size(), invalid_distance);
-  detail::scalar_fill(handle, sigma.data(), sigma.size(), vertex_t{0});
+  detail::scalar_fill(handle, sigma.data(), sigma.size(), edge_t{0});
 
-  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> src_sigma(
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, edge_t> src_sigma(
     handle, graph_view);
   edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> dst_distance(
     handle, graph_view);
@@ -152,7 +152,7 @@ void accumulate_vertex_results(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<weight_t> centralities,
   rmm::device_uvector<vertex_t>&& distance,
-  rmm::device_uvector<vertex_t>&& sigma,
+  rmm::device_uvector<edge_t>&& sigma,
   bool with_endpoints,
   bool do_expensive_check)
 {
@@ -195,10 +195,10 @@ void accumulate_vertex_results(
   }
 
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, vertex_t, weight_t>>
+                      thrust::tuple<vertex_t, edge_t, weight_t>>
     src_properties(handle, graph_view);
   edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                      thrust::tuple<vertex_t, vertex_t, weight_t>>
+                      thrust::tuple<vertex_t, edge_t, weight_t>>
     dst_properties(handle, graph_view);
 
   update_edge_src_property(
@@ -212,9 +212,9 @@ void accumulate_vertex_results(
     thrust::make_zip_iterator(distance.begin(), sigma.begin(), delta.begin()),
     dst_properties);
 
-  // FIXME: To do this efficiently, I need an efficient
-  //   transform_reduce_v_frontier_incoming_e_by_src on an untransposed
-  //   graph, which does not currently exist.
+  // FIXME: To do this efficiently, I need a version of
+  //   per_v_transform_reduce_outgoing_e that takes a vertex list
+  //   so that we can iterate over the frontier stack.
   //
   //   For now this will do a O(E) pass over all edges over the diameter
   //   of the graph.

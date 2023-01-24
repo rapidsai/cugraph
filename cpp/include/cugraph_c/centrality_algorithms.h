@@ -236,9 +236,8 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
 /**
  * @brief     Compute betweenness centrality
  *
- * Betweenness can be computed exactly by specifying This will compute betweenness centrality by
- * doing a traversal from every vertex and counting the frequency that a vertex appears on a
- * shortest path.
+ * Betweenness can be computed exactly by specifying vertex_list as NULL.  This will compute
+ * betweenness centrality by doing a traversal from every source vertex.
  *
  * Approximate betweenness can be computed specifying a list of vertices that should be
  * used as seeds for the traversals.  Note that the function cugraph_select_random_vertices can be
