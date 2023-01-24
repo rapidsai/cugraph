@@ -88,7 +88,6 @@ def test_cugraph_loader_basic(karate_gnn):
     )
 
     samples = [s for s in loader]
-    print(samples)
 
     assert len(samples) == 3
     for sample in samples:
