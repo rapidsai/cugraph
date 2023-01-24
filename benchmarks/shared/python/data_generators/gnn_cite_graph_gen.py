@@ -362,7 +362,7 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
     print("Save the author writes paper data")
     dir = args.outdir + author_paper_dir
     name = "edge"
-    save_data(args.format, dir, name, data)
+    save_data(args, dir, name, data)
 
     return num_authors
 
@@ -436,7 +436,7 @@ def create_author_institute_data(args, start_id, num_authors):
     print("Save the author writes works at institution")
     dir = args.outdir + author_institute_dir
     name = "edge"
-    save_data(args.format, dir, name, data)
+    save_data(args, dir, name, data)
 
     return num_authors
 
