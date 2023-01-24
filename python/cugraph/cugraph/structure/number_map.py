@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -651,6 +651,7 @@ class NumberMap:
                         for (data, wf) in result
                     ]
                 )
+
                 if renumber_type == "legacy":
                     renumber_map.implementation.ddf = (
                         indirection_map.merge(

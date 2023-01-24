@@ -48,7 +48,7 @@ class FeatureStore:
         -------
             None
         """
-        self.fd[type_name][feat_name] = self._cast_feat_obj_to_backend(
+        self.fd[feat_name][type_name] = self._cast_feat_obj_to_backend(
             feat_obj, self.backend
         )
 
@@ -75,19 +75,19 @@ class FeatureStore:
         np.ndarray or torch.Tensor
             Array object of the backend type
         """
-        if type_name not in self.fd:
+
+        if feat_name not in self.fd:
+            raise ValueError(
+                f"{feat_name} not found in features: {list(self.fd.keys())}"
+            )
+
+        if type_name not in self.fd[feat_name]:
             raise ValueError(
                 f"type_name {type_name} not found in"
-                f" feature store types: {list(self.fd.keys())}"
+                f" feature: {list(self.fd[feat_name].keys())}"
             )
 
-        if feat_name not in self.fd[type_name]:
-            raise ValueError(
-                f"{feat_name} not found in features: {list(self.fd[type_name].keys())}"
-                f" of the type {type_name}"
-            )
-
-        return self.fd[type_name][feat_name][indices]
+        return self.fd[feat_name][type_name][indices]
 
     @staticmethod
     def _cast_feat_obj_to_backend(feat_obj, backend: str):

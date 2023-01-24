@@ -174,12 +174,20 @@ class simpleDistributedGraphImpl:
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
-            if len(edge_attr) == 3 and not self.properties.directed:
-                raise ValueError(
-                    "User-provided edge ids and edge "
-                    "types are not permitted for an "
-                    "undirected graph."
-                )
+            if len(edge_attr) == 3:
+                if not self.properties.directed:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are not permitted for an "
+                        "undirected graph."
+                    )
+                if not legacy_renum_only:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are only permitted when "
+                        "from_edgelist is called with "
+                        "legacy_renum_only=True."
+                    )
 
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
