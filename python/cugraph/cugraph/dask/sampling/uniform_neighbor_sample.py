@@ -270,7 +270,7 @@ def uniform_neighbor_sample(
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
             # FIXME accept and properly transmute a numpy/cupy random state.
-            random_state=hash(random_state, i),
+            random_state=hash((random_state, i)),
             workers=[w],
             allow_other_workers=False,
             pure=False,
