@@ -683,9 +683,9 @@ class Graph:
         """
         self._Impl._nodes["all_nodes"] = cudf.Series(nodes)
 
-    def density(self):
+    def density(self) -> float:
         """
-        Return the density of the graph.
+        Compute the density of the graph.
         Density is the measure of how many edges are in the graph versus
         the max number of edges that could be present.
 
@@ -734,6 +734,7 @@ class MultiGraph(Graph):
         """
         # TO DO: Call coloring algorithm
         return True
+
     def density(self):
         raise TypeError("Multigraph does not support density since number of edges is infinite.")
         
