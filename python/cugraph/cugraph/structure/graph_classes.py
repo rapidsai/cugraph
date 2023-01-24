@@ -694,7 +694,7 @@ class Graph:
         density : float
             Density is the measure of how many edges are in the graph versus
             the max number of edges that could be present.
-        
+
         Examples
         --------
         >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -736,8 +736,9 @@ class MultiGraph(Graph):
         return True
 
     def density(self):
-        raise TypeError("Multigraph does not support density since number of edges is infinite.")
-        
+        raise TypeError(
+            "Multigraph does not support density since number of edges is infinite."
+        )
 
 
 class Tree(Graph):
