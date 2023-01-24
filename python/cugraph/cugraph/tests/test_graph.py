@@ -768,4 +768,3 @@ def test_density(graph_file):
     with pytest.raises(TypeError):
         M_G = cugraph.MultiGraph()
         M_G.density()
-
