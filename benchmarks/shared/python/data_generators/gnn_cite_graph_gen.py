@@ -13,6 +13,7 @@
 
 import os
 import numpy as np
+import pandas as pd
 import rmm
 import cudf as cudf_sg
 import cugraph
@@ -26,8 +27,6 @@ import cugraph.dask as dask_cugraph
 from dask.distributed import Client, wait
 from dask_cuda import LocalCUDACluster
 from cugraph.dask.comms import comms as Comms
-
-cudf = None
 
 import argparse
 import ast
@@ -60,27 +59,23 @@ author_paper_dir = "/author__writes__paper"
 author_institute_dir = "/author__affiliated_with__institution"
 
 def setup_sg():
-    global cudf
-    cudf = cudf_sg
 
     # Set RMM to allocate all memory as managed memory
     rmm.mr.set_current_device_resource(rmm.mr.ManagedMemoryResource())
     assert(rmm.is_initialized())
 
 def setup_mg():
-    global cudf
-    cudf = cudf_mg
 
     print("Setup MG")
 
-    cluster = LocalCUDACluster()
+    cluster = LocalCUDACluster(rmm_managed_memory=True)
     client = Client(cluster)
     Comms.initialize(p2p=True)
 
+    return (client, cluster)
 
-    pass
-
-
+def stop_mg(client, cluster):
+    client.close()
 
 def make_dir(d):
     """
@@ -110,14 +105,17 @@ def setup_directories(basedir):
     # Author - Institution
     make_dir(basedir + author_institute_dir)
 
-def save_data(format, dir, file_name, data):
 
-    f =  os.path.join(dir, f'{file_name}.{format}')
+def save_data(args, dir, file_name, data, mg=False):
+
+    if mg:
+        f =  os.path.join(dir, f'{file_name}')
+    else:
+        f =  os.path.join(dir, f'{file_name}.{args.format}')
     print(f'\tsaving to {f}')
 
-
     if format == 'parquet':
-        data.to_parquet(f, header=False, index=False)
+        data.to_parquet(f, index=False)
     else:
         data.to_csv(f, header=False, index=False)
 
@@ -172,7 +170,10 @@ def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False):
     clean_coo = NumberMap.renumber(rmat_df, src_col_names="src", dst_col_names="dst")[0]
     del rmat_df
 
-    clean_coo = clean_coo.rename(columns={"renumbered_src": "src", "renumbered_dst": "dst"})
+    if mg:
+        clean_coo = clean_coo.rename(columns={"renumbered_src": "src", "renumbered_dst": "dst"})
+    else:
+        clean_coo.rename(columns={"renumbered_src": "src", "renumbered_dst": "dst"}, inplace=True)
     return clean_coo
 
 
@@ -181,12 +182,8 @@ def dec_df_update(df, num_items, col_name):
     df2['count'] = df2['count'] - 1
     siz = len(df2)
     ids = np.random.randint( 0,(num_items + 1), size=siz)
-    df2[col_name] = cudf.Series(ids)
+    df2[col_name] = ids
     return df2
-
-
-
-
 
 
 #-----------------------------------------------------------------------
@@ -194,7 +191,7 @@ def dec_df_update(df, num_items, col_name):
 #
 def create_paper_cites_data(args: argparse.Namespace) -> int:
     """
-    Create an RMAT graph and write  out the edges
+    Create an RMAT graph and write out the edges
 
     Returns the number of nodes in the graph
     """
@@ -208,88 +205,98 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
         mg=args.mg
         )
 
-    print("Save the papers cites graph (edge data)")
-    dir = args.outdir + paper_cite_dir
-    name = "edge"
-    save_data(args.format, dir, name, coo)
-
     if args.mg:
         max_id = max( coo['src'].max().compute(),  coo['dst'].max().compute())
     else:
         max_id = max( coo['src'].max(),  coo['dst'].max())
+
+    print("Save the papers cites graph (edge data)")
+    print(f'\tnumber of edges {len(coo)}')
+    print(f'\tnumber of nodes {max_id}')
+
+    dir = args.outdir + paper_cite_dir
+    name = "edge"
+    save_data(args, dir, name, coo, mg=args.mg)
+
     del coo
+
     return max_id
 
-
 #-----------------------------------------------------------------------
+#  this is all done in Pandas in host memory
 #
-#
-def create_papers_data(args, max_id, siz):
+def create_papers_data(args, num_papers):
 
-    num_labeled = int(siz * args.papersLabeledPercent)
+    num_labeled = int(num_papers * args.papersLabeledPercent)
 
-    # create just a list of nodes
-    if args.mg:
-        nodes = cudf_mg.from_cudf(cudf.sg.DataFrame(), npartitions=2)
-    else:
-        nodes = cudf.DataFrame()
+    # create and empty DataFrame
+    #if args.mg:
+    #    nodes = pd.DataFrame()
+    #else:
+    #    nodes = cudf_sg.DataFrame()
 
-    # create an np.array of random numbers
-    ran = np.random.randint( 0,(max_id + 1), size=siz)
-    nodes["rand"] = cudf.Series(ran)
+    nodes = pd.DataFrame()
+
+    # create an np.array of random numbers and add to dataframe
+    ran = np.random.randint( 0, num_papers, size=num_papers)
+    nodes['rand'] = ran
 
     # now computed which are labeled
+    # this is a simple look for whick rows have IDs smaller than the number of labeld
+    # this is based on a true uniformed distributions, so results could be +/- a few 
     nodes["label"] = 0
     nodes["label"].loc[nodes["rand"] < num_labeled] = 1
 
     # selected just the labeld nodes
     labeled_df = (nodes['label'].loc[nodes["label"] == 1]).to_frame().reset_index()
 
-    if args.mg:
-        labeled_df = labeled_df.drop(columns=["label"])
-    else:
-        labeled_df.drop(columns=["label"], inplace=True)
+    # drop the "labeled" column since it is no longer needed
+    labeled_df.drop(columns=["label"], inplace=True)
 
     # Save the list
     dir = args.outdir + paper_dir
-    name = "node-label"
-    save_data(args.format, dir, name, labeled_df)
+    name = "node-label." + args.format
+    save_data(args, dir, name, labeled_df)
 
     # some cleanup
     del ran
     del labeled_df
-    if args.mg:
-        nodes = nodes.drop(columns=["rand"])
-    else:
-        nodes.drop(columns=["rand"], inplace=True)
+    nodes.drop(columns=["rand"], inplace=True)
 
+    #--------------------
     # Now paper features
     num_f = args.papersNumFeatures
+
+    # define the base "labeld" data
     labeled_features = create_base_labeled_features(num_f)
 
-    noise = np.random.uniform(
-        (-1 * args.papersFeatureNoise),
-        args.papersFeatureNoise, 
-        size=siz)
-    nodes["noise"] = cudf.Series(noise)
+    tmp_df = pd.DataFrame()
 
     for x in range(0, num_f):
-        ran = np.random.uniform( -1, 1, size=siz)
+
+        noise = np.random.uniform(
+            (-1 * args.papersFeatureNoise),
+            args.papersFeatureNoise, 
+            size=num_papers)
+        tmp_df["noise"] = noise
+
+        ran = np.random.uniform( -1, 1, size=num_papers)
+        tmp_df["data"] = noise
+
         col_name = "feature_" + str(x)
-        nodes[col_name] = cudf.Series(ran)
-        nodes[col_name].loc[nodes["label"] == 1] = labeled_features[x] + nodes['noise']
+        nodes[col_name] = tmp_df['noise'] + tmp_df['data']
 
-    if args.mg:
-        nodes = nodes.drop(columns=["label","noise"])
-    else:
-        nodes.drop(columns=["label","noise"], inplace=True)
-
-
+    del tmp_df
 
     # Save the features
+    data = nodes.to_numpy()
+    
+    name = "node-feat.npy"
     dir = args.outdir + paper_dir
-    name = "node-feat"
-    save_data(args.format, dir, name, nodes)
+    f =  os.path.join(dir, f'{name}')
+    print(f'\tsaving features to {f}')
+    np.save(f, data)
+
 
 
 #-----------------------------------------------------------------------
@@ -299,34 +306,36 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
     num_authors = int(num_papers * args.authorPercent)
     avg_papers = args.authorAvgNumPapers
 
-    print(f'There are {num_authors} authors')
-    print(f'Avg papers per Author {avg_papers}')
-    print(f'Starting ID will be {start_id}')
+    print('Create Author to Papers edges')
+    print(f'\tThere are {num_authors} authors')
+    print(f'\tAvg papers per Author {avg_papers}')
+    print(f'\tStarting ID will be {start_id}')
 
     low = 1 
 
+    # see if the data fits into one GPUs
+    # - one GPU use cudf
+    # - larger use pandas
+    if (num_authors * avg_papers ) > 2000000000:
+        df = pd.DataFrame()
+    else:
+        df = cudf_sg.DataFrame()
+
     a = np.random.normal(loc=avg_papers, scale=10, size=num_authors)
-    df = cudf.DataFrame()
-    df['count'] = cudf.Series(a)
+    df['count'] = a
     df['count'].loc[df['count'] < low] = low
     df.reset_index(inplace=True)
 
-    if args.mg:
-        df = df.rename(columns={"index": "author"})
-    else:
-        df.rename(columns={"index": "author"}, inplace=True)
+    df.rename(columns={"index": "author"}, inplace=True)
 
     df['author'] = df['author'] + start_id
 
     # add a random paper id
     paper_ids = np.random.randint( 0,(num_papers + 1), size=num_authors)
-    df['paper'] = cudf.Series(paper_ids)
+    df['paper'] = paper_ids
 
     # what is the max 'count' - number of papers written?
-    if args.mg:
-        max_p = int(df['count'].max().compute())
-    else:
-        max_p = int(df['count'].max())
+    max_p = int(df['count'].max())
 
     auth_paper_array = [None] * max_p
     index = 0
@@ -341,13 +350,14 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
         )
         index += 1
 
-    data = cudf.concat(auth_paper_array)
-    del auth_paper_array
-
-    if args.mg:
-        data = data.drop(columns=["count"])
+    if isinstance(df, pd.DataFrame):
+        data = pd.concat(auth_paper_array)
     else:
-        data.drop(columns=["count"], inplace=True)
+        data = cudf_sg.concat(auth_paper_array)
+
+    del auth_paper_array
+    del df
+    data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes paper data")
     dir = args.outdir + author_paper_dir
@@ -371,6 +381,14 @@ def create_author_institute_data(args, start_id, num_authors):
     print(f'Avg works at {avg_works}')
     print(f'Starting ID will be {start_id}')
 
+    # see if the data fits into one GPUs
+    # - one GPU use cudf
+    # - larger use pandas
+    if (num_institutes * avg_works ) > 2000000000:
+        df = pd.DataFrame()
+    else:
+        df = cudf_sg.DataFrame()
+
     if avg_works < 0:
         low = 0
         center = 0
@@ -379,8 +397,7 @@ def create_author_institute_data(args, start_id, num_authors):
         center = int(avg_works * num_institutes)
 
     a = np.random.normal(loc=center, scale=5, size=num_authors)
-    df = cudf.DataFrame()
-    df['count'] = cudf.Series(a)
+    df['count'] = a
     df.reset_index(inplace=True)
     df.rename(columns={"index": "author"}, inplace=True)
     df['author'] = df['author'] + start_id
@@ -389,13 +406,10 @@ def create_author_institute_data(args, start_id, num_authors):
 
     # add a random paper id
     work_ids = np.random.randint( 0,(num_institutes + 1), size=s)
-    df['institution'] = cudf.Series(work_ids)
+    df['institution'] = work_ids
 
     # what is the max 'count' - number of insitutions?
-    if args.mg:
-        max_i = int(df['count'].max().compute())
-    else:
-        max_i = int(df['count'].max())
+    max_i = int(df['count'].max())
 
     auth_work_array = [None] * max_i
     index = 0
@@ -410,13 +424,14 @@ def create_author_institute_data(args, start_id, num_authors):
         )
         index += 1
 
-    data = cudf.concat(auth_work_array)
+    if isinstance(df, pd.DataFrame):
+        data = pd.concat(auth_work_array)
+    else:
+        data = cudf_sg.concat(auth_work_array)
+
     del auth_work_array
 
-    if args.mg:
-        data = data.drop(columns=["count"])
-    else:
-        data.drop(columns=["count"], inplace=True)
+    data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes works at institution")
     dir = args.outdir + author_institute_dir
@@ -546,9 +561,6 @@ def parse_args() -> argparse.Namespace:
                         required=False,
                         )
 
-
-
-
     #--- Multi-GPU options
     parser.add_argument(
                         "-mg",
@@ -579,12 +591,11 @@ def main() -> None:
 
     #--- Step 0: Setup/Init ---
     if args.mg:
-        setup_mg()
+        client, cluster = setup_mg()
     else:
         setup_sg()
 
     print(f"Running in MG mode is {args.mg}")
-
 
     # Create directories
     setup_directories(args.outdir)
@@ -593,19 +604,22 @@ def main() -> None:
     last_paper_id = create_paper_cites_data(args)
     num_papers = last_paper_id + 1
 
-    #--- Step 2: Papers info ---
-    create_papers_data(args, last_paper_id, num_papers)
- 
+    #--- Step 2: Papers info  (labels and features) ---
+    create_papers_data(args, num_papers)
+
     #--- Step 3:Author to Papers ---
     num_auth = create_author_papers_data(args, (last_paper_id + 1), num_papers )
-
 
     #--- Step 4:Author to Institutions ---
     next_id = num_papers + num_auth +1
     create_author_institute_data(args, (next_id), num_auth )
 
 
+    if args.mg:
+        print("Stopping cluster")
+        stop_mg(client, cluster)
 
+    print("DONE")
 
 
 
