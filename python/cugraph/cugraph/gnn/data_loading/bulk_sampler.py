@@ -174,7 +174,8 @@ class EXPERIMENTAL__BulkSampler:
 
         if len(self.__batches) == 0:
             self.__batches = None
-        else:
+
+        if self.__batches is not None:
             self.flush()
 
     def __write(
