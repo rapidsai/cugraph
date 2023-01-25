@@ -134,7 +134,7 @@ def save_data(args, dir, file_name, data, mg=False):
         f = os.path.join(dir, f"{file_name}.{args.format}")
     print(f"\tsaving to {f}")
 
-    if format == "parquet":
+    if args.format == "parquet":
         data.to_parquet(f, index=False)
     else:
         data.to_csv(f, header=False, index=False)
@@ -280,13 +280,13 @@ def create_papers_data(args, num_papers):
 
     # Save the list
     dir = args.outdir + paper_dir
-    name = "node-label." + args.format
+    name = "node-label"
     save_data(args, dir, name, labeled_df)
 
     # some cleanup
     del ran
     del labeled_df
-    nodes.drop(columns=["rand"], inplace=True)
+    nodes.drop(columns=["rand", "label"], inplace=True)
 
     # --------------------
     # Now paper features
