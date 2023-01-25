@@ -52,7 +52,7 @@ def test_bulk_sampler_simple():
     )
 
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
-    bs.flush(skip_partition_size_check=True)
+    bs.flush()
 
     recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
 
@@ -99,7 +99,7 @@ def test_bulk_sampler_remainder():
     )
 
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
-    bs.flush(skip_partition_size_check=True)
+    bs.flush()
 
     tld = os.path.join(tempdir_object.name, "rank=0")
     recovered_samples = cudf.read_parquet(tld)
