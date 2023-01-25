@@ -53,11 +53,15 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
+from pylibcugraph.select_random_vertices import (
+    select_random_vertices
+)
 
 
 def betweenness_centrality(ResourceHandle resource_handle,
                            _GPUGraph graph,
-                           vertex_list,
+                           k,
+                           seed,
                            bool_t normalized,
                            bool_t include_endpoints,
                            bool_t do_expensive_check):
@@ -76,6 +80,21 @@ def betweenness_centrality(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
+
+    k : int or device array type or None, optional (default=None)
+        If k is not None, use k node samples to estimate betweenness.  Higher
+        values give better approximation.  If k is a device array type,
+        use the content of the list for estimation: the list should contain
+        vertex identifiers. If k is None (the default), all the vertices are
+        used to estimate betweenness.  Vertices obtained through sampling or
+        defined as a list will be used as sources for traversals inside the
+        algorithm.
+    
+    seed : optional (default=None)
+        if k is specified and k is an integer, use seed to initialize the
+        random number generator.
+        Using None defaults to a hash of process id, time, and hostname
+        If k is either None or list: seed parameter is ignored
     
     normalized : bool_t
         Normalization will ensure that values are in [0, 1].
@@ -93,6 +112,12 @@ def betweenness_centrality(ResourceHandle resource_handle,
     --------
 
     """
+
+    if isinstance(k, int):
+        # randomly select vertices
+        vertex_list = select_random_vertices(resource_handle, graph, seed, k)
+    else:
+        vertex_list = k
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
