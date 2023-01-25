@@ -411,6 +411,117 @@ extern "C" cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_coun
   return reinterpret_cast<cugraph_type_erased_host_array_view_t*>(internal_pointer->count_->view());
 }
 
+extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* srcs,
+  const cugraph_type_erased_device_array_view_t* dsts,
+  const cugraph_type_erased_device_array_view_t* edge_id,
+  const cugraph_type_erased_device_array_view_t* edge_type,
+  const cugraph_type_erased_device_array_view_t* weight,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const cugraph_type_erased_device_array_view_t* label,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error)
+{
+  *result = nullptr;
+  *error  = nullptr;
+  size_t n_bytes{0};
+  cugraph_error_code_t error_code{CUGRAPH_SUCCESS};
+
+  if (!handle) {
+    *error = reinterpret_cast<cugraph_error_t*>(
+      new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
+    return CUGRAPH_INVALID_HANDLE;
+  }
+
+  // Create unique_ptrs and release them during cugraph_sample_result_t
+  // construction. This allows the arrays to be cleaned up if this function
+  // returns early on error.
+  using device_array_unique_ptr_t =
+    std::unique_ptr<cugraph_type_erased_device_array_t,
+                    decltype(&cugraph_type_erased_device_array_free)>;
+
+  // copy srcs to new device array
+  cugraph_type_erased_device_array_t* new_device_srcs_ptr{nullptr};
+  error_code =
+    cugraph_type_erased_device_array_create_from_view(handle, srcs, &new_device_srcs_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_srcs(new_device_srcs_ptr,
+                                            &cugraph_type_erased_device_array_free);
+
+  // copy dsts to new device array
+  cugraph_type_erased_device_array_t* new_device_dsts_ptr{nullptr};
+  error_code =
+    cugraph_type_erased_device_array_create_from_view(handle, dsts, &new_device_dsts_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_dsts(new_device_dsts_ptr,
+                                            &cugraph_type_erased_device_array_free);
+
+  // copy weights to new device array
+  cugraph_type_erased_device_array_t* new_device_weight_ptr{nullptr};
+  error_code = cugraph_type_erased_device_array_create_from_view(
+    handle, weight, &new_device_weight_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_weight(new_device_weight_ptr,
+                                              &cugraph_type_erased_device_array_free);
+
+  // copy edge ids to new device array
+  cugraph_type_erased_device_array_t* new_device_edge_id_ptr{nullptr};
+  error_code = cugraph_type_erased_device_array_create_from_view(
+    handle, edge_id, &new_device_edge_id_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_edge_id(new_device_edge_id_ptr,
+                                               &cugraph_type_erased_device_array_free);
+
+  // copy edge types to new device array
+  cugraph_type_erased_device_array_t* new_device_edge_type_ptr{nullptr};
+  error_code = cugraph_type_erased_device_array_create_from_view(
+    handle, edge_type, &new_device_edge_type_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_edge_type(new_device_edge_type_ptr,
+                                                 &cugraph_type_erased_device_array_free);
+  // copy hop ids to new device array
+  cugraph_type_erased_device_array_t* new_device_hop_ptr{nullptr};
+  error_code =
+    cugraph_type_erased_device_array_create_from_view(handle, hop, &new_device_hop_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_hop(new_device_hop_ptr,
+                                           &cugraph_type_erased_device_array_free);
+
+  // copy labels to new device array
+  cugraph_type_erased_device_array_t* new_device_label_ptr{nullptr};
+  error_code =
+    cugraph_type_erased_device_array_create_from_view(handle, label, &new_device_label_ptr, error);
+  if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_label(new_device_label_ptr,
+                                             &cugraph_type_erased_device_array_free);
+
+  // create new cugraph_sample_result_t
+  *result = reinterpret_cast<cugraph_sample_result_t*>(new cugraph::c_api::cugraph_sample_result_t{
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_srcs.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_dsts.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_edge_id.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_edge_type.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_weight.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_hop.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_label.release())});
+
+  return CUGRAPH_SUCCESS;
+}
+
 extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* srcs,
@@ -539,8 +650,11 @@ extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
   delete internal_pointer->src_;
   delete internal_pointer->dst_;
-  delete internal_pointer->label_;
   delete internal_pointer->edge_id_;
+  delete internal_pointer->edge_type_;
+  delete internal_pointer->wgt_;
+  delete internal_pointer->hop_;
+  delete internal_pointer->label_;
   delete internal_pointer->count_;
   delete internal_pointer;
 }
