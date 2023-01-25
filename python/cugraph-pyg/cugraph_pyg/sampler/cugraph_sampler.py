@@ -11,18 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    from cugraph_service.client.remote_graph_utils import import_optional, MissingModule
-except ModuleNotFoundError:
-    try:
-        from cugraph.utilities.utils import import_optional, MissingModule
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            "cuGraph extensions for PyG require cuGraph"
-            "or cuGraph-Service to be installed."
-        )
 
-from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
+import cugraph
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.data.cugraph_store import TensorType
 
@@ -30,6 +20,7 @@ from typing import Union
 from typing import Tuple
 from typing import List
 
+from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
@@ -129,16 +120,6 @@ class EXPERIMENTAL__CuGraphSampler:
         metadata=None,
         **kwargs,
     ) -> Union[dict, HeteroSamplerOutput]:
-        is_multi_gpu = self.__graph_store.is_multi_gpu
-        if is_multi_gpu and isinstance(dask_cudf, MissingModule):
-            raise ImportError("Cannot use a multi-GPU store without dask_cudf")
-        if is_multi_gpu != self.__feature_store.is_multi_gpu:
-            raise ValueError(
-                f"Graph store multi-GPU is {is_multi_gpu}"
-                f" but feature store multi-GPU is "
-                f"{self.__feature_store.is_multi_gpu}"
-            )
-
         backend = self.__graph_store.backend
         if backend != self.__feature_store.backend:
             raise ValueError(
@@ -168,8 +149,13 @@ class EXPERIMENTAL__CuGraphSampler:
 
         index = cudf.from_dlpack(index.__dlpack__())
 
-        sampling_results = call_cugraph_algorithm(
-            "uniform_neighbor_sample",
+        sample_fn = (
+            cugraph.dask.uniform_neighbor_sample
+            if self.__graph_store._is_delayed
+            else cugraph.uniform_neighbor_sample
+        )
+
+        sampling_results = sample_fn(
             G,
             index,
             # conversion required by cugraph api
@@ -179,7 +165,7 @@ class EXPERIMENTAL__CuGraphSampler:
         )
 
         # We make the assumption that the sample must fit on a single device
-        if is_multi_gpu:
+        if self.__graph_store._is_delayed:
             sampling_results = sampling_results.compute()
 
         nodes_of_interest = cudf.concat(
@@ -196,6 +182,8 @@ class EXPERIMENTAL__CuGraphSampler:
         )
 
         out = (noi_index, row_dict, col_dict, None)
+
+        # FIXME no longer allow torch_geometric to be missing.
         if isinstance(torch_geometric, MissingModule):
             return {"out": out, "metadata": metadata}
         else:
