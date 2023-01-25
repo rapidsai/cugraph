@@ -18,7 +18,6 @@ from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -27,7 +26,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
@@ -50,7 +48,6 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
-    get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 from pylibcugraph.select_random_vertices import (
@@ -118,6 +115,8 @@ def betweenness_centrality(ResourceHandle resource_handle,
         vertex_list = select_random_vertices(resource_handle, graph, seed, k)
     else:
         vertex_list = k
+    
+    assert_CAI_type(vertex_list, "vertex_list")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
