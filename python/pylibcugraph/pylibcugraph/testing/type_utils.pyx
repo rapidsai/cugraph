@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -104,11 +104,15 @@ def create_sampling_result(ResourceHandle resource_handle,
             get_c_type_from_numpy_type(unused.dtype))
     )
 
+
     error_code = cugraph_test_sample_result_create(
         c_resource_handle_ptr,
         c_srcs_view_ptr,
         c_dsts_view_ptr,
         c_inds_view_ptr,
+        c_cnts_view_ptr,
+        c_cnts_view_ptr,
+        c_cnts_view_ptr,
         c_cnts_view_ptr,
         &result_ptr,
         &error_ptr)
