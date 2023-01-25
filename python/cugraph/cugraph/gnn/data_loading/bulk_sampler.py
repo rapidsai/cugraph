@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import os
-import warnings
 
 from typing import Union
 from math import ceil
@@ -137,9 +136,6 @@ class EXPERIMENTAL__BulkSampler:
         Computes all uncomputed batches
         """
         if self.size == 0:
-            # Should not happen if it reaches the end of this function
-            # at least once.
-            warnings.warn("Tried to flush with no batches left")
             return
 
         min_batch_id = self.__batches[self.batch_col_name].min()
