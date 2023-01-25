@@ -28,8 +28,8 @@ import warnings
 def _call_plc_betweenness_centrality(
     sID,
     mg_graph_x,
-    num_vertices,
-    vertex_list,
+    k,
+    seed,
     normalized,
     endpoints,
     do_expensive_check,
@@ -38,8 +38,8 @@ def _call_plc_betweenness_centrality(
     return pylibcugraph_betweenness_centrality(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
-        num_vertices=num_vertices,
-        vertex_list=vertex_list,
+        k=k,
+        seed=seed,
         normalized=normalized,
         include_endpoints=endpoints,
         do_expensive_check=do_expensive_check,
@@ -58,7 +58,11 @@ def convert_to_cudf(cp_arrays):
 
 
 def betweenness_centrality(
-    input_graph, num_vertices=None, vertex_list=None, normalized=True, endpoints=False
+    input_graph,
+    k=None,
+    normalized=True,
+    endpoints=False,
+    seed=None
 ):
     """
     Compute the betweenness centrality for all vertices of the graph G.
@@ -75,23 +79,33 @@ def betweenness_centrality(
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    input_graph: cuGraph.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses
-        BFS traversals. If weights are provided in the edgelist, they will be
+        Weights in the graph are ignored, the current implementation uses a parallel
+        variation of the Brandes Algorithm (2001) to compute exact or approximate
+        betweenness. If weights are provided in the edgelist, they will not be
         used.
-
-    num_vertices: int, optional (default=None)
-        Number of vertices to randomly sample.
-
-    vertex_list: list or cudf object or dask_cudf object optional (default=None)
-        specify a list of vertices to use as seeds for BFS.
+    
+    k : int or list or None, optional (default=None)
+        If k is not None, use k node samples to estimate betweenness.  Higher
+        values give better approximation.  If k is a list, use the content
+        of the list for estimation: the list should contain vertex
+        identifiers. If k is None (the default), all the vertices are used
+        to estimate betweenness.  Vertices obtained through sampling or
+        defined as a list will be used as sources for traversals inside the
+        algorithm.
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
+    
+    seed : optional (default=None)
+        if k is specified and k is an integer, use seed to initialize the
+        random number generator.
+        Using None defaults to a hash of process id, time, and hostname
+        If k is either None or list: seed parameter is ignored
 
     Returns
     -------
@@ -121,6 +135,10 @@ def betweenness_centrality(
     >>> pr = dcg.betweenness_centrality(dg)
 
     """
+
+    # FIXME: Add a warning stating that weights are not supported in this
+    # this implementation
+
     client = input_graph._client
 
     if input_graph.store_transposed is True:
@@ -131,29 +149,33 @@ def betweenness_centrality(
         )
         warnings.warn(warning_msg, UserWarning)
 
-    if not isinstance(vertex_list, (dask_cudf.DataFrame, dask_cudf.Series)):
-        if not isinstance(vertex_list, (cudf.DataFrame, cudf.Series)):
-            if isinstance(vertex_list, list):
-                vertex_list_dtype = input_graph.nodes().dtype
-                vertex_list = cudf.Series(vertex_list, dtype=vertex_list_dtype)
-            else:
+    if not isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
+        if not isinstance(k, (cudf.DataFrame, cudf.Series)):
+            if isinstance(k, list):
+                k_dtype = input_graph.nodes().dtype
+                k = cudf.Series(k, dtype=k_dtype)
+                # convert into a dask_cudf
+                k = dask_cudf.from_cudf(k, input_graph._npartitions)
+            """
+            elif not isinstance(k, int) or not None:
                 raise TypeError(
-                    f"'vertex_list' must be either a list or a cudf or "
-                    f"dask_cudf object cudf.DataFrame, got: {type(vertex_list)}"
+                    f"'k' must be either None or a list or a cudf or "
+                    f"a dask_cudf object , got: {type(k)}"
                 )
-        # convert into a dask_cudf
-        vertex_list = dask_cudf.from_cudf(vertex_list, input_graph._npartitions)
+            """
 
     if input_graph.renumbered:
-        if isinstance(vertex_list, dask_cudf.DataFrame):
-            tmp_col_names = vertex_list.columns
+        if isinstance(k, dask_cudf.DataFrame):
+            tmp_col_names = k.columns
 
-        elif isinstance(vertex_list, dask_cudf.Series):
+        elif isinstance(k, dask_cudf.Series):
             tmp_col_names = None
 
-        vertex_list = input_graph.lookup_internal_vertex_id(vertex_list, tmp_col_names)
+        if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
+            k = input_graph.lookup_internal_vertex_id(k, tmp_col_names)
 
-    vertex_list = get_distributed_data(vertex_list)
+    if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
+        k = get_distributed_data(k)
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
@@ -162,8 +184,8 @@ def betweenness_centrality(
             _call_plc_betweenness_centrality,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            num_vertices,
-            vertex_list,
+            k,
+            seed,
             normalized,
             endpoints,
             do_expensive_check,
