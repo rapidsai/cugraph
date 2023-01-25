@@ -134,7 +134,7 @@ def save_data(args, dir, file_name, data, mg=False):
         f = os.path.join(dir, f"{file_name}.{args.format}")
     print(f"\tsaving to {f}")
 
-    if format == "parquet":
+    if args.format == "parquet":
         data.to_parquet(f, index=False)
     else:
         data.to_csv(f, header=False, index=False)
