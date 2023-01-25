@@ -120,7 +120,7 @@ class CuGraphTensorAttr:
     # The node indices the rows of the tensor correspond to. Defaults to UNSET.
     index: Optional[Any] = _field_status.UNSET
 
-    # The properties in the PropertyGraph the rows of the tensor correspond to.
+    # The properties in the FeatureStore the rows of the tensor correspond to.
     # Defaults to UNSET.
     properties: Optional[Any] = _field_status.UNSET
 
