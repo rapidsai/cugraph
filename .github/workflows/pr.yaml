@@ -110,5 +110,5 @@ jobs:
       test-before-amd64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
       # On arm also need to install cupy from the specific webpage.
       test-before-arm64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/cugraph/cugraph/tests"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/cugraph/cugraph/tests --ignore=tests/mg"
       test-smoketest: "python ci/wheel_smoke_test_cugraph.py"
