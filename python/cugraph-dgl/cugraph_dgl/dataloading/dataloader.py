@@ -11,13 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
 import torch
 import cupy as cp
 import cudf
 from cugraph.experimental import BulkSampler
 import dgl
 from dgl.dataloading import WorkerInitWrapper, create_tensorized_dataset
-import os
 from cugraph_dgl.dataloading import (
     HomogenousBulkSamplerDataset,
     HetrogenousBulkSamplerDataset,
@@ -163,8 +164,10 @@ class DataLoader(torch.utils.data.DataLoader):
 
     def __iter__(self):
         output_dir = os.path.join(
-            self._sampling_output_dir, "_epoch" + str(self.epoch_number)
+            self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
+        _clean_directory(output_dir)
+
         # Todo: Figure out how to get rank
         rank = 0
         bs = BulkSampler(
@@ -227,3 +230,11 @@ def _dgl_idx_to_cugraph_idx(idx, cugraph_gs):
         return idx
     else:
         return {k: cugraph_gs.dgl_n_id_to_cugraph_id(n, k) for k, n in idx.items()}
+
+
+def _clean_directory(path):
+    """param <path> could either be relative or absolute."""
+    if os.path.isfile(path):
+        os.remove(path)  # remove the file
+    elif os.path.isdir(path):
+        shutil.rmtree(path)  # remove dir and all contains
