@@ -397,7 +397,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
         vertex_col_name : string
-            The column name that contains the values to be used as vertex IDs.
+            The column name that contains the values to be used as vertex IDs,
+            or the name of the index if the index is vertex IDs.
+            Specifying the index may be more efficient, and will be the most
+            efficient if the index of vertex IDs is already sorted.
         type_name : string
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about users, type_name might be
@@ -694,7 +697,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
         edge_id_col_name : string, optional
-            The column name that contains the values to be used as edge IDs.
+            The column name that contains the values to be used as edge IDs,
+            or the name of the index if the index is edge IDs.
+            Specifying the index may be more efficient, and will be the most
+            efficient if the index of edge IDs is already sorted.
             If unspecified, edge IDs will be automatically assigned.
             Currently, all edge data must be added with the same method: either
             with automatically generated IDs, or from user-provided edge IDs.
