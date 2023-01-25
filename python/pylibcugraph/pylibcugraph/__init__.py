@@ -60,3 +60,5 @@ from pylibcugraph.uniform_random_walks import uniform_random_walks
 from pylibcugraph.betweenness_centrality import betweenness_centrality
 
 from pylibcugraph.random import CuGraphRandomState
+
+from pylibcugraph.select_random_vertices import select_random_vertices

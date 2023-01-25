@@ -37,6 +37,7 @@ set(cython_sources
     personalized_pagerank.pyx
     random.pyx
     resource_handle.pyx
+    select_random_vertices.pyx
     sssp.pyx
     triangle_count.pyx
     two_hop_neighbors.pyx

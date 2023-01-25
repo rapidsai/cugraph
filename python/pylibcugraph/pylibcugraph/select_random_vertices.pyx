@@ -51,13 +51,26 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
+)
+from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_t,
+    cugraph_type_erased_device_array_view
+)
+from pylibcugraph._cugraph_c.sampling_algorithms cimport (
+    cugraph_select_random_vertices
+)
 
 
-def cugraph_select_random_vertices(ResourceHandle resource_handle,
-                                   _GPUGraph graph,
-                                   rng_state,
-                                   size_t num_vertices,
-                                  ):
+def select_random_vertices(ResourceHandle resource_handle,
+                           _GPUGraph graph,
+                           random_state,
+                           size_t num_vertices,
+                           ):
     """
     Select random vertices from the graph
 
@@ -70,12 +83,14 @@ def cugraph_select_random_vertices(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
     
-    #FIXME: update this type
-    rng_state : cugraph_rng_state_t
-        State of the random number generator, updated with each call
+    random_state : int , optional
+        Random state to use when generating samples. Optional argument,
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
     
-    num_vertices : Optional array of starting vertices
-        Number of vertices to sample
+    num_vertices : size_t , optional
+        Number of vertices to sample. Optional argument, defaults to the
+        total number of vertices.
 
     Returns
     -------
@@ -86,37 +101,28 @@ def cugraph_select_random_vertices(ResourceHandle resource_handle,
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
-    cdef cugraph_vertex_pairs_t* result_ptr
+    cdef cugraph_type_erased_device_array_t* vertices_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef cugraph_type_erased_device_array_view_t* start_vertices_ptr
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
+
+    cdef cugraph_rng_state_t* rng_state_ptr = \
+        cg_rng_state.rng_state_ptr
+
+    error_code = cugraph_select_random_vertices(c_resource_handle_ptr,
+                                                c_graph_ptr,
+                                                rng_state_ptr,
+                                                num_vertices,
+                                                &vertices_ptr,
+                                                &error_ptr)
+    assert_success(error_code, error_ptr, "select_random_vertices")
 
     cdef cugraph_type_erased_device_array_view_t* \
-        start_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                start_vertices)
-
-    error_code = cugraph_two_hop_neighbors(c_resource_handle_ptr,
-                                           c_graph_ptr,
-                                           start_vertices_view_ptr,
-                                           do_expensive_check,
-                                           &result_ptr,
-                                           &error_ptr)
-    assert_success(error_code, error_ptr, "two_hop_neighbors")
-
-    cdef cugraph_type_erased_device_array_view_t* first_ptr = \
-        cugraph_vertex_pairs_get_first(result_ptr)
+        vertices_view_ptr = \
+            cugraph_type_erased_device_array_view(
+                vertices_ptr)
     
-    cdef cugraph_type_erased_device_array_view_t* second_ptr = \
-        cugraph_vertex_pairs_get_second(result_ptr)
-    
-    cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_ptr)
-    cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_ptr)
+    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_view_ptr)    
 
-    # Free all pointers
-    cugraph_vertex_pairs_free(result_ptr)
-    if start_vertices is not None:
-        cugraph_type_erased_device_array_view_free(start_vertices_view_ptr)    
-
-    return cupy_first, cupy_second
+    return cupy_vertices
