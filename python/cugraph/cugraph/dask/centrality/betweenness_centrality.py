@@ -86,14 +86,13 @@ def betweenness_centrality(
         betweenness. If weights are provided in the edgelist, they will not be
         used.
     
-    k : int or list or None, optional (default=None)
+    k : int or list or (dask)cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation.  If k is a list, use the content
-        of the list for estimation: the list should contain vertex
-        identifiers. If k is None (the default), all the vertices are used
-        to estimate betweenness.  Vertices obtained through sampling or
-        defined as a list will be used as sources for traversals inside the
-        algorithm.
+        values give better approximation.  If k is either a list or a (dask)cudf,
+        use its content for estimation: it contain vertex identifiers. If k is None
+        (the default), all the vertices are used to estimate betweenness.  Vertices
+        obtained through sampling or defined as a list will be used as sources for
+        traversals inside the algorithm.
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
@@ -136,9 +135,6 @@ def betweenness_centrality(
 
     """
 
-    # FIXME: Add a warning stating that weights are not supported in this
-    # this implementation
-
     client = input_graph._client
 
     if input_graph.store_transposed is True:
@@ -156,13 +152,6 @@ def betweenness_centrality(
                 k = cudf.Series(k, dtype=k_dtype)
                 # convert into a dask_cudf
                 k = dask_cudf.from_cudf(k, input_graph._npartitions)
-            """
-            elif not isinstance(k, int) or not None:
-                raise TypeError(
-                    f"'k' must be either None or a list or a cudf or "
-                    f"a dask_cudf object , got: {type(k)}"
-                )
-            """
 
     if input_graph.renumbered:
         if isinstance(k, dask_cudf.DataFrame):
