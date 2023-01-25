@@ -136,12 +136,10 @@ class EXPERIMENTAL__BulkSampler:
         """
         Computes all uncomputed batches
         """
-        if len(self.__batches) == 0:
-            self.__batches = None
-
-        if self.__batches is None:
+        if self.__batches is None or len(self.__batches) == 0:
             # Should not happen if it reaches the end of this function
             # at least once.
+            self.__batches = None
             warnings.warn("Tried to flush with no batches left")
             return
 

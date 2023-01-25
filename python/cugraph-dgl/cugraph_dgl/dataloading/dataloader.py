@@ -20,7 +20,7 @@ from dgl.dataloading import WorkerInitWrapper, create_tensorized_dataset
 import os
 from cugraph_dgl.dataloading import (
     HomogenousBulkSamplerDataset,
-    HetroGenousBulkSamplerDataset,
+    HetrogenousBulkSamplerDataset,
 )
 from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
     create_cugraph_graph_from_edges_dict,
@@ -137,7 +137,7 @@ class DataLoader(torch.utils.data.DataLoader):
         else:
             etype_id_to_etype_str_dict = {v: k for k, v in graph._etype_id_dict.items()}
 
-            self.cugraph_dgl_dataset = HetroGenousBulkSamplerDataset(
+            self.cugraph_dgl_dataset = HetrogenousBulkSamplerDataset(
                 num_batches=len(self.tensorized_indices_ds),
                 num_nodes_dict=graph.num_nodes_dict,
                 etype_id_dict=etype_id_to_etype_str_dict,
@@ -177,8 +177,8 @@ class DataLoader(torch.utils.data.DataLoader):
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
         )
-
-        self.tensorized_indices_ds.shuffle()
+        if self.shuffle:
+            self.tensorized_indices_ds.shuffle()
 
         batch_df = create_batch_df(self.tensorized_indices_ds)
         bs.add_batches(batch_df, start_col_name="start", batch_col_name="batch_id")

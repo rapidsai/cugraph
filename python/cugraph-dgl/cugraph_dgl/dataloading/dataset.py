@@ -80,7 +80,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
 
 # Todo: combine with above
-class HetroGenousBulkSamplerDataset(torch.utils.data.Dataset):
+class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         num_batches: int,

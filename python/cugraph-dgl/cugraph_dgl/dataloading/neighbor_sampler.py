@@ -52,5 +52,9 @@ class NeighborSampler:
         replace: bool = False,
     ):
         self.fanouts = fanouts_per_layer
+        reverse_fanouts = fanouts_per_layer.copy()
+        reverse_fanouts.reverse()
+        self._reversed_fanout_vals = reverse_fanouts
+
         self.edge_dir = edge_dir
         self.replace = replace
