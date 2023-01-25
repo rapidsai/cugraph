@@ -21,24 +21,13 @@ from functools import cached_property
 
 import warnings
 
-# numpy is always available
 import numpy as np
-
-# FIXME remove dependence on cudf
 import cudf
 
-# cuGraph or cuGraph-Service is required; each has its own version of
-# import_optional and we need to select the correct one.
-try:
-    from cugraph_service.client.remote_graph_utils import import_optional, MissingModule
-except ModuleNotFoundError:
-    try:
-        from cugraph.utilities.utils import import_optional, MissingModule
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            "cuGraph extensions for PyG require cuGraph"
-            " or cuGraph-service-client to be installed."
-        )
+from cugraph.utilities.utils import import_optional, MissingModule
+
+# FIXME remove these imports and replace PG with FeatureStore
+from cugraph.experimental import MGPropertyGraph
 
 # FIXME drop cupy support and make torch the only backend (#2995)
 cupy = import_optional("cupy")
@@ -352,16 +341,12 @@ class EXPERIMENTAL__CuGraphStore:
                 f"and {self.__old_edge_col_name}"
             )
 
+        # FIXME Remove all renumbering logic permanently
+        # and require this already be done.
         if renumber_graph:
-            if self.is_remote and self.backend == "torch":
-                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
-                    prev_id_column=self.__old_vertex_col_name,
-                    backend="torch:cuda" if torch.has_cuda else "torch",
-                )
-            else:
-                self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
-                    prev_id_column=self.__old_vertex_col_name
-                )
+            self.__vertex_type_offsets = self.__graph.renumber_vertices_by_type(
+                prev_id_column=self.__old_vertex_col_name
+            )
 
             # FIXME: https://github.com/rapidsai/cugraph/issues/3059
             # Currently renumbering edges is required if renumbering vertices or else
@@ -420,27 +405,8 @@ class EXPERIMENTAL__CuGraphStore:
         return self.__backend
 
     @cached_property
-    def is_multi_gpu(self) -> bool:
-        """
-        Whether the backing cugraph is a multi-gpu instance.
-        Returns
-        -------
-        bool
-            True if the backing graph is a multi-gpu graph.
-        """
-        return self.__graph.is_multi_gpu()
-
-    @cached_property
-    def is_remote(self) -> bool:
-        pg_types = ["PropertyGraph", "MGPropertyGraph"]
-        if type(self.__graph).__name__ in pg_types:
-            return False
-        else:
-            return self.__graph.is_remote()
-
-    @cached_property
-    def _is_delayed(self) -> bool:
-        return self.is_multi_gpu and not self.is_remote
+    def _is_delayed(self):
+        return isinstance(self.__graph, MGPropertyGraph)
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
