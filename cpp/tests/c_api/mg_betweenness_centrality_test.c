@@ -33,6 +33,7 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
                                         size_t num_vertices,
                                         size_t num_edges,
                                         bool_t store_transposed,
+                                        bool_t normalized,
                                         size_t num_vertices_to_sample)
 {
   int test_ret_value = 0;
@@ -56,19 +57,14 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
-  ret_code =  cugraph_select_random_vertices(handle, p_graph, rng_state, num_vertices_to_sample, &seeds, &ret_error);
+  ret_code = cugraph_select_random_vertices(
+    handle, p_graph, rng_state, num_vertices_to_sample, &seeds, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "select random seeds failed.");
 
   seeds_view = cugraph_type_erased_device_array_view(seeds);
 
-  ret_code = cugraph_betweenness_centrality(handle,
-                                            p_graph,
-                                            seeds_view,
-                                            FALSE,
-                                            FALSE,
-                                            FALSE,
-                                            &p_result,
-                                            &ret_error);
+  ret_code = cugraph_betweenness_centrality(
+    handle, p_graph, seeds_view, normalized, FALSE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_betweenness_centrality failed.");
 
@@ -127,7 +123,25 @@ int test_betweenness_centrality(const cugraph_resource_handle_t* handle)
   //
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
-    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, num_vertices);
+    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, FALSE, num_vertices);
+}
+int test_betweenness_centrality_normalized(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0, .366667, .083333, .216667, 0.0833333, 0.05};
+
+  // NOTE: Randomly selecting vertices in MG varies by the GPU topology,
+  //  so we'll specify selecting all to get deterministic results for the test.
+  //
+  // Betweenness centrality wants store_transposed = FALSE
+  return generic_betweenness_centrality_test(
+    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, TRUE, num_vertices);
 }
 
 /******************************************************************************/
@@ -169,6 +183,7 @@ int main(int argc, char** argv)
 
   if (result == 0) {
     result |= RUN_MG_TEST(test_betweenness_centrality, handle);
+    result |= RUN_MG_TEST(test_betweenness_centrality_normalized, handle);
 
     cugraph_free_resource_handle(handle);
   }

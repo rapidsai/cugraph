@@ -33,6 +33,7 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
                                         size_t num_vertices,
                                         size_t num_edges,
                                         bool_t store_transposed,
+                                        bool_t normalized,
                                         size_t num_vertices_to_sample)
 {
   int test_ret_value = 0;
@@ -66,7 +67,7 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   seeds_view = cugraph_type_erased_device_array_view(seeds);
 
   ret_code = cugraph_betweenness_centrality(
-    handle, p_graph, seeds_view, FALSE, FALSE, FALSE, &p_result, &ret_error);
+    handle, p_graph, seeds_view, normalized, FALSE, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_betweenness_centrality failed.");
@@ -118,7 +119,23 @@ int test_betweenness_centrality()
 
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, 5);
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, FALSE, 5);
+}
+
+int test_betweenness_centrality_normalized()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0, .333333, .066667, .108333, 0.0416667, 0.05};
+
+  // Betweenness centrality wants store_transposed = FALSE
+  return generic_betweenness_centrality_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, TRUE, 5);
 }
 
 /******************************************************************************/
@@ -127,5 +144,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_betweenness_centrality);
+  result |= RUN_TEST(test_betweenness_centrality_normalized);
   return result;
 }

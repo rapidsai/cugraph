@@ -236,9 +236,8 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
 /**
  * @brief     Compute betweenness centrality
  *
- * Betweenness can be computed exactly by specifying This will compute betweenness centrality by
- * doing a traversal from every vertex and counting the frequency that a vertex appears on a
- * shortest path.
+ * Betweenness can be computed exactly by specifying vertex_list as NULL.  This will compute
+ * betweenness centrality by doing a traversal from every source vertex.
  *
  * Approximate betweenness can be computed specifying a list of vertices that should be
  * used as seeds for the traversals.  Note that the function cugraph_select_random_vertices can be
@@ -247,7 +246,7 @@ cugraph_error_code_t cugraph_katz_centrality(const cugraph_resource_handle_t* ha
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
- *                                 to use as seeds for betweenness approximation
+ *                                 to use as seeds for betweenness centrality approximation
  * @param [in]  normalized         Normalize
  * @param [in]  include_endpoints  The traditional formulation of betweenness centrality does not
  *                                 include endpoints when considering a vertex to be on a shortest
@@ -325,7 +324,7 @@ void cugraph_edge_centrality_result_free(cugraph_edge_centrality_result_t* resul
  * @param [in]  handle             Handle for accessing resources
  * @param [in]  graph              Pointer to graph
  * @param [in]  vertex_list        Optionally specify a device array containing a list of vertices
- *                                 to use as seeds for traversals
+ *                                 to use as seeds for betweenness centrality approximation
  * @param [in]  normalized         Normalize
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
