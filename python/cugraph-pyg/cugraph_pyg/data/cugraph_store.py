@@ -343,9 +343,7 @@ class EXPERIMENTAL__CuGraphStore:
             {
                 "src": na_src,
                 "dst": na_dst,
-                # FIXME use the edge type property
-                # "w": np.zeros(len(na_src)),
-                "w": na_etp,
+                "w": np.zeros(len(na_src)),
                 "eid": np.arange(len(na_src)),
                 "etp": na_etp,
             }
