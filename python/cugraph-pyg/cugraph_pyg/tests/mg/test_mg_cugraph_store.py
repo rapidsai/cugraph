@@ -296,7 +296,7 @@ def test_renumber_edges(graph, dask_client):
         {
             "sources": eoi_src,
             "destinations": eoi_dst,
-            "indices": eoi_type,
+            "edge_type": eoi_type,
         }
     ).reset_index(drop=True)
 
