@@ -102,7 +102,7 @@ def test_neighbor_sample(basic_property_graph_1):
     feature_store, graph_store = to_pyg(pG, backend="cupy")
     sampler = CuGraphSampler(
         (feature_store, graph_store),
-        num_neighbors=[10],
+        num_neighbors=[-1],
         replace=True,
         directed=True,
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
@@ -162,7 +162,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     feature_store, graph_store = to_pyg(pG, backend="cupy")
     sampler = CuGraphSampler(
         (feature_store, graph_store),
-        num_neighbors=[10],
+        num_neighbors=[-1],
         replace=True,
         directed=True,
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
