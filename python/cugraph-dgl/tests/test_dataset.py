@@ -63,13 +63,11 @@ def create_cugraph_dgl_mfgs(g, seed_nodes, fanout):
         df_ls.append(df)
     df = cudf.concat(df_ls, ignore_index=True)
     df["batch_id"] = 0
-    return create_homogeneous_sampled_graphs_from_dataframe(
-        df, g.num_nodes(), g.idtype
-    )[0]
+    return create_homogeneous_sampled_graphs_from_dataframe(df, g.num_nodes())[0]
 
 
 @pytest.mark.parametrize("seed_node", [3, 4, 5])
-def test_homogeneous_sampled_graphs_from_dataframe(seed_node, fanout):
+def test_homogeneous_sampled_graphs_from_dataframe(seed_node):
     g = dgl.graph(([0, 1, 2, 3, 4], [1, 2, 3, 4, 5]))
     fanout = [1, 1, 1]
     seed_node = torch.as_tensor([seed_node])
