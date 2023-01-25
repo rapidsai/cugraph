@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,23 +11,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    from cugraph_service.client.remote_graph_utils import import_optional, MissingModule
-except ModuleNotFoundError:
-    try:
-        from cugraph.utilities.utils import import_optional, MissingModule
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError(
-            "cuGraph extensions for PyG require cuGraph"
-            "or cuGraph-Service to be installed."
-        )
 
-from cugraph_pyg.loader.dispatch import call_cugraph_algorithm
+import cugraph
+from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.data.cugraph_store import TensorType
 
+from typing import Union
+from typing import Tuple
+from typing import List
+
+from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
 
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
+
+cupy = import_optional("cupy")
+torch = import_optional("torch")
+
+HeteroSamplerOutput = (
+    None
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.sampler.base.HeteroSamplerOutput
+)
 
 
 class EXPERIMENTAL__CuGraphSampler:
@@ -40,7 +46,12 @@ class EXPERIMENTAL__CuGraphSampler:
         UNIFORM_NEIGHBOR,
     ]
 
-    def __init__(self, data, method=UNIFORM_NEIGHBOR, **kwargs):
+    def __init__(
+        self,
+        data: Tuple[CuGraphStore, CuGraphStore],
+        method: str = UNIFORM_NEIGHBOR,
+        **kwargs,
+    ):
         if method not in self.SAMPLING_METHODS:
             raise ValueError(f"{method} is not a valid sampling method")
         self.__method = method
@@ -50,18 +61,29 @@ class EXPERIMENTAL__CuGraphSampler:
         self.__feature_store = fs
         self.__graph_store = gs
 
-    def sample_from_nodes(self, sampler_input):
+    # FIXME Make HeteroSamplerOutput the only return type
+    # after PyG becomes a hard requirement
+    def sample_from_nodes(
+        self, sampler_input: Tuple[TensorType, TensorType, TensorType]
+    ) -> Union[HeteroSamplerOutput, dict]:
         """
         Sample nodes using this CuGraphSampler's sampling method
         (which is set at initialization)
         and the input node data passed to this function.  Matches
         the interface provided by PyG's NodeSamplerInput.
 
+        Parameters
+        ----------
         sampler_input: tuple(index, input_nodes, input_time)
             index: The sample indices to store as metadata
             input_nodes: Input nodes to pass to the sampler
             input_time: Node timestamps (if performing temporal
             sampling which is currently not supported)
+
+        Returns
+        -------
+        HeteroSamplerOutput, if PyG is installed.
+        dict, if PyG is not installed.
         """
         index, input_nodes, input_time = sampler_input
 
@@ -77,7 +99,7 @@ class EXPERIMENTAL__CuGraphSampler:
         raise NotImplementedError("Edge sampling currently unsupported")
 
     @property
-    def method(self):
+    def method(self) -> str:
         return self.__method
 
     @property
@@ -90,24 +112,14 @@ class EXPERIMENTAL__CuGraphSampler:
 
     def __neighbor_sample(
         self,
-        index,
-        num_neighbors,
-        replace=True,
-        directed=True,
-        edge_types=None,
+        index: TensorType,
+        num_neighbors: List[int],
+        replace: bool = True,
+        directed: bool = True,
+        edge_types: List[str] = None,
         metadata=None,
         **kwargs,
-    ):
-        is_multi_gpu = self.__graph_store.is_multi_gpu
-        if is_multi_gpu and isinstance(dask_cudf, MissingModule):
-            raise ImportError("Cannot use a multi-GPU store without dask_cudf")
-        if is_multi_gpu != self.__feature_store.is_multi_gpu:
-            raise ValueError(
-                f"Graph store multi-GPU is {is_multi_gpu}"
-                f" but feature store multi-GPU is "
-                f"{self.__feature_store.is_multi_gpu}"
-            )
-
+    ) -> Union[dict, HeteroSamplerOutput]:
         backend = self.__graph_store.backend
         if backend != self.__feature_store.backend:
             raise ValueError(
@@ -137,23 +149,28 @@ class EXPERIMENTAL__CuGraphSampler:
 
         index = cudf.from_dlpack(index.__dlpack__())
 
-        sampling_results = call_cugraph_algorithm(
-            "uniform_neighbor_sample",
+        sample_fn = (
+            cugraph.dask.uniform_neighbor_sample
+            if self.__graph_store._is_delayed
+            else cugraph.uniform_neighbor_sample
+        )
+
+        sampling_results = sample_fn(
             G,
             index,
             # conversion required by cugraph api
             list(num_neighbors),
             replace,
+            # with_edge_properties=True,
         )
 
-        concat_fn = dask_cudf.concat if is_multi_gpu else cudf.concat
+        # We make the assumption that the sample must fit on a single device
+        if self.__graph_store._is_delayed:
+            sampling_results = sampling_results.compute()
 
-        nodes_of_interest = concat_fn(
-            [sampling_results.destinations, sampling_results.sources]
+        nodes_of_interest = cudf.concat(
+            [sampling_results.sources, sampling_results.destinations]
         ).unique()
-
-        if is_multi_gpu:
-            nodes_of_interest = nodes_of_interest.compute()
 
         # Get the grouped node index (for creating the renumbered grouped edge index)
         noi_index = self.__graph_store._get_vertex_groups_from_sample(nodes_of_interest)
@@ -165,9 +182,9 @@ class EXPERIMENTAL__CuGraphSampler:
         )
 
         out = (noi_index, row_dict, col_dict, None)
+
+        # FIXME no longer allow torch_geometric to be missing.
         if isinstance(torch_geometric, MissingModule):
             return {"out": out, "metadata": metadata}
         else:
-            return torch_geometric.sampler.base.HeteroSamplerOutput(
-                *out, metadata=metadata
-            )
+            return HeteroSamplerOutput(*out, metadata=metadata)

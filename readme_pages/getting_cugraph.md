@@ -11,13 +11,13 @@ Or checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pi
 
 <br>
 
-## Docker 
+## Docker
 The RAPIDS Docker containers contain all RAPIDS packages, including all from cuGraph, as well as all required supporting packages.   To download a container, please see the [Docker Repository](https://hub.docker.com/r/rapidsai/rapidsai/), choosing a tag based on the NVIDIA CUDA version you’re running.  This provides a ready to run Docker container with example notebooks and data, showcasing how you can utilize all of the RAPIDS libraries: cuDF, cuML, and cuGraph.
 
 <br>
 
 
-## Conda 
+## Conda
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
 cuGraph Conda packages
@@ -35,16 +35,10 @@ Replace the package name in the example below to the one you want to install.
 Install and update cuGraph using the conda command:
 
 ```bash
-# CUDA 11.4
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.4
-
-# CUDA 11.5
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.5
-
-For CUDA > 11.5, please use the 11.5 environment
+conda install -c rapidsai -c numba -c conda-forge -c nvidia cugraph cudatoolkit=11.8
 ```
 
-Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
+Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
 
 <br>
 
@@ -60,5 +54,5 @@ pip packages for other packages are being worked and should be available in earl
 <br>
 
 ## SOURCE
-cuGraph can be build directly from source. First check to make sure you have or can configure a supported environment. 
+cuGraph can be build directly from source. First check to make sure you have or can configure a supported environment.
 Instructions for building from source is in our [source build](./SOURCEBUILD.md) page.
