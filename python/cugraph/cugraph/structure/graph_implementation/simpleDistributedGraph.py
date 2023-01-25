@@ -27,7 +27,10 @@ from pylibcugraph import (
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
+from pylibcugraph import (
+    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
+    select_random_vertices as pylibcugraph_select_random_vertices
+)
 import cugraph.dask.comms.comms as Comms
 
 
@@ -758,6 +761,74 @@ class simpleDistributedGraphImpl:
             ddf = self.renumber_map.unrenumber(ddf, "second")
 
         return ddf
+    
+    def select_random_vertices(self, random_state=None, num_vertices=None):
+        """
+        Select random vertices from the graph
+
+        Parameters
+        ----------
+        random_state : int , optional(default=None)
+            Random state to use when generating samples.  Optional argument,
+            defaults to a hash of process id, time, and hostname.
+
+        num_vertices : int, optional(default=None)
+            Number of vertices to sample. If None, all vertices will be selected
+
+        Returns
+        -------
+        return random vertices from the graph as a cudf
+        """
+
+        def _call_plc_select_random_vertices(sID, mg_graph_x, random_state, num_vertices):
+            return pylibcugraph_select_random_vertices(
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                graph=mg_graph_x,
+                random_state=random_state,
+                num_vertices=num_vertices,
+            )
+
+        result = [
+                self._client.submit(
+                    _call_plc_select_random_vertices,
+                    Comms.get_session_id(),
+                    self._plc_graph[w],
+                    random_state,
+                    num_vertices,
+                    workers=[w],
+                    allow_other_workers=False,
+                )
+                for w in Comms.get_workers()
+            ]
+
+        wait(result)
+
+        def convert_to_cudf(cp_arrays, number_map=None):
+            """
+            Creates a cudf Series from cupy arrays from pylibcugraph wrapper
+            """
+            vertices = cudf.Series(cp_arrays)
+            if number_map.implementation.numbered:
+                df_ = cudf.DataFrame()
+                df_["vertex"] = vertices
+                df_ = number_map.unrenumber(df_, "vertex").compute()
+                vertices = cudf.Series(df_["vertex"])
+            
+            return vertices
+
+        cudf_result = [
+            self._client.submit(
+                convert_to_cudf, cp_arrays, self.renumber_map) for cp_arrays in result
+        ]
+
+        wait(cudf_result)
+        vertices = dask_cudf.from_delayed(cudf_result).persist()
+        wait(vertices)
+
+        # Wait until the inactive futures are released
+        wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+
+        return vertices
 
     def to_directed(self, G):
         """

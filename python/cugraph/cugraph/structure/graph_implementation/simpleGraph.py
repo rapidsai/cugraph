@@ -23,7 +23,10 @@ import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
-from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
+from pylibcugraph import (
+    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
+    select_random_vertices as pylibcugraph_select_random_vertices,
+)
 
 from pylibcugraph import (
     ResourceHandle,
@@ -633,6 +636,40 @@ class simpleGraphImpl:
             df = self.renumber_map.unrenumber(df, "second")
 
         return df
+
+    def select_random_vertices(self, random_state=None, num_vertices=None):
+        """
+        Select random vertices from the graph
+
+        Parameters
+        ----------
+        random_state : int , optional(default=None)
+            Random state to use when generating samples.  Optional argument,
+            defaults to a hash of process id, time, and hostname.
+    
+        num_vertices : int, optional(default=None)
+            Number of vertices to sample. If None, all vertices will be selected
+
+        Returns
+        -------
+        return random vertices from the graph as a cudf
+        """
+        vertices = pylibcugraph_select_random_vertices(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            random_state=random_state,
+            num_vertices=num_vertices
+        )
+
+        vertices = cudf.Series(vertices)
+        if self.properties.renumbered is True:
+            df_ = cudf.DataFrame()
+            df_["vertex"] = vertex_paths
+            df_ = G.unrenumber(df_, "vertex")
+            vertices = df_["vertex"]
+
+        return vertices
+
 
     def number_of_vertices(self):
         """
