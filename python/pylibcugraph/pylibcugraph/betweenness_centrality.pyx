@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -89,7 +89,7 @@ def betweenness_centrality(ResourceHandle resource_handle,
         used to estimate betweenness.  Vertices obtained through sampling or
         defined as a list will be used as sources for traversals inside the
         algorithm.
-    
+
     seed : optional (default=None)
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
