@@ -14,7 +14,6 @@
 import os
 
 from typing import Union
-from math import ceil
 
 import cudf
 import dask_cudf
@@ -131,7 +130,7 @@ class EXPERIMENTAL__BulkSampler:
         if self.size >= self.saturation_level:
             self.flush()
 
-    def flush(self, skip_partition_size_check=False) -> None:
+    def flush(self) -> None:
         """
         Computes all uncomputed batches
         """
@@ -145,11 +144,7 @@ class EXPERIMENTAL__BulkSampler:
 
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_saturation_level = self.saturation_level // partition_size
-
-        if skip_partition_size_check:
-            npartitions = int(ceil(len(self.__batches) / partition_size))
-        else:
-            npartitions = partitions_per_saturation_level
+        npartitions = partitions_per_saturation_level
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
