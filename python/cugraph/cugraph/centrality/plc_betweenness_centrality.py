@@ -28,7 +28,6 @@ import numpy as np
 def plc_betweenness_centrality(
     G,
     k=None,
-    vertex_list=None,
     normalized=True,
     weight=None,
     endpoints=False,
@@ -52,8 +51,9 @@ def plc_betweenness_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses
-        BFS traversals. If weights are provided in the edgelist, they will be
+        Weights in the graph are ignored, the current implementation uses a parallel
+        variation of the Brandes Algorithm (2001) to compute exact or approximate
+        betweenness. If weights are provided in the edgelist, they will not be
         used.
 
     k : int or list or None, optional (default=None)
@@ -62,7 +62,7 @@ def plc_betweenness_centrality(
         of the list for estimation: the list should contain vertex
         identifiers. If k is None (the default), all the vertices are used
         to estimate betweenness.  Vertices obtained through sampling or
-        defined as a list will be used assources for traversals inside the
+        defined as a list will be used as sources for traversals inside the
         algorithm.
 
     normalized : bool, optional (default=True)
@@ -88,8 +88,7 @@ def plc_betweenness_centrality(
     seed : optional (default=None)
         if k is specified and k is an integer, use seed to initialize the
         random number generator.
-        Using None as seed relies on random.seed() behavior: using current
-        system time
+        Using None defaults to a hash of process id, time, and hostname
         If k is either None or list: seed parameter is ignored
 
     result_dtype : np.float32 or np.float64, optional, default=np.float64
@@ -144,51 +143,22 @@ def plc_betweenness_centrality(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    # FIXME: Should we now remove this paramter?
+    # FIXME: Do not deprecate this parameter
     if seed is not None:
         warning_msg = (
             "This parameter is deprecated and will be remove " "in the next release."
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    # Sampling is done internally. Just provide the number of vertices to
-    # sample
-    # vertices = _initialize_vertices(G, k, seed)
-    """
-    num_vertices = k
-    if isinstance(k)
-    """
-    num_vertices = None
 
-    # vertex_list = None
-    vertex_list = _initialize_vertices(G, k, seed)
-    """
-    if isinstance(k, int):
-        num_vertices = k
-    elif isinstance(k, (cudf.Series, cudf.DataFrame)):
-        vertex_list = k
-
-    if isinstance(vertex_list, list):
-        vertex_list = cudf.Series(vertex_list)
-    elif not isinstance(vertex_list, (cudf.Series, cudf.DataFrame)):
-        raise TypeError(
-            f"'vertex_list' must be either a list or a cudf.Series or "
-            f"cudf.DataFrame, got: {type(vertex_list)}"
-        )
-
-    if vertex_list is not None:
-        if G.renumbered is True:
-            if isinstance(vertex_list, cudf.DataFrame):
-                vertex_list = G.lookup_internal_vertex_id(
-                    vertex_list, vertex_list.columns
-                )
-            else:
-                vertex_list = G.lookup_internal_vertex_id(vertex_list)
-    """
+    if isinstance(k, list):
+        k = _initialize_vertices_from_identifiers_list(G, k)
+    
     vertices, values = pylibcugraph_betweenness_centrality(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
-        vertex_list=vertex_list,
+        k=k,
+        seed=seed,
         normalized=normalized,
         include_endpoints=endpoints,
         do_expensive_check=False,
@@ -209,21 +179,6 @@ def plc_betweenness_centrality(
         return dict
     else:
         return df
-
-
-def _initialize_vertices(G, k, seed):
-    vertices = None
-    numpy_vertices = None
-    if k is not None:
-        if isinstance(k, int):
-            # FIXME: intialize the 'vertex_list' with select_random_vertices from the CAPI 
-            # vertices = _initialize_vertices_from_indices_sampling(G, k, seed)
-            pass
-        elif isinstance(k, list):
-            vertices = _initialize_vertices_from_identifiers_list(G, k)
-        numpy_vertices = np.array(vertices, dtype=np.int32)
-
-    return vertices
 
 
 def _initialize_vertices_from_identifiers_list(G, identifiers):
