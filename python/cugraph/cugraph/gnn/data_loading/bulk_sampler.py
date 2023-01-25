@@ -136,9 +136,15 @@ class EXPERIMENTAL__BulkSampler:
         """
         Computes all uncomputed batches
         """
+        if len(self.__batches) == 0:
+            self.__batches = None
+
         if self.__batches is None:
+            # Should not happen if it reaches the end of this function
+            # at least once.
             warnings.warn("Tried to flush with no batches left")
             return
+
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
             min_batch_id = min_batch_id.compute()

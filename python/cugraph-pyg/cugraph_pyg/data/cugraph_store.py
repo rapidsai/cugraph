@@ -19,14 +19,13 @@ from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
-# numpy is always available
+
 import numpy as np
 import pandas
-
+import cudf
 import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
-import cudf
 
 # FIXME drop cupy support and make torch the only backend (#2995)
 import cupy

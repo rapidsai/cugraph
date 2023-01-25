@@ -21,7 +21,6 @@ from typing import Tuple
 from typing import List
 from typing import Sequence
 
-
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
 
