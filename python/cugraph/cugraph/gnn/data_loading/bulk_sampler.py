@@ -136,10 +136,7 @@ class EXPERIMENTAL__BulkSampler:
         """
         Computes all uncomputed batches
         """
-        if len(self.__batches) == 0:
-            self.__batches = None
-
-        if self.__batches is None:
+        if self.size == 0:
             # Should not happen if it reaches the end of this function
             # at least once.
             warnings.warn("Tried to flush with no batches left")
@@ -178,10 +175,7 @@ class EXPERIMENTAL__BulkSampler:
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)
 
-        if len(self.__batches) == 0:
-            self.__batches = None
-
-        if self.__batches is not None:
+        if self.size > 0:
             self.flush()
 
     def __write(
