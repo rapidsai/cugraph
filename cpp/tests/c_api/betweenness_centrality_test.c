@@ -33,6 +33,7 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
                                         size_t num_vertices,
                                         size_t num_edges,
                                         bool_t store_transposed,
+                                        bool_t is_symmetric,
                                         bool_t normalized,
                                         size_t num_vertices_to_sample)
 {
@@ -55,7 +56,7 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "failed to create rng_state.");
 
   ret_code = create_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, is_symmetric, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -115,11 +116,11 @@ int test_betweenness_centrality()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0, 6.66667, 1.33333, 2.16667, 0.833333, 1};
+  weight_t h_result[] = {0, 3.33333, 0.66667, 1.08333, 0.416667, 0.5};
 
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, FALSE, 5);
+                                             h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, TRUE, FALSE, 5);
 }
 
 int test_betweenness_centrality_normalized()
@@ -135,8 +136,38 @@ int test_betweenness_centrality_normalized()
 
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, TRUE, 5);
+                                             h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, TRUE, TRUE, 5);
 }
+
+int test_betweenness_centrality_full()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = { 0, 3.66667, 0.833333, 2.16667, 0.833333, 0.5 };
+
+  return generic_betweenness_centrality_test(
+                                             h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, TRUE, FALSE, 6);
+}
+
+int test_betweenness_centrality_full_directed()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[] = { 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f };
+  weight_t h_result[] = {0, 4, 0, 2, 1, 0};
+
+  return generic_betweenness_centrality_test(
+                                             h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, FALSE, FALSE, 6);
+}
+
 
 /******************************************************************************/
 
@@ -145,5 +176,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_betweenness_centrality);
   result |= RUN_TEST(test_betweenness_centrality_normalized);
+  result |= RUN_TEST(test_betweenness_centrality_full);
+  result |= RUN_TEST(test_betweenness_centrality_full_directed);
   return result;
 }
