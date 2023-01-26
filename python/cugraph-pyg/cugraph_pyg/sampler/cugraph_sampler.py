@@ -147,7 +147,7 @@ class EXPERIMENTAL__CuGraphSampler:
 
         G = self.__graph_store._subgraph(edge_types)
 
-        index = cudf.from_dlpack(index.__dlpack__())
+        index = cudf.Series(index)
 
         sample_fn = (
             cugraph.dask.uniform_neighbor_sample
