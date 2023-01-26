@@ -56,7 +56,9 @@ def force_atlas2(input_graph,
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
-    num_verts = input_graph.number_of_vertices()
+    # FIXME: This implementation assumes that the number of vertices
+    # is the max vertex ID + 1 which is not always the case.
+    num_verts = input_graph.nodes().max() + 1
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
     cdef GraphCOOView[int,int,float] graph_float
