@@ -185,7 +185,6 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_clie
 
         assert list(node_ids) == list(actual_vertex_ids)
 
-
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
