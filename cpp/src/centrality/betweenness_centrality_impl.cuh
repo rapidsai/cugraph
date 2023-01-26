@@ -354,6 +354,10 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   if (scale_factor) {
     if (graph_view.number_of_vertices() > 2) {
+      if (num_sources < graph_view.number_of_vertices()) {
+        (*scale_factor) *= weight_t{num_sources} / weight_t{graph_view.number_of_vertices()};
+      }
+
       thrust::transform(
         handle.get_thrust_policy(),
         centralities.begin(),
