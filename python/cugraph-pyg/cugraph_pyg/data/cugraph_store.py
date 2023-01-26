@@ -44,6 +44,14 @@ NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 TensorType = Union[Tensor, NdArray]
 
 
+def torch_as_array(a):
+    if isinstance(a, cupy.ndarray):
+        t = torch.from_dlpack(a)
+    elif isinstance(a, cudf.Series):
+        t = torch.from_dlpack(a.to_dlpack())
+    return t
+
+
 class EdgeLayout(Enum):
     COO = "coo"
     CSC = "csc"
@@ -221,7 +229,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         # FIXME drop the cupy backend and remove these checks (#2995)
         if backend == "torch":
-            from torch import asarray
+            asarray = torch_as_array
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
