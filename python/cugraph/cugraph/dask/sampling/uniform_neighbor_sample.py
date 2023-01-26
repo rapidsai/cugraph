@@ -191,7 +191,7 @@ def uniform_neighbor_sample(
     """
     if _multiple_clients:
         # Distributed centralized lock to allow
-        # two disconnected processes to coordinate a lock
+        # two disconnected processes (clients) to coordinate a lock
         # https://docs.dask.org/en/stable/futures.html?highlight=lock#distributed.Lock
         lock = Lock("sampling_mg_lock")
         lock.acquire(timeout=1)
@@ -250,7 +250,6 @@ def uniform_neighbor_sample(
     client = input_graph._client
 
     session_id = Comms.get_session_id()
-    random_state = hash(None)
     result = [
         client.submit(
             _call_plc_uniform_neighbor_sample,
