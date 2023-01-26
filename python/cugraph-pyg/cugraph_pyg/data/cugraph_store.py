@@ -602,7 +602,7 @@ class EXPERIMENTAL__CuGraphStore:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
             noi_type_indices = self.searchsorted(
-                self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                self.from_dlpack(self.__vertex_type_offsets["stop"]),
                 nodes_of_interest,
             )
 
