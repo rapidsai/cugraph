@@ -765,6 +765,6 @@ def test_density(graph_file):
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
     assert G.density() == nx.density(Gnx)
 
+    M_G = cugraph.MultiGraph()
     with pytest.raises(TypeError):
-        M_G = cugraph.MultiGraph()
         M_G.density()
