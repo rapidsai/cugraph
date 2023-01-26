@@ -208,7 +208,8 @@ class RelGraphConv(nn.Module):
             )
 
         h = ops_autograd.agg_hg_basis_n2n_post(
-            feat, self.coeff, _graph, not self.self_loop, self.apply_norm
+            feat, self.coeff, _graph, concat_own=self.self_loop,
+            norm_by_out_degree=self.apply_norm,
         )
         h = h @ self.W.view(-1, self.out_feats)
         if self.bias is not None:

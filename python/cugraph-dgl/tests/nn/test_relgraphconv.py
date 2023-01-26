@@ -10,6 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=too-many-arguments, too-many-locals
+from collections import OrderedDict
+from itertools import product
 import pytest
 
 try:
@@ -23,22 +26,19 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = {
+options = OrderedDict({
     "idtype_int": [False, True],
     "max_in_degree": [None, 8],
+    "num_bases": [1, 2, 5],
     "regularizer": [None, "basis"],
     "self_loop": [False, True],
     "to_block": [False, True],
-}
+})
 
 
-@pytest.mark.parametrize("to_block", options["to_block"])
-@pytest.mark.parametrize("self_loop", options["self_loop"])
-@pytest.mark.parametrize("regularizer", options["regularizer"])
-@pytest.mark.parametrize("max_in_degree", options["max_in_degree"])
-@pytest.mark.parametrize("idtype_int", options["idtype_int"])
+@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
 def test_relgraphconv_equality(
-    idtype_int, max_in_degree, regularizer, self_loop, to_block
+    idtype_int, max_in_degree, num_bases, regularizer, self_loop, to_block
 ):
     RelGraphConv = dgl.nn.RelGraphConv
     CuGraphRelGraphConv = cugraph_dgl.nn.RelGraphConv
@@ -47,7 +47,7 @@ def test_relgraphconv_equality(
     in_feat, out_feat, num_rels = 10, 2, 3
     args = (in_feat, out_feat, num_rels)
     kwargs = {
-        "num_bases": 2,
+        "num_bases": num_bases,
         "regularizer": regularizer,
         "bias": False,
         "self_loop": self_loop,
