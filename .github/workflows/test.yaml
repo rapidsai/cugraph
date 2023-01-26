@@ -32,7 +32,7 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@main
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@cuda-118
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -44,7 +44,7 @@ jobs:
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@main
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@cuda-118
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
