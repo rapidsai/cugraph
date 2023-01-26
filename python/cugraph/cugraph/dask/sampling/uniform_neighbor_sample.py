@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy
-from dask.distributed import wait
+from dask.distributed import wait, Lock
 from cugraph.dask.common.input_utils import get_distributed_data
 
 
@@ -119,6 +119,7 @@ def uniform_neighbor_sample(
     with_edge_properties=False,
     batch_id_list=None,
     random_state=None,
+    _multiple_clients=False,
 ):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -154,6 +155,9 @@ def uniform_neighbor_sample(
     random_state: int, optional
         Random seed to use when making sampling calls.
 
+    _multiple_clients: bool, optional (default=False)
+        internal flag to ensure sampling works with multiple clients
+
     Returns
     -------
     result : dask_cudf.DataFrame
@@ -184,6 +188,10 @@ def uniform_neighbor_sample(
             df['hop_id']: dask_cudf.Series
                 Contains the hop ids from the sampling result
     """
+    if _multiple_clients:
+        lock = Lock("sampling_mg_lock")
+        lock.acquire(timeout=1)
+
     if isinstance(start_list, int):
         start_list = [start_list]
 
@@ -238,7 +246,7 @@ def uniform_neighbor_sample(
     client = input_graph._client
 
     session_id = Comms.get_session_id()
-
+    random_state = hash(None)
     result = [
         client.submit(
             _call_plc_uniform_neighbor_sample,
@@ -250,7 +258,7 @@ def uniform_neighbor_sample(
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
             # FIXME accept and properly transmute a numpy/cupy random state.
-            random_state=hash(random_state, i),
+            random_state=hash((random_state, i)),
             workers=[w],
             allow_other_workers=False,
             pure=False,
@@ -267,5 +275,8 @@ def uniform_neighbor_sample(
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
         ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
+
+    if _multiple_clients:
+        lock.release()
 
     return ddf

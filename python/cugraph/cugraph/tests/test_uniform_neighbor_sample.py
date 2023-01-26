@@ -443,3 +443,8 @@ def test_uniform_neighbor_sample_empty_start_list():
     )
 
     assert sampling_results.empty
+
+
+@pytest.mark.skip(reason="needs to be written!")
+def test_multi_client_sampling():
+    pass
