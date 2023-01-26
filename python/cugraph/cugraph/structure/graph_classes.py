@@ -740,14 +740,15 @@ class MultiGraph(Graph):
         Density is the measure of how many edges are in the graph versus
         the max number of edges that could be present.
         This function is not support on a Multigraph.
-        Since the maximal number of possible edges between any vertex pairs 
+        Since the maximal number of possible edges between any vertex pairs
         can be greater than 1 (undirected) a realistic max number of possible
         edges cannot be determined. Running density on a MultiGraph
-        could produce a density score greater than 1 - meaning more than 
+        could produce a density score greater than 1 - meaning more than
         100% of possible edges are present in the Graph
         """
         raise TypeError(
             "The density function is not support on a Multigraph."
+        )
 
 
 
