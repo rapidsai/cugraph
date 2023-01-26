@@ -36,8 +36,6 @@ edge_type_n = "edge_type"
 batch_id_n = "batch_id"
 hop_id_n = "hop_id"
 
-start_col_name = "_START_"
-batch_col_name = "_BATCH_"
 
 start_col_name = "_START_"
 batch_col_name = "_BATCH_"
