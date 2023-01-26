@@ -156,7 +156,8 @@ def uniform_neighbor_sample(
         Random seed to use when making sampling calls.
 
     _multiple_clients: bool, optional (default=False)
-        internal flag to ensure sampling works with multiple clients
+        internal flag to ensure sampling works with multiple dask clients
+        set to True to prevent hangs in multi-client environment
 
     Returns
     -------
@@ -189,6 +190,9 @@ def uniform_neighbor_sample(
                 Contains the hop ids from the sampling result
     """
     if _multiple_clients:
+        # Distributed centralized lock to allow
+        # two disconnected processes to coordinate a lock
+        # https://docs.dask.org/en/stable/futures.html?highlight=lock#distributed.Lock
         lock = Lock("sampling_mg_lock")
         lock.acquire(timeout=1)
 
