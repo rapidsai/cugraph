@@ -119,7 +119,9 @@ def create_homogeneous_dgl_block_from_tensors_ls(
     )
     sampled_graph.edata[dgl.EID] = edge_ids
     # TODO: Check if unique is needed
-    block = dgl.to_block(sampled_graph, dst_ids.unique())
+    block = dgl.to_block(
+        sampled_graph, dst_nodes=dst_ids.unique(), src_nodes=src_ids.unique()
+    )
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
 
@@ -246,11 +248,16 @@ def create_heterogenous_dgl_block_from_tensors_dict(
     )
     sampled_graph.edata[dgl.EID] = edge_ids_dict
 
-    seed_d = defaultdict(list)
-    for (_, _, d), (_, dst_id) in data_dict.items():
-        seed_d[d].append(dst_id)
+    src_d = defaultdict(list)
+    dst_d = defaultdict(list)
 
-    seed_d = {k: torch.cat(v).unique() for k, v in seed_d.items() if len(v) > 0}
-    block = dgl.to_block(sampled_graph, seed_d)
+    for (s, _, d), (src_id, dst_id) in data_dict.items():
+        src_d[s].append(src_id)
+        dst_d[d].append(dst_id)
+
+    src_d = {k: torch.cat(v).unique() for k, v in src_d.items() if len(v) > 0}
+    dst_d = {k: torch.cat(v).unique() for k, v in dst_d.items() if len(v) > 0}
+
+    block = dgl.to_block(sampled_graph, dst_nodes=dst_d, src_nodes=src_d)
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block

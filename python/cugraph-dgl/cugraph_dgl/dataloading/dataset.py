@@ -23,10 +23,6 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
 # TODO: Make optional imports
 import torch
 import dgl
-import time
-
-# columns_to_read = ['sources', 'destinations',
-# 'edge_id', 'edge_type', 'batch_id', 'hop_id', 'rank']
 
 
 # Todo: maybe should switch to __iter__
@@ -111,7 +107,6 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
         fn, batch_offset = self._batch_to_fn_d[idx]
         if fn != self._current_batch_fn:
-            print(f"Loading {fn} for {idx}")
             df = cudf.read_parquet(os.path.join(self._input_directory, fn))
             if self.edge_dir == "in":
                 df.rename(
@@ -120,7 +115,6 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
                 )
             self._current_batch_fn = fn
             self._current_batch_start = batch_offset
-            st = time.time()
             self._current_batches = create_heterogeneous_sampled_graphs_from_dataframe(
                 sampled_df=df,
                 num_nodes_dict=self.num_nodes_dict,
@@ -129,8 +123,6 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
                 ntype_offset_dict=self.ntype_offset_dict,
                 edge_dir=self.edge_dir,
             )
-            et = time.time()
-            print(f"Time taken to load batches for {fn} = {et-st} s", flush=True)
             del df
 
         current_offset = idx - batch_offset
@@ -154,4 +146,4 @@ def get_batch_fn_batch_start(batch_id, output_files):
         if batch_start <= batch_id and batch_id <= batch_end:
             return fn, batch_start
 
-    raise ValueError("batch_id {id} not found in output_files: {output_files}")
+    raise ValueError(f"batch_id {id} not found in output_files: {output_files}")

@@ -37,7 +37,7 @@ def create_cugraph_graph_from_edges_dict(
     del edges_dfs
 
     edges_df["wgt"] = np.float32(0)
-    G = cugraph.Graph(directed=True)
+    G = cugraph.MultiGraph(directed=True)
     if isinstance(edges_df, dask_cudf.DataFrame):
         G.from_dask_cudf_edgelist(
             edges_df,

@@ -24,7 +24,7 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
 )
 
 
-def get_edge_df_from_block(block):
+def get_edge_df_from_homogenous_block(block):
     block = block.to("cpu")
     src, dst, eid = block.edges("all")
     src = block.srcdata[dgl.NID][src]
@@ -39,7 +39,7 @@ def create_dgl_mfgs(g, seed_nodes, fanout):
     return sampler.sample_blocks(g, seed_nodes)
 
 
-def create_cugraph_dgl_mfgs(g, seed_nodes, fanout):
+def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
     df_ls = []
     for hop_id, fanout in enumerate(reversed(fanout)):
         frontier = g.sample_neighbors(seed_nodes, fanout)
@@ -72,10 +72,14 @@ def test_homogeneous_sampled_graphs_from_dataframe(seed_node):
     fanout = [1, 1, 1]
     seed_node = torch.as_tensor([seed_node])
 
-    dgl_seed_nodes, dgl_output_nodes, dgl_mfgs = create_dgl_mfgs(g, seed_node, fanout)
-    cugraph_seed_nodes, cugraph_output_nodes, cugraph_mfgs = create_cugraph_dgl_mfgs(
+    dgl_seed_nodes, dgl_output_nodes, dgl_mfgs = create_cugraph_dgl_homogenous_mfgs(
         g, seed_node, fanout
     )
+    (
+        cugraph_seed_nodes,
+        cugraph_output_nodes,
+        cugraph_mfgs,
+    ) = create_cugraph_dgl_homogenous_mfgs(g, seed_node, fanout)
 
     np.testing.assert_equal(
         cugraph_seed_nodes.cpu().numpy().copy().sort(),
@@ -88,6 +92,6 @@ def test_homogeneous_sampled_graphs_from_dataframe(seed_node):
     )
 
     for dgl_block, cugraph_dgl_block in zip(dgl_mfgs, cugraph_mfgs):
-        dgl_df = get_edge_df_from_block(dgl_block)
-        cugraph_dgl_df = get_edge_df_from_block(cugraph_dgl_block)
+        dgl_df = get_edge_df_from_homogenous_block(dgl_block)
+        cugraph_dgl_df = get_edge_df_from_homogenous_block(cugraph_dgl_block)
         pd.testing.assert_frame_equal(dgl_df, cugraph_dgl_df)
