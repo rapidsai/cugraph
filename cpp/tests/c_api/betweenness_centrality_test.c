@@ -130,7 +130,6 @@ int test_betweenness_centrality()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   weight_t h_result[] = { 0, 4, 0.8, 1.3, 0.5, 0.6};
-    // {0, 3.33333, 0.66667, 1.08333, 0.416667, 0.5};
 
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
@@ -147,7 +146,6 @@ int test_betweenness_centrality_normalized()
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   weight_t h_result[] = {0, 0.4, 0.08, 0.13, 0.05, 0.06};
-    //{0, .333333, .066667, .108333, 0.0416667, 0.05};
 
   // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
