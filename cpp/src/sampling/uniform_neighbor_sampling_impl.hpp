@@ -267,7 +267,7 @@ uniform_neighbor_sample_impl(
     }
 
     d_in     = std::move(d_out_dst);
-    d_labels = std::move(d_labels);
+    d_labels = std::move(d_out_label);
 
     ++hop;
   }

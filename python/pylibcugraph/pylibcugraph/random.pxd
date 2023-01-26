@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2023, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,10 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+# Have cython use python 3 syntax
+# cython: language_level = 3
 
-# to prevent rapids context being created when importing cugraph_dgl
-os.environ["RAPIDS_NO_INITIALIZE"] = "1"
-from cugraph_dgl.cugraph_storage import CuGraphStorage
-from cugraph_dgl.convert import cugraph_storage_from_heterograph
-import cugraph_dgl.nn
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t,
+)
+
+cdef class CuGraphRandomState:
+    cdef cugraph_rng_state_t* rng_state_ptr
