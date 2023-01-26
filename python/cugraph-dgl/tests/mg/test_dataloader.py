@@ -10,11 +10,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pytest
+
+try:
+    import cugraph_dgl
+except ModuleNotFoundError:
+    pytest.skip("cugraph_dgl not available", allow_module_level=True)
 
 import dgl
 import torch as th
 from cugraph_dgl import cugraph_storage_from_heterograph
-import cugraph_dgl
 import tempfile
 import numpy as np
 

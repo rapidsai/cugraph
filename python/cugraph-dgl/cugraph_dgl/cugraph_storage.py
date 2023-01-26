@@ -38,12 +38,10 @@ class CuGraphStorage:
     Duck-typed version of the DGLHeteroGraph class made for cuGraph
     for storing graph structure and node/edge feature data.
 
-    This object is wrapper around cugraph's PropertyGraph and returns samples
+    This object is wrapper around cugraph's MGGraph and returns samples
     that conform with `DGLHeteroGraph`
-    See: (TODO link after https://github.com/rapidsai/cugraph/pull/2826)
+    See: https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_dgl.html
 
-    Read the user guide chapter (#TODO link cugraph and DGL documentation)
-    for an in-depth explanation about its usage.
     """
 
     def __init__(
@@ -684,9 +682,10 @@ class CuGraphStorage:
         ) in graph_sampled_data_d.items():
             src_type = canonical_etype[0]
             dst_type = canonical_etype[2]
-            src_t = torch.as_tensor(src, device="cuda")
-            dst_t = torch.as_tensor(dst, device="cuda")
-            edge_id_t = torch.as_tensor(edge_id, device="cuda")
+
+            src_t = _torch_tensor_from_cp_array(src)
+            dst_t = _torch_tensor_from_cp_array(dst)
+            edge_id_t = _torch_tensor_from_cp_array(edge_id)
 
             src_t = self.cugraph_n_id_to_dgl_id(src_t, src_type)
             dst_t = self.cugraph_n_id_to_dgl_id(dst_t, dst_type)
@@ -695,3 +694,9 @@ class CuGraphStorage:
             graph_eid_d[canonical_etype] = edge_id_t.to(o_dtype)
 
         return graph_data_d, graph_eid_d
+
+
+def _torch_tensor_from_cp_array(ar):
+    if len(ar) == 0:
+        return torch.as_tensor(ar.get()).to("cuda")
+    return torch.as_tensor(ar, device="cuda")

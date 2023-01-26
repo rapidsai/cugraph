@@ -12,6 +12,14 @@
 # limitations under the License.
 
 import pytest
+
+try:
+    import cugraph_dgl
+
+    del cugraph_dgl
+except ModuleNotFoundError:
+    pytest.skip("cugraph_dgl not available", allow_module_level=True)
+
 from dgl.dataloading import MultiLayerNeighborSampler
 import dgl
 import torch
