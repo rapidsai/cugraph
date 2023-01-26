@@ -280,13 +280,13 @@ def create_papers_data(args, num_papers):
 
     # Save the list
     dir = args.outdir + paper_dir
-    name = "node-label." + args.format
+    name = "node-label."
     save_data(args, dir, name, labeled_df)
 
     # some cleanup
     del ran
     del labeled_df
-    nodes.drop(columns=["rand"], inplace=True)
+    nodes.drop(columns=["rand", "label"], inplace=True)
 
     # --------------------
     # Now paper features
@@ -508,7 +508,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "-papersEgefactor",
+        "-papersEdgefactor",
         type=int,
         default=15,
         help="Edge Factor - the average number of edges per node.  Default is 16",
