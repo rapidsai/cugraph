@@ -302,8 +302,8 @@ class simpleGraphImpl:
 
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
-        if self.properties.renumbered:
-            nodes = self.renumber_map.implementation.df["0"].values_host.tolist()
+
+        nodes = self.nodes().values_host.tolist()
         pdf.columns = nodes
         pdf.index = nodes
         return pdf
@@ -312,14 +312,18 @@ class simpleGraphImpl:
         """
         Returns the graph adjacency matrix as a NumPy array.
         """
-
+        
         nlen = self.number_of_nodes()
         elen = self.number_of_edges()
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
+        nodes = self.nodes()
         for i in range(0, elen):
+            # Map vertices to consecutive integers
+            idx_src = nodes[nodes==df[simpleGraphImpl.srcCol].iloc[i]].index[0]
+            idx_dst = nodes[nodes==df[simpleGraphImpl.dstCol].iloc[i]].index[0]
             np_array[
-                df[simpleGraphImpl.srcCol].iloc[i], df[simpleGraphImpl.dstCol].iloc[i]
+                idx_src, idx_dst
             ] = df[self.edgeWeightCol].iloc[i]
         return np_array
 
