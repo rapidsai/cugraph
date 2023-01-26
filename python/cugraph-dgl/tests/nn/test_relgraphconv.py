@@ -26,14 +26,16 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = OrderedDict({
-    "idtype_int": [False, True],
-    "max_in_degree": [None, 8],
-    "num_bases": [1, 2, 5],
-    "regularizer": [None, "basis"],
-    "self_loop": [False, True],
-    "to_block": [False, True],
-})
+options = OrderedDict(
+    {
+        "idtype_int": [False, True],
+        "max_in_degree": [None, 8],
+        "num_bases": [1, 2, 5],
+        "regularizer": [None, "basis"],
+        "self_loop": [False, True],
+        "to_block": [False, True],
+    }
+)
 
 
 @pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
