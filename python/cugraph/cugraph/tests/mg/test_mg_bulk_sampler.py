@@ -83,7 +83,7 @@ def test_bulk_sampler_remainder(dask_client):
         batch_size=2,
         output_path=tempdir_object.name,
         graph=G,
-        saturation_level=7,
+        batches_per_call=7,
         batches_per_partition=2,
         fanout_vals=[2, 2],
         with_replacement=False,
