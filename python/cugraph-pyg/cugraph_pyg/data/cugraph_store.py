@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Any, Union, List
+from typing import Optional, Tuple, Any, Union, List, Dict
+
 from enum import Enum
 
 from dataclasses import dataclass
@@ -279,7 +280,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         return offsets
 
-    def __infer_offsets(self, num_nodes_dict, num_edges_dict) -> None:
+    def __infer_offsets(
+        self,
+        num_nodes_dict: Dict[str, int],
+        num_edges_dict: Dict[Tuple[str, str, str], int],
+    ) -> None:
         """
         Sets the vertex offsets for this store.
         """
@@ -295,9 +300,35 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
-    def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
+    def __construct_graph(
+        self, edge_info: Dict[Tuple[str, str, str], List], multi_gpu: bool = False
+    ) -> cugraph.MultiGraph:
+        """
+        This function takes edge information and uses it to construct
+        a cugraph Graph.  It determines the numerical edge type by
+        sorting the keys of the input dictionary
+        (the canonical edge types).
+
+        Parameters
+        ----------
+        edge_info: Dict[Tuple[str, str, str]] (Required)
+            Input edge info dictionary, where keys are the canonical
+            edge type and values are the edge index (src/dst).
+
+        multi_gpu: bool (Optional, default=False)
+            Whether to construct a single-GPU or multi-GPU cugraph Graph.
+            Defaults to a single-GPU graph.
+        Returns
+        -------
+        A newly-constructed directed cugraph.MultiGraph object.
+        """
         # Ensure the original dict is not modified.
         edge_info_cg = {}
+
+        # Iterate over the keys in sorted order so that the created
+        # numerical types correspond to the lexicographic order
+        # of the keys, which is critical to converting the numeric
+        # keys back to canonical edge types later.
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
