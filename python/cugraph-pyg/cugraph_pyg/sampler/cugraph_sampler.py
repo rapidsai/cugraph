@@ -11,15 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import cugraph
+
+
+from typing import Tuple, List, Union, Sequence
+
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.data.cugraph_store import TensorType
-
-from typing import Union
-from typing import Tuple
-from typing import List
-from typing import Sequence
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
@@ -187,7 +185,7 @@ class EXPERIMENTAL__CuGraphSampler:
 
         G = self.__graph_store._subgraph(edge_types)
 
-        index = cudf.from_dlpack(index.__dlpack__())
+        index = cudf.Series(index)
 
         sample_fn = (
             cugraph.dask.uniform_neighbor_sample
