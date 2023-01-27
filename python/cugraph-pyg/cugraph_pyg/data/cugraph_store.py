@@ -389,7 +389,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
-        return isinstance(self.__graph._plc_graph, dict)
+        return self.__graph.is_multi_gpu()
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
