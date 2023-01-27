@@ -11,68 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import cupy
-import cudf
 
-from cugraph.experimental.datasets import karate
-from cugraph.gnn import FeatureStore
 from cugraph_pyg.loader import CuGraphNeighborLoader
 from cugraph_pyg.data import CuGraphStore
-
-import pytest
-
-
-@pytest.fixture
-def karate_gnn():
-    el = karate.get_edgelist().reset_index(drop=True)
-    el.src = el.src.astype("int64")
-    el.dst = el.dst.astype("int64")
-    all_vertices = np.array_split(cudf.concat([el.src, el.dst]).unique().values_host, 2)
-
-    F = FeatureStore(backend="numpy")
-    F.add_data(
-        np.arange(len(all_vertices[0]), dtype="float32") * 31,
-        "type0",
-        "prop0",
-    )
-    F.add_data(
-        np.arange(len(all_vertices[1]), dtype="float32") * 41,
-        "type1",
-        "prop0",
-    )
-
-    N = {
-        "type0": len(all_vertices[0]),
-        "type1": len(all_vertices[1]),
-    }
-
-    offsets = {"type0": 0, "type1": N["type0"]}
-
-    G = {
-        ("type0", "et01", "type1"): el[
-            el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[1])
-        ],
-        ("type1", "et10", "type0"): el[
-            el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[0])
-        ],
-        ("type0", "et00", "type0"): el[
-            el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[0])
-        ],
-        ("type1", "et11", "type1"): el[
-            el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[1])
-        ],
-    }
-
-    G = {
-        (src_type, edge_type, dst_type): (
-            elx["src"].values_host - offsets[src_type],
-            elx["dst"].values_host - offsets[dst_type],
-        )
-        for (src_type, edge_type, dst_type), elx in G.items()
-    }
-
-    return F, G, N
 
 
 def test_cugraph_loader_basic(karate_gnn):
