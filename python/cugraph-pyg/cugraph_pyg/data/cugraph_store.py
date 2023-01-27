@@ -359,7 +359,7 @@ class EXPERIMENTAL__CuGraphStore:
         na_etp = np.concatenate(
             [
                 np.full(
-                    et_offsets["stop"][i] - et_offsets["start"][i] + 1,
+                    int(et_offsets["stop"][i] - et_offsets["start"][i] + 1),
                     i,
                     dtype="int32",
                 )

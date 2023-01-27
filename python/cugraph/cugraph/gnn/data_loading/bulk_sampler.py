@@ -70,7 +70,7 @@ class EXPERIMENTAL__BulkSampler:
         return self.__rank
 
     @property
-    def batche_per_call(self) -> int:
+    def batches_per_call(self) -> int:
         return self.__batches_per_call
 
     @property

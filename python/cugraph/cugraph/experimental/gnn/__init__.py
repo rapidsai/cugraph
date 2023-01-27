@@ -12,5 +12,6 @@
 # limitations under the License.
 
 from cugraph.gnn.data_loading import EXPERIMENTAL__BulkSampler
+from cugraph.utilities.api_tools import experimental_warning_wrapper
 
 BulkSampler = experimental_warning_wrapper(EXPERIMENTAL__BulkSampler)
