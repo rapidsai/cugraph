@@ -81,7 +81,9 @@ class Graph:
                 )
 
     def __getattr__(self, name):
-        if self._Impl is None:
+        # TODO: This leads to recursion
+        # Find out betterway
+        if name == "_Impl":
             raise AttributeError(name)
         if hasattr(self._Impl, name):
             return getattr(self._Impl, name)
