@@ -78,8 +78,8 @@ def plc_betweenness_centrality(
         Should contain a mapping between
         edges and weights.
 
-        (Not Supported): But if weights are provided at the Graph creation,
-        they will be used
+        (Not Supported): if weights are provided at the Graph creation,
+        they will not be used
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
