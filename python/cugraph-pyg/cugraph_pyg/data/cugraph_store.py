@@ -206,10 +206,10 @@ class EXPERIMENTAL__CuGraphStore:
         num_nodes_dict : dict (Required)
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
-        backend : ('torch', 'cupy') (Required)
+        backend : ('torch', 'cupy') (Optional, default = 'torch')
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
-        multi_gpu : bool (Required)
+        multi_gpu : bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
         """
