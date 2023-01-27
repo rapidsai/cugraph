@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=too-many-arguments, too-many-locals
-from collections import OrderedDict
 from itertools import product
 import pytest
 
@@ -26,14 +25,12 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = OrderedDict(
-    {
-        "idtype_int": [False, True],
-        "max_in_degree": [None, 8],
-        "num_heads": [1, 3],
-        "to_block": [False, True],
-    }
-)
+options = {
+    "idtype_int": [False, True],
+    "max_in_degree": [None, 8],
+    "num_heads": [1, 3],
+    "to_block": [False, True],
+}
 
 
 @pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
