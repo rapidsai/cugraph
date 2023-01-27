@@ -351,8 +351,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         if multi_gpu:
             nworkers = len(get_client().scheduler_info()["workers"])
-            npartitions = nworkers * 1
-            df = dd.from_pandas(df, npartitions=npartitions).persist()
+            df = dd.from_pandas(df, npartitions=nworkers).persist()
             df = df.map_partitions(cudf.DataFrame.from_pandas)
         else:
             df = cudf.from_pandas(df)
