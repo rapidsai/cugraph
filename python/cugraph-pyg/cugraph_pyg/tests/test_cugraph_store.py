@@ -136,9 +136,7 @@ def test_renumber_vertices_basic(single_vertex_graph):
     F, G, N = single_vertex_graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    nodes_of_interest = cudf.from_dlpack(
-        cupy.random.randint(0, sum(N.values()), 3).__dlpack__()
-    )
+    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3))
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
     assert index["vt1"].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
@@ -148,9 +146,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
 
-    nodes_of_interest = cudf.from_dlpack(
-        cupy.random.randint(0, sum(N.values()), 3).__dlpack__()
-    ).unique()
+    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3)).unique()
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
@@ -201,9 +197,7 @@ def test_renumber_edges(graph):
         )
 
     nodes_of_interest = (
-        cudf.from_dlpack(cupy.concatenate([eoi_src, eoi_dst]).__dlpack__())
-        .unique()
-        .sort_values()
+        cudf.Series(cupy.concatenate([eoi_src, eoi_dst])).unique().sort_values()
     )
 
     noi_index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
