@@ -12,7 +12,7 @@
 # limitations under the License.
 import gc
 import random
-
+import copy
 import pytest
 import cupy
 from dask.distributed import wait
@@ -265,3 +265,9 @@ def test_mg_graph_serializable(dask_client, input_combo):
     assert G.number_of_edges() == shared_g.number_of_edges()
     # cleanup
     dask_client.unpublish_dataset("shared_g")
+
+
+def test_mg_graph_copy():
+    G = cugraph.MultiGraph(directed=True)
+    G_c = copy.deepcopy(G)
+    assert type(G) == type(G_c)
