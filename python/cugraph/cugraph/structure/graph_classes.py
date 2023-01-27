@@ -746,10 +746,7 @@ class MultiGraph(Graph):
         could produce a density score greater than 1 - meaning more than
         100% of possible edges are present in the Graph
         """
-        raise TypeError(
-            "The density function is not support on a Multigraph."
-        )
-
+        raise TypeError("The density function is not support on a Multigraph.")
 
 
 class Tree(Graph):
