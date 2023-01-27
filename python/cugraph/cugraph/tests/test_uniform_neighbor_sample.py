@@ -449,4 +449,4 @@ def test_uniform_neighbor_sample_empty_start_list():
 def test_multi_client_sampling():
     # See gist for example test to write
     # https://gist.github.com/VibhuJawa/1b705427f7a0c5a2a4f58e0a3e71ef21
-    pass
+    raise NotImplementedError
