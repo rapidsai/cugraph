@@ -55,6 +55,6 @@ popd
 if [[ "${RAPIDS_BUILD_TYPE}" == "branch" ]]; then
   rapids-logger "Upload Docs to S3"
   aws s3 sync --delete docs/cugraph/_html "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/html"
-  aws s3 sync --delete docs/cugraph/_text "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/text"
+  aws s3 sync --delete docs/cugraph/_text "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/txt"
   aws s3 sync --delete cpp/doxygen/html "s3://rapidsai-docs/libcugraph/${VERSION_NUMBER}/html"
 fi
