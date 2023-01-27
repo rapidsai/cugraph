@@ -718,7 +718,12 @@ class simpleGraphImpl:
         >>> df = G.in_degree([0,9,12])
 
         """
-        return self._degree(vertex_subset, direction=Direction.IN)
+        in_degree = self._degree(vertex_subset, direction=Direction.IN)
+        # If the vertex IDs are not contiguous, remove results for the
+        # isolated vertices
+        in_degree = in_degree[in_degree["vertex"].isin(self.nodes())]
+
+        return in_degree
 
     def out_degree(self, vertex_subset=None):
         """
@@ -756,7 +761,11 @@ class simpleGraphImpl:
         >>> df = G.out_degree([0,9,12])
 
         """
-        return self._degree(vertex_subset, direction=Direction.OUT)
+        out_degree = self._degree(vertex_subset, direction=Direction.OUT)
+        # If the vertex IDs are not contiguous, remove results for the
+        # isolated vertices
+        out_degree = out_degree[out_degree["vertex"].isin(self.nodes())]
+        return out_degree
 
     def degree(self, vertex_subset=None):
         """
@@ -848,6 +857,10 @@ class simpleGraphImpl:
 
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "vertex")
+        
+        # If the vertex IDs are not contiguous, remove results for the
+        # isolated vertices
+        df = df[df["vertex"].isin(self.nodes())]
 
         if vertex_subset is not None:
             df = df[df["vertex"].isin(vertex_subset)]
@@ -862,6 +875,10 @@ class simpleGraphImpl:
 
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "vertex")
+
+        # If the vertex IDs are not contiguous, remove results for the
+        # isolated vertices
+        df = df[df["vertex"].isin(self.nodes())]
 
         if vertex_subset is not None:
             df = df[df["vertex"].isin(vertex_subset)]
