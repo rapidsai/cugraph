@@ -24,7 +24,7 @@ from cugraph.testing.mg_utils import stop_dask_client
 import numpy as np
 import cudf
 from cugraph.gnn import FeatureStore
-from cugrah.experimental.datasets import karate
+from cugraph.experimental.datasets import karate
 
 import tempfile
 
