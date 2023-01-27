@@ -664,8 +664,8 @@ class simpleGraphImpl:
         vertices = cudf.Series(vertices)
         if self.properties.renumbered is True:
             df_ = cudf.DataFrame()
-            df_["vertex"] = vertex_paths
-            df_ = G.unrenumber(df_, "vertex")
+            df_["vertex"] = vertices
+            df_ = self.renumber_map.unrenumber(df_, "vertex")
             vertices = df_["vertex"]
 
         return vertices
