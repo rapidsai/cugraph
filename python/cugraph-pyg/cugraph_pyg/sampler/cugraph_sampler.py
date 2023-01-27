@@ -11,14 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import cugraph
+
+
+from typing import (
+    Tuple,
+    List,
+    Union,
+)
+
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.data.cugraph_store import TensorType
-
-from typing import Union
-from typing import Tuple
-from typing import List
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
@@ -26,7 +29,6 @@ import cudf
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
-cupy = import_optional("cupy")
 torch = import_optional("torch")
 
 HeteroSamplerOutput = (
@@ -140,14 +142,12 @@ class EXPERIMENTAL__CuGraphSampler:
             # FIXME support variable num neighbors per edge type
             num_neighbors = list(num_neighbors.values())[0]
 
-        # FIXME eventually get uniform neighbor sample to accept longs
         if backend == "torch" and not index.is_cuda:
             index = index.cuda()
 
-        # FIXME resolve the directed/undirected issue
-        G = self.__graph_store._subgraph([et[1] for et in edge_types])
+        G = self.__graph_store._subgraph(edge_types)
 
-        index = cudf.from_dlpack(index.__dlpack__())
+        index = cudf.Series(index)
 
         sample_fn = (
             cugraph.dask.uniform_neighbor_sample
@@ -164,12 +164,11 @@ class EXPERIMENTAL__CuGraphSampler:
             # with_edge_properties=True,
         )
 
-        # We make the assumption that the sample must fit on a single device
         if self.__graph_store._is_delayed:
             sampling_results = sampling_results.compute()
 
         nodes_of_interest = cudf.concat(
-            [sampling_results.sources, sampling_results.destinations]
+            [sampling_results.destinations, sampling_results.sources]
         ).unique()
 
         # Get the grouped node index (for creating the renumbered grouped edge index)
