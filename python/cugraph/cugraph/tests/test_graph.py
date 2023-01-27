@@ -748,3 +748,23 @@ def test_create_graph_with_edge_ids(graph_file):
     H = G.to_undirected()
     assert G.is_directed()
     assert not H.is_directed()
+
+
+# Test
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_density(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    M = utils.read_csv_for_nx(graph_file)
+    if M is None:
+        raise TypeError("Could not read the input graph")
+
+    # cugraph add_edge_list
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
+    assert G.density() == nx.density(Gnx)
+
+    M_G = cugraph.MultiGraph()
+    with pytest.raises(TypeError):
+        M_G.density()
