@@ -324,15 +324,12 @@ class EXPERIMENTAL__CuGraphStore:
             ]
         )
 
+        et_offsets = self.__edge_type_offsets
         na_etp = np.concatenate(
             [
-                np.array(
-                    [i]
-                    * int(
-                        self.__edge_type_offsets["stop"][i]
-                        - self.__edge_type_offsets["start"][i]
-                        + 1
-                    ),
+                np.full(
+                    et_offsets["stop"][i] - et_offsets["start"][i] + 1,
+                    i,
                     dtype="int32",
                 )
                 for i in range(len(self.__edge_type_offsets["start"]))
