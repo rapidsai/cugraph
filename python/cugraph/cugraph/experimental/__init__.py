@@ -73,7 +73,3 @@ from cugraph.experimental.link_prediction.overlap import (
 
 overlap = experimental_warning_wrapper(EXPERIMENTAL__overlap)
 overlap_coefficient = experimental_warning_wrapper(EXPERIMENTAL__overlap_coefficient)
-
-from cugraph.gnn.data_loading import EXPERIMENTAL__BulkSampler
-
-BulkSampler = experimental_warning_wrapper(EXPERIMENTAL__BulkSampler)

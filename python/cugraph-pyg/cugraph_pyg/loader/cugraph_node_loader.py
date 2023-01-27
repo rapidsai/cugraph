@@ -18,7 +18,7 @@ import os
 import cupy
 import cudf
 
-from cugraph.experimental import BulkSampler
+from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore

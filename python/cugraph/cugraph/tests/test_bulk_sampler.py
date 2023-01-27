@@ -15,7 +15,7 @@ import cudf
 import cupy
 import cugraph
 from cugraph.experimental.datasets import karate
-from cugraph.experimental import BulkSampler
+from cugraph.experimental.gnn import BulkSampler
 
 import tempfile
 import os
