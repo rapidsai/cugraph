@@ -88,7 +88,6 @@ class Graph:
         __getattr__ is used to "pass through" attribute access to _Impl and make it
         appear as if the _Impl attributes are contained in this class.
         """
-        # so avoiding that
         if name == "_Impl":
             raise AttributeError(name)
         if hasattr(self._Impl, name):
