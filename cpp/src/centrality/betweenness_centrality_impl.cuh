@@ -346,16 +346,19 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 
   std::optional<weight_t> scale_factor{std::nullopt};
 
-  if (normalized)
-    scale_factor = static_cast<weight_t>((graph_view.number_of_vertices() - 1) *
-                                         (graph_view.number_of_vertices() - 2));
-  else if (graph_view.is_symmetric())
+  if (normalized) {
+    weight_t n = static_cast<weight_t>(graph_view.number_of_vertices());
+    if (!include_endpoints) { n -= weight_t{1}; }
+
+    scale_factor = n * (n - 1);
+  } else if (graph_view.is_symmetric())
     scale_factor = weight_t{2};
 
   if (scale_factor) {
     if (graph_view.number_of_vertices() > 2) {
       if (num_sources < graph_view.number_of_vertices()) {
-        (*scale_factor) *= weight_t{num_sources} / weight_t{graph_view.number_of_vertices()};
+        (*scale_factor) *= static_cast<weight_t>(num_sources) /
+                           static_cast<weight_t>(graph_view.number_of_vertices());
       }
 
       thrust::transform(
