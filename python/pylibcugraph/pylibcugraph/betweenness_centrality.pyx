@@ -115,8 +115,6 @@ def betweenness_centrality(ResourceHandle resource_handle,
         vertex_list = select_random_vertices(resource_handle, graph, seed, k)
     else:
         vertex_list = k
-    
-    assert_CAI_type(vertex_list, "vertex_list")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
