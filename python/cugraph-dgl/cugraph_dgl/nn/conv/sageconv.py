@@ -13,9 +13,11 @@
 """Torch Module for GraphSAGE layer using the aggregation primitives in
 cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
+from typing import Optional
 
 from cugraph.utilities.utils import import_optional
 
+dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 ops = import_optional("pylibcugraphops")
@@ -44,8 +46,6 @@ class SAGEConv(nn.Module):
         Dropout rate on features, default: ``0``.
     bias : bool
         If True, adds a learnable bias to the output. Default: ``True``.
-    norm : callable activation function/layer or None, optional
-        If not None, applies normalization to the updated node features.
 
     Examples
     --------
@@ -70,12 +70,11 @@ class SAGEConv(nn.Module):
 
     def __init__(
         self,
-        in_feats,
-        out_feats,
-        aggregator_type="mean",
-        feat_drop=0.0,
-        bias=True,
-        norm=None,
+        in_feats: int,
+        out_feats: int,
+        aggregator_type: str = "mean",
+        feat_drop: float = 0.0,
+        bias: bool = True,
     ):
         super().__init__()
         self.in_feats = in_feats
@@ -88,7 +87,6 @@ class SAGEConv(nn.Module):
             )
         self.aggr = aggregator_type
         self.feat_drop = nn.Dropout(feat_drop)
-        self.norm = norm
 
         self.linear = nn.Linear(2 * in_feats, out_feats, bias=bias)
 
@@ -96,7 +94,12 @@ class SAGEConv(nn.Module):
         r"""Reinitialize learnable parameters."""
         self.linear.reset_parameters()
 
-    def forward(self, g, feat, max_in_degree=None):
+    def forward(
+        self,
+        g: dgl.DGLHeteroGraph,
+        feat: torch.Tensor,
+        max_in_degree: Optional[int] = None,
+    ) -> torch.Tensor:
         r"""Forward computation.
 
         Parameters
@@ -132,8 +135,5 @@ class SAGEConv(nn.Module):
         feat = self.feat_drop(feat)
         h = ops_autograd.agg_concat_n2n(feat, _graph, self.aggr)
         h = self.linear(h)
-
-        if self.norm is not None:
-            h = self.norm(h)
 
         return h

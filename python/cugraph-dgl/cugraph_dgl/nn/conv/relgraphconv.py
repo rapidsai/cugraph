@@ -14,9 +14,11 @@
 primitives in cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 import math
+from typing import Optional
 
 from cugraph.utilities.utils import import_optional
 
+dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 ops = import_optional("pylibcugraphops")
@@ -36,9 +38,9 @@ class RelGraphConv(nn.Module):
 
     Parameters
     ----------
-    in_feat : int
+    in_feats : int
         Input feature size.
-    out_feat : int
+    out_feats : int
         Output feature size.
     num_rels : int
         Number of relations.
@@ -71,8 +73,8 @@ class RelGraphConv(nn.Module):
     >>> feat = torch.ones(6, 10).to(device)
     >>> conv = RelGraphConv(
     ...     10, 2, 3, regularizer='basis', num_bases=2).to(device)
-    >>> etype = torch.tensor([0,1,2,0,1,2]).to(device)
-    >>> res = conv(g, feat, etype)
+    >>> etypes = torch.tensor([0,1,2,0,1,2]).to(device)
+    >>> res = conv(g, feat, etypes)
     >>> res
     tensor([[-1.7774, -2.0184],
             [-1.4335, -2.3758],
@@ -84,19 +86,19 @@ class RelGraphConv(nn.Module):
 
     def __init__(
         self,
-        in_feat,
-        out_feat,
-        num_rels,
-        regularizer=None,
-        num_bases=None,
-        bias=True,
-        self_loop=True,
-        dropout=0.0,
-        apply_norm=False,
+        in_feats: int,
+        out_feats: int,
+        num_rels: int,
+        regularizer: Optional[str] = None,
+        num_bases: Optional[int] = None,
+        bias: bool = True,
+        self_loop: bool = True,
+        dropout: float = 0.0,
+        apply_norm: bool = False,
     ):
         super().__init__()
-        self.in_feat = in_feat
-        self.out_feat = out_feat
+        self.in_feats = in_feats
+        self.out_feats = out_feats
         self.num_rels = num_rels
         self.apply_norm = apply_norm
         self.dropout = nn.Dropout(dropout)
@@ -105,14 +107,14 @@ class RelGraphConv(nn.Module):
         self.self_loop = self_loop
         if regularizer is None:
             self.W = nn.Parameter(
-                torch.Tensor(num_rels + dim_self_loop, in_feat, out_feat)
+                torch.Tensor(num_rels + dim_self_loop, in_feats, out_feats)
             )
             self.coeff = None
         elif regularizer == "basis":
             if num_bases is None:
                 raise ValueError('Missing "num_bases" for basis regularization.')
             self.W = nn.Parameter(
-                torch.Tensor(num_bases + dim_self_loop, in_feat, out_feat)
+                torch.Tensor(num_bases + dim_self_loop, in_feats, out_feats)
             )
             self.coeff = nn.Parameter(torch.Tensor(num_rels, num_bases))
             self.num_bases = num_bases
@@ -124,7 +126,7 @@ class RelGraphConv(nn.Module):
         self.regularizer = regularizer
 
         if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_feat))
+            self.bias = nn.Parameter(torch.Tensor(out_feats))
         else:
             self.register_parameter("bias", None)
 
@@ -132,7 +134,7 @@ class RelGraphConv(nn.Module):
 
     def reset_parameters(self):
         r"""Reinitialize learnable parameters."""
-        bound = 1 / math.sqrt(self.in_feat)
+        bound = 1 / math.sqrt(self.in_feats)
         end = -1 if self.self_loop else None
         nn.init.uniform_(self.W[:end], -bound, bound)
         if self.regularizer == "basis":
@@ -142,7 +144,13 @@ class RelGraphConv(nn.Module):
         if self.bias is not None:
             nn.init.zeros_(self.bias)
 
-    def forward(self, g, feat, etypes, max_in_degree=None):
+    def forward(
+        self,
+        g: dgl.DGLHeteroGraph,
+        feat: torch.Tensor,
+        etypes: torch.Tensor,
+        max_in_degree: Optional[int] = None,
+    ) -> torch.Tensor:
         r"""Forward computation.
 
         Parameters
@@ -200,9 +208,13 @@ class RelGraphConv(nn.Module):
             )
 
         h = ops_autograd.agg_hg_basis_n2n_post(
-            feat, self.coeff, _graph, not self.self_loop, self.apply_norm
+            feat,
+            self.coeff,
+            _graph,
+            concat_own=self.self_loop,
+            norm_by_out_degree=self.apply_norm,
         )
-        h = h @ self.W.view(-1, self.out_feat)
+        h = h @ self.W.view(-1, self.out_feats)
         if self.bias is not None:
             h = h + self.bias
         h = self.dropout(h)
