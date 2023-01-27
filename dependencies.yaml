@@ -23,8 +23,8 @@ files:
     output: none
     includes:
       - cudatoolkit
-      - py_version
       - docs_build
+      - py_version
   test_cpp:
     output: none
     includes:
@@ -104,6 +104,21 @@ dependencies:
               cuda: "11.5"
             packages:
               - nvcc_linux-aarch64=11.5
+  docs_build:
+    common:
+      - output_types: [conda]
+        packages:
+          - doxygen
+          - ipython
+          - nbsphinx
+          - numpydoc
+          - pydata-sphinx-theme
+          - recommonmark
+          - sphinx_rtd_theme
+          - sphinx-copybutton
+          - sphinx-markdown-tables
+          - sphinx<6
+          - sphinxcontrib-websupport
   py_version:
     specific:
       - output_types: [conda]
@@ -138,21 +153,6 @@ dependencies:
           - scikit-build>=0.13.1
           - ucx-proc=*=gpu
           - ucx-py=0.30.*
-  docs_build:
-    common:
-      - output_types: [conda]
-        packages:
-          - doxygen
-          - nbsphinx
-          - numpydoc
-          - pydata-sphinx-theme
-          - recommonmark
-          - sphinx<6
-          - sphinx_rtd_theme
-          - ipython
-          - sphinxcontrib-websupport
-          - sphinx-markdown-tables
-          - sphinx-copybutton
   common_python_test:
     common:
       - output_types: [conda, requirements]
