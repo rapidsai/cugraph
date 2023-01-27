@@ -328,12 +328,12 @@ def test_get_all_tensor_attrs(graph, dask_client):
 
 @pytest.mark.skip("not implemented")
 def test_get_tensor_spec_props(graph, dask_client):
-    pass
+    raise NotImplementedError("not implemented")
 
 
 @pytest.mark.skip("not implemented")
 def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_client):
-    pass
+    raise NotImplementedError("not implemented")
 
 
 def test_get_tensor_from_tensor_attrs(graph, dask_client):
