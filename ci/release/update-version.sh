@@ -84,3 +84,9 @@ sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}
 
 # Wheel builds install dask-cuda from source, update its branch
 sed_runner "s/dask-cuda.git@branch-[^\"\s]\+/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" .github/workflows/*.yaml
+
+# Wheel builds install intra-RAPIDS dependencies from same release
+sed_runner "s/${CURRENT_SHORT_TAG}/${NEXT_SHORT_TAG}/g" python/cugraph/setup.py
+sed_runner "s/${CURRENT_SHORT_TAG}/${NEXT_SHORT_TAG}/g" python/cugraph/_custom_build/backend.py
+sed_runner "s/${CURRENT_SHORT_TAG}/${NEXT_SHORT_TAG}/g" python/pylibcugraph/setup.py
+sed_runner "s/${CURRENT_SHORT_TAG}/${NEXT_SHORT_TAG}/g" python/pylibcugraph/_custom_build/backend.py

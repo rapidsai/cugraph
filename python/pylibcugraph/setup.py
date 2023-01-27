@@ -93,8 +93,8 @@ setup(
     package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
     include_package_data=True,
     install_requires=[
-        f"pylibraft{cuda_suffix}",
-        f"rmm{cuda_suffix}",
+        f"pylibraft{cuda_suffix}==23.02.*",
+        f"rmm{cuda_suffix}==23.02.*",
     ],
     extras_require={
         "test": [
