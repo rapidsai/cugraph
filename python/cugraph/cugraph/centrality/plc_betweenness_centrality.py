@@ -175,6 +175,9 @@ def plc_betweenness_centrality(
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+    
+    if df["betweenness_centrality"].dtype != result_dtype:
+        df["betweenness_centrality"] = df["betweenness_centrality"].astype(result_dtype)
 
     if isNx is True:
         dict = df_score_to_dictionary(df, "betweenness_centrality")
