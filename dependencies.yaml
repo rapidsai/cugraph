@@ -95,6 +95,16 @@ dependencies:
         matrices:
           - matrix:
               arch: x86_64
+            packages:
+              - gcc_linux-64=9.*
+          - matrix:
+              arch: aarch64
+            packages:
+              - gcc_linux-aarch64=9.*
+      - output_types: [conda]
+        matrices:
+          - matrix:
+              arch: x86_64
               cuda: "11.8"
             packages:
               - nvcc_linux-64=11.8
