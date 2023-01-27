@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ cdef class Handle:
     """
     Handle is a lightweight python wrapper around the corresponding C++ class
     of handle_t exposed by RAFT's C++ interface. Refer to the header file
-    raft/handle.hpp for interface level details of this struct
+    raft/core/handle.hpp for interface level details of this struct
 
     Examples
     --------
