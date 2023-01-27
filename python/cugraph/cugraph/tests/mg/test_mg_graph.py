@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -247,3 +247,14 @@ def test_graph_repartition(dask_client):
 
     num_futures = len(ddf.worker_to_parts.values())
     assert num_futures == num_workers
+
+
+def test_mg_graph_serializable(dask_client, input_combo):
+    G = input_combo["MGGraph"]
+    dask_client.publish_dataset(shared_g=G)
+    shared_g = dask_client.get_dataset("shared_g")
+    assert type(shared_g) == type(G)
+    assert G.number_of_vertices() == shared_g.number_of_vertices()
+    assert G.number_of_edges() == shared_g.number_of_edges()
+    # cleanup
+    dask_client.unpublish_dataset("shared_g")
