@@ -30,7 +30,7 @@ class EXPERIMENTAL__BulkSampler:
         batch_size: int,
         output_path: str,
         graph,
-        batches_per_call: int = 200_000,
+        seeds_per_call: int = 200_000,
         batches_per_partition=100,
         rank: int = 0,
         **kwargs,
@@ -46,8 +46,9 @@ class EXPERIMENTAL__BulkSampler:
             The directory where results will be stored.
         graph: cugraph.Graph
             The cugraph graph to operate upon.
-        batches_per_call: int (optional, default=200,000)
-            The number of samples that can be made within a single call.
+        seeds_per_call: int (optional, default=200,000)
+            The number of seeds (start vertices) that can be processed by
+            a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
         rank: int (optional, default=0)
@@ -59,7 +60,7 @@ class EXPERIMENTAL__BulkSampler:
         self.__batch_size = batch_size
         self.__output_path = output_path
         self.__graph = graph
-        self.__batches_per_call = batches_per_call
+        self.__seeds_per_call = seeds_per_call
         self.__batches_per_partition = batches_per_partition
         self.__rank = rank
         self.__batches = None
@@ -70,8 +71,8 @@ class EXPERIMENTAL__BulkSampler:
         return self.__rank
 
     @property
-    def batches_per_call(self) -> int:
-        return self.__batches_per_call
+    def seeds_per_call(self) -> int:
+        return self.__seeds_per_call
 
     @property
     def batch_size(self) -> int:
@@ -148,7 +149,7 @@ class EXPERIMENTAL__BulkSampler:
                     " type of previous batches!"
                 )
 
-        if self.size >= self.batches_per_call:
+        if self.size >= self.seeds_per_call:
             self.flush()
 
     def flush(self) -> None:
@@ -164,7 +165,7 @@ class EXPERIMENTAL__BulkSampler:
         min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
-        partitions_per_call = self.batches_per_call // partition_size
+        partitions_per_call = self.seeds_per_call // partition_size
         npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
