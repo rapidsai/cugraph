@@ -325,7 +325,4 @@ def uniform_neighbor_sample(
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
         ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
 
-    if _multiple_clients:
-        lock.release()
-
     return ddf
