@@ -108,6 +108,27 @@ class EXPERIMENTAL__BulkSampler:
 
         Returns
         -------
+        None
+
+        Examples
+        --------
+        >>> import cudf
+        >>> from cugraph.experimental.gnn import BulkSampler
+        >>> from cugraph.experimental.datasets import karate
+        >>> import tempfile
+        >>> df = cudf.DataFrame({
+        ...     "start_vid": [0, 4, 2, 3, 9, 11],
+        ...     "start_batch": cudf.Series(
+        ...         [0, 0, 0, 1, 1, 1], dtype="int32")})
+        >>> output_tempdir = tempfile.TemporaryDirectory()
+        >>> bulk_sampler = BulkSampler(
+        ...     batch_size=3,
+        ...     output_path=output_tempdir.name,
+        ...     graph=karate.get_graph(fetch=True))
+        >>> bulk_sampler.add_batches(
+        ...     df,
+        ...     start_col_name="start_vid",
+        ...     batch_col_name="start_batch")
         """
         df = df.rename(
             columns={
