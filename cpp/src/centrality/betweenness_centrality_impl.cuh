@@ -344,17 +344,26 @@ rmm::device_uvector<weight_t> betweenness_centrality(
                               do_expensive_check);
   }
 
-  if (normalized) {
+  std::optional<weight_t> scale_factor{std::nullopt};
+
+  if (normalized)
+    scale_factor = static_cast<weight_t>((graph_view.number_of_vertices() - 1) *
+                                         (graph_view.number_of_vertices() - 2));
+  else if (graph_view.is_symmetric())
+    scale_factor = weight_t{2};
+
+  if (scale_factor) {
     if (graph_view.number_of_vertices() > 2) {
-      thrust::transform(handle.get_thrust_policy(),
-                        centralities.begin(),
-                        centralities.end(),
-                        centralities.begin(),
-                        [scale_factor = static_cast<weight_t>(
-                           (graph_view.number_of_vertices() - 1) *
-                           (graph_view.number_of_vertices() - 2))] __device__(auto centrality) {
-                          return centrality / scale_factor;
-                        });
+      if (num_sources < graph_view.number_of_vertices()) {
+        (*scale_factor) *= weight_t{num_sources} / weight_t{graph_view.number_of_vertices()};
+      }
+
+      thrust::transform(
+        handle.get_thrust_policy(),
+        centralities.begin(),
+        centralities.end(),
+        centralities.begin(),
+        [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
     }
   }
 
