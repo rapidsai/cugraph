@@ -15,6 +15,7 @@ import argparse
 import pandas
 import numpy as np
 import os
+import ast
 
 from cugraph.gnn import FeatureStore
 
