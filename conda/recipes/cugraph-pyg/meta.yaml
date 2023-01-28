@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c rapidsai -c conda-forge -c nvidia .
@@ -34,13 +34,14 @@ requirements:
     - numba >=0.56.2
     - numpy
     - pytorch <=1.12.1
-    # - pyg (uncomment once pyg 2.2 is released)
+    - cupy >=9.5.0,<12.0.0a0
+    - cugraph <23.04
+    - pyg=2.2.*
 
 # TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
 tests:                                 # [linux64]
   imports:                             # [linux64]
     - cugraph_pyg                      # [linux64]
-    # - cugraph_service (uncomment once cugraph-service int. tests ready)
 
 about:
   home: https://rapids.ai/

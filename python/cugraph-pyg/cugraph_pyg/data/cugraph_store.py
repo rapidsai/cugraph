@@ -21,14 +21,12 @@ from itertools import chain
 from functools import cached_property
 
 import numpy as np
+import cupy
 import pandas
 import cudf
 import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
-
-# FIXME drop cupy support and make torch the only backend (#2995)
-import cupy
 
 import dask.dataframe as dd
 from dask.distributed import get_client
