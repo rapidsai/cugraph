@@ -173,7 +173,7 @@ def multi_edge_multi_vertex_graph_1():
             np.array([0, 0]),
             np.array([1, 2]),
         ],
-        ("brown", "duck", "black"): [
+        ("brown", "tortoise", "black"): [
             np.array([1, 1, 2]),
             np.array([1, 0, 1]),
         ],
