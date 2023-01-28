@@ -485,6 +485,14 @@ class EXPERIMENTAL__CuGraphStore:
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
 
+        # Currently, graph creation enforces that legacy_renum_only=True
+        # is always called, and the input vertex ids are always of integer
+        # type.  Therefore, it is currently safe to assume that for MG
+        # graphs, the src/dst col names are renumbered_src/dst
+        # and for SG graphs, the src/dst col names are src/dst.
+        # This may change in the future if/when renumbering or the graph
+        # creation process is refactored.
+        # See Issue #3201 for more details.
         if self._is_delayed:
             src_col_name = self.__graph.renumber_map.renumbered_src_col_name
             dst_col_name = self.__graph.renumber_map.renumbered_dst_col_name

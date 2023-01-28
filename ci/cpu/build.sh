@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 #########################################
 # cuGraph CPU conda build script for CI #
 #########################################
@@ -123,7 +123,7 @@ if [ "$BUILD_CUGRAPH" == "1" ]; then
     gpuci_logger "cugraph-service"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service --python=$PYTHON
     gpuci_logger "cugraph-pyg"
-    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-pyg --python=$PYTHON
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-pyg --python=$PYTHON -c pyg -c pytorch
     gpuci_logger "cugraph-dgl"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-dgl --python=$PYTHON -c dglteam -c pytorch
   else
