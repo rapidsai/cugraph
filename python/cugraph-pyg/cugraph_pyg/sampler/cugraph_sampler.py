@@ -14,7 +14,7 @@
 import cugraph
 
 
-from typing import Tuple, List, Union, Sequence
+from typing import Tuple, List, Union, Sequence, Dict
 
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.data.cugraph_store import TensorType
@@ -38,7 +38,7 @@ def _sampler_output_from_sampling_results(
     sampling_results: cudf.DataFrame,
     graph_store: CuGraphStore,
     metadata: Sequence = None,
-):
+) -> Union[HeteroSamplerOutput, Dict[str, dict]]:
     """
     Parameters
     ----------
