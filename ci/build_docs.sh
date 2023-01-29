@@ -50,8 +50,8 @@ popd
 # Build Python docs
 rapids-logger "Build Sphinx docs"
 pushd docs/cugraph
-sphinx-build -b dirhtml source _html
-sphinx-build -b text source _text
+sphinx-build -b dirhtml source _html -W
+sphinx-build -b text source _text -W
 popd
 
 
