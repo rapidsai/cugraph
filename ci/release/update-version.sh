@@ -86,11 +86,10 @@ sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}
 sed_runner "s/dask-cuda.git@branch-[^\"\s]\+/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" .github/workflows/*.yaml
 
 # Need to distutils-normalize the original version
-CURRENT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${CURRENT_SHORT_TAG}')")
-NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}')")
+NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}'))")
 
 # Wheel builds install intra-RAPIDS dependencies from same release
-sed_runner "s/${CURRENT_SHORT_TAG_PEP440}/${NEXT_SHORT_TAG_PEP440}/g" python/cugraph/setup.py
-sed_runner "s/${CURRENT_SHORT_TAG_PEP440}/${NEXT_SHORT_TAG_PEP440}/g" python/cugraph/_custom_build/backend.py
-sed_runner "s/${CURRENT_SHORT_TAG_PEP440}/${NEXT_SHORT_TAG_PEP440}/g" python/pylibcugraph/setup.py
-sed_runner "s/${CURRENT_SHORT_TAG_PEP440}/${NEXT_SHORT_TAG_PEP440}/g" python/pylibcugraph/_custom_build/backend.py
+sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/setup.py
+sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/_custom_build/backend.py
+sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/setup.py
+sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/_custom_build/backend.py
