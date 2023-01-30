@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=too-many-arguments, too-many-locals
+from itertools import product
 import pytest
 
 try:
@@ -30,9 +32,7 @@ options = {
 }
 
 
-@pytest.mark.parametrize("to_block", options["to_block"])
-@pytest.mark.parametrize("max_in_degree", options["max_in_degree"])
-@pytest.mark.parametrize("idtype_int", options["idtype_int"])
+@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
 def test_SAGEConv_equality(idtype_int, max_in_degree, to_block):
     SAGEConv = dgl.nn.SAGEConv
     CuGraphSAGEConv = cugraph_dgl.nn.SAGEConv
