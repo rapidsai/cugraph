@@ -89,6 +89,9 @@ class FeatureStore:
 
         return self.fd[feat_name][type_name][indices]
 
+    def get_feature_list(self) -> list[str]:
+        return {feat_name: feats.keys() for feat_name, feats in self.fd.items()}
+
     @staticmethod
     def _cast_feat_obj_to_backend(feat_obj, backend: str):
         if backend == "numpy":
