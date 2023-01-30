@@ -257,9 +257,9 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
 
-        self._client = default_client()
+        _client = default_client()
         self._plc_graph = {
-            w: self._client.submit(
+            w: _client.submit(
                 simpleDistributedGraphImpl._make_plc_graph,
                 Comms.get_session_id(),
                 edata,
@@ -705,9 +705,10 @@ class simpleDistributedGraphImpl:
                 do_expensive_check=False,
             )
 
+        _client = default_client()
         if start_vertices is not None:
             result = [
-                self._client.submit(
+                _client.submit(
                     _call_plc_two_hop_neighbors,
                     Comms.get_session_id(),
                     self._plc_graph[w],
@@ -719,7 +720,7 @@ class simpleDistributedGraphImpl:
             ]
         else:
             result = [
-                self._client.submit(
+                _client.submit(
                     _call_plc_two_hop_neighbors,
                     Comms.get_session_id(),
                     self._plc_graph[w],
@@ -742,8 +743,9 @@ class simpleDistributedGraphImpl:
             df["second"] = second
             return df
 
+        _client = default_client()
         cudf_result = [
-            self._client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+            _client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
         ]
 
         wait(cudf_result)
