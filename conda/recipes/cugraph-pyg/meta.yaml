@@ -35,7 +35,7 @@ requirements:
     - numpy
     - pytorch <=1.12.1
     - cupy >=9.5.0,<12.0.0a0
-    - cugraph <23.04
+    - cugraph ={{ version }}
     - pyg=2.2.*
 
 # TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
