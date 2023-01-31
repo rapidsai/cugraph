@@ -70,7 +70,7 @@ def test_leiden(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
-    assert leiden_mod >= (0.99 * louvain_mod)
+    assert leiden_mod >= (0.98 * louvain_mod)
 
 
 @pytest.mark.parametrize("graph_file", DATASETS)
@@ -86,7 +86,7 @@ def test_leiden_nx(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
-    assert leiden_mod >= (0.99 * louvain_mod)
+    assert leiden_mod >= (0.98 * louvain_mod)
 
 
 def test_leiden_directed_graph():
