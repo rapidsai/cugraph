@@ -30,14 +30,6 @@ from cugraph.dask.comms import comms as Comms
 src_n = "sources"
 dst_n = "destinations"
 indices_n = "indices"
-weight_n = "weight"
-edge_id_n = "edge_id"
-edge_type_n = "edge_type"
-batch_id_n = "batch_id"
-hop_id_n = "hop_id"
-
-start_col_name = "_START_"
-batch_col_name = "_BATCH_"
 
 start_col_name = "_START_"
 batch_col_name = "_BATCH_"
@@ -49,21 +41,6 @@ def create_empty_df(indices_t, weight_t):
             src_n: numpy.empty(shape=0, dtype=indices_t),
             dst_n: numpy.empty(shape=0, dtype=indices_t),
             indices_n: numpy.empty(shape=0, dtype=weight_t),
-        }
-    )
-    return df
-
-
-def create_empty_df_with_edge_props(indices_t, weight_t):
-    df = cudf.DataFrame(
-        {
-            src_n: numpy.empty(shape=0, dtype=indices_t),
-            dst_n: numpy.empty(shape=0, dtype=indices_t),
-            weight_n: numpy.empty(shape=0, dtype=weight_t),
-            edge_id_n: numpy.empty(shape=0, dtype=indices_t),
-            edge_type_n: numpy.empty(shape=0, dtype="int32"),
-            batch_id_n: numpy.empty(shape=0, dtype="int32"),
-            hop_id_n: numpy.empty(shape=0, dtype="int32"),
         }
     )
     return df
@@ -88,11 +65,11 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties):
 
         df[src_n] = sources
         df[dst_n] = destinations
-        df[weight_n] = weights
-        df[edge_id_n] = edge_ids
-        df[edge_type_n] = edge_types
-        df[batch_id_n] = batch_ids
-        df[hop_id_n] = hop_ids
+        df["weight"] = weights
+        df["edge_id"] = edge_ids
+        df["edge_type"] = edge_types
+        df["batch_id"] = batch_ids
+        df["hop_id"] = hop_ids
     else:
         cupy_sources, cupy_destinations, cupy_indices = cp_arrays
 
