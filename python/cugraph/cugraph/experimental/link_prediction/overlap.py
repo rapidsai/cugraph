@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,6 +22,24 @@ from pylibcugraph.experimental import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
 )
 from pylibcugraph import ResourceHandle
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, vertex_pair):
+    
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_pair_dtypes = vertex_pair.dtypes
+    
+    if vertex_pair_dtypes[0] != vertex_dtype or vertex_pair_dtypes[0] != vertex_dtype:
+        warning_msg = (
+            "Overlap requires 'vertex_pair' to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'vertex_pair' of type: {vertex_pair_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        vertex_pair = vertex_pair.astype(vertex_dtype)
+
+    return vertex_pair
 
 
 def EXPERIMENTAL__overlap_coefficient(G, ebunch=None, use_weight=False):
@@ -168,6 +186,7 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
 
     if isinstance(vertex_pair, cudf.DataFrame):
         vertex_pair = renumber_vertex_pair(G, vertex_pair)
+        vertex_pair = ensure_valid_dtype(G, vertex_pair)
         src_col_name = vertex_pair.columns[0]
         dst_col_name = vertex_pair.columns[1]
         first = vertex_pair[src_col_name]
