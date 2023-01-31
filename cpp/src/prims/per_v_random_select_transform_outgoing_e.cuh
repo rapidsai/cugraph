@@ -21,7 +21,6 @@
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
-#include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -667,12 +666,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 bool do_expensive_check)
 {
 #ifndef NO_CUGRAPH_OPS
-#if 1  // DEBUG
-  HighResTimer hr_timer{};
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.start("per_v 0 pre");
-#endif
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
@@ -726,7 +719,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     GraphViewType::is_multi_gpu
       ? handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size()
       : int{1};
-  std::cout << "col_comm_size=" << col_comm_size << std::endl;
 
   if (do_expensive_check) {
     // FIXME: better re-factor this check function?
@@ -773,12 +765,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                       local_frontier_sizes.end(),
                       local_frontier_displacements.begin(),
                       size_t{0});
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.start("per_v 1 aggregate");
-#endif
 
   // 1. aggregate frontier
 
@@ -798,12 +784,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   // 2. compute degrees
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.start("per_v 2 degree 0 local");
-#endif
 
   auto aggregate_local_frontier_local_degrees =
     (col_comm_size > 1)
@@ -852,12 +832,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       : std::nullopt;
   if (col_comm_size > 1) {
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-#if 1  // DEBUG
-    CUDA_TRY(cudaDeviceSynchronize());
-    handle.get_comms().barrier();
-    hr_timer.stop();
-    hr_timer.start("per_v 2 degree 1 shuffle");
-#endif
 
     rmm::device_uvector<edge_t> frontier_gathered_local_degrees(0, handle.get_stream());
     std::tie(frontier_gathered_local_degrees, std::ignore) =
@@ -866,12 +840,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                      local_frontier_sizes,
                      handle.get_stream());
     aggregate_local_frontier_local_degrees = std::nullopt;
-#if 1  // DEBUG
-    CUDA_TRY(cudaDeviceSynchronize());
-    handle.get_comms().barrier();
-    hr_timer.stop();
-    hr_timer.start("per_v 2 degree 2 tabulate");
-#endif
     frontier_segmented_local_degree_displacements =
       rmm::device_uvector<edge_t>(frontier_degrees.size() * col_comm_size, handle.get_stream());
     thrust::for_each(
@@ -888,12 +856,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   // 3. randomly select neighbor indices
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.start("per_v 3 random sel");
-#endif
 
   rmm::device_uvector<edge_t> sample_nbr_indices(0, handle.get_stream());
   if (with_replacement) {
@@ -915,12 +877,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   // 4. shuffle randomly selected indices
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.start("per_v 4 shuffle indices");
-#endif
 
   auto sample_local_nbr_indices = std::move(
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
@@ -930,12 +886,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
   if (col_comm_size > 1) {
-#if 1  // DEBUG
-    HighResTimer hr_timer2{};
-    CUDA_TRY(cudaDeviceSynchronize());
-    handle.get_comms().barrier();
-    hr_timer2.start("shuffle indices 0 pair to triplet");
-#endif
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
     sample_key_indices =
@@ -1000,14 +950,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       h_tx_counts.data(), d_tx_counts.data(), d_tx_counts.size(), handle.get_stream());
     handle.sync_stream();
 
-#if 1  // DEBUG
-    CUDA_TRY(cudaDeviceSynchronize());
-    hr_timer2.stop();
-    hr_timer2.start("shuffle indices 3 barrier");
-    handle.get_comms().barrier();
-    hr_timer2.stop();
-    hr_timer2.start("shuffle indices 4 shuffle");
-#endif
     pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(sample_local_nbr_indices.begin(), (*sample_key_indices).begin()));
     auto [rx_value_buffer, rx_counts] =
@@ -1019,23 +961,12 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     std::exclusive_scan(
       rx_counts.begin(), rx_counts.end(), local_frontier_sample_displacements.begin(), size_t{0});
     local_frontier_sample_counts = std::move(rx_counts);
-#if 1  // DEBUG
-    CUDA_TRY(cudaDeviceSynchronize());
-    hr_timer2.stop();
-    hr_timer2.display_and_clear(std::cout);
-#endif
   } else {
     local_frontier_sample_counts.push_back(frontier.size() * K);
     local_frontier_sample_displacements.push_back(size_t{0});
   }
 
   // 5. transform
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.start("per_v 5 transform");
-#endif
 
   auto sample_e_op_results = allocate_dataframe_buffer<T>(
     local_frontier_sample_displacements.back() + local_frontier_sample_counts.back(),
@@ -1126,12 +1057,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   aggregate_local_frontier_keys = std::nullopt;
 
   // 6. shuffle randomly selected & transformed results and update sample_offsets
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.start("per_v 6 shuffle back");
-#endif
 
   auto sample_offsets = invalid_value ? std::nullopt
                                       : std::make_optional<rmm::device_uvector<size_t>>(
@@ -1141,13 +1066,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_local_nbr_indices.resize(0, handle.get_stream());
     sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 
-#if 1  // DEBUG
-    std::cout << "shuffle back start" << std::endl;
-    HighResTimer hr_timer2{};
-    CUDA_TRY(cudaDeviceSynchronize());
-    handle.get_comms().barrier();
-    hr_timer2.start("shuffle back 0 shuffle");
-#endif
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
 
     std::tie(sample_e_op_results, std::ignore) =
@@ -1157,15 +1075,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                      handle.get_stream());
     std::tie(sample_key_indices, std::ignore) = shuffle_values(
       col_comm, (*sample_key_indices).begin(), local_frontier_sample_counts, handle.get_stream());
-#if 1  // DEBUG
-    CUDA_TRY(cudaDeviceSynchronize());
-    hr_timer2.stop();
-    hr_timer2.start("shuffle back 1 barrier");
-    handle.get_comms().barrier();
-    hr_timer2.stop();
-    hr_timer2.start("shuffle back 2 post");
-    std::cout << "shuffle back post start" << std::endl;
-#endif
 
     rmm::device_uvector<int32_t> sample_counts(frontier.size(), handle.get_stream());
     thrust::fill(
@@ -1179,7 +1088,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       sample_intra_partition_displacements.begin(),
       count_t{raft::device_span<int32_t>(sample_counts.data(), sample_counts.size())});
     auto tmp_sample_e_op_results = allocate_dataframe_buffer<T>(0, handle.get_stream());
-    std::cout << "shuffle back post before resize" << std::endl;
     if (invalid_value) {
       sample_counts.resize(0, handle.get_stream());
       sample_counts.shrink_to_fit(handle.get_stream());
@@ -1231,11 +1139,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         get_dataframe_buffer_begin(tmp_sample_e_op_results));
     }
     sample_e_op_results = std::move(tmp_sample_e_op_results);
-#if 1  // DEBUG
-    CUDA_TRY(cudaDeviceSynchronize());
-    hr_timer2.stop();
-    hr_timer2.display_and_clear(std::cout);
-#endif
   } else {
     if (!invalid_value) {
       rmm::device_uvector<int32_t> sample_counts(frontier.size(), handle.get_stream());
@@ -1272,12 +1175,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
     }
   }
-#if 1  // DEBUG
-  CUDA_TRY(cudaDeviceSynchronize());
-  handle.get_comms().barrier();
-  hr_timer.stop();
-  hr_timer.display(std::cout);
-#endif
 
   return std::make_tuple(std::move(sample_offsets), std::move(sample_e_op_results));
 #else
