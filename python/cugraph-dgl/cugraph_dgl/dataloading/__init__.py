@@ -11,11 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-
-# to prevent rapids context being created when importing cugraph_dgl
-os.environ["RAPIDS_NO_INITIALIZE"] = "1"
-from cugraph_dgl.cugraph_storage import CuGraphStorage
-from cugraph_dgl.convert import cugraph_storage_from_heterograph
-import cugraph_dgl.dataloading
-import cugraph_dgl.nn
+from cugraph_dgl.dataloading.dataset import (
+    HomogenousBulkSamplerDataset,
+    HetrogenousBulkSamplerDataset,
+)
+from cugraph_dgl.dataloading.neighbor_sampler import NeighborSampler
+from cugraph_dgl.dataloading.dataloader import DataLoader
