@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,3 +73,7 @@ from cugraph.experimental.link_prediction.overlap import (
 
 overlap = experimental_warning_wrapper(EXPERIMENTAL__overlap)
 overlap_coefficient = experimental_warning_wrapper(EXPERIMENTAL__overlap_coefficient)
+
+from cugraph.gnn.data_loading import EXPERIMENTAL__BulkSampler
+
+BulkSampler = experimental_warning_wrapper(EXPERIMENTAL__BulkSampler)
