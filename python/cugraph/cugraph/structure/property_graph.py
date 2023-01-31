@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,6 +20,8 @@ from cugraph.utilities.utils import (
     MissingModule,
     create_list_series_from_2d_ar,
 )
+
+from typing import Union
 
 pd = import_optional("pandas")
 
@@ -501,6 +503,42 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
+    def vertex_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string vertex type names given the numeric category labels.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
+    def edge_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string edge type names given the numeric category labels.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
     def add_vertex_data(
         self,
         dataframe,
@@ -852,7 +890,16 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            return df.reset_index()
+
+            # Should not drop to ensure vertex ids are returned as a column.
+            df_out = df.reset_index(drop=False)
+
+            # Preserve the dtype (vertex id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__vertex_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
+            return df_out
         return None
 
     def add_edge_data(
@@ -1251,7 +1298,16 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            return df.reset_index()
+
+            # Should not drop so the edge ids are returned as a column.
+            df_out = df.reset_index()
+
+            # Preserve the dtype (edge id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__edge_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
+            return df_out
 
         return None
 
@@ -1742,7 +1798,14 @@ class EXPERIMENTAL__PropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property in edge_prop_df.columns:
+            # Also allow the type column to be specified as the edge weight
+            # property so that uniform_neighbor_sample can be called with
+            # the weights interpreted as types.
+            if edge_weight_property == self.type_col_name:
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
+                edge_prop_df["_temp_type_col"] = prop_col
+                edge_weight_property = "_temp_type_col"
+            elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
                 prop_col = edge_prop_df.index.to_series()
@@ -1898,7 +1961,9 @@ class EXPERIMENTAL__PropertyGraph:
                 TCN
             ].astype(cat_dtype)
 
+        index_dtype = self.__vertex_prop_dataframe.index.dtype
         df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
+        df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
             self.__edge_prop_dataframe[self.src_col_name] = self.__edge_prop_dataframe[
@@ -1985,12 +2050,14 @@ class EXPERIMENTAL__PropertyGraph:
             )
 
         df = self.__edge_prop_dataframe
+        index_dtype = df.index.dtype
         if prev_id_column is None:
             df = df.sort_values(by=TCN, ignore_index=True)
         else:
             df = df.sort_values(by=TCN)
             df.index.name = prev_id_column
             df.reset_index(inplace=True)
+        df.index = df.index.astype(index_dtype)
         df.index.name = self.edge_id_col_name
         self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")

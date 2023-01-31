@@ -235,6 +235,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
 
 namespace detail {
 
+// FIXME: This function needs to be updated to support edge id/type
 // multi-GPU version
 template <typename vertex_t,
           typename edge_t,
@@ -334,12 +335,16 @@ coarsen_graph(raft::handle_t const& handle,
 
     // 1-2. globally shuffle
 
-    std::tie(edgelist_majors, edgelist_minors, edgelist_weights) =
-      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+    std::tie(edgelist_majors, edgelist_minors, edgelist_weights, std::ignore) =
+      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                  edge_t,
+                                                                                  weight_t,
+                                                                                  int32_t>(
         handle,
         std::move(edgelist_majors),
         std::move(edgelist_minors),
-        std::move(edgelist_weights));
+        std::move(edgelist_weights),
+        std::nullopt);
 
     // 1-3. groupby and coarsen again
 
@@ -451,12 +456,17 @@ coarsen_graph(raft::handle_t const& handle,
                                                                 reversed_edgelist_majors.begin())));
     }
 
-    std::tie(reversed_edgelist_majors, reversed_edgelist_minors, reversed_edgelist_weights) =
-      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+    std::tie(
+      reversed_edgelist_majors, reversed_edgelist_minors, reversed_edgelist_weights, std::ignore) =
+      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                  edge_t,
+                                                                                  weight_t,
+                                                                                  int32_t>(
         handle,
         std::move(reversed_edgelist_majors),
         std::move(reversed_edgelist_minors),
-        std::move(reversed_edgelist_weights));
+        std::move(reversed_edgelist_weights),
+        std::nullopt);
 
     auto output_offset = concatenated_edgelist_majors.size();
 

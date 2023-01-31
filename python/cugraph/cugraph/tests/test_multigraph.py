@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -84,7 +84,7 @@ def test_Graph_from_MultiGraph(graph_file):
         edge_attr="weight",
         create_using=nx.MultiGraph(),
     )
-    Gd = cugraph.DiGraph(GdM)
+    Gd = cugraph.Graph(GdM, directed=True)
     Gnxd = nx.DiGraph(GnxdM)
     assert Gnxd.number_of_edges() == Gd.number_of_edges()
 

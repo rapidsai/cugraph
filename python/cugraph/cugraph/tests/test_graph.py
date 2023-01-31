@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -372,6 +372,7 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_consolidation(graph_file):
     cluster = LocalCUDACluster()
@@ -397,7 +398,10 @@ def test_consolidation(graph_file):
         df, source="source", target="target", create_using=nx.DiGraph
     )
     G = cugraph.from_cudf_edgelist(
-        ddf, source="source", destination="target", create_using=cugraph.DiGraph
+        ddf,
+        source="source",
+        destination="target",
+        create_using=cugraph.Graph(directed=True),
     )
 
     t1 = time.time()
@@ -683,7 +687,7 @@ def test_graph_init_with_multigraph():
     cMG.from_cudf_edgelist(gdf, source="src", destination="dst")
     cugraph.Graph(m_graph=cMG)
 
-    cDiMG = cugraph.MultiDiGraph()  # deprecated, but should still work
+    cDiMG = cugraph.MultiGraph(directed=True)
     cDiMG.from_cudf_edgelist(gdf, source="src", destination="dst")
     cugraph.Graph(m_graph=cDiMG)
 
@@ -725,14 +729,42 @@ def test_create_graph_with_edge_ids(graph_file):
     with pytest.raises(ValueError):
         G = cugraph.Graph()
         G.from_cudf_edgelist(
-            el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+            el,
+            source="0",
+            destination="1",
+            edge_attr=["2", "id", "etype"],
+            legacy_renum_only=True,
         )
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(
-        el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+        el,
+        source="0",
+        destination="1",
+        edge_attr=["2", "id", "etype"],
+        legacy_renum_only=True,
     )
 
     H = G.to_undirected()
     assert G.is_directed()
     assert not H.is_directed()
+
+
+# Test
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_density(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    M = utils.read_csv_for_nx(graph_file)
+    if M is None:
+        raise TypeError("Could not read the input graph")
+
+    # cugraph add_edge_list
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
+    assert G.density() == nx.density(Gnx)
+
+    M_G = cugraph.MultiGraph()
+    with pytest.raises(TypeError):
+        M_G.density()

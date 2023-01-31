@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -277,7 +277,7 @@ def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, 
     Helper for fixtures returning Nx results and params.
     """
     random.seed(seed)
-    start_vertex = random.sample(Gnx.nodes(), 1)[0]
+    start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
 
     nx_values = nx.single_source_shortest_path_length(
         Gnx, start_vertex, cutoff=depth_limit
@@ -405,7 +405,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
         elif cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
-    if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+    if not isinstance(cugraph_input_type, cugraph.Graph):
         G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)
     else:
         G_or_matrix = G

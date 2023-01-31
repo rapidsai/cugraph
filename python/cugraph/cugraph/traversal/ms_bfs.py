@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,7 +24,7 @@ def _get_feasibility(G, sources, components=None, depth_limit=None):
 
     Parameters
     ----------
-    G : cugraph.Graph or cugraph.DiGraph
+    G : cugraph.Graph
         The adjacency list will be computed if not already present.
 
     sources :  cudf.Series
@@ -112,7 +112,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
 
     Parameters
     ----------
-    Graphs : list of cugraph.Graph or cugraph.DiGraph
+    Graphs : list of cugraph.Graph
         The adjacency lists will be computed if not already present.
 
     sources : list of cudf.Series
@@ -152,7 +152,7 @@ def concurrent_bfs(Graphs, sources, depth_limit=None, offload=False):
              to help us prioritize"
     )
     if not isinstance(Graphs, list):
-        raise TypeError("Graphs should be a list of cugraph.Graph or cugraph.DiGraph")
+        raise TypeError("Graphs should be a list of cugraph.Graph")
     if not isinstance(sources, list):
         raise TypeError("sources should be a list of cudf.Series")
     if len(Graphs) != len(sources):
@@ -186,7 +186,7 @@ def multi_source_bfs(G, sources, components=None, depth_limit=None, offload=Fals
 
     Parameters
     ----------
-    G : cugraph.Graph or cugraph.DiGraph
+    G : cugraph.Graph
         The adjacency list will be computed if not already present.
 
     sources :  cudf.Series
