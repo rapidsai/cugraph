@@ -56,6 +56,7 @@ def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d, id_dtype):
         df[eid_n] = id_dtype(1)
         df[eid_n] = df[eid_n].cumsum()
         df[eid_n] = df[eid_n] + edge_id_offset_d[etype] - 1
+        df[eid_n] = df[eid_n].astype(id_dtype)
         eids_data_dict[etype] = df
     return eids_data_dict
 
