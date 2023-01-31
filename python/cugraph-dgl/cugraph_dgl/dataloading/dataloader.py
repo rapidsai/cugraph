@@ -10,10 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+from __future__ import annotations
 import os
 import shutil
 import torch
+import cugraph_dgl
 import cupy as cp
 import cudf
 from cugraph.experimental import BulkSampler
@@ -31,85 +32,97 @@ from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
 
 class DataLoader(torch.utils.data.DataLoader):
     """
-    Sampled graph data loader. Wrap a :class:`~cugraph_dgl.xxx.DGLGraph` and a
-    :class:`~cugraph_dgl.xxx.Sampler` into an iterable over mini-batches of samples.
-    cugraph_dgl's ``DataLoader`` extends PyTorch's ``DataLoader`` by handling creation
-    and transmission of graph samples.
-    ----------
-    graph :  CuGraphStorage
-        The graph.
-    indices : Tensor or dict[ntype, Tensor]
-        The set of indices.  It can either be a tensor of
-        integer indices or a dictionary of types and indices.
-        The actual meaning of the indices is defined by the :meth:`sample` method of
-        :attr:`graph_sampler`.
-    graph_sampler : cugraph_dgl.dataloading.Sampler
-        The subgraph sampler.
-    device : device context, optional
-        The device of the generated MFGs in each iteration, which should be a
-        PyTorch device object (e.g., ``torch.device``).
-        By default this value is None. If :attr:`use_uva` is True, MFGs and graphs will
-        generated in torch.cuda.current_device(), otherwise generated in the same device
-        of :attr:`g`.
-    use_ddp : boolean, optional
-        If True, tells the DataLoader to split the training set for each
-        participating process appropriately using
-        :class:`torch.utils.data.distributed.DistributedSampler`.
-        Overrides the :attr:`sampler` argument of :class:`torch.utils.data.DataLoader`.
-    ddp_seed : int, optional
-        The seed for shuffling the dataset in
-        :class:`torch.utils.data.distributed.DistributedSampler`.
-        Only effective when :attr:`use_ddp` is True.
-    batch_size: int,
-
-    kwargs : dict
-        Key-word arguments to be passed to the parent PyTorch
-        :py:class:`torch.utils.data.DataLoader` class. Common arguments are:
-          - ``batch_size`` (int): The number of indices in each batch.
-          - ``drop_last`` (bool): Whether to drop the last incomplete batch.
-          - ``shuffle`` (bool): Whether to randomly shuffle the indices at each epoch
-    Examples
-    --------
-    To train a 3-layer GNN for node classification on a set of nodes ``train_nid`` on
-    a homogeneous graph where each node takes messages from 15 neighbors on the
-    first layer, 10 neighbors on the second, and 5 neighbors on the third (assume
-    the backend is PyTorch):
-    >>> sampler = cugraph_dgl.dataloading.MultiLayerNeighborSampler([15, 10, 5])
-    >>> dataloader = cugraph_dgl.dataloading.DataLoader(
-    ...     g, train_nid, sampler,
-    ...     batch_size=1024, shuffle=True, drop_last=False, num_workers=0)
-    >>> for input_nodes, output_nodes, blocks in dataloader:
-    ...     train_on(input_nodes, output_nodes, blocks)
-    **Using with Distributed Data Parallel**
-    If you are using PyTorch's distributed training (e.g. when using
-    :mod:`torch.nn.parallel.DistributedDataParallel`),
-    you can train the model by turning
-    on the `use_ddp` option:
-    >>> sampler = cugraph_dgl.dataloading.MultiLayerNeighborSampler([15, 10, 5])
-    >>> dataloader = cugraph_dgl.dataloading.DataLoader(
-    ...     g, train_nid, sampler, use_ddp=True,
-    ...     batch_size=1024, shuffle=True, drop_last=False, num_workers=0)
-    >>> for epoch in range(start_epoch, n_epochs):
-    ...     for input_nodes, output_nodes, blocks in dataloader:
-    ...
+    Sampled graph data loader. Wrap a :class:`~cugraph_dgl.CuGraphStorage` and a
+    :class:`~cugraph_dgl.dataloading.NeighborSampler` into
+    an iterable over mini-batches of samples. cugraph_dgl's ``DataLoader`` extends
+    PyTorch's ``DataLoader`` by handling creation and
+    transmission of graph samples.
     """
 
     def __init__(
         self,
-        graph,
-        indices,
-        graph_sampler,
-        sampling_output_dir,
-        sampling_batches_per_output_partition=100,
-        sampling_saturation_level=400_000,
-        device=None,
-        use_ddp=False,
-        ddp_seed=0,
-        batch_size=1024,
-        drop_last=False,
-        shuffle=False,
+        graph: cugraph_dgl.CuGraphStorage,
+        indices: torch.Tensor,
+        graph_sampler: cugraph_dgl.dataloading.NeighborSampler,
+        sampling_output_dir: str,
+        batches_per_partition: int = 100,
+        seeds_per_call: int = 400_000,
+        device: torch.device = None,
+        use_ddp: bool = False,
+        ddp_seed: int = 0,
+        batch_size: int = 1024,
+        drop_last: bool = False,
+        shuffle: bool = False,
         **kwargs,
     ):
+        """
+        Constructor for CuGraphStorage:
+        -------------------------------
+        graph :  CuGraphStorage
+            The graph.
+        indices : Tensor or dict[ntype, Tensor]
+            The set of indices.  It can either be a tensor of
+            integer indices or a dictionary of types and indices.
+            The actual meaning of the indices is defined by the :meth:`sample` method of
+            :attr:`graph_sampler`.
+        graph_sampler : cugraph_dgl.dataloading.NeighborSampler
+            The subgraph sampler.
+        sampling_output_dir: str
+            Output directory to share sampling results in
+        batches_per_partition: int
+            The number of batches of sampling results to write/read
+        seeds_per_call: int
+            The number of seeds to sample at once
+        device : device context, optional
+            The device of the generated MFGs in each iteration, which should be a
+            PyTorch device object (e.g., ``torch.device``).
+            By default this returns the tenors on device with the current
+            cuda context
+        use_ddp : boolean, optional
+            If True, tells the DataLoader to split the training set for each
+            participating process appropriately using
+            :class:`torch.utils.data.distributed.DistributedSampler`.
+            Overrides the :attr:`sampler` argument of
+            :class:`torch.utils.data.DataLoader`.
+        ddp_seed : int, optional
+            The seed for shuffling the dataset in
+            :class:`torch.utils.data.distributed.DistributedSampler`.
+            Only effective when :attr:`use_ddp` is True.
+        batch_size: int,
+        kwargs : dict
+            Key-word arguments to be passed to the parent PyTorch
+            :py:class:`torch.utils.data.DataLoader` class. Common arguments are:
+                - ``batch_size`` (int): The number of indices in each batch.
+                - ``drop_last`` (bool): Whether to drop the last incomplete
+                                        batch.
+                - ``shuffle`` (bool): Whether to randomly shuffle the
+                                      indices at each epoch
+        Examples
+        --------
+        To train a 3-layer GNN for node classification on a set of nodes
+        ``train_nid`` on a homogeneous graph where each node takes messages
+        from 15 neighbors on the first layer, 10 neighbors on the second, and
+        5 neighbors on the third:
+        >>> sampler = cugraph_dgl.dataloading.NeighborSampler([15, 10, 5])
+        >>> dataloader = cugraph_dgl.dataloading.DataLoader(
+        ...     g, train_nid, sampler,
+        ...     batch_size=1024, shuffle=True, drop_last=False, num_workers=0)
+        >>> for input_nodes, output_nodes, blocks in dataloader:
+        ...     train_on(input_nodes, output_nodes, blocks)
+        **Using with Distributed Data Parallel**
+        If you are using PyTorch's distributed training (e.g. when using
+        :mod:`torch.nn.parallel.DistributedDataParallel`),
+        you can train the model by turning
+        on the `use_ddp` option:
+        >>> sampler = cugraph_dgl.dataloading.NeighborSampler([15, 10, 5])
+        >>> dataloader = cugraph_dgl.dataloading.DataLoader(
+        ...     g, train_nid, sampler, use_ddp=True,
+        ...     batch_size=1024, shuffle=True, drop_last=False, num_workers=0)
+        >>> for epoch in range(start_epoch, n_epochs):
+        ...     for input_nodes, output_nodes, blocks in dataloader:
+        ...
+        """
+
         self.ddp_seed = ddp_seed
         self.use_ddp = use_ddp
         self.shuffle = shuffle
@@ -120,10 +133,8 @@ class DataLoader(torch.utils.data.DataLoader):
         self.epoch_number = 0
         self._batch_size = batch_size
         self._sampling_output_dir = sampling_output_dir
-        self._sampling_batches_per_output_partition = (
-            sampling_batches_per_output_partition
-        )
-        self._sampling_saturation_level = sampling_saturation_level
+        self._batches_per_partition = batches_per_partition
+        self._seeds_per_call = seeds_per_call
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
@@ -148,8 +159,8 @@ class DataLoader(torch.utils.data.DataLoader):
                 edge_dir=self.graph_sampler.edge_dir,
             )
 
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info:
+        if use_ddp:
+            worker_info = torch.utils.data.get_worker_info()
             client = default_client()
             event = Event("cugraph_dgl_load_mg_graph_event")
             if worker_info.id == 0:
@@ -168,12 +179,14 @@ class DataLoader(torch.utils.data.DataLoader):
                         f"Fetch cugraph_dgl_mg_graph_ds to worker_id {worker_info.id}",
                         "from worker_id 0 failed",
                     )
+            self._rank = worker_info.id
         else:
             G = create_cugraph_graph_from_edges_dict(
                 edges_dict=graph._edges_dict,
                 etype_id_dict=graph._etype_id_dict,
                 edge_dir=graph_sampler.edge_dir,
             )
+            self._rank = 0
         self._cugraph_graph = G
 
         super().__init__(
@@ -191,13 +204,13 @@ class DataLoader(torch.utils.data.DataLoader):
         _clean_directory(output_dir)
 
         # Todo: Figure out how to get rank
-        rank = 0
+        rank = self._rank
         bs = BulkSampler(
             output_path=output_dir,
             batch_size=self._batch_size,
             graph=self._cugraph_graph,
-            batches_per_partition=self._sampling_batches_per_output_partition,
-            saturation_level=self._sampling_saturation_level,
+            batches_per_partition=self._batches_per_partition,
+            saturation_level=self._seeds_per_call,
             rank=rank,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
@@ -214,7 +227,7 @@ class DataLoader(torch.utils.data.DataLoader):
         return super().__iter__()
 
 
-def get_batch_id_series(n_output_rows, batch_size):
+def get_batch_id_series(n_output_rows: int, batch_size: int):
     num_batches = (n_output_rows + batch_size - 1) // batch_size
     print(f"Number of batches = {num_batches}".format(num_batches))
     batch_ar = cp.arange(0, num_batches).repeat(batch_size)

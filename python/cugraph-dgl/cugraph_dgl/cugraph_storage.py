@@ -38,10 +38,9 @@ class CuGraphStorage:
     Duck-typed version of the DGLHeteroGraph class made for cuGraph
     for storing graph structure and node/edge feature data.
 
-    This object is wrapper around cugraph's MGGraph and returns samples
+    This object is wrapper around cugraph's Multi GPU MultiGraph and returns samples
     that conform with `DGLHeteroGraph`
     See: https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_dgl.html
-
     """
 
     def __init__(

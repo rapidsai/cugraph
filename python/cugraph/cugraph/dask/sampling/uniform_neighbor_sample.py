@@ -164,10 +164,12 @@ def _mg_call_plc_uniform_neighbor_sample(
         )
         for i, w in enumerate(Comms.get_workers())
     ]
-
-    ddf = dask_cudf.from_delayed(
-        result, meta=create_empty_df(indices_t, weight_t), verify_meta=False
-    ).persist()
+    empty_df = (
+        create_empty_df_with_edge_props(indices_t, weight_t)
+        if with_edge_properties
+        else create_empty_df(indices_t, weight_t)
+    )
+    ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
     wait(ddf)
     wait([r.release() for r in result])
     return ddf

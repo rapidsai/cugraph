@@ -172,6 +172,7 @@ class EXPERIMENTAL__BulkSampler:
             batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
             with_edge_properties=True,
         )
+        print(samples.columns, flush=True)
 
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)

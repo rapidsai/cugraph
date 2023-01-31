@@ -24,11 +24,11 @@ class NeighborSampler:
     fanouts_per_layer : int
         List of neighbors to sample for each GNN layer, with the i-th
         element being the fanout for the i-th GNN layer.
-        If -1 is provided then all inbound edges
+        If -1 is provided then all inbound/outbound edges
         of that edge type will be included.
     edge_dir : str, default ``'in'``
         Can be either ``'in' `` where the neighbors will be sampled according to
-        incoming edges, or ``'out'``
+        incoming edges, or ``'out'`` for outgoing edges
     replace : bool, default False
         Whether to sample with replacement
     Examples
