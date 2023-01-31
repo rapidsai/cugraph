@@ -43,7 +43,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         edge_attr_dtype = np.float32
     else:
         edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
-        vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
 
     input_df_values_dtype = input_df["values"].dtype
     input_df_vertex_dtype = input_df["vertex"].dtype
