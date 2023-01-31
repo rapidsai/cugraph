@@ -721,7 +721,7 @@ class simpleGraphImpl:
         in_degree = self._degree(vertex_subset, direction=Direction.IN)
         # If the vertex IDs are not contiguous, remove results for the
         # isolated vertices
-        in_degree = in_degree[in_degree["vertex"].isin(self.nodes())]
+        in_degree = in_degree[in_degree["vertex"].isin(self.nodes().to_cupy())]
 
         return in_degree
 
@@ -764,7 +764,7 @@ class simpleGraphImpl:
         out_degree = self._degree(vertex_subset, direction=Direction.OUT)
         # If the vertex IDs are not contiguous, remove results for the
         # isolated vertices
-        out_degree = out_degree[out_degree["vertex"].isin(self.nodes())]
+        out_degree = out_degree[out_degree["vertex"].isin(self.nodes().to_cupy())]
         return out_degree
 
     def degree(self, vertex_subset=None):
@@ -855,15 +855,17 @@ class simpleGraphImpl:
         df["in_degree"] = in_degree_col
         df["out_degree"] = out_degree_col
 
-        if self.properties.renumbered is True:
-            df = self.renumber_map.unrenumber(df, "vertex")
-        
         # If the vertex IDs are not contiguous, remove results for the
         # isolated vertices
-        df = df[df["vertex"].isin(self.nodes())]
+        df = df[df["vertex"].isin(self.nodes().to_cupy())]
 
         if vertex_subset is not None:
+            if isinstance(vertex_subset, cudf.Series):
+                vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
+
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
 
@@ -873,15 +875,17 @@ class simpleGraphImpl:
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.properties.renumbered is True:
-            df = self.renumber_map.unrenumber(df, "vertex")
-
         # If the vertex IDs are not contiguous, remove results for the
         # isolated vertices
-        df = df[df["vertex"].isin(self.nodes())]
+        df = df[df["vertex"].isin(self.nodes().to_cupy())]
 
         if vertex_subset is not None:
+            if isinstance(vertex_subset, cudf.Series):
+                vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
+
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
 
