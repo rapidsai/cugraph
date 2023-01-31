@@ -162,8 +162,18 @@ def spectralModularityMaximizationClustering(
     """
 
     # Error checking in C++ code
-
     G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    # Renumber the vertices so that they are contiguous (required)
+    if not G.renumbered:
+        edgelist = G.edgelist.edgelist_df
+        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(edgelist, ["src"], ["dst"])
+        renumbered_src_col_name = renumber_map.renumbered_src_col_name
+        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
+        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
+            columns={renumbered_src_col_name:"src", renumbered_dst_col_name:"dst"})
+        G.properties.renumbered = True
+        G.renumber_map = renumber_map
 
     df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
         G,
@@ -235,6 +245,18 @@ def analyzeClustering_modularity(
         raise Exception("cluster_col_name must be a string")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    # Renumber the vertices so that they are contiguous (required)
+    if not G.renumbered:
+        edgelist = G.edgelist.edgelist_df
+        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(edgelist, ["src"], ["dst"])
+        renumbered_src_col_name = renumber_map.renumbered_src_col_name
+        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
+        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
+            columns={renumbered_src_col_name:"src", renumbered_dst_col_name:"dst"})
+        G.properties.renumbered = True
+        G.renumber_map = renumber_map
+
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
