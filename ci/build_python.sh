@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -36,8 +36,6 @@ rapids-mamba-retry mambabuild \
   --no-test \
   --channel "${CPP_CHANNEL}" \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  --channel pyg \
-  --channel pytorch \
   conda/recipes/cugraph-pyg
 
 rapids-mamba-retry mambabuild \
