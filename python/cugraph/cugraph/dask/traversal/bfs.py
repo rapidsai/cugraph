@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 from pylibcugraph import ResourceHandle, bfs as pylibcugraph_bfs
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import cudf
@@ -117,7 +117,7 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
 
     """
 
-    client = input_graph._client
+    client = default_client()
     invalid_dtype = False
 
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):

@@ -50,7 +50,12 @@ def test_sampling_homogeneous_gs_out_dir():
         {"_SRC_": src_ser, "_DST_": dst_ser, "_EDGE_ID_": np.arange(len(src_ser))}
     )
 
-    sampler = DGLUniformSampler({("_N", "connects", "_N"): df}, {"_N": (0, 8)}, True)
+    sampler = DGLUniformSampler(
+        {("_N", "connects", "_N"): df},
+        {("_N", "connects", "_N"): (0, 8)},
+        {(("_N", "connects", "_N")): 1},
+        True,
+    )
 
     # below are obtained from dgl runs on the same graph
     expected_out = {
@@ -89,7 +94,12 @@ def test_sampling_homogeneous_gs_in_dir():
     df = cudf.DataFrame(
         {"_SRC_": src_ser, "_DST_": dst_ser, "_EDGE_ID_": np.arange(len(src_ser))}
     )
-    sampler = DGLUniformSampler({("_N", "connects", "_N"): df}, {"_N": (0, 8)}, True)
+    sampler = DGLUniformSampler(
+        {("_N", "connects", "_N"): df},
+        {("_N", "connects", "_N"): (0, 8)},
+        {("_N", "connects", "_N"): 1},
+        True,
+    )
 
     # below are obtained from dgl runs on the same graph
     expected_in = {
@@ -146,7 +156,9 @@ def create_gs_heterogeneous_dgl_sampler():
         edge_list_dict[etype_map[e]] = subset_df
         edge_id_range_dict[etype_map[e]] = (etype_offset, etype_offset + len(subset_df))
         etype_offset = etype_offset + len(subset_df)
-    return DGLUniformSampler(edge_list_dict, edge_id_range_dict, True)
+
+    etype_id_dict = {e: i for i, e in enumerate(edge_list_dict.keys())}
+    return DGLUniformSampler(edge_list_dict, edge_id_range_dict, etype_id_dict, True)
 
 
 def test_sampling_gs_heterogeneous_out_dir():

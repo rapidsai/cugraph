@@ -81,7 +81,14 @@ class Graph:
                 )
 
     def __getattr__(self, name):
-        if self._Impl is None:
+        """
+        __getattr__() is called automatically by python when an attribute does not
+        exist. Since this class is attempting to hide the internal `_Impl` object,
+        which is intended to contain many of the attributes needed by this class,
+        __getattr__ is used to "pass through" attribute access to _Impl and make it
+        appear as if the _Impl attributes are contained in this class.
+        """
+        if name == "_Impl":
             raise AttributeError(name)
         if hasattr(self._Impl, name):
             return getattr(self._Impl, name)
