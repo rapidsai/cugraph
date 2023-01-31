@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 
 from pylibcugraph import (
     eigenvector_centrality as pylib_eigen,
@@ -112,7 +112,7 @@ def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
     >>> ec = dcg.eigenvector_centrality(dg)
 
     """
-    client = input_graph._client
+    client = default_client()
 
     if input_graph.store_transposed is False:
         warning_msg = (

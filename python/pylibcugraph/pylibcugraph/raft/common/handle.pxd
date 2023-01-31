@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ from rmm._lib.cuda_stream_pool cimport cuda_stream_pool
 from libcpp.memory cimport shared_ptr
 from libcpp.memory cimport unique_ptr
 
-cdef extern from "raft/handle.hpp" namespace "raft" nogil:
+cdef extern from "raft/core/handle.hpp" namespace "raft" nogil:
     cdef cppclass handle_t:
         handle_t() except +
         handle_t(cuda_stream_view stream_view) except +
