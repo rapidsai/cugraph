@@ -17,6 +17,7 @@ import torch
 import cupy as cp
 import cudf
 from cugraph.experimental import BulkSampler
+from dask.distributed import default_client, Event
 import dgl
 from dgl.dataloading import WorkerInitWrapper, create_tensorized_dataset
 from cugraph_dgl.dataloading import (
@@ -147,11 +148,32 @@ class DataLoader(torch.utils.data.DataLoader):
                 edge_dir=self.graph_sampler.edge_dir,
             )
 
-        G = create_cugraph_graph_from_edges_dict(
-            edges_dict=graph._edges_dict,
-            etype_id_dict=graph._etype_id_dict,
-            edge_dir=graph_sampler.edge_dir,
-        )
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info:
+            client = default_client()
+            event = Event("cugraph_dgl_load_mg_graph_event")
+            if worker_info.id == 0:
+                G = create_cugraph_graph_from_edges_dict(
+                    edges_dict=graph._edges_dict,
+                    etype_id_dict=graph._etype_id_dict,
+                    edge_dir=graph_sampler.edge_dir,
+                )
+                client.publish_dataset(cugraph_dgl_mg_graph_ds=G)
+                event.set()
+            else:
+                if event.wait(timeout=1000):
+                    G = client.get_dataset(G, "cugraph_dgl_mg_graph_ds")
+                else:
+                    raise RuntimeError(
+                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {worker_info.id}",
+                        "from worker_id 0 failed",
+                    )
+        else:
+            G = create_cugraph_graph_from_edges_dict(
+                edges_dict=graph._edges_dict,
+                etype_id_dict=graph._etype_id_dict,
+                edge_dir=graph_sampler.edge_dir,
+            )
         self._cugraph_graph = G
 
         super().__init__(
