@@ -56,7 +56,7 @@ def test_bulk_sampler_simple(dask_client):
     )
 
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
-    bs.flush(skip_partition_size_check=True)
+    bs.flush()
 
     recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
 
@@ -83,7 +83,7 @@ def test_bulk_sampler_remainder(dask_client):
         batch_size=2,
         output_path=tempdir_object.name,
         graph=G,
-        saturation_level=7,
+        seeds_per_call=7,
         batches_per_partition=2,
         fanout_vals=[2, 2],
         with_replacement=False,
@@ -106,7 +106,7 @@ def test_bulk_sampler_remainder(dask_client):
     )
 
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
-    bs.flush(skip_partition_size_check=True)
+    bs.flush()
 
     tld = os.path.join(tempdir_object.name, "rank=0")
     print(os.listdir(tld))
@@ -158,7 +158,7 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client):
     )
 
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
-    bs.flush(skip_partition_size_check=True)
+    bs.flush()
 
     recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
 
