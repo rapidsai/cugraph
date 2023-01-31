@@ -12,10 +12,8 @@
 # limitations under the License.
 
 import os
-import warnings
 
 from typing import Union
-from math import ceil
 
 import cudf
 import dask_cudf
@@ -32,7 +30,7 @@ class EXPERIMENTAL__BulkSampler:
         batch_size: int,
         output_path: str,
         graph,
-        saturation_level: int = 200_000,
+        seeds_per_call: int = 200_000,
         batches_per_partition=100,
         rank: int = 0,
         **kwargs,
@@ -48,8 +46,9 @@ class EXPERIMENTAL__BulkSampler:
             The directory where results will be stored.
         graph: cugraph.Graph
             The cugraph graph to operate upon.
-        saturation_level: int (optional, default=200,000)
-            The number of samples that can be made within a single call.
+        seeds_per_call: int (optional, default=200,000)
+            The number of seeds (start vertices) that can be processed by
+            a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
         rank: int (optional, default=0)
@@ -61,7 +60,7 @@ class EXPERIMENTAL__BulkSampler:
         self.__batch_size = batch_size
         self.__output_path = output_path
         self.__graph = graph
-        self.__saturation_level = saturation_level
+        self.__seeds_per_call = seeds_per_call
         self.__batches_per_partition = batches_per_partition
         self.__rank = rank
         self.__batches = None
@@ -72,8 +71,8 @@ class EXPERIMENTAL__BulkSampler:
         return self.__rank
 
     @property
-    def saturation_level(self) -> int:
-        return self.__saturation_level
+    def seeds_per_call(self) -> int:
+        return self.__seeds_per_call
 
     @property
     def batch_size(self) -> int:
@@ -110,6 +109,27 @@ class EXPERIMENTAL__BulkSampler:
 
         Returns
         -------
+        None
+
+        Examples
+        --------
+        >>> import cudf
+        >>> from cugraph.experimental.gnn import BulkSampler
+        >>> from cugraph.experimental.datasets import karate
+        >>> import tempfile
+        >>> df = cudf.DataFrame({
+        ...     "start_vid": [0, 4, 2, 3, 9, 11],
+        ...     "start_batch": cudf.Series(
+        ...         [0, 0, 0, 1, 1, 1], dtype="int32")})
+        >>> output_tempdir = tempfile.TemporaryDirectory()
+        >>> bulk_sampler = BulkSampler(
+        ...     batch_size=3,
+        ...     output_path=output_tempdir.name,
+        ...     graph=karate.get_graph(fetch=True))
+        >>> bulk_sampler.add_batches(
+        ...     df,
+        ...     start_col_name="start_vid",
+        ...     batch_col_name="start_batch")
         """
         df = df.rename(
             columns={
@@ -129,18 +149,14 @@ class EXPERIMENTAL__BulkSampler:
                     " type of previous batches!"
                 )
 
-        if self.size >= self.saturation_level:
+        if self.size >= self.seeds_per_call:
             self.flush()
 
-    def flush(self, skip_partition_size_check=False) -> None:
+    def flush(self) -> None:
         """
         Computes all uncomputed batches
         """
-        if self.__batches is None or len(self.__batches) == 0:
-            # Should not happen if it reaches the end of this function
-            # at least once.
-            self.__batches = None
-            warnings.warn("Tried to flush with no batches left")
+        if self.size == 0:
             return
 
         min_batch_id = self.__batches[self.batch_col_name].min()
@@ -149,12 +165,8 @@ class EXPERIMENTAL__BulkSampler:
         min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
-        partitions_per_saturation_level = self.saturation_level // partition_size
-
-        if skip_partition_size_check:
-            npartitions = int(ceil(len(self.__batches) / partition_size))
-        else:
-            npartitions = partitions_per_saturation_level
+        partitions_per_call = self.seeds_per_call // partition_size
+        npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
@@ -172,15 +184,11 @@ class EXPERIMENTAL__BulkSampler:
             batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
             with_edge_properties=True,
         )
-        print(samples.columns, flush=True)
 
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)
 
-        if len(self.__batches) == 0:
-            self.__batches = None
-
-        if self.__batches is not None:
+        if self.size > 0:
             self.flush()
 
     def __write(

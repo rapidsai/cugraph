@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Any, Union, List
+from typing import Optional, Tuple, Any, Union, List, Dict
+
 from enum import Enum
 
 from dataclasses import dataclass
@@ -19,18 +20,13 @@ from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
-# numpy is always available
 import numpy as np
+import cupy
 import pandas
-
-
+import cudf
 import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
-import cudf
-
-# FIXME drop cupy support and make torch the only backend (#2995)
-import cupy
 
 import dask.dataframe as dd
 from dask.distributed import get_client
@@ -214,10 +210,10 @@ class EXPERIMENTAL__CuGraphStore:
         num_nodes_dict : dict (Required)
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
-        backend : ('torch', 'cupy') (Required)
+        backend : ('torch', 'cupy') (Optional, default = 'torch')
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
-        multi_gpu : bool (Required)
+        multi_gpu : bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
         """
@@ -287,7 +283,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         return offsets
 
-    def __infer_offsets(self, num_nodes_dict, num_edges_dict) -> None:
+    def __infer_offsets(
+        self,
+        num_nodes_dict: Dict[str, int],
+        num_edges_dict: Dict[Tuple[str, str, str], int],
+    ) -> None:
         """
         Sets the vertex offsets for this store.
         """
@@ -303,9 +303,35 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
-    def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
+    def __construct_graph(
+        self, edge_info: Dict[Tuple[str, str, str], List], multi_gpu: bool = False
+    ) -> cugraph.MultiGraph:
+        """
+        This function takes edge information and uses it to construct
+        a cugraph Graph.  It determines the numerical edge type by
+        sorting the keys of the input dictionary
+        (the canonical edge types).
+
+        Parameters
+        ----------
+        edge_info: Dict[Tuple[str, str, str]] (Required)
+            Input edge info dictionary, where keys are the canonical
+            edge type and values are the edge index (src/dst).
+
+        multi_gpu: bool (Optional, default=False)
+            Whether to construct a single-GPU or multi-GPU cugraph Graph.
+            Defaults to a single-GPU graph.
+        Returns
+        -------
+        A newly-constructed directed cugraph.MultiGraph object.
+        """
         # Ensure the original dict is not modified.
         edge_info_cg = {}
+
+        # Iterate over the keys in sorted order so that the created
+        # numerical types correspond to the lexicographic order
+        # of the keys, which is critical to converting the numeric
+        # keys back to canonical edge types later.
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
@@ -332,15 +358,12 @@ class EXPERIMENTAL__CuGraphStore:
             ]
         )
 
+        et_offsets = self.__edge_type_offsets
         na_etp = np.concatenate(
             [
-                np.array(
-                    [i]
-                    * int(
-                        self.__edge_type_offsets["stop"][i]
-                        - self.__edge_type_offsets["start"][i]
-                        + 1
-                    ),
+                np.full(
+                    int(et_offsets["stop"][i] - et_offsets["start"][i] + 1),
+                    i,
                     dtype="int32",
                 )
                 for i in range(len(self.__edge_type_offsets["start"]))
@@ -351,9 +374,7 @@ class EXPERIMENTAL__CuGraphStore:
             {
                 "src": na_src,
                 "dst": na_dst,
-                # FIXME use the edge type property
-                # "w": np.zeros(len(na_src)),
-                "w": na_etp,
+                "w": np.zeros(len(na_src)),
                 "eid": np.arange(len(na_src)),
                 "etp": na_etp,
             }
@@ -361,8 +382,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         if multi_gpu:
             nworkers = len(get_client().scheduler_info()["workers"])
-            npartitions = nworkers * 1
-            df = dd.from_pandas(df, npartitions=npartitions).persist()
+            df = dd.from_pandas(df, npartitions=nworkers).persist()
             df = df.map_partitions(cudf.DataFrame.from_pandas)
         else:
             df = cudf.from_pandas(df)
@@ -399,7 +419,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
-        return isinstance(self.__graph._plc_graph, dict)
+        return self.__graph.is_multi_gpu()
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
@@ -465,6 +485,14 @@ class EXPERIMENTAL__CuGraphStore:
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
 
+        # Currently, graph creation enforces that legacy_renum_only=True
+        # is always called, and the input vertex ids are always of integer
+        # type.  Therefore, it is currently safe to assume that for MG
+        # graphs, the src/dst col names are renumbered_src/dst
+        # and for SG graphs, the src/dst col names are src/dst.
+        # This may change in the future if/when renumbering or the graph
+        # creation process is refactored.
+        # See Issue #3201 for more details.
         if self._is_delayed:
             src_col_name = self.__graph.renumber_map.renumbered_src_col_name
             dst_col_name = self.__graph.renumber_map.renumbered_dst_col_name
@@ -561,7 +589,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise KeyError(f"An edge corresponding to '{edge_attr}' was not " f"found")
         return edge_index
 
-    def _subgraph(self, edge_types: List[tuple]) -> cugraph.MultiGraph:
+    def _subgraph(self, edge_types: List[tuple] = None) -> cugraph.MultiGraph:
         """
         Returns a subgraph with edges limited to those of a given type
 
@@ -577,10 +605,13 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
-        if set(edge_types) != set(self.__edge_types_to_attrs.keys()):
+        if edge_types is not None and set(edge_types) != set(
+            self.__edge_types_to_attrs.keys()
+        ):
             raise ValueError(
                 "Subgraphing is currently unsupported, please"
-                " specify all edge types in the graph."
+                " specify all edge types in the graph or leave"
+                " this argument empty."
             )
 
         return self.__graph
@@ -645,7 +676,7 @@ class EXPERIMENTAL__CuGraphStore:
         Example Input: Series({
                 'sources': [0, 5, 11, 3],
                 'destinations': [8, 2, 3, 5]},
-                'indices': [1, 3, 5, 14]
+                'edge_type': [1, 3, 5, 14]
             }),
             {
                 'blue_vertex': [0, 5],
@@ -684,10 +715,10 @@ class EXPERIMENTAL__CuGraphStore:
             # It needs to be converted to a tuple in the for loop below.
             eoi_types = (
                 cudf.Series(self.__edge_type_offsets["type"])
-                .iloc[sampling_results.indices.astype("int32")]
+                .iloc[sampling_results.edge_type.astype("int32")]
                 .reset_index(drop=True)
             )
-            print("eoi_types:", eoi_types)
+
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
@@ -695,7 +726,7 @@ class EXPERIMENTAL__CuGraphStore:
                 src_type, _, dst_type = pyg_can_edge_type
 
                 # Get the de-offsetted sources
-                sources = self.asarray(sampling_results.sources.loc[ix])
+                sources = self.asarray(sampling_results.sources.iloc[ix])
                 sources_ix = self.searchsorted(
                     self.__vertex_type_offsets["stop"], sources
                 )
@@ -707,7 +738,7 @@ class EXPERIMENTAL__CuGraphStore:
                 row_dict[pyg_can_edge_type] = src
 
                 # Get the de-offsetted destinations
-                destinations = self.asarray(sampling_results.destinations.loc[ix])
+                destinations = self.asarray(sampling_results.destinations.iloc[ix])
                 destinations_ix = self.searchsorted(
                     self.__vertex_type_offsets["stop"], destinations
                 )
