@@ -65,7 +65,7 @@ jobs:
   wheel-build-pylibcugraph:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@cuda-118
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@cuda-118-sccache-disable
     with:
       build_type: pull-request
       package-name: pylibcugraph
@@ -74,6 +74,7 @@ jobs:
       extra-repo-sha: branch-23.02
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+      sccache-enabled: "no"
   wheel-tests-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -88,7 +89,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-tests-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@cuda-118
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@cuda-118-sccache-disable
     with:
       build_type: pull-request
       package-name: cugraph
@@ -98,6 +99,7 @@ jobs:
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-wheelhouse"
       skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+      sccache-enabled: "no"
   wheel-tests-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
