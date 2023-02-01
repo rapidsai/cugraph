@@ -285,8 +285,9 @@ random_walk_impl(raft::handle_t const& handle,
                                                     current_gpu.begin(),
                                                     current_position.begin());
 
-        CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
-                        "remove_if will fail, current_vertices.size() is too large");
+        CUGRAPH_EXPECTS(
+          current_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+          "remove_if will fail, current_vertices.size() is too large");
 
         // FIXME: remove_if has a 32-bit overflow issue
         // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
@@ -341,8 +342,9 @@ random_walk_impl(raft::handle_t const& handle,
         auto input_iter = thrust::make_zip_iterator(
           current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
-        CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
-                        "remove_if will fail, current_vertices.size() is too large");
+        CUGRAPH_EXPECTS(
+          current_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+          "remove_if will fail, current_vertices.size() is too large");
 
         auto compacted_length = thrust::distance(
           input_iter,
