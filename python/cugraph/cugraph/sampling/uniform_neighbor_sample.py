@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,29 @@ from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbo
 import numpy
 
 import cudf
+
+import warnings
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, start_list):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    if isinstance(start_list, cudf.Series):
+        start_list_dtypes = start_list.dtype
+    else:
+        start_list_dtypes = start_list.dtypes[0]
+    
+    if start_list_dtypes != vertex_dtype:
+        warning_msg = (
+            "Uniform_neighbor_sample requires 'start_list' to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'start_list' of type: {start_list_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        start_list = start_list.astype(vertex_dtype)
+
+    return start_list
 
 
 def uniform_neighbor_sample(
@@ -78,6 +101,8 @@ def uniform_neighbor_sample(
         weight_t = G.edgelist.edgelist_df["weights"].dtype
     else:
         weight_t = "float32"
+
+    start_list = ensure_valid_dtype(G, start_list)
 
     if G.renumbered is True:
         if isinstance(start_list, cudf.DataFrame):
