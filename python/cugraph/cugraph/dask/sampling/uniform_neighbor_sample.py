@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy
-from dask.distributed import wait, Lock
+from dask.distributed import wait, Lock, get_client
 from cugraph.dask.common.input_utils import get_distributed_data
 
 
@@ -304,7 +304,7 @@ def uniform_neighbor_sample(
         wait(ddf)
         ddf = ddf.worker_to_parts
 
-    client = input_graph._client
+    client = get_client()
     session_id = Comms.get_session_id()
     if _multiple_clients:
         # Distributed centralized lock to allow

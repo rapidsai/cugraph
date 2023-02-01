@@ -1105,6 +1105,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             The name of the property whose values will be used as weights on
             the returned Graph. If not specified, the returned Graph will be
             unweighted.
+        default_edge_weight : float64, optional
+            Value that replaces empty weight property fields
         check_multi_edges : bool (default is True)
             When True and create_using argument is given and not a MultiGraph,
             this will perform a check to verify that the edges in the edge
@@ -1217,10 +1219,11 @@ class EXPERIMENTAL__MGPropertyGraph:
         renumber_graph=True,
         add_edge_data=True,
     ):
-
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
+        # Don't mutate input data
+        edge_prop_df = edge_prop_df.copy()
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
             if (
@@ -1416,11 +1419,11 @@ class EXPERIMENTAL__MGPropertyGraph:
                 self.__edge_prop_dataframe
                 # map src_col_name IDs
                 .merge(mapper, left_on=self.src_col_name, right_on=self.vertex_col_name)
-                .drop(columns=[self.src_col_name])
+                .drop(columns=[self.src_col_name, self.vertex_col_name])
                 .rename(columns={new_name: self.src_col_name})
                 # map dst_col_name IDs
                 .merge(mapper, left_on=self.dst_col_name, right_on=self.vertex_col_name)
-                .drop(columns=[self.dst_col_name])
+                .drop(columns=[self.dst_col_name, self.vertex_col_name])
                 .rename(columns={new_name: self.dst_col_name})
             )
             self.__edge_prop_dataframe.index = self.__edge_prop_dataframe.index.astype(
