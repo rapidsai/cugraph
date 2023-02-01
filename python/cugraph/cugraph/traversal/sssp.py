@@ -223,14 +223,14 @@ def sssp(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
+    if not G.has_node(source):
+        raise ValueError("Graph does not contain source vertex")
+
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):
             source = G.lookup_internal_vertex_id(source, source.columns).iloc[0]
         else:
             source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
-
-    if source is cudf.NA:
-        raise ValueError("Starting vertex should be between 0 to number of vertices")
 
     if cutoff is None:
         cutoff = np.inf
