@@ -34,6 +34,7 @@ rapids-mamba-retry install \
   --channel "${PYTHON_CHANNEL}" \
   --channel pyg \
   --channel pytorch \
+  --channel pytorch-nightly \
   libcugraph \
   pylibcugraph \
   cugraph \
