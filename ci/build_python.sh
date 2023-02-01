@@ -38,6 +38,7 @@ rapids-mamba-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   --channel pyg \
   --channel pytorch \
+  --channel pytorch-nightly \
   conda/recipes/cugraph-pyg
 
 rapids-mamba-retry mambabuild \
