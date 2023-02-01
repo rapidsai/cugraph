@@ -160,10 +160,10 @@ class DataLoader(torch.utils.data.DataLoader):
             )
 
         if use_ddp:
-            worker_info = torch.utils.data.get_worker_info()
+            rank = torch.distributed.get_rank()
             client = default_client()
             event = Event("cugraph_dgl_load_mg_graph_event")
-            if worker_info.id == 0:
+            if rank == 0:
                 G = create_cugraph_graph_from_edges_dict(
                     edges_dict=graph._edges_dict,
                     etype_id_dict=graph._etype_id_dict,
@@ -173,13 +173,13 @@ class DataLoader(torch.utils.data.DataLoader):
                 event.set()
             else:
                 if event.wait(timeout=1000):
-                    G = client.get_dataset(G, "cugraph_dgl_mg_graph_ds")
+                    G = client.get_dataset("cugraph_dgl_mg_graph_ds")
                 else:
                     raise RuntimeError(
-                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {worker_info.id}",
+                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {rank}",
                         "from worker_id 0 failed",
                     )
-            self._rank = worker_info.id
+            self._rank = rank
         else:
             G = create_cugraph_graph_from_edges_dict(
                 edges_dict=graph._edges_dict,
@@ -201,7 +201,12 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
-        _clean_directory(output_dir)
+        # Clean on the single worker
+        # TODO: Make it worker wise cleaning
+        if self._rank == 0:
+            _clean_directory(output_dir)
+        # TODO: Remove when batch specific barrier
+        torch.distributed.barrier()
 
         # Todo: Figure out how to get rank
         rank = self._rank
