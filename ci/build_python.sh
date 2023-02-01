@@ -47,6 +47,7 @@ rapids-mamba-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   --channel dglteam \
   --channel pytorch \
+  --channel pytorch-nightly \
   conda/recipes/cugraph-dgl
 
 rapids-upload-conda-to-s3 python
