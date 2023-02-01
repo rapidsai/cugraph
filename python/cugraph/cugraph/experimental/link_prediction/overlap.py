@@ -30,7 +30,7 @@ def ensure_valid_dtype(input_graph, vertex_pair):
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
     vertex_pair_dtypes = vertex_pair.dtypes
     
-    if vertex_pair_dtypes[0] != vertex_dtype or vertex_pair_dtypes[0] != vertex_dtype:
+    if vertex_pair_dtypes[0] != vertex_dtype or vertex_pair_dtypes[1] != vertex_dtype:
         warning_msg = (
             "Overlap requires 'vertex_pair' to match the graph's 'vertex' type. "
             f"input graph's vertex type is: {vertex_dtype} and got "
