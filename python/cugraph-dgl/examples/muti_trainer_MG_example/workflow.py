@@ -175,7 +175,17 @@ def run_workflow(rank, devices, scheduler_address):
 
     del gs  # Clean up gs reference
 
-    for i in range(0, 20):
+    # Comment below
+    st = time.time()
+    for step, (input_nodes, seeds, blocks) in enumerate(dataloader):
+        pass
+    et = time.time()
+    print(f"Warmup loading took = {et-st} s on worker = {rank}")
+    torch.distributed.barrier()
+
+    n_epochs = 30
+    total_st = time.time()
+    for i in range(0, n_epochs):
         st = time.time()
         for step, (input_nodes, seeds, blocks) in enumerate(dataloader):
             pass
@@ -184,16 +194,31 @@ def run_workflow(rank, devices, scheduler_address):
             # train_model()
         et = time.time()
         print(f"Data Loading took = {et-st} s for epoch = {i} on worker = {rank}")
+    torch.distributed.barrier()
+    total_et = time.time()
+    print(
+        f"Total time taken on n_epochs {n_epochs} = {total_et-total_st} s",
+        f"measured by worker = {rank}",
+    )
+
+    # cleanup dask cluster
+    if rank == 0:
+        client.unpublish_dataset("cugraph_gs")
+        client.unpublish_dataset("train_idx")
+        client.unpublish_dataset("valid_idx")
+        client.unpublish_dataset("test_idx")
+        event.clear()
 
 
 if __name__ == "__main__":
-    dask_worker_devices = [3, 4]
+    dask_worker_devices = [4]
     scheduler_address = setup_cluster(dask_worker_devices)
-    trainer_devices = [0, 1, 2]
-    import torch.multiprocessing as mp
+    trainer_devices_ls = [[0], [0, 1], [0, 1, 2, 3]]
+    for trainer_devices in trainer_devices_ls:
+        import torch.multiprocessing as mp
 
-    mp.spawn(
-        run_workflow,
-        args=(trainer_devices, scheduler_address),
-        nprocs=len(trainer_devices),
-    )
+        mp.spawn(
+            run_workflow,
+            args=(trainer_devices, scheduler_address),
+            nprocs=len(trainer_devices),
+        )

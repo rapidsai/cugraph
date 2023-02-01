@@ -45,8 +45,8 @@ class DataLoader(torch.utils.data.DataLoader):
         indices: torch.Tensor,
         graph_sampler: cugraph_dgl.dataloading.NeighborSampler,
         sampling_output_dir: str,
-        batches_per_partition: int = 100,
-        seeds_per_call: int = 400_000,
+        batches_per_partition: int = 150,
+        seeds_per_call: int = 500_000,
         device: torch.device = None,
         use_ddp: bool = False,
         ddp_seed: int = 0,
@@ -162,7 +162,7 @@ class DataLoader(torch.utils.data.DataLoader):
         if use_ddp:
             rank = torch.distributed.get_rank()
             client = default_client()
-            event = Event("cugraph_dgl_load_mg_graph_event")
+            self._graph_creation_event = Event("cugraph_dgl_load_mg_graph_event")
             if rank == 0:
                 G = create_cugraph_graph_from_edges_dict(
                     edges_dict=graph._edges_dict,
@@ -170,9 +170,9 @@ class DataLoader(torch.utils.data.DataLoader):
                     edge_dir=graph_sampler.edge_dir,
                 )
                 client.publish_dataset(cugraph_dgl_mg_graph_ds=G)
-                event.set()
+                self._graph_creation_event.set()
             else:
-                if event.wait(timeout=1000):
+                if self._graph_creation_event.wait(timeout=1000):
                     G = client.get_dataset("cugraph_dgl_mg_graph_ds")
                 else:
                     raise RuntimeError(
@@ -188,6 +188,8 @@ class DataLoader(torch.utils.data.DataLoader):
             )
             self._rank = 0
         self._cugraph_graph = G
+        # TODO: Remove
+        torch.distributed.barrier()
 
         super().__init__(
             self.cugraph_dgl_dataset,
@@ -201,14 +203,6 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
-        # Clean on the single worker
-        # TODO: Make it worker wise cleaning
-        if self._rank == 0:
-            _clean_directory(output_dir)
-        # TODO: Remove when batch specific barrier
-        torch.distributed.barrier()
-
-        # Todo: Figure out how to get rank
         rank = self._rank
         bs = BulkSampler(
             output_path=output_dir,
@@ -230,6 +224,14 @@ class DataLoader(torch.utils.data.DataLoader):
         self.cugraph_dgl_dataset.set_input_directory(output_dir)
         self.epoch_number = self.epoch_number + 1
         return super().__iter__()
+
+    def __del__(self):
+        torch.distributed.barrier()
+        if self._rank == 0:
+            client = default_client()
+            client.unpublish_dataset("cugraph_dgl_mg_graph_ds")
+            self._graph_creation_event.clear()
+            _clean_directory(self._sampling_output_dir)
 
 
 def get_batch_id_series(n_output_rows: int, batch_size: int):
