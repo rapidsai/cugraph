@@ -17,16 +17,25 @@ import time
 from distributed import Client, Event as Dask_Event
 
 
+def enable_spilling():
+    import cudf
+
+    cudf.set_option("spill", True)
+
+
 def setup_cluster(dask_worker_devices):
     dask_worker_devices_str = ",".join([str(i) for i in dask_worker_devices])
     from dask_cuda import LocalCUDACluster
 
     cluster = LocalCUDACluster(
-        protocol="tcp", CUDA_VISIBLE_DEVICES=dask_worker_devices_str
+        protocol="tcp",
+        CUDA_VISIBLE_DEVICES=dask_worker_devices_str,
+        rmm_pool_size="25GB",
     )
 
     client = Client(cluster)
     client.wait_for_workers(n_workers=len(dask_worker_devices))
+    client.run(enable_spilling)
     print("Dask Cluster Setup Complete")
     del client
     return cluster.scheduler_address
@@ -40,16 +49,29 @@ def create_dask_client(scheduler_address):
     return client
 
 
-def initalize_cugraph_on_pytorch_worker(dev_id):
-    import numba.cuda as cuda
+def initalize_pytorch_worker(dev_id):
+    import cupy as cp
+    import rmm
 
-    cuda.select_device(
+    dev = cp.cuda.Device(
         dev_id
     )  # Create cuda context on the right gpu, defaults to gpu-0
-    import cudf  # Maybe do not need
-    import cugraph  # Maybe do not need
+    dev.use()
+    rmm.reinitialize(
+        pool_allocator=True,
+        initial_pool_size=10e9,
+        maximum_pool_size=15e9,
+        devices=[dev_id],
+    )
 
-    del cudf, cugraph
+    # TODO: Ask ASHWIN
+    if dev_id == 0:
+        torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
+
+    torch.cuda.set_device(dev_id)
+    cp.cuda.set_allocator(rmm.rmm_cupy_allocator)
+    enable_spilling()
+    print("device_id", dev_id, flush=True)
 
 
 def load_dgl_dataset(dataset_name="ogbn-products"):
@@ -102,6 +124,7 @@ def create_dataloader(gs, train_idx, sampling_output_dir, device):
         train_idx,
         sampler,
         sampling_output_dir=sampling_output_dir,
+        batches_per_partition=150,
         device=device,  # Put the sampled MFGs on CPU or GPU
         use_ddp=True,  # Make it work with distributed data parallel
         batch_size=1024,
@@ -116,17 +139,14 @@ def run_workflow(rank, devices, scheduler_address):
 
     # Below sets gpu_num
     dev_id = devices[rank]
-    initalize_cugraph_on_pytorch_worker(dev_id)
-    # Start the init_process_group
-    torch.cuda.set_device(dev_id)
+    initalize_pytorch_worker(dev_id)
     device = torch.device(f"cuda:{dev_id}")
-
     # cugraph dask client initialization
     client = create_dask_client(scheduler_address)
 
     # Pytorch training worker initialization
     dist_init_method = "tcp://{master_ip}:{master_port}".format(
-        master_ip="127.0.0.1", master_port="12345"
+        master_ip="127.0.0.1", master_port="12346"
     )
 
     torch.distributed.init_process_group(
@@ -137,7 +157,6 @@ def run_workflow(rank, devices, scheduler_address):
     )
 
     # TODO: Remove
-    torch.distributed.barrier()
     print(f"rank {rank}.", flush=True)
     print("Initalized across GPUs.")
 
@@ -211,14 +230,15 @@ def run_workflow(rank, devices, scheduler_address):
 
 
 if __name__ == "__main__":
-    dask_worker_devices = [4]
+    dask_worker_devices = [5]
     scheduler_address = setup_cluster(dask_worker_devices)
-    trainer_devices_ls = [[0], [0, 1], [0, 1, 2, 3]]
-    for trainer_devices in trainer_devices_ls:
-        import torch.multiprocessing as mp
+    # trainer_devices = [0]
+    trainer_devices = [0, 1]
+    # trainer_devices = [0, 1, 2, 3]
+    import torch.multiprocessing as mp
 
-        mp.spawn(
-            run_workflow,
-            args=(trainer_devices, scheduler_address),
-            nprocs=len(trainer_devices),
-        )
+    mp.spawn(
+        run_workflow,
+        args=(trainer_devices, scheduler_address),
+        nprocs=len(trainer_devices),
+    )
