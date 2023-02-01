@@ -1,9 +1,8 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 
-# Usage:
-#   conda build -c rapidsai -c conda-forge -c nvidia .
-{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
   name: cugraph-dgl
@@ -14,6 +13,9 @@ source:
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
+  build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_h{{ PKG_HASH }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   preserve_egg_dir: True
 
 requirements:
