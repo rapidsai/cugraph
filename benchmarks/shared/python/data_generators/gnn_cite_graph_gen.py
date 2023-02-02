@@ -110,10 +110,10 @@ import rmm
 from cugraph.generators import rmat
 from cugraph.structure import NumberMap
 
-import cudf as cudf_sg
-
-from cugraph.dask.common.mg_utils import start_dask_client, teardown_local_dask_cluster
-
+from cugraph.dask.common.mg_utils import teardown_local_dask_cluster
+import cugraph.dask.comms.comms as Comms
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
 
 from typing import (
     Union,
@@ -136,9 +136,16 @@ def setup_sg() -> None:
 
 def setup_mg() -> None:
     print("Setup MG")
-    client, cluster = start_dask_client()
+    visible_devices = ",".join([str(i) for i in range(1, 8)])
+    cluster = LocalCUDACluster(
+        protocol="tcp", rmm_managed_memory=True, CUDA_VISIBLE_DEVICES=visible_devices
+    )
+    client = Client(cluster)
+    Comms.initialize(p2p=True)
+    rmm.reinitialize(managed_memory=True)
+    rmm.mr.set_current_device_resource(rmm.mr.ManagedMemoryResource())
 
-    return (client, cluster)
+    return cluster, client
 
 
 def stop_mg(client, cluster) -> None:
@@ -179,14 +186,13 @@ def save_data(
         args: argparse.Namespace,
         dir: str,
         file_name: str,
-        data: Union[pd.DataFrame, cudf.DataFrame, dask_cudf.DataFrame],
-        mg: bool = False) -> None:
+        data: Union[pd.DataFrame, cudf.DataFrame, dask_cudf.DataFrame]) -> None:
     """
     Saves pandas/cudf/dask_cudf data to the specified file.
     """
     dir_path = os.path.join(args.outdir, dir)
 
-    if mg:
+    if args.mg:
         f = os.path.join(dir_path, f"{file_name}")
     else:
         f = os.path.join(dir_path, f"{file_name}.{args.format}")
@@ -318,7 +324,7 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
     print(f"\tnumber of nodes {max_id}")
 
     name = "edge"
-    save_data(args, paper_cite_dir, name, coo, mg=args.mg)
+    save_data(args, paper_cite_dir, name, coo)
 
     del coo
 
@@ -342,7 +348,7 @@ def create_papers_data(
     # if args.mg:
     #    nodes = pd.DataFrame()
     # else:
-    #    nodes = cudf_sg.DataFrame()
+    #    nodes = cudf.DataFrame()
 
     nodes = pd.DataFrame()
 
@@ -457,7 +463,7 @@ def create_author_papers_data(
     if (num_authors * avg_papers) > 2000000000:
         df = pd.DataFrame()
     else:
-        df = cudf_sg.DataFrame()
+        df = cudf.DataFrame()
 
     a = np.random.normal(loc=avg_papers, scale=10, size=num_authors)
     df["count"] = a
@@ -488,16 +494,29 @@ def create_author_papers_data(
 
     if isinstance(df, pd.DataFrame):
         data = pd.concat(auth_paper_array)
+    elif args.mg:
+        num_workers = len(Comms.get_workers())
+        data = dask_cudf.concat(
+            [
+                dask_cudf.from_cudf(df, npartitions=2 * num_workers)
+                for df in auth_paper_array
+            ]
+        ).persist()
     else:
-        data = cudf_sg.concat(auth_paper_array)
+        data = cudf.concat(auth_paper_array)
 
     del auth_paper_array
     del df
-    data.drop(columns=["count"], inplace=True)
+    if args.mg:
+        data = data.drop(columns=['count'])
+    else:
+        data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes paper data")
     name = "edge"
     save_data(args, author_paper_dir, name, data)
+
+    del data
 
     return num_authors
 
@@ -524,19 +543,12 @@ def create_author_institute_data(
     # see if the data fits into one GPUs
     # - one GPU use cudf
     # - larger use pandas
-    if (num_institutes * avg_works) > 2000000000:
+    if (num_institutes * avg_works) > 2_000_000_000:
         df = pd.DataFrame()
     else:
-        df = cudf_sg.DataFrame()
+        df = cudf.DataFrame()
 
-    if avg_works < 0:
-        # low = 0
-        center = 0
-    else:
-        # low = 1
-        center = int(avg_works * num_institutes)
-
-    a = np.random.normal(loc=center, scale=5, size=num_authors)
+    a = np.random.normal(loc=avg_works, scale=2, size=num_authors)
     df["count"] = a
     df.reset_index(inplace=True)
     df.rename(columns={"index": "author"}, inplace=True)
@@ -564,14 +576,25 @@ def create_author_institute_data(
 
     if isinstance(df, pd.DataFrame):
         data = pd.concat(auth_work_array)
+    elif args.mg:
+        num_workers = len(Comms.get_workers())
+        data = dask_cudf.concat(
+            [
+                dask_cudf.from_cudf(df, npartitions=2 * num_workers)
+                for df in auth_work_array
+            ]
+        ).persist()
     else:
-        data = cudf_sg.concat(auth_work_array)
+        data = cudf.concat(auth_work_array)
 
     del auth_work_array
 
-    data.drop(columns=["count"], inplace=True)
+    if args.mg:
+        data = data.drop(columns=["count"])
+    else:
+        data.drop(columns=["count"], inplace=True)
 
-    print("Save the author writes works at institution")
+    print("Save the author affiliated with institution")
     name = "edge"
     save_data(args, author_institute_dir, name, data)
 
@@ -760,10 +783,6 @@ def main() -> None:
     next_id = num_papers + num_auth + 1
     num_inst = create_author_institute_data(args, (next_id), num_auth)
 
-    if args.mg:
-        print("Stopping cluster")
-        stop_mg(client, cluster)
-
     with open(os.path.join(args.outdir, 'meta.json'), 'w') as out_json_file:
         json.dump(
             {
@@ -787,6 +806,10 @@ def main() -> None:
 
         )
     print("DONE")
+
+    if args.mg:
+        print("Stopping cluster")
+        stop_mg(client, cluster)
 
 
 if __name__ == "__main__":
