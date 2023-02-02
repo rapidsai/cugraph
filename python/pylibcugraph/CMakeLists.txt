@@ -64,7 +64,7 @@ if (NOT cugraph_FOUND)
   if(CUGRAPH_BUILD_WHEELS)
     # Statically link dependencies if building wheels
     set(CUDA_STATIC_RUNTIME ON)
-    set(USE_RAFT_STATIC OFF)
+    set(USE_RAFT_STATIC ON)
     set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
     set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
     set(ALLOW_CLONE_CUGRAPH_OPS ON)
