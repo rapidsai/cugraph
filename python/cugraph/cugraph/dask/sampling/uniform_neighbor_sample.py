@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy
-from dask.distributed import wait
+from dask.distributed import wait, Lock, get_client
 from cugraph.dask.common.input_utils import get_distributed_data
 
 
@@ -131,6 +131,49 @@ def _call_plc_uniform_neighbor_sample(
     return convert_to_cudf(cp_arrays, weight_t, with_edge_properties)
 
 
+def _mg_call_plc_uniform_neighbor_sample(
+    client,
+    session_id,
+    input_graph,
+    ddf,
+    fanout_vals,
+    with_replacement,
+    weight_t,
+    indices_t,
+    with_edge_properties,
+    random_state,
+):
+    result = [
+        client.submit(
+            _call_plc_uniform_neighbor_sample,
+            session_id,
+            input_graph._plc_graph[w],
+            ddf[w][0],
+            fanout_vals,
+            with_replacement,
+            weight_t=weight_t,
+            with_edge_properties=with_edge_properties,
+            # FIXME accept and properly transmute a numpy/cupy random state.
+            random_state=hash((random_state, i)),
+            workers=[w],
+            allow_other_workers=False,
+            pure=False,
+        )
+        for i, w in enumerate(Comms.get_workers())
+    ]
+
+    empty_df = (
+        create_empty_df_with_edge_props(indices_t, weight_t)
+        if with_edge_properties
+        else create_empty_df(indices_t, weight_t)
+    )
+
+    ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
+    wait(ddf)
+    wait([r.release() for r in result])
+    return ddf
+
+
 def uniform_neighbor_sample(
     input_graph,
     start_list,
@@ -139,6 +182,7 @@ def uniform_neighbor_sample(
     with_edge_properties=False,
     batch_id_list=None,
     random_state=None,
+    _multiple_clients=False,
 ):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -174,6 +218,10 @@ def uniform_neighbor_sample(
     random_state: int, optional
         Random seed to use when making sampling calls.
 
+    _multiple_clients: bool, optional (default=False)
+        internal flag to ensure sampling works with multiple dask clients
+        set to True to prevent hangs in multi-client environment
+
     Returns
     -------
     result : dask_cudf.DataFrame
@@ -204,6 +252,7 @@ def uniform_neighbor_sample(
             df['hop_id']: dask_cudf.Series
                 Contains the hop ids from the sampling result
     """
+
     if isinstance(start_list, int):
         start_list = [start_list]
 
@@ -255,38 +304,46 @@ def uniform_neighbor_sample(
         wait(ddf)
         ddf = ddf.worker_to_parts
 
-    client = input_graph._client
-
+    client = get_client()
     session_id = Comms.get_session_id()
-
-    result = [
-        client.submit(
-            _call_plc_uniform_neighbor_sample,
-            session_id,
-            input_graph._plc_graph[w],
-            ddf[w][0],
-            fanout_vals,
-            with_replacement,
+    if _multiple_clients:
+        # Distributed centralized lock to allow
+        # two disconnected processes (clients) to coordinate a lock
+        # https://docs.dask.org/en/stable/futures.html?highlight=lock#distributed.Lock
+        lock = Lock("plc_graph_access")
+        if lock.acquire(timeout=100):
+            try:
+                ddf = _mg_call_plc_uniform_neighbor_sample(
+                    client=client,
+                    session_id=session_id,
+                    input_graph=input_graph,
+                    ddf=ddf,
+                    fanout_vals=fanout_vals,
+                    with_replacement=with_replacement,
+                    weight_t=weight_t,
+                    indices_t=indices_t,
+                    with_edge_properties=with_edge_properties,
+                    random_state=random_state,
+                )
+            finally:
+                lock.release()
+        else:
+            raise RuntimeError(
+                "Failed to acquire lock(plc_graph_access) while trying to sampling"
+            )
+    else:
+        ddf = _mg_call_plc_uniform_neighbor_sample(
+            client=client,
+            session_id=session_id,
+            input_graph=input_graph,
+            ddf=ddf,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
             weight_t=weight_t,
+            indices_t=indices_t,
             with_edge_properties=with_edge_properties,
-            # FIXME accept and properly transmute a numpy/cupy random state.
-            random_state=hash((random_state, i)),
-            workers=[w],
-            allow_other_workers=False,
-            pure=False,
+            random_state=random_state,
         )
-        for i, w in enumerate(Comms.get_workers())
-    ]
-
-    empty_df = (
-        create_empty_df_with_edge_props(indices_t, weight_t)
-        if with_edge_properties
-        else create_empty_df(indices_t, weight_t)
-    )
-
-    ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
-    wait(ddf)
-    wait([r.release() for r in result])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)

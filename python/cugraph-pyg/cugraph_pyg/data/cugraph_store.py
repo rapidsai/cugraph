@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Any, Union, List
+from typing import Optional, Tuple, Any, Union, List, Dict
+
 from enum import Enum
 
 from dataclasses import dataclass
@@ -19,16 +20,13 @@ from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
-
 import numpy as np
+import cupy
 import pandas
 import cudf
 import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
-
-# FIXME drop cupy support and make torch the only backend (#2995)
-import cupy
 
 import dask.dataframe as dd
 from dask.distributed import get_client
@@ -40,6 +38,12 @@ Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
 NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 
 TensorType = Union[Tensor, NdArray]
+
+
+def _torch_as_array(a):
+    if len(a) == 0:
+        return torch.as_tensor(a.get()).to("cuda")
+    return torch.as_tensor(a, device="cuda")
 
 
 class EdgeLayout(Enum):
@@ -118,7 +122,7 @@ class CuGraphTensorAttr:
     # The node indices the rows of the tensor correspond to. Defaults to UNSET.
     index: Optional[Any] = _field_status.UNSET
 
-    # The properties in the PropertyGraph the rows of the tensor correspond to.
+    # The properties in the FeatureStore the rows of the tensor correspond to.
     # Defaults to UNSET.
     properties: Optional[Any] = _field_status.UNSET
 
@@ -187,31 +191,38 @@ class EXPERIMENTAL__CuGraphStore:
         self, F, G, num_nodes_dict, backend: str = "torch", multi_gpu: bool = False
     ):
         """
-        Constructs a new CuGraphStore from the provided
-        arguments.
-        Parameters
-        ----------
-        F : cugraph.gnn.FeatureStore (Required)
-            The feature store containing this graph's features.
-            Typed lexicographic-ordered numbering convention
-            should match that of the graph.
-        G : dict[tuple[tensor]] (Required)
-            Dictionary of edge indices.
-            i.e. {
-                ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
-                ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
-            }
-            Note: the internal cugraph representation will use
-            offsetted vertex and edge ids.
-        num_nodes_dict : dict (Required)
-            A dictionary mapping each node type to the count of nodes
-            of that type in the graph.
-        backend : ('torch', 'cupy') (Required)
-            The backend that manages tensors (default = 'torch')
-            Should usually be 'torch' ('torch', 'cupy' supported).
-        multi_gpu : bool (Required)
-            Whether the store should be backed by a multi-GPU graph.
-            Requires dask to have been set up.
+                Constructs a new CuGraphStore from the provided
+                arguments.
+                Parameters
+                ----------
+                F : cugraph.gnn.FeatureStore (Required)
+                    The feature store containing this graph's features.
+                    Typed lexicographic-ordered numbering convention
+                    should match that of the graph.
+                G : dict[tuple[tensor]] (Required)
+                    Dictionary of edge indices.
+                    i.e. {
+                        ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                        ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+                    }
+                    Note: the internal cugraph representation will use
+                    offsetted vertex and edge ids.
+                num_nodes_dict : dict (Required)
+                    A dictionary mapping each node type to the count of nodes
+                    of that type in the graph.
+        <<<<<<< HEAD
+                backend : ('torch', 'cupy') (Required)
+                    The backend that manages tensors (default = 'torch')
+                    Should usually be 'torch' ('torch', 'cupy' supported).
+                multi_gpu : bool (Required)
+        =======
+                backend : ('torch', 'cupy') (Optional, default = 'torch')
+                    The backend that manages tensors (default = 'torch')
+                    Should usually be 'torch' ('torch', 'cupy' supported).
+                multi_gpu : bool (Optional, default = False)
+        >>>>>>> 64dabc361caa5088945fddc82c0c05ed72e5cb7c
+                    Whether the store should be backed by a multi-GPU graph.
+                    Requires dask to have been set up.
         """
 
         if None in G:
@@ -219,14 +230,14 @@ class EXPERIMENTAL__CuGraphStore:
 
         # FIXME drop the cupy backend and remove these checks (#2995)
         if backend == "torch":
-            from torch.utils.dlpack import from_dlpack
+            asarray = _torch_as_array
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
             from torch import concatenate as concatenate
             from torch import arange as arange
         elif backend == "cupy":
-            from cupy import from_dlpack
+            from cupy import asarray
             from cupy import int64 as vertex_dtype
             from cupy import float32 as property_dtype
             from cupy import searchsorted as searchsorted
@@ -236,7 +247,7 @@ class EXPERIMENTAL__CuGraphStore:
             raise ValueError(f"Invalid backend {backend}.")
 
         self.__backend = backend
-        self.from_dlpack = from_dlpack
+        self.asarray = asarray
         self.vertex_dtype = vertex_dtype
         self.property_dtype = property_dtype
         self.searchsorted = searchsorted
@@ -279,7 +290,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         return offsets
 
-    def __infer_offsets(self, num_nodes_dict, num_edges_dict) -> None:
+    def __infer_offsets(
+        self,
+        num_nodes_dict: Dict[str, int],
+        num_edges_dict: Dict[Tuple[str, str, str], int],
+    ) -> None:
         """
         Sets the vertex offsets for this store.
         """
@@ -295,9 +310,35 @@ class EXPERIMENTAL__CuGraphStore:
             }
         )
 
-    def __construct_graph(self, edge_info, multi_gpu=False) -> cugraph.MultiGraph:
+    def __construct_graph(
+        self, edge_info: Dict[Tuple[str, str, str], List], multi_gpu: bool = False
+    ) -> cugraph.MultiGraph:
+        """
+        This function takes edge information and uses it to construct
+        a cugraph Graph.  It determines the numerical edge type by
+        sorting the keys of the input dictionary
+        (the canonical edge types).
+
+        Parameters
+        ----------
+        edge_info: Dict[Tuple[str, str, str]] (Required)
+            Input edge info dictionary, where keys are the canonical
+            edge type and values are the edge index (src/dst).
+
+        multi_gpu: bool (Optional, default=False)
+            Whether to construct a single-GPU or multi-GPU cugraph Graph.
+            Defaults to a single-GPU graph.
+        Returns
+        -------
+        A newly-constructed directed cugraph.MultiGraph object.
+        """
         # Ensure the original dict is not modified.
         edge_info_cg = {}
+
+        # Iterate over the keys in sorted order so that the created
+        # numerical types correspond to the lexicographic order
+        # of the keys, which is critical to converting the numeric
+        # keys back to canonical edge types later.
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
@@ -324,15 +365,12 @@ class EXPERIMENTAL__CuGraphStore:
             ]
         )
 
+        et_offsets = self.__edge_type_offsets
         na_etp = np.concatenate(
             [
-                np.array(
-                    [i]
-                    * int(
-                        self.__edge_type_offsets["stop"][i]
-                        - self.__edge_type_offsets["start"][i]
-                        + 1
-                    ),
+                np.full(
+                    int(et_offsets["stop"][i] - et_offsets["start"][i] + 1),
+                    i,
                     dtype="int32",
                 )
                 for i in range(len(self.__edge_type_offsets["start"]))
@@ -351,8 +389,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         if multi_gpu:
             nworkers = len(get_client().scheduler_info()["workers"])
-            npartitions = nworkers * 1
-            df = dd.from_pandas(df, npartitions=npartitions).persist()
+            df = dd.from_pandas(df, npartitions=nworkers).persist()
             df = df.map_partitions(cudf.DataFrame.from_pandas)
         else:
             df = cudf.from_pandas(df)
@@ -389,7 +426,7 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
-        return isinstance(self.__graph._plc_graph, dict)
+        return self.__graph.is_multi_gpu()
 
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
@@ -455,6 +492,14 @@ class EXPERIMENTAL__CuGraphStore:
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
 
+        # Currently, graph creation enforces that legacy_renum_only=True
+        # is always called, and the input vertex ids are always of integer
+        # type.  Therefore, it is currently safe to assume that for MG
+        # graphs, the src/dst col names are renumbered_src/dst
+        # and for SG graphs, the src/dst col names are src/dst.
+        # This may change in the future if/when renumbering or the graph
+        # creation process is refactored.
+        # See Issue #3201 for more details.
         if self._is_delayed:
             src_col_name = self.__graph.renumber_map.renumbered_src_col_name
             dst_col_name = self.__graph.renumber_map.renumbered_dst_col_name
@@ -498,8 +543,8 @@ class EXPERIMENTAL__CuGraphStore:
         if self._is_delayed:
             df = df.compute()
 
-        src = self.from_dlpack(df[src_col_name].to_dlpack()) - src_offset
-        dst = self.from_dlpack(df[dst_col_name].to_dlpack()) - dst_offset
+        src = self.asarray(df[src_col_name]) - src_offset
+        dst = self.asarray(df[dst_col_name]) - dst_offset
 
         if self.__backend == "torch":
             src = src.to(self.vertex_dtype)
@@ -590,9 +635,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         """
 
-        nodes_of_interest = self.from_dlpack(
-            nodes_of_interest.sort_values().to_dlpack()
-        )
+        nodes_of_interest = self.asarray(nodes_of_interest.sort_values())
 
         noi_index = {}
 
@@ -601,7 +644,7 @@ class EXPERIMENTAL__CuGraphStore:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
             noi_type_indices = self.searchsorted(
-                self.from_dlpack(self.__vertex_type_offsets["stop"].__dlpack__()),
+                self.asarray(self.__vertex_type_offsets["stop"]),
                 nodes_of_interest,
             )
 
@@ -613,7 +656,7 @@ class EXPERIMENTAL__CuGraphStore:
             for type_name, ix in noi_types.items():
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
-                ix = self.from_dlpack(ix.to_dlpack())
+                ix = self.asarray(ix)
                 # subtract off the offsets
                 noi_index[type_name] = nodes_of_interest[ix] - noi_starts[ix]
 
@@ -665,12 +708,12 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            sources = self.from_dlpack(sampling_results.sources.to_dlpack())
+            sources = self.asarray(sampling_results.sources)
             src_id_table = noi_index[src_type]
             src = self.searchsorted(src_id_table, sources)
             row_dict[t_pyg_type] = src
 
-            destinations = self.from_dlpack(sampling_results.destinations.to_dlpack())
+            destinations = self.asarray(sampling_results.destinations)
             dst_id_table = noi_index[dst_type]
             dst = self.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
@@ -690,9 +733,7 @@ class EXPERIMENTAL__CuGraphStore:
                 src_type, _, dst_type = pyg_can_edge_type
 
                 # Get the de-offsetted sources
-                sources = self.from_dlpack(
-                    sampling_results.sources.iloc[ix].to_dlpack()
-                )
+                sources = self.asarray(sampling_results.sources.iloc[ix])
                 sources_ix = self.searchsorted(
                     self.__vertex_type_offsets["stop"], sources
                 )
@@ -704,9 +745,7 @@ class EXPERIMENTAL__CuGraphStore:
                 row_dict[pyg_can_edge_type] = src
 
                 # Get the de-offsetted destinations
-                destinations = self.from_dlpack(
-                    sampling_results.destinations.iloc[ix].to_dlpack()
-                )
+                destinations = self.asarray(sampling_results.destinations.iloc[ix])
                 destinations_ix = self.searchsorted(
                     self.__vertex_type_offsets["stop"], destinations
                 )

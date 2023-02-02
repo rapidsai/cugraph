@@ -15,71 +15,10 @@ from cugraph_pyg.sampler import CuGraphSampler
 
 import cudf
 import cupy
-import numpy as np
 
 import pytest
 
-from cugraph.gnn import FeatureStore
 from cugraph_pyg.data import CuGraphStore
-
-
-@pytest.fixture
-def basic_graph_1():
-    G = {
-        ("vt1", "pig", "vt1"): [
-            np.array([0, 0, 1, 2, 2, 3]),
-            np.array([1, 2, 4, 3, 4, 1]),
-        ]
-    }
-
-    N = {"vt1": 5}
-
-    F = FeatureStore()
-    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
-
-    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
-
-    return F, G, N
-
-
-@pytest.fixture
-def multi_edge_multi_vertex_graph_1():
-
-    G = {
-        ("brown", "horse", "brown"): [
-            np.array([0, 0]),
-            np.array([1, 2]),
-        ],
-        ("brown", "duck", "black"): [
-            np.array([1, 1, 2]),
-            np.array([1, 0, 1]),
-        ],
-        ("brown", "mongoose", "black"): [
-            np.array([2, 1]),
-            np.array([0, 1]),
-        ],
-        ("black", "cow", "brown"): [
-            np.array([0, 0]),
-            np.array([1, 2]),
-        ],
-        ("black", "snake", "black"): [
-            np.array([1]),
-            np.array([0]),
-        ],
-    }
-
-    N = {"brown": 3, "black": 2}
-
-    F = FeatureStore()
-    F.add_data(np.array([100, 200, 300]), type_name="brown", feat_name="prop1")
-
-    F.add_data(np.array([400, 500]), type_name="black", feat_name="prop1")
-
-    F.add_data(np.array([5, 4, 3]), type_name="brown", feat_name="prop2")
-
-    F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
-
-    return F, G, N
 
 
 @pytest.mark.cugraph_ops
@@ -184,10 +123,6 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_clie
         actual_vertex_ids = cupy.arange(N[node_type])
 
         assert list(node_ids) == list(actual_vertex_ids)
-
-    print("row:", row_dict)
-    print("col:", col_dict)
-    print("G:", G)
 
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(

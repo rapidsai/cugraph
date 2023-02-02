@@ -18,7 +18,7 @@ import os
 import cupy
 import cudf
 
-from cugraph.experimental import BulkSampler
+from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_pyg.data import CuGraphStore
@@ -102,7 +102,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = bulk_sampler.batches_per_partition
 
         # Make sure indices are in cupy
-        all_indices = cupy.from_dlpack(all_indices.__dlpack__())
+        all_indices = cupy.asarray(all_indices)
 
         # Shuffle
         if shuffle:
