@@ -27,7 +27,7 @@
 struct Uniform_Neighbor_Sampling_Usecase {
   std::vector<int32_t> fanout{{-1}};
   int32_t batch_size{10};
-  bool flag_replacement{true};
+  bool with_replacement{true};
   bool check_correctness{true};
 };
 
@@ -165,7 +165,7 @@ class Tests_MGUniform_Neighbor_Sampling
                    raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                                   uniform_neighbor_sampling_usecase.fanout.size()),
                    rng_state,
-                   uniform_neighbor_sampling_usecase.flag_replacement),
+                   uniform_neighbor_sampling_usecase.with_replacement),
                  std::exception);
 #else
     if (cugraph::test::g_perf) {
@@ -187,7 +187,7 @@ class Tests_MGUniform_Neighbor_Sampling
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,
-        uniform_neighbor_sampling_usecase.flag_replacement);
+        uniform_neighbor_sampling_usecase.with_replacement);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -325,8 +325,8 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGUniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, false, true},
-                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -335,8 +335,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGUniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true},
-                                       Uniform_Neighbor_Sampling_Usecase{{2}, 10, true, true}),
+  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
@@ -347,8 +347,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGUniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, false},
-                                       Uniform_Neighbor_Sampling_Usecase{{2}, 500, true, false}),
+  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
+                                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
