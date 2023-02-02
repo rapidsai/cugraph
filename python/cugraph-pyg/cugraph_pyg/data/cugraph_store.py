@@ -191,38 +191,31 @@ class EXPERIMENTAL__CuGraphStore:
         self, F, G, num_nodes_dict, backend: str = "torch", multi_gpu: bool = False
     ):
         """
-                Constructs a new CuGraphStore from the provided
-                arguments.
-                Parameters
-                ----------
-                F : cugraph.gnn.FeatureStore (Required)
-                    The feature store containing this graph's features.
-                    Typed lexicographic-ordered numbering convention
-                    should match that of the graph.
-                G : dict[tuple[tensor]] (Required)
-                    Dictionary of edge indices.
-                    i.e. {
-                        ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
-                        ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
-                    }
-                    Note: the internal cugraph representation will use
-                    offsetted vertex and edge ids.
-                num_nodes_dict : dict (Required)
-                    A dictionary mapping each node type to the count of nodes
-                    of that type in the graph.
-        <<<<<<< HEAD
-                backend : ('torch', 'cupy') (Required)
-                    The backend that manages tensors (default = 'torch')
-                    Should usually be 'torch' ('torch', 'cupy' supported).
-                multi_gpu : bool (Required)
-        =======
-                backend : ('torch', 'cupy') (Optional, default = 'torch')
-                    The backend that manages tensors (default = 'torch')
-                    Should usually be 'torch' ('torch', 'cupy' supported).
-                multi_gpu : bool (Optional, default = False)
-        >>>>>>> 64dabc361caa5088945fddc82c0c05ed72e5cb7c
-                    Whether the store should be backed by a multi-GPU graph.
-                    Requires dask to have been set up.
+        Constructs a new CuGraphStore from the provided
+        arguments.
+        Parameters
+        ----------
+        F : cugraph.gnn.FeatureStore (Required)
+            The feature store containing this graph's features.
+            Typed lexicographic-ordered numbering convention
+            should match that of the graph.
+        G : dict[tuple[tensor]] (Required)
+            Dictionary of edge indices.
+            i.e. {
+                ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+            }
+            Note: the internal cugraph representation will use
+            offsetted vertex and edge ids.
+        num_nodes_dict : dict (Required)
+            A dictionary mapping each node type to the count of nodes
+            of that type in the graph.
+        backend : ('torch', 'cupy') (Optional, default = 'torch')
+            The backend that manages tensors (default = 'torch')
+            Should usually be 'torch' ('torch', 'cupy' supported).
+        multi_gpu : bool (Optional, default = False)
+            Whether the store should be backed by a multi-GPU graph.
+            Requires dask to have been set up.
         """
 
         if None in G:
