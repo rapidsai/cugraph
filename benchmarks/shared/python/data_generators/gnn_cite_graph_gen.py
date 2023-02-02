@@ -16,7 +16,7 @@ Create a synthetic graph that is similar to a citation network
 and in OGB format.
 
 Since this matches OGB MAG/MAD240 - the node types and edge types are set
-Node Types:  Paper, Author, Institution   
+Node Types:  Paper, Author, Institution
 Edge Types:  cites, writes, affiliated with
 
 Also, since the format is defined, so are subdirectories:
@@ -45,31 +45,28 @@ python gnn_cite_graph_gen.py \
 import os
 import ast
 import argparse
+import json
 
 import numpy as np
 import pandas as pd
 
 import rmm
 
-import cugraph
 from cugraph.generators import rmat
 from cugraph.structure import NumberMap
 
 import cudf as cudf_sg
-import dask_cudf as cudf_mg
-import cugraph.dask as dask_cugraph
 
-import dask
-from dask.distributed import Client, wait
+from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from cugraph.dask.comms import comms as Comms
 
 
 # --- Some global attributes
-paper_dir = "/paper"
-paper_cite_dir = "/paper__cites__paper"
-author_paper_dir = "/author__writes__paper"
-author_institute_dir = "/author__affiliated_with__institution"
+paper_dir = "paper"
+paper_cite_dir = "paper__cites__paper"
+author_paper_dir = "author__writes__paper"
+author_institute_dir = "author__affiliated_with__institution"
 
 
 def setup_sg() -> None:
@@ -114,24 +111,25 @@ def setup_directories(basedir):
     make_dir(basedir)
 
     # Paper
-    make_dir(basedir + paper_dir)
+    make_dir(os.path.join(basedir, paper_dir))
 
     # Paper Cites
-    make_dir(basedir + paper_cite_dir)
+    make_dir(os.path.join(basedir, paper_cite_dir))
 
     # Paper Author
-    make_dir(basedir + author_paper_dir)
+    make_dir(os.path.join(basedir, author_paper_dir))
 
     # Author - Institution
-    make_dir(basedir + author_institute_dir)
+    make_dir(os.path.join(basedir, author_institute_dir))
 
 
 def save_data(args, dir, file_name, data, mg=False):
+    dir_path = os.path.join(args.outdir, dir)
 
     if mg:
-        f = os.path.join(dir, f"{file_name}")
+        f = os.path.join(dir_path, f"{file_name}")
     else:
-        f = os.path.join(dir, f"{file_name}.{args.format}")
+        f = os.path.join(dir_path, f"{file_name}.{args.format}")
     print(f"\tsaving to {f}")
 
     if args.format == "parquet":
@@ -140,9 +138,14 @@ def save_data(args, dir, file_name, data, mg=False):
         data.to_csv(f, header=False, index=False)
 
 
-def create_base_labeled_features(num: int) -> np.array:
-    # all values are floats
-    return np.random.uniform(-1, 1, size=num)
+def write_numpy(args, arr, directory, name):
+    output_path = os.path.join(
+        os.path.join(args.outdir, directory),
+        name
+    )
+
+    np.save(output_path, arr)
+    return output_path
 
 
 def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False):
@@ -224,7 +227,7 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
     print("\tCreate RMAT data and renumber")
     coo = create_rmat_dataset(
         scale=args.papersScale,
-        edgefactor=args.papersEgefactor,
+        edgefactor=args.papersEdgeFactor,
         seed=args.seed,
         mg=args.mg,
     )
@@ -238,9 +241,8 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
     print(f"\tnumber of edges {len(coo)}")
     print(f"\tnumber of nodes {max_id}")
 
-    dir = args.outdir + paper_cite_dir
     name = "edge"
-    save_data(args, dir, name, coo, mg=args.mg)
+    save_data(args, paper_cite_dir, name, coo, mg=args.mg)
 
     del coo
 
@@ -262,8 +264,10 @@ def create_papers_data(args, num_papers):
 
     nodes = pd.DataFrame()
 
+    rng = np.random.default_rng(seed=args.seed)
+
     # create an np.array of random numbers and add to dataframe
-    ran = np.random.randint(0, num_papers, size=num_papers)
+    ran = rng.integers(0, num_papers, size=num_papers)
     nodes["rand"] = ran
 
     # now computed which are labeled
@@ -279,10 +283,15 @@ def create_papers_data(args, num_papers):
     labeled_df.drop(columns=["label"], inplace=True)
 
     # Save the list
-    dir = args.outdir + paper_dir
-    name = "node-label"
-    save_data(args, dir, name, labeled_df)
+    name = "node_label"
+    save_data(args, paper_dir, name, labeled_df)
 
+    perm = rng.permutation(len(labeled_df))
+    partition_first = int(len(labeled_df) * args.validationPercent)
+    partition_second = partition_first + int(len(labeled_df) * args.testPercent)
+    val_ix = labeled_df['index'].iloc[perm[:partition_first]]
+    test_ix = labeled_df['index'].iloc[perm[partition_first:partition_second]]
+    train_ix = labeled_df['index'].iloc[perm[partition_second:]]
     # some cleanup
     del ran
     del labeled_df
@@ -291,9 +300,6 @@ def create_papers_data(args, num_papers):
     # --------------------
     # Now paper features
     num_f = args.papersNumFeatures
-
-    # define the base "labeld" data
-    labeled_features = create_base_labeled_features(num_f)
 
     tmp_df = pd.DataFrame()
 
@@ -305,7 +311,7 @@ def create_papers_data(args, num_papers):
         tmp_df["noise"] = noise
 
         ran = np.random.uniform(-1, 1, size=num_papers)
-        tmp_df["data"] = noise
+        tmp_df["data"] = ran
 
         col_name = "feature_" + str(x)
         nodes[col_name] = tmp_df["noise"] + tmp_df["data"]
@@ -315,16 +321,27 @@ def create_papers_data(args, num_papers):
     # Save the features
     data = nodes.to_numpy()
 
-    name = "node-feat.npy"
-    dir = args.outdir + paper_dir
-    f = os.path.join(dir, f"{name}")
-    print(f"\tsaving features to {f}")
-    np.save(f, data)
+    output_path = write_numpy(args, data, paper_dir, 'node_feat.npy')
+    print(f'\tsaved features to {output_path}')
+
+    return train_ix, test_ix, val_ix
 
 
-# -----------------------------------------------------------------------
-#
-#
+def create_paper_labels(args, train_ix, test_ix, val_ix):
+    rng = np.random.default_rng(seed=args.seed)
+
+    train_labels = rng.integers(0, args.numClasses, len(train_ix))
+    test_labels = rng.integers(0, args.numClasses, len(test_ix))
+    val_labels = rng.integers(0, args.numClasses, len(val_ix))
+
+    output_path = write_numpy(args, train_labels, paper_dir, 'train_labels.npy')
+    print(f'Saved test labels to {output_path}')
+    output_path = write_numpy(args, test_labels, paper_dir, 'test_labels.npy')
+    print(f'Saved test labels to {output_path}')
+    output_path = write_numpy(args, val_labels, paper_dir, 'val_labels.npy')
+    print(f'Saved validation labels to {output_path}')
+
+
 def create_author_papers_data(args, start_id, num_papers) -> int:
     num_authors = int(num_papers * args.authorPercent)
     avg_papers = args.authorAvgNumPapers
@@ -381,9 +398,8 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
     data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes paper data")
-    dir = args.outdir + author_paper_dir
     name = "edge"
-    save_data(args, dir, name, data)
+    save_data(args, author_paper_dir, name, data)
 
     return num_authors
 
@@ -410,10 +426,10 @@ def create_author_institute_data(args, start_id, num_authors):
         df = cudf_sg.DataFrame()
 
     if avg_works < 0:
-        low = 0
+        # low = 0
         center = 0
     else:
-        low = 1
+        # low = 1
         center = int(avg_works * num_institutes)
 
     a = np.random.normal(loc=center, scale=5, size=num_authors)
@@ -452,11 +468,10 @@ def create_author_institute_data(args, start_id, num_authors):
     data.drop(columns=["count"], inplace=True)
 
     print("Save the author writes works at institution")
-    dir = args.outdir + author_institute_dir
     name = "edge"
-    save_data(args, dir, name, data)
+    save_data(args, author_institute_dir, name, data)
 
-    return num_authors
+    return num_institutes
 
 
 ###################################################
@@ -508,7 +523,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "-papersEgefactor",
+        "-papersEdgeFactor",
         type=int,
         default=15,
         help="Edge Factor - the average number of edges per node.  Default is 16",
@@ -574,12 +589,37 @@ def parse_args() -> argparse.Namespace:
         required=False,
     )
 
+    parser.add_argument(
+        "-testPercent",
+        type=float,
+        default=0.1,
+        help="Percentage of the labeled data used for testing",
+        required=False,
+    )
+
+    parser.add_argument(
+        "-validationPercent",
+        type=float,
+        default=0.05,
+        help="Percentage of the labeled data used for testing",
+        required=False
+    )
+
+    parser.add_argument(
+        "-numClasses",
+        type=float,
+        default=150,
+        help="Number of unique classes (venue labels)",
+        required=False,
+    )
+
     # --- Multi-GPU options
     parser.add_argument(
         "-mg",
         type=bool,
         default=False,
-        help="Run Multi-GPU. This will create a local DASK cluster. Single GPU is limited to Scale 26",
+        help="Run Multi-GPU. This will create a local DASK cluster."
+             " Single GPU is limited to Scale 26",
         required=False,
     )
 
@@ -619,19 +659,44 @@ def main() -> None:
     num_papers = last_paper_id + 1
 
     # --- Step 2: Papers info  (labels and features) ---
-    create_papers_data(args, num_papers)
+    train_ix, test_ix, val_ix = create_papers_data(args, num_papers)
 
-    # --- Step 3:Author to Papers ---
+    # --- Step 3: Paper Labels (venue id) ---
+    create_paper_labels(args, train_ix, test_ix, val_ix)
+
+    # --- Step 4:Author to Papers ---
     num_auth = create_author_papers_data(args, (last_paper_id + 1), num_papers)
 
-    # --- Step 4:Author to Institutions ---
+    # --- Step 5:Author to Institutions ---
     next_id = num_papers + num_auth + 1
-    create_author_institute_data(args, (next_id), num_auth)
+    num_inst = create_author_institute_data(args, (next_id), num_auth)
 
     if args.mg:
         print("Stopping cluster")
         stop_mg(client, cluster)
 
+    with open(os.path.join(args.outdir, 'meta.json'), 'w') as out_json_file:
+        json.dump(
+            {
+                'paper': [
+                    0,
+                    int(last_paper_id)
+                ],
+                'author': [
+                    int(last_paper_id) + 1,
+                    int(last_paper_id + num_auth)
+                ],
+                'institution': [
+                    int(last_paper_id + num_auth) + 1,
+                    int(last_paper_id + num_auth + num_inst) - 1
+                ],
+                'train': train_ix.tolist(),
+                'test': test_ix.tolist(),
+                'val': val_ix.tolist(),
+            },
+            out_json_file,
+
+        )
     print("DONE")
 
 
