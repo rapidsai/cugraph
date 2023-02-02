@@ -21,13 +21,13 @@ Edge Types:  cites, writes, affiliated with
 
 Also, since the format is defined, so are subdirectories:
 
-gived a "base_dir", the following 4 subdirectroies are created
+gived a "base_dir", the following 4 subdirectories are created
 * paper
 * paper__cites__paper
 * author__affiliated_with__institution
 * author__writes__paper
 
-Lastely, the output files names and types (whats in the files) is also defined
+Lastly, the output files names and types (whats in the files) is also defined
 For a homogeneous graph, only load the paper data.
 For a heterogeneous graph, load all data.
 
@@ -36,10 +36,62 @@ python gnn_cite_graph_gen.py \
     -mg True \
     -outdir '/tmp/GNN2' \
     -papersScale 12 \
-    -format "csv" \
+    -format "parquet" \
     -papersLabeledPercent 0.10 \
     -papersFeatureNoise 0.0001
 
+Will output the following into /tmp/GNN2:
+    author__affiliated_with__institution/
+        edge.parquet
+
+    author__writes__paper/
+        edge.parquet
+
+    paper__cites__paper/
+        edge/
+            part.0.parquet
+            part.1.parquet
+            ...
+    paper/
+        node_feat.npy
+        node_label.parquet
+        test_labels.npy
+        train_labels.npy
+        val_labels.npy
+
+    meta.json
+
+The edge parquet files contain the src and dst arrays.
+
+node_feat.npy contains the node features
+and is of shape (# papers, num_features)
+
+node_label.parquet is primarily for debugging.  It is
+a list of the node ids that are labeled.
+
+test_labels.npy contains the class labels (venue)
+for the test data.  It is of shape (# test papers,)
+
+train_labels.npy contains the class labels (venue)
+for the training data.  It is of shape (# train papers,)
+
+val_labels.npy contains the class labels (venue)
+for the validation data.  It is of shape (# validation papers,)
+
+meta.json has the following format:
+{
+    "paper": [paper_ix_start_incl, paper_ix_end_incl],
+    "author": [author_ix_start_incl, author_ix_end_incl],
+    "institution": [institution_ix_start_incl, institution_ix_end_incl],
+    "train": [<indices of nodes in train set>],
+    "test": [<indices of nodes in train set>],
+    "val": [<indices of nodes in train set>]
+}
+The number of nodes for each type can be determined by
+taking ix_end_incl - ix_start_incl + 1
+
+Note: for MG, the number of dask workers can be adjusted by setting
+DASK_NUM_WORKERS.
 
 """
 
