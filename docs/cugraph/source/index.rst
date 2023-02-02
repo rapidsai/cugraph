@@ -20,6 +20,7 @@ General CuGraph Information
   - `Blogs and Presentation <./basics/cugraph_blogs.rst>`_
   - `How-to Guides <./basics/coming_soon.md>`_
   - `Performance  <./basics/coming_soon.md>`_
+  - `Refererences  <./basics/cugraph_ref.rst>`
 
 CuGraph Development and Contributing
   - `Getting cuGraph Packages <./basics/coming_soon.md>`_
