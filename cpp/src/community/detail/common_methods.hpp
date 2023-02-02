@@ -73,7 +73,7 @@ void timer_display(raft::handle_t const& handle, HighResTimer const& hr_timer, s
 }
 
 template <typename map_key_t, typename map_value_t, bool multi_gpu>
-rmm::device_uvector<map_value_t>&& lookup_primitive_values_for_keys(
+rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
   raft::handle_t const& handle,
 
   rmm::device_uvector<map_key_t>& map_keys,

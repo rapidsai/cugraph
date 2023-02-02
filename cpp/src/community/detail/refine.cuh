@@ -158,22 +158,59 @@ build_leiden_to_louvain_map(raft::handle_t const& handle,
                louvain_assignment.end(),
                values_of_leiden_to_louvain_map.begin());
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("*keys_of_leiden_to_louvain_map: ",
+                            keys_of_leiden_to_louvain_map.data(),
+                            keys_of_leiden_to_louvain_map.size(),
+                            std::cout);
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("*values_of_leiden_to_louvain_map: ",
+                            values_of_leiden_to_louvain_map.data(),
+                            values_of_leiden_to_louvain_map.size(),
+                            std::cout);
+
   auto louvain_leiden_zipped_begin = thrust::make_zip_iterator(thrust::make_tuple(
     values_of_leiden_to_louvain_map.begin(), keys_of_leiden_to_louvain_map.begin()));
 
   auto louvain_leiden_zipped_end = thrust::make_zip_iterator(
     thrust::make_tuple(values_of_leiden_to_louvain_map.end(), keys_of_leiden_to_louvain_map.end()));
 
-  thrust::sort(handle.get_thrust_policy(),
-               louvain_leiden_zipped_begin,
-               louvain_leiden_zipped_end,
-               thrust::less<thrust::tuple<vertex_t, vertex_t>>());
+  thrust::sort(
+    handle.get_thrust_policy(),
+    louvain_leiden_zipped_begin,
+    louvain_leiden_zipped_end,
+    [] __device__(auto lhs, auto rhs) { return thrust::get<1>(lhs) < thrust::get<1>(rhs); });
+  //  thrust::less<thrust::tuple<vertex_t, vertex_t>>());
 
-  auto last_unique_louvain_leiden_pair =
-    thrust::unique(handle.get_thrust_policy(),
-                   louvain_leiden_zipped_begin,
-                   louvain_leiden_zipped_end,
-                   thrust::less<thrust::tuple<vertex_t, vertex_t>>());
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << " sorted: " << std::endl;
+  raft::print_device_vector("*keys_of_leiden_to_louvain_map: ",
+                            keys_of_leiden_to_louvain_map.data(),
+                            keys_of_leiden_to_louvain_map.size(),
+                            std::cout);
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("*values_of_leiden_to_louvain_map: ",
+                            values_of_leiden_to_louvain_map.data(),
+                            values_of_leiden_to_louvain_map.size(),
+                            std::cout);
+
+  auto last_unique_louvain_leiden_pair = thrust::unique(
+    handle.get_thrust_policy(),
+    louvain_leiden_zipped_begin,
+    louvain_leiden_zipped_end,
+    [] __device__(auto lhs, auto rhs) { return thrust::get<1>(lhs) == thrust::get<1>(rhs); });
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << " unique: " << std::endl;
+  raft::print_device_vector("*keys_of_leiden_to_louvain_map: ",
+                            keys_of_leiden_to_louvain_map.data(),
+                            keys_of_leiden_to_louvain_map.size(),
+                            std::cout);
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("*values_of_leiden_to_louvain_map: ",
+                            values_of_leiden_to_louvain_map.data(),
+                            values_of_leiden_to_louvain_map.size(),
+                            std::cout);
 
   auto nr_unique_louvain_leiden_pairs = static_cast<size_t>(
     thrust::distance(louvain_leiden_zipped_begin, last_unique_louvain_leiden_pair));
@@ -181,6 +218,17 @@ build_leiden_to_louvain_map(raft::handle_t const& handle,
   keys_of_leiden_to_louvain_map.resize(nr_unique_louvain_leiden_pairs, handle.get_stream());
   values_of_leiden_to_louvain_map.resize(nr_unique_louvain_leiden_pairs, handle.get_stream());
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << " resized: " << std::endl;
+  raft::print_device_vector("**keys_of_leiden_to_louvain_map: ",
+                            keys_of_leiden_to_louvain_map.data(),
+                            keys_of_leiden_to_louvain_map.size(),
+                            std::cout);
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("**values_of_leiden_to_louvain_map: ",
+                            values_of_leiden_to_louvain_map.data(),
+                            values_of_leiden_to_louvain_map.size(),
+                            std::cout);
   return std::make_tuple(std::move(keys_of_leiden_to_louvain_map),
                          std::move(values_of_leiden_to_louvain_map));
 }
@@ -210,9 +258,28 @@ refine_clustering(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << ".... Inside refine_clustering: before lookup_primitive_values_for_keys " << std::endl;
+  raft::print_device_vector(
+    "cluster_keys_v: ", cluster_keys_v.data(), cluster_keys_v.size(), std::cout);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector(
+    "cluster_weights_v: ", cluster_weights_v.data(), cluster_weights_v.size(), std::cout);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector(
+    "louvain_assignment: ", louvain_assignment.data(), louvain_assignment.size(), std::cout);
+
   rmm::device_uvector<weight_t> vertex_cluster_weights_v =
     lookup_primitive_values_for_keys<vertex_t, weight_t, GraphViewType::is_multi_gpu>(
       handle, cluster_keys_v, cluster_weights_v, louvain_assignment);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("vertex_cluster_weights_v: ",
+                            vertex_cluster_weights_v.data(),
+                            vertex_cluster_weights_v.size(),
+                            std::cout);
 
   //
   // For each vertex, compute its weighted degree (||v||)
@@ -250,6 +317,15 @@ refine_clustering(
     thrust::make_zip_iterator(thrust::make_tuple(weighted_degree_of_vertices.begin(),
                                                  weighted_cut_of_vertices_to_louvain.begin())));
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "after per_v_transform_reduce_outgoing_e: " << std::endl;
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("weighted_degree_of_vertices: ",
+                            weighted_degree_of_vertices.data(),
+                            weighted_degree_of_vertices.size(),
+                            std::cout);
+
   rmm::device_uvector<uint8_t> is_vertex_well_connected_in_louvain(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -258,20 +334,38 @@ refine_clustering(
                is_vertex_well_connected_in_louvain.end(),
                uint8_t{0});
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("weighted_cut_of_vertices_to_louvain: ",
+                            weighted_cut_of_vertices_to_louvain.data(),
+                            weighted_cut_of_vertices_to_louvain.size(),
+                            std::cout);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("weighted_degree_of_vertices: ",
+                            weighted_degree_of_vertices.data(),
+                            weighted_degree_of_vertices.size(),
+                            std::cout);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("vertex_cluster_weights_v: ",
+                            vertex_cluster_weights_v.data(),
+                            vertex_cluster_weights_v.size(),
+                            std::cout);
+
   weight_t gamma = 1.0 / 7.0;
 
-  auto w_cut_deg_and_cluster_volume_begin =
+  auto wcut_deg_and_cluster_volume_begin =
     thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.begin(),
                                                  weighted_degree_of_vertices.begin(),
                                                  vertex_cluster_weights_v.begin()));
-  auto w_cut_deg_and_cluster_volume_end =
+  auto wcut_deg_and_cluster_volume_end =
     thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.end(),
                                                  weighted_degree_of_vertices.end(),
                                                  vertex_cluster_weights_v.end()));
 
   thrust::transform(handle.get_thrust_policy(),
-                    w_cut_deg_and_cluster_volume_begin,
-                    w_cut_deg_and_cluster_volume_end,
+                    wcut_deg_and_cluster_volume_begin,
+                    wcut_deg_and_cluster_volume_end,
                     is_vertex_well_connected_in_louvain.begin(),
                     [gamma = gamma] __device__(auto wcut_wdeg_and_louvain_volume) {
                       auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
@@ -348,26 +442,78 @@ refine_clustering(
   rmm::device_uvector<vertex_t> values_of_leiden_to_louvain_map(0, handle.get_stream());
 
   while (true) {
-    rmm::device_uvector<uint8_t> yet_to_consider(graph_view.local_vertex_partition_range_size(),
-                                                 handle.get_stream());
+    // A vertex is considered active if it is singleton and well connected to its louvain
+    rmm::device_uvector<uint8_t> active_flags(graph_view.local_vertex_partition_range_size(),
+                                              handle.get_stream());
+
+    rmm::device_uvector<int32_t> singletons(graph_view.local_vertex_partition_range_size(),
+                                            handle.get_stream());
+    rmm::device_uvector<int32_t> connecteds(graph_view.local_vertex_partition_range_size(),
+                                            handle.get_stream());
+
+    thrust::transform(handle.get_thrust_policy(),
+                      singleton_flags.begin(),
+                      singleton_flags.end(),
+                      singletons.begin(),
+                      [] __device__(auto singleton) { return static_cast<int32_t>(singleton); });
+
+    thrust::transform(handle.get_thrust_policy(),
+                      is_vertex_well_connected_in_louvain.begin(),
+                      is_vertex_well_connected_in_louvain.end(),
+                      connecteds.begin(),
+                      [] __device__(auto connected) { return static_cast<int32_t>(connected); });
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(
+      "singleton_flags: ", singleton_flags.data(), singleton_flags.size(), std::cout);
+    raft::print_device_vector("singletons: ", singletons.data(), singletons.size(), std::cout);
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("is_vertex_well_connected_in_louvain: ",
+                              is_vertex_well_connected_in_louvain.data(),
+                              is_vertex_well_connected_in_louvain.size(),
+                              std::cout);
+    raft::print_device_vector("connecteds: ", connecteds.data(), connecteds.size(), std::cout);
+
     thrust::transform(
       handle.get_thrust_policy(),
       singleton_flags.begin(),
       singleton_flags.end(),
       is_vertex_well_connected_in_louvain.begin(),
-      yet_to_consider.begin(),
+      active_flags.begin(),
       [] __device__(auto singleton, auto well_connected) { return singleton && well_connected; });
 
-    vertex_t remaining_vertices_to_consider =
-      thrust::reduce(handle.get_thrust_policy(), yet_to_consider.begin(), yet_to_consider.end());
+    vertex_t nr_remaining_active_vertices =
+      thrust::reduce(handle.get_thrust_policy(), active_flags.begin(), active_flags.end());
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "nr_remaining_active_vertices: " << nr_remaining_active_vertices << std::endl;
+
+    CUDA_TRY(cudaDeviceSynchronize());
+
+    rmm::device_uvector<int32_t> actives(graph_view.local_vertex_partition_range_size(),
+                                         handle.get_stream());
+
+    thrust::transform(handle.get_thrust_policy(),
+                      active_flags.begin(),
+                      active_flags.end(),
+                      actives.begin(),
+                      [] __device__(auto is_active) { return static_cast<int32_t>(is_active); });
+
+    raft::print_device_vector("actives:", actives.data(), actives.size(), std::cout);
 
     if (GraphViewType::is_multi_gpu) {
-      remaining_vertices_to_consider = host_scalar_allreduce(handle.get_comms(),
-                                                             remaining_vertices_to_consider,
-                                                             raft::comms::op_t::SUM,
-                                                             handle.get_stream());
+      nr_remaining_active_vertices = host_scalar_allreduce(handle.get_comms(),
+                                                           nr_remaining_active_vertices,
+                                                           raft::comms::op_t::SUM,
+                                                           handle.get_stream());
     }
-    if (remaining_vertices_to_consider == 0) { break; }
+
+    std::tie(keys_of_leiden_to_louvain_map, values_of_leiden_to_louvain_map) =
+      build_leiden_to_louvain_map<vertex_t, GraphViewType::is_multi_gpu>(
+        handle, leiden_assignment, louvain_assignment);
+
+    if (nr_remaining_active_vertices == 0) { break; }
 
     // Update Leiden assignment to edge sources and destinitions
     // and singleton mask to edge sources
@@ -406,7 +552,7 @@ refine_clustering(
     // (i.e.sum of weighted degree of all vertices inside it, ||Cr||) and
     // and cut between itself and its Louvain community (E(Cr, S-Cr))
     //
-    // TODO: Can you update ||Cr|| and E(Cr, S-Cr) instead of recomputing?
+    // TODO: Can we update ||Cr|| and E(Cr, S-Cr) instead of recomputing?
 
     std::forward_as_tuple(leiden_keys_used_in_edge_reduction,
                           std::tie(refined_community_volumes, refined_community_cuts)) =
@@ -451,6 +597,22 @@ refine_clustering(
         thrust::make_tuple(weight_t{0}, weight_t{0}),
         reduce_op::plus<thrust::tuple<weight_t, weight_t>>{});
 
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("leiden_keys_used_in_edge_reduction: ",
+                              leiden_keys_used_in_edge_reduction.data(),
+                              leiden_keys_used_in_edge_reduction.size(),
+                              std::cout);
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("refined_community_volumes: ",
+                              refined_community_volumes.data(),
+                              refined_community_volumes.size(),
+                              std::cout);
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("refined_community_cuts: ",
+                              refined_community_cuts.data(),
+                              refined_community_cuts.size(),
+                              std::cout);
+
     //
     // Primitives to decide best (at least good) next clusters for vertices
     //
@@ -481,9 +643,27 @@ refine_clustering(
             detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
               louvain_assignment.data()));
 
-    std::tie(keys_of_leiden_to_louvain_map, values_of_leiden_to_louvain_map) =
-      build_leiden_to_louvain_map<vertex_t, GraphViewType::is_multi_gpu>(
-        handle, leiden_assignment, louvain_assignment);
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("leiden_keys_used_in_edge_reduction: ",
+                              leiden_keys_used_in_edge_reduction.data(),
+                              leiden_keys_used_in_edge_reduction.size(),
+                              std::cout);
+
+    //-->/
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "Inside refine_clustering: before lookup_primitive_values_for_keys 2 "
+              << std::endl;
+    raft::print_device_vector("keys_of_leiden_to_louvain_map: ",
+                              keys_of_leiden_to_louvain_map.data(),
+                              keys_of_leiden_to_louvain_map.size(),
+                              std::cout);
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("values_of_leiden_to_louvain_map: ",
+                              values_of_leiden_to_louvain_map.data(),
+                              values_of_leiden_to_louvain_map.size(),
+                              std::cout);
 
     auto louvain_of_edge_reduced_leiden_keys =
       lookup_primitive_values_for_keys<vertex_t, vertex_t, GraphViewType::is_multi_gpu>(
@@ -491,6 +671,11 @@ refine_clustering(
         keys_of_leiden_to_louvain_map,
         values_of_leiden_to_louvain_map,
         leiden_keys_used_in_edge_reduction);
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("louvain_of_edge_reduced_leiden_keys: ",
+                              louvain_of_edge_reduced_leiden_keys.data(),
+                              louvain_of_edge_reduced_leiden_keys.size(),
+                              std::cout);
 
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
@@ -757,6 +942,17 @@ refine_clustering(
   thrust::sort(handle.get_thrust_policy(),
                leiden_keys_to_read_louvain.begin(),
                leiden_keys_to_read_louvain.end());
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector(
+    "leiden_assignment: ", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("leiden_keys_to_read_louvain: ",
+                            leiden_keys_to_read_louvain.data(),
+                            leiden_keys_to_read_louvain.size(),
+                            std::cout);
+
   auto nr_unique_leiden_clusters =
     static_cast<size_t>(thrust::distance(leiden_keys_to_read_louvain.begin(),
                                          thrust::unique(handle.get_thrust_policy(),
@@ -780,12 +976,33 @@ refine_clustering(
 
   leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "Before call to lookup_primitive_values_for_keys" << std::endl;
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("keys_of_leiden_to_louvain_map: ",
+                            keys_of_leiden_to_louvain_map.data(),
+                            keys_of_leiden_to_louvain_map.size(),
+                            std::cout);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("values_of_leiden_to_louvain_map: ",
+                            values_of_leiden_to_louvain_map.data(),
+                            values_of_leiden_to_louvain_map.size(),
+                            std::cout);
+
   auto lovain_of_leiden_cluster_keys =
     lookup_primitive_values_for_keys<vertex_t, vertex_t, GraphViewType::is_multi_gpu>(
       handle,
       keys_of_leiden_to_louvain_map,
       values_of_leiden_to_louvain_map,
       leiden_keys_to_read_louvain);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("lovain_of_leiden_cluster_keys: ",
+                            lovain_of_leiden_cluster_keys.data(),
+                            lovain_of_leiden_cluster_keys.size(),
+                            std::cout);
 
   return std::make_tuple(std::move(leiden_assignment),
                          std::make_pair(std::move(leiden_keys_to_read_louvain),

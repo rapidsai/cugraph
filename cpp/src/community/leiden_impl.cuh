@@ -107,8 +107,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   //
   // Bookkeeping per cluster
   //
-  rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());     //#C
-  rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());  //#C
+  rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());          //#C
+  rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());       //#C
+  rmm::device_uvector<weight_t> temp_cluster_weights(0, handle.get_stream());  //#C
 
   //
   // Bookkeeping per vertex
@@ -133,13 +134,19 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                           current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
 
-    if (first_iteration)
-      detail::sequence_fill(handle.get_stream(),
-                            dendrogram->current_level_begin(),
-                            dendrogram->current_level_size(),
-                            current_graph_view.local_vertex_partition_range_first());
-    else
-      first_iteration = false;
+    auto offsets = current_graph_view.local_edge_partition_view(0).offsets();
+    auto indices = current_graph_view.local_edge_partition_view(0).indices();
+
+    CUDA_TRY(cudaDeviceSynchronize());
+
+    std::cout << "---- Graph -----: " << max_level << std::endl;
+    raft::print_device_vector("offsets: ", offsets.data(), offsets.size(), std::cout);
+    raft::print_device_vector("indices: ", indices.data(), indices.size(), std::cout);
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "---------------- outer loop -------------------: " << max_level << std::endl;
+    std::cout << "dendrogram->num_levels(): " << dendrogram->num_levels() << std::endl;
+    std::cout << "max_level: " << max_level << std::endl;
 
     //
     //  Compute the vertex and cluster weights, these are different for each
@@ -151,14 +158,67 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     vertex_weights = compute_out_weight_sums(handle, current_graph_view, *edge_weight_view);
     cluster_keys.resize(vertex_weights.size(), handle.get_stream());
     cluster_weights.resize(vertex_weights.size(), handle.get_stream());
+    temp_cluster_weights.resize(vertex_weights.size(), handle.get_stream());
 
-    detail::sequence_fill(handle.get_stream(),
-                          cluster_keys.begin(),
-                          cluster_keys.size(),
-                          current_graph_view.local_vertex_partition_range_first());
+    std::cout << "vertex_weights.size() : " << vertex_weights.size()
+              << ", louvain_of_refined_partition.size(): " << louvain_of_refined_partition.size()
+              << ", current_graph_view (#V): "
+              << current_graph_view.local_vertex_partition_range_size() << std::endl;
 
-    raft::copy(
-      cluster_weights.begin(), vertex_weights.begin(), vertex_weights.size(), handle.get_stream());
+    if (first_iteration) {
+      std::cout << "initialize dendrogram with sequence_fill" << std::endl;
+      detail::sequence_fill(handle.get_stream(),
+                            dendrogram->current_level_begin(),
+                            dendrogram->current_level_size(),
+                            current_graph_view.local_vertex_partition_range_first());
+
+      detail::sequence_fill(handle.get_stream(),
+                            cluster_keys.begin(),
+                            cluster_keys.size(),
+                            current_graph_view.local_vertex_partition_range_first());
+
+      raft::copy(cluster_weights.begin(),
+                 vertex_weights.begin(),
+                 vertex_weights.size(),
+                 handle.get_stream());
+
+      first_iteration = false;
+    } else {
+      std::cout << "initialize dendrogram with louvain_of_refined_partition" << std::endl;
+      raft::copy(dendrogram->current_level_begin(),
+                 louvain_of_refined_partition.begin(),
+                 louvain_of_refined_partition.size(),
+                 handle.get_stream());
+
+      raft::copy(temp_cluster_weights.begin(),
+                 vertex_weights.begin(),
+                 vertex_weights.size(),
+                 handle.get_stream());
+
+      thrust::sort_by_key(handle.get_thrust_policy(),
+                          louvain_of_refined_partition.begin(),
+                          louvain_of_refined_partition.end(),
+                          temp_cluster_weights.begin());
+
+      auto ends = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                        louvain_of_refined_partition.begin(),
+                                        louvain_of_refined_partition.end(),
+                                        temp_cluster_weights.begin(),
+                                        cluster_keys.begin(),
+                                        cluster_weights.begin());
+
+      cluster_keys.resize(static_cast<size_t>(thrust::distance(cluster_keys.begin(), ends.first)),
+                          handle.get_stream());
+      cluster_weights.resize(
+        static_cast<size_t>(thrust::distance(cluster_weights.begin(), ends.second)),
+        handle.get_stream());
+      temp_cluster_weights.resize(0, handle.get_stream());
+
+      // raft::copy(cluster_keys.begin(),
+      //            louvain_of_refined_partition.begin(),
+      //            louvain_of_refined_partition.size(),
+      //            handle.get_stream());
+    }
 
     if constexpr (graph_view_t::is_multi_gpu) {
       std::tie(cluster_keys, cluster_weights) = shuffle_ext_vertices_and_values_by_gpu_id(
@@ -229,9 +289,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     // during each iteration of the loop
     bool up_down = true;
 
+    int32_t inner_loop_count = 0;
     while (new_Q > (cur_Q + 0.0001)) {
       cur_Q = new_Q;
 
+      CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "------------ inner loop, counter: " << inner_loop_count++ << std::endl;
       //
       // Keep a copy of detail::update_clustering_by_delta_modularity if we want to
       // resue detail::update_clustering_by_delta_modularity without changing
@@ -249,6 +312,27 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       // IMPORTANT NOTE: Need to think which vertices are considered first
       //
 
+      CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << " total_edge_weight: " << total_edge_weight << std::endl;
+      std::cout << " resolution: " << resolution << std::endl;
+
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "cluster_keys: ", cluster_keys.data(), cluster_keys.size(), std::cout);
+      raft::print_device_vector(
+        "cluster_weights: ", cluster_weights.data(), cluster_weights.size(), std::cout);
+
+      std::cout << "Before update_clustering_by_delta_modularity ..." << std::endl;
+      raft::print_device_vector("louvain_assignment_for_vertices: ",
+                                louvain_assignment_for_vertices.data(),
+                                louvain_assignment_for_vertices.size(),
+                                std::cout);
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector("*edge_weight_view: ",
+                                (*edge_weight_view).value_firsts()[0],
+                                (*edge_weight_view).edge_counts()[0],
+                                std::cout);
+
       louvain_assignment_for_vertices =
         detail::update_clustering_by_delta_modularity(handle,
                                                       current_graph_view,
@@ -263,6 +347,17 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                       src_louvain_assignment_cache,
                                                       dst_louvain_assignment_cache,
                                                       up_down);
+      CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "After update_clustering_by_delta_modularity ..." << std::endl;
+      raft::print_device_vector("*edge_weight_view: ",
+                                (*edge_weight_view).value_firsts()[0],
+                                (*edge_weight_view).edge_counts()[0],
+                                std::cout);
+
+      raft::print_device_vector("louvain_assignment_for_vertices: ",
+                                louvain_assignment_for_vertices.data(),
+                                louvain_assignment_for_vertices.size(),
+                                std::cout);
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(handle,
@@ -275,12 +370,30 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                  dst_louvain_assignment_cache);
       }
 
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector("*edge_weight_view: ",
+                                (*edge_weight_view).value_firsts()[0],
+                                (*edge_weight_view).edge_counts()[0],
+                                std::cout);
+
       std::tie(cluster_keys, cluster_weights) =
         detail::compute_cluster_keys_and_values(handle,
                                                 current_graph_view,
                                                 edge_weight_view,
                                                 louvain_assignment_for_vertices,
                                                 src_louvain_assignment_cache);
+
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector("*edge_weight_view: ",
+                                (*edge_weight_view).value_firsts()[0],
+                                (*edge_weight_view).edge_counts()[0],
+                                std::cout);
+
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "cluster_keys: ", cluster_keys.data(), cluster_keys.size(), std::cout);
+      raft::print_device_vector(
+        "cluster_weights: ", cluster_weights.data(), cluster_weights.size(), std::cout);
 
       up_down = !up_down;
 
@@ -294,13 +407,28 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                          total_edge_weight,
                                          resolution);
 
+      CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "new_Q: " << new_Q << std::endl;
+      std::cout << "cur_Q: " << cur_Q << std::endl;
+
       if (new_Q > cur_Q) {
         raft::copy(dendrogram->current_level_begin(),
                    louvain_assignment_for_vertices.begin(),
                    louvain_assignment_for_vertices.size(),
                    handle.get_stream());
       }
+
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector("dendrogram: ",
+                                dendrogram->current_level_begin(),
+                                dendrogram->current_level_size(),
+                                std::cout);
     }
+
+    CUDA_TRY(cudaDeviceSynchronize());
+
+    std::cout << "Out of outer while loop,  best_modularity: " << best_modularity << std::endl;
 
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 
@@ -333,8 +461,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     copied_louvain_partition.resize(nr_unique_clusters, handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      copied_louvain_partition =
-      cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(copied_louvain_partition));
+      copied_louvain_partition = cugraph::detail::shuffle_ext_vertices_by_gpu_id(
+        handle, std::move(copied_louvain_partition));
 
       thrust::sort(handle.get_thrust_policy(),
                    copied_louvain_partition.begin(),
@@ -367,6 +495,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                dst_louvain_assignment_cache);
     }
 
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "refine_clustering .................." << std::endl;
+
     auto [refined_leiden_partition, leiden_to_louvain_map] =
       detail::refine_clustering(handle,
                                 current_graph_view,
@@ -381,6 +512,22 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                 src_louvain_assignment_cache,
                                 dst_louvain_assignment_cache,
                                 up_down);
+
+    CUDA_TRY(cudaDeviceSynchronize());
+
+    raft::print_device_vector("refined_leiden_partition: ",
+                              refined_leiden_partition.data(),
+                              refined_leiden_partition.size(),
+                              std::cout);
+
+    raft::print_device_vector("leiden_to_louvain_map (key): ",
+                              leiden_to_louvain_map.first.data(),
+                              leiden_to_louvain_map.first.size(),
+                              std::cout);
+    raft::print_device_vector("leiden_to_louvain_map (value): ",
+                              leiden_to_louvain_map.second.data(),
+                              leiden_to_louvain_map.second.size(),
+                              std::cout);
 
     ///---------///
     //
@@ -405,6 +552,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     auto cluster_assignment = aggregate_graph(
       handle, current_graph_view, edge_weight_view, current_graph, refined_leiden_partition);
 
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "... Leiden assignment of aggregated_graph" << std::endl;
+
+    raft::print_device_vector("Leiden_assignment of aggregated_graph: ",
+                              (*cluster_assignment).data(),
+                              (*cluster_assignment).size(),
+                              std::cout);
+
     relabel<vertex_t, multi_gpu>(
       handle,
       std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
@@ -414,6 +569,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       (*cluster_assignment).size(),
       false);
 
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "... Louvain assignment of aggregated_graph (using relabel) " << std::endl;
+
+    raft::print_device_vector("Louvain_assignment of aggregated_graph: ",
+                              (*cluster_assignment).data(),
+                              (*cluster_assignment).size(),
+                              std::cout);
+
     // After call to relabel, cluster_assignment contains louvain partition of the aggregated graph
     louvain_of_refined_partition.resize(current_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
@@ -422,6 +585,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                (*cluster_assignment).begin(),
                (*cluster_assignment).size(),
                handle.get_stream());
+
+    CUDA_TRY(cudaDeviceSynchronize());
+
+    raft::print_device_vector("louvain_of_refined_partition: ",
+                              louvain_of_refined_partition.data(),
+                              louvain_of_refined_partition.size(),
+                              std::cout);
 
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
   }

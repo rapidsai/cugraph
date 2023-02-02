@@ -312,37 +312,37 @@ compute_cluster_keys_and_values(
   edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, false, false>, int64_t> const&
     src_clusters_cache);
 
-template rmm::device_uvector<double>&&
+template rmm::device_uvector<double>
 cugraph::detail::lookup_primitive_values_for_keys<int32_t, double, false>(
   raft::handle_t const&,
   rmm::device_uvector<int32_t>&,
   rmm::device_uvector<double>&,
   rmm::device_uvector<int32_t>&);
-template rmm::device_uvector<int64_t>&&
+template rmm::device_uvector<int64_t>
 cugraph::detail::lookup_primitive_values_for_keys<int64_t, int64_t, false>(
   raft::handle_t const&,
   rmm::device_uvector<int64_t>&,
   rmm::device_uvector<int64_t>&,
   rmm::device_uvector<int64_t>&);
-template rmm::device_uvector<float>&&
+template rmm::device_uvector<float>
 cugraph::detail::lookup_primitive_values_for_keys<int32_t, float, false>(
   raft::handle_t const&,
   rmm::device_uvector<int32_t>&,
   rmm::device_uvector<float>&,
   rmm::device_uvector<int32_t>&);
-template rmm::device_uvector<int32_t>&&
+template rmm::device_uvector<int32_t>
 cugraph::detail::lookup_primitive_values_for_keys<int32_t, int32_t, false>(
   raft::handle_t const&,
   rmm::device_uvector<int32_t>&,
   rmm::device_uvector<int32_t>&,
   rmm::device_uvector<int32_t>&);
-template rmm::device_uvector<double>&&
+template rmm::device_uvector<double>
 cugraph::detail::lookup_primitive_values_for_keys<int64_t, double, false>(
   raft::handle_t const&,
   rmm::device_uvector<int64_t>&,
   rmm::device_uvector<double>&,
   rmm::device_uvector<int64_t>&);
-template rmm::device_uvector<float>&&
+template rmm::device_uvector<float>
 cugraph::detail::lookup_primitive_values_for_keys<int64_t, float, false>(
   raft::handle_t const&,
   rmm::device_uvector<int64_t>&,
