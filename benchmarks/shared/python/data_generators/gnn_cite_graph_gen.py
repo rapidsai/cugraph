@@ -28,6 +28,8 @@ gived a "base_dir", the following 4 subdirectroies are created
 * author__writes__paper
 
 Lastely, the output files names and types (whats in the files) is also defined
+For a homogeneous graph, only load the paper data.
+For a heterogeneous graph, load all data.
 
 Example:
 python gnn_cite_graph_gen.py \
@@ -43,12 +45,13 @@ python gnn_cite_graph_gen.py \
 
 
 import os
-import ast
 import argparse
 import json
 
 import numpy as np
 import pandas as pd
+import cudf
+import dask_cudf
 
 import rmm
 
@@ -57,10 +60,13 @@ from cugraph.structure import NumberMap
 
 import cudf as cudf_sg
 
-from dask.distributed import Client
-from dask_cuda import LocalCUDACluster
-from cugraph.dask.comms import comms as Comms
+from cugraph.dask.common.mg_utils import start_dask_client, teardown_local_dask_cluster
 
+
+from typing import (
+    Union,
+    Tuple
+)
 
 # --- Some global attributes
 paper_dir = "paper"
@@ -76,24 +82,18 @@ def setup_sg() -> None:
     assert rmm.is_initialized()
 
 
-def setup_mg():
-
+def setup_mg() -> None:
     print("Setup MG")
-
-    cluster = LocalCUDACluster(rmm_managed_memory=True)
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
+    client, cluster = start_dask_client()
 
     return (client, cluster)
 
 
-def stop_mg(client, cluster):
-    Comms.destroy()
-    client.close()
-    cluster.close()
+def stop_mg(client, cluster) -> None:
+    teardown_local_dask_cluster(cluster, client)
 
 
-def make_dir(d):
+def make_dir(d) -> None:
     """
     create the directory if it does not exists
     This is a separated funtion in case the directory should be
@@ -103,7 +103,7 @@ def make_dir(d):
         os.mkdir(d)
 
 
-def setup_directories(basedir):
+def setup_directories(basedir) -> None:
     """
     create the 4 directories
     """
@@ -123,7 +123,15 @@ def setup_directories(basedir):
     make_dir(os.path.join(basedir, author_institute_dir))
 
 
-def save_data(args, dir, file_name, data, mg=False):
+def save_data(
+        args: argparse.Namespace,
+        dir: str,
+        file_name: str,
+        data: Union[pd.DataFrame, cudf.DataFrame, dask_cudf.DataFrame],
+        mg: bool = False) -> None:
+    """
+    Saves pandas/cudf/dask_cudf data to the specified file.
+    """
     dir_path = os.path.join(args.outdir, dir)
 
     if mg:
@@ -138,7 +146,15 @@ def save_data(args, dir, file_name, data, mg=False):
         data.to_csv(f, header=False, index=False)
 
 
-def write_numpy(args, arr, directory, name):
+def write_numpy(
+        args: argparse.Namespace,
+        arr: np.ndarray,
+        directory: str,
+        name: str) -> str:
+    """
+    Saves numpy data to the specified file.
+    Returns the complete path to the written file.
+    """
     output_path = os.path.join(
         os.path.join(args.outdir, directory),
         name
@@ -148,7 +164,11 @@ def write_numpy(args, arr, directory, name):
     return output_path
 
 
-def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False):
+def create_rmat_dataset(
+        scale: int,
+        edgefactor: int = 16,
+        seed: int = 42,
+        mg: bool = False) -> Union[cudf.DataFrame, dask_cudf.DataFrame]:
     """
     Create data via RMAT and return a COO DataFrame.
     The RMAT paramaters match what Graph500 uses for {a,b,c} argumemnts.
@@ -203,7 +223,11 @@ def create_rmat_dataset(scale, edgefactor=16, seed=42, mg=False):
     return clean_coo
 
 
-def dec_df_update(df, num_items, col_name):
+def dec_df_update(
+        df: Union[pd.DataFrame, cudf.DataFrame],
+        num_items: int,
+        col_name: str) -> Union[pd.DataFrame, cudf.DataFrame]:
+
     """ """
     df2 = df[df["count"] > 1]
     df2["count"] = df2["count"] - 1
@@ -252,7 +276,13 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
 # -----------------------------------------------------------------------
 #  this is all done in Pandas in host memory
 #
-def create_papers_data(args, num_papers):
+def create_papers_data(
+        args: argparse.Namespace,
+        num_papers: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Creates the paper features and selects the train/test/val splits.
+    Returns the train/test/val splits.
+    """
 
     num_labeled = int(num_papers * args.papersLabeledPercent)
 
@@ -327,7 +357,16 @@ def create_papers_data(args, num_papers):
     return train_ix, test_ix, val_ix
 
 
-def create_paper_labels(args, train_ix, test_ix, val_ix):
+def create_paper_labels(
+        args: argparse.Namespace,
+        train_ix: np.ndarray,
+        test_ix: np.ndarray,
+        val_ix: np.ndarray) -> None:
+    """
+    Creates the labels for the train, test, and validation
+    data based on the input number of classes.
+    """
+
     rng = np.random.default_rng(seed=args.seed)
 
     train_labels = rng.integers(0, args.numClasses, len(train_ix))
@@ -342,7 +381,14 @@ def create_paper_labels(args, train_ix, test_ix, val_ix):
     print(f'Saved validation labels to {output_path}')
 
 
-def create_author_papers_data(args, start_id, num_papers) -> int:
+def create_author_papers_data(
+        args: argparse.Namespace,
+        start_id: int,
+        num_papers: int) -> int:
+    """
+    Returns the number of authors.
+    """
+
     num_authors = int(num_papers * args.authorPercent)
     avg_papers = args.authorAvgNumPapers
 
@@ -407,7 +453,13 @@ def create_author_papers_data(args, start_id, num_papers) -> int:
 # -----------------------------------------------------------------------
 #
 #
-def create_author_institute_data(args, start_id, num_authors):
+def create_author_institute_data(
+        args: argparse.Namespace,
+        start_id: int,
+        num_authors: int) -> int:
+    """
+    Returns the number of institutions.
+    """
 
     num_institutes = args.numInstitutions
     avg_works = args.avgInstitutionsPerAuthor
@@ -475,13 +527,6 @@ def create_author_institute_data(args, start_id, num_authors):
 
 
 ###################################################
-
-
-def arg_to_list(s: str):
-    mylist = ast.literal_eval(s)
-    if type(mylist) is not list:
-        raise TypeError("Input is not in list format")
-    return mylist
 
 
 def parse_args() -> argparse.Namespace:
@@ -620,14 +665,6 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Run Multi-GPU. This will create a local DASK cluster."
              " Single GPU is limited to Scale 26",
-        required=False,
-    )
-
-    parser.add_argument(
-        "-mgVisibleGPUs",
-        type=arg_to_list,
-        default=[],
-        help="Visible GPUS in a MG setting",
         required=False,
     )
 
