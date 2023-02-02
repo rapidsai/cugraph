@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c rapidsai -c conda-forge -c nvidia .
@@ -22,9 +22,8 @@ requirements:
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
     - setuptools <=65.2.0
   run:
-    - cudatoolkit =11.6
     - cugraph ={{ version }}
-    - dgl-cuda11.6 >=0.9
+    - dgl >=0.9.1
     - numba >=0.56.2
     - numpy
     - python x.x
