@@ -29,12 +29,18 @@ SUITEERROR=0
 
 rapids-print-env
 
+if (( (${RAPIDS_CUDA_VERSION} != 11.8) )); then
+  rapids-mamba-retry install \
+    --channel pytorch \
+    --channel pytorch-nightly \
+    'pytorch>=1.13.1' \
+    'pytorch-cuda>=11.7'
+fi
+
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
   --channel pyg \
-  --channel pytorch \
-  --channel pytorch-nightly \
   libcugraph \
   pylibcugraph \
   cugraph \

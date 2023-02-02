@@ -16,12 +16,17 @@ from cugraph_pyg.sampler import CuGraphSampler
 import cudf
 import cupy
 
+from cugraph_pyg.data import CuGraphStore
+
+from cugraph.utilities.utils import import_optional, MissingModule
+
 import pytest
 
-from cugraph_pyg.data import CuGraphStore
+torch = import_optional("torch")
 
 
 @pytest.mark.cugraph_ops
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample(basic_graph_1, dask_client):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
@@ -88,6 +93,7 @@ def test_neighbor_sample(basic_graph_1, dask_client):
 
 
 @pytest.mark.cugraph_ops
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_client):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
