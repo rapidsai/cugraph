@@ -24,7 +24,9 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#if defined RAFT_DISTANCE_COMPILED
 #include <raft/distance/specializations.cuh>
+#endif
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
 
