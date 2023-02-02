@@ -11,14 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import cugraph
+
+
+from typing import Tuple, List, Union, Sequence, Dict
+
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.data.cugraph_store import TensorType
-
-from typing import Union
-from typing import Tuple
-from typing import List
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
@@ -26,7 +25,6 @@ import cudf
 dask_cudf = import_optional("dask_cudf")
 torch_geometric = import_optional("torch_geometric")
 
-cupy = import_optional("cupy")
 torch = import_optional("torch")
 
 HeteroSamplerOutput = (
@@ -34,6 +32,48 @@ HeteroSamplerOutput = (
     if isinstance(torch_geometric, MissingModule)
     else torch_geometric.sampler.base.HeteroSamplerOutput
 )
+
+
+def _sampler_output_from_sampling_results(
+    sampling_results: cudf.DataFrame,
+    graph_store: CuGraphStore,
+    metadata: Sequence = None,
+) -> Union[HeteroSamplerOutput, Dict[str, dict]]:
+    """
+    Parameters
+    ----------
+    sampling_results: cudf.DataFrame
+        The dataframe containing sampling results.
+    graph_store: CuGraphStore
+        The graph store containing the structure of the sampled graph.
+    metadata: Tensor
+        The metadata for the sampled batch.
+
+    Returns
+    -------
+    HeteroSamplerOutput, if PyG is installed.
+    dict, if PyG is not installed.
+    """
+    nodes_of_interest = cudf.concat(
+        [sampling_results.destinations, sampling_results.sources]
+    ).unique()
+
+    # Get the grouped node index (for creating the renumbered grouped edge index)
+    noi_index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
+
+    # Get the new edge index (by type as expected for HeteroData)
+    # FIXME handle edge ids/types after the C++ updates
+    row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
+        sampling_results, noi_index
+    )
+
+    out = (noi_index, row_dict, col_dict, None)
+
+    # FIXME no longer allow torch_geometric to be missing.
+    if isinstance(torch_geometric, MissingModule):
+        return {"out": out, "metadata": metadata}
+    else:
+        return HeteroSamplerOutput(*out, metadata=metadata)
 
 
 class EXPERIMENTAL__CuGraphSampler:
@@ -140,14 +180,12 @@ class EXPERIMENTAL__CuGraphSampler:
             # FIXME support variable num neighbors per edge type
             num_neighbors = list(num_neighbors.values())[0]
 
-        # FIXME eventually get uniform neighbor sample to accept longs
         if backend == "torch" and not index.is_cuda:
             index = index.cuda()
 
-        # FIXME resolve the directed/undirected issue
-        G = self.__graph_store._subgraph([et[1] for et in edge_types])
+        G = self.__graph_store._subgraph(edge_types)
 
-        index = cudf.from_dlpack(index.__dlpack__())
+        index = cudf.Series(index)
 
         sample_fn = (
             cugraph.dask.uniform_neighbor_sample
@@ -161,30 +199,12 @@ class EXPERIMENTAL__CuGraphSampler:
             # conversion required by cugraph api
             list(num_neighbors),
             replace,
-            # with_edge_properties=True,
+            with_edge_properties=True,
         )
 
-        # We make the assumption that the sample must fit on a single device
         if self.__graph_store._is_delayed:
             sampling_results = sampling_results.compute()
 
-        nodes_of_interest = cudf.concat(
-            [sampling_results.sources, sampling_results.destinations]
-        ).unique()
-
-        # Get the grouped node index (for creating the renumbered grouped edge index)
-        noi_index = self.__graph_store._get_vertex_groups_from_sample(nodes_of_interest)
-
-        # Get the new edge index (by type as expected for HeteroData)
-        # FIXME handle edge ids/types after the C++ updates
-        row_dict, col_dict = self.__graph_store._get_renumbered_edge_groups_from_sample(
-            sampling_results, noi_index
+        return _sampler_output_from_sampling_results(
+            sampling_results, self.__graph_store, metadata
         )
-
-        out = (noi_index, row_dict, col_dict, None)
-
-        # FIXME no longer allow torch_geometric to be missing.
-        if isinstance(torch_geometric, MissingModule):
-            return {"out": out, "metadata": metadata}
-        else:
-            return HeteroSamplerOutput(*out, metadata=metadata)

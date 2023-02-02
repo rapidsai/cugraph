@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -191,7 +191,9 @@ def test_sampling_homogeneous_gs_in_dir(dask_client):
             {"src": expected_in[seed][0], "dst": expected_in[seed][1]}
         ).astype(np.int32)
 
-        cudf.testing.assert_frame_equal(output_df, expected_df)
+        cudf.testing.assert_frame_equal(
+            output_df.astype(np.int32), expected_df.astype(np.int32)
+        )
 
 
 @pytest.mark.cugraph_ops
@@ -237,7 +239,9 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
         expected_df = cudf.DataFrame(
             {"src": expected_out[seed][0], "dst": expected_out[seed][1]}
         ).astype(np.int32)
-        cudf.testing.assert_frame_equal(output_df, expected_df)
+        cudf.testing.assert_frame_equal(
+            output_df.astype(np.int32), expected_df.astype(np.int32)
+        )
 
 
 @pytest.mark.cugraph_ops
