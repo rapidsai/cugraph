@@ -80,6 +80,7 @@ option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cud
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
+option(CUGRAPH_COMPILE_RAFT_DIST_LIBS "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
 option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
