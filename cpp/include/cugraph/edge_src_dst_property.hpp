@@ -536,14 +536,14 @@ template <typename vertex_t, typename... Ts>
 auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... views)
 {
   using concat_value_iterator = decltype(thrust::make_zip_iterator(
-    thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[0])...)));
+    thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[0])...)));
 
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
-  auto first_view = detail::get_first_of_pack(views...);
+  auto first_view = get_first_of_pack(views...);
   edge_partition_concat_value_firsts.resize(first_view.major_range_firsts().size());
   for (size_t i = 0; i < edge_partition_concat_value_firsts.size(); ++i) {
     edge_partition_concat_value_firsts[i] = thrust::make_zip_iterator(
-      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...));
+      thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[i])...));
   }
 
   if (first_view.key_chunk_size()) {
@@ -562,15 +562,15 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
 template <typename vertex_t, typename... Ts>
 auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... views)
 {
-  using concat_value_iterator = decltype(
-    thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_first())...)));
+  using concat_value_iterator = decltype(thrust::make_zip_iterator(
+    thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...)));
 
   concat_value_iterator edge_partition_concat_value_first{};
 
-  auto first_view = detail::get_first_of_pack(views...);
+  auto first_view = get_first_of_pack(views...);
 
   edge_partition_concat_value_first =
-    thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_first())...));
+    thrust::make_zip_iterator(thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...));
 
   if (first_view.key_chunk_size()) {
     return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
