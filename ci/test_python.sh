@@ -31,9 +31,10 @@ rapids-print-env
 
 if [[ "${RAPIDS_CUDA_VERSION}" != "11.8" ]]; then
   rapids-mamba-retry install \
+    --force-reinstall \
     --channel pytorch \
     --channel pytorch-nightly \
-    'pytorch>=1.13.1' \
+    'pytorch::pytorch>=1.13.1' \
     'pytorch-cuda>=11.7'
 fi
 
