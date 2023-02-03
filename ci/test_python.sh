@@ -29,7 +29,7 @@ SUITEERROR=0
 
 rapids-print-env
 
-if (( (${RAPIDS_CUDA_VERSION} != 11.8) )); then
+if [[ "${RAPIDS_CUDA_VERSION}" != "11.8" ]]; then
   rapids-mamba-retry install \
     --channel pytorch \
     --channel pytorch-nightly \
