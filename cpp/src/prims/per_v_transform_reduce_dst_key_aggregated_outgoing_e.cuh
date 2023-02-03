@@ -247,6 +247,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   VertexValueOutputIterator vertex_value_output_first,
   bool do_expensive_check = false)
 {
+  CUDA_TRY(cudaDeviceSynchronize());
+  cudaDeviceSynchronize();
+  raft::print_device_vector("start. edge_value_input ",
+                            edge_value_input.value_firsts()[0],
+                            edge_value_input.edge_counts()[0],
+                            std::cout);
+  std::cout << std::endl;
+
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
   static_assert(
@@ -306,6 +314,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           // total_global_mem, switch to the memory frugal approach
   [[maybe_unused]] auto mem_frugal_threshold =
     static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
+  CUDA_TRY(cudaDeviceSynchronize());
+  cudaDeviceSynchronize();
+  raft::print_device_vector(" edge_value_input ",
+                            edge_value_input.value_firsts()[0],
+                            edge_value_input.edge_counts()[0],
+                            std::cout);
+  std::cout << std::endl;
 
   // 1. aggregate each vertex out-going edges based on keys and transform-reduce.
 
@@ -376,6 +392,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         auto offset_first =
           thrust::make_transform_iterator(edge_partition.offsets() + h_vertex_offsets[j],
                                           detail::rebase_offset_t<edge_t>{h_edge_offsets[j]});
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector("before DeviceSegmentedSort::SortPairs, edge_value_input ",
+                                  edge_value_input.value_firsts()[0],
+                                  edge_value_input.edge_counts()[0],
+                                  std::cout);
+        std::cout << std::endl;
+
         if constexpr (!std::is_same_v<edge_value_t, void>) {
           cub::DeviceSegmentedSort::SortPairs(
             static_cast<void*>(nullptr),
@@ -403,6 +428,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         if (tmp_storage_bytes > d_tmp_storage.size()) {
           d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
         }
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector(
+          "before DeviceSegmentedSort::SortPairs d_tmp_storage.data(), edge_value_input ",
+          edge_value_input.value_firsts()[0],
+          edge_value_input.edge_counts()[0],
+          std::cout);
+        std::cout << std::endl;
         if constexpr (!std::is_same_v<edge_value_t, void>) {
           cub::DeviceSegmentedSort::SortPairs(
             d_tmp_storage.data(),
@@ -428,14 +462,64 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                              handle.get_stream());
         }
 
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector(
+          "after DeviceSegmentedSort::SortPairs d_tmp_storage.data(), edge_value_input ",
+          edge_value_input.value_firsts()[0],
+          edge_value_input.edge_counts()[0],
+          std::cout);
+        std::cout << std::endl;
+
         thrust::copy(handle.get_thrust_policy(),
                      tmp_majors.begin() + h_edge_offsets[j],
                      tmp_majors.begin() + h_edge_offsets[j + 1],
                      unreduced_majors.begin());
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector(
+          "after thrust::copy tmp_majors to unreduced_majors, edge_value_input ",
+          edge_value_input.value_firsts()[0],
+          edge_value_input.edge_counts()[0],
+          std::cout);
+        std::cout << std::endl;
+
         auto input_key_first = thrust::make_zip_iterator(
           thrust::make_tuple(unreduced_majors.begin(), unreduced_minor_keys.begin()));
         auto output_key_first =
           thrust::make_zip_iterator(thrust::make_tuple(tmp_majors.begin(), tmp_minor_keys.begin()));
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector("unreduced_majors = ",
+                                  unreduced_majors.data(),
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+        std::cout << std::endl;
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("unreduced_minor_keys = ",
+                                  unreduced_minor_keys.data(),
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+        std::cout << std::endl;
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("unreduced_key_aggregated_edge_values = ",
+                                  unreduced_key_aggregated_edge_values.data(),
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+        std::cout << std::endl;
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector("before thrust::reduce_by_key, edge_value_input ",
+                                  edge_value_input.value_firsts()[0],
+                                  edge_value_input.edge_counts()[0],
+                                  std::cout);
+        std::cout << std::endl;
+
         if constexpr (!std::is_same_v<edge_value_t, void>) {
           reduced_size +=
             thrust::distance(output_key_first + reduced_size,
@@ -455,16 +539,70 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                input_key_first + (h_edge_offsets[j + 1] - h_edge_offsets[j]),
                                output_key_first + reduced_size)));
         }
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        std::cout << "aftert thrust::reduce_by_key" << std::endl;
+        raft::print_device_vector("unreduced_majors",
+                                  unreduced_majors.data(),
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+        std::cout << std::endl;
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("unreduced_minor_keys",
+                                  unreduced_minor_keys.data(),
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+        std::cout << std::endl;
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("unreduced_key_aggregated_edge_values",
+                                  unreduced_key_aggregated_edge_values.data(),
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+        std::cout << std::endl;
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector("before thrust::reduce_by_key, edge_value_input ",
+                                  edge_value_input.value_firsts()[0],
+                                  edge_value_input.edge_counts()[0],
+                                  std::cout);
+        std::cout << std::endl;
+
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaDeviceSynchronize();
+        raft::print_device_vector("after thrust::reduce_by_key, edge_value_input ",
+                                  edge_value_input.value_firsts()[0],
+                                  edge_value_input.edge_counts()[0],
+                                  std::cout);
+        std::cout << std::endl;
       }
       tmp_majors.resize(reduced_size, handle.get_stream());
       tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
       // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
       tmp_key_aggregated_edge_values.resize(tmp_majors.size(), handle.get_stream());
+
+      CUDA_TRY(cudaDeviceSynchronize());
+      cudaDeviceSynchronize();
+      raft::print_device_vector("after loop over chunck size, edge_value_input ",
+                                edge_value_input.value_firsts()[0],
+                                edge_value_input.edge_counts()[0],
+                                std::cout);
+      std::cout << std::endl;
     }
     tmp_majors.shrink_to_fit(handle.get_stream());
     tmp_minor_keys.shrink_to_fit(handle.get_stream());
     // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
     tmp_key_aggregated_edge_values.shrink_to_fit(handle.get_stream());
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    cudaDeviceSynchronize();
+    raft::print_device_vector("1. edge_value_input ",
+                              edge_value_input.value_firsts()[0],
+                              edge_value_input.edge_counts()[0],
+                              std::cout);
 
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
@@ -625,6 +763,15 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                        detail::kv_binary_search_store_device_view_t<KVStoreViewType>,
                        detail::kv_cuco_store_device_view_t<KVStoreViewType>>
       device_view(GraphViewType::is_multi_gpu ? multi_gpu_kv_map_ptr->view() : kv_store_view);
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    cudaDeviceSynchronize();
+    raft::print_device_vector(
+      "(before transform with call_key_aggregated_e_op_t ) edge_value_input:",
+      edge_value_input.value_firsts()[0],
+      edge_value_input.edge_counts()[0],
+      std::cout);
+
     thrust::transform(
       handle.get_thrust_policy(),
       triplet_first,
@@ -637,6 +784,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                          decltype(edge_partition),
                                          decltype(device_view)>{
         edge_partition_src_value_input, key_aggregated_e_op, edge_partition, device_view});
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    cudaDeviceSynchronize();
+    raft::print_device_vector(
+      "(after transform with call_key_aggregated_e_op_t ) edge_value_input:",
+      edge_value_input.value_firsts()[0],
+      edge_value_input.edge_counts()[0],
+      std::cout);
 
     if constexpr (GraphViewType::is_multi_gpu) { multi_gpu_kv_map_ptr.reset(); }
     tmp_minor_keys.resize(0, handle.get_stream());
@@ -664,6 +819,13 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       tmp_majors             = std::move(unique_majors);
       tmp_e_op_result_buffer = std::move(reduced_e_op_result_buffer);
     }
+
+    CUDA_TRY(cudaDeviceSynchronize());
+    cudaDeviceSynchronize();
+    raft::print_device_vector("(aftert  thrust::reduce_by_key with reduce_op) edge_value_input:",
+                              edge_value_input.value_firsts()[0],
+                              edge_value_input.edge_counts()[0],
+                              std::cout);
 
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -735,6 +897,13 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     e_op_result_buffer = std::move(reduced_e_op_result_buffer);
   }
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  cudaDeviceSynchronize();
+  raft::print_device_vector("2. edge_value_input ",
+                            edge_value_input.value_firsts()[0],
+                            edge_value_input.edge_counts()[0],
+                            std::cout);
+
   // 2. update final results
 
   thrust::fill(handle.get_thrust_policy(),
@@ -756,6 +925,13 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                     vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                     vertex_value_output_first,
                     detail::reduce_with_init_t<ReduceOp, T>{reduce_op, init});
+
+  cudaDeviceSynchronize();
+  CUDA_TRY(cudaDeviceSynchronize());
+  raft::print_device_vector("3. edge_value_input ",
+                            edge_value_input.value_firsts()[0],
+                            edge_value_input.edge_counts()[0],
+                            std::cout);
 }
 
 }  // namespace cugraph

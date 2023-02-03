@@ -70,6 +70,11 @@ struct key_aggregated_edge_op_t {
                                      resolution * (a_new * k_k - a_old * k_k + k_k * k_k) /
                                        (total_edge_weight * total_edge_weight));
 
+    if (delta_modularity > 0.0)
+      printf("\nsrc, neighbor_cluster, delta_modularity: %d, %d, %f\n",
+             src,
+             neighbor_cluster,
+             delta_modularity);
     return thrust::make_tuple(neighbor_cluster, delta_modularity);
   }
 };
@@ -346,6 +351,14 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   rmm::device_uvector<weight_t> cluster_subtract_v(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
 
+  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "before per_v_transform_reduce_outgoing_e: " << std::endl;
+
+  raft::print_device_vector("*edge_weight_view: ",
+                            (*edge_weight_view).value_firsts()[0],
+                            (*edge_weight_view).edge_counts()[0],
+                            std::cout);
+
   per_v_transform_reduce_outgoing_e(
     handle,
     graph_view,
@@ -438,14 +451,16 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     (*edge_weight_view).edge_counts()[0],
     std::cout);
 
-  CUDA_TRY(cudaDeviceSynchronize());
+  std::cout << "size(output_buffer): " << cugraph::size_dataframe_buffer(output_buffer)
+            << std::endl;
 
   raft::print_device_vector(
-    "before per_v_transform_reduce_dst_key_aggregated_outgoing_e, *edge_weight_view: ",
-    (*edge_weight_view).value_firsts()[0],
-    (*edge_weight_view).edge_counts()[0],
+    "next_clusters_v (before per_v_transform_reduce_dst_key_aggregated_outgoing_e): ",
+    next_clusters_v.data(),
+    next_clusters_v.size(),
     std::cout);
 
+  CUDA_TRY(cudaDeviceSynchronize());
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     handle,
     graph_view,
@@ -463,10 +478,21 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   CUDA_TRY(cudaDeviceSynchronize());
 
   raft::print_device_vector(
+    "next_clusters_v (after per_v_transform_reduce_dst_key_aggregated_outgoing_e): ",
+    next_clusters_v.data(),
+    next_clusters_v.size(),
+    std::cout);
+
+  raft::print_device_vector(
     "after per_v_transform_reduce_dst_key_aggregated_outgoing_e, *edge_weight_view: ",
     (*edge_weight_view).value_firsts()[0],
     (*edge_weight_view).edge_counts()[0],
     std::cout);
+
+  raft::print_device_vector(
+    "targets", std::get<0>(output_buffer).data(), std::get<0>(output_buffer).size(), std::cout);
+  raft::print_device_vector(
+    "gains", std::get<1>(output_buffer).data(), std::get<1>(output_buffer).size(), std::cout);
 
   thrust::transform(handle.get_thrust_policy(),
                     next_clusters_v.begin(),
@@ -476,6 +502,11 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                     detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
   CUDA_TRY(cudaDeviceSynchronize());
+
+  raft::print_device_vector("next_clusters_v (after transform): ",
+                            next_clusters_v.data(),
+                            next_clusters_v.size(),
+                            std::cout);
   std::cout << "returning from  update_clustering_by_delta_modularity ..." << std::endl;
   return std::move(next_clusters_v);
 }
