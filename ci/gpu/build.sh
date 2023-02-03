@@ -48,7 +48,7 @@ export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
 unset GIT_DESCRIBE_TAG
 
 # ucx-py version
-export UCX_PY_VERSION='0.30.*'
+export UCX_PY_VERSION='0.31.*'
 
 # Whether to keep `dask/label/dev` channel in the env. If INSTALL_DASK_MAIN=0,
 # `dask/label/dev` channel is removed.
