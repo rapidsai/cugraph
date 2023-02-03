@@ -512,6 +512,34 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                                   std::cout);
         std::cout << std::endl;
 
+        cudaDeviceSynchronize();
+        std::cout << "address range: " << std::endl;
+        std::cout << "output_key_first<0>: "
+                  << thrust::get<0>(output_key_first.get_iterator_tuple()) << " -- "
+                  << thrust::get<0>(output_key_first.get_iterator_tuple()) +
+                       (h_edge_offsets[j + 1] - h_edge_offsets[j])
+                  << std::endl;
+        std::cout << "output_key_first<1>: "
+                  << thrust::get<1>(output_key_first.get_iterator_tuple()) << " -- "
+                  << thrust::get<1>(output_key_first.get_iterator_tuple()) +
+                       (h_edge_offsets[j + 1] - h_edge_offsets[j])
+                  << std::endl;
+        std::cout << "edge_value_input:   " << edge_value_input.value_firsts()[0] << " -- "
+                  << edge_value_input.value_firsts()[0] + edge_value_input.edge_counts()[0]
+                  << std::endl;
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("output_key_first<0>",
+                                  tmp_majors.data() + reduced_size,
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("output_key_first<1>",
+                                  tmp_minor_keys.data() + reduced_size,
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+
         CUDA_TRY(cudaDeviceSynchronize());
         cudaDeviceSynchronize();
         raft::print_device_vector("before thrust::reduce_by_key, edge_value_input ",
@@ -543,6 +571,35 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         CUDA_TRY(cudaDeviceSynchronize());
         cudaDeviceSynchronize();
         std::cout << "aftert thrust::reduce_by_key ..... " << std::endl;
+
+        cudaDeviceSynchronize();
+        std::cout << "address range: " << std::endl;
+        std::cout << "output_key_first<0>: "
+                  << thrust::get<0>(output_key_first.get_iterator_tuple()) << " -- "
+                  << thrust::get<0>(output_key_first.get_iterator_tuple()) +
+                       (h_edge_offsets[j + 1] - h_edge_offsets[j])
+                  << std::endl;
+        std::cout << "output_key_first<1>: "
+                  << thrust::get<1>(output_key_first.get_iterator_tuple()) << " -- "
+                  << thrust::get<1>(output_key_first.get_iterator_tuple()) +
+                       (h_edge_offsets[j + 1] - h_edge_offsets[j])
+                  << std::endl;
+        std::cout << "edge_value_input:   " << edge_value_input.value_firsts()[0] << " -- "
+                  << edge_value_input.value_firsts()[0] + edge_value_input.edge_counts()[0]
+                  << std::endl;
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("output_key_first<0>",
+                                  tmp_majors.data() + reduced_size,
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+
+        cudaDeviceSynchronize();
+        raft::print_device_vector("output_key_first<1>",
+                                  tmp_minor_keys.data() + reduced_size,
+                                  (h_edge_offsets[j + 1] - h_edge_offsets[j]),
+                                  std::cout);
+
         raft::print_device_vector("unreduced_majors",
                                   unreduced_majors.data(),
                                   (h_edge_offsets[j + 1] - h_edge_offsets[j]),
