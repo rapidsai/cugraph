@@ -54,10 +54,10 @@ Will output the following into /tmp/GNN2:
             ...
     paper/
         node_feat.npy
-        node_label.parquet
-        test_labels.npy
-        train_labels.npy
-        val_labels.npy
+        node_label
+        test_labels
+        train_labels
+        val_labels
 
     meta.json
 
@@ -66,26 +66,23 @@ The edge parquet files contain the src and dst arrays.
 node_feat.npy contains the node features
 and is of shape (# papers, num_features)
 
-node_label.parquet is primarily for debugging.  It is
+node_label (parquet) is primarily for debugging.  It is
 a list of the node ids that are labeled.
 
-test_labels.npy contains the class labels (venue)
-for the test data.  It is of shape (# test papers,)
+test_labels (parquet) contains the indices and class labels (venue)
+for the test data.  It is of shape (# test papers, 2)
 
-train_labels.npy contains the class labels (venue)
-for the training data.  It is of shape (# train papers,)
+train_labels (parquet) contains the indices and class labels (venue)
+for the training data.  It is of shape (# train papers, 2)
 
-val_labels.npy contains the class labels (venue)
-for the validation data.  It is of shape (# validation papers,)
+val_labels (parquet) contains the indices and class labels (venue)
+for the validation data.  It is of shape (# validation papers, 2)
 
 meta.json has the following format:
 {
     "paper": [paper_ix_start_incl, paper_ix_end_incl],
     "author": [author_ix_start_incl, author_ix_end_incl],
     "institution": [institution_ix_start_incl, institution_ix_end_incl],
-    "train": [<indices of nodes in train set>],
-    "test": [<indices of nodes in train set>],
-    "val": [<indices of nodes in train set>]
 }
 The number of nodes for each type can be determined by
 taking ix_end_incl - ix_start_incl + 1
@@ -429,15 +426,17 @@ def create_paper_labels(
     rng = np.random.default_rng(seed=args.seed)
 
     train_labels = rng.integers(0, args.numClasses, len(train_ix))
-    test_labels = rng.integers(0, args.numClasses, len(test_ix))
-    val_labels = rng.integers(0, args.numClasses, len(val_ix))
+    train_df = pd.DataFrame({'node': train_ix, 'label': train_labels})
 
-    output_path = write_numpy(args, train_labels, paper_dir, 'train_labels.npy')
-    print(f'Saved test labels to {output_path}')
-    output_path = write_numpy(args, test_labels, paper_dir, 'test_labels.npy')
-    print(f'Saved test labels to {output_path}')
-    output_path = write_numpy(args, val_labels, paper_dir, 'val_labels.npy')
-    print(f'Saved validation labels to {output_path}')
+    test_labels = rng.integers(0, args.numClasses, len(test_ix))
+    test_df = pd.DataFrame({'node': test_ix, 'label': test_labels})
+
+    val_labels = rng.integers(0, args.numClasses, len(val_ix))
+    val_df = pd.DataFrame({'node': val_ix, 'label': val_labels})
+
+    save_data(args, paper_dir, 'train_labels', train_df)
+    save_data(args, paper_dir, 'test_labels', test_df)
+    save_data(args, paper_dir, 'val_labels', val_df)
 
 
 def create_author_papers_data(
@@ -808,9 +807,6 @@ def main() -> None:
                 'author__affiliated_with__institution':
                     num_author_affil_institution_edges,
                 'paper__cites__paper': num_paper_cites_paper_edges,
-                'train': train_ix.tolist(),
-                'test': test_ix.tolist(),
-                'val': val_ix.tolist(),
             },
             out_json_file,
 
