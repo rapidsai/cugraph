@@ -492,21 +492,21 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
         CUDA_TRY(cudaDeviceSynchronize());
         cudaDeviceSynchronize();
-        raft::print_device_vector("unreduced_majors = ",
+        raft::print_device_vector("unreduced_majors",
                                   unreduced_majors.data(),
                                   (h_edge_offsets[j + 1] - h_edge_offsets[j]),
                                   std::cout);
         std::cout << std::endl;
 
         cudaDeviceSynchronize();
-        raft::print_device_vector("unreduced_minor_keys = ",
+        raft::print_device_vector("unreduced_minor_keys",
                                   unreduced_minor_keys.data(),
                                   (h_edge_offsets[j + 1] - h_edge_offsets[j]),
                                   std::cout);
         std::cout << std::endl;
 
         cudaDeviceSynchronize();
-        raft::print_device_vector("unreduced_key_aggregated_edge_values = ",
+        raft::print_device_vector("unreduced_key_aggregated_edge_values",
                                   unreduced_key_aggregated_edge_values.data(),
                                   (h_edge_offsets[j + 1] - h_edge_offsets[j]),
                                   std::cout);
@@ -542,7 +542,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
         CUDA_TRY(cudaDeviceSynchronize());
         cudaDeviceSynchronize();
-        std::cout << "aftert thrust::reduce_by_key" << std::endl;
+        std::cout << "aftert thrust::reduce_by_key ..... " << std::endl;
         raft::print_device_vector("unreduced_majors",
                                   unreduced_majors.data(),
                                   (h_edge_offsets[j + 1] - h_edge_offsets[j]),
@@ -560,14 +560,6 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         raft::print_device_vector("unreduced_key_aggregated_edge_values",
                                   unreduced_key_aggregated_edge_values.data(),
                                   (h_edge_offsets[j + 1] - h_edge_offsets[j]),
-                                  std::cout);
-        std::cout << std::endl;
-
-        CUDA_TRY(cudaDeviceSynchronize());
-        cudaDeviceSynchronize();
-        raft::print_device_vector("before thrust::reduce_by_key, edge_value_input ",
-                                  edge_value_input.value_firsts()[0],
-                                  edge_value_input.edge_counts()[0],
                                   std::cout);
         std::cout << std::endl;
 
