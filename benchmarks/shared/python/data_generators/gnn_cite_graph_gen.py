@@ -298,11 +298,11 @@ def dec_df_update(
 # -----------------------------------------------------------------------
 #
 #
-def create_paper_cites_data(args: argparse.Namespace) -> int:
+def create_paper_cites_data(args: argparse.Namespace) -> Tuple[int, int]:
     """
     Create an RMAT graph and write out the edges
 
-    Returns the number of nodes in the graph
+    Returns the number of edges and nodes in the graph
     """
 
     print(f"making files under {paper_cite_dir}")
@@ -326,9 +326,10 @@ def create_paper_cites_data(args: argparse.Namespace) -> int:
     name = "edge"
     save_data(args, paper_cite_dir, name, coo)
 
+    num_edges = len(coo)
     del coo
 
-    return max_id
+    return num_edges, max_id
 
 
 # -----------------------------------------------------------------------
@@ -442,9 +443,9 @@ def create_paper_labels(
 def create_author_papers_data(
         args: argparse.Namespace,
         start_id: int,
-        num_papers: int) -> int:
+        num_papers: int) -> Tuple[int, int]:
     """
-    Returns the number of authors.
+    Returns the number of author->paper edges and number of authors.
     """
 
     num_authors = int(num_papers * args.authorPercent)
@@ -515,10 +516,10 @@ def create_author_papers_data(
     print("Save the author writes paper data")
     name = "edge"
     save_data(args, author_paper_dir, name, data)
-
+    num_edges = len(data)
     del data
 
-    return num_authors
+    return num_edges, num_authors
 
 
 # -----------------------------------------------------------------------
@@ -529,7 +530,8 @@ def create_author_institute_data(
         start_id: int,
         num_authors: int) -> int:
     """
-    Returns the number of institutions.
+    Returns the number of author->institution edges and
+    number of institutions.
     """
 
     num_institutes = args.numInstitutions
@@ -598,7 +600,7 @@ def create_author_institute_data(
     name = "edge"
     save_data(args, author_institute_dir, name, data)
 
-    return num_institutes
+    return len(data), num_institutes
 
 
 ###################################################
@@ -767,7 +769,7 @@ def main() -> None:
     setup_directories(args.outdir)
 
     # Step 1: Create the Papers Cite graph
-    last_paper_id = create_paper_cites_data(args)
+    num_paper_cites_paper_edges, last_paper_id = create_paper_cites_data(args)
     num_papers = last_paper_id + 1
 
     # --- Step 2: Papers info  (labels and features) ---
@@ -777,11 +779,15 @@ def main() -> None:
     create_paper_labels(args, train_ix, test_ix, val_ix)
 
     # --- Step 4:Author to Papers ---
-    num_auth = create_author_papers_data(args, (last_paper_id + 1), num_papers)
+    num_author_writes_paper_edges, num_auth = (
+        create_author_papers_data(args, (last_paper_id + 1), num_papers)
+    )
 
     # --- Step 5:Author to Institutions ---
     next_id = num_papers + num_auth + 1
-    num_inst = create_author_institute_data(args, (next_id), num_auth)
+    num_author_affil_institution_edges, num_inst = (
+        create_author_institute_data(args, (next_id), num_auth)
+    )
 
     with open(os.path.join(args.outdir, 'meta.json'), 'w') as out_json_file:
         json.dump(
@@ -798,6 +804,10 @@ def main() -> None:
                     int(last_paper_id + num_auth) + 1,
                     int(last_paper_id + num_auth + num_inst) - 1
                 ],
+                'author__writes__paper': num_author_writes_paper_edges,
+                'author__affiliated_with__institution':
+                    num_author_affil_institution_edges,
+                'paper__cites__paper': num_paper_cites_paper_edges,
                 'train': train_ix.tolist(),
                 'test': test_ix.tolist(),
                 'val': val_ix.tolist(),
