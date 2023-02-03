@@ -99,9 +99,6 @@ jobs:
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       #before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-wheelhouse"
       skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
-      cibw-environment: "SCCACHE_ERROR_LOG=/tmp/sccache_log.txt SCCACHE_LOG=debug"
-      post-repair-amd64: "rapids-upload-to-s3 cugraph /tmp/sccache_log.txt"
-      post-repair-arm64: "rapids-upload-to-s3 cugraph /tmp/sccache_log.txt"
       node_type: "cpu32"
   wheel-tests-cugraph:
     needs: wheel-build-cugraph
