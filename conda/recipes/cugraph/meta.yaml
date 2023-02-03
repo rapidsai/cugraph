@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c rapidsai -c conda-forge -c nvidia .
@@ -73,8 +73,8 @@ requirements:
     - cupy >=9.5.0,<12.0.0a0
     - dask-cuda ={{ minor_version }}
     - dask-cudf ={{ minor_version }}
-    - dask >=2022.12.0
-    - distributed >=2022.12.0
+    - dask ==2023.1.1
+    - distributed ==2023.1.1
     - libcugraph ={{ version }}
     - libraft-distance ={{ minor_version }}
     - libraft-headers ={{ minor_version }}

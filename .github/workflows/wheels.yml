@@ -86,9 +86,9 @@ jobs:
       skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
 
       # Always want to test against latest dask/distributed.
-      test-before-amd64: "pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
+      test-before-amd64: "pip install git+https://github.com/dask/dask.git@main2023.1.1 git+https://github.com/dask/distributed.git@main2023.1.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
       # On arm also need to install cupy from the specific webpage.
-      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main2023.1.1 git+https://github.com/dask/distributed.git@main2023.1.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
       test-extras: test
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
     secrets: inherit
