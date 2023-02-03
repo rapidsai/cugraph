@@ -66,7 +66,7 @@ outputs:
     script: install_libcugraph.sh
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ date_string }}_h{{ PKG_HASH }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
         - {{ compiler('cuda') }}
     requirements:
@@ -90,7 +90,7 @@ outputs:
     script: install_libcugraph_etl.sh
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ date_string }}_h{{ PKG_HASH }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
         - {{ compiler('cuda') }}
     requirements:
@@ -111,7 +111,7 @@ outputs:
     script: install_libcugraph_tests.sh
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ date_string }}_h{{ PKG_HASH }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
         - {{ compiler('cuda') }}
     requirements:
