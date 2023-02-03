@@ -13,7 +13,6 @@
 # =============================================================================
 
 add_subdirectory(components)
-add_subdirectory(raft/common)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
 
