@@ -109,8 +109,11 @@ class Tests_MGUniform_Neighbor_Sampling
       thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_first()),
       thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_last()),
       random_sources.begin(),
-      [d_random_number = random_numbers.data(), select_probability] __device__(vertex_t offset) {
-        return d_random_number[offset] < select_probability;
+      [vertex_first = mg_graph_view.local_vertex_partition_range_first(),
+       random_numbers =
+         raft::device_span<float const>(random_numbers.data(), random_numbers.size()),
+       select_probability] __device__(vertex_t v) {
+        return random_numbers[v - vertex_first] < select_probability;
       });
 
     random_sources.resize(thrust::distance(random_sources.begin(), random_sources_end),
@@ -335,10 +338,11 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGUniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
-                                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -347,9 +351,10 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGUniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
-                                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
