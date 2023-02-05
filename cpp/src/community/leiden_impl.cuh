@@ -50,43 +50,10 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           bool store_transposed = false>
-std::optional<rmm::device_uvector<vertex_t>> aggregate_graph(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>& current_graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>>& edge_weights_view,
-  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>& current_graph,
-  // std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
-  rmm::device_uvector<vertex_t>& refined_partition)
-{
-  std::optional<rmm::device_uvector<vertex_t>> leiden_of_coarsen_graph{std::nullopt};
-
-  std::optional<
-    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
-    coarsen_graph_edge_property{std::nullopt};
-
-  std::tie(current_graph, coarsen_graph_edge_property, leiden_of_coarsen_graph) =
-    cugraph::detail::graph_contraction(
-      handle,
-      current_graph_view,
-      edge_weights_view,
-      raft::device_span<vertex_t>{refined_partition.begin(), refined_partition.size()});
-  current_graph_view = current_graph.view();
-
-  edge_weights_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
-    (*coarsen_graph_edge_property).view());
-
-  return leiden_of_coarsen_graph;
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> input_edge_weight_view,
   size_t max_level,
   weight_t resolution)
 {
@@ -97,6 +64,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
+
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view(
+    input_edge_weight_view);
 
   HighResTimer hr_timer;
 
@@ -549,8 +519,22 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     dst_louvain_assignment_cache.clear(handle);
 
     // Create aggregate graph based on refined (leiden) partition
-    auto cluster_assignment = aggregate_graph(
-      handle, current_graph_view, edge_weight_view, current_graph, refined_leiden_partition);
+
+    std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
+
+    std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_property(handle);
+
+    std::tie(current_graph, coarsen_graph_edge_property, cluster_assignment) =
+      cugraph::detail::graph_contraction(
+        handle,
+        current_graph_view,
+        edge_weight_view,
+        raft::device_span<vertex_t>{refined_leiden_partition.begin(),
+                                    refined_leiden_partition.size()});
+    current_graph_view = current_graph.view();
+
+    edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
+      (*coarsen_graph_edge_property).view());
 
     CUDA_TRY(cudaDeviceSynchronize());
     std::cout << "... Leiden assignment of aggregated_graph" << std::endl;
