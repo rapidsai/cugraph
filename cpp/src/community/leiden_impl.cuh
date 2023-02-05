@@ -67,6 +67,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view(
     input_edge_weight_view);
+  std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_property(handle);
 
   HighResTimer hr_timer;
 
@@ -521,8 +522,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     // Create aggregate graph based on refined (leiden) partition
 
     std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
-
-    std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_property(handle);
 
     std::tie(current_graph, coarsen_graph_edge_property, cluster_assignment) =
       cugraph::detail::graph_contraction(
