@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # limitations under the License.
 import gc
 import random
-
+import copy
 import pytest
 import cupy
 from dask.distributed import wait
@@ -218,12 +218,19 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
     with pytest.raises(ValueError):
         G = cugraph.Graph()
         G.from_dask_cudf_edgelist(
-            el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+            el,
+            source="0",
+            destination="1",
+            edge_attr=["2", "id", "etype"],
         )
 
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(
-        el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+        el,
+        source="0",
+        destination="1",
+        edge_attr=["2", "id", "etype"],
+        legacy_renum_only=True,
     )
 
 
@@ -247,3 +254,20 @@ def test_graph_repartition(dask_client):
 
     num_futures = len(ddf.worker_to_parts.values())
     assert num_futures == num_workers
+
+
+def test_mg_graph_serializable(dask_client, input_combo):
+    G = input_combo["MGGraph"]
+    dask_client.publish_dataset(shared_g=G)
+    shared_g = dask_client.get_dataset("shared_g")
+    assert type(shared_g) == type(G)
+    assert G.number_of_vertices() == shared_g.number_of_vertices()
+    assert G.number_of_edges() == shared_g.number_of_edges()
+    # cleanup
+    dask_client.unpublish_dataset("shared_g")
+
+
+def test_mg_graph_copy():
+    G = cugraph.MultiGraph(directed=True)
+    G_c = copy.deepcopy(G)
+    assert type(G) == type(G_c)

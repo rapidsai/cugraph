@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ function(find_and_configure_cuhornet)
     FetchContent_Declare(
         cuhornet
         GIT_REPOSITORY    https://github.com/rapidsai/cuhornet.git
-        GIT_TAG           a11519016ce791239dc019615f3cffac6560534b
+        GIT_TAG           17467c88abe2b76df456614575c02f7e9cbfd02d
         SOURCE_SUBDIR     hornet
     )
     FetchContent_GetProperties(cuhornet)

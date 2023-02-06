@@ -38,12 +38,9 @@ class CuGraphStorage:
     Duck-typed version of the DGLHeteroGraph class made for cuGraph
     for storing graph structure and node/edge feature data.
 
-    This object is wrapper around cugraph's PropertyGraph and returns samples
+    This object is wrapper around cugraph's Multi GPU MultiGraph and returns samples
     that conform with `DGLHeteroGraph`
-    See: (TODO link after https://github.com/rapidsai/cugraph/pull/2826)
-
-    Read the user guide chapter (#TODO link cugraph and DGL documentation)
-    for an in-depth explanation about its usage.
+    See: https://docs.rapids.ai/api/cugraph/nightly/api_docs/cugraph_dgl.html
     """
 
     def __init__(
@@ -145,12 +142,11 @@ class CuGraphStorage:
         self.idtype = idtype
         self.id_np_type = backend_dtype_to_np_dtype_dict[idtype]
         self.num_nodes_dict = num_nodes_dict
-        self._node_id_offset_d = self.__get_node_id_offset_d(self.num_nodes_dict)
+        self._ntype_offset_d = self.__get_ntype_offset_d(self.num_nodes_dict)
         # Todo: Can possibly optimize by persisting edge-list
         # Trade-off memory for run-time
         self.num_edges_dict = {k: len(v) for k, v in data_dict.items()}
-        self._edge_id_offset_d = self.__get_edge_id_offset_d(self.num_edges_dict)
-
+        self._etype_offset_d = self.__get_etype_offset_d(self.num_edges_dict)
         self.single_gpu = single_gpu
 
         self.ndata_storage = FeatureStore(backend="torch")
@@ -158,16 +154,20 @@ class CuGraphStorage:
         self.edata_storage = FeatureStore(backend="torch")
         self.edata = self.edata_storage.fd
 
-        self._edge_id_range_d = self.__get_edge_id_range_d(
-            self._edge_id_offset_d, self.num_canonical_edges_dict
+        self._etype_range_d = self.__get_etype_range_d(
+            self._etype_offset_d, self.num_canonical_edges_dict
         )
         _edges_dict = add_edge_ids_to_edges_dict(
-            data_dict, self._edge_id_offset_d, self.id_np_type
+            data_dict, self._etype_offset_d, self.id_np_type
         )
-        _edges_dict = add_node_offset_to_edges_dict(_edges_dict, self._node_id_offset_d)
-        self.uniform_sampler = DGLUniformSampler(
-            _edges_dict, self._edge_id_range_d, self.single_gpu
+
+        self._edges_dict = add_node_offset_to_edges_dict(
+            _edges_dict, self._ntype_offset_d
         )
+        self._etype_id_dict = {
+            etype: etype_id for etype_id, etype in enumerate(self.canonical_etypes)
+        }
+        self.uniform_sampler = None
 
     def add_node_data(self, feat_obj: Sequence, ntype: str, feat_name: str):
         """
@@ -276,6 +276,13 @@ class CuGraphStorage:
             only the sampled neighboring edges.  The induced edge IDs will be
             in ``edata[dgl.EID]``.
         """
+        if self.uniform_sampler is None:
+            self.uniform_sampler = DGLUniformSampler(
+                self._edges_dict,
+                self._etype_range_d,
+                self._etype_id_dict,
+                self.single_gpu,
+            )
 
         if prob is not None:
             raise NotImplementedError(
@@ -599,15 +606,14 @@ class CuGraphStorage:
         """
         Return the integer offset for node id of type ntype
         """
-
-        return self._node_id_offset_d[ntype]
+        return self._ntype_offset_d[ntype]
 
     def get_edge_id_offset(self, canonical_etype: Tuple[str, str, str]) -> int:
         """
         Return the integer offset for node id of type etype
         """
         _assert_valid_canonical_etype(canonical_etype)
-        return self._edge_id_offset_d[canonical_etype]
+        return self._etype_offset_d[canonical_etype]
 
     def dgl_n_id_to_cugraph_id(self, index_t, ntype: str):
         return index_t + self.get_node_id_offset(ntype)
@@ -623,32 +629,31 @@ class CuGraphStorage:
 
     # Methods for getting the offsets per type
     @staticmethod
-    def __get_edge_id_offset_d(num_canonical_edges_dict):
-        # dict for edge_id_offset_start
+    def __get_etype_offset_d(num_canonical_edges_dict):
         last_st = 0
-        edge_ind_st_d = {}
+        etype_st_d = {}
         for etype in sorted(num_canonical_edges_dict.keys()):
-            edge_ind_st_d[etype] = last_st
+            etype_st_d[etype] = last_st
             last_st = last_st + num_canonical_edges_dict[etype]
-        return edge_ind_st_d
+        return etype_st_d
 
     @staticmethod
-    def __get_edge_id_range_d(edge_id_offset_d, num_canonical_edges_dict):
+    def __get_etype_range_d(etype_offset_d, num_canonical_edges_dict):
         # dict for edge_id_offset_start
-        edge_id_range_d = {}
-        for etype, st in edge_id_offset_d.items():
-            edge_id_range_d[etype] = (st, st + num_canonical_edges_dict[etype])
-        return edge_id_range_d
+        etype_range_d = {}
+        for etype, st in etype_offset_d.items():
+            etype_range_d[etype] = (st, st + num_canonical_edges_dict[etype])
+        return etype_range_d
 
     @staticmethod
-    def __get_node_id_offset_d(num_nodes_dict):
+    def __get_ntype_offset_d(num_nodes_dict):
         # dict for node_id_offset_start
         last_st = 0
-        node_ind_st_d = {}
+        ntype_st_d = {}
         for ntype in sorted(num_nodes_dict.keys()):
-            node_ind_st_d[ntype] = last_st
+            ntype_st_d[ntype] = last_st
             last_st = last_st + num_nodes_dict[ntype]
-        return node_ind_st_d
+        return ntype_st_d
 
     def get_corresponding_canonical_etype(self, etype: str) -> str:
         can_etypes = [
@@ -676,9 +681,10 @@ class CuGraphStorage:
         ) in graph_sampled_data_d.items():
             src_type = canonical_etype[0]
             dst_type = canonical_etype[2]
-            src_t = torch.as_tensor(src, device="cuda")
-            dst_t = torch.as_tensor(dst, device="cuda")
-            edge_id_t = torch.as_tensor(edge_id, device="cuda")
+
+            src_t = _torch_tensor_from_cp_array(src)
+            dst_t = _torch_tensor_from_cp_array(dst)
+            edge_id_t = _torch_tensor_from_cp_array(edge_id)
 
             src_t = self.cugraph_n_id_to_dgl_id(src_t, src_type)
             dst_t = self.cugraph_n_id_to_dgl_id(dst_t, dst_type)
@@ -687,3 +693,9 @@ class CuGraphStorage:
             graph_eid_d[canonical_etype] = edge_id_t.to(o_dtype)
 
         return graph_data_d, graph_eid_d
+
+
+def _torch_tensor_from_cp_array(ar):
+    if len(ar) == 0:
+        return torch.as_tensor(ar.get()).to("cuda")
+    return torch.as_tensor(ar, device="cuda")

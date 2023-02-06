@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -180,6 +180,31 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_get_index(
             cugraph_sample_result_t* result
         )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_weight(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_id(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_edge_type(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_hop(
+            cugraph_sample_result_t* result
+        )
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_sample_result_get_start_labels(
+            cugraph_sample_result_t* result
+        )
 
     cdef void \
         cugraph_sample_result_free(
@@ -193,8 +218,11 @@ cdef extern from "cugraph_c/algorithms.h":
             const cugraph_resource_handle_t* handle,
             const cugraph_type_erased_device_array_view_t* srcs,
             const cugraph_type_erased_device_array_view_t* dsts,
-            const cugraph_type_erased_device_array_view_t* weights,
-            const cugraph_type_erased_device_array_view_t* counts,
+            const cugraph_type_erased_device_array_view_t* edge_id,
+            const cugraph_type_erased_device_array_view_t* edge_type,
+            const cugraph_type_erased_device_array_view_t* wgt,
+            const cugraph_type_erased_device_array_view_t* hop,
+            const cugraph_type_erased_device_array_view_t* label,
             cugraph_sample_result_t** result,
             cugraph_error_t** error
         )

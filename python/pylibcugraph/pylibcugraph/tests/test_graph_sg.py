@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -109,3 +109,54 @@ def test_sg_graph(graph_data):
                 renumber=False,
                 do_expensive_check=False,
             )
+
+
+def test_SGGraph_create_from_cudf():
+    """
+    Smoke test to ensure an SGGraph can be created from a cuDF DataFrame
+    without raising exceptions, crashing, etc. This currently does not assert
+    correctness of the graph in any way.
+    """
+    # FIXME: other PLC tests are using cudf so this does not add a new dependency,
+    # however, PLC tests should consider having fewer external dependencies, meaning
+    # this and other tests would be changed to not use cudf.
+    import cudf
+
+    # Importing this cugraph class seems to cause a crash more reliably (2023-01-22)
+    # from cugraph.structure.graph_implementation import simpleGraphImpl
+    from pylibcugraph import (
+        ResourceHandle,
+        GraphProperties,
+        SGGraph,
+    )
+
+    print("get edgelist...", end="", flush=True)
+    edgelist = cudf.DataFrame(
+        {
+            "src": [0, 1, 2],
+            "dst": [1, 2, 4],
+            "wgt": [0.0, 0.1, 0.2],
+        }
+    )
+
+    print("edgelist = ", edgelist)
+    print("done", flush=True)
+    print("create Graph...", end="", flush=True)
+
+    graph_props = GraphProperties(is_multigraph=False, is_symmetric=False)
+
+    plc_graph = SGGraph(
+        resource_handle=ResourceHandle(),
+        graph_properties=graph_props,
+        src_or_offset_array=edgelist["src"],
+        dst_or_index_array=edgelist["dst"],
+        weight_array=edgelist["wgt"],
+        edge_id_array=None,
+        edge_type_array=None,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=True,
+        input_array_format="COO",
+    )
+    print("done", flush=True)
+    print(f"created SGGraph {plc_graph=}", flush=True)
