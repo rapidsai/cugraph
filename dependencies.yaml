@@ -143,7 +143,6 @@ dependencies:
           - distributed==2023.1.1
           - dask-cuda=23.04.*
           - dask-cudf=23.04.*
-          - distributed>=2022.12.0
           - libcudf=23.04.*
           - nccl>=2.9.9
           - pylibraft=23.04.*
