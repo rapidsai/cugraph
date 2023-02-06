@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -82,3 +82,18 @@ sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/
 for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-action-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done
+
+# Wheel builds clone cugraph-ops, update its branch
+sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" .github/workflows/*.yaml
+
+# Wheel builds install dask-cuda from source, update its branch
+sed_runner "s/dask-cuda.git@branch-[^\"\s]\+/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" .github/workflows/*.yaml
+
+# Need to distutils-normalize the original version
+NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}'))")
+
+# Wheel builds install intra-RAPIDS dependencies from same release
+sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/setup.py
+sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/_custom_build/backend.py
+sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/setup.py
+sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/_custom_build/backend.py
