@@ -32,10 +32,9 @@ requirements:
     - python x.x
     - pytorch
 
-# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
-tests:                                 # [linux64]
-  imports:                             # [linux64]
-    - cugraph_dgl                      # [linux64]
+tests:
+  imports:
+    - cugraph_dgl
 
 about:
   home: https://rapids.ai/

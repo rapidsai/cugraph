@@ -65,8 +65,7 @@ outputs:
         - thriftpy2 >=0.4.15
         - ucx-py {{ ucx_py_version }}
 
-# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
-tests:                                 # [linux64]
-  imports:                             # [linux64]
-    - cugraph_service_server           # [linux64]
-    - cugraph_service_client           # [linux64]
+tests:
+  imports:
+    - cugraph_service_server
+    - cugraph_service_client
