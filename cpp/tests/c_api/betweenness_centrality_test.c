@@ -114,7 +114,7 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.001),
+                nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.00001),
                 "centralities results don't match");
   }
 
@@ -215,7 +215,35 @@ int test_betweenness_centrality_specific_normalized()
                                              FALSE,
                                              TRUE,
                                              FALSE,
-                                             6);
+                                             num_seeds);
+}
+
+int test_betweenness_centrality_specific_unnormalized()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t num_seeds    = 2;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_seeds[]  = {0, 3};
+  weight_t h_result[] = {0, 3.16667, 1.33333, 0.666667, 0.333333, 0.5};
+
+  return generic_betweenness_centrality_test(h_src,
+                                             h_dst,
+                                             h_wgt,
+                                             h_seeds,
+                                             h_result,
+                                             num_vertices,
+                                             num_edges,
+                                             num_seeds,
+                                             FALSE,
+                                             FALSE,
+                                             FALSE,
+                                             FALSE,
+                                             num_seeds);
 }
 
 int test_betweenness_centrality_test_endpoints()
@@ -232,6 +260,63 @@ int test_betweenness_centrality_test_endpoints()
     h_src, h_dst, h_wgt, NULL, h_result, num_vertices, num_edges, 0, FALSE, FALSE, TRUE, TRUE, 6);
 }
 
+int test_betweenness_centrality_full_directed_normalized_karate()
+{
+  size_t num_edges    = 156;
+  size_t num_vertices = 34;
+
+  vertex_t h_src[] = {
+    1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 2,  3,  7,  13, 17, 19, 21,
+    30, 3,  7,  8,  9,  13, 27, 28, 32, 7,  12, 13, 6,  10, 6,  10, 16, 16, 30, 32, 33, 33, 33,
+    32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29, 32, 33, 25, 27, 31, 31, 29, 33, 33,
+    31, 33, 32, 33, 32, 33, 32, 33, 33, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  4,  4,
+    5,  5,  5,  6,  8,  8,  8,  9,  13, 14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23,
+    23, 23, 24, 24, 24, 25, 26, 26, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32};
+
+  vertex_t h_dst[] = {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,
+    1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  4,  4,  5,  5,  5,  6,  8,  8,  8,  9,  13,
+    14, 14, 15, 15, 18, 18, 19, 20, 20, 22, 22, 23, 23, 23, 23, 23, 24, 24, 24, 25, 26, 26, 27,
+    28, 28, 29, 29, 30, 30, 31, 31, 32, 1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19,
+    21, 31, 2,  3,  7,  13, 17, 19, 21, 30, 3,  7,  8,  9,  13, 27, 28, 32, 7,  12, 13, 6,  10,
+    6,  10, 16, 16, 30, 32, 33, 33, 33, 32, 33, 32, 33, 32, 33, 33, 32, 33, 32, 33, 25, 27, 29,
+    32, 33, 25, 27, 31, 31, 29, 33, 33, 31, 33, 32, 33, 32, 33, 32, 33, 33};
+
+  weight_t h_wgt[] = {
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+  weight_t h_result[] = {462.142914, 56.957146,  151.701584, 12.576191, 0.666667, 31.666668,
+                         31.666668,  0.000000,   59.058739,  0.895238,  0.666667, 0.000000,
+                         0.000000,   48.431747,  0.000000,   0.000000,  0.000000, 0.000000,
+                         0.000000,   34.293652,  0.000000,   0.000000,  0.000000, 18.600000,
+                         2.333333,   4.055556,   0.000000,   23.584126, 1.895238, 3.085714,
+                         15.219049,  146.019043, 153.380981, 321.103180};
+
+  return generic_betweenness_centrality_test(h_src,
+                                             h_dst,
+                                             h_wgt,
+                                             NULL,
+                                             h_result,
+                                             num_vertices,
+                                             num_edges,
+                                             0,
+                                             FALSE,
+                                             FALSE,
+                                             FALSE,
+                                             FALSE,
+                                             34);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -242,6 +327,8 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_betweenness_centrality_full);
   result |= RUN_TEST(test_betweenness_centrality_full_directed);
   result |= RUN_TEST(test_betweenness_centrality_specific_normalized);
+  result |= RUN_TEST(test_betweenness_centrality_specific_unnormalized);
   result |= RUN_TEST(test_betweenness_centrality_test_endpoints);
+  result |= RUN_TEST(test_betweenness_centrality_full_directed_normalized_karate);
   return result;
 }
