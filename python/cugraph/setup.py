@@ -24,11 +24,11 @@ cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 INSTALL_REQUIRES = [
     "numba",
     "dask-cuda",
-    f"rmm{cuda_suffix}",
-    f"cudf{cuda_suffix}",
-    f"raft-dask{cuda_suffix}",
-    f"dask-cudf{cuda_suffix}",
-    f"pylibcugraph{cuda_suffix}",
+    f"rmm{cuda_suffix}==23.2.*",
+    f"cudf{cuda_suffix}==23.2.*",
+    f"raft-dask{cuda_suffix}==23.2.*",
+    f"dask-cudf{cuda_suffix}==23.2.*",
+    f"pylibcugraph{cuda_suffix}==23.2.*",
     "cupy-cuda11x",
 ]
 
