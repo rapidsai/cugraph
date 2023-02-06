@@ -361,8 +361,9 @@ def create_papers_data(
     # this is based on a true uniformed distributions, so results could be +/- a few
     nodes["label"] = 0
     nodes["label"].loc[nodes["rand"] < num_labeled] = 1
+    nodes['venue'] = rng.integers(0, args.numClasses, size=num_papers, dtype='int64')
 
-    # selected just the labeld nodes
+    # selected just the labeled nodes
     labeled_df = (nodes["label"].loc[nodes["label"] == 1]).to_frame().reset_index()
 
     # drop the "labeled" column since it is no longer needed
@@ -375,34 +376,46 @@ def create_papers_data(
     perm = rng.permutation(len(labeled_df))
     partition_first = int(len(labeled_df) * args.validationPercent)
     partition_second = partition_first + int(len(labeled_df) * args.testPercent)
-    val_ix = labeled_df['index'].iloc[perm[:partition_first]]
-    test_ix = labeled_df['index'].iloc[perm[partition_first:partition_second]]
-    train_ix = labeled_df['index'].iloc[perm[partition_second:]]
+    val_ix = (
+        labeled_df['index'].iloc[perm[:partition_first]]
+        .reset_index(drop=True)
+    )
+    test_ix = (
+        labeled_df['index'].iloc[perm[partition_first:partition_second]]
+        .reset_index(drop=True)
+    )
+    train_ix = (
+        labeled_df['index'].iloc[perm[partition_second:]]
+        .reset_index(drop=True)
+    )
     # some cleanup
     del ran
     del labeled_df
+
     nodes.drop(columns=["rand", "label"], inplace=True)
+
+    # Generate the labels
+    train_labels = nodes['venue'].loc[train_ix].reset_index(drop=True)
+    train_df = pd.DataFrame({'node': train_ix, 'label': train_labels})
+
+    test_labels = nodes['venue'].loc[test_ix].reset_index(drop=True)
+    test_df = pd.DataFrame({'node': test_ix, 'label': test_labels})
+
+    val_labels = nodes['venue'].loc[val_ix].reset_index(drop=True)
+    val_df = pd.DataFrame({'node': val_ix, 'label': val_labels})
+
+    save_data(args, paper_dir, 'train_labels', train_df)
+    save_data(args, paper_dir, 'test_labels', test_df)
+    save_data(args, paper_dir, 'val_labels', val_df)
 
     # --------------------
     # Now paper features
     num_f = args.papersNumFeatures
 
-    tmp_df = pd.DataFrame()
-
     for x in range(0, num_f):
-
-        noise = np.random.uniform(
-            (-1 * args.papersFeatureNoise), args.papersFeatureNoise, size=num_papers
-        )
-        tmp_df["noise"] = noise
-
-        ran = np.random.uniform(-1, 1, size=num_papers)
-        tmp_df["data"] = ran
-
         col_name = "feature_" + str(x)
-        nodes[col_name] = tmp_df["noise"] + tmp_df["data"]
-
-    del tmp_df
+        nodes[col_name] = nodes['venue'] * (x + 2.0)
+    nodes.drop(columns=['venue'], inplace=True)
 
     # Save the features
     data = nodes.to_numpy()
@@ -411,32 +424,6 @@ def create_papers_data(
     print(f'\tsaved features to {output_path}')
 
     return train_ix, test_ix, val_ix
-
-
-def create_paper_labels(
-        args: argparse.Namespace,
-        train_ix: np.ndarray,
-        test_ix: np.ndarray,
-        val_ix: np.ndarray) -> None:
-    """
-    Creates the labels for the train, test, and validation
-    data based on the input number of classes.
-    """
-
-    rng = np.random.default_rng(seed=args.seed)
-
-    train_labels = rng.integers(0, args.numClasses, len(train_ix))
-    train_df = pd.DataFrame({'node': train_ix, 'label': train_labels})
-
-    test_labels = rng.integers(0, args.numClasses, len(test_ix))
-    test_df = pd.DataFrame({'node': test_ix, 'label': test_labels})
-
-    val_labels = rng.integers(0, args.numClasses, len(val_ix))
-    val_df = pd.DataFrame({'node': val_ix, 'label': val_labels})
-
-    save_data(args, paper_dir, 'train_labels', train_df)
-    save_data(args, paper_dir, 'test_labels', test_df)
-    save_data(args, paper_dir, 'val_labels', val_df)
 
 
 def create_author_papers_data(
@@ -774,15 +761,12 @@ def main() -> None:
     # --- Step 2: Papers info  (labels and features) ---
     train_ix, test_ix, val_ix = create_papers_data(args, num_papers)
 
-    # --- Step 3: Paper Labels (venue id) ---
-    create_paper_labels(args, train_ix, test_ix, val_ix)
-
-    # --- Step 4:Author to Papers ---
+    # --- Step 3:Author to Papers ---
     num_author_writes_paper_edges, num_auth = (
         create_author_papers_data(args, (last_paper_id + 1), num_papers)
     )
 
-    # --- Step 5:Author to Institutions ---
+    # --- Step 4:Author to Institutions ---
     next_id = num_papers + num_auth + 1
     num_author_affil_institution_edges, num_inst = (
         create_author_institute_data(args, (next_id), num_auth)
