@@ -188,7 +188,12 @@ class EXPERIMENTAL__CuGraphStore:
     # TODO add an "expensive check" argument that ensures the graph store
     # and feature store are valid and compatible with PyG.
     def __init__(
-        self, F, G, num_nodes_dict, backend: str = "torch", multi_gpu: bool = False
+        self,
+        F: cugraph.gnn.FeatureStore,
+        G: Union[Dict[str, Tuple[Tensor]], Dict[str, int]],
+        num_nodes_dict: Dict[str, int],
+        backend: str = "torch",
+        multi_gpu: bool = False,
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -199,20 +204,35 @@ class EXPERIMENTAL__CuGraphStore:
             The feature store containing this graph's features.
             Typed lexicographic-ordered numbering convention
             should match that of the graph.
-        G : dict[tuple[tensor]] (Required)
+
+        G : dict[str, tuple[tensor]] or dict[str, int] (Required)
             Dictionary of edge indices.
-            i.e. {
-                ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
-                ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
-            }
+            Option 1 (graph in memory):
+                Pass the edge indices
+                i.e. {
+                    ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                    ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+                }
+            Option 2 (graph not in memory):
+                Pass the number of edges
+                i.e. {
+                    ('author', 'writes', 'paper'): 2,
+                    ('author', 'affiliated', 'institution'): 2
+                }
+                If the graph is not in memory, manipulating the edge indices
+                or calling sampling is not possible.  This is for cases where
+                sampling has already been done and samples were written to disk.
             Note: the internal cugraph representation will use
             offsetted vertex and edge ids.
+
         num_nodes_dict : dict (Required)
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
+
         backend : ('torch', 'cupy') (Optional, default = 'torch')
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
+
         multi_gpu : bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
@@ -251,9 +271,14 @@ class EXPERIMENTAL__CuGraphStore:
         self._tensor_attr_dict = defaultdict(list)
 
         # Infer number of edges from the edge index dict
-        num_edges_dict = {
-            pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G.items()
-        }
+        construct_graph = True
+        if isinstance(next(iter(G.values())), int):
+            num_edges_dict = G
+            construct_graph = False
+        else:
+            num_edges_dict = {
+                pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G.items()
+            }
 
         self.__infer_offsets(num_nodes_dict, num_edges_dict)
         self.__infer_existing_tensors(F)
@@ -262,7 +287,10 @@ class EXPERIMENTAL__CuGraphStore:
         self._edge_attr_cls = CuGraphEdgeAttr
 
         self.__features = F
-        self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+        if construct_graph:
+            self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+        else:
+            self.__graph = None
         self.__subgraphs = {}
 
     def __make_offsets(self, input_dict):
@@ -419,6 +447,8 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
+        if self.__graph is None:
+            return False
         return self.__graph.is_multi_gpu()
 
     def get_vertex_index(self, vtypes) -> TensorType:
@@ -481,6 +511,9 @@ class EXPERIMENTAL__CuGraphStore:
             Tuple of the requested edge index in COO form.
             Currently, only COO form is supported.
         """
+
+        if self.__graph is None:
+            raise ValueError("Graph is not in memory, cannot access edge index!")
 
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
@@ -605,6 +638,9 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
+        if self.__graph is None:
+            raise ValueError("Graph is not in memory, cannot get subgraph")
+
         if edge_types is not None and set(edge_types) != set(
             self.__edge_types_to_attrs.keys()
         ):
