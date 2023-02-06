@@ -186,12 +186,6 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
                 raise RuntimeError(f'Rank {rank} was unable to load cugraph store!')
     
         td.barrier()
-        
-        num_train_batches_per_rank = num_train_batches // len(devices)
-        remainder = num_train_batches - num_train_batches_per_rank * len(devices)
-        starting_batch_id = num_train_batches_per_rank * rank
-        if rank == len(devices) - 1:
-            num_train_batches_per_rank += remainder
 
         for epoch in range(num_epochs):
             # Create the loaders
@@ -199,13 +193,19 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
                 os.path.join(sampled_data_path, 'train_{epoch}'),
                 'rank=0'
             )
+            
             train_batches_per_partition = get_batches_per_partition(epoch_path)
-            num_partitions_per_rank = int(ceil(num_train_batches / train_batches_per_partition))
+            num_partitions_per_rank = num_train_batches // train_batches_per_partition
+            remainder = num_train_batches % train_batches_per_partition
+            train_batches_per_rank = num_partitions_per_rank * train_batches_per_partition
+            starting_batch_id = train_batches_per_rank * rank
+            if rank == len(devices) - 1:
+                train_batches_per_rank += remainder
 
             cugraph_bulk_loader = BulkSampleLoader(
                 cugraph_store,
                 cugraph_store,
-                num_train_batches,
+                train_batches_per_rank,
                 starting_batch_id=starting_batch_id,
                 batches_per_partition=train_batches_per_partition,
                 directory=epoch_path, # SET THIS CORRECTLY
