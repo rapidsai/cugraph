@@ -26,8 +26,6 @@ requirements:
     - cython >=0.29,<0.30
     - python x.x
     - scikit-build >=0.13.1
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools <=65.2.0
   run:
     - distributed ==2023.1.1
     - numba >=0.56.2

@@ -22,8 +22,6 @@ build:
 requirements:
   host:
     - python x.x
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools <=65.2.0
   run:
     - cugraph ={{ version }}
     - dgl >=0.9.1

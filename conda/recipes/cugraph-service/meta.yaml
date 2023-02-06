@@ -28,8 +28,6 @@ outputs:
       host:
         - pip
         - python x.x
-        # FIXME: this pin can be removed once we move to the GitHub Actions build process
-        - setuptools <=65.2.0
       run:
         - python x.x
         - thriftpy2 >=0.4.15
@@ -50,8 +48,6 @@ outputs:
       host:
         - pip
         - python x.x
-        # FIXME: this pin can be removed once we move to the GitHub Actions build process
-        - setuptools <=65.2.0
       run:
         - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cudf ={{ minor_version }}
