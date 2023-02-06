@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 """Custom build backend for cugraph to get versioned requirements.
 
@@ -21,9 +21,9 @@ def replace_requirements(func):
         orig_list = getattr(_orig, func.__name__)(config_settings)
         cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
         append_list = [
-            f"rmm{cuda_suffix}",
-            f"raft-dask{cuda_suffix}",
-            f"pylibcugraph{cuda_suffix}",
+            f"rmm{cuda_suffix}==23.2.*",
+            f"raft-dask{cuda_suffix}==23.2.*",
+            f"pylibcugraph{cuda_suffix}==23.2.*",
         ]
         return orig_list + append_list
 
