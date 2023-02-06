@@ -26,7 +26,7 @@ dependencies:
 - ipython
 - libcudf=23.04.*
 - libcugraphops=23.04.*
-- libraft-distance=23.02.*
+- libraft-distance=23.04.*
 - libraft-headers=23.04.*
 - librmm=23.04.*
 - nbsphinx
