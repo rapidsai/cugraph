@@ -354,8 +354,11 @@ void cugraph_sample_result_free(cugraph_sample_result_t* result);
  * @param [in]   handle         Handle for accessing resources
  * @param [in]   srcs           Device array view to populate srcs
  * @param [in]   dsts           Device array view to populate dsts
- * @param [in]   weights        Device array view to populate weights
- * @param [in]   counts         Device array view to populate counts
+ * @param [in]   edge_id        Device array view to populate edge_id (can be NULL)
+ * @param [in]   edge_type      Device array view to populate edge_type (can be NULL)
+ * @param [in]   wgt            Device array view to populate wgt (can be NULL)
+ * @param [in]   hop            Device array view to populate hop
+ * @param [in]   label          Device array view to populate label (can be NULL)
  * @param [out]  result         Pointer to the location to store the
  *                              cugraph_sample_result_t*
  * @param [out]  error          Pointer to an error object storing details of
@@ -367,8 +370,11 @@ cugraph_error_code_t cugraph_test_sample_result_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* srcs,
   const cugraph_type_erased_device_array_view_t* dsts,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* counts,
+  const cugraph_type_erased_device_array_view_t* edge_id,
+  const cugraph_type_erased_device_array_view_t* edge_type,
+  const cugraph_type_erased_device_array_view_t* wgt,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const cugraph_type_erased_device_array_view_t* label,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
 

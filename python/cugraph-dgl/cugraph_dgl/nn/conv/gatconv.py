@@ -13,9 +13,11 @@
 """Torch Module for graph attention network layer using the aggregation
 primitives in cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
+from typing import Optional
 
 from cugraph.utilities.utils import import_optional
 
+dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 ops = import_optional("pylibcugraphops")
@@ -80,11 +82,11 @@ class GATConv(nn.Module):
 
     def __init__(
         self,
-        in_feats,
-        out_feats,
-        num_heads,
-        negative_slope=0.2,
-        bias=True,
+        in_feats: int,
+        out_feats: int,
+        num_heads: int,
+        negative_slope: float = 0.2,
+        bias: bool = True,
     ):
         super().__init__()
         self.in_feats = in_feats
@@ -113,7 +115,12 @@ class GATConv(nn.Module):
         if self.bias is not None:
             nn.init.zeros_(self.bias)
 
-    def forward(self, g, feat, max_in_degree=None):
+    def forward(
+        self,
+        g: dgl.DGLHeteroGraph,
+        feat: torch.Tensor,
+        max_in_degree: Optional[int] = None,
+    ) -> torch.Tensor:
         r"""Forward computation.
 
         Parameters
