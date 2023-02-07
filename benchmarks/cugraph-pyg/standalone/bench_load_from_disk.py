@@ -81,12 +81,13 @@ def load_features(node_type_name, features_path, num_nodes):
     return F
 
 def get_batches_per_partition(dir):
+    dir = os.path.join(dir, 'rank=0')
     sample_fname = os.listdir(dir)[0]
     m = re.match(r'batch\=([0-9]+)\-([0-9]+)\.parquet', sample_fname)
     if m is None:
         raise ValueError(f'Unexpected partition schema in {dir}')
     
-    return int(m[1]) - int(m[0]) + 1
+    return int(m[2]) - int(m[1]) + 1
 
 def enable_cudf_spilling():
     import cudf
@@ -168,8 +169,9 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
                 'paper': num_papers
             }
 
+            import pickle
             cugraph_store = CuGraphStore(F, G, N)
-            client.publish_dataset(cugraph_store=cugraph_store)
+            client.publish_dataset(cugraph_store=pickle.dumps(cugraph_store))
             client.publish_dataset(num_train_batches=num_train_batches)
             client.publish_dataset(num_test_batches=num_test_batches)
             client.publish_dataset(num_val_batches=num_val_batches)
@@ -179,7 +181,8 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
             # features store
         else:
             if event.wait(timeout=1000):
-                cugraph_store = client.get_dataset('cugraph_store')
+                import pickle
+                cugraph_store = pickle.loads(client.get_dataset('cugraph_store'))
                 num_train_batches = client.get_dataset('num_train_batches')
                 num_test_batches = client.get_dataset('num_test_batches')
                 num_val_batches = client.get_dataset('num_val_batches')
@@ -191,26 +194,30 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
 
         for epoch in range(num_epochs):
             # Create the loaders
-            epoch_path = os.path.join(
-                os.path.join(sampled_data_path, 'train_{epoch}'),
-                'rank=0'
-            )
+            epoch_path = os.path.join(sampled_data_path, f'train_{epoch}')
             
             train_batches_per_partition = get_batches_per_partition(epoch_path)
-            num_partitions_per_rank = num_train_batches // train_batches_per_partition
+            num_partitions_per_epoch = int(ceil(num_train_batches / train_batches_per_partition))
+            if num_partitions_per_epoch > rank:
+                break
+            num_partitions_per_rank = num_partitions_per_epoch // min(num_partitions_per_epoch, len(devices))
+
             remainder = num_train_batches % train_batches_per_partition
             train_batches_per_rank = num_partitions_per_rank * train_batches_per_partition
             starting_batch_id = train_batches_per_rank * rank
-            if rank == len(devices) - 1:
+            if rank == len(devices) - 1 or (num_partitions_per_epoch < len(devices) and rank==num_partitions_per_epoch - 1):
                 train_batches_per_rank += remainder
 
+            print(f'{rank} partitions per rank: ', num_partitions_per_rank, flush=True)
+            print(f'{rank} train batches per rank: ', train_batches_per_rank, flush=True)
+            print(f'{rank} starting batch id: ', starting_batch_id, flush=True)
             cugraph_bulk_loader = BulkSampleLoader(
                 cugraph_store,
                 cugraph_store,
                 train_batches_per_rank,
                 starting_batch_id=starting_batch_id,
                 batches_per_partition=train_batches_per_partition,
-                directory=epoch_path, # SET THIS CORRECTLY
+                directory=epoch_path,
             )
             for hetero_data in cugraph_bulk_loader:
                 # train

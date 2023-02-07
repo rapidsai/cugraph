@@ -106,6 +106,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__next_batch = starting_batch_id
         self.__end_exclusive = starting_batch_id
         self.__batches_per_partition = batches_per_partition
+        self.__starting_batch_id = starting_batch_id
 
         if isinstance(all_indices, int):
             # Will be loading from disk
@@ -117,7 +118,6 @@ class EXPERIMENTAL__BulkSampleLoader:
             raise ValueError("Batch size must be >= 1")
 
         self.__directory = tempfile.TemporaryDirectory(dir=directory)
-        self.__starting_batch_id = starting_batch_id
 
         bulk_sampler = BulkSampler(
             batch_size,
@@ -219,6 +219,9 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.col,
                 sampler_output.edge,
             )
+
+    def __iter__(self):
+        return self
 
 
 class EXPERIMENTAL__CuGraphNeighborLoader:
