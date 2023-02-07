@@ -17,8 +17,8 @@ dependencies:
 - cython>=0.29,<0.30
 - dask-cuda=23.04.*
 - dask-cudf=23.04.*
-- dask>=2022.12.0
-- distributed>=2022.12.0
+- dask==2023.1.1
+- distributed==2023.1.1
 - doxygen
 - gcc_linux-64=9.*
 - gmock=1.10.0
@@ -26,7 +26,7 @@ dependencies:
 - ipython
 - libcudf=23.04.*
 - libcugraphops=23.04.*
-- libraft-distance=23.02.*
+- libraft-distance=23.04.*
 - libraft-headers=23.04.*
 - librmm=23.04.*
 - nbsphinx
