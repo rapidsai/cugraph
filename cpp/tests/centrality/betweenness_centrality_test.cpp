@@ -117,7 +117,7 @@ class Tests_BetweennessCentrality
       auto h_seeds = cugraph::test::to_host(handle, d_seeds);
 
       auto h_reference_centralities = betweenness_centrality_reference(
-        h_offsets, h_indices, h_wgt, h_seeds, betweenness_usecase.include_endpoints);
+                                                                       h_offsets, h_indices, h_wgt, h_seeds, betweenness_usecase.include_endpoints, !graph_view.is_symmetric(), betweenness_usecase.normalized);
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
