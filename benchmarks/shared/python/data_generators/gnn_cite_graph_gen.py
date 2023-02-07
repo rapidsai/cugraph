@@ -414,7 +414,7 @@ def create_papers_data(
 
     for x in range(0, num_f):
         col_name = "feature_" + str(x)
-        nodes[col_name] = nodes['venue'] * (x + 2.0)
+        nodes[col_name] = nodes['venue'] * 1.0
     nodes.drop(columns=['venue'], inplace=True)
 
     # Save the features
