@@ -469,48 +469,6 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
 /**
- * @brief         Compute the Core Number for the nodes of the graph G
- *
- * @param[in]  graph                cuGraph graph descriptor with a valid edgeList or adjList
- * @param[out] core_number          Populated by the core number of every vertex in the graph
- *
- * @throws     cugraph::logic_error when an error occurs.
- */
-/* ----------------------------------------------------------------------------*/
-template <typename VT, typename ET, typename WT>
-void core_number(legacy::GraphCSRView<VT, ET, WT> const& graph, VT* core_number);
-
-/**
- * @brief   Compute K Core of the graph G
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph                 cuGraph graph in coordinate format
- * @param[in]  k                     Order of the core. This value must not be negative.
- * @param[in]  vertex_id             User specified vertex identifiers for which core number values
- * are supplied
- * @param[in]  core_number           User supplied core number values corresponding to vertex_id
- * @param[in]  num_vertex_ids        Number of elements in vertex_id/core_number arrays
- * @param[in]  mr                    Memory resource used to allocate the returned graph
- *
- * @param[out] out_graph             Unique pointer to K Core subgraph in COO format
- */
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_core(
-  legacy::GraphCOOView<VT, ET, WT> const& graph,
-  int k,
-  VT const* vertex_id,
-  VT const* core_number,
-  VT num_vertex_ids,
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
-
-/**
  * @brief      Find all 2-hop neighbors in the graph
  *
  * Find pairs of vertices in the input graph such that each pair is connected by
