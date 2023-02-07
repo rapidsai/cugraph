@@ -148,9 +148,7 @@ void reference_rescale(result_t* result,
       }
     }
   } else {
-    if (!directed) {
-      rescale_factor /= static_cast<result_t>(2);
-    }
+    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
   }
 
   if (rescale_factor != result_t{1}) {
@@ -200,7 +198,8 @@ std::vector<weight_t> betweenness_centrality_reference(
     }
   }
 
-  reference_rescale(result.data(), directed, normalize, include_endpoints, offsets.size() - 1, seeds.size());
+  reference_rescale(
+    result.data(), directed, normalize, include_endpoints, offsets.size() - 1, seeds.size());
 
   return result;
 }
