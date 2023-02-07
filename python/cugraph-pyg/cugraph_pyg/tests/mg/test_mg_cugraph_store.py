@@ -25,89 +25,7 @@ import numpy as np
 
 import pytest
 
-from cugraph.gnn import FeatureStore
-
 from random import randint
-
-
-@pytest.fixture
-def basic_graph_1():
-    G = {
-        ("vt1", "pig", "vt1"): [
-            np.array([0, 0, 1, 2, 2, 3]),
-            np.array([1, 2, 4, 3, 4, 1]),
-        ]
-    }
-
-    N = {"vt1": 5}
-
-    F = FeatureStore()
-    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
-
-    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
-
-    return F, G, N
-
-
-@pytest.fixture
-def multi_edge_graph_1():
-    G = {
-        ("vt1", "pig", "vt1"): [np.array([0, 2, 3, 1]), np.array([1, 3, 1, 4])],
-        ("vt1", "dog", "vt1"): [np.array([0, 3, 4]), np.array([2, 2, 3])],
-        ("vt1", "cat", "vt1"): [
-            np.array([1, 2, 2]),
-            np.array([4, 3, 4]),
-        ],
-    }
-
-    N = {"vt1": 5}
-
-    F = FeatureStore()
-    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
-
-    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
-
-    return F, G, N
-
-
-@pytest.fixture
-def multi_edge_multi_vertex_graph_1():
-
-    G = {
-        ("brown", "horse", "brown"): [
-            np.array([0, 0]),
-            np.array([1, 2]),
-        ],
-        ("brown", "duck", "black"): [
-            np.array([1, 1, 2]),
-            np.array([1, 0, 1]),
-        ],
-        ("brown", "mongoose", "black"): [
-            np.array([2, 1]),
-            np.array([0, 1]),
-        ],
-        ("black", "cow", "brown"): [
-            np.array([0, 0]),
-            np.array([1, 2]),
-        ],
-        ("black", "snake", "black"): [
-            np.array([1]),
-            np.array([0]),
-        ],
-    }
-
-    N = {"brown": 3, "black": 2}
-
-    F = FeatureStore()
-    F.add_data(np.array([100, 200, 300]), type_name="brown", feat_name="prop1")
-
-    F.add_data(np.array([400, 500]), type_name="black", feat_name="prop1")
-
-    F.add_data(np.array([5, 4, 3]), type_name="brown", feat_name="prop2")
-
-    F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
-
-    return F, G, N
 
 
 def test_tensor_attr():
@@ -218,9 +136,7 @@ def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     F, G, N = single_vertex_graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
 
-    nodes_of_interest = cudf.from_dlpack(
-        cupy.random.randint(0, sum(N.values()), 3).__dlpack__()
-    )
+    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3))
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
     assert index["vt1"].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
@@ -232,9 +148,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
 
-    nodes_of_interest = cudf.from_dlpack(
-        cupy.random.randint(0, sum(N.values()), 3).__dlpack__()
-    ).unique()
+    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3)).unique()
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
@@ -285,9 +199,7 @@ def test_renumber_edges(graph, dask_client):
         )
 
     nodes_of_interest = (
-        cudf.from_dlpack(cupy.concatenate([eoi_src, eoi_dst]).__dlpack__())
-        .unique()
-        .sort_values()
+        cudf.Series(cupy.concatenate([eoi_src, eoi_dst])).unique().sort_values()
     )
 
     noi_index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
@@ -296,7 +208,7 @@ def test_renumber_edges(graph, dask_client):
         {
             "sources": eoi_src,
             "destinations": eoi_dst,
-            "indices": eoi_type,
+            "edge_type": eoi_type,
         }
     ).reset_index(drop=True)
 
@@ -410,12 +322,12 @@ def test_get_all_tensor_attrs(graph, dask_client):
 
 @pytest.mark.skip("not implemented")
 def test_get_tensor_spec_props(graph, dask_client):
-    pass
+    raise NotImplementedError("not implemented")
 
 
 @pytest.mark.skip("not implemented")
 def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_client):
-    pass
+    raise NotImplementedError("not implemented")
 
 
 def test_get_tensor_from_tensor_attrs(graph, dask_client):

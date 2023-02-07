@@ -17,4 +17,5 @@ import os
 os.environ["RAPIDS_NO_INITIALIZE"] = "1"
 from cugraph_dgl.cugraph_storage import CuGraphStorage
 from cugraph_dgl.convert import cugraph_storage_from_heterograph
+import cugraph_dgl.dataloading
 import cugraph_dgl.nn

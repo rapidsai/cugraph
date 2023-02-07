@@ -863,7 +863,13 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     (pG, data) = dataset1_MGPropertyGraph
     with pytest.raises(ValueError, match="existing column"):
         pG.renumber_vertices_by_type("merchant_size")
+    vertex_property_names = set(pG.vertex_property_names)
+    edge_property_names = set(pG.edge_property_names)
     df_id_ranges = pG.renumber_vertices_by_type(prev_id_column)
+    if prev_id_column is not None:
+        vertex_property_names.add(prev_id_column)
+    assert vertex_property_names == set(pG.vertex_property_names)
+    assert edge_property_names == set(pG.edge_property_names)
     expected = {
         "merchants": [0, 4],  # stop is inclusive
         "users": [5, 8],
