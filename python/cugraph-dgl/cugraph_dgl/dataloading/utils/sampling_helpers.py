@@ -12,7 +12,6 @@
 # limitations under the License.
 from __future__ import annotations
 from typing import Tuple, Dict
-from torch.utils.dlpack import from_dlpack
 from collections import defaultdict
 import cudf
 import torch
@@ -21,7 +20,7 @@ import dgl
 
 def cast_to_tensor(ser: cudf.Series):
     # TODO: Maybe use torch.as_tensor
-    return from_dlpack(ser.values.toDlpack())
+    return torch.as_tensor(ser.values, device="cuda")
 
 
 def create_homogeneous_sampled_graphs_from_dataframe(
@@ -81,23 +80,34 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
     src_ids = None
     dst_ids = None
     edge_ids = None
+    seed_nodes = None
     for c_src_ids, c_dst_ids, c_edge_ids in tensors_perhop_ls:
-        if src_ids is not None:
-            src_ids = torch.cat([src_ids, c_src_ids])
-            dst_ids = torch.cat([dst_ids, c_dst_ids])
-            edge_ids = torch.cat([edge_ids, c_edge_ids])
-        else:
-            src_ids = c_src_ids
-            dst_ids = c_dst_ids
-            edge_ids = c_edge_ids
+        # if src_ids is not None:
+        #     src_ids = torch.cat([src_ids, c_src_ids])
+        #     dst_ids = torch.cat([dst_ids, c_dst_ids])
+        #     edge_ids = torch.cat([edge_ids, c_edge_ids])
+        # else:
+        #     src_ids = c_src_ids
+        #     dst_ids = c_dst_ids
+        #     edge_ids = c_edge_ids
 
+        src_ids = c_src_ids
+        dst_ids = c_dst_ids
+        edge_ids = c_edge_ids
+        if seed_nodes is None:
+            seed_nodes = dst_ids.unique()
+
+        # print("Creating block", flush=True)
         block = create_homogeneous_dgl_block_from_tensors_ls(
-            src_ids, dst_ids, edge_ids, total_number_of_nodes
+            src_ids=src_ids,
+            dst_ids=dst_ids,
+            edge_ids=edge_ids,
+            seed_nodes=seed_nodes,
+            total_number_of_nodes=total_number_of_nodes,
         )
         if output_nodes is None:
             # here output_nodes are seeds because of reversed directions
-            output_nodes = dst_ids.unique()
-
+            output_nodes = seed_nodes
         seed_nodes = block.srcdata[dgl.NID]
         graph_per_hop_ls.append(block)
 
@@ -111,6 +121,7 @@ def create_homogeneous_dgl_block_from_tensors_ls(
     src_ids: torch.Tensor,
     dst_ids: torch.Tensor,
     edge_ids: torch.Tensor,
+    seed_nodes: torch.Tensor,
     total_number_of_nodes: int,
 ):
     sampled_graph = dgl.graph(
@@ -120,7 +131,10 @@ def create_homogeneous_dgl_block_from_tensors_ls(
     sampled_graph.edata[dgl.EID] = edge_ids
     # TODO: Check if unique is needed
     block = dgl.to_block(
-        sampled_graph, dst_nodes=dst_ids.unique(), src_nodes=src_ids.unique()
+        sampled_graph,
+        dst_nodes=seed_nodes,
+        src_nodes=src_ids.unique(),
+        include_dst_in_src=True,
     )
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
@@ -258,6 +272,8 @@ def create_heterogenous_dgl_block_from_tensors_dict(
     src_d = {k: torch.cat(v).unique() for k, v in src_d.items() if len(v) > 0}
     dst_d = {k: torch.cat(v).unique() for k, v in dst_d.items() if len(v) > 0}
 
-    block = dgl.to_block(sampled_graph, dst_nodes=dst_d, src_nodes=src_d)
+    block = dgl.to_block(
+        sampled_graph, dst_nodes=dst_d, src_nodes=src_d, include_dst_in_src=False
+    )
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
