@@ -13,7 +13,7 @@
 
 from typing import Optional, Tuple, Any, Union, List, Dict
 
-from enum import Enum
+from enum import Enum, auto
 
 from dataclasses import dataclass
 from collections import defaultdict
@@ -98,7 +98,8 @@ class CuGraphEdgeAttr:
         return cls(*args, **kwargs)
 
 
-_field_status = Enum("FieldStatus", "UNSET")
+class _field_status(Enum):
+    UNSET = auto()
 
 
 @dataclass

@@ -203,3 +203,27 @@ def multi_edge_multi_vertex_graph_1():
     F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
 
     return F, G, N
+
+
+@pytest.fixture
+def multi_edge_multi_vertex_no_graph_1():
+    G = {
+        ("brown", "horse", "brown"): 2,
+        ("brown", "tortoise", "black"): 3,
+        ("brown", "mongoose", "black"): 3,
+        ("black", "cow", "brown"): 3,
+        ("black", "snake", "black"): 1,
+    }
+
+    N = {"brown": 3, "black": 2}
+
+    F = FeatureStore()
+    F.add_data(np.array([100, 200, 300]), type_name="brown", feat_name="prop1")
+
+    F.add_data(np.array([400, 500]), type_name="black", feat_name="prop1")
+
+    F.add_data(np.array([5, 4, 3]), type_name="brown", feat_name="prop2")
+
+    F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
+
+    return F, G, N

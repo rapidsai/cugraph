@@ -351,3 +351,11 @@ def test_get_tensor_size(graph):
 
         tensor_attr.index = np.arange(sz)
         assert cugraph_store.get_tensor_size(tensor_attr) == sz
+
+
+def test_serialize(multi_edge_multi_vertex_no_graph_1):
+    import pickle
+
+    F, G, N = multi_edge_multi_vertex_no_graph_1
+    cugraph_store = CuGraphStore(F, G, N)
+    pickle.dumps(cugraph_store)

@@ -96,11 +96,13 @@ def init_pytorch_worker(rank, devices, manager_ip, manager_port):
     import cupy
     import rmm
 
+    # The pytorch device is set through a context manager
+
+    # Set cupy to the correct device
+    cupy.cuda.Device(devices[rank]).use()
+
     # Pytorch training worker initialization
-    dist_init_method = "tcp://{manager_ip}:{manager_port}".format(
-        manager_ip,
-        manager_port
-    )
+    dist_init_method = f"tcp://{manager_ip}:{manager_port}"
 
     torch.distributed.init_process_group(
         backend="nccl",
@@ -113,10 +115,9 @@ def init_pytorch_worker(rank, devices, manager_ip, manager_port):
         pool_allocator=True,
         initial_pool_size=10e9,
         maximum_pool_size=15e9,
-        devies=devices[rank]
+        devices=devices[rank]
     )
 
-    cupy.cuda.set_device(devices[rank])
     cupy.cuda.set_allocator(rmm.rmm_cupy_allocator)
     # FIXME eventually will probably set torch's allocator here
 
@@ -143,12 +144,13 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
 
         if rank == 0:
             # create the feature store, graph store
-            with open(sampled_data_path, 'r') as f:
+            meta_json_path = os.path.join(sampled_data_path, 'meta.json')
+            with open(meta_json_path, 'r') as f:
                 meta = json.load(f)
                 
             num_papers = (
-                meta['paper_node_id_range'][1]
-                - meta['paper_node_id_range'][0]
+                meta['node_id_range_paper'][1]
+                - meta['node_id_range_paper'][0]
                 + 1
             )
 
@@ -226,29 +228,95 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
         event.clear()
         
 
+def setup_cluster(dask_worker_devices):
+    dask_worker_devices_str = ",".join([str(i) for i in dask_worker_devices])
+    from dask_cuda import LocalCUDACluster
+
+    cluster = LocalCUDACluster(
+        protocol="tcp",
+        CUDA_VISIBLE_DEVICES=dask_worker_devices_str,
+        rmm_pool_size="25GB",
+    )
+
+    client = Client(cluster)
+    client.wait_for_workers(n_workers=len(dask_worker_devices))
+    client.run(enable_cudf_spilling)
+    print("Dask Cluster Setup Complete")
+    del client
+    return cluster.scheduler_address
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        
+        "--torch_devices",
+        type=str,
+        default="0,1,2",
+        help='GPUs to allocate to pytorch',
+        required=False
     )
 
+    parser.add_argument(
+        "--dask_devices",
+        type=str,
+        default="3",
+        help='GPUs to allocate to dask',
+        required=False
+    )
+
+    parser.add_argument(
+        '--torch_manager_ip',
+        type=str,
+        default="127.0.0.1",
+        help='The torch distributed manager ip address',
+        required=False,
+    )
+
+    parser.add_argument(
+        '--torch_manager_port',
+        type=str,
+        default="12346",
+        help='The torch distributed manager port',
+        required=False,
+    )
+
+    parser.add_argument(
+        "--features_path",
+        type=str,
+        help='The path to the node features',
+        required=True
+    )
+
+    parser.add_argument(
+        "--sampled_data_path",
+        type=str,
+        help='The path to the sampled data',
+        required=True
+    )
+
+    return parser.parse_args()
+
 def main():
-    # Init each rank
-    # Because sampling is already done, each rank will init a blank
-    # graph.
-    manager_ip = "127.0.0.1"
-    manager_port = "12346"
+    args = parse_args()
+
+    # devices, dask_scheduler_address, manager_ip, manager_port, features_path, sampled_data_path
+    torch_devices = [int(d) for d in args.torch_devices.split(',')]
+    dask_devices = [int(d) for d in args.dask_devices.split(',')]
+
+    dask_scheduler_address = setup_cluster(dask_devices)
 
     run_args = (
-        num_workers,
-        raw_data,
-        path
+        torch_devices,
+        dask_scheduler_address,
+        args.torch_manager_ip,
+        args.torch_manager_port,
+        args.features_path,
+        args.sampled_data_path,   
     )
 
     tmp.spawn(
         run,
         args=run_args,
-        nprocs=num_workers,
+        nprocs=len(torch_devices),
         join=True
     )
 
