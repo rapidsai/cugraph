@@ -59,6 +59,7 @@ for FILE in conda/environments/*.yaml dependencies.yaml; do
    sed_runner "s/cudf=${CURRENT_SHORT_TAG}/cudf=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/rmm=${CURRENT_SHORT_TAG}/rmm=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/libraft-headers=${CURRENT_SHORT_TAG}/libraft-headers=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/libraft-distance=${CURRENT_SHORT_TAG}/libraft-distance=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/pyraft=${CURRENT_SHORT_TAG}/pyraft=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/raft-dask=${CURRENT_SHORT_TAG}/raft-dask=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/pylibraft=${CURRENT_SHORT_TAG}/pylibraft=${NEXT_SHORT_TAG}/g" ${FILE};
@@ -78,13 +79,12 @@ sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/
 
 for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-action-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
+  # Wheel builds clone cugraph-ops, update its branch
+  sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" "${FILE}"
+  # Wheel builds install dask-cuda from source, update its branch
+  sed_runner "s/dask-cuda.git@branch-[^\"\s]\+/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done
 
-# Wheel builds clone cugraph-ops, update its branch
-sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" .github/workflows/*.yaml
-
-# Wheel builds install dask-cuda from source, update its branch
-sed_runner "s/dask-cuda.git@branch-[^\"\s]\+/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" .github/workflows/*.yaml
 
 # Need to distutils-normalize the original version
 NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}'))")
