@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/functions.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/util/cudart_utils.hpp>

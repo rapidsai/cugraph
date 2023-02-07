@@ -19,7 +19,6 @@
 #include <detail/graph_utils.cuh>
 
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>

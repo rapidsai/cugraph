@@ -17,7 +17,6 @@
 #include <c_api/c_test_utils.h>
 #include <c_api/resource_handle.hpp>
 
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/comms/mpi_comms.hpp>

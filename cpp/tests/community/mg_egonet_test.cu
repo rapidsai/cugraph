@@ -25,7 +25,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
