@@ -198,30 +198,32 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
             
             train_batches_per_partition = get_batches_per_partition(epoch_path)
             num_partitions_per_epoch = int(ceil(num_train_batches / train_batches_per_partition))
-            if num_partitions_per_epoch > rank:
-                break
-            num_partitions_per_rank = num_partitions_per_epoch // min(num_partitions_per_epoch, len(devices))
+            num_workers = min(num_partitions_per_epoch, len(devices))
+            if rank < num_workers:
+                num_partitions_per_rank = num_partitions_per_epoch // num_workers
 
-            remainder = num_train_batches % train_batches_per_partition
-            train_batches_per_rank = num_partitions_per_rank * train_batches_per_partition
-            starting_batch_id = train_batches_per_rank * rank
-            if rank == len(devices) - 1 or (num_partitions_per_epoch < len(devices) and rank==num_partitions_per_epoch - 1):
-                train_batches_per_rank += remainder
+                train_batches_per_rank = num_partitions_per_rank * train_batches_per_partition
+                remainder = num_train_batches - (train_batches_per_rank * num_workers)
+                starting_batch_id = train_batches_per_rank * rank
+                if rank == num_workers - 1:
+                    train_batches_per_rank += remainder
 
-            print(f'{rank} partitions per rank: ', num_partitions_per_rank, flush=True)
-            print(f'{rank} train batches per rank: ', train_batches_per_rank, flush=True)
-            print(f'{rank} starting batch id: ', starting_batch_id, flush=True)
-            cugraph_bulk_loader = BulkSampleLoader(
-                cugraph_store,
-                cugraph_store,
-                train_batches_per_rank,
-                starting_batch_id=starting_batch_id,
-                batches_per_partition=train_batches_per_partition,
-                directory=epoch_path,
-            )
-            for hetero_data in cugraph_bulk_loader:
-                # train
-                pass
+                print(f'{rank} partitions per rank: ', num_partitions_per_rank, flush=True)
+                print(f'{rank} train batches per rank: ', train_batches_per_rank, flush=True)
+                print(f'{rank} starting batch id: ', starting_batch_id, flush=True)
+                cugraph_bulk_loader = BulkSampleLoader(
+                    cugraph_store,
+                    cugraph_store,
+                    train_batches_per_rank,
+                    starting_batch_id=starting_batch_id,
+                    batches_per_partition=train_batches_per_partition,
+                    directory=epoch_path,
+                )
+                for hetero_data in cugraph_bulk_loader:
+                    # train
+                    pass
+            
+            td.barrier()
 
         td.barrier()
 

@@ -142,7 +142,6 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Split into batches
         all_indices = cupy.split(all_indices, len(all_indices) // batch_size)
-        print("all_indices:", all_indices)
 
         self.__num_batches = 0
         for batch_num, batch_i in enumerate(all_indices):
@@ -184,7 +183,17 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
             self.__end_exclusive += self.__batches_per_partition
+
+            columns = {
+                "sources": "int64",
+                "destinations": "int64",
+                # 'edge_id':'int64',
+                "edge_type": "int32",
+                "batch_id": "int32",
+                # 'hop_id':'int32'
+            }
             self.__data = cudf.read_parquet(parquet_path)
+            self.__data = self.__data[list(columns.keys())].astype(columns)
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
