@@ -189,35 +189,6 @@ typedef struct {
 
 /**
  * @brief     Uniform Neighborhood Sampling
- * @deprecated This call should be replaced with cugraph_uniform_neighborhood_sampling
- *
- * @param [in]  handle       Handle for accessing resources
- * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
- *                           needs to be transposed
- * @param [in]  start        Device array of start vertices for the sampling
- * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm
- * @param [in]  with_replacement
- *                           Boolean value.  If true selection of edges is done with
- *                           replacement.  If false selection is done without replacement.
- * @param [in]  do_expensive_check
- *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [in]  result       Output from the uniform_neighbor_sample call
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_uniform_neighbor_sample(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start,
-  const cugraph_type_erased_host_array_view_t* fan_out,
-  bool_t with_replacement,
-  bool_t do_expensive_check,
-  cugraph_sample_result_t** result,
-  cugraph_error_t** error);
-
-/**
- * @brief     Uniform Neighborhood Sampling
  *
  * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
  * start vertex can be associated with a label, allowing the caller to specify multiple batches
@@ -329,16 +300,6 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
  * @return type erased array pointing to the index
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
-  const cugraph_sample_result_t* result);
-
-/**
- * @brief     Get the transaction counts from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased host array pointing to the counts
- */
-// FIXME:  This will be obsolete when the older mechanism is removed
-cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_counts(
   const cugraph_sample_result_t* result);
 
 /**
