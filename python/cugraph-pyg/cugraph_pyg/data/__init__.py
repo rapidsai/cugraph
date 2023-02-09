@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,10 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph_pyg.utilities.api_tools import experimental_warning_wrapper
+from cugraph.utilities.api_tools import experimental_warning_wrapper
 
 from cugraph_pyg.data.cugraph_store import EXPERIMENTAL__CuGraphStore
-from cugraph_pyg.data.cugraph_store import EXPERIMENTAL__to_pyg
 
 CuGraphStore = experimental_warning_wrapper(EXPERIMENTAL__CuGraphStore)
-to_pyg = experimental_warning_wrapper(EXPERIMENTAL__to_pyg)

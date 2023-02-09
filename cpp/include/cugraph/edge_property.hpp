@@ -129,14 +129,14 @@ template <typename edge_t, typename... Ts>
 auto view_concat(edge_property_view_t<edge_t, Ts> const&... views)
 {
   using concat_value_iterator = decltype(thrust::make_zip_iterator(
-    thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[0])...)));
+    thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[0])...)));
 
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
-  auto first_view = detail::get_first_of_pack(views...);
+  auto first_view = get_first_of_pack(views...);
   edge_partition_concat_value_firsts.resize(first_view.value_firsts().size());
   for (size_t i = 0; i < edge_partition_concat_value_firsts.size(); ++i) {
     edge_partition_concat_value_firsts[i] = thrust::make_zip_iterator(
-      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...));
+      thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[i])...));
   }
 
   return edge_property_view_t<edge_t, concat_value_iterator>(edge_partition_concat_value_firsts,

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -152,12 +152,20 @@ class simpleGraphImpl:
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
-            if len(edge_attr) == 3 and not self.properties.directed:
-                raise ValueError(
-                    "User-provided edge ids and edge "
-                    "types are not permitted for an "
-                    "undirected graph."
-                )
+            if len(edge_attr) == 3:
+                if not self.properties.directed:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are not permitted for an "
+                        "undirected graph."
+                    )
+                if not legacy_renum_only:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are only permitted when "
+                        "from_edgelist is called with "
+                        "legacy_renum_only=True."
+                    )
 
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the

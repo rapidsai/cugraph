@@ -110,7 +110,7 @@ class Tests_MGEdgeBetweennessCentrality
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+      std::make_optional<raft::device_span<vertex_t const>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       do_expensive_check);
@@ -119,7 +119,7 @@ class Tests_MGEdgeBetweennessCentrality
                    *handle_,
                    mg_graph_view,
                    mg_edge_weight_view,
-                   std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+                   std::make_optional<raft::device_span<vertex_t const>>(
                      raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
                    betweenness_usecase.normalized,
                    do_expensive_check),
