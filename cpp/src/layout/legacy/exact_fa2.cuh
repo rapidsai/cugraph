@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,7 +82,8 @@ void exact_fa2(raft::handle_t const& handle,
   d_swinging   = swinging.data();
   d_traction   = traction.data();
 
-  uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, uint64_t{0});
+  raft::random::RngState rng_state{0};
+  uniform_random_fill(handle.get_stream(), pos, n * 2, -100.0f, 100.0f, rng_state);
 
   if (x_start && y_start) {
     raft::copy(pos, x_start, n, stream_view.value());
