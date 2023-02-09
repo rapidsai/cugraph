@@ -45,10 +45,24 @@ class partition_manager {
   __host__ __device__
 #endif
     static int
-    compute_global_comm_rank(int major_comm_size,
-                             int minor_comm_size,
-                             int major_comm_rank,
-                             int minor_comm_rank)
+    compute_global_comm_rank_from_vertex_partition_id(int major_comm_size,
+                                                      int minor_comm_size,
+                                                      int vertex_partition_id)
+  {
+    return map_major_comm_to_gpu_row_comm
+             ? vertex_partition_id
+             : (vertex_partition_id % major_comm_size) * minor_comm_size +
+                 (vertex_partition_id / major_comm_size);
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_global_comm_rank_from_graph_subcomm_ranks(int major_comm_size,
+                                                      int minor_comm_size,
+                                                      int major_comm_rank,
+                                                      int minor_comm_rank)
   {
     return map_major_comm_to_gpu_row_comm ? (minor_comm_rank * major_comm_size + major_comm_rank)
                                           : (major_comm_rank * minor_comm_size + minor_comm_rank);

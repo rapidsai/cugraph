@@ -17,9 +17,9 @@
 #pragma once
 
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
-#include <cugraph/partition_manager.hpp>
 
 // visitor logic:
 //
@@ -85,7 +85,7 @@ class partition_t {
               int major_comm_rank,
               int minor_comm_rank)
     : vertex_partition_range_offsets_(vertex_partition_range_offsets),
-      comm_rank_(partition_manager::compute_global_comm_rank(
+      comm_rank_(partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks(
         major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank)),
       major_comm_size_(major_comm_size),
       minor_comm_size_(minor_comm_size),
