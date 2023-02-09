@@ -459,27 +459,6 @@ std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> k_truss_subgraph(
   int k,
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
-/**
- * @brief      Find all 2-hop neighbors in the graph
- *
- * Find pairs of vertices in the input graph such that each pair is connected by
- * a path that is two hops in length.
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph        The input graph object
- * @return                  Graph in COO format
- */
-template <typename VT, typename ET, typename WT>
-std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
-  legacy::GraphCSRView<VT, ET, WT> const& graph);
-
 // FIXME: Internally distances is of int (signed 32-bit) data type, but current
 // template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
 // are not considered
