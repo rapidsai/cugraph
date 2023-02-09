@@ -369,6 +369,26 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
 
+/**
+ * @brief Select random vertices from the graph
+ *
+ * @param [in]      handle        Handle for accessing resources
+ * @param [in]      graph         Pointer to graph
+ * @param [in/out]  rng_state     State of the random number generator, updated with each call
+ * @param [in]      num_vertices  Number of vertices to sample
+ * @param [out]     vertices      Device array view to populate label
+ * @param [out]     error         Pointer to an error object storing details of
+ *                                any error.  Will be populated if error code is
+ *                                not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
+                                                    const cugraph_graph_t* graph,
+                                                    cugraph_rng_state_t* rng_state,
+                                                    size_t num_vertices,
+                                                    cugraph_type_erased_device_array_t** vertices,
+                                                    cugraph_error_t** error);
+
 #ifdef __cplusplus
 }
 #endif

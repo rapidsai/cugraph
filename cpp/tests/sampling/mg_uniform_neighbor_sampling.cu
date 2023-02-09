@@ -102,7 +102,7 @@ class Tests_MGUniform_Neighbor_Sampling
                                          random_numbers.size(),
                                          float{0},
                                          float{1},
-                                         seed);
+                                         rng_state);
 
     auto random_sources_end = thrust::copy_if(
       handle_->get_thrust_policy(),
@@ -131,7 +131,7 @@ class Tests_MGUniform_Neighbor_Sampling
                                          random_numbers.size(),
                                          float{0},
                                          float{1},
-                                         seed);
+                                         rng_state);
 
     thrust::sort_by_key(handle_->get_thrust_policy(),
                         random_numbers.begin(),

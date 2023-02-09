@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include <cugraph_c/algorithms.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/random.h>
 
 #include <math.h>
 
@@ -26,13 +27,13 @@ typedef int32_t edge_t;
 typedef float weight_t;
 
 int generic_edge_betweenness_centrality_test(vertex_t* h_src,
-                                        vertex_t* h_dst,
-                                        weight_t* h_wgt,
-                                        weight_t* h_result,
-                                        size_t num_vertices,
-                                        size_t num_edges,
-                                        bool_t store_transposed,
-                                        size_t num_vertices_to_sample)
+                                             vertex_t* h_dst,
+                                             weight_t* h_wgt,
+                                             weight_t* h_result,
+                                             size_t num_vertices,
+                                             size_t num_edges,
+                                             bool_t store_transposed,
+                                             size_t num_vertices_to_sample)
 {
   int test_ret_value = 0;
 
@@ -42,12 +43,25 @@ int generic_edge_betweenness_centrality_test(vertex_t* h_src,
   cugraph_resource_handle_t* p_handle   = NULL;
   cugraph_graph_t* p_graph              = NULL;
   cugraph_centrality_result_t* p_result = NULL;
+  cugraph_rng_state_t* rng_state        = NULL;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
+  ret_code = cugraph_rng_state_create(p_handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "failed to create rng_state.");
+
+  ret_code = create_test_graph(p_handle,
+                               h_src,
+                               h_dst,
+                               h_wgt,
+                               num_edges,
+                               rng_state,
+                               store_transposed,
+                               FALSE,
+                               FALSE,
+                               &p_graph,
+                               &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
