@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ void barnes_hut(raft::handle_t const& handle,
   float* nodes_pos = d_nodes_pos.data();
 
   // Initialize positions with random values
-  int random_state = 0;
+  raft::random::RngState rng_state{0};
 
   // Copy start x and y positions.
   if (x_start && y_start) {
@@ -138,7 +138,7 @@ void barnes_hut(raft::handle_t const& handle,
     raft::copy(nodes_pos + nnodes + 1, y_start, n, stream_view.value());
   } else {
     uniform_random_fill(
-      handle.get_stream(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, random_state);
+      handle.get_stream(), nodes_pos, (nnodes + 1) * 2, -100.0f, 100.0f, rng_state);
   }
 
   // Allocate arrays for force computation
