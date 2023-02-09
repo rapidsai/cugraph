@@ -104,6 +104,8 @@ rmm::device_uvector<vertex_t> compute_mis(
     thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
   auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
   while (true) {
+    cudaDeviceSynchronize();
+    std::cout<< " mis loop .." << std::endl;
     // Select a random set of eligible vertices
 
     vertex_t nr_remaining_candidates = thrust::count_if(
@@ -340,6 +342,14 @@ rmm::device_uvector<vertex_t> compute_mis(
                                                              raft::comms::op_t::SUM,
                                                              handle.get_stream());
     }
+
+    cudaDeviceSynchronize();
+    
+    std::cout<< " number_of_vertices: " << number_of_vertices << std::endl;
+    std::cout<< " nr_include_vertices: " << nr_include_vertices << std::endl;
+    std::cout<< " nr_discarded_vertices: " << nr_discarded_vertices << std::endl;
+    std::cout<< " nr_remaining_vertices_to_check: " << nr_remaining_vertices_to_check << std::endl;
+    
     if (nr_remaining_vertices_to_check == 0) { break; }
   }
 
