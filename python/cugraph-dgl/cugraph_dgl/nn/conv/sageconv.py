@@ -67,6 +67,7 @@ class SAGEConv(nn.Module):
             [-1.1690,  0.1952],
             [-1.1690,  0.1952]], device='cuda:0', grad_fn=<AddmmBackward0>)
     """
+    MAX_IN_DEGREE_MFG = 500
 
     def __init__(
         self,
@@ -126,14 +127,23 @@ class SAGEConv(nn.Module):
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
 
-            _graph = ops.make_mfg_csr(
-                g.dstnodes(), offsets, indices, max_in_degree, g.num_src_nodes()
-            )
+            if max_in_degree < self.MAX_IN_DEGREE_MFG:
+                _graph = ops.make_mfg_csr(
+                    g.dstnodes(), offsets, indices, max_in_degree, g.num_src_nodes()
+                )
+            else:
+                offsets_fg = torch.empty(
+                    g.num_src_nodes() + 1, dtype=offsets.dtype, device=offsets.device
+                )
+                offsets_fg[: offsets.numel()] = offsets
+                offsets_fg[offsets.numel() :] = offsets[-1]
+
+                _graph = ops.make_fg_csr(offsets_fg, indices)
         else:
             _graph = ops.make_fg_csr(offsets, indices)
 
         feat = self.feat_drop(feat)
-        h = ops_autograd.agg_concat_n2n(feat, _graph, self.aggr)
+        h = ops_autograd.agg_concat_n2n(feat, _graph, self.aggr)[: g.num_dst_nodes()]
         h = self.linear(h)
 
         return h
