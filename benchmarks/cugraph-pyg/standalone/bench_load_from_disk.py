@@ -25,22 +25,28 @@ import numpy as np
 import pandas as pd
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.distributed as td
 import torch.multiprocessing as tmp
-from torch.nn.parallel import DistributedDataParallel
+from torch.nn.parallel import DistributedDataParallel as ddp
+import torchmetrics.functional as MF
+
+from torch_geometric.nn import SAGEConv
 
 from cugraph.gnn import FeatureStore
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.loader import BulkSampleLoader
+from cugraph.dask.common.mg_utils import teardown_local_dask_cluster
 from distributed import Client, Event as Dask_Event
 
 def load_features(node_type_name, features_path, num_nodes):
-    F = FeatureStore(backend='torch')
+    fs = FeatureStore(backend='torch')
     node_features = np.load(
         os.path.join(features_path, 'node_feat.npy'),
         mmap_mode='r'
     )
-    F.add_data(node_features, node_type_name, 'x')
+    fs.add_data(node_features, node_type_name, 'x')
 
     node_labels_train = pd.read_parquet(
         os.path.join(features_path, 'train_labels')
@@ -69,16 +75,16 @@ def load_features(node_type_name, features_path, num_nodes):
         'test':False,
         'val':False,
         'label': -1,
-    })
+    }).rename(columns={'label': 'y'})
 
     # At this point, all_labels holds the train/test/val mask and labels
     # Unlabeled nodes get the default label (class id) of -1.
     # Users should never be accessing labels of unlabeled nodes - they
     # should filter through the train/test/val mask first.
     for col in all_labels:
-        F.add_data(all_labels[col].to_numpy(), node_type_name, col)
+        fs.add_data(all_labels[col].to_numpy(), node_type_name, col)
     
-    return F
+    return fs
 
 def get_batches_per_partition(dir):
     dir = os.path.join(dir, 'rank=0')
@@ -134,6 +140,25 @@ def start_cugraph_dask_client(dask_scheduler_address):
     Comms.initialize(p2p=True)
     return client
 
+
+class SAGE(nn.Module):
+    def __init__(self, hidden_channels, out_channels, num_layers):
+        super().__init__()
+
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers):
+            conv = SAGEConv((-1, -1), hidden_channels)
+            self.convs.append(conv)
+
+        self.lin = nn.Linear(hidden_channels, out_channels)
+
+    def forward(self, x, edge):
+        for conv in self.convs:
+            x = conv(x, edge)
+            x = F.leaky_relu(x)
+            x = F.dropout(x, p=0.5)
+        return self.lin(x)
+
 def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, features_path, sampled_data_path):
     device = devices[rank]
     torch_device = torch.device(f"cuda:{device}")
@@ -161,7 +186,7 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
             num_val_batches = meta['number_of_val_batches']
 
             # For now there is only the "paper" node type
-            F = load_features('paper', features_path, num_papers)
+            fs = load_features('paper', features_path, num_papers)
             G = {
                 ('paper', 'cites', 'paper'): meta['number_of_edges_paper__cites__paper']
             }
@@ -170,7 +195,7 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
             }
 
             import pickle
-            cugraph_store = CuGraphStore(F, G, N)
+            cugraph_store = CuGraphStore(fs, G, N)
             client.publish_dataset(cugraph_store=pickle.dumps(cugraph_store))
             client.publish_dataset(num_train_batches=num_train_batches)
             client.publish_dataset(num_test_batches=num_test_batches)
@@ -192,50 +217,147 @@ def run(rank, devices, dask_scheduler_address, manager_ip, manager_port, feature
     
         td.barrier()
 
+        model = SAGE(hidden_channels=64, out_channels=150,
+                  num_layers=2).to(torch.float64).to(torch_device)
+        
+        with torch.no_grad():  # Initialize lazy modules.
+            dummy_ei = [
+                torch.randint(0,200,(1000,), dtype=torch.long),
+                torch.randint(0,200,(1000,), dtype=torch.long)
+            ]
+            dummy_n = torch.concat(dummy_ei).unique().to(torch_device)
+            dummy_x = cugraph_store.get_tensor('paper','x', dummy_n)
+            model(dummy_x, torch.stack(dummy_ei).to(torch_device))
+
+        model = ddp(model, device_ids=[rank])
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        td.barrier()
+
         for epoch in range(num_epochs):
+            model.train()
             # Create the loaders
             epoch_path = os.path.join(sampled_data_path, f'train_{epoch}')
             
             train_batches_per_partition = get_batches_per_partition(epoch_path)
             num_partitions_per_epoch = int(ceil(num_train_batches / train_batches_per_partition))
-            num_workers = min(num_partitions_per_epoch, len(devices))
-            if rank < num_workers:
-                num_partitions_per_rank = num_partitions_per_epoch // num_workers
-
-                train_batches_per_rank = num_partitions_per_rank * train_batches_per_partition
-                remainder = num_train_batches - (train_batches_per_rank * num_workers)
-                starting_batch_id = train_batches_per_rank * rank
-                if rank == num_workers - 1:
-                    train_batches_per_rank += remainder
-
-                print(f'{rank} partitions per rank: ', num_partitions_per_rank, flush=True)
-                print(f'{rank} train batches per rank: ', train_batches_per_rank, flush=True)
-                print(f'{rank} starting batch id: ', starting_batch_id, flush=True)
-                cugraph_bulk_loader = BulkSampleLoader(
-                    cugraph_store,
-                    cugraph_store,
-                    train_batches_per_rank,
-                    starting_batch_id=starting_batch_id,
-                    batches_per_partition=train_batches_per_partition,
-                    directory=epoch_path,
-                )
-                for hetero_data in cugraph_bulk_loader:
-                    # train
-                    pass
             
-            td.barrier()
+            num_workers = len(devices)
+            if num_workers > num_partitions_per_epoch:
+                raise RuntimeError(f"Too many workers (num workers {num_workers} > num partitions ({num_partitions_per_epoch})")
+            
+            num_partitions_per_rank = num_partitions_per_epoch // num_workers
+
+            train_batches_per_rank = num_partitions_per_rank * train_batches_per_partition
+            remainder = num_train_batches - (train_batches_per_rank * num_workers)
+            starting_batch_id = train_batches_per_rank * rank
+            if rank == num_workers - 1:
+                train_batches_per_rank += remainder
+
+            print(f'{rank} partitions per rank: ', num_partitions_per_rank, flush=True)
+            print(f'{rank} train batches per rank: ', train_batches_per_rank, flush=True)
+            print(f'{rank} starting batch id: ', starting_batch_id, flush=True)
+            cugraph_bulk_loader = BulkSampleLoader(
+                cugraph_store,
+                cugraph_store,
+                train_batches_per_rank,
+                starting_batch_id=starting_batch_id,
+                batches_per_partition=train_batches_per_partition,
+                directory=epoch_path,
+            )
+
+            total_loss = 0
+            num_batches = 0
+            # This context manager will handle different # batches per rank
+            # barrier() cannot do this since the number of ops per rank is
+            # different.  It essentially acts like barrier would if the
+            # number of ops per rank was the same.
+            with torch.distributed.algorithms.join.Join([model]):
+                for hetero_data in cugraph_bulk_loader:
+                    print(hetero_data)
+                    num_batches += 1
+                    # train
+                    train_mask = hetero_data.train_dict['paper'].to(torch_device)
+                    y_true = hetero_data.y_dict['paper']
+                    y_pred = model(
+                        hetero_data.x_dict['paper'].to(torch_device),
+                        hetero_data.edge_index_dict[('paper','cites','paper')].to(torch_device)
+                    )
+
+                    y_true = F.one_hot(
+                        y_true[train_mask].to(torch.int64),
+                        num_classes=150
+                    ).to(torch.float64)
+                    y_pred = y_pred[train_mask]
+                    
+                    print(y_pred.shape)
+                    print(y_true.shape)
+                    loss = F.cross_entropy(
+                        y_pred,
+                        y_true
+                    )
+                    optimizer.zero_grad()
+                    print('loss:', loss)
+                    loss.backward()
+                    print('backward')
+                    optimizer.step()
+                    print('step')
+                    total_loss += loss.item()
+            
+            print(f'{rank} done training for epoch {epoch}')
+
+            # test
+            print('TEST')
+            model.eval()
+            if rank == 0:                
+                eval_path = os.path.join(sampled_data_path, 'test')
+                test_batches_per_partition = get_batches_per_partition(eval_path)
+                cugraph_bulk_eval_loader = BulkSampleLoader(
+                    cugraph_store,
+                    cugraph_store,
+                    num_test_batches,
+                    starting_batch_id=0,
+                    batches_per_partition=test_batches_per_partition,
+                    directory=eval_path
+                )
+
+                y_pred = []
+                y_true = []
+                for eval_hetero_data in cugraph_bulk_eval_loader:
+                    with torch.no_grad():
+                        test_mask = eval_hetero_data.test_dict['paper']
+                        y_true_i = eval_hetero_data.y_dict['paper']
+                        y_true.append(y_true_i[test_mask])
+                        
+                        y_pred_i = model(
+                            hetero_data.x_dict['paper'],
+                            hetero_data.edge_index_dict[('paper','cites','paper')]
+                        )
+                        y_pred.append(y_pred_i[test_mask])
+                
+                num_classes = 150
+                acc = MF.accuracy(
+                    torch.cat(y_pred.to(torch.int64)),
+                    torch.pred(F.one_hot(y_true, num_classes=150).to(torch.int64)),
+                    task='multiclass',
+                    num_classes=num_classes
+                )
+
+                print(f'epoch: {epoch:05d} | loss: {(total_loss / num_batches):7.2f} | acc: {acc:.4f}')
 
         td.barrier()
 
     # cleanup dask cluster
+    td.barrier()
     if rank == 0:
+        print("DONE", flush=True)
         client.unpublish_dataset("cugraph_store")
         client.unpublish_dataset('num_train_batches')
         client.unpublish_dataset('num_test_batches')
         client.unpublish_dataset('num_val_batches')
         client.unpublish_dataset('num_epochs')
         event.clear()
-        
+
 
 def setup_cluster(dask_worker_devices):
     dask_worker_devices_str = ",".join([str(i) for i in dask_worker_devices])
@@ -329,7 +451,6 @@ def main():
         join=True
     )
 
-    pass
 
 if __name__ == '__main__':
     main()
