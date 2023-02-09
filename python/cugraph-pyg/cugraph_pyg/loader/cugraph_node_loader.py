@@ -126,7 +126,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             rank=rank,
             fanout_vals=num_neighbors,
             with_replacement=replace,
-            batches_per_partition=self.__batches_per_partition**kwargs,
+            batches_per_partition=self.__batches_per_partition,
+            **kwargs,
         )
 
         # Make sure indices are in cupy
