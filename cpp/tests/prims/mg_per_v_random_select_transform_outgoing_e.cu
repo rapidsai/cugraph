@@ -189,7 +189,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       auto new_sizes    = std::vector<size_t>(comm_size, min_buffer_size);
       auto num_deficits = num_seeds - min_buffer_size * comm_size;
       for (int i = 0; i < comm_size; ++i) {
-        auto delta = std::min(num_deficits, mg_vertex_buffer.size() - new_sizes[i]);
+        auto delta = std::min(num_deficits, buffer_sizes[i] - min_buffer_size);
         new_sizes[i] += delta;
         num_deficits -= delta;
       }
