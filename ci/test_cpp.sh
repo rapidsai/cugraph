@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -21,7 +21,6 @@ set -u
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}/
 mkdir -p "${RAPIDS_TESTS_DIR}"
-SUITEERROR=0
 
 rapids-print-env
 
@@ -38,6 +37,8 @@ pushd "${RAPIDS_DATASET_ROOT_DIR}"
 ./get_test_data.sh
 popd
 
+EXITCODE=0
+trap "EXITCODE=1" ERR
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
 set +e
@@ -48,24 +49,13 @@ for gt in "$CONDA_PREFIX"/bin/gtests/libcugraph/* ; do
     test_name=$(basename ${gt})
     echo "Running gtest $test_name"
     ${gt} --gtest_output=xml:${RAPIDS_TESTS_DIR}
-
-    exitcode=$?
-    if (( ${exitcode} != 0 )); then
-        SUITEERROR=${exitcode}
-        echo "FAILED: GTest ${gt}"
-    fi
 done
 
 for ct in "$CONDA_PREFIX"/bin/gtests/libcugraph_c/CAPI_*_TEST ; do
     test_name=$(basename ${ct})
     echo "Running C API test $test_name"
     ${ct}
-
-    exitcode=$?
-    if (( ${exitcode} != 0 )); then
-        SUITEERROR=${exitcode}
-        echo "FAILED: C API test ${ct}"
-    fi
 done
 
-exit ${SUITEERROR}
+rapids-logger "Test script exiting with value: $EXITCODE"
+exit ${EXITCODE}
