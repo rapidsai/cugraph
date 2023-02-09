@@ -17,7 +17,6 @@
 #include <sampling/random_walks_check.hpp>
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -28,9 +27,10 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 
 #include <gtest/gtest.h>
 
@@ -121,13 +121,13 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(tuple_t const& param)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     auto [randomwalks_usecase, input_usecase] = param;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("MG construct graph");
     }
 
     bool renumber{true};
@@ -137,9 +137,8 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -162,7 +161,7 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("MG Random walks");
     }
 
     if (randomwalks_usecase.expect_throw()) {
@@ -184,9 +183,9 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-        double elapsed_time{0.0};
-        hr_clock.stop(&elapsed_time);
-        std::cout << "RandomWalks took " << elapsed_time * 1e-6 << " s.\n";
+        handle_->get_comms().barrier();
+        hr_timer.stop();
+        hr_timer.display_and_clear(std::cout);
       }
 
       if (randomwalks_usecase.check_correctness) {

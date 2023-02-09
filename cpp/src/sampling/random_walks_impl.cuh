@@ -28,7 +28,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
@@ -46,9 +46,9 @@ namespace detail {
 
 inline uint64_t get_current_time_nanoseconds()
 {
-  timespec current_time;
-  clock_gettime(CLOCK_REALTIME, &current_time);
-  return current_time.tv_sec * 1000000000 + current_time.tv_nsec;
+  auto cur = std::chrono::steady_clock::now();
+  return static_cast<uint64_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(cur.time_since_epoch()).count());
 }
 
 template <typename vertex_t, typename weight_t>

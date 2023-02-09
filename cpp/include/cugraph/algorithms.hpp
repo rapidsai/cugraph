@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 #endif
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
 #include <optional>
@@ -1780,6 +1780,9 @@ k_core(raft::handle_t const& handle,
 /**
  * @brief Uniform Neighborhood Sampling.
  *
+ * @deprecated This function should be replaced with uniform_neighbor_sample.  Input of the
+ * new function adds an optional parameter, output has a number of extra fields.
+ *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
@@ -1821,6 +1824,68 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    raft::host_span<const int> fan_out,
                    bool with_replacement = true,
                    uint64_t seed         = 0);
+
+/**
+ * @brief Uniform Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects from these outgoing neighbors to extract a subgraph.
+ *
+ * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
+ * label), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
+ * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
+ * encountered in, label (optional) identifies which vertex label this edge was derived from.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
+ * true) are major indices
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_id_type_view Optional view object holding edge ids and types for @p graph_view.
+ * @param starting_vertices Device vector of starting vertex IDs for the sampling.
+ * @param starting_labels Optional device vector of starting vertex labels for the sampling.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level
+ * @param with_replacement boolean flag specifying if random sampling is done with replacement
+ * (true); or, without replacement (false); default = true;
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32_t hop,
+ * optional int32_t label)
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           rmm::device_uvector<int32_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+uniform_neighbor_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<
+    edge_property_view_t<edge_t,
+                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
+    edge_id_type_view,
+  rmm::device_uvector<vertex_t>&& starting_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
+  raft::host_span<int32_t const> fan_out,
+  raft::random::RngState& rng_state,
+  bool with_replacement = true);
 
 /*
  * @brief Compute triangle counts.
@@ -1868,6 +1933,7 @@ void triangle_count(raft::handle_t const& handle,
  * a weight of 1 for all edges.
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1875,7 +1941,8 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
 
 /**
  * @brief     Compute Sorensen similarity coefficient
@@ -1898,6 +1965,7 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1905,7 +1973,8 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
 
 /**
  * @brief     Compute overlap similarity coefficient
@@ -1928,6 +1997,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -1935,7 +2005,8 @@ rmm::device_uvector<weight_t> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check = false);
 
 /*
  * @brief Enumerate K-hop neighbors

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import os
-from itertools import product
 
 # Assume test environment has the following dependencies installed
 import pytest
@@ -169,16 +168,16 @@ def create_obj_from_csv(
     Return an object based on obj_type populated with the contents of
     csv_file_name
     """
-    if obj_type in [cugraph.Graph, cugraph.DiGraph]:
+    if obj_type in [cugraph.Graph]:
         return generate_cugraph_graph_from_file(
             csv_file_name,
-            directed=(obj_type is cugraph.DiGraph),
+            directed=directed,
             edgevals=edgevals,
         )
     elif isinstance(obj_type, cugraph.Graph):
         return generate_cugraph_graph_from_file(
             csv_file_name,
-            directed=(obj_type.is_directed()),
+            directed=directed,
             edgevals=edgevals,
         )
 
@@ -389,67 +388,6 @@ def make_float(v, e, rstate):
 
 
 make = {float: make_float, np.int32: make_int32, np.int64: make_int64}
-
-
-def genFixtureParamsProduct(*args):
-    """
-    Returns the cartesian product of the param lists passed in. The lists must
-    be flat lists of pytest.param objects, and the result will be a flat list
-    of pytest.param objects with values and meta-data combined accordingly. A
-    flat list of pytest.param objects is required for pytest fixtures to
-    properly recognize the params. The combinations also include ids generated
-    from the param values and id names associated with each list. For example:
-
-    genFixtureParamsProduct( ([pytest.param(True, marks=[pytest.mark.A_good]),
-                               pytest.param(False, marks=[pytest.mark.A_bad])],
-                              "A"),
-                             ([pytest.param(True, marks=[pytest.mark.B_good]),
-                               pytest.param(False, marks=[pytest.mark.B_bad])],
-                              "B") )
-
-    results in fixture param combinations:
-
-    True, True   - marks=[A_good, B_good] - id="A=True,B=True"
-    True, False  - marks=[A_good, B_bad]  - id="A=True,B=False"
-    False, True  - marks=[A_bad, B_good]  - id="A=False,B=True"
-    False, False - marks=[A_bad, B_bad]   - id="A=False,B=False"
-
-    Simply using itertools.product on the lists would result in a list of
-    sublists of individual param objects (ie. not "merged"), which would not be
-    recognized properly as params for a fixture by pytest.
-
-    NOTE: This function is only needed for parameterized fixtures.
-    Tests/benchmarks will automatically get this behavior when specifying
-    multiple @pytest.mark.parameterize(param_name, param_value_list)
-    decorators.
-    """
-    # Ensure each arg is a list of pytest.param objs, then separate the params
-    # and IDs.
-    paramLists = []
-    ids = []
-    paramType = pytest.param().__class__
-    for (paramList, paramId) in args:
-        paramListCopy = paramList[:]  # do not modify the incoming lists!
-        for i in range(len(paramList)):
-            if not isinstance(paramList[i], paramType):
-                paramListCopy[i] = pytest.param(paramList[i])
-        paramLists.append(paramListCopy)
-        ids.append(paramId)
-
-    retList = []
-    for paramCombo in product(*paramLists):
-        values = [p.values[0] for p in paramCombo]
-        marks = [m for p in paramCombo for m in p.marks]
-        id_strings = []
-        for (p, paramId) in zip(paramCombo, ids):
-            # Assume paramId is either a string or a callable
-            if isinstance(paramId, str):
-                id_strings.append("%s=%s" % (paramId, p.values[0]))
-            else:
-                id_strings.append(paramId(p.values[0]))
-        comboid = ",".join(id_strings)
-        retList.append(pytest.param(values, marks=marks, id=comboid))
-    return retList
 
 
 # shared between min and max spanning tree tests

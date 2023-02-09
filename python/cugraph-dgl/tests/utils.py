@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ th = import_optional("torch")
 
 
 def assert_same_node_feats(gs, g):
-    set(gs.graphstore.ndata_feat_col_d.keys()) == set(g.ndata.keys())
+    set(gs.ndata.keys()) == set(g.ndata.keys())
 
     for key in g.ndata.keys():
         for ntype in g.ntypes:
@@ -46,7 +46,7 @@ def assert_same_num_edges_etypes(gs, g):
 
 
 def assert_same_edge_feats(gs, g):
-    set(gs.graphstore.edata_feat_col_d.keys()) == set(g.edata.keys())
+    set(gs.edata.keys()) == set(g.edata.keys())
     for key in g.edata.keys():
         for etype in g.canonical_etypes:
             indices = th.arange(0, g.num_edges(etype), dtype=g.idtype).cuda()

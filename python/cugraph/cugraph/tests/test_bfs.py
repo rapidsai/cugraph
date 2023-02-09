@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,23 +12,23 @@
 # limitations under the License.
 
 import gc
-import pandas
-import cupy
-import numpy as np
-import cudf
-import pytest
-import cugraph
-from cugraph.testing import utils
 import random
 
+import pytest
 import pandas as pd
 import cupy as cp
+import numpy as np
 from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
+import cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
+import cugraph
+from cugraph.testing import utils
 from cugraph.experimental import datasets
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -277,7 +277,7 @@ def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, 
     Helper for fixtures returning Nx results and params.
     """
     random.seed(seed)
-    start_vertex = random.sample(Gnx.nodes(), 1)[0]
+    start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
 
     nx_values = nx.single_source_shortest_path_length(
         Gnx, start_vertex, cutoff=depth_limit
@@ -295,31 +295,31 @@ DATASETS = [pytest.param(d) for d in datasets.DATASETS]
 DATASETS_SMALL = [pytest.param(d) for d in datasets.DATASETS_SMALL]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
-# Call genFixtureParamsProduct() to caluculate the cartesian product of
+# Call gen_fixture_params_product() to caluculate the cartesian product of
 # multiple lists of params. This is required since parameterized fixtures do
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the
 # full test name.
-algo_test_fixture_params = utils.genFixtureParamsProduct(
+algo_test_fixture_params = gen_fixture_params_product(
     (SEEDS, "seed"), (DEPTH_LIMIT, "depth_limit")
 )
 
-graph_fixture_params = utils.genFixtureParamsProduct(
+graph_fixture_params = gen_fixture_params_product(
     (DATASETS, "ds"), (DIRECTED, "dirctd")
 )
 
-small_graph_fixture_params = utils.genFixtureParamsProduct(
+small_graph_fixture_params = gen_fixture_params_product(
     (DATASETS_SMALL, "ds"), (DIRECTED, "dirctd")
 )
 
 # The single param list variants are used when only 1 param combination is
 # needed (eg. testing non-native input types where tests for other combinations
 # was covered elsewhere).
-single_algo_test_fixture_params = utils.genFixtureParamsProduct(
+single_algo_test_fixture_params = gen_fixture_params_product(
     ([SEEDS[0]], "seed"), ([DEPTH_LIMIT[0]], "depth_limit")
 )
 
-single_small_graph_fixture_params = utils.genFixtureParamsProduct(
+single_small_graph_fixture_params = gen_fixture_params_product(
     ([DATASETS_SMALL[0]], "ds"), (DIRECTED, "dirctd")
 )
 
@@ -405,7 +405,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
         elif cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
-    if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+    if not isinstance(cugraph_input_type, cugraph.Graph):
         G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)
     else:
         G_or_matrix = G

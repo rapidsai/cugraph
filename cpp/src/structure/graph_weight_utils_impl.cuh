@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #pragma once
 
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_e.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
@@ -24,8 +25,8 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 
 #include <thrust/extrema.h>
@@ -58,6 +59,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       edge_weight_view,
       [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w; },
       weight_t{0.0},
+      reduce_op::plus<weight_t>{},
       weight_sums.data());
   } else {
     per_v_transform_reduce_outgoing_e(
@@ -68,6 +70,7 @@ rmm::device_uvector<weight_t> compute_weight_sums(
       edge_weight_view,
       [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w; },
       weight_t{0.0},
+      reduce_op::plus<weight_t>{},
       weight_sums.data());
   }
 

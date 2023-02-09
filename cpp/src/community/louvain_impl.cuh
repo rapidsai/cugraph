@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   std::optional<edge_property_t<graph_view_t, weight_t>> current_edge_weights(handle);
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
     edge_weight_view);
-  HighResTimer hr_timer;
 
   weight_t best_modularity = weight_t{-1};
   weight_t total_edge_weight =
@@ -93,8 +92,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     //  Compute the vertex and cluster weights, these are different for each
     //  graph in the hierarchical decomposition
     //
+
+#ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
+#endif
 
     vertex_weights_v =
       compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view);
@@ -113,7 +115,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     if constexpr (graph_view_t::is_multi_gpu) {
       std::tie(cluster_keys_v, cluster_weights_v) =
-        detail::shuffle_ext_vertices_and_values_by_gpu_id(
+        detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
           handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
@@ -124,12 +126,17 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       vertex_weights_v.shrink_to_fit(handle.get_stream());
     }
 
+#ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+#endif
 
     //
     //  Update the clustering assignment, this is the main loop of Louvain
     //
+
+#ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "update_clustering");
+#endif
 
     next_clusters_v =
       rmm::device_uvector<vertex_t>(dendrogram->current_level_size(), handle.get_stream());
@@ -211,7 +218,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       }
     }
 
+#ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+#endif
 
     if (cur_Q <= best_modularity) { break; }
 
@@ -220,7 +229,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     //
     //  Contract the graph
     //
+
+#ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
+#endif
 
     cluster_keys_v.resize(0, handle.get_stream());
     cluster_weights_v.resize(0, handle.get_stream());
@@ -244,10 +256,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
       (*current_edge_weights).view());
 
+#ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+#endif
   }
 
+#ifdef TIMING
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
+#endif
 
   return std::make_pair(std::move(dendrogram), best_modularity);
 }

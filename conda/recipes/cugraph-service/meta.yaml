@@ -1,9 +1,9 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c nvidia -c rapidsai -c conda-forge  .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
-{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 
 package:
   name: cugraph-service-split
@@ -15,7 +15,7 @@ outputs:
   - name: cugraph-service-client
     version: {{ version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_family: APACHE
       license_file: ../../../LICENSE
@@ -23,10 +23,10 @@ outputs:
     script: install_cugraph-service-client.sh
     requirements:
       host:
-        - python x.x
         - pip
+        - python x.x
         # FIXME: this pin can be removed once we move to the GitHub Actions build process
-        - setuptools<=65.2.0
+        - setuptools <=65.2.0
       run:
         - python x.x
         - thriftpy2 >=0.4.15
@@ -34,7 +34,7 @@ outputs:
   - name: cugraph-service-server
     version: {{ version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_family: APACHE
       license_file: ../../../LICENSE
@@ -42,23 +42,24 @@ outputs:
     script: install_cugraph-service-server.sh
     requirements:
       host:
-        - python x.x
         - pip
+        - python x.x
         # FIXME: this pin can be removed once we move to the GitHub Actions build process
-        - setuptools<=65.2.0
+        - setuptools <=65.2.0
       run:
+        - {{ pin_subpackage('cugraph-service-client', exact=True) }}
+        - cudf ={{ minor_version }}
+        - cugraph ={{ minor_version }}
+        - cupy >=9.5.0,<12.0.0a0
+        - dask-cuda ={{ minor_version }}
+        - dask-cudf ={{ minor_version }}
+        - distributed ==2023.1.1
+        - numpy
         - python x.x
         - thriftpy2 >=0.4.15
-        - {{ pin_compatible('cugraph-service-client', exact=True) }}
-        - {{ pin_compatible('cugraph', exact=True) }}
-        - cupy >=9.5.0,<12.0.0a0
-        - numpy
-        - ucx-py 0.29.*
-        - distributed ==2022.11.1
-        - dask-cuda {{ minor_version }}.*
-        - cudf {{ minor_version }}.*
-        - dask-cudf {{ minor_version }}.*
+        - ucx-py {{ ucx_py_version }}
 
+# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
 tests:                                 # [linux64]
   imports:                             # [linux64]
     - cugraph_service_server           # [linux64]

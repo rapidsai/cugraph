@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -73,18 +73,11 @@ struct call_e_op_t {
     auto dst          = GraphViewType::is_storage_transposed ? major : minor;
     auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
     auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-    return !evaluate_edge_op<GraphViewType,
-                             vertex_t,
-                             EdgePartitionSrcValueInputWrapper,
-                             EdgePartitionDstValueInputWrapper,
-                             edge_partition_edge_dummy_property_device_view_t<edge_t>,
-                             EdgeOp>()
-              .compute(src,
-                       dst,
-                       edge_partition_src_value_input.get(src_offset),
-                       edge_partition_dst_value_input.get(dst_offset),
-                       thrust::nullopt,
-                       e_op);
+    return !e_op(src,
+                 dst,
+                 edge_partition_src_value_input.get(src_offset),
+                 edge_partition_dst_value_input.get(dst_offset),
+                 thrust::nullopt);
   }
 };
 

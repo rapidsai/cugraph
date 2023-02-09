@@ -1,0 +1,113 @@
+name: pr
+
+on:
+  push:
+    branches:
+      - "pull-request/[0-9]+"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-builder:
+    needs:
+      - checks
+      - conda-cpp-build
+      - conda-cpp-tests
+      - conda-notebook-tests
+      - conda-python-build
+      - conda-python-tests
+      - wheel-build-pylibcugraph
+      - wheel-tests-pylibcugraph
+      - wheel-build-cugraph
+      - wheel-tests-cugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/pr-builder.yaml@branch-23.02
+  checks:
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/checks.yaml@branch-23.02
+  conda-cpp-build:
+    needs: checks
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@branch-23.02
+    with:
+      build_type: pull-request
+      node_type: cpu16
+  conda-cpp-tests:
+    needs: conda-cpp-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@branch-23.02
+    with:
+      build_type: pull-request
+  conda-python-build:
+    needs: conda-cpp-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-build.yaml@branch-23.02
+    with:
+      build_type: pull-request
+  conda-python-tests:
+    needs: conda-python-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@branch-23.02
+    with:
+      build_type: pull-request
+  conda-notebook-tests:
+    needs: conda-python-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@branch-23.02
+    with:
+      build_type: pull-request
+      node_type: "gpu-latest-1"
+      arch: "amd64"
+      container_image: "rapidsai/ci:latest"
+      run_script: "ci/test_notebooks.sh"
+  wheel-build-pylibcugraph:
+    needs: checks
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@branch-23.02
+    with:
+      build_type: pull-request
+      package-name: pylibcugraph
+      package-dir: python/pylibcugraph
+      extra-repo: rapidsai/cugraph-ops
+      extra-repo-sha: branch-23.02
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+  wheel-tests-pylibcugraph:
+    needs: wheel-build-pylibcugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.02
+    with:
+      build_type: pull-request
+      package-name: pylibcugraph
+      # On arm also need to install cupy from the specific webpage.
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+      test-smoketest: "python ci/wheel_smoke_test_pylibcugraph.py"
+  wheel-build-cugraph:
+    needs: wheel-tests-pylibcugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@branch-23.02
+    with:
+      build_type: pull-request
+      package-name: cugraph
+      package-dir: python/cugraph
+      extra-repo: rapidsai/cugraph-ops
+      extra-repo-sha: branch-23.02
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+      before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-wheelhouse"
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+  wheel-tests-cugraph:
+    needs: wheel-build-cugraph
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.02
+    with:
+      build_type: pull-request
+      package-name: cugraph
+      # Always want to test against latest dask/distributed.
+      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install git+https://github.com/dask/dask.git@2023.1.1 git+https://github.com/dask/distributed.git@2023.1.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
+      # On arm also need to install cupy from the specific site.
+      test-before-arm64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@2023.1.1 git+https://github.com/dask/distributed.git@2023.1.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.02"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -v ./python/cugraph/cugraph/tests --ignore=./python/cugraph/cugraph/tests/mg"
+      test-smoketest: "python ci/wheel_smoke_test_cugraph.py"

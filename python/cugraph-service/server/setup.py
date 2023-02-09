@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,14 +17,17 @@ import versioneer
 cmdclass = versioneer.get_cmdclass()
 
 install_requires = [
-    "cugraph-service-client",
+    "cudf",
     "cugraph",
+    "cugraph-service-client",
     "cupy-cuda11x",
-    "numpy",
-    "ucx-py",
-    "distributed ==2022.11.1",
     "dask-cuda",
+    "dask-cudf",
+    "distributed ==2023.1.1",
+    "numpy",
+    "rmm",
     "thriftpy2",
+    "ucx-py",
 ]
 
 setup(
@@ -37,7 +40,9 @@ setup(
     ],
     author="NVIDIA Corporation",
     url="https://github.com/rapidsai/cugraph",
-    packages=find_packages(include=["cugraph_service_server"]),
+    packages=find_packages(
+        include=["cugraph_service_server", "cugraph_service_server.*"]
+    ),
     entry_points={
         "console_scripts": [
             "cugraph-service-server=cugraph_service_server.__main__:main"

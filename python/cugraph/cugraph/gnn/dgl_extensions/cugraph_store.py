@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,17 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import defaultdict
 
 from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 
 from functools import cached_property
 from cugraph.gnn.dgl_extensions.utils.find_edges import find_edges
 from cugraph.gnn.dgl_extensions.utils.node_subgraph import node_subgraph
-from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
 from cugraph.gnn.dgl_extensions.utils.add_data import (
     add_edge_data_from_parquet,
+    add_edge_data_from_dataframe,
     add_node_data_from_parquet,
+    add_node_data_from_dataframe,
 )
 from cugraph.gnn.dgl_extensions.utils.sampling import (
     sample_pg,
@@ -49,10 +49,6 @@ class CuGraphStore(BaseCuGraphStore):
         super().__init__(graph)
         # dict to map column names corresponding to edge features
         # of each type
-        self.edata_feat_col_d = defaultdict(list)
-        # dict to map column names corresponding to node features
-        # of each type
-        self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
     def add_node_data(
@@ -91,13 +87,14 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
-        columns = [col for col in list(df.columns) if col != node_col_name]
-
-        _update_feature_map(
-            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
+        add_node_data_from_dataframe(
+            df=df,
+            node_col_name=node_col_name,
+            ntype=ntype,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
+            pG=self.gdata,
         )
-        # Clear properties if set as data has changed
         self.__clear_cached_properties()
 
     def add_edge_data(
@@ -135,15 +132,16 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        self.gdata.add_edge_data(
-            df, vertex_col_names=node_col_names, type_name=canonical_etype
-        )
-        columns = [col for col in list(df.columns) if col not in node_col_names]
-        _update_feature_map(
-            self.edata_feat_col_d, feat_name, contains_vector_features, columns
-        )
 
         # Clear properties if set as data has changed
+        add_edge_data_from_dataframe(
+            df=df,
+            node_col_names=node_col_names,
+            canonical_etype=canonical_etype,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
+            pG=self.gdata,
+        )
         self.__clear_cached_properties()
 
     def add_node_data_from_parquet(
@@ -185,16 +183,14 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        loaded_columns = add_node_data_from_parquet(
+        add_node_data_from_parquet(
             file_path=file_path,
             node_col_name=node_col_name,
             node_offset=node_offset,
             ntype=ntype,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
             pG=self.gdata,
-        )
-        columns = [col for col in loaded_columns if col != node_col_name]
-        _update_feature_map(
-            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
         )
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
@@ -243,17 +239,15 @@ class CuGraphStore(BaseCuGraphStore):
         None
         """
 
-        loaded_columns = add_edge_data_from_parquet(
+        add_edge_data_from_parquet(
             file_path=file_path,
             node_col_names=node_col_names,
             canonical_etype=canonical_etype,
             src_offset=src_offset,
             dst_offset=dst_offset,
+            feat_name=feat_name,
+            contains_vector_features=contains_vector_features,
             pG=self.gdata,
-        )
-        columns = [col for col in loaded_columns if col not in node_col_names]
-        _update_feature_map(
-            self.edata_feat_col_d, feat_name, contains_vector_features, columns
         )
         self.__clear_cached_properties()
 
@@ -268,16 +262,9 @@ class CuGraphStore(BaseCuGraphStore):
                     )
                 )
             ntype = ntypes[0]
-        if key not in self.ndata_feat_col_d:
-            raise ValueError(
-                f"key {key} not found in CuGraphStore node features",
-                f" {list(self.ndata_feat_col_d.keys())}",
-            )
-
-        columns = self.ndata_feat_col_d[key]
         return CuFeatureStorage(
             pg=self.gdata,
-            columns=columns,
+            column=key,
             storage_type="node",
             indices_offset=indices_offset,
             backend_lib=self.backend_lib,
@@ -296,16 +283,10 @@ class CuGraphStore(BaseCuGraphStore):
                 )
 
             etype = etypes[0]
-        if key not in self.edata_feat_col_d:
-            raise ValueError(
-                f"key {key} not found in CuGraphStore edge features",
-                f" {list(self.edata_feat_col_d.keys())}",
-            )
-        columns = self.edata_feat_col_d[key]
 
         return CuFeatureStorage(
             pg=self.gdata,
-            columns=columns,
+            column=key,
             storage_type="edge",
             backend_lib=self.backend_lib,
             indices_offset=indices_offset,
@@ -348,7 +329,7 @@ class CuGraphStore(BaseCuGraphStore):
         DLPack capsule
             The src nodes for the sampled bipartite graph.
         DLPack capsule
-            The sampled dst nodes for the sampledbipartite graph.
+            The sampled dst nodes for the sampled bipartite graph.
         DLPack capsule
             The corresponding eids for the sampled bipartite graph
         """

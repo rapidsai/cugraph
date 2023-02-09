@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import numpy as np
 import cudf
 import cupy as cp
 from cudf.testing import assert_frame_equal, assert_series_equal
-from cugraph.experimental.datasets import cyber
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -46,7 +46,7 @@ except ImportError:
 
 import cugraph
 from cugraph.generators import rmat
-from cugraph.testing import utils
+from cugraph.experimental.datasets import cyber
 
 
 def type_is_categorical(pG):
@@ -228,7 +228,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="function", params=df_types_fixture_params)
@@ -1749,12 +1749,15 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key])
+        if isinstance(df, cudf.DataFrame):
+            df = df.to_pandas()
         assert len(df) == stop - start + 1
-        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+
+        assert df["_VERTEX_"].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
             expected = sorted(x for x, *args in data[key][1])
-            assert (cur == expected).all()
+            assert cur.tolist() == expected
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
@@ -1791,13 +1794,46 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key])
+        if isinstance(df, cudf.DataFrame):
+            df = df.to_pandas()
+
         assert len(df) == stop - start + 1
-        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        assert df[pG.edge_id_col_name].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             assert prev_id_column in df.columns
 
     empty_pG = PropertyGraph()
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
+
+
+def test_renumber_vertices_edges_dtypes():
+    from cugraph.experimental import PropertyGraph
+
+    edgelist_df = cudf.DataFrame(
+        {
+            "src": cp.array([0, 5, 2, 3, 4, 3], dtype="int32"),
+            "dst": cp.array([2, 4, 4, 5, 1, 2], dtype="int32"),
+            "eid": cp.array([8, 7, 5, 2, 9, 1], dtype="int32"),
+        }
+    )
+
+    vertex_df = cudf.DataFrame(
+        {"v": cp.array([0, 1, 2, 3, 4, 5], dtype="int32"), "p": [5, 10, 15, 20, 25, 30]}
+    )
+
+    pG = PropertyGraph()
+    pG.add_vertex_data(vertex_df, vertex_col_name="v", property_columns=["p"])
+    pG.add_edge_data(
+        edgelist_df, vertex_col_names=["src", "dst"], edge_id_col_name="eid"
+    )
+
+    pG.renumber_vertices_by_type()
+    vd = pG.get_vertex_data()
+    assert vd.index.dtype == cp.int32
+
+    pG.renumber_edges_by_type()
+    ed = pG.get_edge_data()
+    assert ed.index.dtype == cp.int32
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -1866,9 +1902,10 @@ def test_add_data_noncontiguous(df_type):
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_vertex_ids_different_type(df_type):
-    """Getting the number of vertices requires combining vertex ids from multiples columns.
+    """Getting the number of vertices requires combining vertex ids from
+    multiple columns.
 
-    This tests ensures combining these columns works even if they are different types.
+    This test ensures combining these columns works even if they are different types.
     """
     from cugraph.experimental import PropertyGraph
 
@@ -2233,6 +2270,76 @@ def test_fillna_edges():
     )
 
 
+def test_types_from_numerals():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist_cow = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1],
+            "dst": [1, 1, 1, 3, 2],
+            "val": [1, 3, 2, 3, 3],
+        }
+    )
+
+    df_edgelist_pig = cudf.DataFrame(
+        {
+            "src": [3, 1, 4, 5, 6],
+            "dst": [1, 6, 5, 6, 7],
+            "val": [5, 4, 5, 5, 2],
+        }
+    )
+
+    df_props_duck = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "a": [0, 1, 6, 2],
+            "b": [2, 1, 2, 2],
+        }
+    )
+
+    df_props_goose = cudf.DataFrame(
+        {
+            "id": [4, 5, 6, 7],
+            "a": [5, 4, 1, 8],
+            "b": [2, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+
+    pG.add_edge_data(df_edgelist_cow, vertex_col_names=["src", "dst"], type_name="cow")
+    pG.add_edge_data(df_edgelist_pig, vertex_col_names=["src", "dst"], type_name="pig")
+
+    pG.add_vertex_data(df_props_duck, vertex_col_name="id", type_name="duck")
+    pG.add_vertex_data(df_props_goose, vertex_col_name="id", type_name="goose")
+
+    assert pG.vertex_types_from_numerals(
+        cudf.Series([0, 1, 0, 0, 1, 0, 1, 1])
+    ).values_host.tolist() == [
+        "duck",
+        "goose",
+        "duck",
+        "duck",
+        "goose",
+        "duck",
+        "goose",
+        "goose",
+    ]
+    assert pG.edge_types_from_numerals(
+        cudf.Series([1, 1, 0, 1, 1, 0, 0, 1, 1])
+    ).values_host.tolist() == [
+        "pig",
+        "pig",
+        "cow",
+        "pig",
+        "pig",
+        "cow",
+        "cow",
+        "pig",
+        "pig",
+    ]
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
@@ -2377,3 +2484,73 @@ def bench_add_edges_cyber(gpubenchmark, N):
         assert len(df) == len(cyber_df)
 
     gpubenchmark(func)
+
+
+# @pytest.mark.slow
+@pytest.mark.parametrize("n_rows", [10_000, 100_000, 1_000_000, 10_000_000])
+@pytest.mark.parametrize("n_feats", [32, 64, 128])
+def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
+    from cugraph.experimental import PropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+
+    def func():
+        pG = PropertyGraph()
+        pG.add_edge_data(
+            df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+        )
+
+    gpubenchmark(func)
+
+
+@pytest.mark.parametrize("n_rows", [1_000_000])
+@pytest.mark.parametrize("n_feats", [128])
+def bench_get_vector_features_cp_array(benchmark, n_rows, n_feats):
+    from cugraph.experimental import PropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+    )
+    benchmark(pG.get_edge_data, edge_ids=cp.arange(0, 100_000))
+
+
+@pytest.mark.parametrize("n_rows", [1_000_000])
+@pytest.mark.parametrize("n_feats", [128])
+def bench_get_vector_features_cudf_series(benchmark, n_rows, n_feats):
+    from cugraph.experimental import PropertyGraph
+
+    df = cudf.DataFrame(
+        {
+            "src": cp.arange(0, n_rows, dtype=cp.int32),
+            "dst": cp.arange(0, n_rows, dtype=cp.int32) + 1,
+        }
+    )
+    for i in range(n_feats):
+        df[f"feat_{i}"] = cp.ones(len(df), dtype=cp.int32)
+
+    vector_properties = {"feat": [f"feat_{i}" for i in range(n_feats)]}
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        df, vertex_col_names=["src", "dst"], vector_properties=vector_properties
+    )
+    benchmark(pG.get_edge_data, edge_ids=cudf.Series(cp.arange(0, 100_000)))

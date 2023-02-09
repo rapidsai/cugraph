@@ -14,13 +14,14 @@
 import gc
 
 import pytest
+import dask_cudf
+from cudf.testing.testing import assert_frame_equal
+from pylibcugraph.testing import gen_fixture_params_product
 
 import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
-import dask_cudf
 from cugraph.structure.symmetrize import symmetrize_df
-from cudf.testing.testing import assert_frame_equal
 
 
 # =============================================================================
@@ -38,7 +39,7 @@ datasets = utils.DATASETS_UNDIRECTED
 core_number = [True, False]
 degree_type = ["bidirectional", "outgoing", "incoming"]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"), (core_number, "core_number"), (degree_type, "degree_type")
 )
 

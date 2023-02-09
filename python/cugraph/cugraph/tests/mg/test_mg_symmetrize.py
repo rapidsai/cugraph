@@ -14,10 +14,11 @@
 import gc
 
 import pytest
-
 import pandas as pd
-import cugraph
 import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
+import cugraph
 from cugraph.testing import utils
 
 
@@ -147,7 +148,7 @@ input_data_path = [
 ] + utils.DATASETS_UNDIRECTED
 datasets = [pytest.param(d.as_posix()) for d in input_data_path]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([True, False], "edgevals"),
     ([True, False], "multi_columns"),

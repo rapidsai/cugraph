@@ -1,9 +1,9 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c rapidsai -c conda-forge -c nvidia .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
-{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 
 package:
   name: cugraph-dgl
@@ -20,22 +20,22 @@ requirements:
   host:
     - python x.x
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools<=65.2.0
+    - setuptools <=65.2.0
   run:
-    - python x.x
-    - cugraph={{ version }}
+    - cugraph ={{ version }}
+    - dgl >=0.9.1
     - numba >=0.56.2
     - numpy
-    - dgl-cuda11.6 >=0.9
+    - python x.x
     - pytorch
-    - cudatoolkit =11.6
 
+# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
 tests:                                 # [linux64]
   imports:                             # [linux64]
     - cugraph_dgl                      # [linux64]
 
 about:
-  home: http://rapids.ai/
+  home: https://rapids.ai/
   license: Apache-2.0
   license_file: ../../../LICENSE
   summary: cuGraph library

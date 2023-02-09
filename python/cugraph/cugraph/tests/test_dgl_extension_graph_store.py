@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,6 +20,8 @@ import cudf
 import cupy as cp
 from cugraph.gnn import CuGraphStore
 from cugraph.experimental.datasets import DATASETS
+
+from tempfile import TemporaryDirectory
 
 
 @pytest.mark.parametrize("graph_file", DATASETS)
@@ -344,12 +346,11 @@ def dataset1_CuGraphStore():
         "relationships_k",
         True,
     )
+    # single row with nulls not supported as vector properties
     graph.add_edge_data(
         transactions_df,
         ("user_id", "merchant_id"),
         "('user', 'transactions', 'merchant')",
-        "transactions_k",
-        True,
     )
 
     return graph
@@ -484,7 +485,7 @@ def test_sampling_homogeneous_gs_out_dir():
 
         output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
         output_df = output_df.sort_values(by=["src", "dst"])
-        output_df = output_df.reset_index(drop=True)
+        output_df = output_df.reset_index(drop=True).astype(np.int64)
 
         expected_df = cudf.DataFrame(
             {"src": expected_out[seed][0], "dst": expected_out[seed][1]}
@@ -532,7 +533,7 @@ def test_sampling_homogeneous_gs_in_dir():
 
         output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
         output_df = output_df.sort_values(by=["src", "dst"])
-        output_df = output_df.reset_index(drop=True)
+        output_df = output_df.reset_index(drop=True).astype(np.int64)
 
         expected_df = cudf.DataFrame(
             {"src": expected_in[seed][0], "dst": expected_in[seed][1]}
@@ -826,7 +827,7 @@ def test_add_node_data_vector_feats():
         feat_name={
             "vec1": ["vec1_1", "vec1_2"],
             "vec2": ["vec2_1"],
-            "vec3": "vec3",
+            "vec3": ["vec3"],
         },
         contains_vector_features=True,
     )
@@ -842,6 +843,82 @@ def test_add_node_data_vector_feats():
     out_vec = gs.get_node_storage("vec3").fetch([1, 2])
     exp_vec = cp.asarray([18, 17])
     cp.testing.assert_array_equal(out_vec, exp_vec)
+
+
+def test_add_node_data_vector_feats_from_parquet():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["vec1_1"] = [10, 20, 30]
+    df["vec1_2"] = [15, 25, 35]
+    df["vec2_1"] = [19, 29, 39]
+    df["vec3"] = [18, 17, 16]
+    tmpd = TemporaryDirectory()
+    fp = f"{tmpd.name}/vector_features.parquet"
+    df.to_parquet(fp)
+    gs.add_node_data_from_parquet(
+        file_path=fp,
+        node_col_name="node_id",
+        feat_name={
+            "vec1": ["vec1_1", "vec1_2"],
+            "vec2": ["vec2_1"],
+            "vec3": ["vec3"],
+        },
+        contains_vector_features=True,
+    )
+
+    out_vec = gs.get_node_storage("vec1").fetch([1, 2])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec2").fetch([1, 2])
+    exp_vec = cp.asarray([19, 29])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec3").fetch([1, 2])
+    exp_vec = cp.asarray([18, 17])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    tmpd.cleanup()
+
+
+def test_add_edge_data_vector_feats_from_parquet():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["src"] = [1, 2, 3]
+    df["dst"] = [2, 1, 3]
+    df["vec1_1"] = [10, 20, 30]
+    df["vec1_2"] = [15, 25, 35]
+    df["vec2_1"] = [19, 29, 39]
+    df["vec3"] = [18, 17, 16]
+    tmpd = TemporaryDirectory()
+    fp = f"{tmpd.name}/edge_features.parquet"
+    df.to_parquet(fp)
+    gs.add_edge_data_from_parquet(
+        file_path=fp,
+        node_col_names=["src", "dst"],
+        feat_name={
+            "vec1": ["vec1_1", "vec1_2"],
+            "vec2": ["vec2_1"],
+            "vec3": ["vec3"],
+        },
+        contains_vector_features=True,
+    )
+    out_vec = gs.get_edge_storage("vec1").fetch([0, 1])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_edge_storage("vec2").fetch([0, 1])
+    exp_vec = cp.asarray([19, 29])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_edge_storage("vec3").fetch([0, 1])
+    exp_vec = cp.asarray([18, 17])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    tmpd.cleanup()
 
 
 @pytest.mark.cugraph_ops

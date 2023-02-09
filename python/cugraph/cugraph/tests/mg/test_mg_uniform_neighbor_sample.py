@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,15 +12,18 @@
 # limitations under the License.
 import gc
 import random
+import os
 
 import pytest
 import cudf
 import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 import cugraph
-from cugraph.testing import utils
+
 from cugraph.dask import uniform_neighbor_sample
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -48,11 +51,9 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = utils.DATASETS_UNDIRECTED + [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
-]
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
@@ -75,7 +76,7 @@ def input_combo(request):
 
     indices_type = parameters["indices_type"]
 
-    input_data_path = parameters["graph_file"]
+    input_data_path = parameters["graph_file"].get_path()
     directed = parameters["directed"]
 
     chunksize = dcg.get_chunksize(input_data_path)
@@ -204,7 +205,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "small_tree.csv").as_posix()
+    input_data_path = small_tree.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -319,6 +320,229 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     assert len(output_df.compute()) == 3
 
 
+@pytest.mark.cugraph_ops
+def test_uniform_neighbor_sample_edge_properties():
+    edgelist_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2],
+                "dst": [1, 2, 4, 2, 3, 4, 1, 1, 2, 3, 4, 4],
+                "eid": cudf.Series(
+                    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], dtype="int64"
+                ),
+                "etp": cudf.Series([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0], dtype="int32"),
+                "w": [0.0, 0.1, 0.2, 3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11],
+            }
+        ),
+        npartitions=2,
+    )
+
+    start_df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "seed": cudf.Series([0, 4], dtype="int64"),
+                "batch": cudf.Series([0, 1], dtype="int32"),
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.MultiGraph(directed=True)
+    G.from_dask_cudf_edgelist(
+        edgelist_df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    sampling_results = uniform_neighbor_sample(
+        G,
+        start_list=start_df["seed"],
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        batch_id_list=start_df["batch"],
+    ).compute()
+
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=start_df["seed"].compute(),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+        batch_id_list=start_df["batch"].compute(),
+    ).compute()
+
+    print("original edgelist:")
+    print(edgelist_df.compute())
+
+    print("sampling result:")
+    print(sampling_results)
+
+    mdf = cudf.merge(
+        sampling_results, edgelist_df.compute(), left_on="edge_id", right_on="eid"
+    )
+    assert (mdf.w == mdf.weight).all()
+    assert (mdf.etp == mdf.edge_type).all()
+    assert (mdf.src == mdf.sources).all()
+    assert (mdf.dst == mdf.destinations).all()
+
+    assert sorted(sampling_results["hop_id"].values_host.tolist()) == [0] * (2 * 2) + [
+        1
+    ] * (2 * 2 * 2)
+    # FIXME test the batch id values once that is fixed in C++
+
+
+def test_uniform_neighbor_sample_edge_properties_self_loops():
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2],
+                "dst": [0, 1, 2],
+                "eid": [2, 4, 6],
+                "etp": cudf.Series([1, 1, 2], dtype="int32"),
+                "w": [0.0, 0.1, 0.2],
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=dask_cudf.from_cudf(cudf.Series([0, 1, 2]), npartitions=2),
+        batch_id_list=dask_cudf.from_cudf(
+            cudf.Series([1, 1, 1], dtype="int32"), npartitions=2
+        ),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+    ).compute()
+
+    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+    ]
+    assert sorted(sampling_results.weight.values_host.tolist()) == [
+        0.0,
+        0.0,
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+    ]
+    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2, 2, 4, 4, 6, 6]
+    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
+    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
+    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
+
+
+@pytest.mark.parametrize("with_replacement", [True, False])
+@pytest.mark.skipif(
+    int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
+)
+def test_uniform_neighbor_edge_properties_sample_small_start_list(with_replacement):
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2],
+                "dst": [0, 1, 2],
+                "eid": [2, 4, 6],
+                "etp": cudf.Series([1, 1, 2], dtype="int32"),
+                "w": [0.0, 0.1, 0.2],
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=cudf.Series([0]),
+        fanout_vals=[10, 25],
+        with_replacement=with_replacement,
+        with_edge_properties=True,
+        batch_id_list=cudf.Series([10], dtype="int32"),
+    )
+
+
+def test_uniform_neighbor_sample_without_dask_inputs():
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2],
+                "dst": [0, 1, 2],
+                "eid": [2, 4, 6],
+                "etp": cudf.Series([1, 1, 2], dtype="int32"),
+                "w": [0.0, 0.1, 0.2],
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        df,
+        source="src",
+        destination="dst",
+        edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        start_list=cudf.Series([0, 1, 2]),
+        batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
+        fanout_vals=[2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+    ).compute()
+
+    assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
+    assert sorted(sampling_results.destinations.values_host.tolist()) == [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+    ]
+    assert sorted(sampling_results.weight.values_host.tolist()) == [
+        0.0,
+        0.0,
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+    ]
+    assert sorted(sampling_results.edge_id.values_host.tolist()) == [2, 2, 4, 4, 6, 6]
+    assert sorted(sampling_results.edge_type.values_host.tolist()) == [1, 1, 1, 1, 2, 2]
+    assert sorted(sampling_results.batch_id.values_host.tolist()) == [1, 1, 1, 1, 1, 1]
+    assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
@@ -327,7 +551,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
 def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
-    input_data_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+    input_data_path = email_Eu_core.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(

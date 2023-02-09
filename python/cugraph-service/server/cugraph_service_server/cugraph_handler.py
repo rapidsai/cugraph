@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,35 +14,42 @@
 
 from functools import cached_property
 from pathlib import Path
-
-# FIXME This optional import is required to support graph creation
-# extensions that use OGB.  It should be removed when a better
-# workaround is found.
-from cugraph.utilities.utils import import_optional
-
 import importlib
 import time
 import traceback
 import re
 from inspect import signature
 import asyncio
+import tempfile
 
+# FIXME This optional import is required to support graph creation
+# extensions that use OGB.  It should be removed when a better
+# workaround is found.
+from cugraph.utilities.utils import import_optional
 
 import numpy as np
 import cupy as cp
 import ucp
 import cudf
 import dask_cudf
-import cugraph
+import rmm
+from cugraph import (
+    batched_ego_graphs,
+    uniform_neighbor_sample,
+    node2vec,
+    Graph,
+    MultiGraph,
+)
 from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize as dask_initialize
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
-from cugraph import uniform_neighbor_sample
 from cugraph.dask import uniform_neighbor_sample as mg_uniform_neighbor_sample
 from cugraph.structure.graph_implementation.simpleDistributedGraph import (
     simpleDistributedGraphImpl,
 )
+from cugraph.dask.common.mg_utils import get_visible_devices
 
 from cugraph_service_client import defaults
 from cugraph_service_client import (
@@ -56,6 +63,7 @@ from cugraph_service_client.types import (
     UniformNeighborSampleResult,
     ValueWrapper,
     GraphVertexEdgeIDWrapper,
+    Offsets,
 )
 
 ogb = import_optional("ogb")
@@ -75,9 +83,10 @@ def call_algo(sg_algo_func, G, **kwargs):
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
             # Convert DataFrame into CuPy arrays for returning to the client
-            sources = result_ddf["sources"].compute().to_cupy()
-            destinations = result_ddf["destinations"].compute().to_cupy()
-            indices = result_ddf["indices"].compute().to_cupy()
+            result_df = result_ddf.compute()
+            sources = result_df["sources"].to_cupy()
+            destinations = result_df["destinations"].to_cupy()
+            indices = result_df["indices"].to_cupy()
         else:
             possible_args = [
                 "start_list",
@@ -203,70 +212,80 @@ class CugraphHandler:
         """
         # FIXME: expose self.__dask_client.scheduler_info() as needed
 
-        return {"num_gpus": ValueWrapper(self.num_gpus).union}
+        return {
+            "num_gpus": ValueWrapper(self.num_gpus).union,
+            "extensions": ValueWrapper(list(self.__extensions.keys())).union,
+            "graph_creation_extensions": ValueWrapper(
+                list(self.__graph_creation_extensions.keys())
+            ).union,
+        }
 
-    def load_graph_creation_extensions(self, extension_dir_path):
+    def load_graph_creation_extensions(self, extension_dir_or_mod_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in
-        the directory specified by extension_dir_path.
+        Loads ("imports") all modules matching the pattern *_extension.py in the
+        directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
+        can be either a path to a directory on disk, or a python import path to a
+        package.
+
+        The modules are searched and their functions are called (if a match is
+        found) when call_graph_creation_extension() is called.
+
+        The extensions loaded are to be used for graph creation, and the server assumes
+        the return value of the extension functions is a Graph-like object which is
+        registered and assigned a unique graph ID.
+        """
+        modules_loaded = []
+        try:
+            extension_files = self.__get_extension_files_from_path(
+                extension_dir_or_mod_path
+            )
+
+            for ext_file in extension_files:
+                module_file_path = ext_file.absolute().as_posix()
+                spec = importlib.util.spec_from_file_location(
+                    module_file_path, ext_file
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                self.__graph_creation_extensions[module_file_path] = module
+                modules_loaded.append(module_file_path)
+
+            return modules_loaded
+
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
+
+    def load_extensions(self, extension_dir_or_mod_path):
+        """
+        Loads ("imports") all modules matching the pattern *_extension.py in the
+        directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
+        can be either a path to a directory on disk, or a python import path to a
+        package.
 
         The modules are searched and their functions are called (if a match is
         found) when call_graph_creation_extension() is called.
         """
-        extension_dir = Path(extension_dir_path)
-
-        if (not extension_dir.exists()) or (not extension_dir.is_dir()):
-            raise CugraphServiceError(f"bad directory: {extension_dir}")
-
         modules_loaded = []
-        for ext_file in extension_dir.glob("*_extension.py"):
-            module_file_path = ext_file.absolute().as_posix()
-            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            self.__graph_creation_extensions[module_file_path] = module
-            modules_loaded.append(module_file_path)
 
-        return modules_loaded
+        try:
+            extension_files = self.__get_extension_files_from_path(
+                extension_dir_or_mod_path
+            )
 
-    def load_extensions(self, extension_dir_or_mod_path):
-        """
-        Loads ("imports") all modules matching the pattern *_extension.py in
-        the directory specified by extension_dir_path.
+            for ext_file in extension_files:
+                module_file_path = ext_file.absolute().as_posix()
+                spec = importlib.util.spec_from_file_location(
+                    module_file_path, ext_file
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                self.__extensions[module_file_path] = module
+                modules_loaded.append(module_file_path)
 
-        The modules are searched and their functions are called (if a match is
-        found) when call_extension() is called.
-        """
-        modules_loaded = []
-        extension_path = Path(extension_dir_or_mod_path)
+            return modules_loaded
 
-        # extension_dir_path is either a path on disk or an importable module path
-        # (eg. import foo.bar.module)
-        if (not extension_path.exists()) or (not extension_path.is_dir()):
-            try:
-                mod = importlib.import_module(str(extension_path))
-            except ModuleNotFoundError:
-                raise CugraphServiceError(f"bad path: {extension_dir_or_mod_path}")
-
-            mod_file_path = Path(mod.__file__).absolute()
-
-            # If mod is a package, find all the .py files in it
-            if mod_file_path.name == "__init__.py":
-                extension_files = mod_file_path.parent.glob("*.py")
-            else:
-                extension_files = [mod_file_path]
-        else:
-            extension_files = extension_path.glob("*_extension.py")
-
-        for ext_file in extension_files:
-            module_file_path = ext_file.absolute().as_posix()
-            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            self.__extensions[module_file_path] = module
-            modules_loaded.append(module_file_path)
-
-        return modules_loaded
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def unload_extension_module(self, modname):
         """
@@ -364,7 +383,13 @@ class CugraphHandler:
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-    def initialize_dask_client(self, dask_scheduler_file=None):
+    def initialize_dask_client(
+        self,
+        protocol=None,
+        rmm_pool_size=None,
+        dask_worker_devices=None,
+        dask_scheduler_file=None,
+    ):
         """
         Initialize a dask client to be used for MG operations.
         """
@@ -372,8 +397,28 @@ class CugraphHandler:
             dask_initialize()
             self.__dask_client = Client(scheduler_file=dask_scheduler_file)
         else:
-            # FIXME: LocalCUDACluster init. Implement when tests are in place.
-            raise NotImplementedError
+            # The tempdir created by tempdir_object should be cleaned up once
+            # tempdir_object goes out-of-scope and is deleted.
+            tempdir_object = tempfile.TemporaryDirectory()
+            cluster = LocalCUDACluster(
+                local_directory=tempdir_object.name,
+                protocol=protocol,
+                rmm_pool_size=rmm_pool_size,
+                CUDA_VISIBLE_DEVICES=dask_worker_devices,
+            )
+            # Initialize the client to use RMM pool allocator if cluster is
+            # using it.
+            if rmm_pool_size is not None:
+                rmm.reinitialize(pool_allocator=True)
+
+            self.__dask_client = Client(cluster)
+
+            if dask_worker_devices is not None:
+                # FIXME: this assumes a properly formatted string with commas
+                num_workers = len(dask_worker_devices.split(","))
+            else:
+                num_workers = len(get_visible_devices())
+            self.__dask_client.wait_for_workers(num_workers)
 
         if not Comms.is_initialized():
             Comms.initialize(p2p=True)
@@ -599,6 +644,52 @@ class CugraphHandler:
 
         return self.__get_edge_IDs_from_graph_edge_data(G, src_vert_IDs, dst_vert_IDs)
 
+    def renumber_vertices_by_type(self, prev_id_column: str, graph_id: int) -> Offsets:
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if prev_id_column == "":
+                prev_id_column = None
+
+            offset_df = G.renumber_vertices_by_type(prev_id_column=prev_id_column)
+            if self.is_multi_gpu:
+                offset_df = offset_df.compute()
+
+            # type needs be converted twice due to cudf bug
+            offsets_obj = Offsets(
+                type=offset_df.index.values_host.to_numpy(),
+                start=offset_df.start.to_numpy(),
+                stop=offset_df.stop.to_numpy(),
+            )
+
+            return offsets_obj
+        else:
+            raise CugraphServiceError(
+                "Renumbering graphs without properties is currently unsupported"
+            )
+
+    def renumber_edges_by_type(self, prev_id_column: str, graph_id: int) -> Offsets:
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if prev_id_column == "":
+                prev_id_column = None
+
+            offset_df = G.renumber_edges_by_type(prev_id_column=prev_id_column)
+            if self.is_multi_gpu:
+                offset_df = offset_df.compute()
+
+            # type needs be converted twice due to cudf bug
+            offsets_obj = Offsets(
+                type=offset_df.index.values_host.to_numpy(),
+                start=offset_df.start.to_numpy(),
+                stop=offset_df.stop.to_numpy(),
+            )
+
+            return offsets_obj
+        else:
+            raise CugraphServiceError(
+                "Renumbering graphs without properties is currently unsupported"
+            )
+
     def extract_subgraph(
         self,
         create_using,
@@ -623,12 +714,12 @@ class CugraphHandler:
         try:
             if create_using == "":
                 create_using = None
-            else:
+            elif create_using is not None:
                 create_using = self.__parse_create_using_string(create_using)
             edge_weight_property = edge_weight_property or None
             if selection == "":
                 selection = None
-            else:
+            elif selection is not None:
                 selection = pG.select_edges(selection)
 
             # FIXME: create_using and selection should not be strings at this point
@@ -903,9 +994,7 @@ class CugraphHandler:
             # FIXME: this should not be needed, need to update
             # cugraph.batched_ego_graphs to also accept a list
             seeds = cudf.Series(seeds, dtype="int32")
-            (ego_edge_list, seeds_offsets) = cugraph.batched_ego_graphs(
-                G, seeds, radius
-            )
+            (ego_edge_list, seeds_offsets) = batched_ego_graphs(G, seeds, radius)
 
             # batched_ego_graphs_result = BatchedEgoGraphsResult(
             #     src_verts=ego_edge_list["src"].values_host.tobytes(), #i32
@@ -947,9 +1036,7 @@ class CugraphHandler:
             # to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
-            (paths, weights, path_sizes) = cugraph.node2vec(
-                G, start_vertices, max_depth
-            )
+            (paths, weights, path_sizes) = node2vec(G, start_vertices, max_depth)
 
             node2vec_result = Node2vecResult(
                 vertex_paths=paths.values_host,
@@ -970,15 +1057,19 @@ class CugraphHandler:
         result_host,
         result_port,
     ):
-        G = self._get_graph(graph_id)
-        if isinstance(G, (MGPropertyGraph, PropertyGraph)):
-            # Implicitly extract a subgraph containing the entire multigraph.
-            # G will be garbage collected when this function returns.
-            G = G.extract_subgraph(
-                create_using=cugraph.MultiGraph(directed=True), default_edge_weight=1.0
-            )
-
+        print("SERVER: running uns", flush=True)
         try:
+            G = self._get_graph(graph_id)
+            if isinstance(G, (MGPropertyGraph, PropertyGraph)):
+                # Implicitly extract a subgraph containing the entire multigraph.
+                # G will be garbage collected when this function returns.
+                G = G.extract_subgraph(
+                    create_using=MultiGraph(directed=True),
+                    default_edge_weight=1.0,
+                )
+
+            print("SERVER: starting sampling...")
+            st = time.perf_counter_ns()
             uns_result = call_algo(
                 uniform_neighbor_sample,
                 G,
@@ -986,7 +1077,13 @@ class CugraphHandler:
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement,
             )
+            print(
+                f"SERVER: done sampling, took {((time.perf_counter_ns() - st) / 1e9)}s"
+            )
+
             if self.__check_host_port_args(result_host, result_port):
+                print("SERVER: calling ucx_send_results...")
+                st = time.perf_counter_ns()
                 asyncio.run(
                     self.__ucx_send_results(
                         result_host,
@@ -995,6 +1092,10 @@ class CugraphHandler:
                         uns_result.destinations,
                         uns_result.indices,
                     )
+                )
+                print(
+                    "SERVER: done ucx_send_results, took "
+                    f"{((time.perf_counter_ns() - st) / 1e9)}s"
                 )
                 # FIXME: Thrift still expects something of the expected type to
                 # be returned to be serialized and sent. Look into a separate
@@ -1125,9 +1226,9 @@ class CugraphHandler:
                         raise ValueError(f"Could not parse argument {arg}", e)
 
             if graph_type == "Graph":
-                graph_type = cugraph.Graph
+                graph_type = Graph
             else:
-                graph_type = cugraph.MultiGraph
+                graph_type = MultiGraph
 
             return graph_type(**args_dict)
 
@@ -1145,6 +1246,29 @@ class CugraphHandler:
                 )
             return True
         return False
+
+    @staticmethod
+    def __get_extension_files_from_path(extension_dir_or_mod_path):
+        extension_path = Path(extension_dir_or_mod_path)
+        # extension_dir_path is either a path on disk or an importable module path
+        # (eg. import foo.bar.module)
+        if (not extension_path.exists()) or (not extension_path.is_dir()):
+            try:
+                mod = importlib.import_module(str(extension_path))
+            except ModuleNotFoundError:
+                raise CugraphServiceError(f"bad path: {extension_dir_or_mod_path}")
+
+            mod_file_path = Path(mod.__file__).absolute()
+
+            # If mod is a package, find all the .py files in it
+            if mod_file_path.name == "__init__.py":
+                extension_files = mod_file_path.parent.glob("*.py")
+            else:
+                extension_files = [mod_file_path]
+        else:
+            extension_files = extension_path.glob("*_extension.py")
+
+        return extension_files
 
     async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
@@ -1293,14 +1417,14 @@ class CugraphHandler:
                         func_kwargs[facade_param] = ExtensionServerFacade(self)
                     else:
                         raise CugraphServiceError(
-                            f"{facade_param}, if specified, must be the " "last param."
+                            f"{facade_param}, if specified, must be the last param."
                         )
                 try:
                     return func(*func_args, **func_kwargs)
                 except Exception:
                     # FIXME: raise a more detailed error
                     raise CugraphServiceError(
-                        f"error running {func_name} : " f"{traceback.format_exc()}"
+                        f"error running {func_name} : {traceback.format_exc()}"
                     )
 
         raise CugraphServiceError(f"extension {func_name} was not found")

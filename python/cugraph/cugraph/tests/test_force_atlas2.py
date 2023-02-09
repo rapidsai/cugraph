@@ -133,7 +133,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 
     matrix_file = dataset_path.with_suffix(".mtx")
     M = scipy.io.mmread(matrix_file)
-    M = M.todense()
+    M = M.toarray()
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
     print(cu_trust, score)
     assert cu_trust > score

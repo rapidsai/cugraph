@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -91,16 +91,11 @@ struct call_intersection_op_t {
     auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
     auto intersection = raft::device_span<typename GraphViewType::vertex_type const>(
       nbr_indices + nbr_offsets[i], nbr_indices + nbr_offsets[i + 1]);
-    return evaluate_intersection_op<GraphViewType,
-                                    typename EdgePartitionSrcValueInputWrapper::value_type,
-                                    typename EdgePartitionDstValueInputWrapper::value_type,
-                                    IntersectionOp>()
-      .compute(src,
-               dst,
-               edge_partition_src_value_input.get(src_offset),
-               edge_partition_dst_value_input.get(dst_offset),
-               intersection,
-               intersection_op);
+    return intersection_op(src,
+                           dst,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           intersection);
   }
 };
 

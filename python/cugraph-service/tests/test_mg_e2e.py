@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ from pathlib import Path
 import pytest
 import cupy as cp
 
+from cugraph_service_server.testing import utils
 from . import data
-from . import utils
 
 
 ###############################################################################
@@ -56,22 +56,23 @@ def mg_server():
         # testing is done.
 
         dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
+        start_local_cuda_cluster = False
         if dask_scheduler_file is None:
-            raise EnvironmentError(
-                "Environment variable SCHEDULER_FILE must "
-                "be set to the path to a dask scheduler "
-                "json file"
-            )
-        dask_scheduler_file = Path(dask_scheduler_file)
-        if not dask_scheduler_file.exists():
-            raise FileNotFoundError(
-                "env var SCHEDULER_FILE is set to "
-                f"{dask_scheduler_file}, which does not "
-                "exist."
-            )
+            start_local_cuda_cluster = True
+        else:
+            dask_scheduler_file = Path(dask_scheduler_file)
+            if not dask_scheduler_file.exists():
+                raise FileNotFoundError(
+                    "env var SCHEDULER_FILE is set to "
+                    f"{dask_scheduler_file}, which does not "
+                    "exist."
+                )
 
         server_process = utils.start_server_subprocess(
-            host=host, port=port, dask_scheduler_file=dask_scheduler_file
+            host=host,
+            port=port,
+            start_local_cuda_cluster=start_local_cuda_cluster,
+            dask_scheduler_file=dask_scheduler_file,
         )
 
         # yield control to the tests, cleanup on return

@@ -18,7 +18,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace detail {

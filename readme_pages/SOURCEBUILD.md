@@ -43,14 +43,8 @@ __Create the conda development environment__
 ```bash
 # create the conda environment (assuming in base `cugraph` directory)
 
-# for CUDA 11.2
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.2.yml
-
-# for CUDA 11.4
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.4.yml
-
 # for CUDA 11.5
-conda env create --name cugraph_dev --file conda/environments/cugraph_dev_cuda11.5.yml
+conda env create --name cugraph_dev --file conda/environments/all_cuda-118_arch-x86_64.yaml
 
 # activate the environment
 conda activate cugraph_dev
@@ -237,7 +231,7 @@ Run either the C++ or the Python tests with datasets
    make test
    ```
 
-Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
+Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
 
 ### Building and Testing on a gpuCI image locally
 

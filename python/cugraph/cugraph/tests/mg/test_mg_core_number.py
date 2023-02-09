@@ -14,11 +14,12 @@
 import gc
 
 import pytest
+import dask_cudf
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
-import dask_cudf
 
 
 # =============================================================================
@@ -34,7 +35,7 @@ def setup_function():
 datasets = utils.DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing", "bidirectional"]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (degree_type, "degree_type"),
 )

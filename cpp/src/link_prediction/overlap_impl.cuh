@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #include <cugraph/algorithms.hpp>
 #include <link_prediction/similarity_impl.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace detail {
@@ -50,14 +50,23 @@ rmm::device_uvector<weight_t> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool do_expensive_check)
 {
   if (!edge_weight_view)
-    return detail::similarity(
-      handle, graph_view, edge_weight_view, vertex_pairs, detail::overlap_functor_t{});
+    return detail::similarity(handle,
+                              graph_view,
+                              edge_weight_view,
+                              vertex_pairs,
+                              detail::overlap_functor_t{},
+                              do_expensive_check);
   else
-    return detail::similarity(
-      handle, graph_view, edge_weight_view, vertex_pairs, detail::weighted_overlap_functor_t{});
+    return detail::similarity(handle,
+                              graph_view,
+                              edge_weight_view,
+                              vertex_pairs,
+                              detail::weighted_overlap_functor_t{},
+                              do_expensive_check);
 }
 
 }  // namespace cugraph

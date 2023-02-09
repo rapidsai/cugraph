@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,7 +97,8 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
           vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
 
         if constexpr (multi_gpu) {
-          vertices = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(vertices));
+          vertices = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+            handle_, std::move(vertices));
         }
 
         counts.resize(vertices.size(), handle_.get_stream());

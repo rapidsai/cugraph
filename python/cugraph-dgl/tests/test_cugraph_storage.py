@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,31 +50,28 @@ def dgl_graph():
 
 def test_cugraphstore_basic_apis():
 
-    gs = CuGraphStorage(num_nodes_dict={"drug": 3, "gene": 2, "disease": 1})
-    # add node data
-    drug_df = cudf.DataFrame({"node_ids": [0, 1, 2], "node_feat": [0.1, 0.2, 0.3]})
-    gs.add_node_data(drug_df, "node_ids", ntype="drug")
-
-    # add edges
-    drug_interacts_drug_df = cudf.DataFrame(
-        {"src": [0, 1], "dst": [1, 2], "edge_feat": [0.2, 0.4]}
-    )
+    num_nodes_dict = {"drug": 3, "gene": 2, "disease": 1}
+    # edges
+    drug_interacts_drug_df = cudf.DataFrame({"src": [0, 1], "dst": [1, 2]})
     drug_interacts_gene = cudf.DataFrame({"src": [0, 1], "dst": [0, 1]})
     drug_treats_disease = cudf.DataFrame({"src": [1], "dst": [0]})
+    data_dict = {
+        ("drug", "interacts", "drug"): drug_interacts_drug_df,
+        ("drug", "interacts", "gene"): drug_interacts_gene,
+        ("drug", "treats", "disease"): drug_treats_disease,
+    }
+    gs = CuGraphStorage(data_dict=data_dict, num_nodes_dict=num_nodes_dict)
+    # add node data
+    gs.add_node_data(
+        ntype="drug",
+        feat_name="node_feat",
+        feat_obj=th.as_tensor([0.1, 0.2, 0.3], dtype=th.float64),
+    )
+    # add edge data
     gs.add_edge_data(
-        drug_interacts_drug_df,
-        node_col_names=["src", "dst"],
         canonical_etype=("drug", "interacts", "drug"),
-    )
-    gs.add_edge_data(
-        drug_interacts_gene,
-        node_col_names=["src", "dst"],
-        canonical_etype=("drug", "interacts", "gene"),
-    )
-    gs.add_edge_data(
-        drug_treats_disease,
-        node_col_names=["src", "dst"],
-        canonical_etype=("drug", "treats", "disease"),
+        feat_name="edge_feat",
+        feat_obj=th.as_tensor([0.2, 0.4], dtype=th.float64),
     )
 
     assert gs.num_nodes() == 6

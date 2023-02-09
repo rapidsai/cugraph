@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 
 namespace cugraph {
 namespace detail {

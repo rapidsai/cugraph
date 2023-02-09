@@ -25,8 +25,8 @@
 #include <cugraph/visitors/graph_envelope.hpp>
 
 #include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
-#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cugraph/graph_mask.hpp>

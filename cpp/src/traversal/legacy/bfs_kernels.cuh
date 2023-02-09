@@ -16,7 +16,7 @@
 #include <iostream>
 
 #include <cub/cub.cuh>
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 
 #include "traversal_common.cuh"
 #include <cugraph/legacy/graph.hpp>

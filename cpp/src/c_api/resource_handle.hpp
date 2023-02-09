@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 namespace cugraph {
 namespace c_api {

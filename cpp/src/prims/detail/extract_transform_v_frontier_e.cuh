@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -185,15 +185,16 @@ __global__ void extract_transform_v_frontier_e_hypersparse(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  key_t,
-                                                  EdgePartitionSrcValueInputWrapper,
-                                                  EdgePartitionDstValueInputWrapper,
-                                                  EdgePartitionEdgeValueInputWrapper,
-                                                  EdgeOp>::result_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t =
+    typename edge_op_result_type<key_t,
+                                 typename GraphViewType::vertex_type,
+                                 typename EdgePartitionSrcValueInputWrapper::value_type,
+                                 typename EdgePartitionDstValueInputWrapper::value_type,
+                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                 EdgeOp>::type;
 
   auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
   auto const warp_id      = threadIdx.x / raft::warp_size();
@@ -298,18 +299,11 @@ __global__ void extract_transform_v_frontier_e_hypersparse(
         }
         auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
         auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result     = evaluate_edge_op<GraphViewType,
-                                       key_t,
-                                       EdgePartitionSrcValueInputWrapper,
-                                       EdgePartitionDstValueInputWrapper,
-                                       EdgePartitionEdgeValueInputWrapper,
-                                       EdgeOp>()
-                        .compute(key_or_src,
-                                 key_or_dst,
-                                 edge_partition_src_value_input.get(src_offset),
-                                 edge_partition_dst_value_input.get(dst_offset),
-                                 edge_partition_e_value_input.get(local_edge_offset),
-                                 e_op);
+        e_op_result     = e_op(key_or_src,
+                           key_or_dst,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           edge_partition_e_value_input.get(local_edge_offset));
       }
       auto ballot_e_op =
         __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
@@ -358,15 +352,16 @@ __global__ void extract_transform_v_frontier_e_low_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  key_t,
-                                                  EdgePartitionSrcValueInputWrapper,
-                                                  EdgePartitionDstValueInputWrapper,
-                                                  EdgePartitionEdgeValueInputWrapper,
-                                                  EdgeOp>::result_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t =
+    typename edge_op_result_type<key_t,
+                                 typename GraphViewType::vertex_type,
+                                 typename EdgePartitionSrcValueInputWrapper::value_type,
+                                 typename EdgePartitionDstValueInputWrapper::value_type,
+                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                 EdgeOp>::type;
 
   auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
   auto const warp_id = threadIdx.x / raft::warp_size();
@@ -462,18 +457,11 @@ __global__ void extract_transform_v_frontier_e_low_degree(
         }
         auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
         auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result     = evaluate_edge_op<GraphViewType,
-                                       key_t,
-                                       EdgePartitionSrcValueInputWrapper,
-                                       EdgePartitionDstValueInputWrapper,
-                                       EdgePartitionEdgeValueInputWrapper,
-                                       EdgeOp>()
-                        .compute(key_or_src,
-                                 key_or_dst,
-                                 edge_partition_src_value_input.get(src_offset),
-                                 edge_partition_dst_value_input.get(dst_offset),
-                                 edge_partition_e_value_input.get(local_edge_offset),
-                                 e_op);
+        e_op_result     = e_op(key_or_src,
+                           key_or_dst,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           edge_partition_e_value_input.get(local_edge_offset));
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
       if (ballot > 0) {
@@ -522,15 +510,16 @@ __global__ void extract_transform_v_frontier_e_mid_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  key_t,
-                                                  EdgePartitionSrcValueInputWrapper,
-                                                  EdgePartitionDstValueInputWrapper,
-                                                  EdgePartitionEdgeValueInputWrapper,
-                                                  EdgeOp>::result_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t =
+    typename edge_op_result_type<key_t,
+                                 typename GraphViewType::vertex_type,
+                                 typename EdgePartitionSrcValueInputWrapper::value_type,
+                                 typename EdgePartitionDstValueInputWrapper::value_type,
+                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                 EdgeOp>::type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   static_assert(extract_transform_v_frontier_e_kernel_block_size % raft::warp_size() == 0);
@@ -575,18 +564,11 @@ __global__ void extract_transform_v_frontier_e_mid_degree(
         }
         auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
         auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result     = evaluate_edge_op<GraphViewType,
-                                       key_t,
-                                       EdgePartitionSrcValueInputWrapper,
-                                       EdgePartitionDstValueInputWrapper,
-                                       EdgePartitionEdgeValueInputWrapper,
-                                       EdgeOp>()
-                        .compute(key_or_src,
-                                 key_or_dst,
-                                 edge_partition_src_value_input.get(src_offset),
-                                 edge_partition_dst_value_input.get(dst_offset),
-                                 edge_partition_e_value_input.get(local_edge_offset + i),
-                                 e_op);
+        e_op_result     = e_op(key_or_src,
+                           key_or_dst,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           edge_partition_e_value_input.get(local_edge_offset + i));
       }
       auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
       if (ballot > 0) {
@@ -635,15 +617,16 @@ __global__ void extract_transform_v_frontier_e_high_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t      = typename GraphViewType::vertex_type;
-  using edge_t        = typename GraphViewType::edge_type;
-  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
-  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  key_t,
-                                                  EdgePartitionSrcValueInputWrapper,
-                                                  EdgePartitionDstValueInputWrapper,
-                                                  EdgePartitionEdgeValueInputWrapper,
-                                                  EdgeOp>::result_type;
+  using vertex_t = typename GraphViewType::vertex_type;
+  using edge_t   = typename GraphViewType::edge_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using e_op_result_t =
+    typename edge_op_result_type<key_t,
+                                 typename GraphViewType::vertex_type,
+                                 typename EdgePartitionSrcValueInputWrapper::value_type,
+                                 typename EdgePartitionDstValueInputWrapper::value_type,
+                                 typename EdgePartitionEdgeValueInputWrapper::value_type,
+                                 EdgeOp>::type;
 
   auto idx = static_cast<size_t>(blockIdx.x);
 
@@ -689,18 +672,11 @@ __global__ void extract_transform_v_frontier_e_high_degree(
         }
         auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
         auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result     = evaluate_edge_op<GraphViewType,
-                                       key_t,
-                                       EdgePartitionSrcValueInputWrapper,
-                                       EdgePartitionDstValueInputWrapper,
-                                       EdgePartitionEdgeValueInputWrapper,
-                                       EdgeOp>()
-                        .compute(key_or_src,
-                                 key_or_dst,
-                                 edge_partition_src_value_input.get(src_offset),
-                                 edge_partition_dst_value_input.get(dst_offset),
-                                 edge_partition_e_value_input.get(local_edge_offset + i),
-                                 e_op);
+        e_op_result     = e_op(key_or_src,
+                           key_or_dst,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           edge_partition_e_value_input.get(local_edge_offset + i));
       }
       BlockScan(temp_storage)
         .ExclusiveSum(e_op_result ? edge_t{1} : edge_t{0}, buffer_block_offset);
@@ -754,12 +730,12 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   using output_key_t   = OutputKeyT;
   using output_value_t = OutputValueT;
 
-  using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  key_t,
-                                                  EdgeSrcValueInputWrapper,
-                                                  EdgeDstValueInputWrapper,
-                                                  EdgeValueInputWrapper,
-                                                  EdgeOp>::result_type;
+  using e_op_result_t = typename edge_op_result_type<key_t,
+                                                     typename GraphViewType::vertex_type,
+                                                     typename EdgeSrcValueInputWrapper::value_type,
+                                                     typename EdgeDstValueInputWrapper::value_type,
+                                                     typename EdgeValueInputWrapper::value_type,
+                                                     EdgeOp>::type;
 
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,9 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
 {
   auto ids = cugraph::detail::expand_sparse_offsets(offsets, vertex_t{0}, handle.get_stream());
 
-  std::tie(vertices, ids) = cugraph::detail::shuffle_ext_vertices_and_values_by_gpu_id(
-    handle, std::move(vertices), std::move(ids));
+  std::tie(vertices, ids) =
+    cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+      handle, std::move(vertices), std::move(ids));
 
   thrust::sort(handle.get_thrust_policy(),
                thrust::make_zip_iterator(ids.begin(), vertices.begin()),

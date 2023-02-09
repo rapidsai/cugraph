@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,6 @@ import numpy as np
 import pandas as pd
 import scipy
 import pytest
-import re
 
 import cugraph
 import pylibcugraph
@@ -41,15 +40,16 @@ def _is_public_name(name):
 
 
 def _is_python_module(member):
-    return os.path.splitext(member.__file__)[1] == ".py"
+    member_file = getattr(member, "__file__", "")
+    return os.path.splitext(member_file)[1] == ".py"
 
 
 def _module_from_library(member, libname):
-    return libname in member.__module__
+    return libname in getattr(member, "__file__", "")
 
 
 def _file_from_library(member, libname):
-    return libname in member.__file__
+    return libname in getattr(member, "__file__", "")
 
 
 def _find_modules_in_obj(finder, obj, obj_name, criteria=None):
@@ -112,17 +112,29 @@ def _fetch_doctests():
     )
 
 
-def skip_docstring(docstring):
-    # Depending on different builds or architectures, some examples
-    # won't work.
-    first_line = docstring.examples[0].source
+def skip_docstring(docstring_obj):
+    """
+    Returns a string indicating why the doctest example string should not be
+    tested, or None if it should be tested.  This string can be used as the
+    "reason" arg to pytest.skip().
 
-    if (
-        re.search("does not run on CUDA", first_line)
-        and cuda_version_string in first_line
-    ):
-        return True
-    return False
+    Currently, this function will return a reason string if the docstring
+    contains a line with the following text:
+
+    "currently not available on CUDA <version> systems"
+
+    where <version> is a major.minor version string, such as 11.4, that matches
+    the version of CUDA on the system running the test.  An example of a line
+    in a docstring that would result in a reason string from this function
+    running on a CUDA 11.4 system is:
+
+    NOTE: this function is currently not available on CUDA 11.4 systems.
+    """
+    docstring = docstring_obj.docstring
+    for line in docstring.splitlines():
+        if f"currently not available on CUDA {cuda_version_string} systems" in line:
+            return f"docstring example not supported on CUDA {cuda_version_string}"
+    return None
 
 
 class TestDoctests:
@@ -145,9 +157,9 @@ class TestDoctests:
         # the use of an ellipsis "..." to match any string in the doctest
         # output. An ellipsis is useful for, e.g., memory addresses or
         # imprecise floating point values.
-        if skip_docstring(docstring):
-            print("Skipped!")
-            return
+        skip_reason = skip_docstring(docstring)
+        if skip_reason is not None:
+            pytest.skip(reason=skip_reason)
 
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)

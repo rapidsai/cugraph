@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/comms/comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 #include <raft/util/device_atomics.cuh>
 
@@ -94,7 +94,7 @@ struct intersection_op_result_type<
 };
 
 template <typename T>
-__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_add_impl(
   thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
   T const& rhs)
 {
@@ -102,79 +102,85 @@ __device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulat
 }
 
 template <typename T>
-__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
-                                                                                       T const& rhs)
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_add_impl(T& lhs,
+                                                                                T const& rhs)
 {
   atomicAdd(&lhs, rhs);
 }
 
 template <typename Iterator, typename TupleType, size_t I, size_t N>
-struct atomic_accumulate_thrust_tuple_impl {
+struct atomic_add_thrust_tuple_impl {
   __device__ constexpr void compute(Iterator iter, TupleType const& value) const
   {
-    atomic_accumulate_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
-                           thrust::get<I>(value));
-    atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+    atomic_add_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)), thrust::get<I>(value));
+    atomic_add_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
   }
 };
 
 template <typename Iterator, typename TupleType, size_t I>
-struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
+struct atomic_add_thrust_tuple_impl<Iterator, TupleType, I, I> {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
+};
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_min_impl(
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
+  T const& rhs)
+{
+  // no-op
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_min_impl(T& lhs,
+                                                                                T const& rhs)
+{
+  atomicMin(&lhs, rhs);
+}
+
+template <typename Iterator, typename TupleType, size_t I, size_t N>
+struct atomic_min_thrust_tuple_impl {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
+  {
+    atomic_min_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)), thrust::get<I>(value));
+    atomic_min_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+  }
+};
+
+template <typename Iterator, typename TupleType, size_t I>
+struct atomic_min_thrust_tuple_impl<Iterator, TupleType, I, I> {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
+};
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_max_impl(
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
+  T const& rhs)
+{
+  // no-op
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_max_impl(T& lhs,
+                                                                                T const& rhs)
+{
+  atomicMax(&lhs, rhs);
+}
+
+template <typename Iterator, typename TupleType, size_t I, size_t N>
+struct atomic_max_thrust_tuple_impl {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
+  {
+    atomic_max_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)), thrust::get<I>(value));
+    atomic_max_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+  }
+};
+
+template <typename Iterator, typename TupleType, size_t I>
+struct atomic_max_thrust_tuple_impl<Iterator, TupleType, I, I> {
   __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
 };
 
 }  // namespace detail
-
-template <typename GraphViewType,
-          typename key_t,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgePartitionEdgeValueInputWrapper,
-          typename EdgeOp>
-struct evaluate_edge_op {
-  using vertex_type    = typename GraphViewType::vertex_type;
-  using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
-  using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
-  using e_value_type   = typename EdgePartitionEdgeValueInputWrapper::value_type;
-  using result_type    = typename detail::
-    edge_op_result_type<key_t, vertex_type, src_value_type, dst_value_type, e_value_type, EdgeOp>::
-      type;
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename EV = e_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV, EV>,
-                              typename std::invoke_result<E, K, V, SV, DV, EV>::type>
-  compute(K s, V d, SV sv, DV dv, EV ev, E e) const
-  {
-    return e(s, d, sv, dv, ev);
-  }
-};
-
-template <typename GraphViewType,
-          typename src_value_t,
-          typename dst_value_t,
-          typename IntersectionOp>
-struct evaluate_intersection_op {
-  using vertex_type = typename GraphViewType::vertex_type;
-  using result_type = typename detail::
-    intersection_op_result_type<vertex_type, src_value_t, dst_value_t, IntersectionOp>::type;
-
-  template <typename V  = vertex_type,
-            typename SV = src_value_t,
-            typename DV = dst_value_t,
-            typename I  = IntersectionOp>
-  __device__
-    std::enable_if_t<std::is_invocable_v<I, V, V, SV, DV, raft::device_span<V const>>,
-                     typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>::type>
-    compute(V s, V d, SV sv, DV dv, raft::device_span<V const> intersection, I i)
-  {
-    return i(s, d, sv, dv, intersection);
-  }
-};
 
 template <typename GraphViewType,
           typename key_t,
@@ -256,7 +262,7 @@ constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> max_identity_element
 
 template <typename Iterator, typename T>
 __device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
-atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+atomic_add_edge_op_result(Iterator iter, T const& value)
 {
   // no-op
 }
@@ -266,7 +272,7 @@ __device__
   std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
                      std::is_arithmetic<T>::value,
                    void>
-  atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+  atomic_add_edge_op_result(Iterator iter, T const& value)
 {
   atomicAdd(&(thrust::raw_reference_cast(*iter)), value);
 }
@@ -276,13 +282,72 @@ __device__
   std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
                      is_thrust_tuple<T>::value,
                    void>
-  atomic_accumulate_edge_op_result(Iterator iter, T const& value)
+  atomic_add_edge_op_result(Iterator iter, T const& value)
 {
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
   size_t constexpr tuple_size = thrust::tuple_size<T>::value;
-  detail::atomic_accumulate_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(iter,
-                                                                                            value);
+  detail::atomic_add_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(iter, value);
+}
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
+atomic_min_edge_op_result(Iterator iter, T const& value)
+{
+  // no-op
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
+                     std::is_arithmetic<T>::value,
+                   void>
+  atomic_min_edge_op_result(Iterator iter, T const& value)
+{
+  atomicMin(&(thrust::raw_reference_cast(*iter)), value);
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
+                     is_thrust_tuple<T>::value,
+                   void>
+  atomic_min_edge_op_result(Iterator iter, T const& value)
+{
+  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+                thrust::tuple_size<T>::value);
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::atomic_min_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(iter, value);
+}
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
+atomic_max_edge_op_result(Iterator iter, T const& value)
+{
+  // no-op
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
+                     std::is_arithmetic<T>::value,
+                   void>
+  atomic_max_edge_op_result(Iterator iter, T const& value)
+{
+  atomicMax(&(thrust::raw_reference_cast(*iter)), value);
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
+                     is_thrust_tuple<T>::value,
+                   void>
+  atomic_max_edge_op_result(Iterator iter, T const& value)
+{
+  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+                thrust::tuple_size<T>::value);
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::atomic_max_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(iter, value);
 }
 
 }  // namespace cugraph

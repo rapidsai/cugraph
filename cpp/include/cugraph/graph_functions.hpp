@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
@@ -72,7 +72,8 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * compute_partition_id_from_ext_edge_endpoints_t to every (destination ID, source ID) pair (if
  * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
  * also return the corresponding edge partition ID. The best way to enforce this is to use
- * shuffle_edgelist_by_gpu_id & groupby_and_count_edgelist_by_local_partition_id.
+ * shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning &
+ * groupby_and_count_edgelist_by_local_partition_id.
  * @param edgelist_dsts Pointers (one pointer per local edge partition assigned to this process) to
  * edge destination vertex IDs. Destination IDs are updated in-place ([INOUT] parameter).
  * @param edgelist_edge_counts Edge counts (one count per local edge partition assigned to this
