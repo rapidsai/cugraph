@@ -122,11 +122,7 @@ def layerwise_infer(device, graph, nid, model, batch_size):
         pred = model.inference(graph, device, batch_size)  # pred in buffer_device
         pred = pred[nid]
 
-        label = (
-            graph.get_node_storage(key="label")
-            .fetch(nid.to(device), device=device)
-            .to(pred.device)
-        )
+        label = graph.ndata['label']['_N'][nid].to(device).to(pred.device)
         num_classes = pred.shape[1]
         return MF.accuracy(pred, label, task='multiclass', num_classes=num_classes)
 
@@ -227,10 +223,8 @@ if __name__ == "__main__":
     if args.mode == "cugraph_storage":
         if args.use_rmm:
             import rmm
-
-            rmm.reinitialize(
-                pool_allocator=True, initial_pool_size=5e9, maximum_pool_size=25e9
-            )
+            rmm.reinitialize(pool_allocator=True, initial_pool_size=5e9)
+            torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
 
         # Work around for DLFW container issues
         # where dlpack conversion of boolean fails 
