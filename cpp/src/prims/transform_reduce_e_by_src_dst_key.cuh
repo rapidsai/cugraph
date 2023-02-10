@@ -22,6 +22,7 @@
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -426,12 +427,13 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
 
     int comm_root_rank = 0;
     if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_rank = row_comm.get_rank();
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      comm_root_rank           = i * row_comm_size + row_comm_rank;
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_rank = major_comm.get_rank();
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      comm_root_rank = partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, i);
     }
 
     auto num_edges = edge_partition.number_of_edges();

@@ -199,8 +199,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    local_frontier_sizes = host_scalar_allgather(col_comm, frontier.size(), handle.get_stream());
+    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    local_frontier_sizes = host_scalar_allgather(minor_comm, frontier.size(), handle.get_stream());
   } else {
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
   }
@@ -210,12 +210,12 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
 
     if constexpr (GraphViewType::is_multi_gpu) {
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
 
       rmm::device_uvector<vertex_t> edge_partition_frontier_vertices(local_frontier_sizes[i],
                                                                      handle.get_stream());
-      device_bcast(col_comm,
+      device_bcast(minor_comm,
                    local_frontier_vertex_first,
                    edge_partition_frontier_vertices.data(),
                    local_frontier_sizes[i],
@@ -352,16 +352,20 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
       handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
   if constexpr (GraphViewType::is_multi_gpu) {
-    // FIXME: this step is unnecessary if row_comm_size== 1
-    auto& comm               = handle.get_comms();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
+    // FIXME: this step is unnecessary if major_comm_size== 1
+    auto& comm                 = handle.get_comms();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
 
-    std::vector<vertex_t> h_vertex_lasts(row_comm_size);
+    std::vector<vertex_t> h_vertex_lasts(major_comm_size);
     for (size_t i = 0; i < h_vertex_lasts.size(); ++i) {
-      h_vertex_lasts[i] = graph_view.vertex_partition_range_last(col_comm_rank * row_comm_size + i);
+      auto vertex_partition_id =
+        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+          major_comm_size, minor_comm_size, i, minor_comm_rank);
+      h_vertex_lasts[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
     }
 
     rmm::device_uvector<vertex_t> d_vertex_lasts(h_vertex_lasts.size(), handle.get_stream());
@@ -393,13 +397,13 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
     auto rx_key_buffer = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
     std::tie(rx_key_buffer, std::ignore) = shuffle_values(
-      row_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
+      major_comm, get_dataframe_buffer_begin(key_buffer), tx_counts, handle.get_stream());
     key_buffer = std::move(rx_key_buffer);
 
     if constexpr (!std::is_same_v<payload_t, void>) {
       auto rx_payload_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
       std::tie(rx_payload_buffer, std::ignore) = shuffle_values(
-        row_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
+        major_comm, get_dataframe_buffer_begin(payload_buffer), tx_counts, handle.get_stream());
       payload_buffer = std::move(rx_payload_buffer);
     }
 

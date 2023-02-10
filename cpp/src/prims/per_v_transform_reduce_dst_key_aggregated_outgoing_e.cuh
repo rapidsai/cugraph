@@ -81,13 +81,14 @@ struct rebase_offset_t {
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename edge_value_t>
-struct triplet_to_col_rank_t {
-  compute_gpu_id_from_ext_vertex_t<vertex_t> key_func{};
-  int row_comm_size{};
+struct triplet_to_minor_comm_rank_t {
+  compute_vertex_partition_id_from_ext_vertex_t<vertex_t> key_func{};
+  int major_comm_size{};
+
   __device__ int operator()(
     thrust::tuple<vertex_t, vertex_t, edge_value_t> val /* major, minor key, edge value */) const
   {
-    return key_func(thrust::get<1>(val)) / row_comm_size;
+    return key_func(thrust::get<1>(val)) / major_comm_size;
   }
 };
 
@@ -469,10 +470,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
-      auto& row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_size = col_comm.get_size();
+      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
 
       // FIXME: this doesn't work if edge_value_t is thrust::tuple or void
       auto triplet_first     = thrust::make_zip_iterator(thrust::make_tuple(
@@ -480,9 +481,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       auto d_tx_value_counts = cugraph::groupby_and_count(
         triplet_first,
         triplet_first + tmp_majors.size(),
-        detail::triplet_to_col_rank_t<vertex_t, edge_value_t>{
-          detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}, row_comm_size},
-        col_comm_size,
+        detail::triplet_to_minor_comm_rank_t<vertex_t, edge_value_t>{
+          detail::compute_vertex_partition_id_from_ext_vertex_t<vertex_t>{comm_size},
+          major_comm_size},
+        minor_comm_size,
         mem_frugal_threshold,
         handle.get_stream());
 
@@ -497,29 +499,32 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       rmm::device_uvector<vertex_t> rx_minor_keys(0, handle.get_stream());
       rmm::device_uvector<edge_value_t> rx_key_aggregated_edge_values(0, handle.get_stream());
       auto mem_frugal_flag =
-        host_scalar_allreduce(col_comm,
+        host_scalar_allreduce(minor_comm,
                               tmp_majors.size() > mem_frugal_threshold ? int{1} : int{0},
                               raft::comms::op_t::MAX,
                               handle.get_stream());
       if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
         std::tie(rx_majors, std::ignore) =
-          shuffle_values(col_comm, tmp_majors.begin(), h_tx_value_counts, handle.get_stream());
+          shuffle_values(minor_comm, tmp_majors.begin(), h_tx_value_counts, handle.get_stream());
         tmp_majors.resize(0, handle.get_stream());
         tmp_majors.shrink_to_fit(handle.get_stream());
 
-        std::tie(rx_minor_keys, std::ignore) =
-          shuffle_values(col_comm, tmp_minor_keys.begin(), h_tx_value_counts, handle.get_stream());
+        std::tie(rx_minor_keys, std::ignore) = shuffle_values(
+          minor_comm, tmp_minor_keys.begin(), h_tx_value_counts, handle.get_stream());
         tmp_minor_keys.resize(0, handle.get_stream());
         tmp_minor_keys.shrink_to_fit(handle.get_stream());
 
-        std::tie(rx_key_aggregated_edge_values, std::ignore) = shuffle_values(
-          col_comm, tmp_key_aggregated_edge_values.begin(), h_tx_value_counts, handle.get_stream());
+        std::tie(rx_key_aggregated_edge_values, std::ignore) =
+          shuffle_values(minor_comm,
+                         tmp_key_aggregated_edge_values.begin(),
+                         h_tx_value_counts,
+                         handle.get_stream());
         tmp_key_aggregated_edge_values.resize(0, handle.get_stream());
         tmp_key_aggregated_edge_values.shrink_to_fit(handle.get_stream());
       } else {
         std::forward_as_tuple(std::tie(rx_majors, rx_minor_keys, rx_key_aggregated_edge_values),
                               std::ignore) =
-          shuffle_values(col_comm, triplet_first, h_tx_value_counts, handle.get_stream());
+          shuffle_values(minor_comm, triplet_first, h_tx_value_counts, handle.get_stream());
         tmp_majors.resize(0, handle.get_stream());
         tmp_majors.shrink_to_fit(handle.get_stream());
         tmp_minor_keys.resize(0, handle.get_stream());
@@ -666,25 +671,25 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     }
 
     if constexpr (GraphViewType::is_multi_gpu) {
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      auto const col_comm_size = col_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
+      auto const minor_comm_size = minor_comm.get_size();
 
       // FIXME: additional optimization is possible if reduce_op is a pure function (and reduce_op
       // can be mapped to ncclRedOp_t).
 
-      auto rx_sizes = host_scalar_gather(col_comm, tmp_majors.size(), i, handle.get_stream());
+      auto rx_sizes = host_scalar_gather(minor_comm, tmp_majors.size(), i, handle.get_stream());
       std::vector<size_t> rx_displs{};
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
-      if (static_cast<size_t>(col_comm_rank) == i) {
-        rx_displs.assign(col_comm_size, size_t{0});
+      if (static_cast<size_t>(minor_comm_rank) == i) {
+        rx_displs.assign(minor_comm_size, size_t{0});
         std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
         rx_majors.resize(rx_displs.back() + rx_sizes.back(), handle.get_stream());
       }
       auto rx_tmp_e_op_result_buffer =
         allocate_dataframe_buffer<T>(rx_majors.size(), handle.get_stream());
 
-      device_gatherv(col_comm,
+      device_gatherv(minor_comm,
                      tmp_majors.data(),
                      rx_majors.data(),
                      tmp_majors.size(),
@@ -692,7 +697,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                      rx_displs,
                      i,
                      handle.get_stream());
-      device_gatherv(col_comm,
+      device_gatherv(minor_comm,
                      get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                      get_dataframe_buffer_begin(rx_tmp_e_op_result_buffer),
                      tmp_majors.size(),
@@ -701,7 +706,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                      i,
                      handle.get_stream());
 
-      if (static_cast<size_t>(col_comm_rank) == i) {
+      if (static_cast<size_t>(minor_comm_rank) == i) {
         majors             = std::move(rx_majors);
         e_op_result_buffer = std::move(rx_tmp_e_op_result_buffer);
       }

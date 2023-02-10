@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <cugraph/utilities/dataframe_buffer.hpp>
+
 #include <cuco/static_map.cuh>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>

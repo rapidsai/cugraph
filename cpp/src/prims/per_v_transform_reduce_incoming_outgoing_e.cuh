@@ -541,9 +541,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   if constexpr (update_major) {
     size_t partition_idx = 0;
     if constexpr (GraphViewType::is_multi_gpu) {
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      partition_idx            = static_cast<size_t>(col_comm_rank);
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
+      partition_idx              = static_cast<size_t>(minor_comm_rank);
     }
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
     if (segment_offsets) {  // no vertices in the zero degree segment are visited
@@ -555,9 +555,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   } else {
     auto minor_init = init;
     if constexpr (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_rank = row_comm.get_rank();
-      minor_init               = (row_comm_rank == 0) ? init : ReduceOp::identity_element;
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_rank = major_comm.get_rank();
+      minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
     }
 
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -578,8 +578,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         assert(graph_view.local_edge_partition_segment_offsets(i));
       }
 
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_size = col_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
 
       // memory footprint vs parallelism trade-off
       // peak memory requirement per loop is
@@ -587,7 +587,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
 
       size_t num_streams =
-        std::min(static_cast<size_t>(col_comm_size) * max_segments,
+        std::min(static_cast<size_t>(minor_comm_size) * max_segments,
                  raft::round_down_safe(handle.get_stream_pool_size(), max_segments));
       if constexpr (update_major) {
         size_t value_size{0};
@@ -668,9 +668,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto major_init = ReduceOp::identity_element;
     if constexpr (update_major) {
       if constexpr (GraphViewType::is_multi_gpu) {
-        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-        auto const col_comm_rank = col_comm.get_rank();
-        major_init = (static_cast<int>(i) == col_comm_rank) ? init : ReduceOp::identity_element;
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_rank = minor_comm.get_rank();
+        major_init = (static_cast<int>(i) == minor_comm_rank) ? init : ReduceOp::identity_element;
       } else {
         major_init = init;
       }
@@ -835,18 +835,15 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
 
     if constexpr (GraphViewType::is_multi_gpu && update_major) {
-      auto& comm     = handle.get_comms();
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_rank = row_comm.get_rank();
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      auto const col_comm_size = col_comm.get_size();
+      auto& comm       = handle.get_comms();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
+      auto const minor_comm_size = minor_comm.get_size();
 
       if (segment_offsets && stream_pool_indices) {
         if (edge_partition.dcs_nzd_vertex_count()) {
           device_reduce(
-            col_comm,
+            minor_comm,
             major_buffer_first + (*segment_offsets)[3],
             vertex_value_output_first + (*segment_offsets)[3],
             (*segment_offsets)[4] - (*segment_offsets)[3],
@@ -855,7 +852,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size()));
         }
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
-          device_reduce(col_comm,
+          device_reduce(minor_comm,
                         major_buffer_first + (*segment_offsets)[2],
                         vertex_value_output_first + (*segment_offsets)[2],
                         (*segment_offsets)[3] - (*segment_offsets)[2],
@@ -865,7 +862,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                                            (*stream_pool_indices).size()));
         }
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
-          device_reduce(col_comm,
+          device_reduce(minor_comm,
                         major_buffer_first + (*segment_offsets)[1],
                         vertex_value_output_first + (*segment_offsets)[1],
                         (*segment_offsets)[2] - (*segment_offsets)[1],
@@ -875,7 +872,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                                            (*stream_pool_indices).size()));
         }
         if ((*segment_offsets)[1] > 0) {
-          device_reduce(col_comm,
+          device_reduce(minor_comm,
                         major_buffer_first,
                         vertex_value_output_first,
                         (*segment_offsets)[1],
@@ -888,7 +885,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         size_t reduction_size = static_cast<size_t>(
           segment_offsets ? *((*segment_offsets).rbegin() + 1) /* exclude the zero degree segment */
                           : edge_partition.major_range_size());
-        device_reduce(col_comm,
+        device_reduce(minor_comm,
                       major_buffer_first,
                       vertex_value_output_first,
                       reduction_size,
@@ -902,22 +899,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
 
     auto view = minor_tmp_buffer.view();
     if (view.keys()) {
       vertex_t max_vertex_partition_size{0};
-      for (int i = 0; i < row_comm_size; ++i) {
+      for (int i = 0; i < major_comm_size; ++i) {
         max_vertex_partition_size =
           std::max(max_vertex_partition_size,
-                   graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i));
+                   graph_view.vertex_partition_range_size(minor_comm_rank * major_comm_size + i));
       }
       auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
       auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
@@ -927,43 +923,51 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       } else {
         minor_key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
       }
-      for (int i = 0; i < row_comm_size; ++i) {
-        thrust::fill(
+      for (int i = 0; i < major_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, i, minor_comm_rank);
+        thrust::fill(handle.get_thrust_policy(),
+                     tx_first,
+                     tx_first + graph_view.vertex_partition_range_size(vertex_partition_id),
+                     ReduceOp::identity_element);
+        thrust::scatter(
           handle.get_thrust_policy(),
+          view.value_first() + (*minor_key_offsets)[i],
+          view.value_first() + (*minor_key_offsets)[i + 1],
+          thrust::make_transform_iterator(
+            (*(view.keys())).begin() + (*minor_key_offsets)[i],
+            [key_first = graph_view.vertex_partition_range_first(vertex_partition_id)] __device__(
+              auto key) { return key - key_first; }),
+          tx_first);
+        device_reduce(
+          major_comm,
           tx_first,
-          tx_first + graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i),
-          ReduceOp::identity_element);
-        thrust::scatter(handle.get_thrust_policy(),
-                        view.value_first() + (*minor_key_offsets)[i],
-                        view.value_first() + (*minor_key_offsets)[i + 1],
-                        thrust::make_transform_iterator(
-                          (*(view.keys())).begin() + (*minor_key_offsets)[i],
-                          [key_first = graph_view.vertex_partition_range_first(
-                             col_comm_rank * row_comm_size + i)] __device__(auto key) {
-                            return key - key_first;
-                          }),
-                        tx_first);
-        device_reduce(row_comm,
-                      tx_first,
-                      vertex_value_output_first,
-                      static_cast<size_t>(
-                        graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i)),
-                      ReduceOp::compatible_raft_comms_op,
-                      i,
-                      handle.get_stream());
+          vertex_value_output_first,
+          static_cast<size_t>(graph_view.vertex_partition_range_size(vertex_partition_id)),
+          ReduceOp::compatible_raft_comms_op,
+          i,
+          handle.get_stream());
       }
     } else {
-      for (int i = 0; i < row_comm_size; ++i) {
-        auto offset = (graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size + i) -
-                       graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size));
-        device_reduce(row_comm,
-                      view.value_first() + offset,
-                      vertex_value_output_first,
-                      static_cast<size_t>(
-                        graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i)),
-                      ReduceOp::compatible_raft_comms_op,
-                      i,
-                      handle.get_stream());
+      for (int i = 0; i < major_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, i, minor_comm_rank);
+        vertex_t offset{};
+        if constexpr (GraphViewType::is_storage_transposed) {
+          offset = graph_view.local_edge_partition_dst_value_start_offset(i);
+        } else {
+          offset = graph_view.local_edge_partition_src_value_start_offset(i);
+        }
+        device_reduce(
+          major_comm,
+          view.value_first() + offset,
+          vertex_value_output_first,
+          static_cast<size_t>(graph_view.vertex_partition_range_size(vertex_partition_id)),
+          ReduceOp::compatible_raft_comms_op,
+          i,
+          handle.get_stream());
       }
     }
   }

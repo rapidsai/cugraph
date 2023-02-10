@@ -15,16 +15,9 @@
  */
 #pragma once
 
-#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/dataframe_buffer.hpp>
-#include <cugraph/utilities/device_comm.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/core/handle.hpp>
-
-#include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <thrust/binary_search.h>
@@ -62,7 +55,7 @@ struct compute_gpu_id_from_int_vertex_t {
   int major_comm_size{0};
   int minor_comm_size{0};
 
-  __host__ __device__ int operator()(vertex_t v) const
+  __device__ int operator()(vertex_t v) const
   {
     auto vertex_partition_id = static_cast<int>(thrust::distance(
       vertex_partition_range_lasts.begin(),
@@ -88,7 +81,7 @@ template <typename vertex_t>
 struct compute_vertex_partition_id_from_int_vertex_t {
   raft::device_span<vertex_t const> vertex_partition_range_lasts{};
 
-  __host__ __device__ int operator()(vertex_t v) const
+  __device__ int operator()(vertex_t v) const
   {
     return static_cast<int>(thrust::distance(
       vertex_partition_range_lasts.begin(),
@@ -134,7 +127,7 @@ struct compute_gpu_id_from_int_edge_endpoints_t {
   int major_comm_size{0};
   int minor_comm_size{0};
 
-  __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
+  __device__ int operator()(vertex_t major, vertex_t minor) const
   {
     auto major_vertex_partition_id =
       static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
@@ -154,8 +147,7 @@ struct compute_gpu_id_from_int_edge_endpoints_t {
       major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
   }
 
-  __host__ __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     auto major_vertex_partition_id =
       static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
@@ -204,7 +196,7 @@ struct compute_edge_partition_id_from_int_edge_endpoints_t {
   int major_comm_size{0};
   int minor_comm_size{0};
 
-  __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
+  __device__ int operator()(vertex_t major, vertex_t minor) const
   {
     auto major_vertex_partition_id =
       static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
@@ -222,8 +214,7 @@ struct compute_edge_partition_id_from_int_edge_endpoints_t {
            (minor_vertex_partition_id) / major_comm_size;
   }
 
-  __host__ __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     auto major_vertex_partition_id =
       static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
@@ -273,15 +264,14 @@ struct compute_local_edge_partition_id_from_int_edge_endpoints_t {
   int major_comm_size{0};
   int minor_comm_size{0};
 
-  __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
+  __device__ int operator()(vertex_t major, vertex_t minor) const
   {
     return compute_edge_partition_id_from_int_edge_endpoints_t<vertex_t>{
              vertex_partition_range_lasts, major_comm_size, minor_comm_size}(major, minor) /
            static_cast<int>(vertex_partition_range_lasts.size());
   }
 
-  __host__ __device__ int operator()(
-    thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
   {
     return compute_edge_partition_id_from_int_edge_endpoints_t<vertex_t>{
              vertex_partition_range_lasts, major_comm_size, minor_comm_size}(thrust::get<0>(pair),

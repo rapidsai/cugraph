@@ -63,38 +63,43 @@ void update_edge_major_property(raft::handle_t const& handle,
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
 
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     auto edge_partition_keys = edge_major_property_output.keys();
     if (edge_partition_keys) {
       vertex_t max_rx_size{0};
-      for (int i = 0; i < col_comm_size; ++i) {
-        max_rx_size = std::max(
-          max_rx_size, graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank));
+      for (int i = 0; i < minor_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, major_comm_rank, i);
+        max_rx_size =
+          std::max(max_rx_size, graph_view.vertex_partition_range_size(vertex_partition_id));
       }
       auto rx_value_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
         max_rx_size, handle.get_stream());
       auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
-      for (int i = 0; i < col_comm_size; ++i) {
-        device_bcast(col_comm,
+      for (int i = 0; i < minor_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, major_comm_rank, i);
+        device_bcast(minor_comm,
                      vertex_property_input_first,
                      rx_value_first,
-                     graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
+                     graph_view.vertex_partition_range_size(vertex_partition_id),
                      i,
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
           (*edge_partition_keys)[i].begin(),
-          [v_first = graph_view.vertex_partition_range_first(
-             i * row_comm_size + row_comm_rank)] __device__(auto v) { return v - v_first; });
+          [v_first = graph_view.vertex_partition_range_first(vertex_partition_id)] __device__(
+            auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
                        v_offset_first + (*edge_partition_keys)[i].size(),
@@ -102,11 +107,14 @@ void update_edge_major_property(raft::handle_t const& handle,
                        edge_partition_value_firsts[i]);
       }
     } else {
-      for (int i = 0; i < col_comm_size; ++i) {
-        device_bcast(col_comm,
+      for (int i = 0; i < minor_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, major_comm_rank, i);
+        device_bcast(minor_comm,
                      vertex_property_input_first,
                      edge_partition_value_firsts[i],
-                     graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
+                     graph_view.vertex_partition_range_size(vertex_partition_id),
                      i,
                      handle.get_stream());
       }
@@ -139,17 +147,14 @@ void update_edge_major_property(raft::handle_t const& handle,
 
   auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_rank       = comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
 
     auto rx_counts =
-      host_scalar_allgather(col_comm,
+      host_scalar_allgather(minor_comm,
                             static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                             handle.get_stream());
     auto max_rx_size =
@@ -163,12 +168,12 @@ void update_edge_major_property(raft::handle_t const& handle,
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
     auto edge_partition_keys = edge_major_property_output.keys();
-    for (int i = 0; i < col_comm_size; ++i) {
+    for (int i = 0; i < minor_comm_size; ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
           graph_view.local_edge_partition_view(i));
 
-      if (i == col_comm_rank) {
+      if (i == minor_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.local_vertex_partition_view());
@@ -188,8 +193,9 @@ void update_edge_major_property(raft::handle_t const& handle,
       // FIXME: these broadcast operations can be placed between ncclGroupStart() and
       // ncclGroupEnd()
       device_bcast(
-        col_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
-      device_bcast(col_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
+        minor_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
+      device_bcast(
+        minor_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
       if (edge_partition_keys) {
         thrust::for_each(
@@ -249,15 +255,14 @@ void update_edge_minor_property(raft::handle_t const& handle,
     using vertex_t = typename GraphViewType::vertex_type;
     using value_t  = typename thrust::iterator_traits<VertexPropertyInputIterator>::value_type;
 
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto const comm_size     = comm.get_size();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_rank       = comm.get_rank();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
 
     auto edge_partition_keys = edge_minor_property_output.keys();
     if (edge_partition_keys) {
@@ -277,8 +282,8 @@ void update_edge_minor_property(raft::handle_t const& handle,
         std::max(static_cast<size_t>(graph_view.number_of_vertices() / comm_size) * sizeof(value_t),
                  size_t{1});
       num_concurrent_bcasts = std::max(num_concurrent_bcasts, size_t{1});
-      num_concurrent_bcasts = std::min(num_concurrent_bcasts, static_cast<size_t>(row_comm_size));
-      auto num_rounds = (static_cast<size_t>(row_comm_size) + num_concurrent_bcasts - size_t{1}) /
+      num_concurrent_bcasts = std::min(num_concurrent_bcasts, static_cast<size_t>(major_comm_size));
+      auto num_rounds = (static_cast<size_t>(major_comm_size) + num_concurrent_bcasts - size_t{1}) /
                         num_concurrent_bcasts;
 
       std::vector<decltype(allocate_dataframe_buffer<value_t>(size_t{0}, handle.get_stream()))>
@@ -288,10 +293,13 @@ void update_edge_minor_property(raft::handle_t const& handle,
         size_t max_size{0};
         for (size_t round = 0; round < num_rounds; ++round) {
           auto j = num_rounds * i + round;
-          if (j < static_cast<size_t>(row_comm_size)) {
-            max_size = std::max(max_size,
-                                static_cast<size_t>(graph_view.vertex_partition_range_size(
-                                  col_comm_rank * row_comm_size + j)));
+          if (j < static_cast<size_t>(major_comm_size)) {
+            auto vertex_partition_id =
+              partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                major_comm_size, minor_comm_size, j, minor_comm_rank);
+            max_size = std::max(
+              max_size,
+              static_cast<size_t>(graph_view.vertex_partition_range_size(vertex_partition_id)));
           }
         }
         rx_value_buffers.push_back(
@@ -299,29 +307,35 @@ void update_edge_minor_property(raft::handle_t const& handle,
       }
 
       for (size_t round = 0; round < num_rounds; ++round) {
-        device_group_start(row_comm);
+        device_group_start(major_comm);
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
           auto j = num_rounds * i + round;
-          if (j < static_cast<size_t>(row_comm_size)) {
+          if (j < static_cast<size_t>(major_comm_size)) {
+            auto vertex_partition_id =
+              partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                major_comm_size, minor_comm_size, j, minor_comm_rank);
             auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
-            device_bcast(row_comm,
+            device_bcast(major_comm,
                          vertex_property_input_first,
                          rx_value_first,
-                         graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + j),
+                         graph_view.vertex_partition_range_size(vertex_partition_id),
                          j,
                          handle.get_stream());
           }
         }
-        device_group_end(row_comm);
+        device_group_end(major_comm);
 
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
           auto j = num_rounds * i + round;
-          if (j < static_cast<size_t>(row_comm_size)) {
+          if (j < static_cast<size_t>(major_comm_size)) {
+            auto vertex_partition_id =
+              partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                major_comm_size, minor_comm_size, j, minor_comm_rank);
             auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
             auto v_offset_first = thrust::make_transform_iterator(
               (*edge_partition_keys).begin() + key_offsets[j],
-              [v_first = graph_view.vertex_partition_range_first(
-                 col_comm_rank * row_comm_size + j)] __device__(auto v) { return v - v_first; });
+              [v_first = graph_view.vertex_partition_range_first(vertex_partition_id)] __device__(
+                auto v) { return v - v_first; });
             thrust::gather(handle.get_thrust_policy(),
                            v_offset_first,
                            v_offset_first + (key_offsets[j + 1] - key_offsets[j]),
@@ -331,13 +345,16 @@ void update_edge_minor_property(raft::handle_t const& handle,
         }
       }
     } else {
-      std::vector<size_t> rx_counts(row_comm_size, size_t{0});
-      std::vector<size_t> displacements(row_comm_size, size_t{0});
-      for (int i = 0; i < row_comm_size; ++i) {
-        rx_counts[i] = graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i);
+      std::vector<size_t> rx_counts(major_comm_size, size_t{0});
+      std::vector<size_t> displacements(major_comm_size, size_t{0});
+      for (int i = 0; i < major_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, i, minor_comm_rank);
+        rx_counts[i]     = graph_view.vertex_partition_range_size(vertex_partition_id);
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
-      device_allgatherv(row_comm,
+      device_allgatherv(major_comm,
                         vertex_property_input_first,
                         edge_partition_value_first,
                         rx_counts,
@@ -371,17 +388,14 @@ void update_edge_minor_property(raft::handle_t const& handle,
 
   auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
+    auto const major_comm_size = major_comm.get_size();
 
     auto rx_counts =
-      host_scalar_allgather(row_comm,
+      host_scalar_allgather(major_comm,
                             static_cast<size_t>(thrust::distance(vertex_first, vertex_last)),
                             handle.get_stream());
     auto max_rx_size =
@@ -405,8 +419,8 @@ void update_edge_minor_property(raft::handle_t const& handle,
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(size_t{0}));
     auto edge_partition_keys = edge_minor_property_output.keys();
-    for (int i = 0; i < row_comm_size; ++i) {
-      if (i == row_comm_rank) {
+    for (int i = 0; i < major_comm_size; ++i) {
+      if (i == major_comm_rank) {
         auto vertex_partition =
           vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
             graph_view.local_vertex_partition_view());
@@ -426,8 +440,9 @@ void update_edge_minor_property(raft::handle_t const& handle,
       // FIXME: these broadcast operations can be placed between ncclGroupStart() and
       // ncclGroupEnd()
       device_bcast(
-        row_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
-      device_bcast(row_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
+        major_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
+      device_bcast(
+        major_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
       if (edge_partition_keys) {
         thrust::for_each(

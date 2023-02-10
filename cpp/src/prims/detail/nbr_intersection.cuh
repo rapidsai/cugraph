@@ -89,64 +89,66 @@ struct is_invalid_input_vertex_pair_t {
   }
 };
 
-// group index determined by row_comm_rank (primary key) and local edge partition index (secondary
+// group index determined by major_comm_rank (primary key) and local edge partition index (secondary
 // key)
 template <typename vertex_t>
 struct major_to_group_idx_t {
-  vertex_t const* vertex_partition_range_lasts{nullptr};
-  int comm_size{};
-  int row_comm_size{};
-  int col_comm_size{};
+  raft::device_span<vertex_t const> vertex_partition_range_lasts{};
+  int major_comm_size{};
+  int minor_comm_size{};
 
   __device__ int operator()(vertex_t major) const
   {
-    auto it = thrust::upper_bound(
-      thrust::seq, vertex_partition_range_lasts, vertex_partition_range_lasts + comm_size, major);
-    auto comm_rank = static_cast<int>(thrust::distance(vertex_partition_range_lasts, it));
-    return (comm_rank % row_comm_size) * col_comm_size + (comm_rank / row_comm_size);
+    auto vertex_partition_id =
+      compute_vertex_partition_id_from_int_vertex_t<vertex_t>{vertex_partition_range_lasts}(major);
+    auto major_comm_rank         = vertex_partition_id % major_comm_size;
+    auto local_edge_partition_id = vertex_partition_id / major_comm_size;
+    return major_comm_rank * minor_comm_size + local_edge_partition_id;
   }
 };
 
-// primary key: row_comm_rank secondary key: local partition index => primary key: local partition
-// index secondary key: row_comm_rank
+// primary key: major_comm_rank secondary key: local edge partition index => primary key: local edge
+// partition index secondary key: major_comm_rank
 struct reorder_group_count_t {
-  int row_comm_size{};
-  int col_comm_size{};
-  size_t const* group_counts{nullptr};
+  int major_comm_size{};
+  int minor_comm_size{};
+  raft::device_span<size_t const> group_counts{};
 
   __device__ size_t operator()(size_t i) const
   {
-    return group_counts[(static_cast<int>(i) % row_comm_size) * col_comm_size +
-                        static_cast<int>(i) / row_comm_size];
+    auto local_edge_partition_id = static_cast<int>(i) / major_comm_size;
+    auto major_comm_rank         = static_cast<int>(i) % major_comm_size;
+    return group_counts[major_comm_rank * minor_comm_size + local_edge_partition_id];
   }
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct update_rx_major_local_degree_t {
-  int row_comm_size{};
-  int col_comm_size{};
+  int major_comm_size{};
+  int minor_comm_size{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
 
   size_t reordered_idx_first{};
-  size_t local_partition_idx{};
+  size_t local_edge_partition_idx{};
 
-  size_t const* rx_reordered_group_lasts{nullptr};
-  size_t const* rx_group_firsts{nullptr};
-  vertex_t const* rx_majors{nullptr};
+  raft::device_span<size_t const> rx_reordered_group_lasts{};
+  raft::device_span<size_t const> rx_group_firsts{nullptr};
+  raft::device_span<vertex_t const> rx_majors{};
 
-  edge_t* local_degrees_for_rx_majors{nullptr};
+  raft::device_span<edge_t> local_degrees_for_rx_majors{};
 
   __device__ void operator()(size_t idx) const
   {
     auto it = thrust::upper_bound(
-      thrust::seq, rx_reordered_group_lasts, rx_reordered_group_lasts + row_comm_size, idx);
-    auto row_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts, it));
+      thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
+    auto major_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts.begin(), it));
     auto offset_in_local_edge_partition =
-      idx - (row_comm_rank == int{0} ? reordered_idx_first
-                                     : rx_reordered_group_lasts[row_comm_rank - int{1}]);
-    auto major = rx_majors[rx_group_firsts[row_comm_rank * col_comm_size + local_partition_idx] +
-                           offset_in_local_edge_partition];
+      idx - (major_comm_rank == int{0} ? reordered_idx_first
+                                       : rx_reordered_group_lasts[major_comm_rank - int{1}]);
+    auto major =
+      rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size + local_edge_partition_idx] +
+                offset_in_local_edge_partition];
     edge_t local_degree{};
     if (multi_gpu && (edge_partition.major_hypersparse_first() &&
                       (major >= *(edge_partition.major_hypersparse_first())))) {
@@ -160,39 +162,40 @@ struct update_rx_major_local_degree_t {
       local_degree =
         edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
     }
-    local_degrees_for_rx_majors[rx_group_firsts[row_comm_rank * col_comm_size +
-                                                local_partition_idx] +
+    local_degrees_for_rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size +
+                                                local_edge_partition_idx] +
                                 offset_in_local_edge_partition] = local_degree;
   }
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
 struct update_rx_major_local_nbrs_t {
-  int row_comm_size{};
-  int col_comm_size{};
+  int major_comm_size{};
+  int minor_comm_size{};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
 
   size_t reordered_idx_first{};
-  size_t local_partition_idx{};
+  size_t local_edge_partition_idx{};
 
-  size_t const* rx_reordered_group_lasts{nullptr};
-  size_t const* rx_group_firsts{nullptr};
-  vertex_t const* rx_majors{nullptr};
-  size_t const* local_nbr_offsets_for_rx_majors{nullptr};
+  raft::device_span<size_t const> rx_reordered_group_lasts{};
+  raft::device_span<size_t const> rx_group_firsts{nullptr};
+  raft::device_span<vertex_t const> rx_majors{};
+  raft::device_span<size_t const> local_nbr_offsets_for_rx_majors{};
 
-  vertex_t* local_nbrs_for_rx_majors{nullptr};
+  raft::device_span<vertex_t> local_nbrs_for_rx_majors{};
 
   __device__ void operator()(size_t idx) const
   {
     auto it = thrust::upper_bound(
-      thrust::seq, rx_reordered_group_lasts, rx_reordered_group_lasts + row_comm_size, idx);
-    auto row_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts, it));
+      thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
+    auto major_comm_rank = static_cast<int>(thrust::distance(rx_reordered_group_lasts.begin(), it));
     auto offset_in_local_edge_partition =
-      idx - (row_comm_rank == int{0} ? reordered_idx_first
-                                     : rx_reordered_group_lasts[row_comm_rank - int{1}]);
-    auto major = rx_majors[rx_group_firsts[row_comm_rank * col_comm_size + local_partition_idx] +
-                           offset_in_local_edge_partition];
+      idx - (major_comm_rank == int{0} ? reordered_idx_first
+                                       : rx_reordered_group_lasts[major_comm_rank - int{1}]);
+    auto major =
+      rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size + local_edge_partition_idx] +
+                offset_in_local_edge_partition];
     vertex_t const* indices{nullptr};
     [[maybe_unused]] edge_t edge_offset{0};
     edge_t local_degree{0};
@@ -211,24 +214,25 @@ struct update_rx_major_local_nbrs_t {
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
     // vertices in a single warp (better optimize if this becomes a performance
     // bottleneck)
-    thrust::copy(thrust::seq,
-                 indices,
-                 indices + local_degree,
-                 local_nbrs_for_rx_majors +
-                   local_nbr_offsets_for_rx_majors[rx_group_firsts[row_comm_rank * col_comm_size +
-                                                                   local_partition_idx] +
-                                                   offset_in_local_edge_partition]);
+    thrust::copy(
+      thrust::seq,
+      indices,
+      indices + local_degree,
+      local_nbrs_for_rx_majors.begin() +
+        local_nbr_offsets_for_rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size +
+                                                        local_edge_partition_idx] +
+                                        offset_in_local_edge_partition]);
   }
 };
 
 struct compute_local_nbr_count_per_rank_t {
-  size_t const* rx_offsets{nullptr};
-  size_t const* local_nbr_offsets_for_rx_majors{nullptr};
+  raft::device_span<size_t const> rx_offsets{};
+  raft::device_span<size_t const> local_nbr_offsets_for_rx_majors{};
 
   __device__ size_t operator()(size_t i) const
   {
-    return *(local_nbr_offsets_for_rx_majors + *(rx_offsets + (i + 1))) -
-           *(local_nbr_offsets_for_rx_majors + *(rx_offsets + i));
+    return local_nbr_offsets_for_rx_majors[rx_offsets[i + 1]] -
+           local_nbr_offsets_for_rx_majors[rx_offsets[i]];
   }
 };
 
@@ -239,10 +243,10 @@ template <typename FirstElementToIdxMap,
           bool multi_gpu>
 struct pick_min_degree_t {
   FirstElementToIdxMap first_element_to_idx_map{};
-  size_t const* first_element_offsets{nullptr};
+  raft::device_span<size_t const> first_element_offsets{nullptr};
 
   SecondElementToIdxMap second_element_to_idx_map{};
-  size_t const* second_element_offsets{nullptr};
+  raft::device_span<size_t const> second_element_offsets{nullptr};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
 
@@ -316,18 +320,18 @@ template <typename FirstElementToIdxMap,
           bool multi_gpu>
 struct copy_intersecting_nbrs_and_update_intersection_size_t {
   FirstElementToIdxMap first_element_to_idx_map{};
-  size_t const* first_element_offsets{nullptr};
-  vertex_t const* first_element_indices{nullptr};
+  raft::device_span<size_t const> first_element_offsets{};
+  raft::device_span<vertex_t const> first_element_indices{nullptr};
 
   SecondElementToIdxMap second_element_to_idx_map{};
-  size_t const* second_element_offsets{nullptr};
-  vertex_t const* second_element_indices{nullptr};
+  raft::device_span<size_t const> second_element_offsets{};
+  raft::device_span<vertex_t const> second_element_indices{nullptr};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
 
   VertexPairIterator vertex_pair_first;
-  size_t const* nbr_intersection_offsets{nullptr};
-  vertex_t* nbr_intersection_indices{nullptr};
+  raft::device_span<size_t const> nbr_intersection_offsets{nullptr};
+  raft::device_span<vertex_t> nbr_intersection_indices{nullptr};
 
   vertex_t invalid_id{};
 
@@ -362,7 +366,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       auto idx = first_element_to_idx_map.find(thrust::get<0>(pair));
       local_degree0 =
         static_cast<edge_t>(first_element_offsets[idx + 1] - first_element_offsets[idx]);
-      indices0 = first_element_indices + first_element_offsets[idx];
+      indices0 = first_element_indices.begin() + first_element_offsets[idx];
     }
 
     vertex_t const* indices1{nullptr};
@@ -392,38 +396,41 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       auto idx = second_element_to_idx_map.find(thrust::get<1>(pair));
       local_degree1 =
         static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
-      indices1 = second_element_indices + second_element_offsets[idx];
+      indices1 = second_element_indices.begin() + second_element_offsets[idx];
     }
 
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
     // vertices in a single warp (better optimize if this becomes a performance
     // bottleneck)
 
-    auto it = thrust::set_intersection(thrust::seq,
-                                       indices0,
-                                       indices0 + local_degree0,
-                                       indices1,
-                                       indices1 + local_degree1,
-                                       nbr_intersection_indices + nbr_intersection_offsets[i]);
-    thrust::fill(
-      thrust::seq, it, nbr_intersection_indices + nbr_intersection_offsets[i + 1], invalid_id);
+    auto it =
+      thrust::set_intersection(thrust::seq,
+                               indices0,
+                               indices0 + local_degree0,
+                               indices1,
+                               indices1 + local_degree1,
+                               nbr_intersection_indices.begin() + nbr_intersection_offsets[i]);
+    thrust::fill(thrust::seq,
+                 it,
+                 nbr_intersection_indices.begin() + nbr_intersection_offsets[i + 1],
+                 invalid_id);
 
     return static_cast<size_t>(
-      thrust::distance(nbr_intersection_indices + nbr_intersection_offsets[i], it));
+      thrust::distance(nbr_intersection_indices.begin() + nbr_intersection_offsets[i], it));
   }
 };
 
 template <typename edge_t>
 struct strided_accumulate_t {
-  edge_t const* rx_nbr_intersection_sizes{nullptr};
+  raft::device_span<edge_t const> rx_nbr_intersection_sizes{};
   size_t edge_partition_input_size{};
-  int col_comm_size{};
+  int minor_comm_size{};
 
   __device__ edge_t operator()(size_t i) const
   {
     edge_t accumulated_size{0};
-    for (int j = 0; j < col_comm_size; ++j) {
-      accumulated_size += *(rx_nbr_intersection_sizes + edge_partition_input_size * j + i);
+    for (int j = 0; j < minor_comm_size; ++j) {
+      accumulated_size += rx_nbr_intersection_sizes[edge_partition_input_size * j + i];
     }
     return accumulated_size;
   }
@@ -432,27 +439,28 @@ struct strided_accumulate_t {
 template <typename vertex_t>
 struct gatherv_indices_t {
   size_t output_size{};
-  int col_comm_size{};
+  int minor_comm_size{};
 
-  size_t const* gathered_intersection_offsets{nullptr};
-  vertex_t const* gathered_intersection_indices{nullptr};
-  size_t const* combined_nbr_intersection_offsets{nullptr};
+  raft::device_span<size_t const> gathered_intersection_offsets{};
+  raft::device_span<vertex_t const> gathered_intersection_indices{};
+  raft::device_span<size_t const> combined_nbr_intersection_offsets{};
 
-  vertex_t* combined_nbr_intersection_indices{nullptr};
+  raft::device_span<vertex_t> combined_nbr_intersection_indices{};
 
   __device__ void operator()(size_t i) const
   {
-    auto output_offset = *(combined_nbr_intersection_offsets + i);
+    auto output_offset = combined_nbr_intersection_offsets[i];
 
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree vertices
     // in a single warp (better optimize if this becomes a performance bottleneck)
 
-    for (int j = 0; j < col_comm_size; ++j) {
+    for (int j = 0; j < minor_comm_size; ++j) {
       thrust::copy(
         thrust::seq,
-        gathered_intersection_indices + gathered_intersection_offsets[output_size * j + i],
-        gathered_intersection_indices + gathered_intersection_offsets[output_size * j + i + 1],
-        combined_nbr_intersection_indices + output_offset);
+        gathered_intersection_indices.begin() + gathered_intersection_offsets[output_size * j + i],
+        gathered_intersection_indices.begin() +
+          gathered_intersection_offsets[output_size * j + i + 1],
+        combined_nbr_intersection_indices.begin() + output_offset);
       output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
                        gathered_intersection_offsets[output_size * j + i];
     }
@@ -598,12 +606,12 @@ nbr_intersection(raft::handle_t const& handle,
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
 
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_size = row_comm.get_size();
-      auto const row_comm_rank = row_comm.get_rank();
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto const major_comm_rank = major_comm.get_rank();
 
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_size = col_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
 
       // 2.1 Find unique second pair element majors
 
@@ -625,18 +633,18 @@ nbr_intersection(raft::handle_t const& handle,
 
         unique_majors.shrink_to_fit(handle.get_stream());
 
-        if (col_comm_size > 1) {
+        if (minor_comm_size > 1) {
           // FIXME: We may refactor this code to improve scalability. We may call multiple gatherv
           // calls, perform local sort and unique, and call multiple broadcasts rather than
-          // performing sort and unique for the entire range in every GPU in col_comm.
+          // performing sort and unique for the entire range in every GPU in minor_comm.
           auto rx_counts =
-            host_scalar_allgather(col_comm, unique_majors.size(), handle.get_stream());
+            host_scalar_allgather(minor_comm, unique_majors.size(), handle.get_stream());
           std::vector<size_t> rx_displacements(rx_counts.size());
           std::exclusive_scan(
             rx_counts.begin(), rx_counts.end(), rx_displacements.begin(), size_t{0});
           rmm::device_uvector<vertex_t> rx_unique_majors(rx_displacements.back() + rx_counts.back(),
                                                          handle.get_stream());
-          device_allgatherv(col_comm,
+          device_allgatherv(minor_comm,
                             unique_majors.begin(),
                             rx_unique_majors.begin(),
                             rx_counts,
@@ -655,7 +663,7 @@ nbr_intersection(raft::handle_t const& handle,
         }
       }
 
-      // 2.2 Send majors and group (row_comm_rank, edge_partition_idx) counts
+      // 2.2 Send majors and group (major_comm_rank, edge_partition_idx) counts
 
       rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
       std::vector<size_t> rx_major_counts{};
@@ -673,7 +681,10 @@ nbr_intersection(raft::handle_t const& handle,
           unique_majors.begin(),
           unique_majors.end(),
           major_to_group_idx_t<vertex_t>{
-            d_vertex_partition_range_lasts.data(), comm_size, row_comm_size, col_comm_size},
+            raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                              d_vertex_partition_range_lasts.size()),
+            major_comm_size,
+            minor_comm_size},
           comm_size,
           std::numeric_limits<size_t>::max(),
           handle.get_stream());
@@ -684,20 +695,20 @@ nbr_intersection(raft::handle_t const& handle,
                           handle.get_stream());
         handle.sync_stream();
 
-        std::vector<size_t> tx_counts(row_comm_size, size_t{0});
+        std::vector<size_t> tx_counts(major_comm_size, size_t{0});
         for (size_t i = 0; i < tx_counts.size(); ++i) {
-          tx_counts[i] = std::reduce(h_tx_group_counts.begin() + col_comm_size * i,
-                                     h_tx_group_counts.begin() + col_comm_size * (i + 1),
+          tx_counts[i] = std::reduce(h_tx_group_counts.begin() + minor_comm_size * i,
+                                     h_tx_group_counts.begin() + minor_comm_size * (i + 1),
                                      size_t{0});
         }
 
         std::tie(rx_majors, rx_major_counts) =
-          shuffle_values(row_comm, unique_majors.begin(), tx_counts, handle.get_stream());
+          shuffle_values(major_comm, unique_majors.begin(), tx_counts, handle.get_stream());
 
         std::tie(rx_group_counts, std::ignore) =
-          shuffle_values(row_comm,
+          shuffle_values(major_comm,
                          d_tx_group_counts.begin(),
-                         std::vector<size_t>(row_comm_size, col_comm_size),
+                         std::vector<size_t>(major_comm_size, minor_comm_size),
                          handle.get_stream());
       }
 
@@ -710,12 +721,14 @@ nbr_intersection(raft::handle_t const& handle,
         rmm::device_uvector<size_t> rx_reordered_group_counts(
           rx_group_counts.size(),
           handle.get_stream());  // reorder using local edge partition index as the primary key and
-                                 // row_comm_rank as the secondary key
-        thrust::tabulate(
-          handle.get_thrust_policy(),
-          rx_reordered_group_counts.begin(),
-          rx_reordered_group_counts.end(),
-          reorder_group_count_t{row_comm_size, col_comm_size, rx_group_counts.data()});
+                                 // major_comm_rank as the secondary key
+        thrust::tabulate(handle.get_thrust_policy(),
+                         rx_reordered_group_counts.begin(),
+                         rx_reordered_group_counts.end(),
+                         reorder_group_count_t{major_comm_size,
+                                               minor_comm_size,
+                                               raft::device_span<size_t const>(
+                                                 rx_group_counts.data(), rx_group_counts.size())});
 
         rmm::device_uvector<size_t> d_rx_reordered_group_lasts(rx_reordered_group_counts.size(),
                                                                handle.get_stream());
@@ -743,22 +756,24 @@ nbr_intersection(raft::handle_t const& handle,
               graph_view.local_edge_partition_view(i));
           auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
           auto reordered_idx_first =
-            (i == size_t{0}) ? size_t{0} : h_rx_reordered_group_lasts[i * row_comm_size - 1];
-          auto reordered_idx_last = h_rx_reordered_group_lasts[(i + 1) * row_comm_size - 1];
+            (i == size_t{0}) ? size_t{0} : h_rx_reordered_group_lasts[i * major_comm_size - 1];
+          auto reordered_idx_last = h_rx_reordered_group_lasts[(i + 1) * major_comm_size - 1];
           thrust::for_each(
             handle.get_thrust_policy(),
             thrust::make_counting_iterator(reordered_idx_first),
             thrust::make_counting_iterator(reordered_idx_last),
             update_rx_major_local_degree_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>{
-              row_comm_size,
-              col_comm_size,
+              major_comm_size,
+              minor_comm_size,
               edge_partition,
               reordered_idx_first,
               i,
-              d_rx_reordered_group_lasts.data() + i * row_comm_size,
-              rx_group_firsts.data(),
-              rx_majors.data(),
-              local_degrees_for_rx_majors.data()});
+              raft::device_span<size_t const>(
+                d_rx_reordered_group_lasts.data() + i * major_comm_size, major_comm_size),
+              raft::device_span<size_t const>(rx_group_firsts.data(), rx_group_firsts.size()),
+              raft::device_span<vertex_t const>(rx_majors.data(), rx_majors.size()),
+              raft::device_span<edge_t>(local_degrees_for_rx_majors.data(),
+                                        local_degrees_for_rx_majors.size())});
         }
 
         rmm::device_uvector<size_t> local_nbr_offsets_for_rx_majors(
@@ -779,24 +794,27 @@ nbr_intersection(raft::handle_t const& handle,
               graph_view.local_edge_partition_view(i));
           auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
           auto reordered_idx_first =
-            (i == size_t{0}) ? size_t{0} : h_rx_reordered_group_lasts[i * row_comm_size - 1];
-          auto reordered_idx_last = h_rx_reordered_group_lasts[(i + 1) * row_comm_size - 1];
+            (i == size_t{0}) ? size_t{0} : h_rx_reordered_group_lasts[i * major_comm_size - 1];
+          auto reordered_idx_last = h_rx_reordered_group_lasts[(i + 1) * major_comm_size - 1];
 
           thrust::for_each(
             handle.get_thrust_policy(),
             thrust::make_counting_iterator(reordered_idx_first),
             thrust::make_counting_iterator(reordered_idx_last),
             update_rx_major_local_nbrs_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>{
-              row_comm_size,
-              col_comm_size,
+              major_comm_size,
+              minor_comm_size,
               edge_partition,
               reordered_idx_first,
               i,
-              d_rx_reordered_group_lasts.data() + i * row_comm_size,
-              rx_group_firsts.data(),
-              rx_majors.data(),
-              local_nbr_offsets_for_rx_majors.data(),
-              local_nbrs_for_rx_majors.data()});
+              raft::device_span<size_t const>(
+                d_rx_reordered_group_lasts.data() + i * major_comm_size, major_comm_size),
+              raft::device_span<size_t const>(rx_group_firsts.data(), rx_group_firsts.size()),
+              raft::device_span<vertex_t const>(rx_majors.data(), rx_majors.size()),
+              raft::device_span<size_t const>(local_nbr_offsets_for_rx_majors.data(),
+                                              local_nbr_offsets_for_rx_majors.size()),
+              raft::device_span<vertex_t>(local_nbrs_for_rx_majors.data(),
+                                          local_nbrs_for_rx_majors.size())});
         }
 
         std::vector<size_t> h_rx_offsets(rx_major_counts.size() + size_t{1}, size_t{0});
@@ -806,11 +824,14 @@ nbr_intersection(raft::handle_t const& handle,
         raft::update_device(
           d_rx_offsets.data(), h_rx_offsets.data(), h_rx_offsets.size(), handle.get_stream());
         rmm::device_uvector<size_t> d_local_nbr_counts(rx_major_counts.size(), handle.get_stream());
-        thrust::tabulate(handle.get_thrust_policy(),
-                         d_local_nbr_counts.begin(),
-                         d_local_nbr_counts.end(),
-                         compute_local_nbr_count_per_rank_t{
-                           d_rx_offsets.data(), local_nbr_offsets_for_rx_majors.data()});
+        thrust::tabulate(
+          handle.get_thrust_policy(),
+          d_local_nbr_counts.begin(),
+          d_local_nbr_counts.end(),
+          compute_local_nbr_count_per_rank_t{
+            raft::device_span<size_t const>(d_rx_offsets.data(), d_rx_offsets.size()),
+            raft::device_span<size_t const>(local_nbr_offsets_for_rx_majors.data(),
+                                            local_nbr_offsets_for_rx_majors.size())});
         local_nbr_counts.resize(d_local_nbr_counts.size());
         raft::update_host(local_nbr_counts.data(),
                           d_local_nbr_counts.data(),
@@ -824,7 +845,7 @@ nbr_intersection(raft::handle_t const& handle,
       {
         rmm::device_uvector<edge_t> local_degrees_for_unique_majors(size_t{0}, handle.get_stream());
         std::tie(local_degrees_for_unique_majors, std::ignore) = shuffle_values(
-          row_comm, local_degrees_for_rx_majors.begin(), rx_major_counts, handle.get_stream());
+          major_comm, local_degrees_for_rx_majors.begin(), rx_major_counts, handle.get_stream());
         major_nbr_offsets = rmm::device_uvector<size_t>(local_degrees_for_unique_majors.size() + 1,
                                                         handle.get_stream());
         (*major_nbr_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
@@ -837,7 +858,7 @@ nbr_intersection(raft::handle_t const& handle,
       }
 
       std::tie(*major_nbr_indices, std::ignore) = shuffle_values(
-        row_comm, local_nbrs_for_rx_majors.begin(), local_nbr_counts, handle.get_stream());
+        major_comm, local_nbrs_for_rx_majors.begin(), local_nbr_counts, handle.get_stream());
 
       major_to_idx_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
         unique_majors.begin(),
@@ -867,11 +888,11 @@ nbr_intersection(raft::handle_t const& handle,
   rmm::device_uvector<size_t> nbr_intersection_offsets(size_t{0}, handle.get_stream());
   rmm::device_uvector<vertex_t> nbr_intersection_indices(size_t{0}, handle.get_stream());
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
+    auto const minor_comm_size = minor_comm.get_size();
 
-    std::vector<size_t> input_counts(col_comm_size);
+    std::vector<size_t> input_counts(minor_comm_size);
     std::vector<size_t> input_lasts(input_counts.size());
     {
       std::vector<vertex_t> h_edge_partition_major_range_lasts(
@@ -890,7 +911,7 @@ nbr_intersection(raft::handle_t const& handle,
                           h_edge_partition_major_range_lasts.size(),
                           handle.get_stream());
 
-      rmm::device_uvector<size_t> d_lasts(col_comm_size, handle.get_stream());
+      rmm::device_uvector<size_t> d_lasts(minor_comm_size, handle.get_stream());
       auto first_element_first = thrust::make_transform_iterator(
         vertex_pair_first, thrust_tuple_get<thrust::tuple<vertex_t, vertex_t>, size_t{0}>{});
       thrust::lower_bound(handle.get_thrust_policy(),
@@ -909,7 +930,8 @@ nbr_intersection(raft::handle_t const& handle,
     edge_partition_nbr_intersection_sizes.reserve(graph_view.number_of_local_edge_partitions());
     edge_partition_nbr_intersection_indices.reserve(graph_view.number_of_local_edge_partitions());
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      auto rx_v_pair_counts = host_scalar_allgather(col_comm, input_counts[i], handle.get_stream());
+      auto rx_v_pair_counts =
+        host_scalar_allgather(minor_comm, input_counts[i], handle.get_stream());
       std::vector<size_t> rx_v_pair_displacements(rx_v_pair_counts.size());
       std::exclusive_scan(rx_v_pair_counts.begin(),
                           rx_v_pair_counts.end(),
@@ -927,15 +949,15 @@ nbr_intersection(raft::handle_t const& handle,
         auto vertex_pair_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
           aggregate_rx_v_pair_size, handle.get_stream());
 
-        thrust::copy(
-          handle.get_thrust_policy(),
-          vertex_pair_first + (i == size_t{0} ? size_t{0} : input_lasts[i - 1]),
-          vertex_pair_first + input_lasts[i],
-          get_dataframe_buffer_begin(vertex_pair_buffer) + rx_v_pair_displacements[col_comm_rank]);
+        thrust::copy(handle.get_thrust_policy(),
+                     vertex_pair_first + (i == size_t{0} ? size_t{0} : input_lasts[i - 1]),
+                     vertex_pair_first + input_lasts[i],
+                     get_dataframe_buffer_begin(vertex_pair_buffer) +
+                       rx_v_pair_displacements[minor_comm_rank]);
 
         device_allgatherv(
-          col_comm,
-          get_dataframe_buffer_begin(vertex_pair_buffer) + rx_v_pair_displacements[col_comm_rank],
+          minor_comm,
+          get_dataframe_buffer_begin(vertex_pair_buffer) + rx_v_pair_displacements[minor_comm_rank],
           get_dataframe_buffer_begin(vertex_pair_buffer),
           rx_v_pair_counts,
           rx_v_pair_displacements,
@@ -960,9 +982,10 @@ nbr_intersection(raft::handle_t const& handle,
             rx_v_pair_nbr_intersection_sizes.begin(),
             pick_min_degree_t<void*, decltype(second_element_to_idx_map), vertex_t, edge_t, true>{
               nullptr,
-              nullptr,
+              raft::device_span<size_t const>(),
               second_element_to_idx_map,
-              (*major_nbr_offsets).data(),
+              raft::device_span<size_t const>((*major_nbr_offsets).data(),
+                                              (*major_nbr_offsets).size()),
               edge_partition});
         } else {
           CUGRAPH_FAIL("unimplemented.");
@@ -983,26 +1006,31 @@ nbr_intersection(raft::handle_t const& handle,
         if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
           auto second_element_to_idx_map =
             detail::kv_cuco_store_device_view_t((*major_to_idx_map_ptr)->view());
-          thrust::tabulate(handle.get_thrust_policy(),
-                           rx_v_pair_nbr_intersection_sizes.begin(),
-                           rx_v_pair_nbr_intersection_sizes.end(),
-                           copy_intersecting_nbrs_and_update_intersection_size_t<
-                             void*,
-                             decltype(second_element_to_idx_map),
-                             decltype(get_dataframe_buffer_begin(vertex_pair_buffer)),
-                             vertex_t,
-                             edge_t,
-                             true>{nullptr,
-                                   nullptr,
-                                   nullptr,
-                                   second_element_to_idx_map,
-                                   (*major_nbr_offsets).data(),
-                                   (*major_nbr_indices).data(),
-                                   edge_partition,
-                                   get_dataframe_buffer_begin(vertex_pair_buffer),
-                                   rx_v_pair_nbr_intersection_offsets.data(),
-                                   rx_v_pair_nbr_intersection_indices.data(),
-                                   invalid_vertex_id<vertex_t>::value});
+          thrust::tabulate(
+            handle.get_thrust_policy(),
+            rx_v_pair_nbr_intersection_sizes.begin(),
+            rx_v_pair_nbr_intersection_sizes.end(),
+            copy_intersecting_nbrs_and_update_intersection_size_t<
+              void*,
+              decltype(second_element_to_idx_map),
+              decltype(get_dataframe_buffer_begin(vertex_pair_buffer)),
+              vertex_t,
+              edge_t,
+              true>{nullptr,
+                    raft::device_span<size_t const>(),
+                    raft::device_span<vertex_t const>(),
+                    second_element_to_idx_map,
+                    raft::device_span<size_t const>((*major_nbr_offsets).data(),
+                                                    (*major_nbr_offsets).size()),
+                    raft::device_span<vertex_t const>((*major_nbr_indices).data(),
+                                                      (*major_nbr_indices).size()),
+                    edge_partition,
+                    get_dataframe_buffer_begin(vertex_pair_buffer),
+                    raft::device_span<size_t const>(rx_v_pair_nbr_intersection_offsets.data(),
+                                                    rx_v_pair_nbr_intersection_offsets.size()),
+                    raft::device_span<vertex_t>(rx_v_pair_nbr_intersection_indices.data(),
+                                                rx_v_pair_nbr_intersection_indices.size()),
+                    invalid_vertex_id<vertex_t>::value});
         } else {
           CUGRAPH_FAIL("unimplemented.");
         }
@@ -1058,39 +1086,41 @@ nbr_intersection(raft::handle_t const& handle,
       rmm::device_uvector<size_t> gathered_nbr_intersection_offsets(size_t{0}, handle.get_stream());
       std::vector<size_t> gathered_nbr_intersection_index_rx_counts(size_t{0});
       {
-        std::vector<int> ranks(col_comm_size);
+        std::vector<int> ranks(minor_comm_size);
         std::iota(ranks.begin(), ranks.end(), int{0});
-        std::vector<size_t> displacements(col_comm_size);
-        for (int i = 0; i < col_comm_size; ++i) {
-          displacements[i] = rx_v_pair_counts[col_comm_rank] * i;
+        std::vector<size_t> displacements(minor_comm_size);
+        for (int i = 0; i < minor_comm_size; ++i) {
+          displacements[i] = rx_v_pair_counts[minor_comm_rank] * i;
         }
         rmm::device_uvector<edge_t> gathered_nbr_intersection_sizes(
-          rx_v_pair_counts[col_comm_rank] * col_comm_size, handle.get_stream());
+          rx_v_pair_counts[minor_comm_rank] * minor_comm_size, handle.get_stream());
         device_multicast_sendrecv(
-          col_comm,
+          minor_comm,
           rx_v_pair_nbr_intersection_sizes.begin(),
           rx_v_pair_counts,
           rx_v_pair_displacements,
           ranks,
           gathered_nbr_intersection_sizes.begin(),
-          std::vector<size_t>(col_comm_size, rx_v_pair_counts[col_comm_rank]),
+          std::vector<size_t>(minor_comm_size, rx_v_pair_counts[minor_comm_rank]),
           displacements,
           ranks,
           handle.get_stream());
         rx_v_pair_nbr_intersection_sizes.resize(size_t{0}, handle.get_stream());
         rx_v_pair_nbr_intersection_sizes.shrink_to_fit(handle.get_stream());
 
-        combined_nbr_intersection_sizes.resize(rx_v_pair_counts[col_comm_rank],
+        combined_nbr_intersection_sizes.resize(rx_v_pair_counts[minor_comm_rank],
                                                handle.get_stream());
 
         thrust::tabulate(handle.get_thrust_policy(),
                          combined_nbr_intersection_sizes.begin(),
                          combined_nbr_intersection_sizes.end(),
-                         strided_accumulate_t<edge_t>{gathered_nbr_intersection_sizes.data(),
-                                                      rx_v_pair_counts[col_comm_rank],
-                                                      col_comm_size});
+                         strided_accumulate_t<edge_t>{
+                           raft::device_span<edge_t const>(gathered_nbr_intersection_sizes.data(),
+                                                           gathered_nbr_intersection_sizes.size()),
+                           rx_v_pair_counts[minor_comm_rank],
+                           minor_comm_size});
 
-        combined_nbr_intersection_offsets.resize(rx_v_pair_counts[col_comm_rank] + 1,
+        combined_nbr_intersection_offsets.resize(rx_v_pair_counts[minor_comm_rank] + 1,
                                                  handle.get_stream());
         combined_nbr_intersection_offsets.set_element_to_zero_async(size_t{0}, handle.get_stream());
         auto combined_size_first = thrust::make_transform_iterator(
@@ -1112,11 +1142,11 @@ nbr_intersection(raft::handle_t const& handle,
 
         auto map_first = thrust::make_transform_iterator(
           thrust::make_counting_iterator(size_t{1}),
-          detail::multiplier_t<size_t>{rx_v_pair_counts[col_comm_rank]});
-        rmm::device_uvector<size_t> d_lasts(col_comm_size, handle.get_stream());
+          detail::multiplier_t<size_t>{rx_v_pair_counts[minor_comm_rank]});
+        rmm::device_uvector<size_t> d_lasts(minor_comm_size, handle.get_stream());
         thrust::gather(handle.get_thrust_policy(),
                        map_first,
-                       map_first + col_comm_size,
+                       map_first + minor_comm_size,
                        gathered_nbr_intersection_offsets.begin(),
                        d_lasts.begin());
         std::vector<size_t> h_lasts(d_lasts.size());
@@ -1130,7 +1160,7 @@ nbr_intersection(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> combined_nbr_intersection_indices(size_t{0},
                                                                       handle.get_stream());
       {
-        std::vector<int> ranks(col_comm_size);
+        std::vector<int> ranks(minor_comm_size);
         std::iota(ranks.begin(), ranks.end(), int{0});
 
         std::vector<size_t> tx_displacements(rx_v_pair_nbr_intersection_index_tx_counts.size());
@@ -1148,7 +1178,7 @@ nbr_intersection(raft::handle_t const& handle,
         rmm::device_uvector<vertex_t> gathered_nbr_intersection_indices(
           rx_displacements.back() + gathered_nbr_intersection_index_rx_counts.back(),
           handle.get_stream());
-        device_multicast_sendrecv(col_comm,
+        device_multicast_sendrecv(minor_comm,
                                   rx_v_pair_nbr_intersection_indices.begin(),
                                   rx_v_pair_nbr_intersection_index_tx_counts,
                                   tx_displacements,
@@ -1164,15 +1194,21 @@ nbr_intersection(raft::handle_t const& handle,
         combined_nbr_intersection_indices.resize(gathered_nbr_intersection_indices.size(),
                                                  handle.get_stream());
 
-        thrust::for_each(handle.get_thrust_policy(),
-                         thrust::make_counting_iterator(size_t{0}),
-                         thrust::make_counting_iterator(rx_v_pair_counts[col_comm_rank]),
-                         gatherv_indices_t<vertex_t>{rx_v_pair_counts[col_comm_rank],
-                                                     col_comm_size,
-                                                     gathered_nbr_intersection_offsets.data(),
-                                                     gathered_nbr_intersection_indices.data(),
-                                                     combined_nbr_intersection_offsets.data(),
-                                                     combined_nbr_intersection_indices.data()});
+        thrust::for_each(
+          handle.get_thrust_policy(),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator(rx_v_pair_counts[minor_comm_rank]),
+          gatherv_indices_t<vertex_t>{
+            rx_v_pair_counts[minor_comm_rank],
+            minor_comm_size,
+            raft::device_span<size_t const>(gathered_nbr_intersection_offsets.data(),
+                                            gathered_nbr_intersection_offsets.size()),
+            raft::device_span<vertex_t const>(gathered_nbr_intersection_indices.data(),
+                                              gathered_nbr_intersection_indices.size()),
+            raft::device_span<size_t const>(combined_nbr_intersection_offsets.data(),
+                                            combined_nbr_intersection_offsets.size()),
+            raft::device_span<vertex_t>(combined_nbr_intersection_indices.data(),
+                                        combined_nbr_intersection_indices.size())});
       }
 
       edge_partition_nbr_intersection_sizes.push_back(std::move(combined_nbr_intersection_sizes));
@@ -1217,12 +1253,16 @@ nbr_intersection(raft::handle_t const& handle,
       input_size,
       handle.get_stream());  // initially store minimum degrees (upper bound for intersection sizes)
     if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
-      thrust::transform(handle.get_thrust_policy(),
-                        vertex_pair_first,
-                        vertex_pair_first + input_size,
-                        nbr_intersection_sizes.begin(),
-                        pick_min_degree_t<void*, void*, vertex_t, edge_t, false>{
-                          nullptr, nullptr, nullptr, nullptr, edge_partition});
+      thrust::transform(
+        handle.get_thrust_policy(),
+        vertex_pair_first,
+        vertex_pair_first + input_size,
+        nbr_intersection_sizes.begin(),
+        pick_min_degree_t<void*, void*, vertex_t, edge_t, false>{nullptr,
+                                                                 raft::device_span<size_t const>(),
+                                                                 nullptr,
+                                                                 raft::device_span<size_t const>(),
+                                                                 edge_partition});
     } else {
       CUGRAPH_FAIL("unimplemented.");
     }
@@ -1250,15 +1290,17 @@ nbr_intersection(raft::handle_t const& handle,
                                                               edge_t,
                                                               false>{
           nullptr,
+          raft::device_span<size_t const>(),
+          raft::device_span<vertex_t const>(),
           nullptr,
-          nullptr,
-          nullptr,
-          nullptr,
-          nullptr,
+          raft::device_span<size_t const>(),
+          raft::device_span<vertex_t const>(),
           edge_partition,
           vertex_pair_first,
-          nbr_intersection_offsets.data(),
-          nbr_intersection_indices.data(),
+          raft::device_span<size_t const>(nbr_intersection_offsets.data(),
+                                          nbr_intersection_offsets.size()),
+          raft::device_span<vertex_t>(nbr_intersection_indices.data(),
+                                      nbr_intersection_indices.size()),
           invalid_vertex_id<vertex_t>::value});
     } else {
       CUGRAPH_FAIL("unimplemented.");
