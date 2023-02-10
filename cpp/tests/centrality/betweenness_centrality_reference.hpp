@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,18 +127,18 @@ void ref_edge_accumulation(std::vector<weight_t>& result,
   }
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
+template <typename result_t>
 void reference_rescale(result_t* result,
                        bool directed,
                        bool normalize,
                        bool endpoints,
-                       vertex_t const number_of_vertices,
-                       vertex_t const number_of_sources)
+                       size_t const number_of_vertices,
+                       size_t const number_of_sources)
 {
-  bool modified                      = false;
   result_t rescale_factor            = static_cast<result_t>(1);
   result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+
   if (normalize) {
     if (number_of_vertices > 2) {
       if (endpoints) {
@@ -146,21 +146,19 @@ void reference_rescale(result_t* result,
       } else {
         rescale_factor /= ((casted_number_of_vertices - 1) * (casted_number_of_vertices - 2));
       }
-      modified = true;
     }
   } else {
-    if (!directed) {
-      rescale_factor /= static_cast<result_t>(2);
-      modified = true;
-    }
+    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
   }
-  if (modified) {
+
+  if (rescale_factor != result_t{1}) {
     if (number_of_sources > 0) {
       rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
     }
-  }
-  for (auto idx = 0; idx < number_of_vertices; ++idx) {
-    result[idx] *= rescale_factor;
+
+    for (auto idx = 0; idx < number_of_vertices; ++idx) {
+      result[idx] *= rescale_factor;
+    }
   }
 }
 
@@ -170,11 +168,13 @@ std::vector<weight_t> betweenness_centrality_reference(
   std::vector<vertex_t> const& indices,
   std::optional<std::vector<weight_t>> const& wgt,
   std::vector<vertex_t> const& seeds,
-  bool count_endpoints)
+  bool include_endpoints,
+  bool directed,
+  bool normalize)
 {
   std::vector<weight_t> result;
   if (offsets.size() > 1) {
-    result.resize(offsets.size() - 1);
+    result.resize(offsets.size() - 1, weight_t{0});
 
     // Adapted from legacy C++ test implementation
     std::queue<vertex_t> Q;
@@ -190,13 +190,16 @@ std::vector<weight_t> betweenness_centrality_reference(
     for (vertex_t s : seeds) {
       ref_bfs(offsets, indices, Q, S, dist, pred, sigmas, s);
 
-      if (count_endpoints) {
+      if (include_endpoints) {
         ref_endpoints_accumulation<vertex_t, edge_t, weight_t>(result, S, pred, sigmas, deltas, s);
       } else {
         ref_accumulation<vertex_t, edge_t, weight_t>(result, S, pred, sigmas, deltas, s);
       }
     }
   }
+
+  reference_rescale(
+    result.data(), directed, normalize, include_endpoints, offsets.size() - 1, seeds.size());
 
   return result;
 }
@@ -210,7 +213,7 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
 {
   std::vector<weight_t> result;
   if (indices.size() > 0) {
-    result.resize(indices.size());
+    result.resize(indices.size(), weight_t{0});
 
     // Adapted from legacy C++ test implementation
     std::queue<vertex_t> Q;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -17,8 +17,6 @@
 #include <cugraph/legacy/graph.hpp>
 
 #include "bfs_kernels.cuh"
-#include "mg/bfs.cuh"
-#include "mg/common_utils.cuh"
 #include "traversal_common.cuh"
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
@@ -490,9 +488,7 @@ void bfs(raft::handle_t const& handle,
                 "Unsupported edge weight type. Use floating point types");  // actually, this is
                                                                             // unnecessary for BFS
   if (handle.comms_initialized() && !mg_batch) {
-    CUGRAPH_EXPECTS(sp_counters == nullptr,
-                    "BFS Traversal shortest path is not supported in MG path");
-    mg::bfs<VT, ET, WT>(handle, graph, distances, predecessors, start_vertex);
+    CUGRAPH_FAIL("NO LONGER SUPPORTED");
   } else {
     VT number_of_vertices = graph.number_of_vertices;
     ET number_of_edges    = graph.number_of_edges;
