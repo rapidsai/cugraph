@@ -242,7 +242,7 @@ if __name__ == "__main__":
             g.ndata['test_mask'] = g.ndata['test_mask'].int()
         if 'val_mask' in g.ndata: 
             g.ndata['val_mask'] = g.ndata['val_mask'].int()
-        g = cugraph_dgl.cugraph_storage_from_heterograph(g)
+        g = cugraph_dgl.cugraph_storage_from_heterograph(g.to("cuda"))
         del dataset.g
 
     else:
