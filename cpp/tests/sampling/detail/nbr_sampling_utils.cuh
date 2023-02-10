@@ -828,7 +828,7 @@ void validate_sampling_depth(raft::handle_t const& handle,
       std::move(d_dst),
       std::move(d_wgt),
       std::nullopt,
-      graph_properties_t{},
+      graph_properties_t{false, true},
       true);
 
   auto graph_view = graph.view();
