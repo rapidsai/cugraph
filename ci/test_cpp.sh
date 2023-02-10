@@ -39,12 +39,10 @@ popd
 
 EXITCODE=0
 trap "EXITCODE=1" ERR
-# Run libcugraph gtests from libcugraph-tests package
-rapids-logger "Run gtests"
 set +e
 
-# TODO: exit code handling is too verbose. Find a cleaner solution.
-
+# Run libcugraph gtests from libcugraph-tests package
+rapids-logger "Run gtests"
 for gt in "$CONDA_PREFIX"/bin/gtests/libcugraph/* ; do
     test_name=$(basename ${gt})
     echo "Running gtest $test_name"
