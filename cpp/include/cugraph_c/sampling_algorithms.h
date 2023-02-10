@@ -354,8 +354,11 @@ void cugraph_sample_result_free(cugraph_sample_result_t* result);
  * @param [in]   handle         Handle for accessing resources
  * @param [in]   srcs           Device array view to populate srcs
  * @param [in]   dsts           Device array view to populate dsts
- * @param [in]   weights        Device array view to populate weights
- * @param [in]   counts         Device array view to populate counts
+ * @param [in]   edge_id        Device array view to populate edge_id (can be NULL)
+ * @param [in]   edge_type      Device array view to populate edge_type (can be NULL)
+ * @param [in]   wgt            Device array view to populate wgt (can be NULL)
+ * @param [in]   hop            Device array view to populate hop
+ * @param [in]   label          Device array view to populate label (can be NULL)
  * @param [out]  result         Pointer to the location to store the
  *                              cugraph_sample_result_t*
  * @param [out]  error          Pointer to an error object storing details of
@@ -367,8 +370,11 @@ cugraph_error_code_t cugraph_test_sample_result_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* srcs,
   const cugraph_type_erased_device_array_view_t* dsts,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* counts,
+  const cugraph_type_erased_device_array_view_t* edge_id,
+  const cugraph_type_erased_device_array_view_t* edge_type,
+  const cugraph_type_erased_device_array_view_t* wgt,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const cugraph_type_erased_device_array_view_t* label,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
 
@@ -401,6 +407,26 @@ cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
   const cugraph_type_erased_device_array_view_t* label,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
+
+/**
+ * @brief Select random vertices from the graph
+ *
+ * @param [in]      handle        Handle for accessing resources
+ * @param [in]      graph         Pointer to graph
+ * @param [in/out]  rng_state     State of the random number generator, updated with each call
+ * @param [in]      num_vertices  Number of vertices to sample
+ * @param [out]     vertices      Device array view to populate label
+ * @param [out]     error         Pointer to an error object storing details of
+ *                                any error.  Will be populated if error code is
+ *                                not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_select_random_vertices(const cugraph_resource_handle_t* handle,
+                                                    const cugraph_graph_t* graph,
+                                                    cugraph_rng_state_t* rng_state,
+                                                    size_t num_vertices,
+                                                    cugraph_type_erased_device_array_t** vertices,
+                                                    cugraph_error_t** error);
 
 #ifdef __cplusplus
 }

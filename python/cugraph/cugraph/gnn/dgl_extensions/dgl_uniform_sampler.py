@@ -28,14 +28,11 @@ class DGLUniformSampler:
     class object to do uniform sampling
     """
 
-    def __init__(self, edge_list_dict, edge_id_type_range_dict, single_gpu):
+    def __init__(self, edge_list_dict, etype_range_dict, etype_id_dict, single_gpu):
         self.edge_list_dict = edge_list_dict
-        self.etype_id_dict = {
-            etype: etype_id
-            for etype_id, etype in enumerate(edge_id_type_range_dict.keys())
-        }
-        self.etype_range_dict = {
-            self.etype_id_dict[etype]: r for etype, r in edge_id_type_range_dict.items()
+        self.etype_id_dict = etype_id_dict
+        self.etype_id_range_dict = {
+            self.etype_id_dict[etype]: r for etype, r in etype_range_dict.items()
         }
         self.single_gpu = single_gpu
 
@@ -130,7 +127,7 @@ class DGLUniformSampler:
 
     def _get_edgeid_type_d(self, df):
         df["type"] = self._get_type_id_from_indices(
-            df["indices"], self.etype_range_dict
+            df["indices"], self.etype_id_range_dict
         )
         result_d = {
             etype: df[df["type"] == etype_id]

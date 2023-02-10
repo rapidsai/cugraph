@@ -25,6 +25,8 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -160,6 +162,20 @@ struct sample_edges_op_t {
                                 thrust::get<1>(edge_properties),
                                 thrust::get<2>(edge_properties));
     }
+  }
+};
+
+struct segmented_fill_t {
+  raft::device_span<int32_t const> fill_values{};
+  raft::device_span<size_t const> segment_offsets{};
+  raft::device_span<int32_t> output_values{};
+
+  __device__ void operator()(size_t i) const
+  {
+    thrust::fill(thrust::seq,
+                 output_values.begin() + segment_offsets[i],
+                 output_values.begin() + segment_offsets[i + 1],
+                 fill_values[i]);
   }
 };
 
@@ -529,11 +545,15 @@ sample_edges(
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
 
+  std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
   if (edge_weight_view) {
     if (edge_id_type_view) {
+      auto sample_e_op_results =
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>(
+          0, handle.get_stream());
       auto edge_weight_type_id_view = view_concat(*edge_weight_view, *edge_id_type_view);
 
-      auto [sample_offsets, sample_e_op_results] =
+      std::tie(sample_offsets, sample_e_op_results) =
         cugraph::per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
@@ -549,23 +569,13 @@ sample_edges(
             std::nullopt},
           true);
 
-      if (active_major_labels) {
-        auto label_offsets = detail::expand_sparse_offsets(
-          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
-          int32_t{0},
-          handle.get_stream());
-
-        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       label_offsets.begin(),
-                       label_offsets.end(),
-                       active_major_labels->begin(),
-                       labels->begin());
-      }
-
       std::tie(majors, minors, weights, edge_ids, edge_types) = std::move(sample_e_op_results);
     } else {
-      auto [sample_offsets, sample_e_op_results] =
+      auto sample_e_op_results =
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, weight_t>>(0,
+                                                                               handle.get_stream());
+
+      std::tie(sample_offsets, sample_e_op_results) =
         cugraph::per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
@@ -580,25 +590,15 @@ sample_edges(
           std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
           true);
 
-      if (active_major_labels) {
-        auto label_offsets = detail::expand_sparse_offsets(
-          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
-          int32_t{0},
-          handle.get_stream());
-
-        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       label_offsets.begin(),
-                       label_offsets.end(),
-                       active_major_labels->begin(),
-                       labels->begin());
-      }
-
       std::tie(majors, minors, weights) = std::move(sample_e_op_results);
     }
   } else {
     if (edge_id_type_view) {
-      auto [sample_offsets, sample_e_op_results] =
+      auto sample_e_op_results =
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>(
+          0, handle.get_stream());
+
+      std::tie(sample_offsets, sample_e_op_results) =
         cugraph::per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
@@ -613,23 +613,12 @@ sample_edges(
           std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
           true);
 
-      if (active_major_labels) {
-        auto label_offsets = detail::expand_sparse_offsets(
-          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
-          int32_t{0},
-          handle.get_stream());
-
-        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       label_offsets.begin(),
-                       label_offsets.end(),
-                       active_major_labels->begin(),
-                       labels->begin());
-      }
-
       std::tie(majors, minors, edge_ids, edge_types) = std::move(sample_e_op_results);
     } else {
-      auto [sample_offsets, sample_e_op_results] =
+      auto sample_e_op_results =
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
+
+      std::tie(sample_offsets, sample_e_op_results) =
         cugraph::per_v_random_select_transform_outgoing_e(
           handle,
           graph_view,
@@ -644,22 +633,22 @@ sample_edges(
           std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
           true);
 
-      if (active_major_labels) {
-        auto label_offsets = detail::expand_sparse_offsets(
-          raft::device_span<size_t const>{sample_offsets->data(), sample_offsets->size()},
-          int32_t{0},
-          handle.get_stream());
-
-        labels = rmm::device_uvector<int32_t>(label_offsets.size(), handle.get_stream());
-        thrust::gather(handle.get_thrust_policy(),
-                       label_offsets.begin(),
-                       label_offsets.end(),
-                       active_major_labels->begin(),
-                       labels->begin());
-      }
-
       std::tie(majors, minors) = std::move(sample_e_op_results);
     }
+  }
+
+  if (active_major_labels) {
+    labels = rmm::device_uvector<int32_t>((*sample_offsets).back_element(handle.get_stream()),
+                                          handle.get_stream());
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(size_t{0}),
+      thrust::make_counting_iterator(active_majors.size()),
+      segmented_fill_t{
+        raft::device_span<int32_t const>((*active_major_labels).data(),
+                                         (*active_major_labels).size()),
+        raft::device_span<size_t const>((*sample_offsets).data(), (*sample_offsets).size()),
+        raft::device_span<int32_t>((*labels).data(), (*labels).size())});
   }
 
   return std::make_tuple(std::move(majors),

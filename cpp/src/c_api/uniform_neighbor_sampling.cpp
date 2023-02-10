@@ -526,8 +526,11 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
   const cugraph_resource_handle_t* handle,
   const cugraph_type_erased_device_array_view_t* srcs,
   const cugraph_type_erased_device_array_view_t* dsts,
-  const cugraph_type_erased_device_array_view_t* weights,
-  const cugraph_type_erased_device_array_view_t* counts,
+  const cugraph_type_erased_device_array_view_t* edge_id,
+  const cugraph_type_erased_device_array_view_t* edge_type,
+  const cugraph_type_erased_device_array_view_t* wgt,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const cugraph_type_erased_device_array_view_t* label,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
@@ -567,23 +570,61 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
   device_array_unique_ptr_t new_device_dsts(new_device_dsts_ptr,
                                             &cugraph_type_erased_device_array_free);
 
-  // copy weights to new device array
-  cugraph_type_erased_device_array_t* new_device_weights_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, weights, &new_device_weights_ptr, error);
-  if (error_code != CUGRAPH_SUCCESS) return error_code;
+  // copy edge_id to new device array
+  cugraph_type_erased_device_array_t* new_device_edge_id_ptr{nullptr};
 
-  device_array_unique_ptr_t new_device_weights(new_device_weights_ptr,
+  if (edge_id != NULL) {
+    error_code = cugraph_type_erased_device_array_create_from_view(
+      handle, edge_id, &new_device_edge_id_ptr, error);
+    if (error_code != CUGRAPH_SUCCESS) return error_code;
+  }
+
+  device_array_unique_ptr_t new_device_edge_id(new_device_edge_id_ptr,
                                                &cugraph_type_erased_device_array_free);
 
-  // copy counts to new device array
-  cugraph_type_erased_device_array_t* new_device_counts_ptr{nullptr};
-  error_code = cugraph_type_erased_device_array_create_from_view(
-    handle, counts, &new_device_counts_ptr, error);
+  // copy edge_type to new device array
+  cugraph_type_erased_device_array_t* new_device_edge_type_ptr{nullptr};
+
+  if (edge_type != NULL) {
+    error_code = cugraph_type_erased_device_array_create_from_view(
+      handle, edge_type, &new_device_edge_type_ptr, error);
+    if (error_code != CUGRAPH_SUCCESS) return error_code;
+  }
+
+  device_array_unique_ptr_t new_device_edge_type(new_device_edge_type_ptr,
+                                                 &cugraph_type_erased_device_array_free);
+
+  // copy wgt to new device array
+  cugraph_type_erased_device_array_t* new_device_wgt_ptr{nullptr};
+  if (wgt != NULL) {
+    error_code =
+      cugraph_type_erased_device_array_create_from_view(handle, wgt, &new_device_wgt_ptr, error);
+    if (error_code != CUGRAPH_SUCCESS) return error_code;
+  }
+
+  device_array_unique_ptr_t new_device_wgt(new_device_wgt_ptr,
+                                           &cugraph_type_erased_device_array_free);
+
+  // copy hop to new device array
+  cugraph_type_erased_device_array_t* new_device_hop_ptr{nullptr};
+  error_code =
+    cugraph_type_erased_device_array_create_from_view(handle, hop, &new_device_hop_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
 
-  device_array_unique_ptr_t new_device_counts(new_device_counts_ptr,
-                                              &cugraph_type_erased_device_array_free);
+  device_array_unique_ptr_t new_device_hop(new_device_hop_ptr,
+                                           &cugraph_type_erased_device_array_free);
+
+  // copy label to new device array
+  cugraph_type_erased_device_array_t* new_device_label_ptr{nullptr};
+
+  if (label != NULL) {
+    error_code = cugraph_type_erased_device_array_create_from_view(
+      handle, label, &new_device_label_ptr, error);
+    if (error_code != CUGRAPH_SUCCESS) return error_code;
+  }
+
+  device_array_unique_ptr_t new_device_label(new_device_label_ptr,
+                                             &cugraph_type_erased_device_array_free);
 
   // create new cugraph_sample_result_t
   *result = reinterpret_cast<cugraph_sample_result_t*>(new cugraph::c_api::cugraph_sample_result_t{
@@ -591,12 +632,15 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
       new_device_srcs.release()),
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
       new_device_dsts.release()),
-    nullptr,
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_weights.release()),
-    nullptr,
+      new_device_edge_id.release()),
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
-      new_device_counts.release())});
+      new_device_edge_type.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_wgt.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_label.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_hop.release()),
+    nullptr});
 
   return CUGRAPH_SUCCESS;
 }
