@@ -32,7 +32,6 @@ build:
     - SCCACHE_S3_KEY_PREFIX=cugraph-linux64 # [linux64]
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
-  preserve_egg_dir: True
 
 requirements:
   build:

@@ -17,7 +17,6 @@ build:
   string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
     - PARALLEL_LEVEL
-  preserve_egg_dir: True
 
 requirements:
   build:
