@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>

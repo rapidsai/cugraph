@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_src_dst_property.cuh>

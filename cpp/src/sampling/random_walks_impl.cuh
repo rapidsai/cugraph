@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/per_v_random_select_transform_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
 

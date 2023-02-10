@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>

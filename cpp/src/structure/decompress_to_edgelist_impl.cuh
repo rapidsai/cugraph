@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/graph_functions.hpp>

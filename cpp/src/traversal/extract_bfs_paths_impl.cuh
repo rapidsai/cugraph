@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <utilities/collect_comm.cuh>
 #include <utilities/graph_utils.cuh>
 
