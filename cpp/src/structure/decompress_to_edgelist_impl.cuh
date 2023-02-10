@@ -69,10 +69,11 @@ decompress_to_edgelist_impl(
   if (do_expensive_check) { /* currently, nothing to do */
   }
 
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_rank = minor_comm.get_rank();
+  auto const minor_comm_size = minor_comm.get_size();
 
   std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(), size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
@@ -108,9 +109,12 @@ decompress_to_edgelist_impl(
   }
 
   if (renumber_map) {
-    std::vector<vertex_t> h_thresholds(row_comm_size - 1, vertex_t{0});
-    for (int i = 0; i < row_comm_size - 1; ++i) {
-      h_thresholds[i] = graph_view.vertex_partition_range_last(col_comm_rank * row_comm_size + i);
+    std::vector<vertex_t> h_thresholds(major_comm_size - 1, vertex_t{0});
+    for (int i = 0; i < major_comm_size - 1; ++i) {
+      auto vertex_partition_id =
+        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+          major_comm_size, minor_comm_size, i, minor_comm_rank);
+      h_thresholds[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
     }
     rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
     raft::update_device(
@@ -120,7 +124,7 @@ decompress_to_edgelist_impl(
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
     auto edgelist_intra_partition_segment_offsets =
       std::make_optional<std::vector<std::vector<size_t>>>(
-        major_ptrs.size(), std::vector<size_t>(row_comm_size + 1, size_t{0}));
+        major_ptrs.size(), std::vector<size_t>(major_comm_size + 1, size_t{0}));
     size_t cur_size{0};
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       major_ptrs[i] = edgelist_majors.data() + cur_size;

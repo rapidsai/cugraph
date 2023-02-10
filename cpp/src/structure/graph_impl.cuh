@@ -234,18 +234,18 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
 {
   // cheap error checks
 
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
-  CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(col_comm_size),
+  CUGRAPH_EXPECTS(edgelists.size() == static_cast<size_t>(minor_comm_size),
                   "Invalid input argument: erroneous edgelists.size().");
   CUGRAPH_EXPECTS(
     (meta.edge_partition_segment_offsets.size() ==
-     (detail::num_sparse_segments_per_vertex_partition + 2) * col_comm_size) ||
+     (detail::num_sparse_segments_per_vertex_partition + 2) * minor_comm_size) ||
       (meta.edge_partition_segment_offsets.size() ==
-       (detail::num_sparse_segments_per_vertex_partition + 3) * col_comm_size),
+       (detail::num_sparse_segments_per_vertex_partition + 3) * minor_comm_size),
     "Invalid input argument: meta.edge_partition_segment_offsets.size() returns an invalid value.");
 
   CUGRAPH_EXPECTS(
@@ -371,15 +371,15 @@ update_local_sorted_unique_edge_majors_minors(
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> const& edge_partition_dcs_nzd_vertices,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts)
 {
-  auto& comm               = handle.get_comms();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size();
+  auto& comm                 = handle.get_comms();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_rank = minor_comm.get_rank();
+  auto const minor_comm_size = minor_comm.get_size();
 
   auto num_segments_per_vertex_partition =
-    static_cast<size_t>(meta.edge_partition_segment_offsets.size() / col_comm_size);
+    static_cast<size_t>(meta.edge_partition_segment_offsets.size() / minor_comm_size);
   auto use_dcs =
     num_segments_per_vertex_partition > (detail::num_sparse_segments_per_vertex_partition + 2);
 
@@ -395,7 +395,7 @@ update_local_sorted_unique_edge_majors_minors(
   std::optional<std::vector<vertex_t>> local_sorted_unique_edge_minor_vertex_partition_offsets{
     std::nullopt};
 
-  // if # unique edge majors/minors << V / row_comm_size|col_comm_size, store unique edge
+  // if # unique edge majors/minors << V / major_comm_size|minor_comm_size, store unique edge
   // majors/minors to support storing edge major/minor properties in (key, value) pairs.
 
   // 1. Update local_sorted_unique_edge_minors & local_sorted_unique_edge_minor_offsets
@@ -476,10 +476,13 @@ update_local_sorted_unique_edge_majors_minors(
       unique_edge_minor_chunk_start_offsets.set_element(
         num_chunks, static_cast<vertex_t>(unique_edge_minors.size()), handle.get_stream());
 
-      std::vector<vertex_t> h_vertex_partition_firsts(row_comm_size - 1);
-      for (int i = 1; i < row_comm_size; ++i) {
+      std::vector<vertex_t> h_vertex_partition_firsts(major_comm_size - 1);
+      for (int i = 1; i < major_comm_size; ++i) {
+        auto vertex_partition_id =
+          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+            major_comm_size, minor_comm_size, i, minor_comm_rank);
         h_vertex_partition_firsts[i - 1] =
-          meta.partition.vertex_partition_range_first(col_comm_rank * row_comm_size + i);
+          meta.partition.vertex_partition_range_first(vertex_partition_id);
       }
       rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
                                                               handle.get_stream());
@@ -496,7 +499,7 @@ update_local_sorted_unique_edge_majors_minors(
                           d_vertex_partition_firsts.begin(),
                           d_vertex_partition_firsts.end(),
                           d_key_offsets.begin());
-      std::vector<vertex_t> h_key_offsets(row_comm_size + 1, vertex_t{0});
+      std::vector<vertex_t> h_key_offsets(major_comm_size + 1, vertex_t{0});
       h_key_offsets.back() = static_cast<vertex_t>(unique_edge_minors.size());
       raft::update_host(
         h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());

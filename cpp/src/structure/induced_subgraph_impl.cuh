@@ -175,19 +175,14 @@ extract_induced_subgraphs(
     detail::expand_sparse_offsets(subgraph_offsets, size_t{0}, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm           = handle.get_comms();
+    auto const comm_rank = comm.get_rank();
+    auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
 
-    dst_subgraph_vertices_v = cugraph::device_allgatherv(handle, row_comm, subgraph_vertices);
+    dst_subgraph_vertices_v = cugraph::device_allgatherv(handle, major_comm, subgraph_vertices);
 
     graph_ids_v = cugraph::device_allgatherv(
-      handle, row_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
+      handle, major_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
     thrust::sort(handle.get_thrust_policy(),
                  thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),

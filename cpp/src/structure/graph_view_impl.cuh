@@ -108,12 +108,12 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   partition_t<vertex_t> const& partition,
   std::vector<vertex_t> const& edge_partition_segment_offsets)
 {
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_rank = row_comm.get_rank();
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_rank = major_comm.get_rank();
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_rank = minor_comm.get_rank();
+  auto const minor_comm_size = minor_comm.get_size();
 
   auto use_dcs = edge_partition_dcs_nzd_vertices.has_value();
 
@@ -121,22 +121,26 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   rmm::device_uvector<edge_t> degrees(0, handle.get_stream());
 
   vertex_t max_num_local_degrees{0};
-  for (int i = 0; i < col_comm_size; ++i) {
-    auto vertex_partition_idx  = static_cast<size_t>(i * row_comm_size + row_comm_rank);
-    auto vertex_partition_size = partition.vertex_partition_range_size(vertex_partition_idx);
+  for (int i = 0; i < minor_comm_size; ++i) {
+    auto vertex_partition_id =
+      static_cast<size_t>(partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, i));
+    auto vertex_partition_size = partition.vertex_partition_range_size(vertex_partition_id);
     max_num_local_degrees      = std::max(max_num_local_degrees, vertex_partition_size);
-    if (i == col_comm_rank) { degrees.resize(vertex_partition_size, handle.get_stream()); }
+    if (i == minor_comm_rank) { degrees.resize(vertex_partition_size, handle.get_stream()); }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
-  for (int i = 0; i < col_comm_size; ++i) {
-    auto vertex_partition_idx = static_cast<size_t>(i * row_comm_size + row_comm_rank);
+  for (int i = 0; i < minor_comm_size; ++i) {
+    auto vertex_partition_id =
+      static_cast<size_t>(partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, i));
     vertex_t major_range_first{};
     vertex_t major_range_last{};
     std::tie(major_range_first, major_range_last) =
-      partition.vertex_partition_range(vertex_partition_idx);
+      partition.vertex_partition_range(vertex_partition_id);
     auto p_offsets = edge_partition_offsets[i];
     auto segment_offset_size_per_partition =
-      edge_partition_segment_offsets.size() / static_cast<size_t>(col_comm_size);
+      edge_partition_segment_offsets.size() / static_cast<size_t>(minor_comm_size);
     auto major_hypersparse_first =
       use_dcs ? major_range_first +
                   edge_partition_segment_offsets[segment_offset_size_per_partition * i +
@@ -169,12 +173,12 @@ rmm::device_uvector<edge_t> compute_major_degrees(
                          local_degrees[v - major_range_first] = d;
                        });
     }
-    col_comm.reduce(local_degrees.data(),
-                    i == col_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
-                    static_cast<size_t>(major_range_last - major_range_first),
-                    raft::comms::op_t::SUM,
-                    i,
-                    handle.get_stream());
+    minor_comm.reduce(local_degrees.data(),
+                      i == minor_comm_rank ? degrees.data() : static_cast<edge_t*>(nullptr),
+                      static_cast<size_t>(major_range_last - major_range_first),
+                      raft::comms::op_t::SUM,
+                      i,
+                      handle.get_stream());
   }
 
   return degrees;
@@ -446,8 +450,8 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
 {
   // cheap error checks
 
-  auto const col_comm_size =
-    this->handle_ptr()->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
+  auto const minor_comm_size =
+    this->handle_ptr()->get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size();
 
   auto use_dcs = edge_partition_dcs_nzd_vertices.has_value();
 
@@ -466,12 +470,12 @@ graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mul
     "Internal Error: edge_partition_dcs_nzd_vertices.size() should coincide "
     "with edge_partition_offsets.size() (if used).");
 
-  CUGRAPH_EXPECTS(edge_partition_offsets.size() == static_cast<size_t>(col_comm_size),
+  CUGRAPH_EXPECTS(edge_partition_offsets.size() == static_cast<size_t>(minor_comm_size),
                   "Internal Error: erroneous edge_partition_offsets.size().");
 
   CUGRAPH_EXPECTS(
     meta.edge_partition_segment_offsets.size() ==
-      col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2)),
+      minor_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2)),
     "Internal Error: invalid edge_partition_segment_offsets.size().");
 
   // skip expensive error checks as this function is only called by graph_t
