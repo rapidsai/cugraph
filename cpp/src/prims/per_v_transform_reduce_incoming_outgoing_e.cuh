@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <detail/graph_partition_utils.cuh>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/property_op_utils.cuh>
 #include <prims/reduce_op.cuh>
@@ -902,6 +903,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto& comm                 = handle.get_comms();
     auto const comm_rank       = comm.get_rank();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_rank = minor_comm.get_rank();
@@ -911,9 +913,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if (view.keys()) {
       vertex_t max_vertex_partition_size{0};
       for (int i = 0; i < major_comm_size; ++i) {
+        auto minor_range_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         max_vertex_partition_size =
           std::max(max_vertex_partition_size,
-                   graph_view.vertex_partition_range_size(minor_comm_rank * major_comm_size + i));
+                   graph_view.vertex_partition_range_size(minor_range_vertex_partition_id));
       }
       auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
       auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
@@ -924,50 +929,51 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         minor_key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
       }
       for (int i = 0; i < major_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, i, minor_comm_rank);
-        thrust::fill(handle.get_thrust_policy(),
-                     tx_first,
-                     tx_first + graph_view.vertex_partition_range_size(vertex_partition_id),
-                     ReduceOp::identity_element);
+        auto minor_range_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        thrust::fill(
+          handle.get_thrust_policy(),
+          tx_first,
+          tx_first + graph_view.vertex_partition_range_size(minor_range_vertex_partition_id),
+          ReduceOp::identity_element);
         thrust::scatter(
           handle.get_thrust_policy(),
           view.value_first() + (*minor_key_offsets)[i],
           view.value_first() + (*minor_key_offsets)[i + 1],
           thrust::make_transform_iterator(
             (*(view.keys())).begin() + (*minor_key_offsets)[i],
-            [key_first = graph_view.vertex_partition_range_first(vertex_partition_id)] __device__(
-              auto key) { return key - key_first; }),
+            [key_first = graph_view.vertex_partition_range_first(
+               minor_range_vertex_partition_id)] __device__(auto key) { return key - key_first; }),
           tx_first);
-        device_reduce(
-          major_comm,
-          tx_first,
-          vertex_value_output_first,
-          static_cast<size_t>(graph_view.vertex_partition_range_size(vertex_partition_id)),
-          ReduceOp::compatible_raft_comms_op,
-          i,
-          handle.get_stream());
+        device_reduce(major_comm,
+                      tx_first,
+                      vertex_value_output_first,
+                      static_cast<size_t>(
+                        graph_view.vertex_partition_range_size(minor_range_vertex_partition_id)),
+                      ReduceOp::compatible_raft_comms_op,
+                      i,
+                      handle.get_stream());
       }
     } else {
       for (int i = 0; i < major_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, i, minor_comm_rank);
+        auto minor_range_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         vertex_t offset{};
         if constexpr (GraphViewType::is_storage_transposed) {
           offset = graph_view.local_edge_partition_dst_value_start_offset(i);
         } else {
           offset = graph_view.local_edge_partition_src_value_start_offset(i);
         }
-        device_reduce(
-          major_comm,
-          view.value_first() + offset,
-          vertex_value_output_first,
-          static_cast<size_t>(graph_view.vertex_partition_range_size(vertex_partition_id)),
-          ReduceOp::compatible_raft_comms_op,
-          i,
-          handle.get_stream());
+        device_reduce(major_comm,
+                      view.value_first() + offset,
+                      vertex_value_output_first,
+                      static_cast<size_t>(
+                        graph_view.vertex_partition_range_size(minor_range_vertex_partition_id)),
+                      ReduceOp::compatible_raft_comms_op,
+                      i,
+                      handle.get_stream());
       }
     }
   }

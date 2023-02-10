@@ -122,22 +122,25 @@ rmm::device_uvector<edge_t> compute_major_degrees(
 
   vertex_t max_num_local_degrees{0};
   for (int i = 0; i < minor_comm_size; ++i) {
-    auto vertex_partition_id =
-      static_cast<size_t>(partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-        major_comm_size, minor_comm_size, major_comm_rank, i));
-    auto vertex_partition_size = partition.vertex_partition_range_size(vertex_partition_id);
-    max_num_local_degrees      = std::max(max_num_local_degrees, vertex_partition_size);
-    if (i == minor_comm_rank) { degrees.resize(vertex_partition_size, handle.get_stream()); }
+    auto major_range_vertex_partition_id =
+      detail::compute_local_edge_partition_major_range_vertex_partition_id_t{
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+    auto major_range_vertex_partition_size =
+      partition.vertex_partition_range_size(major_range_vertex_partition_id);
+    max_num_local_degrees = std::max(max_num_local_degrees, major_range_vertex_partition_size);
+    if (i == minor_comm_rank) {
+      degrees.resize(major_range_vertex_partition_size, handle.get_stream());
+    }
   }
   local_degrees.resize(max_num_local_degrees, handle.get_stream());
   for (int i = 0; i < minor_comm_size; ++i) {
-    auto vertex_partition_id =
-      static_cast<size_t>(partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-        major_comm_size, minor_comm_size, major_comm_rank, i));
+    auto major_range_vertex_partition_id =
+      detail::compute_local_edge_partition_major_range_vertex_partition_id_t{
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
     vertex_t major_range_first{};
     vertex_t major_range_last{};
     std::tie(major_range_first, major_range_last) =
-      partition.vertex_partition_range(vertex_partition_id);
+      partition.vertex_partition_range(major_range_vertex_partition_id);
     auto p_offsets = edge_partition_offsets[i];
     auto segment_offset_size_per_partition =
       edge_partition_segment_offsets.size() / static_cast<size_t>(minor_comm_size);

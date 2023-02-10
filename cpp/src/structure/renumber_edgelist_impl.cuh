@@ -140,16 +140,16 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
                                           // the entire vertex range
       std::vector<bool> locally_used(comm_size, false);
       for (int i = 0; i < minor_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, major_comm_rank, i);
-        locally_used[vertex_partition_id] = true;
+        auto major_range_vertex_partition_id =
+          compute_local_edge_partition_major_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        locally_used[major_range_vertex_partition_id] = true;
       }
       for (int i = 0; i < major_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, i, minor_comm_rank);
-        locally_used[vertex_partition_id] = true;
+        auto minor_range_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        locally_used[minor_range_vertex_partition_id] = true;
       }
       assert(std::find(locally_used.begin(), locally_used.end(), false) != locally_used.end());
       std::optional<vertex_t> ret{std::nullopt};
@@ -671,9 +671,12 @@ void expensive_check_edgelist(
                minor_comm_rank,
                j,
                vertex_partition_id_key_func =
-                 detail::compute_vertex_partition_id_from_ext_vertex_t<vertex_t>{
-                   comm_size}] __device__(auto minor) {
-                return vertex_partition_id_key_func(minor) != minor_comm_rank * major_comm_size + j;
+                 detail::compute_vertex_partition_id_from_ext_vertex_t<vertex_t>{comm_size},
+               minor_range_vertex_partition_id =
+                 detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+                   major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(
+                   j)] __device__(auto minor) {
+                return vertex_partition_id_key_func(minor) != minor_range_vertex_partition_id;
               }) == 0,
             "Invalid input argument: if edgelist_intra_partition_segment_offsets.has_value() is "
             "true, edgelist_majors & edgelist_minors should be properly grouped "
@@ -943,18 +946,18 @@ renumber_edgelist(
                                                    // part than the O(E/P) part
     vertex_t max_segment_size{0};
     for (int i = 0; i < major_comm_size; ++i) {
-      auto vertex_partition_id =
-        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-          major_comm_size, minor_comm_size, i, minor_comm_rank);
-      max_segment_size =
-        std::max(max_segment_size, partition.vertex_partition_range_size(vertex_partition_id));
+      auto minor_range_vertex_partition_id =
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      max_segment_size = std::max(
+        max_segment_size, partition.vertex_partition_range_size(minor_range_vertex_partition_id));
     }
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
     for (int i = 0; i < major_comm_size; ++i) {
-      auto vertex_partition_id =
-        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-          major_comm_size, minor_comm_size, i, minor_comm_rank);
-      auto segment_size = partition.vertex_partition_range_size(vertex_partition_id);
+      auto minor_range_vertex_partition_id =
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      auto segment_size = partition.vertex_partition_range_size(minor_range_vertex_partition_id);
       device_bcast(major_comm,
                    renumber_map_labels.data(),
                    renumber_map_minor_labels.data(),
@@ -965,7 +968,8 @@ renumber_edgelist(
       kv_store_t<vertex_t, vertex_t, false> renumber_map(
         renumber_map_minor_labels.begin(),
         renumber_map_minor_labels.begin() + segment_size,
-        thrust::make_counting_iterator(partition.vertex_partition_range_first(vertex_partition_id)),
+        thrust::make_counting_iterator(
+          partition.vertex_partition_range_first(minor_range_vertex_partition_id)),
         locally_unused_vertex_id,
         invalid_vertex_id<vertex_t>::value,
         handle.get_stream());
@@ -983,10 +987,10 @@ renumber_edgelist(
       partition.local_edge_partition_minor_range_size(), handle.get_stream());
     std::vector<size_t> recvcounts(major_comm_size);
     for (int i = 0; i < major_comm_size; ++i) {
-      auto vertex_partition_id =
-        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-          major_comm_size, minor_comm_size, i, minor_comm_rank);
-      recvcounts[i] = partition.vertex_partition_range_size(vertex_partition_id);
+      auto minor_range_vertex_partition_id =
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      recvcounts[i] = partition.vertex_partition_range_size(minor_range_vertex_partition_id);
     }
     std::vector<size_t> displacements(recvcounts.size(), 0);
     std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);

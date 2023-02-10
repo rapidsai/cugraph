@@ -280,5 +280,29 @@ struct compute_local_edge_partition_id_from_int_edge_endpoints_t {
   }
 };
 
+struct compute_local_edge_partition_major_range_vertex_partition_id_t {
+  int major_comm_size{};
+  int minor_comm_size{};
+  int major_comm_rank{};
+  int minor_comm_rank{};
+
+  __host__ __device__ int operator()(size_t local_edge_partition_idx) const
+  {
+    return static_cast<int>(local_edge_partition_idx) * major_comm_size + major_comm_rank;
+  }
+};
+
+struct compute_local_edge_partition_minor_range_vertex_partition_id_t {
+  int major_comm_size{};
+  int minor_comm_size{};
+  int major_comm_rank{};
+  int minor_comm_rank{};
+
+  __host__ __device__ int operator()(size_t intra_partition_segment_idx) const
+  {
+    return minor_comm_rank * major_comm_size + static_cast<int>(intra_partition_segment_idx);
+  }
+};
+
 }  // namespace detail
 }  // namespace cugraph

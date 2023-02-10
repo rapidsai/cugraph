@@ -70,6 +70,7 @@ decompress_to_edgelist_impl(
   }
 
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_rank = major_comm.get_rank();
   auto const major_comm_size = major_comm.get_size();
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_rank = minor_comm.get_rank();
@@ -111,10 +112,10 @@ decompress_to_edgelist_impl(
   if (renumber_map) {
     std::vector<vertex_t> h_thresholds(major_comm_size - 1, vertex_t{0});
     for (int i = 0; i < major_comm_size - 1; ++i) {
-      auto vertex_partition_id =
-        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-          major_comm_size, minor_comm_size, i, minor_comm_rank);
-      h_thresholds[i] = graph_view.vertex_partition_range_last(vertex_partition_id);
+      auto minor_range_vertex_partition_id =
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      h_thresholds[i] = graph_view.vertex_partition_range_last(minor_range_vertex_partition_id);
     }
     rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
     raft::update_device(

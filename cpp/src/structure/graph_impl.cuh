@@ -373,6 +373,7 @@ update_local_sorted_unique_edge_majors_minors(
 {
   auto& comm                 = handle.get_comms();
   auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_rank = major_comm.get_rank();
   auto const major_comm_size = major_comm.get_size();
   auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
   auto const minor_comm_rank = minor_comm.get_rank();
@@ -476,28 +477,28 @@ update_local_sorted_unique_edge_majors_minors(
       unique_edge_minor_chunk_start_offsets.set_element(
         num_chunks, static_cast<vertex_t>(unique_edge_minors.size()), handle.get_stream());
 
-      std::vector<vertex_t> h_vertex_partition_firsts(major_comm_size - 1);
+      std::vector<vertex_t> h_minor_range_vertex_partition_firsts(major_comm_size - 1);
       for (int i = 1; i < major_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, i, minor_comm_rank);
-        h_vertex_partition_firsts[i - 1] =
-          meta.partition.vertex_partition_range_first(vertex_partition_id);
+        auto minor_range_vertex_partition_id =
+          detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        h_minor_range_vertex_partition_firsts[i - 1] =
+          meta.partition.vertex_partition_range_first(minor_range_vertex_partition_id);
       }
-      rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
-                                                              handle.get_stream());
-      raft::update_device(d_vertex_partition_firsts.data(),
-                          h_vertex_partition_firsts.data(),
-                          h_vertex_partition_firsts.size(),
+      rmm::device_uvector<vertex_t> d_minor_range_vertex_partition_firsts(
+        h_minor_range_vertex_partition_firsts.size(), handle.get_stream());
+      raft::update_device(d_minor_range_vertex_partition_firsts.data(),
+                          h_minor_range_vertex_partition_firsts.data(),
+                          h_minor_range_vertex_partition_firsts.size(),
                           handle.get_stream());
-      rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
+      rmm::device_uvector<vertex_t> d_key_offsets(d_minor_range_vertex_partition_firsts.size(),
                                                   handle.get_stream());
 
       thrust::lower_bound(handle.get_thrust_policy(),
                           unique_edge_minors.begin(),
                           unique_edge_minors.end(),
-                          d_vertex_partition_firsts.begin(),
-                          d_vertex_partition_firsts.end(),
+                          d_minor_range_vertex_partition_firsts.begin(),
+                          d_minor_range_vertex_partition_firsts.end(),
                           d_key_offsets.begin());
       std::vector<vertex_t> h_key_offsets(major_comm_size + 1, vertex_t{0});
       h_key_offsets.back() = static_cast<vertex_t>(unique_edge_minors.size());

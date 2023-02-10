@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <detail/graph_partition_utils.cuh>
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
@@ -69,37 +71,38 @@ void update_edge_major_property(raft::handle_t const& handle,
     auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_rank = minor_comm.get_rank();
     auto const minor_comm_size = minor_comm.get_size();
 
     auto edge_partition_keys = edge_major_property_output.keys();
     if (edge_partition_keys) {
       vertex_t max_rx_size{0};
       for (int i = 0; i < minor_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, major_comm_rank, i);
-        max_rx_size =
-          std::max(max_rx_size, graph_view.vertex_partition_range_size(vertex_partition_id));
+        auto major_range_vertex_partition_id =
+          compute_local_edge_partition_major_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        max_rx_size = std::max(
+          max_rx_size, graph_view.vertex_partition_range_size(major_range_vertex_partition_id));
       }
       auto rx_value_buffer = allocate_dataframe_buffer<
         typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
         max_rx_size, handle.get_stream());
       auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
       for (int i = 0; i < minor_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, major_comm_rank, i);
+        auto major_range_vertex_partition_id =
+          compute_local_edge_partition_major_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         device_bcast(minor_comm,
                      vertex_property_input_first,
                      rx_value_first,
-                     graph_view.vertex_partition_range_size(vertex_partition_id),
+                     graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
                      i,
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
           (*edge_partition_keys)[i].begin(),
-          [v_first = graph_view.vertex_partition_range_first(vertex_partition_id)] __device__(
-            auto v) { return v - v_first; });
+          [v_first = graph_view.vertex_partition_range_first(
+             major_range_vertex_partition_id)] __device__(auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
                        v_offset_first + (*edge_partition_keys)[i].size(),
@@ -108,13 +111,13 @@ void update_edge_major_property(raft::handle_t const& handle,
       }
     } else {
       for (int i = 0; i < minor_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, major_comm_rank, i);
+        auto major_range_vertex_partition_id =
+          compute_local_edge_partition_major_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         device_bcast(minor_comm,
                      vertex_property_input_first,
                      edge_partition_value_firsts[i],
-                     graph_view.vertex_partition_range_size(vertex_partition_id),
+                     graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
                      i,
                      handle.get_stream());
       }
@@ -259,6 +262,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     auto const comm_rank       = comm.get_rank();
     auto const comm_size       = comm.get_size();
     auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_rank = major_comm.get_rank();
     auto const major_comm_size = major_comm.get_size();
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_rank = minor_comm.get_rank();
@@ -294,12 +298,12 @@ void update_edge_minor_property(raft::handle_t const& handle,
         for (size_t round = 0; round < num_rounds; ++round) {
           auto j = num_rounds * i + round;
           if (j < static_cast<size_t>(major_comm_size)) {
-            auto vertex_partition_id =
-              partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-                major_comm_size, minor_comm_size, j, minor_comm_rank);
-            max_size = std::max(
-              max_size,
-              static_cast<size_t>(graph_view.vertex_partition_range_size(vertex_partition_id)));
+            auto minor_range_vertex_partition_id =
+              compute_local_edge_partition_minor_range_vertex_partition_id_t{
+                major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(j);
+            max_size = std::max(max_size,
+                                static_cast<size_t>(graph_view.vertex_partition_range_size(
+                                  minor_range_vertex_partition_id)));
           }
         }
         rx_value_buffers.push_back(
@@ -311,14 +315,14 @@ void update_edge_minor_property(raft::handle_t const& handle,
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
           auto j = num_rounds * i + round;
           if (j < static_cast<size_t>(major_comm_size)) {
-            auto vertex_partition_id =
-              partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-                major_comm_size, minor_comm_size, j, minor_comm_rank);
+            auto minor_range_vertex_partition_id =
+              compute_local_edge_partition_minor_range_vertex_partition_id_t{
+                major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(j);
             auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
             device_bcast(major_comm,
                          vertex_property_input_first,
                          rx_value_first,
-                         graph_view.vertex_partition_range_size(vertex_partition_id),
+                         graph_view.vertex_partition_range_size(minor_range_vertex_partition_id),
                          j,
                          handle.get_stream());
           }
@@ -328,14 +332,14 @@ void update_edge_minor_property(raft::handle_t const& handle,
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
           auto j = num_rounds * i + round;
           if (j < static_cast<size_t>(major_comm_size)) {
-            auto vertex_partition_id =
-              partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-                major_comm_size, minor_comm_size, j, minor_comm_rank);
+            auto minor_range_vertex_partition_id =
+              compute_local_edge_partition_minor_range_vertex_partition_id_t{
+                major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(j);
             auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
             auto v_offset_first = thrust::make_transform_iterator(
               (*edge_partition_keys).begin() + key_offsets[j],
-              [v_first = graph_view.vertex_partition_range_first(vertex_partition_id)] __device__(
-                auto v) { return v - v_first; });
+              [v_first = graph_view.vertex_partition_range_first(
+                 minor_range_vertex_partition_id)] __device__(auto v) { return v - v_first; });
             thrust::gather(handle.get_thrust_policy(),
                            v_offset_first,
                            v_offset_first + (key_offsets[j + 1] - key_offsets[j]),
@@ -348,10 +352,10 @@ void update_edge_minor_property(raft::handle_t const& handle,
       std::vector<size_t> rx_counts(major_comm_size, size_t{0});
       std::vector<size_t> displacements(major_comm_size, size_t{0});
       for (int i = 0; i < major_comm_size; ++i) {
-        auto vertex_partition_id =
-          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-            major_comm_size, minor_comm_size, i, minor_comm_rank);
-        rx_counts[i]     = graph_view.vertex_partition_range_size(vertex_partition_id);
+        auto minor_range_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+        rx_counts[i]     = graph_view.vertex_partition_range_size(minor_range_vertex_partition_id);
         displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
       }
       device_allgatherv(major_comm,
