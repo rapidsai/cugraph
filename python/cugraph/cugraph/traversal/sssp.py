@@ -126,11 +126,6 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
-# set. An additional optional parameter for the weight attr name when accepting
-# Nx graphs may be needed.  From the Nx docs:
-# |      Many NetworkX algorithms designed for weighted graphs use
-# |      an edge attribute (by default `weight`) to hold a numerical value.
 def sssp(
     G,
     source=None,
@@ -141,6 +136,7 @@ def sssp(
     overwrite=None,
     indices=None,
     cutoff=None,
+    nx_weight_attr='weight',
 ):
     """
     Compute the distance and predecessors for shortest paths from the specified
@@ -163,6 +159,8 @@ def sssp(
         Index of the source vertex.
     cutoff : double, optional (default = None)
         Maximum edge weight sum considered by the algorithm
+    nx_weight_attr : string
+        when G is a NetworkX type, allows to specify name of edge weight attribute; uses Nx convention by default
 
     Returns
     -------
@@ -211,9 +209,8 @@ def sssp(
         G, source, method, directed, return_predecessors, unweighted, overwrite, indices
     )
 
-    # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+        G, nx_weight_attr=nx_weight_attr, matrix_graph_type=Graph(directed=directed)
     )
 
     if not G.edgelist.weights:
