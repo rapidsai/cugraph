@@ -16,7 +16,7 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -211,16 +211,16 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
                        : std::nullopt);
 
   if (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_size     = comm.get_size();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-      comm_size, row_comm_size, col_comm_size};
+      comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
       auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(

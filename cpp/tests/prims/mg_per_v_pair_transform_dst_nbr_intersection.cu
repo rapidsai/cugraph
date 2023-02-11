@@ -82,10 +82,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
-    auto const row_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().row_name()).get_size();
-    auto const col_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
 
     // 1. create MG graph
 

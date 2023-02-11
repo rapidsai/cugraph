@@ -90,16 +90,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
  public:
   Tests_MGPerVRandomSelectTransformOutgoingE() {}
 
-  static void SetUpTestCase()
-  {
-    handle_ = cugraph::test::initialize_mg_handle();
-#if 1  // FIXME: for benchmarking, delete once benchmarking is finished.
-    cugraph::test::enforce_p2p_initialization(handle_->get_comms(), handle_->get_stream());
-    cugraph::test::enforce_p2p_initialization(
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()),
-      handle_->get_stream());
-#endif
-  }
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
   static void TearDownTestCase() { handle_.reset(); }
 

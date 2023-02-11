@@ -17,6 +17,7 @@
 #include <c_api/c_test_utils.h>
 #include <c_api/resource_handle.hpp>
 
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -74,13 +75,12 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   return ret_val;
 }
 
-extern "C" void* create_raft_handle(int prows)
+extern "C" void* create_raft_handle(int gpu_row_comm_size)
 {
   raft::handle_t* handle = new raft::handle_t{};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
-  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
-    *handle, prows);
+  cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
 
   return handle;
 }
