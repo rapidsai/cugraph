@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@
 namespace cugraph {
 namespace c_api {
 
+// FIXME: Let's redefine data_type_id_t to cugraph_data_type_id_t (a C-style enum) and just use it
+// rather than this mapping to a C++ enum type.  Use is minimal anyway...
 cugraph::visitors::DTypes dtypes_mapping[] = {
   cugraph::visitors::DTypes::INT32,
   cugraph::visitors::DTypes::INT64,
