@@ -90,7 +90,10 @@ class partition_t {
       major_comm_size_(major_comm_size),
       minor_comm_size_(minor_comm_size),
       major_comm_rank_(major_comm_rank),
-      minor_comm_rank_(minor_comm_rank)
+      minor_comm_rank_(minor_comm_rank),
+      local_vertex_partition_id_(
+        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank))
   {
     CUGRAPH_EXPECTS(vertex_partition_range_offsets.size() ==
                       static_cast<size_t>(major_comm_size * minor_comm_size + 1),
@@ -126,18 +129,18 @@ class partition_t {
 
   std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
   {
-    return std::make_tuple(vertex_partition_range_offsets_[comm_rank_],
-                           vertex_partition_range_offsets_[comm_rank_ + 1]);
+    return std::make_tuple(vertex_partition_range_offsets_[local_vertex_partition_id_],
+                           vertex_partition_range_offsets_[local_vertex_partition_id_ + 1]);
   }
 
   vertex_t local_vertex_partition_range_first() const
   {
-    return vertex_partition_range_offsets_[comm_rank_];
+    return vertex_partition_range_offsets_[local_vertex_partition_id_];
   }
 
   vertex_t local_vertex_partition_range_last() const
   {
-    return vertex_partition_range_offsets_[comm_rank_ + 1];
+    return vertex_partition_range_offsets_[local_vertex_partition_id_ + 1];
   }
 
   vertex_t local_vertex_partition_range_size() const
@@ -178,12 +181,12 @@ class partition_t {
 
   vertex_t local_edge_partition_major_range_first(size_t partition_idx) const
   {
-    return vertex_partition_range_offsets_[major_comm_size_ * partition_idx + major_comm_rank_];
+    return vertex_partition_range_offsets_[partition_idx * major_comm_size_ + major_comm_rank_];
   }
 
   vertex_t local_edge_partition_major_range_last(size_t partition_idx) const
   {
-    return vertex_partition_range_offsets_[major_comm_size_ * partition_idx + major_comm_rank_ + 1];
+    return vertex_partition_range_offsets_[partition_idx * major_comm_size_ + major_comm_rank_ + 1];
   }
 
   vertex_t local_edge_partition_major_range_size(size_t partition_idx) const
@@ -207,12 +210,12 @@ class partition_t {
 
   vertex_t local_edge_partition_minor_range_first() const
   {
-    return vertex_partition_range_offsets_[major_comm_size_ * minor_comm_rank_];
+    return vertex_partition_range_offsets_[minor_comm_rank_ * major_comm_size_];
   }
 
   vertex_t local_edge_partition_minor_range_last() const
   {
-    return vertex_partition_range_offsets_[major_comm_size_ * (minor_comm_rank_ + 1)];
+    return vertex_partition_range_offsets_[(minor_comm_rank_ + 1) * major_comm_size_];
   }
 
   vertex_t local_edge_partition_minor_range_size() const
@@ -228,6 +231,7 @@ class partition_t {
   int minor_comm_size_{0};
   int major_comm_rank_{0};
   int minor_comm_rank_{0};
+  int local_vertex_partition_id_{0};
 
   std::vector<vertex_t>
     edge_partition_major_value_start_offsets_{};  // size = number_of_local_edge_partitions()
