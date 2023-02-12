@@ -461,7 +461,6 @@ endif()
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                CUDA::cublas${_ctk_static_suffix}
                 CUDA::curand${_ctk_static_suffix}
                 CUDA::cusolver${_ctk_static_suffix}
                 CUDA::cusparse${_ctk_static_suffix}
