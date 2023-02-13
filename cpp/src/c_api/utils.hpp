@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 #include <c_api/graph.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
+#include <c_api/generic_cascaded_dispatch.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -32,11 +32,11 @@ cugraph_error_code_t run_algorithm(::cugraph_graph_t const* graph,
   try {
     auto p_graph = reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(graph);
 
-    cugraph::dispatch::vertex_dispatcher(
-      cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
-      cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
-      cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
-      cugraph::c_api::dtypes_mapping[p_graph->edge_type_id_type_],
+    cugraph::c_api::vertex_dispatcher(
+      p_graph->vertex_type_,
+      p_graph->edge_type_,
+      p_graph->weight_type_,
+      p_graph->edge_type_id_type_,
       p_graph->store_transposed_,
       p_graph->multi_gpu_,
       functor);

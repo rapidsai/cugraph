@@ -16,21 +16,40 @@
 
 #pragma once
 
-#include "enum_mapping.hpp"
-
-#include <cugraph/utilities/graph_traits.hpp>
-
-#include <array>
-#include <functional>
-#include <sstream>
-#include <stdexcept>
-#include <tuple>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#include <cugraph_c/resource_handle.h>
 
 namespace cugraph {
-namespace dispatch {
+namespace c_api {
+
+#if 0
+template <cugraph_data_type_id_t>
+struct translate_data_type;
+
+template <>
+struct translate_data_type<cugraph_data_type_id_t::INT32> {
+  using type = int32_t;
+};
+
+template <>
+struct translate_data_type<cugraph_data_type_id_t::INT64> {
+  using type = int64_t;
+};
+
+template <>
+struct translate_data_type<cugraph_data_type_id_t::FLOAT32> {
+  using type = float;
+};
+
+template <>
+struct translate_data_type<cugraph_data_type_id_t::FLOAT64> {
+  using type = double;
+};
+
+template <>
+struct translate_data_type<cugraph_data_type_id_t::SIZE_T> {
+  using type = size_t;
+};
+#endif
 
 // multi_gpu bool dispatcher:
 // resolves bool `multi_gpu`
@@ -83,29 +102,28 @@ constexpr decltype(auto) transpose_dispatcher(bool store_transposed,
 // transpose_dispatcher()
 //
 template <typename vertex_t, typename edge_t, typename weight_t, typename functor_t>
-constexpr decltype(auto) edge_type_type_dispatcher(cugraph::visitors::DTypes edge_type_type,
+constexpr decltype(auto) edge_type_type_dispatcher(cugraph_data_type_id_t edge_type_type,
                                                    bool store_transposed,
                                                    bool multi_gpu,
                                                    functor_t& functor)
 {
   switch (edge_type_type) {
-    case cugraph::visitors::DTypes::INT32: {
-      using edge_type_t =
-        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
+    case cugraph_data_type_id_t::INT32: {
+      using edge_type_t = int32_t;
       return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t>(
         store_transposed, multi_gpu, functor);
     }
-    case cugraph::visitors::DTypes::INT64: {
+    case cugraph_data_type_id_t::INT64: {
       throw std::runtime_error(
         "ERROR: Data type INT64 not allowed for edge type (valid types: INT32).");
       break;
     }
-    case cugraph::visitors::DTypes::FLOAT32: {
+    case cugraph_data_type_id_t::FLOAT32: {
       throw std::runtime_error(
         "ERROR: Data type FLOAT32 not allowed for edge type (valid types: INT32).");
       break;
     }
-    case cugraph::visitors::DTypes::FLOAT64: {
+    case cugraph_data_type_id_t::FLOAT64: {
       throw std::runtime_error(
         "ERROR: Data type FLOAT64 not allowed for edge type (valid types: INT32).");
       break;
@@ -126,32 +144,30 @@ constexpr decltype(auto) edge_type_type_dispatcher(cugraph::visitors::DTypes edg
 // edge_type_type_dispatcher()
 //
 template <typename vertex_t, typename edge_t, typename functor_t>
-constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type,
-                                           cugraph::visitors::DTypes edge_type_type,
+constexpr decltype(auto) weight_dispatcher(cugraph_data_type_id_t weight_type,
+                                           cugraph_data_type_id_t edge_type_type,
                                            bool store_transposed,
                                            bool multi_gpu,
                                            functor_t& functor)
 {
   switch (weight_type) {
-    case cugraph::visitors::DTypes::INT32: {
-      using weight_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
+    case cugraph_data_type_id_t::INT32: {
+      using weight_t = int32_t;
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::INT64: {
-      using weight_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT64>::type;
+    case cugraph_data_type_id_t::INT64: {
+      using weight_t = int64_t;
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::FLOAT32: {
-      using weight_t =
-        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT32>::type;
+    case cugraph_data_type_id_t::FLOAT32: {
+      using weight_t = float;
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::FLOAT64: {
-      using weight_t =
-        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT64>::type;
+    case cugraph_data_type_id_t::FLOAT64: {
+      using weight_t = double;
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, store_transposed, multi_gpu, functor);
     } break;
@@ -170,33 +186,29 @@ constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type
 // weight_dispatcher();
 //
 template <typename vertex_t, typename functor_t>
-constexpr decltype(auto) edge_dispatcher(cugraph::visitors::DTypes edge_type,
-                                         cugraph::visitors::DTypes weight_type,
-                                         cugraph::visitors::DTypes edge_type_type,
+constexpr decltype(auto) edge_dispatcher(cugraph_data_type_id_t edge_type,
+                                         cugraph_data_type_id_t weight_type,
+                                         cugraph_data_type_id_t edge_type_type,
                                          bool store_transposed,
                                          bool multi_gpu,
                                          functor_t& functor)
 {
   switch (edge_type) {
-    case cugraph::visitors::DTypes::INT32: {
-      using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
+    case cugraph_data_type_id_t::INT32: {
+      using edge_t = int32_t;
       return weight_dispatcher<vertex_t, edge_t>(
         weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::INT64: {
-      using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT64>::type;
+    case cugraph_data_type_id_t::INT64: {
+      using edge_t = int64_t;
       return weight_dispatcher<vertex_t, edge_t>(
         weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::FLOAT32: {
-      using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT32>::type;
-      return weight_dispatcher<vertex_t, edge_t>(
-        weight_type, edge_type_type, store_transposed, multi_gpu, functor);
+    case cugraph_data_type_id_t::FLOAT32: {
+      throw std::runtime_error("ERROR: FLOAT32 not supported for a vertex type");
     } break;
-    case cugraph::visitors::DTypes::FLOAT64: {
-      using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT64>::type;
-      return weight_dispatcher<vertex_t, edge_t>(
-        weight_type, edge_type_type, store_transposed, multi_gpu, functor);
+    case cugraph_data_type_id_t::FLOAT64: {
+      throw std::runtime_error("ERROR: FLOAT64 not supported for a vertex type");
     } break;
     default: {
       std::stringstream ss;
@@ -213,29 +225,29 @@ constexpr decltype(auto) edge_dispatcher(cugraph::visitors::DTypes edge_type,
 // edge_dispatcher();
 //
 template <typename functor_t>
-inline decltype(auto) vertex_dispatcher(cugraph::visitors::DTypes vertex_type,
-                                        cugraph::visitors::DTypes edge_type,
-                                        cugraph::visitors::DTypes weight_type,
-                                        cugraph::visitors::DTypes edge_type_type,
+inline decltype(auto) vertex_dispatcher(cugraph_data_type_id_t vertex_type,
+                                        cugraph_data_type_id_t edge_type,
+                                        cugraph_data_type_id_t weight_type,
+                                        cugraph_data_type_id_t edge_type_type,
                                         bool store_transposed,
                                         bool multi_gpu,
                                         functor_t& functor)
 {
   switch (vertex_type) {
-    case cugraph::visitors::DTypes::INT32: {
-      using vertex_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
+    case cugraph_data_type_id_t::INT32: {
+      using vertex_t = int32_t;
       return edge_dispatcher<vertex_t>(
         edge_type, weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::INT64: {
-      using vertex_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT64>::type;
+    case cugraph_data_type_id_t::INT64: {
+      using vertex_t = int64_t;
       return edge_dispatcher<vertex_t>(
         edge_type, weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::FLOAT32: {
+    case cugraph_data_type_id_t::FLOAT32: {
       throw std::runtime_error("ERROR: FLOAT32 not supported for a vertex type");
     } break;
-    case cugraph::visitors::DTypes::FLOAT64: {
+    case cugraph_data_type_id_t::FLOAT64: {
       throw std::runtime_error("ERROR: FLOAT64 not supported for a vertex type");
     } break;
     default: {
@@ -246,5 +258,5 @@ inline decltype(auto) vertex_dispatcher(cugraph::visitors::DTypes vertex_type,
   }
 }
 
-}  // namespace dispatch
+}  // namespace c_api
 }  // namespace cugraph
