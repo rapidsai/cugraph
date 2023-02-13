@@ -255,7 +255,8 @@ size_t cugraph_type_erased_host_array_size(const cugraph_type_erased_host_array_
  * @param [in]  p    Pointer to the type erased host array view
  * @return The type of the elements in the array
  */
-cugraph_data_type_id_t cugraph_type_erased_host_array_type(const cugraph_type_erased_host_array_view_t* p);
+cugraph_data_type_id_t cugraph_type_erased_host_array_type(
+  const cugraph_type_erased_host_array_view_t* p);
 
 /**
  * @brief    Get the raw pointer of the type erased host array view
