@@ -29,7 +29,7 @@ requirements:
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
     - setuptools <=65.2.0
   run:
-    - distributed ==2023.1.1
+    - distributed >=2023.1.1
     - numba >=0.56.2
     - numpy
     - pytorch <=1.12.1

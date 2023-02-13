@@ -286,12 +286,15 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
         tmp_weights_v =
           std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(), handle.get_stream());
 
+        // FIXME: This should be refactored to create a single RngState and reuse it
+        raft::random::RngState rng_state{seed_ + num_partitions + id};
+
         cugraph::detail::uniform_random_fill(handle.get_stream(),
                                              tmp_weights_v->data(),
                                              tmp_weights_v->size(),
                                              weight_t{0.0},
                                              weight_t{1.0},
-                                             seed_ + num_partitions + id);
+                                             rng_state);
       }
 
       translate(handle, tmp_src_v, tmp_dst_v);
