@@ -69,7 +69,7 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
     seeds_view = cugraph_type_erased_device_array_view(seeds);
   } else {
     if (rank > 0) num_seeds = 0;
-    
+
     ret_code =
       cugraph_type_erased_device_array_create(handle, num_seeds, INT32, &seeds, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "seeds create failed.");
@@ -385,55 +385,21 @@ int test_betweenness_centrality_full_directed_normalized_karate(
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_betweenness_centrality, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_normalized, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_full, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_full_directed, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_specific_normalized, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_specific_unnormalized, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_test_endpoints, handle);
+  result |= RUN_MG_TEST(test_betweenness_centrality_full_directed_normalized_karate, handle);
 
-#if 0
-  // TODO:  Need something a bit more sophisticated for bigger systems
-  prows = (int)sqrt((double)comm_size);
-  while (comm_size % prows != 0) {
-    --prows;
-  }
-
-  ret_code = cugraph_resource_handle_init_comms(handle, prows, &ret_error);
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, "handle create failed.");
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-#endif
-
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_betweenness_centrality, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_normalized, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_full, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_full_directed, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_specific_normalized, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_specific_unnormalized, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_test_endpoints, handle);
-    result |= RUN_MG_TEST(test_betweenness_centrality_full_directed_normalized_karate, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }
