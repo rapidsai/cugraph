@@ -227,19 +227,6 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_error_t** error
         )
 
-    # uniform neighborhood sampling
-    cdef cugraph_error_code_t \
-        cugraph_uniform_neighbor_sample(
-            const cugraph_resource_handle_t* handle,
-            cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* start,
-            const cugraph_type_erased_host_array_view_t* fan_out,
-            bool_t without_replacement,
-            bool_t do_expensive_check,
-            cugraph_sample_result_t** result,
-            cugraph_error_t** error
-        )
-
     # uniform random walks
     cdef cugraph_error_code_t \
         cugraph_uniform_random_walks(
