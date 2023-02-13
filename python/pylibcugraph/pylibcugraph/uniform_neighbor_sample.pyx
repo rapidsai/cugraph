@@ -37,7 +37,6 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_uniform_neighbor_sample,
     cugraph_sample_result_t,
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
