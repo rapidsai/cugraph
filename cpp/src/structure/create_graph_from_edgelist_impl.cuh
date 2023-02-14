@@ -143,15 +143,15 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         "std::numeric_limits<vertex_t>::Max().");
 
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          (*vertices).begin(),
-          (*vertices).end(),
-          [comm_rank,
-           key_func =
-             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-            return key_func(val) != comm_rank;
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         (*vertices).begin(),
+                         (*vertices).end(),
+                         [comm_rank,
+                          key_func =
+                            detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                              comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
+                           return key_func(val) != comm_rank;
+                         }) == 0,
         "Invalid input argument: vertices should be pre-shuffled.");
     }
 
@@ -396,7 +396,7 @@ create_graph_from_edgelist_impl(
     std::get<1>(*edgelist_id_type_pairs).shrink_to_fit(handle.get_stream());
   }
 
-  // 2. renumber
+  // 3. renumber
 
   std::vector<vertex_t*> src_ptrs(minor_comm_size);
   std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
@@ -418,7 +418,7 @@ create_graph_from_edgelist_impl(
   auto use_dcs =
     num_segments_per_vertex_partition > (detail::num_sparse_segments_per_vertex_partition + 2);
 
-  // 3. compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
+  // 4. compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
 
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets;
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices;
@@ -549,7 +549,7 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  // 4. segmented sort neighbors
+  // 5. segmented sort neighbors
 
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     if (edge_partition_weights && edge_partition_id_type_pairs) {
@@ -587,7 +587,7 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  // 5. create a graph and an edge_property_t object.
+  // 6. create a graph and an edge_property_t object.
 
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>

@@ -61,17 +61,15 @@ namespace detail {
 
 template <typename vertex_t>
 struct check_edge_src_and_dst_t {
-  vertex_t const* sorted_majors{nullptr};
-  vertex_t num_majors{0};
-  vertex_t const* sorted_minors{nullptr};
-  vertex_t num_minors{0};
+  raft::device_span<vertex_t const> sorted_majors{};
+  raft::device_span<vertex_t const> sorted_minors{};
 
   __device__ bool operator()(thrust::tuple<vertex_t, vertex_t> e) const
   {
     return !thrust::binary_search(
-             thrust::seq, sorted_majors, sorted_majors + num_majors, thrust::get<0>(e)) ||
+             thrust::seq, sorted_majors.begin(), sorted_majors.end(), thrust::get<0>(e)) ||
            !thrust::binary_search(
-             thrust::seq, sorted_minors, sorted_minors + num_minors, thrust::get<1>(e));
+             thrust::seq, sorted_minors.begin(), sorted_minors.end(), thrust::get<1>(e));
   }
 };
 
@@ -200,8 +198,17 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
   auto num_workers =
     std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * size_t{1024},
              sorted_local_vertices.size() + size_t{1});
-  auto gpu_id_op =
-    compute_gpu_id_from_ext_vertex_t<vertex_t>{multi_gpu ? handle.get_comms().get_size() : int{1}};
+  auto gpu_id_op = compute_gpu_id_from_ext_vertex_t<vertex_t>{int{1}, int{1}, int{1}};
+  if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    gpu_id_op =
+      compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size, major_comm_size, minor_comm_size};
+  }
   auto unused_id = thrust::transform_reduce(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator(size_t{0}),
@@ -686,23 +693,17 @@ void expensive_check_edgelist(
     }
 
     if (sorted_local_vertices) {
-      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          (*sorted_local_vertices).begin(),
-          (*sorted_local_vertices).end(),
-          [comm_rank,
-           key_func =
-             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-            return key_func(val) != comm_rank;
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         (*sorted_local_vertices).begin(),
+                         (*sorted_local_vertices).end(),
+                         [comm_rank,
+                          key_func =
+                            detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                              comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
+                           return key_func(val) != comm_rank;
+                         }) == 0,
         "Invalid input argument: local_vertices should be pre-shuffled.");
-
-      auto major_range_sizes =
-        host_scalar_allgather(minor_comm, (*sorted_local_vertices).size(), handle.get_stream());
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       auto recvcounts =
@@ -718,6 +719,8 @@ void expensive_check_edgelist(
                         handle.get_stream());
       thrust::sort(handle.get_thrust_policy(), sorted_minors.begin(), sorted_minors.end());
 
+      auto major_range_sizes =
+        host_scalar_allgather(minor_comm, (*sorted_local_vertices).size(), handle.get_stream());
       for (size_t i = 0; i < edgelist_majors.size(); ++i) {
         rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
         {
@@ -733,16 +736,18 @@ void expensive_check_edgelist(
         auto edge_first =
           thrust::make_zip_iterator(thrust::make_tuple(edgelist_majors[i], edgelist_minors[i]));
 
-        CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
-                                         edge_first,
-                                         edge_first + edgelist_edge_counts[i],
-                                         check_edge_src_and_dst_t<vertex_t>{
-                                           sorted_majors.data(),
-                                           static_cast<vertex_t>(sorted_majors.size()),
-                                           sorted_minors.data(),
-                                           static_cast<vertex_t>(sorted_minors.size())}) == 0,
-                        "Invalid input argument: edgelist_majors and/or edgelist_minors have "
-                        "invalid vertex ID(s).");
+        CUGRAPH_EXPECTS(
+          thrust::count_if(
+            handle.get_thrust_policy(),
+            edge_first,
+            edge_first + edgelist_edge_counts[i],
+            check_edge_src_and_dst_t<vertex_t>{
+              raft::device_span<vertex_t const>(sorted_majors.data(),
+                                                static_cast<vertex_t>(sorted_majors.size())),
+              raft::device_span<vertex_t const>(sorted_minors.data(),
+                                                static_cast<vertex_t>(sorted_minors.size()))}) == 0,
+          "Invalid input argument: edgelist_majors and/or edgelist_minors have "
+          "invalid vertex ID(s).");
       }
     }
   } else {
@@ -757,10 +762,12 @@ void expensive_check_edgelist(
                          edge_first,
                          edge_first + edgelist_edge_counts[0],
                          check_edge_src_and_dst_t<vertex_t>{
-                           (*sorted_local_vertices).data(),
-                           static_cast<vertex_t>((*sorted_local_vertices).size()),
-                           (*sorted_local_vertices).data(),
-                           static_cast<vertex_t>((*sorted_local_vertices).size())}) == 0,
+                           raft::device_span<vertex_t const>(
+                             (*sorted_local_vertices).data(),
+                             static_cast<vertex_t>((*sorted_local_vertices).size())),
+                           raft::device_span<vertex_t const>(
+                             (*sorted_local_vertices).data(),
+                             static_cast<vertex_t>((*sorted_local_vertices).size()))}) == 0,
         "Invalid input argument: edgelist_majors and/or edgelist_minors have "
         "invalid vertex ID(s).");
     }

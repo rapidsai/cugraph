@@ -329,7 +329,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     auto const minor_comm_size = minor_comm.get_size();
 
-    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
+    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size};
     d_vertices.resize(
       thrust::distance(d_vertices.begin(),
                        thrust::remove_if(handle.get_thrust_policy(),

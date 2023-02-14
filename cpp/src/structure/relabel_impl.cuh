@@ -59,10 +59,15 @@ void relabel(raft::handle_t const& handle,
              bool do_expensive_check)
 {
   if (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
-    auto key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
+    auto key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size};
 
     // find unique old labels (to be relabeled)
 

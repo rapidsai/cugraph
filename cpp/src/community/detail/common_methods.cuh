@@ -241,8 +241,15 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     src_cluster_weights(handle);
 
   if constexpr (multi_gpu) {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
-      handle.get_comms().get_size()};
+      comm_size, major_comm_size, minor_comm_size};
 
     kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
       cluster_keys_v.begin(),

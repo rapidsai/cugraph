@@ -930,7 +930,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
       for (int i = 0; i < major_comm_size; ++i) {
         auto this_segment_vertex_partition_id =
-          compute_local_edge_partition_this_segment_vertex_partition_id_t{
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
         thrust::fill(
           handle.get_thrust_policy(),
