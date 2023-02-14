@@ -1,10 +1,9 @@
 # Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
-# Usage:
-#   conda build -c rapidsai -c conda-forge -c nvidia .
-{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
 {% set py_version = environ['CONDA_PY'] %}
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
   name: cugraph-pyg
@@ -15,7 +14,7 @@ source:
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
-  string: py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+  string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
     - PARALLEL_LEVEL
   preserve_egg_dir: True
@@ -30,7 +29,7 @@ requirements:
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
     - setuptools <=65.2.0
   run:
-    - distributed >=2022.12.0
+    - distributed >=2023.1.1
     - numba >=0.56.2
     - numpy
     - pytorch

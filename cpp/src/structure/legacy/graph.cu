@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,10 +48,11 @@ void degree_from_vertex_ids(const raft::handle_t* handle,
                             edge_t* degree,
                             rmm::cuda_stream_view stream_view)
 {
-  thrust::for_each(rmm::exec_policy(stream_view),
-                   thrust::make_counting_iterator<edge_t>(0),
-                   thrust::make_counting_iterator<edge_t>(number_of_edges),
-                   [indices, degree] __device__(edge_t e) { atomicAdd(degree + indices[e], 1); });
+  thrust::for_each(
+    rmm::exec_policy(stream_view),
+    thrust::make_counting_iterator<edge_t>(0),
+    thrust::make_counting_iterator<edge_t>(number_of_edges),
+    [indices, degree] __device__(edge_t e) { atomicAdd(degree + indices[e], edge_t{1}); });
   if ((handle != nullptr) && (handle->comms_initialized())) {
     auto& comm = handle->get_comms();
     comm.allreduce(degree, degree, number_of_vertices, raft::comms::op_t::SUM, stream_view.value());
@@ -73,7 +74,7 @@ template <typename VT, typename ET, typename WT>
 void GraphCompressedSparseBaseView<VT, ET, WT>::get_source_indices(VT* src_indices) const
 {
   CUGRAPH_EXPECTS(offsets != nullptr, "No graph specified");
-  cugraph::detail::offsets_to_indices<VT>(
+  cugraph::detail::offsets_to_indices<ET, VT>(
     offsets, GraphViewBase<VT, ET, WT>::number_of_vertices, src_indices);
 }
 
@@ -146,14 +147,8 @@ void GraphCompressedSparseBaseView<VT, ET, WT>::degree(ET* degree, DegreeDirecti
   }
 }
 
-// explicit instantiation
-template class GraphViewBase<int32_t, int32_t, float>;
-template class GraphViewBase<int32_t, int32_t, double>;
-template class GraphCOOView<int32_t, int32_t, float>;
-template class GraphCOOView<int32_t, int32_t, double>;
-template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
-template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
 }  // namespace legacy
 }  // namespace cugraph
 
+#include <cugraph/legacy/eidir_graph.hpp>
 #include <utilities/eidir_graph_utils.hpp>

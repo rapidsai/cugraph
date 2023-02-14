@@ -1,9 +1,9 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 
-# Usage:
-#   conda build -c nvidia -c rapidsai -c conda-forge  .
-{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set py_version = environ['CONDA_PY'] %}
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
   name: cugraph-service-split
@@ -14,6 +14,9 @@ source:
 outputs:
   - name: cugraph-service-client
     version: {{ version }}
+    build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
     about:
       home: https://rapids.ai/
       license: Apache-2.0
@@ -33,6 +36,9 @@ outputs:
 
   - name: cugraph-service-server
     version: {{ version }}
+    build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
     about:
       home: https://rapids.ai/
       license: Apache-2.0
@@ -53,7 +59,7 @@ outputs:
         - cupy >=9.5.0,<12.0.0a0
         - dask-cuda ={{ minor_version }}
         - dask-cudf ={{ minor_version }}
-        - distributed >=2022.12.0
+        - distributed >=2023.1.1
         - numpy
         - python x.x
         - thriftpy2 >=0.4.15

@@ -70,15 +70,15 @@ def test_neighbor_sample(basic_graph_1, dask_client):
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
-                "src": ei[0],
-                "dst": ei[1],
+                "src": cupy.asarray(ei[0]),
+                "dst": cupy.asarray(ei[1]),
             }
         )
 
         results_df = cudf.DataFrame(
             {
-                "src": row_dict[edge_type],
-                "dst": col_dict[edge_type],
+                "src": cupy.asarray(row_dict[edge_type]),
+                "dst": cupy.asarray(col_dict[edge_type]),
             }
         )
 
@@ -133,15 +133,15 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_clie
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
-                "src": ei[0],
-                "dst": ei[1],
+                "src": cupy.asarray(ei[0]),
+                "dst": cupy.asarray(ei[1]),
             }
         )
 
         results_df = cudf.DataFrame(
             {
-                "src": row_dict[edge_type],
-                "dst": col_dict[edge_type],
+                "src": cupy.asarray(row_dict[edge_type]),
+                "dst": cupy.asarray(col_dict[edge_type]),
             }
         )
 

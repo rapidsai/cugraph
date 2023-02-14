@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import pytest
 import cupy
 
 from cugraph_pyg.loader import CuGraphNeighborLoader
@@ -18,12 +18,13 @@ from cugraph_pyg.data import CuGraphStore
 
 from cugraph.utilities.utils import import_optional, MissingModule
 
-import pytest
-
 torch = import_optional("torch")
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+)
 def test_cugraph_loader_basic(dask_client, karate_gnn):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)

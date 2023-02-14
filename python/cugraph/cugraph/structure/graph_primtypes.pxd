@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -121,12 +121,6 @@ cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":
                 bool has_data) except+
         GraphSparseContents[VT,ET,WT] release()
         GraphCSRView[VT,ET,WT] view()
-
-
-cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
-
-    cdef unique_ptr[GraphCOO[VT, ET, WT]] get_two_hop_neighbors[VT,ET,WT](
-        const GraphCSRView[VT, ET, WT] &graph) except +
 
 
 cdef extern from "<utility>" namespace "std" nogil:

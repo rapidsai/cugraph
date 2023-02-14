@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,15 @@ typedef enum bool_ { FALSE = 0, TRUE = 1 } bool_t;
 
 typedef int8_t byte_t;
 
+/**
+ * @deprecated - use cugraph_data_type_id_t;
+ */
 typedef enum data_type_id_ { INT32 = 0, INT64, FLOAT32, FLOAT64, SIZE_T, NTYPES } data_type_id_t;
+
+/**
+ * @brief - Enumeration of data types
+ */
+typedef data_type_id_t cugraph_data_type_id_t;
 
 typedef struct cugraph_resource_handle_ {
   int32_t align_;

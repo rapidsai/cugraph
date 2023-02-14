@@ -25,7 +25,6 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
 mkdir -p "${RAPIDS_TESTS_DIR}" "${RAPIDS_COVERAGE_DIR}"
-SUITEERROR=0
 
 rapids-print-env
 
@@ -58,6 +57,8 @@ pushd "${RAPIDS_DATASET_ROOT_DIR}"
 ./get_test_data.sh
 popd
 
+EXITCODE=0
+trap "EXITCODE=1" ERR
 set +e
 
 rapids-logger "pytest pylibcugraph"
@@ -70,16 +71,6 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
   --cov-report=term \
   tests
-exitcode=$?
-
-# FIXME: This is temporary until a crash that occurs at cleanup is fixed. This
-# allows PRs that pass tests to pass even if they crash with a Seg Fault or
-# other error that results in 139. Remove this ASAP!
-# if (( ${exitcode} != 0 )); then
-if (( (${exitcode} != 0) && (${exitcode} != 139) )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in pylibcugraph"
-fi
 popd
 
 rapids-logger "pytest cugraph"
@@ -93,16 +84,6 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
   tests
-exitcode=$?
-
-# FIXME: This is temporary until a crash that occurs at cleanup is fixed. This
-# allows PRs that pass tests to pass even if they crash with a Seg Fault or
-# other error that results in 139. Remove this ASAP!
-# if (( ${exitcode} != 0 )); then
-if (( (${exitcode} != 0) && (${exitcode} != 139) )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph"
-fi
 popd
 
 rapids-logger "pytest cugraph benchmarks (run as tests)"
@@ -113,16 +94,6 @@ pytest \
   -m "managedmem_on and poolallocator_on and tiny" \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
-exitcode=$?
-
-# FIXME: This is temporary until a crash that occurs at cleanup is fixed. This
-# allows PRs that pass tests to pass even if they crash with a Seg Fault or
-# other error that results in 139. Remove this ASAP!
-# if (( ${exitcode} != 0 )); then
-if (( (${exitcode} != 0) && (${exitcode} != 139) )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph benchmarks"
-fi
 popd
 
 rapids-logger "pytest cugraph_pyg (single GPU)"
@@ -138,16 +109,6 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
   --cov-report=term \
   .
-exitcode=$?
-
-# FIXME: This is temporary until a crash that occurs at cleanup is fixed. This
-# allows PRs that pass tests to pass even if they crash with a Seg Fault or
-# other error that results in 139. Remove this ASAP!
-# if (( ${exitcode} != 0 )); then
-if (( (${exitcode} != 0) && (${exitcode} != 139) )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph-pyg"
-fi
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
@@ -165,16 +126,7 @@ pytest \
   --benchmark-disable \
   -k "not mg" \
   tests
-exitcode=$?
-
-# FIXME: This is temporary until a crash that occurs at cleanup is fixed. This
-# allows PRs that pass tests to pass even if they crash with a Seg Fault or
-# other error that results in 139. Remove this ASAP!
-# if (( ${exitcode} != 0 )); then
-if (( (${exitcode} != 0) && (${exitcode} != 139) )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph-service"
-fi
 popd
 
-exit ${SUITEERROR}
+rapids-logger "Test script exiting with value: $EXITCODE"
+exit ${EXITCODE}

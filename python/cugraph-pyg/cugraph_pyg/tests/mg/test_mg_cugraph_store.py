@@ -229,8 +229,8 @@ def test_renumber_edges(graph, dask_client):
     for pyg_can_edge_type in G:
         df = cudf.DataFrame(
             {
-                "src": G[pyg_can_edge_type][0],
-                "dst": G[pyg_can_edge_type][1],
+                "src": cupy.asarray(G[pyg_can_edge_type][0]),
+                "dst": cupy.asarray(G[pyg_can_edge_type][1]),
             }
         )
 
