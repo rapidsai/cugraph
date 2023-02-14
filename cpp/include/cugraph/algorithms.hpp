@@ -1728,17 +1728,25 @@ k_core(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_type_view Optional view object holding edge ids and types for @p graph_view.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
  * @param starting_vertices Device vector of starting vertex IDs for the sampling.
  * @param starting_labels Optional device vector of starting vertex labels for the sampling.
+ * @param starting_vertex_offsets Optional device vector organizing @p starting_vertices into
+ * batches of vertices, used in place of @p starting_labels.  If @p starting_vertex_offsets is
+ * specified then output will include offsets element (defining the offsets that correspond to a
+ * particular input batch)
+ * @param batch_id_to_output_gpu_mapping Optional device vector maping batch id to a particular
+ * output GPU.  Index is the batch id (either from @p starting_labels, or an intger <
+ * starting_vertex_offsets->size() - 1), value should be in the range 0 to num_gpus - 1
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32_t hop,
- * optional int32_t label)
+ * optional int32_t label, optional edge_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
@@ -1752,17 +1760,18 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<int32_t>>>
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_vector<edge_t>>>
 uniform_neighbor_sample(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<
-    edge_property_view_t<edge_t,
-                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_id_type_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   rmm::device_uvector<vertex_t>&& starting_vertices,
   std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
+  std::optional<rmm::device_uvector<edge_t>>&& starting_vertex_offsets,
+  std::optional<rmm::device_uvector<int32_t>>&& batch_id_to_output_gpu_mapping,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement = true);

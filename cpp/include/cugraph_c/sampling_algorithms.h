@@ -205,6 +205,13 @@ typedef struct {
  * with each start vertex will be included in the output associated with results that were derived
  * from that start vertex.  We only support label of type INT32. If label is NULL, the return data
  * will not be labeled.
+ * @param [in]  start_offsets Device array of offsets, organinzing the start array into batches.  If
+ *                           @p start_offsets is NULL there are no batches.  If start_offsets is
+ * specified, then @p label must be NULL.
+ * @param [in]  batch_id_do_output_gpu_mapping Device array mapping the batch numbers to the output
+ *                           gpu.  Only specify if running in multi-gpu mode.  Indices should run
+ * from 0 to number of batches - 1, values should run from 0 to number of GPUs. All GPUs should
+ * specify the same mapping.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
  * @param [in/out] rng_state State of the random number generator, updated with each call
@@ -223,6 +230,8 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* label,
+  const cugraph_type_erased_device_array_view_t* start_offsets,
+  const cugraph_type_erased_device_array_view_t* batch_id_to_output_gpu_mapping,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   bool_t with_replacement,
@@ -300,6 +309,15 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
  * @return type erased array pointing to the index
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the result offsets from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the result offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_result_offsets(
   const cugraph_sample_result_t* result);
 
 /**
