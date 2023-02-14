@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,21 +17,17 @@
 
 #include <cugraph_c/array.h>
 
-#include <cugraph/visitors/enum_mapping.hpp>
-
 #include <rmm/device_buffer.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace c_api {
 
-extern cugraph::visitors::DTypes dtypes_mapping[data_type_id_t::NTYPES];
-
 struct cugraph_type_erased_device_array_view_t {
   void* data_;
   size_t size_;
   size_t num_bytes_;
-  data_type_id_t type_;
+  cugraph_data_type_id_t type_;
 
   template <typename T>
   T* as_type()
@@ -52,18 +48,18 @@ struct cugraph_type_erased_device_array_t {
   // NOTE: size must be first here because the device buffer is released
   size_t size_;
   rmm::device_buffer data_;
-  data_type_id_t type_;
+  cugraph_data_type_id_t type_;
 
   cugraph_type_erased_device_array_t(size_t size,
                                      size_t num_bytes,
-                                     data_type_id_t type,
+                                     cugraph_data_type_id_t type,
                                      rmm::cuda_stream_view const& stream_view)
     : size_(size), data_(num_bytes, stream_view), type_(type)
   {
   }
 
   template <typename T>
-  cugraph_type_erased_device_array_t(rmm::device_uvector<T>& vec, data_type_id_t type)
+  cugraph_type_erased_device_array_t(rmm::device_uvector<T>& vec, cugraph_data_type_id_t type)
     : size_(vec.size()), data_(vec.release()), type_(type)
   {
   }
@@ -90,7 +86,7 @@ struct cugraph_type_erased_host_array_view_t {
   std::byte* data_;
   size_t size_;
   size_t num_bytes_;
-  data_type_id_t type_;
+  cugraph_data_type_id_t type_;
 
   template <typename T>
   T* as_type()
@@ -111,9 +107,9 @@ struct cugraph_type_erased_host_array_t {
   std::unique_ptr<std::byte[]> data_{nullptr};
   size_t size_{0};
   size_t num_bytes_{0};
-  data_type_id_t type_;
+  cugraph_data_type_id_t type_;
 
-  cugraph_type_erased_host_array_t(size_t size, size_t num_bytes, data_type_id_t type)
+  cugraph_type_erased_host_array_t(size_t size, size_t num_bytes, cugraph_data_type_id_t type)
     : data_(std::make_unique<std::byte[]>(num_bytes)),
       size_(size),
       num_bytes_(num_bytes),
@@ -122,7 +118,7 @@ struct cugraph_type_erased_host_array_t {
   }
 
   template <typename T>
-  cugraph_type_erased_host_array_t(std::vector<T>& vec, data_type_id_t type)
+  cugraph_type_erased_host_array_t(std::vector<T>& vec, cugraph_data_type_id_t type)
     : size_(vec.size()), num_bytes_(vec.size() * sizeof(T)), type_(type)
   {
     data_ = std::make_unique<std::byte[]>(num_bytes_);
