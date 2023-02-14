@@ -206,18 +206,20 @@ typedef struct {
  * from that start vertex.  We only support label of type INT32. If label is NULL, the return data
  * will not be labeled.
  * @param [in]  start_offsets Device array of offsets, organinzing the start array into batches.  If
- *                           @p start_offsets is NULL there are no batches.  If start_offsets is
- * specified, then @p label must be NULL.
- * @param [in]  batch_id_do_output_gpu_mapping Device array mapping the batch numbers to the output
- *                           gpu.  Only specify if running in multi-gpu mode.  Indices should run
- * from 0 to number of batches - 1, values should run from 0 to number of GPUs. All GPUs should
- * specify the same mapping.
+ *                            @p start_offsets is NULL there are no batches.  If start_offsets is
+ *                            specified, then @p label must be NULL.
+ * @param [in]  label_to_output_gpu_mapping Device array mapping the labels to the output
+ *                           gpu.  Only specify if running in multi-gpu mode and if labels is
+ * specified. Indices should run cover all unique entries in the label array, values should run from
+ * 0 to number of GPUs. All GPUs should specify the same mapping.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
  * @param [in/out] rng_state State of the random number generator, updated with each call
  * @param [in]  with_replacement
  *                           Boolean value.  If true selection of edges is done with
  *                           replacement.  If false selection is done without replacement.
+ * @param [in]  return_hops  Boolean value.  If true include the hop number in the result,
+ *                           If false the hop number will not be included in result.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [in]  result       Output from the uniform_neighbor_sample call
@@ -231,11 +233,12 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* label,
   const cugraph_type_erased_device_array_view_t* start_offsets,
-  const cugraph_type_erased_device_array_view_t* batch_id_to_output_gpu_mapping,
+  const cugraph_type_erased_device_array_view_t* label_to_output_gpu_mapping,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   bool_t with_replacement,
   bool_t do_expensive_check,
+  bool_t return_hops,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
 

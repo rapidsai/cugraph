@@ -1745,13 +1745,14 @@ k_core(raft::handle_t const& handle,
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32_t hop,
- * optional int32_t label, optional edge_t offsets)
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional int32_t label, optional edge_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename label_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -1759,9 +1760,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_vector<edge_t>>>
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_vector<size_t>>>
 uniform_neighbor_sample(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
@@ -1769,9 +1770,9 @@ uniform_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   rmm::device_uvector<vertex_t>&& starting_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
+  std::optional<rmm::device_uvector<label_t>>&& starting_labels,
   std::optional<rmm::device_uvector<edge_t>>&& starting_vertex_offsets,
-  std::optional<rmm::device_uvector<int32_t>>&& batch_id_to_output_gpu_mapping,
+  std::optional<rmm::device_uvector<int32_t>>&& label_to_output_gpu_mapping,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool with_replacement = true);
