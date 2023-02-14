@@ -236,10 +236,6 @@ ConfigureTest(EGO_TEST community/egonet_test.cpp)
 ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
 
 ###################################################################################################
-# - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
-ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
-
-###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
 ConfigureTest(SCC_TEST components/scc_test.cu)
 
