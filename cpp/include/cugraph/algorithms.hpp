@@ -390,8 +390,7 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool do_expensive_check = false);
 
 enum class cugraph_cc_t {
-  CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
-  CUGRAPH_STRONG,    ///> Strongly Connected Components
+  CUGRAPH_STRONG,  ///> Strongly Connected Components
   NUM_CONNECTIVITY_TYPES
 };
 
