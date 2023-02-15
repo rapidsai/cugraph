@@ -28,9 +28,19 @@ mkdir -p "${RAPIDS_TESTS_DIR}" "${RAPIDS_COVERAGE_DIR}"
 
 rapids-print-env
 
+if [[ "${RAPIDS_CUDA_VERSION}" != "11.8" ]]; then
+  rapids-mamba-retry install \
+    --force-reinstall \
+    --channel pytorch \
+    --channel pytorch-nightly \
+    'pytorch::pytorch>=1.13.1' \
+    'pytorch-cuda>=11.7'
+fi
+
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel pyg \
   libcugraph \
   pylibcugraph \
   cugraph \
