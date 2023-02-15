@@ -81,14 +81,14 @@ def karate_gnn():
     el.dst = el.dst.astype("int64")
     all_vertices = np.array_split(cudf.concat([el.src, el.dst]).unique().values_host, 2)
 
-    F = FeatureStore(backend="numpy")
+    F = FeatureStore(backend="torch")
     F.add_data(
-        torch.arange(len(all_vertices[0]), dtype="float32") * 31,
+        torch.arange(len(all_vertices[0]), dtype=torch.float32) * 31,
         "type0",
         "prop0",
     )
     F.add_data(
-        torch.arange(len(all_vertices[1]), dtype="float32") * 41,
+        torch.arange(len(all_vertices[1]), dtype=torch.float32) * 41,
         "type1",
         "prop0",
     )

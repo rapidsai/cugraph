@@ -681,7 +681,9 @@ class EXPERIMENTAL__CuGraphStore:
                 nodes_of_interest,
             )
 
-            noi_types = vtypes.iloc[noi_type_indices].reset_index(drop=True)
+            noi_types = vtypes.iloc[cupy.asarray(noi_type_indices)].reset_index(
+                drop=True
+            )
             noi_starts = self.__vertex_type_offsets["start"][noi_type_indices]
 
             noi_types = cudf.Series(noi_types, name="t").groupby("t").groups

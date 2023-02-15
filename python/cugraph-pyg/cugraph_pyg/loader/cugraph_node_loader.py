@@ -177,10 +177,13 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
             rank_path = os.path.join(dir_path, f"rank={self.__rank}")
 
+            file_end_batch_incl = min(
+                self.__end_exclusive + self.__batches_per_partition - 1,
+                self.__starting_batch_id + self.__num_batches - 1,
+            )
             parquet_path = os.path.join(
                 rank_path,
-                f"batch={self.__end_exclusive}"
-                f"-{self.__end_exclusive + self.__batches_per_partition - 1}.parquet",
+                f"batch={self.__end_exclusive}" f"-{file_end_batch_incl}.parquet",
             )
 
             self.__end_exclusive += self.__batches_per_partition
