@@ -287,7 +287,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
   size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
-  assert(high_partition_degree_range_last > K);
+  assert(high_partition_over_sampling_K > K);
 
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier_degrees.size() * K, handle.get_stream());
 
