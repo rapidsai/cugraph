@@ -10,22 +10,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import pytest
-import cupy
 
 from cugraph_pyg.loader import CuGraphNeighborLoader
 from cugraph_pyg.data import CuGraphStore
+from cugraph.utilities.utils import import_optional, MissingModule
+
+torch = import_optional("torch")
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_basic(karate_gnn):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
+    cugraph_store = CuGraphStore(F, G, N, backend="torch")
     loader = CuGraphNeighborLoader(
         (cugraph_store, cugraph_store),
-        cupy.arange(N["type0"] + N["type1"], dtype="int64"),
+        torch.arange(N["type0"] + N["type1"], dtype=torch.int64),
         10,
         num_neighbors=[4, 4],
         random_state=62,
