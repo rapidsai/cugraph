@@ -28,7 +28,7 @@ mkdir -p "${RAPIDS_TESTS_DIR}" "${RAPIDS_COVERAGE_DIR}"
 
 rapids-print-env
 
-if [[ "${RAPIDS_CUDA_VERSION}" != "11.8" ]]; then
+if [[ "${RAPIDS_CUDA_VERSION}" != "11.8.0" ]]; then
   rapids-mamba-retry install \
     --force-reinstall \
     --channel pytorch \
