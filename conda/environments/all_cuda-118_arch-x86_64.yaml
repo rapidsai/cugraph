@@ -36,7 +36,6 @@ dependencies:
 - notebook>=0.5.0
 - numpydoc
 - nvcc_linux-64=11.8
-- ogb
 - openmpi
 - pip
 - pre-commit
