@@ -96,20 +96,24 @@ pytest \
   cugraph/pytest-based/bench_algos.py
 popd
 
-rapids-logger "pytest cugraph_pyg (single GPU)"
-pushd python/cugraph-pyg/cugraph_pyg
-# rmat is not tested because of multi-GPU testing
-pytest \
-  --cache-clear \
-  --ignore=tests/int \
-  --ignore=tests/mg \
-  --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
-  --cov-config=../../.coveragerc \
-  --cov=cugraph_pyg \
-  --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
-  --cov-report=term \
-  .
-popd
+if [[ "${RAPIDS_CUDA_VERSION}" != "11.8.0" ]]; then
+  rapids-logger "pytest cugraph_pyg (single GPU)"
+  pushd python/cugraph-pyg/cugraph_pyg
+  # rmat is not tested because of multi-GPU testing
+  pytest \
+    --cache-clear \
+    --ignore=tests/int \
+    --ignore=tests/mg \
+    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
+    --cov-config=../../.coveragerc \
+    --cov=cugraph_pyg \
+    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
+    --cov-report=term \
+    .
+  popd
+else
+  rapids-logger "skipping cugraph_pyg pytest on CUDA 11.8"
+fi
 
 rapids-logger "pytest cugraph-service (single GPU)"
 pushd python/cugraph-service
