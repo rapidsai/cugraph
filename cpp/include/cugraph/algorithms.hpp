@@ -390,8 +390,7 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool do_expensive_check = false);
 
 enum class cugraph_cc_t {
-  CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
-  CUGRAPH_STRONG,    ///> Strongly Connected Components
+  CUGRAPH_STRONG,  ///> Strongly Connected Components
   NUM_CONNECTIVITY_TYPES
 };
 
@@ -1704,54 +1703,6 @@ k_core(raft::handle_t const& handle,
        std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check = false);
-
-/**
- * @brief Uniform Neighborhood Sampling.
- *
- * @deprecated This function should be replaced with uniform_neighbor_sample.  Input of the
- * new function adds an optional parameter, output has a number of extra fields.
- *
- * This function traverses from a set of starting vertices, traversing outgoing edges and
- * randomly selects from these outgoing neighbors to extract a subgraph.
- *
- * Output from this function a set of tuples (src, dst, weight, count), identifying the randomly
- * selected edges.  src is the source vertex, dst is the destination vertex, weight is the weight
- * of the edge and count identifies the number of times this edge was encountered during the
- * sampling of this graph (so it is >= 1).
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param starting_vertices Device span of starting vertex IDs for the NBR Sampling.
- * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
- * level
- * @param with_replacement boolean flag specifying if random sampling is done with replacement
- * (true); or, without replacement (false); default = true;
- * @param seed A seed to initialize the random number generator
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t
- * weight, edge_t count)
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<weight_t>,
-           rmm::device_uvector<edge_t>>
-uniform_nbr_sample(raft::handle_t const& handle,
-                   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-                   raft::device_span<vertex_t> starting_vertices,
-                   raft::host_span<const int> fan_out,
-                   bool with_replacement = true,
-                   uint64_t seed         = 0);
 
 /**
  * @brief Uniform Neighborhood Sampling.

@@ -17,7 +17,6 @@ build:
   string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
     - PARALLEL_LEVEL
-  preserve_egg_dir: True
 
 requirements:
   build:
@@ -26,19 +25,16 @@ requirements:
     - cython >=0.29,<0.30
     - python x.x
     - scikit-build >=0.13.1
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools <=65.2.0
   run:
-    - distributed ==2023.1.1
+    - distributed >=2023.1.1
     - numba >=0.56.2
     - numpy
     - pytorch <=1.12.1
     # - pyg (uncomment once pyg 2.2 is released)
 
-# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
-tests:                                 # [linux64]
-  imports:                             # [linux64]
-    - cugraph_pyg                      # [linux64]
+tests:
+  imports:
+    - cugraph_pyg
     # - cugraph_service (uncomment once cugraph-service int. tests ready)
 
 about:

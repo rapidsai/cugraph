@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,6 @@ from pylibcugraph.structure.graph_utilities cimport *
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
     ctypedef enum cugraph_cc_t:
-        CUGRAPH_WEAK "cugraph::cugraph_cc_t::CUGRAPH_WEAK"
         CUGRAPH_STRONG "cugraph::cugraph_cc_t::CUGRAPH_STRONG"
         NUM_CONNECTIVITY_TYPES "cugraph::cugraph_cc_t::NUM_CONNECTIVITY_TYPES"
 
