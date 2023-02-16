@@ -18,7 +18,7 @@ from cugraph_pyg.data import CuGraphStore
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_cugraph_loader_basic(dask_client, karate_gnn):
     F, G, N = karate_gnn

@@ -29,7 +29,7 @@ from random import randint
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_tensor_attr():
     ta = CuGraphTensorAttr("group0", "property1")
@@ -61,7 +61,7 @@ def test_tensor_attr():
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_edge_attr():
     ea = CuGraphEdgeAttr("type0", EdgeLayout.COO, False, 10)
@@ -97,7 +97,7 @@ def single_vertex_graph(request):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_get_edge_index(graph, dask_client):
     F, G, N = graph
@@ -113,7 +113,7 @@ def test_get_edge_index(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_edge_types(graph, dask_client):
     F, G, N = graph
@@ -128,7 +128,7 @@ def test_edge_types(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_get_subgraph(graph, dask_client):
     F, G, N = graph
@@ -148,7 +148,7 @@ def test_get_subgraph(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     F, G, N = single_vertex_graph
@@ -161,7 +161,7 @@ def test_renumber_vertices_basic(single_vertex_graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_renumber_vertices_multi_edge_multi_vertex(
     multi_edge_multi_vertex_graph_1, dask_client
@@ -183,7 +183,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_renumber_edges(graph, dask_client):
     """
@@ -266,7 +266,7 @@ def test_renumber_edges(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_get_tensor(graph, dask_client):
     F, G, N = graph
@@ -293,7 +293,7 @@ def test_get_tensor(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_multi_get_tensor(graph, dask_client):
     F, G, N = graph
@@ -322,7 +322,7 @@ def test_multi_get_tensor(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_get_all_tensor_attrs(graph, dask_client):
     F, G, N = graph
@@ -364,7 +364,7 @@ def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_clien
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_get_tensor_from_tensor_attrs(graph, dask_client):
     F, G, N = graph
@@ -380,7 +380,7 @@ def test_get_tensor_from_tensor_attrs(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_get_tensor_size(graph, dask_client):
     F, G, N = graph
@@ -395,7 +395,7 @@ def test_get_tensor_size(graph, dask_client):
 
 
 @pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3245"
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
 )
 def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
