@@ -32,7 +32,6 @@ build:
     - SCCACHE_S3_KEY_PREFIX=cugraph-linux64 # [linux64]
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
-  preserve_egg_dir: True
 
 requirements:
   build:
@@ -84,12 +83,11 @@ requirements:
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
 
-# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
-tests:                                 # [linux64]
-  requirements:                        # [linux64]
-    - cudatoolkit ={{ cuda_version }}  # [linux64]
-  imports:                             # [linux64]
-    - cugraph                          # [linux64]
+tests:
+  requirements:
+    - cudatoolkit ={{ cuda_version }}
+  imports:
+    - cugraph
 
 about:
   home: https://rapids.ai/
