@@ -1721,6 +1721,7 @@ k_core(raft::handle_t const& handle,
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1746,7 +1747,7 @@ k_core(raft::handle_t const& handle,
  * (true); or, without replacement (false); default = true;
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional int32_t hop, optional int32_t label, optional edge_t offsets)
+ * optional int32_t hop, optional int32_t label, optional size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
