@@ -155,6 +155,7 @@ fixture_params = gen_fixture_params_product(
 )
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -164,6 +165,7 @@ def input_combo(request):
     return dict(zip(("graph_file", "edgevals", "multi_columns"), request.param))
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def read_datasets(input_combo):
     """
@@ -207,6 +209,7 @@ def read_datasets(input_combo):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
+@pytest.mark.mg_test
 def test_mg_symmetrize(dask_client, read_datasets):
 
     ddf = read_datasets["ddf"]
@@ -243,6 +246,7 @@ def test_mg_symmetrize(dask_client, read_datasets):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
+@pytest.mark.mg_test
 def test_mg_symmetrize_df(dask_client, read_datasets):
     ddf = read_datasets["ddf"]
     src_col_name = read_datasets["src_col_name"]

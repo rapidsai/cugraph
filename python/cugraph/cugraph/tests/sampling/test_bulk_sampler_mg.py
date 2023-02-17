@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 import cudf
 import dask_cudf
 import cupy
@@ -22,6 +23,7 @@ import tempfile
 import os
 
 
+@pytest.mark.mg_test
 def test_bulk_sampler_simple(dask_client):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -64,6 +66,7 @@ def test_bulk_sampler_simple(dask_client):
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
 
+@pytest.mark.mg_test
 def test_bulk_sampler_remainder(dask_client):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -127,6 +130,7 @@ def test_bulk_sampler_remainder(dask_client):
     ).all()
 
 
+@pytest.mark.mg_test
 def test_bulk_sampler_mg_graph_sg_input(dask_client):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")

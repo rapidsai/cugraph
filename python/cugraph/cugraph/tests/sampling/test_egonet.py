@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import gc
-
 import pytest
 
 import cudf

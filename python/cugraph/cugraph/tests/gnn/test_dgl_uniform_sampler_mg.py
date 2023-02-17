@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import pytest
 import dask_cudf
 import cudf
 import pandas as pd
@@ -43,6 +45,7 @@ def convert_array_dict_to_df(d):
     return df_d
 
 
+@pytest.mark.mg_test
 def test_sampling_homogeneous_gs_out_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -83,6 +86,7 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
         assert_correct_eids(df.compute(), sample_edge_id_df)
 
 
+@pytest.mark.mg_test
 def test_sampling_homogeneous_gs_in_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -151,6 +155,7 @@ def create_gs_heterogeneous_dgl_sampler():
     return DGLUniformSampler(edge_list_dict, edge_id_range_dict, False)
 
 
+@pytest.mark.mg_test
 def test_sampling_gs_heterogeneous_out_dir(dask_client):
     sampler = create_gs_heterogeneous_dgl_sampler()
     # DGL expected_output from
@@ -220,6 +225,7 @@ def test_sampling_gs_heterogeneous_out_dir(dask_client):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.mg_test
 def test_sampling_gs_heterogeneous_in_dir(dask_client):
     sampler = create_gs_heterogeneous_dgl_sampler()
     # DGL expected_output from
@@ -278,6 +284,7 @@ def test_sampling_gs_heterogeneous_in_dir(dask_client):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.mg_test
 def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
     gs = create_gs_heterogeneous_dgl_sampler()
     # Test against DGLs output

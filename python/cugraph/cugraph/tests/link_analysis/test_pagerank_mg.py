@@ -19,7 +19,7 @@ import dask_cudf
 from cugraph.testing import utils
 import cudf
 
-# from cugraph.dask.common.mg_utils import is_single_gpu
+from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 
@@ -64,9 +64,8 @@ def setup_function():
     gc.collect()
 
 
-# @pytest.mark.skipif(
-#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-# )
+@pytest.mark.mg_test
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
@@ -159,6 +158,7 @@ def test_dask_pagerank(
     assert err == 0
 
 
+@pytest.mark.mg_test
 def test_pagerank_invalid_personalization_dtype(dask_client):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
 
@@ -195,6 +195,7 @@ def test_pagerank_invalid_personalization_dtype(dask_client):
         dcg.pagerank(dg, personalization=personalization_vec)
 
 
+@pytest.mark.mg_test
 def test_dask_pagerank_transposed_false(dask_client):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
 

@@ -170,6 +170,7 @@ def check_random_walks(G, path_data, seeds, max_depth, df_G=None):
     assert max_path_length == max_depth
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_graph(request):
     """
@@ -202,6 +203,7 @@ def input_graph(request):
     return dg
 
 
+@pytest.mark.mg_test
 @pytest.mark.cugraph_ops
 def test_dask_random_walks(dask_client, benchmark, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)

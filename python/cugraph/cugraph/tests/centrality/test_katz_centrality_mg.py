@@ -34,6 +34,7 @@ def setup_function():
 IS_DIRECTED = [True, False]
 
 
+@pytest.mark.mg_test
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_katz_centrality(dask_client, directed):
@@ -93,6 +94,7 @@ def test_dask_katz_centrality(dask_client, directed):
     assert err == 0
 
 
+@pytest.mark.mg_test
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_katz_centrality_nstart(dask_client, directed):
@@ -141,6 +143,7 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
     assert err == 0
 
 
+@pytest.mark.mg_test
 def test_dask_katz_centrality_transposed_false(dask_client):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
 

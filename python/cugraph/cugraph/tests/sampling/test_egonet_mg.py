@@ -54,6 +54,7 @@ fixture_params = gen_fixture_params_product(
 )
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -65,6 +66,7 @@ def input_combo(request):
     return parameters
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def input_expected_output(input_combo):
     """
@@ -115,6 +117,7 @@ def input_expected_output(input_combo):
 # =============================================================================
 
 
+@pytest.mark.mg_test
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_dask_ego_graphs(dask_client, benchmark, input_expected_output):
 

@@ -13,7 +13,6 @@
 
 import gc
 import random
-
 import pytest
 
 from cugraph.testing import utils

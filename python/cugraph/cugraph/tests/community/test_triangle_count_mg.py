@@ -41,6 +41,7 @@ fixture_params = gen_fixture_params_product(
 )
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -52,6 +53,7 @@ def input_combo(request):
     return parameters
 
 
+@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def input_expected_output(dask_client, input_combo):
     """

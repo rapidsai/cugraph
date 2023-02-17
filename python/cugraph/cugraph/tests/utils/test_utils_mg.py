@@ -41,6 +41,7 @@ IS_DIRECTED = [True, False]
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
+@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_from_edgelist(dask_client, directed):
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
@@ -68,6 +69,7 @@ def test_from_edgelist(dask_client, directed):
     assert dg1.EdgeList == dg2.EdgeList
 
 
+@pytest.mark.mg_test
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.skip(reason="MG not supported on CI")
 def test_parquet_concat_within_workers(dask_client):

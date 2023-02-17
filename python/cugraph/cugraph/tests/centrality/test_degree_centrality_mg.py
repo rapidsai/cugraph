@@ -39,6 +39,7 @@ DATA_PATH = [
 ]
 
 
+@pytest.mark.mg_test
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("data_file", DATA_PATH)

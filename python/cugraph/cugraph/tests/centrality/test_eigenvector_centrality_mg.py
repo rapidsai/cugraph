@@ -34,6 +34,7 @@ def setup_function():
 IS_DIRECTED = [True, False]
 
 
+@pytest.mark.mg_test
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("input_data_path", DATASETS)
@@ -85,6 +86,7 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
     assert err == 0
 
 
+@pytest.mark.mg_test
 def test_dask_eigenvector_centrality_transposed_false(dask_client):
     input_data_path = DATASETS[0]
 
