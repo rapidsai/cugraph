@@ -203,15 +203,10 @@ def _create_heterogenous_sampled_graphs_from_tensors_perhop(
     graph_per_hop_ls = []
     output_nodes = None
 
-    edges_dict = {}
     seed_nodes = None
     for hop_edges_dict in tensors_perhop_ls:
-        for etype, (src_ids, dst_ids, edge_ids) in hop_edges_dict.items():
-            edges_dict[etype] = src_ids, dst_ids, edge_ids
         block = create_heterogenous_dgl_block_from_tensors_dict(
-            edges_dict,
-            num_nodes_dict,
-            seed_nodes,
+            hop_edges_dict, num_nodes_dict, seed_nodes
         )
         seed_nodes = block.srcdata[dgl.NID]
         if output_nodes is None:
