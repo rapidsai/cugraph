@@ -14,8 +14,10 @@ from __future__ import annotations
 from typing import Tuple, Dict, Optional
 from collections import defaultdict
 import cudf
-import torch
-import dgl
+from cugraph.utilities.utils import import_optional
+
+dgl = import_optional("dgl")
+torch = import_optional("torch")
 
 
 def cast_to_tensor(ser: cudf.Series):
