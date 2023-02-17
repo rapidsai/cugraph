@@ -124,6 +124,7 @@ dependencies:
       - output_types: [conda]
         packages:
           - doxygen
+          - graphviz
           - ipython
           - nbsphinx
           - numpydoc
