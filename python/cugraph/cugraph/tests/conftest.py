@@ -12,7 +12,11 @@
 # limitations under the License.
 
 import pytest
-from cugraph.dask.common.mg_utils import start_dask_client, teardown_local_dask_cluster
+from cugraph.dask.common.mg_utils import (
+    start_dask_client,
+    setup_local_dask_cluster, 
+    teardown_local_dask_cluster,
+)
 
 # module-wide fixtures
 
@@ -31,7 +35,7 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    cluster, client = start_dask_client()
+    cluster, client = setup_local_dask_cluster()
     yield client
 
     teardown_local_dask_cluster(cluster, client)
