@@ -200,16 +200,22 @@ mg_graph_to_sg_graph(
     }
   }
 
-  rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
-  cugraph::detail::sequence_fill(
-    handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
+  rmm::device_uvector<vertex_t> vertices(0, handle.get_stream());
+  if (number_map) {
+    vertices = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{(*number_map).data(), (*number_map).size()});
+  } else {
+    vertices.resize(graph_view.number_of_vertices(), handle.get_stream());
+    cugraph::detail::sequence_fill(
+      handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
+  }
 
-  graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
+  graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
-    edge_weights{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+    sg_edge_weights{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> sg_number_map;
 
-  std::tie(graph, edge_weights, std::ignore, new_number_map) = cugraph::
+  std::tie(sg_graph, sg_edge_weights, std::ignore, sg_number_map) = cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, false>(
       handle,
       std::make_optional(std::move(vertices)),
@@ -220,7 +226,7 @@ mg_graph_to_sg_graph(
       cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
       renumber);
 
-  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(new_number_map));
+  return std::make_tuple(std::move(sg_graph), std::move(sg_edge_weights), std::move(sg_number_map));
 }
 
 }  // namespace test

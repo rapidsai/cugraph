@@ -97,16 +97,8 @@ class Tests_MGBetweennessCentrality
       d_seeds = cugraph::test::randomly_select(*handle_, d_seeds, betweenness_usecase.num_seeds);
     }
 
-    d_seeds = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(d_seeds));
-
-    cugraph::renumber_ext_vertices<vertex_t, true>(
-      *handle_,
-      d_seeds.data(),
-      d_seeds.size(),
-      mg_renumber_map->data(),
-      mg_graph_view.local_vertex_partition_range_first(),
-      mg_graph_view.local_vertex_partition_range_last());
+    d_seeds = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_seeds), mg_graph_view.vertex_partition_range_lasts());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -132,23 +124,46 @@ class Tests_MGBetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
-      d_centralities = cugraph::test::device_gatherv(
-        *handle_, raft::device_span<weight_t const>{d_centralities.data(), d_centralities.size()});
+      if (mg_renumber_map) {
+        cugraph::unrenumber_local_int_vertices(*handle_,
+                                               d_seeds.data(),
+                                               d_seeds.size(),
+                                               (*mg_renumber_map).data(),
+                                               mg_graph_view.local_vertex_partition_range_first(),
+                                               mg_graph_view.local_vertex_partition_range_last());
+      }
+
       d_seeds = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()});
 
       auto [sg_graph, sg_edge_weights, sg_renumber_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        // Preserve renumbering of MG graph when creating SG graph
-        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
-        false);
+        *handle_, mg_graph_view, mg_edge_weight_view, mg_renumber_map, false);
+
+      auto sg_graph_view = sg_graph.view();
+
+      if (sg_renumber_map) {
+        cugraph::renumber_ext_vertices<vertex_t, false>(
+          *handle_,
+          d_seeds.data(),
+          d_seeds.size(),
+          (*sg_renumber_map).data(),
+          sg_graph_view.local_vertex_partition_range_first(),
+          sg_graph_view.local_vertex_partition_range_last());
+      }
+
+      if (mg_renumber_map) {
+        mg_renumber_map = cugraph::test::device_gatherv(
+          *handle_,
+          raft::device_span<vertex_t const>((*mg_renumber_map).data(), (*mg_renumber_map).size()));
+      }
+
+      d_centralities = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<weight_t const>{d_centralities.data(), d_centralities.size()});
 
       if (my_rank == 0) {
         auto d_reference_centralities = cugraph::betweenness_centrality(
           *handle_,
-          sg_graph.view(),
+          sg_graph_view,
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
           std::make_optional<raft::device_span<vertex_t const>>(
             raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
@@ -157,7 +172,7 @@ class Tests_MGBetweennessCentrality
           do_expensive_check);
 
         cugraph::test::betweenness_centrality_validate<vertex_t, weight_t>(
-          *handle_, std::nullopt, d_centralities, std::nullopt, d_reference_centralities);
+          *handle_, mg_renumber_map, d_centralities, sg_renumber_map, d_reference_centralities);
       }
     }
   }

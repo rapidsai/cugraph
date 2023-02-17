@@ -88,16 +88,15 @@ class Tests_MGEdgeBetweennessCentrality
     rmm::device_uvector<vertex_t> d_seeds(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(),
-                                            handle_->get_stream());
+      d_seeds.resize(mg_graph_view.number_of_vertices(), handle_->get_stream());
       cugraph::detail::sequence_fill(
         handle_->get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
 
       d_seeds = cugraph::test::randomly_select(*handle_, d_seeds, betweenness_usecase.num_seeds);
     }
 
-    d_seeds = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(d_seeds));
+    d_seeds = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_seeds), mg_graph_view.vertex_partition_range_lasts());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

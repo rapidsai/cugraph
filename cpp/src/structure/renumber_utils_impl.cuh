@@ -363,8 +363,12 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
   std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>> renumber_map_ptr{nullptr};
   if (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices, handle.get_stream());
     sorted_unique_ext_vertices.resize(
@@ -400,7 +404,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       collect_values_for_unique_keys(comm,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
-                                     detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
+                                     detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                       comm_size, major_comm_size, minor_comm_size},
                                      handle.get_stream());
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
