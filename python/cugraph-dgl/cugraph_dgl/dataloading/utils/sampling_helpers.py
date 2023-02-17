@@ -19,7 +19,6 @@ import dgl
 
 
 def cast_to_tensor(ser: cudf.Series):
-    # TODO: Maybe use torch.as_tensor
     return torch.as_tensor(ser.values, device="cuda")
 
 
@@ -92,7 +91,7 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
         )
         seed_nodes = block.srcdata[dgl.NID]
         if output_nodes is None:
-            output_nodes = seed_nodes
+            output_nodes = block.dstdata[dgl.NID]
         graph_per_hop_ls.append(block)
 
     # default DGL behavior
@@ -214,7 +213,7 @@ def _create_heterogenous_sampled_graphs_from_tensors_perhop(
         )
         seed_nodes = block.srcdata[dgl.NID]
         if output_nodes is None:
-            output_nodes = seed_nodes
+            output_nodes = block.dstdata[dgl.NID]
         graph_per_hop_ls.append(block)
 
     # default DGL behavior
