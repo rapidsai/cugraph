@@ -24,8 +24,6 @@ import sys
 # is relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
 sys.path.insert(0, os.path.abspath('sphinxext'))
-sys.path.insert(0, os.path.abspath('../../python'))
-sys.path.insert(0, os.path.abspath('../..'))
 
 from github_link import make_linkcode_resolve # noqa
 
