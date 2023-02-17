@@ -131,7 +131,7 @@ struct leiden_key_aggregated_edge_op_t {
       }
     }
 
-    printf("\n%d %d %f\n", src, neighboring_leiden_cluster, theta);
+    //printf("\n%d %d %f\n", src, neighboring_leiden_cluster, theta);
 
     return thrust::make_tuple(neighboring_leiden_cluster, theta);
   }
@@ -859,15 +859,15 @@ refine_clustering(
     //
     // Filter out moves with -ve gains
     //
-    auto nr_valid_tuples = static_cast<vertex_t>(
-      thrust::distance(d_src_dst_gain_iterator,
-        thrust::copy_if(handle.get_thrust_policy(),
-                        edge_begin,
-                        edge_end,
-                        d_src_dst_gain_iterator,
-                        [] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-                          return (thrust::get<2>(src_dst_gain)) > 0.0;
-                        })));
+    auto nr_valid_tuples = static_cast<vertex_t>(thrust::distance(
+      d_src_dst_gain_iterator,
+      thrust::copy_if(handle.get_thrust_policy(),
+                      edge_begin,
+                      edge_end,
+                      d_src_dst_gain_iterator,
+                      [] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
+                        return (thrust::get<2>(src_dst_gain)) > 0.0;
+                      })));
 
     cudaDeviceSynchronize();
 
@@ -959,17 +959,41 @@ refine_clustering(
                           numbering_indices.size(),
                           decision_graph_view.local_vertex_partition_range_first());
 
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "chosen_nodes", chosen_nodes.data(), chosen_nodes.size(), std::cout);
+
+      raft::print_device_vector(
+        "renumber_map", (*renumber_map).data(), (*renumber_map).size(), std::cout);
+
+      raft::print_device_vector(
+        "numbering_indices", numbering_indices.data(), numbering_indices.size(), std::cout);
+    }
+
     //
     // Apply Renumber map to get original node ids
     //
     relabel<vertex_t, multi_gpu>(
       handle,
-      std::make_tuple(static_cast<vertex_t const*>((*renumber_map).begin()),
-                      static_cast<vertex_t const*>(numbering_indices.begin())),
+      std::make_tuple(static_cast<vertex_t const*>(numbering_indices.begin()),
+                      static_cast<vertex_t const*>((*renumber_map).begin())),
       decision_graph_view.local_vertex_partition_range_size(),
       chosen_nodes.data(),
       chosen_nodes.size(),
       false);
+
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "chosen_nodes", chosen_nodes.data(), chosen_nodes.size(), std::cout);
+
+      raft::print_device_vector(
+        "renumber_map", (*renumber_map).data(), (*renumber_map).size(), std::cout);
+
+      raft::print_device_vector(
+        "numbering_indices", numbering_indices.data(), numbering_indices.size(), std::cout);
+    }
 
     //
     // Move chosen leiden communities to their targets
@@ -991,6 +1015,28 @@ refine_clustering(
           thrust::seq, d_nodes_to_move, d_nodes_to_move + num_nodes_to_move, id_to_lookup);
       });
 
+    if (debug) {
+      rmm::device_uvector<vertex_t> vertices_to_move(leiden_assignment.size(), handle.get_stream());
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      flags_move.begin(),
+                      vertices_to_move.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      vertex_t nr_vertices_to_move = thrust::count_if(
+        handle.get_thrust_policy(), flags_move.begin(), flags_move.end(), [] __device__(auto flag) {
+          return flag > 0;
+        });
+
+      vertices_to_move.resize(nr_vertices_to_move, handle.get_stream());
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "vertices_to_move ", vertices_to_move.data(), vertices_to_move.size(), std::cout);
+    }
+
     // Nodes that are moving become non-singleton
 
     thrust::transform(
@@ -1007,13 +1053,13 @@ refine_clustering(
       decision_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     target_comms.resize(static_cast<size_t>(thrust::distance(
+                          target_comms.begin(),
                           thrust::copy_if(handle.get_thrust_policy(),
                                           thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
                                           thrust::get<0>(dst_and_gain_last.get_iterator_tuple()),
                                           flags_move.begin(),
                                           target_comms.begin(),
-                                          [] __device__(auto is_moving) { return is_moving; }),
-                          target_comms.begin())),
+                                          [] __device__(auto is_moving) { return is_moving; }))),
                         handle.get_stream());
 
     thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
