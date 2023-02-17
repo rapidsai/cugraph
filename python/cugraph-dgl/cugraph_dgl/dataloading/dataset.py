@@ -20,9 +20,10 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_heterogeneous_sampled_graphs_from_dataframe,
 )
 
-# TODO: Make optional imports
-import torch
-import dgl
+from cugraph.utilities.utils import import_optional
+
+dgl = import_optional("dgl")
+torch = import_optional("torch")
 
 
 # Todo: maybe should switch to __iter__

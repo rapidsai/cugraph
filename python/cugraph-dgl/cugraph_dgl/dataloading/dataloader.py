@@ -13,14 +13,11 @@
 from __future__ import annotations
 import os
 import shutil
-import torch
 import cugraph_dgl
 import cupy as cp
 import cudf
 from cugraph.experimental import BulkSampler
 from dask.distributed import default_client, Event
-import dgl
-from dgl.dataloading import WorkerInitWrapper, create_tensorized_dataset
 from cugraph_dgl.dataloading import (
     HomogenousBulkSamplerDataset,
     HetrogenousBulkSamplerDataset,
@@ -28,6 +25,10 @@ from cugraph_dgl.dataloading import (
 from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
     create_cugraph_graph_from_edges_dict,
 )
+from cugraph.utilities.utils import import_optional
+
+dgl = import_optional("dgl")
+torch = import_optional("torch")
 
 
 class DataLoader(torch.utils.data.DataLoader):
@@ -128,7 +129,9 @@ class DataLoader(torch.utils.data.DataLoader):
         self.shuffle = shuffle
         self.drop_last = drop_last
         self.graph_sampler = graph_sampler
-        worker_init_fn = WorkerInitWrapper(kwargs.get("worker_init_fn", None))
+        worker_init_fn = dgl.dataloading.WorkerInitWrapper(
+            kwargs.get("worker_init_fn", None)
+        )
         self.other_storages = {}
         self.epoch_number = 0
         self._batch_size = batch_size
@@ -138,7 +141,7 @@ class DataLoader(torch.utils.data.DataLoader):
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
-        self.tensorized_indices_ds = create_tensorized_dataset(
+        self.tensorized_indices_ds = dgl.dataloading.create_tensorized_dataset(
             indices, batch_size, drop_last, use_ddp, ddp_seed, shuffle
         )
         if len(graph.ntypes) <= 1:
