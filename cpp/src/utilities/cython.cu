@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
@@ -124,12 +124,12 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
   edge_t num_edgelist_edges,
   bool is_weighted)
 {
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> ptr_ret =
     std::make_unique<major_minor_weights_t<vertex_t, edge_t, weight_t>>(handle);
@@ -147,7 +147,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
         zip_edge + num_edgelist_edges,
         [key_func =
            cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-             comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
+             comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
         handle.get_stream());
@@ -163,19 +163,16 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
         zip_edge + num_edgelist_edges,
         [key_func =
            cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-             comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
+             comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
         handle.get_stream());
   }
 
   auto local_partition_id_op =
-    [comm_size,
-     key_func = cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
-       comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
-      return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
-             comm_size;  // global partition id to local partition id
-    };
+    cugraph::detail::compute_local_edge_partition_id_from_ext_edge_endpoints_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size};
+
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(ptr_ret->get_major().data(), ptr_ret->get_minor().data()));
 
@@ -184,13 +181,13 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
                                                     pair_first + ptr_ret->get_major().size(),
                                                     ptr_ret->get_weights().data(),
                                                     local_partition_id_op,
-                                                    col_comm_size,
+                                                    minor_comm_size,
                                                     false,
                                                     handle.get_stream())
                        : cugraph::groupby_and_count(pair_first,
                                                     pair_first + ptr_ret->get_major().size(),
                                                     local_partition_id_op,
-                                                    col_comm_size,
+                                                    minor_comm_size,
                                                     false,
                                                     handle.get_stream());
 
@@ -272,8 +269,7 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
 // Helper for setting up subcommunicators
 void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
 {
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t> subcomm_factory(handle,
-                                                                              row_comm_size);
+  partition_manager::init_subcomm(handle, row_comm_size);
 }
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, float>> call_shuffle(
