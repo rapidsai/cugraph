@@ -21,6 +21,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
@@ -874,5 +875,32 @@ weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/**
+ * @brief Select random vertices
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
+ * edge weight sums.
+ * @param  rng_state The RngState instance holding pseudo-random number generator state.
+ * @param  select_count The number of vertices to select from the graph
+ * @param  with_replacement If true, select with replacement, if false select without replacement
+ * @return Device vector of selected vertices.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state,
+  vertex_t select_count,
+  bool with_replacement);
 
 }  // namespace cugraph

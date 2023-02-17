@@ -165,7 +165,9 @@ class EXPERIMENTAL__BulkSampler:
         min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
-        partitions_per_call = self.seeds_per_call // partition_size
+        partitions_per_call = (
+            self.seeds_per_call + partition_size - 1
+        ) // partition_size
         npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1

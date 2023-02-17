@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.02.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 23.04.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -220,12 +220,10 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sampling_utils_sg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
-    src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
-    src/traversal/legacy/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
     src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
@@ -255,6 +253,8 @@ set(CUGRAPH_SOURCES
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
     src/structure/induced_subgraph_mg.cu
+    src/structure/select_random_vertices_sg.cpp
+    src/structure/select_random_vertices_mg.cpp
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
@@ -461,7 +461,6 @@ endif()
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
         PUBLIC
-                CUDA::cublas${_ctk_static_suffix}
                 CUDA::curand${_ctk_static_suffix}
                 CUDA::cusolver${_ctk_static_suffix}
                 CUDA::cusparse${_ctk_static_suffix}

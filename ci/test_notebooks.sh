@@ -30,7 +30,7 @@ rapids-mamba-retry install \
   libcugraph pylibcugraph cugraph
 
 NBTEST="$(realpath "$(dirname "$0")/utils/nbtest.sh")"
-NOTEBOOK_LIST="$(realpath "$(dirname "$0")/gpu/notebook_list.py")"
+NOTEBOOK_LIST="$(realpath "$(dirname "$0")/notebook_list.py")"
 EXITCODE=0
 trap "EXITCODE=1" ERR
 

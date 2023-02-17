@@ -118,3 +118,42 @@ def test_bulk_sampler_remainder():
     assert (
         cudf.read_parquet(os.path.join(tld, "batch=6-6.parquet")).batch_id == 6
     ).all()
+
+
+def test_bulk_sampler_large_batch_size():
+    el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
+    el["eid"] = el["eid"].astype("int32")
+    el["etp"] = cupy.int32(0)
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        el,
+        source="src",
+        destination="dst",
+        edge_attr=["wgt", "eid", "etp"],
+        legacy_renum_only=True,
+    )
+
+    tempdir_object = tempfile.TemporaryDirectory()
+    bs = BulkSampler(
+        batch_size=5120,
+        output_path=tempdir_object.name,
+        graph=G,
+        fanout_vals=[2, 2],
+        with_replacement=False,
+    )
+
+    batches = cudf.DataFrame(
+        {
+            "start": cudf.Series([0, 5, 10, 15], dtype="int32"),
+            "batch": cudf.Series([0, 0, 1, 1], dtype="int32"),
+        }
+    )
+
+    bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
+    bs.flush()
+
+    recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
+
+    for b in batches["batch"].unique().values_host.tolist():
+        assert b in recovered_samples["batch_id"].values_host.tolist()
