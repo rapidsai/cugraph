@@ -18,6 +18,7 @@ jobs:
       - conda-notebook-tests
       - conda-python-build
       - conda-python-tests
+      - conda-python-cugraph-dgl-tests
       - wheel-build-pylibcugraph
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
