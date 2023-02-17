@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2018-2023, NVIDIA CORPORATION.
 #
 # pygdf documentation build configuration file, created by
