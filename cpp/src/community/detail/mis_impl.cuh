@@ -78,6 +78,7 @@ rmm::device_uvector<vertex_t> compute_mis(
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  using FlagType      = vertex_t;
 
   vertex_t number_of_vertices = graph_view.local_vertex_partition_range_size();
 
@@ -95,17 +96,19 @@ rmm::device_uvector<vertex_t> compute_mis(
   //
   // Flag to indicate if a vertex is included in the MIS
   //
-  rmm::device_uvector<uint8_t> mis_inclusion_flags(number_of_vertices, handle.get_stream());
-  thrust::uninitialized_fill(
-    handle.get_thrust_policy(), mis_inclusion_flags.begin(), mis_inclusion_flags.end(), uint8_t{0});
+  rmm::device_uvector<FlagType> mis_inclusion_flags(number_of_vertices, handle.get_stream());
+  thrust::uninitialized_fill(handle.get_thrust_policy(),
+                             mis_inclusion_flags.begin(),
+                             mis_inclusion_flags.end(),
+                             FlagType{0});
 
   //
   // Falg to indicate if a vertex should be discarded from consideration, either
   // because itself or one of its neighbor is included in the MIS
   //
-  rmm::device_uvector<uint8_t> discard_flags(number_of_vertices, handle.get_stream());
+  rmm::device_uvector<FlagType> discard_flags(number_of_vertices, handle.get_stream());
   thrust::uninitialized_fill(
-    handle.get_thrust_policy(), discard_flags.begin(), discard_flags.end(), uint8_t{0});
+    handle.get_thrust_policy(), discard_flags.begin(), discard_flags.end(), FlagType{0});
 
   rmm::device_uvector<vertex_t> remaining_candidates(0, handle.get_stream());
 
@@ -194,11 +197,11 @@ rmm::device_uvector<vertex_t> compute_mis(
     }
 
     // Flag vertices that are selected to be part of the MIS upon validity checks
-    rmm::device_uvector<uint8_t> selection_flags(graph_view.local_vertex_partition_range_size(),
-                                                 handle.get_stream());
+    rmm::device_uvector<FlagType> selection_flags(graph_view.local_vertex_partition_range_size(),
+                                                  handle.get_stream());
 
     thrust::uninitialized_fill(
-      handle.get_thrust_policy(), selection_flags.begin(), selection_flags.end(), uint8_t{0});
+      handle.get_thrust_policy(), selection_flags.begin(), selection_flags.end(), FlagType{0});
 
     thrust::transform(handle.get_thrust_policy(),
                       vertex_begin,
@@ -233,11 +236,11 @@ rmm::device_uvector<vertex_t> compute_mis(
         "slected vertices ", selection_list.data(), selection_list.size(), std::cout);
     }
 
-    edge_src_property_t<GraphViewType, uint8_t> src_inclusion_flag_cache(handle);
-    edge_dst_property_t<GraphViewType, uint8_t> dst_inclusion_flag_cache(handle);
+    edge_src_property_t<GraphViewType, FlagType> src_inclusion_flag_cache(handle);
+    edge_dst_property_t<GraphViewType, FlagType> dst_inclusion_flag_cache(handle);
 
-    edge_src_property_t<GraphViewType, uint8_t> src_selection_flag_cache(handle);
-    edge_dst_property_t<GraphViewType, uint8_t> dst_selection_flag_cache(handle);
+    edge_src_property_t<GraphViewType, FlagType> src_selection_flag_cache(handle);
+    edge_dst_property_t<GraphViewType, FlagType> dst_selection_flag_cache(handle);
 
     auto ranks = compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
       handle, graph_view, *edge_weight_view);
@@ -247,15 +250,15 @@ rmm::device_uvector<vertex_t> compute_mis(
     edge_dst_property_t<GraphViewType, weight_t> dst_rank_cache(handle);
 
     if constexpr (multi_gpu) {
-      src_inclusion_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
-      dst_inclusion_flag_cache = edge_dst_property_t<GraphViewType, uint8_t>(handle, graph_view);
+      src_inclusion_flag_cache = edge_src_property_t<GraphViewType, FlagType>(handle, graph_view);
+      dst_inclusion_flag_cache = edge_dst_property_t<GraphViewType, FlagType>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, mis_inclusion_flags.begin(), src_inclusion_flag_cache);
       update_edge_dst_property(
         handle, graph_view, mis_inclusion_flags.begin(), dst_inclusion_flag_cache);
 
-      src_selection_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
-      dst_selection_flag_cache = edge_dst_property_t<GraphViewType, uint8_t>(handle, graph_view);
+      src_selection_flag_cache = edge_src_property_t<GraphViewType, FlagType>(handle, graph_view);
+      dst_selection_flag_cache = edge_dst_property_t<GraphViewType, FlagType>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, selection_flags.begin(), src_selection_flag_cache);
       update_edge_dst_property(
@@ -267,19 +270,21 @@ rmm::device_uvector<vertex_t> compute_mis(
       update_edge_dst_property(handle, graph_view, ranks.begin(), dst_rank_cache);
     }
 
-    rmm::device_uvector<uint8_t> de_selection_flags(graph_view.local_vertex_partition_range_size(),
-                                                    handle.get_stream());
+    rmm::device_uvector<FlagType> de_selection_flags(graph_view.local_vertex_partition_range_size(),
+                                                     handle.get_stream());
 
-    rmm::device_uvector<uint8_t> newly_discarded_flags(
+    rmm::device_uvector<FlagType> newly_discarded_flags(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-    thrust::uninitialized_fill(
-      handle.get_thrust_policy(), de_selection_flags.begin(), de_selection_flags.end(), uint8_t{0});
+    thrust::uninitialized_fill(handle.get_thrust_policy(),
+                               de_selection_flags.begin(),
+                               de_selection_flags.end(),
+                               FlagType{0});
 
     thrust::uninitialized_fill(handle.get_thrust_policy(),
                                newly_discarded_flags.begin(),
                                newly_discarded_flags.end(),
-                               uint8_t{0});
+                               FlagType{0});
 
     per_v_transform_reduce_outgoing_e(
       handle,
@@ -288,16 +293,16 @@ rmm::device_uvector<vertex_t> compute_mis(
         ? view_concat(
             src_inclusion_flag_cache.view(), src_selection_flag_cache.view(), src_rank_cache.view())
         : view_concat(
-            detail::edge_major_property_view_t<vertex_t, uint8_t const*>(
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(
               mis_inclusion_flags.data()),
-            detail::edge_major_property_view_t<vertex_t, uint8_t const*>(selection_flags.data()),
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(selection_flags.data()),
             detail::edge_major_property_view_t<vertex_t, weight_t const*>(ranks.data())),
       multi_gpu
         ? view_concat(
             dst_inclusion_flag_cache.view(), dst_selection_flag_cache.view(), dst_rank_cache.view())
-        : view_concat(detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(
+        : view_concat(detail::edge_minor_property_view_t<vertex_t, FlagType const*>(
                         mis_inclusion_flags.data(), vertex_t{0}),
-                      detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(
+                      detail::edge_minor_property_view_t<vertex_t, FlagType const*>(
                         selection_flags.data(), vertex_t{0}),
                       detail::edge_minor_property_view_t<vertex_t, weight_t const*>(ranks.data(),
                                                                                     vertex_t{0})),
@@ -328,18 +333,18 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         if (is_dst_included) {
           // deselect and discard
-          return thrust::make_tuple(uint8_t{1}, uint8_t{1});
+          return thrust::make_tuple(FlagType{1}, FlagType{1});
         }
 
         if (is_src_selected && is_dst_selected) {
           // Give priority to high rank, high id vertex
           if (src_rank < dst_rank) {
             // smaller rank, deselect it
-            return thrust::make_tuple(uint8_t{1}, uint8_t{0});
+            return thrust::make_tuple(FlagType{1}, FlagType{0});
           } else if (fabs(src_rank - dst_rank) < 1e-9) {
             if (src < dst) {
               // equal rank, but smaller id
-              return thrust::make_tuple(uint8_t{1}, uint8_t{0});
+              return thrust::make_tuple(FlagType{1}, FlagType{0});
             }
           }
         }
@@ -349,9 +354,9 @@ rmm::device_uvector<vertex_t> compute_mis(
         //        uint32_t{dst},
         //        uint32_t{0},
         //        uint32_t{0});
-        return thrust::make_tuple(uint8_t{0}, uint8_t{0});
+        return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
-      thrust::make_tuple(uint8_t{0}, uint8_t{0}),
+      thrust::make_tuple(FlagType{0}, FlagType{0}),
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
@@ -418,7 +423,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         handle, graph_view, selection_flags.begin(), dst_selection_flag_cache);
     }
 
-    // rmm::device_uvector<uint8_t> final_selection_flags(
+    // rmm::device_uvector<FlagType> final_selection_flags(
     //   graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     per_v_transform_reduce_incoming_e(
@@ -428,19 +433,19 @@ rmm::device_uvector<vertex_t> compute_mis(
         ? view_concat(
             src_inclusion_flag_cache.view(), src_selection_flag_cache.view(), src_rank_cache.view())
         : view_concat(
-            detail::edge_major_property_view_t<vertex_t, uint8_t const*>(
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(
               mis_inclusion_flags.data()),
-            detail::edge_major_property_view_t<vertex_t, uint8_t const*>(de_selection_flags.data()),
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(selection_flags.data()),
             detail::edge_major_property_view_t<vertex_t, weight_t const*>(ranks.data())),
       multi_gpu
         ? view_concat(
             dst_inclusion_flag_cache.view(), dst_selection_flag_cache.view(), dst_rank_cache.view())
         : view_concat(
 
-            detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(mis_inclusion_flags.data(),
-                                                                         vertex_t{0}),
-            detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(de_selection_flags.data(),
-                                                                         vertex_t{0}),
+            detail::edge_minor_property_view_t<vertex_t, FlagType const*>(
+              mis_inclusion_flags.data(), vertex_t{0}),
+            detail::edge_minor_property_view_t<vertex_t, FlagType const*>(selection_flags.data(),
+                                                                          vertex_t{0}),
             detail::edge_minor_property_view_t<vertex_t, weight_t const*>(ranks.data(),
                                                                           vertex_t{0})),
       edge_dummy_property_t{}.view(),
@@ -467,23 +472,27 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         if (is_src_included) {
           // deselect and discard
-          thrust::make_tuple(uint8_t{1}, uint8_t{1});
+          return thrust::make_tuple(FlagType{1}, FlagType{1});
         }
 
         // Give priority to high rank, high id vertex
-        if (is_src_selected && is_dst_selected)
-          return thrust::make_tuple(static_cast<uint8_t>(thrust::make_tuple(src_rank, src) >
-                                                         thrust::make_tuple(dst_rank, dst)),
-                                    uint8_t{0});
+        if (is_src_selected && is_dst_selected) {
+          return thrust::make_tuple(static_cast<FlagType>(thrust::make_tuple(src_rank, src) >
+                                                          thrust::make_tuple(dst_rank, dst)),
+                                    FlagType{0});
+          // if (src_rank > dst_rank){
+
+          // }
+        }
 
         // printf("\n(src=%d ---> dst=%d) returning %d %d",
         //        uint32_t{src},
         //        uint32_t{dst},
         //        uint32_t{0},
         //        uint32_t{0});
-        return thrust::make_tuple(uint8_t{0}, uint8_t{0});
+        return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
-      thrust::make_tuple(uint8_t{0}, uint8_t{0}),
+      thrust::make_tuple(FlagType{0}, FlagType{0}),
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
@@ -511,7 +520,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                       mis_inclusion_flags.begin(),
                       mis_inclusion_flags.begin(),
                       [] __device__(auto selected, auto prev_inclusion_flag) {
-                        return static_cast<uint8_t>(selected || prev_inclusion_flag);
+                        return static_cast<FlagType>(selected || prev_inclusion_flag);
                       });
 
     vertex_t nr_include_vertices = thrust::count_if(handle.get_thrust_policy(),
