@@ -66,7 +66,7 @@ popd
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
 pytest \
-  --ignore=tests/mg \
+  -m "not mg_test" \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --cov-config=../../.coveragerc \
