@@ -77,7 +77,9 @@ def pagerank(
     increases when the tolerance descreases and/or alpha increases toward the
     limiting value of 1. The user is free to use default values or to provide
     inputs for the initial guess, tolerance and maximum number of iterations.
-    Parameters. All edges will have an edge_attr value of 1.0 if not provided.
+    All edges will have an edge_attr value of 1.0 if not provided.
+
+    Parameters
     ----------
     G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
@@ -158,6 +160,7 @@ def pagerank(
             Contains the vertex identifiers
         df['pagerank'] : cudf.Series
             Contains the PageRank score
+
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
