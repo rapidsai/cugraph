@@ -107,18 +107,6 @@ todo_include_todos = False
 
 html_theme = 'pydata_sphinx_theme'
 
-# on_rtd is whether we are on readthedocs.org
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-
-if not on_rtd:
-    # only import and set the theme if we're building docs locally
-    # otherwise, readthedocs.org uses their theme by default,
-    # so no need to specify it
-    import pydata_sphinx_theme
-    import sphinx_rtd_theme
-    html_theme = 'pydata_sphinx_theme'
-    html_theme_path = list(sphinx_rtd_theme.get_html_theme_path())
-
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
