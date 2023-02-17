@@ -77,10 +77,6 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
         raise ValueError("Outwards edges not supported yet")
     graph_per_hop_ls = []
     output_nodes = None
-    # TODO: Refactor to only use 1 variable
-    src_ids = None
-    dst_ids = None
-    edge_ids = None
     seed_nodes = None
     for src_ids, dst_ids, edge_ids in tensors_perhop_ls:
         # print("Creating block", flush=True)
