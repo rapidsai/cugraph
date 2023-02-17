@@ -116,7 +116,7 @@ def test_bulk_sampler_remainder():
         assert (x + 1) in df.batch_id.values_host.tolist()
 
     assert (
-        cudf.read_parquet(os.path.join(tld, "batch=6-6.parquet")).batch_id == 6
+        cudf.read_parquet(os.path.join(tld, "batch=6-7.parquet")).batch_id == 6
     ).all()
 
 

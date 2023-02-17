@@ -37,7 +37,7 @@ _graph_types = [cugraph.Graph, None, int]
 _graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
 
 
-def _call_rmat(scale, num_edges, create_using, mg=False):
+def _call_rmat(scale, num_edges, create_using, mg=True):
     """
     Simplifies calling RMAT by requiring only specific args that are varied by
     these tests and hard-coding all others.
@@ -78,11 +78,16 @@ def test_rmat_edgelist(scale):
     """
     Verifies that the edgelist returned by rmat() is valid based on inputs.
     """
+    if _is_single_gpu:
+        pytest.skip("skipping MG testing on Single GPU system")
 
     num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
 
     df = _call_rmat(scale, num_edges, create_using)
+    assert df.npartitions == len(_visible_devices)
+
+    df = df.compute()
     assert len(df) == num_edges
 
 
@@ -93,17 +98,19 @@ def test_rmat_return_type(graph_type):
     Verifies that the return type returned by rmat() is valid (or the proper
     exception is raised) based on inputs.
     """
+    if _is_single_gpu:
+        pytest.skip("skipping MG testing on Single GPU system")
+
     scale = 2
     num_edges = (2**scale) * 4
 
     if (graph_type not in [cugraph.Graph, None]):
         with pytest.raises(TypeError):
             _call_rmat(scale, num_edges, graph_type)
-
     else:
         G_or_df = _call_rmat(scale, num_edges, graph_type)
 
         if graph_type is None:
-            assert type(G_or_df) is cudf.DataFrame
+            assert type(G_or_df) is dask_cudf.DataFrame
         else:
             assert type(G_or_df) is graph_type

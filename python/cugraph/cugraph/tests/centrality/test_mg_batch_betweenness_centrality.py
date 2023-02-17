@@ -23,19 +23,22 @@ from cugraph.experimental.datasets import karate
 # As tests directory is not a module, we need to add it to the path
 # FIXME: Test must be reworked to import from 'cugraph.testing' instead of
 # importing from other tests
-from test_betweenness_centrality import (
-    DIRECTED_GRAPH_OPTIONS,
-    ENDPOINTS_OPTIONS,
-    NORMALIZED_OPTIONS,
-    DEFAULT_EPSILON,
-    SUBSET_SIZE_OPTIONS,
-    SUBSET_SEED_OPTIONS,
-)
+DIRECTED_GRAPH_OPTIONS = [False, True]
+WEIGHTED_GRAPH_OPTIONS = [False, True]
+ENDPOINTS_OPTIONS = [False, True]
+NORMALIZED_OPTIONS = [False, True]
+DEFAULT_EPSILON = 0.0001
+SUBSET_SIZE_OPTIONS = [4, None]
+SUBSET_SEED_OPTIONS = [42]
+
+
 
 from test_betweenness_centrality import (
     calc_betweenness_centrality,
     compare_scores,
 )
+
+
 
 # =============================================================================
 # Parameters
