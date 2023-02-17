@@ -237,8 +237,8 @@ template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGLouvain<input_usecase_t>::handle_ = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
-using Tests_MGLouvain_File   = Tests_MGLouvain<cugraph::test::File_Usecase>;
-using Tests_MGLouvain_Rmat   = Tests_MGLouvain<cugraph::test::Rmat_Usecase>;
+using Tests_MGLouvain_File = Tests_MGLouvain<cugraph::test::File_Usecase>;
+using Tests_MGLouvain_Rmat = Tests_MGLouvain<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGLouvain_File, CheckInt32Int32Float)
 {

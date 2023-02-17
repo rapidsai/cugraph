@@ -269,9 +269,9 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                       typename GraphViewType::vertex_type* components,
                                       bool do_expensive_check)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = float;  // dummy
+  using vertex_t    = typename GraphViewType::vertex_type;
+  using edge_t      = typename GraphViewType::edge_type;
+  using weight_t    = float;  // dummy
   using edge_type_t = int32_t;
 
   static_assert(std::is_integral<vertex_t>::value,
