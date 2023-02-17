@@ -1419,7 +1419,7 @@ std::
  * @p start_vertices can contain duplicates, in which case different random walks will
  * be generated for each instance.
  *
- * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If the graph is @p
+ * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If @p
  * edge_weight_view.has_value() is false, the returned value will be std::nullopt.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
