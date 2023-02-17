@@ -197,15 +197,15 @@ INSTANTIATE_TEST_SUITE_P(
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGKCore_Rmat,
-  ::testing::Combine(
-    // enable correctness checks
-    testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
-                    KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT},
-                    KCore_Usecase{3, cugraph::k_core_degree_type_t::INOUT}),
-    testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGKCore_Rmat,
+                         ::testing::Combine(
+                           // enable correctness checks
+                           testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
+                                           KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT},
+                                           KCore_Usecase{3, cugraph::k_core_degree_type_t::INOUT}),
+                           testing::Values(cugraph::test::Rmat_Usecase(
+                             10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -217,6 +217,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT, false}),
-    testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+    testing::Values(
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

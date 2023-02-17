@@ -207,10 +207,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGEdgeBetweennessCentrality_Rmat,
   // enable correctness checks
-  ::testing::Combine(
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{50, false, false, true},
-                      EdgeBetweennessCentrality_Usecase{50, false, true, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+  ::testing::Combine(::testing::Values(EdgeBetweennessCentrality_Usecase{50, false, false, true},
+                                       EdgeBetweennessCentrality_Usecase{50, false, true, true}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -220,9 +220,9 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGEdgeBetweennessCentrality_Rmat,
   // disable correctness checks for large graphs
-  ::testing::Combine(
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{500, false, false, false},
-                      EdgeBetweennessCentrality_Usecase{500, false, true, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(::testing::Values(EdgeBetweennessCentrality_Usecase{500, false, false, false},
+                                       EdgeBetweennessCentrality_Usecase{500, false, true, false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

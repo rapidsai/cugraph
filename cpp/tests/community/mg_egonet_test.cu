@@ -224,10 +224,8 @@ class Tests_MGEgonet
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGEgonet<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGEgonet_File   = Tests_MGEgonet<cugraph::test::File_Usecase>;
-using Tests_MGEgonet_File64 = Tests_MGEgonet<cugraph::test::File_Usecase>;
-using Tests_MGEgonet_Rmat   = Tests_MGEgonet<cugraph::test::Rmat_Usecase>;
-using Tests_MGEgonet_Rmat64 = Tests_MGEgonet<cugraph::test::Rmat_Usecase>;
+using Tests_MGEgonet_File = Tests_MGEgonet<cugraph::test::File_Usecase>;
+using Tests_MGEgonet_Rmat = Tests_MGEgonet<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGEgonet_File, CheckInt32Int32Float)
 {
@@ -235,7 +233,7 @@ TEST_P(Tests_MGEgonet_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGEgonet_File64, CheckInt64Int64Float)
+TEST_P(Tests_MGEgonet_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
@@ -247,14 +245,20 @@ TEST_P(Tests_MGEgonet_Rmat, CheckInt32Int32Float)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGEgonet_Rmat64, CheckInt64Int64Float)
+TEST_P(Tests_MGEgonet_Rmat, CheckInt32Int64Float)
+{
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_MGEgonet_Rmat, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  simple_file_test,
+  file_tests,
   Tests_MGEgonet_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
@@ -268,14 +272,15 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  simple_rmat_test,
+  rmat_small_tests,
   Tests_MGEgonet_Rmat,
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Egonet_Usecase{std::vector<int32_t>{0}, 1, false, true},
                       Egonet_Usecase{std::vector<int32_t>{0}, 2, false, true},
                       Egonet_Usecase{std::vector<int32_t>{0}, 3, false, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -290,37 +295,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_MGEgonet_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
                           --gtest_filter to select only the rmat_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGEgonet_Rmat,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_MGEgonet_Rmat64,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, false}),

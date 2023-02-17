@@ -238,9 +238,7 @@ std::unique_ptr<raft::handle_t> Tests_MGLouvain<input_usecase_t>::handle_ = null
 
 ////////////////////////////////////////////////////////////////////////////////
 using Tests_MGLouvain_File   = Tests_MGLouvain<cugraph::test::File_Usecase>;
-using Tests_MGLouvain_File64 = Tests_MGLouvain<cugraph::test::File_Usecase>;
 using Tests_MGLouvain_Rmat   = Tests_MGLouvain<cugraph::test::Rmat_Usecase>;
-using Tests_MGLouvain_Rmat64 = Tests_MGLouvain<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_MGLouvain_File, CheckInt32Int32Float)
 {
@@ -248,7 +246,7 @@ TEST_P(Tests_MGLouvain_File, CheckInt32Int32Float)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGLouvain_File64, CheckInt64Int64Float)
+TEST_P(Tests_MGLouvain_File, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
@@ -260,14 +258,20 @@ TEST_P(Tests_MGLouvain_Rmat, CheckInt32Int32Float)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MGLouvain_Rmat64, CheckInt64Int64Float)
+TEST_P(Tests_MGLouvain_Rmat, CheckInt32Int64Float)
+{
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_MGLouvain_Rmat, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  simple_file_test,
+  file_tests,
   Tests_MGLouvain_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
@@ -275,13 +279,13 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  simple_rmat_test,
-  Tests_MGLouvain_Rmat,
-  ::testing::Combine(
-    // enable correctness checks for small graphs
-    ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
+                         Tests_MGLouvain_Rmat,
+                         ::testing::Combine(
+                           // enable correctness checks for small graphs
+                           ::testing::Values(Louvain_Usecase{}),
+                           ::testing::Values(cugraph::test::Rmat_Usecase(
+                             20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -296,37 +300,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_MGLouvain_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
                           --gtest_filter to select only the rmat_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGLouvain_Rmat,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Louvain_Usecase{}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_MGLouvain_Rmat64,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
