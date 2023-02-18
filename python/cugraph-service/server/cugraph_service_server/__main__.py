@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,6 +51,21 @@ def main():
         action="store_true",
         help="use a LocalCUDACluster for multi-GPU",
     )
+    arg_parser.add_argument(
+        "--protocol",
+        type=str,
+        help="protocol to use by the dask cluster, ex 'ucx'",
+    )
+    arg_parser.add_argument(
+        "--rmm-pool-size",
+        type=str,
+        help="RMM pool size, ex. '28GB'",
+    )
+    arg_parser.add_argument(
+        "--dask-worker-devices",
+        type=str,
+        help="list of GPU device IDs the dask cluster should use, ex. '0,1,2,3'",
+    )
     args = arg_parser.parse_args()
 
     msg = "Starting the cugraph_service server "
@@ -73,6 +88,9 @@ def main():
         args.dask_scheduler_file,
         args.host,
         args.port,
+        args.protocol,
+        args.rmm_pool_size,
+        args.dask_worker_devices,
         console_message=msg,
     )
     print("done.")

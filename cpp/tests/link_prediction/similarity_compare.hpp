@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ struct test_jaccard_t {
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
     bool use_weights) const
   {
-    return cugraph::jaccard_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::jaccard_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
 };
 
@@ -64,7 +64,7 @@ struct test_sorensen_t {
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
     bool use_weights) const
   {
-    return cugraph::sorensen_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::sorensen_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
 };
 
@@ -86,7 +86,7 @@ struct test_overlap_t {
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
     bool use_weights) const
   {
-    return cugraph::overlap_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
+    return cugraph::overlap_coefficients(handle, graph_view, edge_weight_view, vertex_pairs, true);
   }
 };
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,11 +24,11 @@ cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 INSTALL_REQUIRES = [
     "numba",
     "dask-cuda",
-    f"rmm{cuda_suffix}",
-    f"cudf{cuda_suffix}",
-    f"raft-dask{cuda_suffix}",
-    f"dask-cudf{cuda_suffix}",
-    f"pylibcugraph{cuda_suffix}",
+    f"rmm{cuda_suffix}==23.4.*",
+    f"cudf{cuda_suffix}==23.4.*",
+    f"raft-dask{cuda_suffix}==23.4.*",
+    f"dask-cudf{cuda_suffix}==23.4.*",
+    f"pylibcugraph{cuda_suffix}==23.4.*",
     "cupy-cuda11x",
 ]
 
@@ -114,6 +114,7 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -458,6 +458,7 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   return v;
 }
 
+// If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -469,6 +470,7 @@ graph_to_host_coo(
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
+// If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -480,6 +482,7 @@ graph_to_host_csr(
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
+// Only the rank 0 GPU holds the valid data
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
            std::optional<cugraph::edge_property_t<

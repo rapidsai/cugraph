@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
+
 #include <cugraph_c/graph.h>
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/array.hpp>
 #include <c_api/error.hpp>
+#include <c_api/generic_cascaded_dispatch.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/resource_handle.hpp>
 
@@ -40,7 +41,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids_;
   bool_t renumber_;
   bool_t check_;
-  data_type_id_t edge_type_;
+  cugraph_data_type_id_t edge_type_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
   create_graph_functor(raft::handle_t const& handle,
@@ -52,7 +53,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids,
                        bool_t renumber,
                        bool_t check,
-                       data_type_id_t edge_type)
+                       cugraph_data_type_id_t edge_type)
     : abstract_functor(),
       properties_(properties),
       handle_(handle),
@@ -126,8 +127,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           rmm::device_uvector<edge_t>(edge_ids_->size_, handle_.get_stream());
 
         raft::copy<edge_t>(edgelist_edge_ids.data(),
-                           edge_type_ids_->as_type<edge_t>(),
-                           edge_type_ids_->size_,
+                           edge_ids_->as_type<edge_t>(),
+                           edge_ids_->size_,
                            handle_.get_stream());
 
         edgelist_edge_tuple =
@@ -137,12 +138,14 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       // Here's the error.  If store_transposed is true then this needs to be flipped...
       std::tie(store_transposed ? edgelist_dsts : edgelist_srcs,
                store_transposed ? edgelist_srcs : edgelist_dsts,
-               edgelist_weights) =
-        cugraph::detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
+               edgelist_weights,
+               edgelist_edge_tuple) =
+        cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
           handle_,
           std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
           std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
-          std::move(edgelist_weights));
+          std::move(edgelist_weights),
+          std::move(edgelist_edge_tuple));
 
       auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
@@ -192,8 +195,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       auto result = new cugraph::c_api::cugraph_graph_t{
         src_->type_,
         edge_type_,
-        weights_ ? weights_->type_ : data_type_id_t::FLOAT32,
-        edge_type_ids_ ? edge_type_ids_->type_ : data_type_id_t::INT32,
+        weights_ ? weights_->type_ : cugraph_data_type_id_t::FLOAT32,
+        edge_type_ids_ ? edge_type_ids_->type_ : cugraph_data_type_id_t::INT32,
         store_transposed,
         multi_gpu,
         graph,
@@ -299,19 +302,19 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
                "Invalid input arguments: src size != weights size.",
                *error);
 
-  data_type_id_t edge_type;
-  data_type_id_t weight_type;
+  cugraph_data_type_id_t edge_type;
+  cugraph_data_type_id_t weight_type;
 
   if (num_edges < int32_threshold) {
     edge_type = p_src->type_;
   } else {
-    edge_type = data_type_id_t::INT64;
+    edge_type = cugraph_data_type_id_t::INT64;
   }
 
   if (weights != nullptr) {
     weight_type = p_weights->type_;
   } else {
-    weight_type = data_type_id_t::FLOAT32;
+    weight_type = cugraph_data_type_id_t::FLOAT32;
   }
 
   CAPI_EXPECTS(
@@ -324,7 +327,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
   CAPI_EXPECTS(
     (edge_type_ids == nullptr && edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
     CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: Edge id type must match edge type",
+    "Invalid input arguments: Edge id type must match edge (src/dst) type",
     *error);
 
   CAPI_EXPECTS((edge_type_ids == nullptr && edge_ids == nullptr) ||
@@ -333,9 +336,9 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
                "Invalid input arguments: src size != edge prop size",
                *error);
 
-  data_type_id_t edge_type_id_type;
+  cugraph_data_type_id_t edge_type_id_type;
   if (edge_type_ids == nullptr) {
-    edge_type_id_type = data_type_id_t::INT32;
+    edge_type_id_type = cugraph_data_type_id_t::INT32;
   } else {
     edge_type_id_type = p_edge_type_ids->type_;
   }
@@ -352,13 +355,13 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
                                edge_type);
 
   try {
-    cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_src->type_],
-                                         cugraph::c_api::dtypes_mapping[edge_type],
-                                         cugraph::c_api::dtypes_mapping[weight_type],
-                                         cugraph::c_api::dtypes_mapping[edge_type_id_type],
-                                         store_transposed,
-                                         multi_gpu,
-                                         functor);
+    cugraph::c_api::vertex_dispatcher(p_src->type_,
+                                      edge_type,
+                                      weight_type,
+                                      edge_type_id_type,
+                                      store_transposed,
+                                      multi_gpu,
+                                      functor);
 
     if (functor.error_code_ != CUGRAPH_SUCCESS) {
       *error = reinterpret_cast<cugraph_error_t*>(functor.error_.release());
@@ -384,14 +387,13 @@ extern "C" void cugraph_mg_graph_free(cugraph_graph_t* ptr_graph)
                                   internal_pointer->edge_weights_,
                                   internal_pointer->edge_properties_);
 
-    cugraph::dispatch::vertex_dispatcher(
-      cugraph::c_api::dtypes_mapping[internal_pointer->vertex_type_],
-      cugraph::c_api::dtypes_mapping[internal_pointer->edge_type_],
-      cugraph::c_api::dtypes_mapping[internal_pointer->weight_type_],
-      cugraph::c_api::dtypes_mapping[internal_pointer->edge_type_id_type_],
-      internal_pointer->store_transposed_,
-      internal_pointer->multi_gpu_,
-      functor);
+    cugraph::c_api::vertex_dispatcher(internal_pointer->vertex_type_,
+                                      internal_pointer->edge_type_,
+                                      internal_pointer->weight_type_,
+                                      internal_pointer->edge_type_id_type_,
+                                      internal_pointer->store_transposed_,
+                                      internal_pointer->multi_gpu_,
+                                      functor);
 
     delete internal_pointer;
   }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 set -euo pipefail
 
@@ -25,7 +25,6 @@ PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
 mkdir -p "${RAPIDS_TESTS_DIR}" "${RAPIDS_COVERAGE_DIR}"
-SUITEERROR=0
 
 rapids-print-env
 
@@ -48,6 +47,8 @@ pushd "${RAPIDS_DATASET_ROOT_DIR}"
 ./get_test_data.sh
 popd
 
+EXITCODE=0
+trap "EXITCODE=1" ERR
 set +e
 
 rapids-logger "pytest pylibcugraph"
@@ -60,12 +61,6 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/pylibcugraph-coverage.xml" \
   --cov-report=term \
   tests
-exitcode=$?
-
-if (( ${exitcode} != 0 )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in pylibcugraph"
-fi
 popd
 
 rapids-logger "pytest cugraph"
@@ -79,27 +74,16 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
   tests
-exitcode=$?
-
-if (( ${exitcode} != 0 )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph"
-fi
 popd
 
-rapids-logger "pytest cugraph benchmarks"
+rapids-logger "pytest cugraph benchmarks (run as tests)"
 pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
   -m "managedmem_on and poolallocator_on and tiny" \
-  --benchmark-disable
-exitcode=$?
-
-if (( ${exitcode} != 0 )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph benchmarks"
-fi
+  --benchmark-disable \
+  cugraph/pytest-based/bench_algos.py
 popd
 
 rapids-logger "pytest cugraph_pyg (single GPU)"
@@ -115,12 +99,6 @@ pytest \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
   --cov-report=term \
   .
-exitcode=$?
-
-if (( ${exitcode} != 0 )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph-pyg"
-fi
 popd
 
 rapids-logger "pytest cugraph-service (single GPU)"
@@ -138,12 +116,7 @@ pytest \
   --benchmark-disable \
   -k "not mg" \
   tests
-exitcode=$?
-
-if (( ${exitcode} != 0 )); then
-    SUITEERROR=${exitcode}
-    echo "FAILED: 1 or more tests in cugraph-service"
-fi
 popd
 
-exit ${SUITEERROR}
+rapids-logger "Test script exiting with value: $EXITCODE"
+exit ${EXITCODE}

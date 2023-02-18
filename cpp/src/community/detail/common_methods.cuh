@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -314,6 +314,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       return thrust::make_tuple(sum, subtract);
     },
     thrust::make_tuple(weight_t{0}, weight_t{0}),
+    reduce_op::plus<thrust::tuple<weight_t, weight_t>>{},
     thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,10 +159,11 @@ bool check_symmetric(raft::handle_t const& handle,
   if constexpr (multi_gpu) {
     std::tie(
       store_transposed ? org_dsts : org_srcs, store_transposed ? org_srcs : org_dsts, std::ignore) =
-      detail::shuffle_edgelist_by_gpu_id(handle,
-                                         std::move(store_transposed ? org_dsts : org_srcs),
-                                         std::move(store_transposed ? org_srcs : org_dsts),
-                                         std::nullopt);
+      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(store_transposed ? org_dsts : org_srcs),
+        std::move(store_transposed ? org_srcs : org_dsts),
+        std::nullopt);
   }
 
   rmm::device_uvector<vertex_t> symmetrized_srcs(org_srcs.size(), handle.get_stream());
