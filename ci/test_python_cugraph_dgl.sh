@@ -34,8 +34,10 @@ rapids-mamba-retry install \
   --channel pytorch-nightly \
   --channel dglteam/label/cu117 \
   --channel pytorch \
+  --channel rapidsai-nightly \
   libcugraph \
   pylibcugraph \
+  pylibcugraphops \
   cugraph \
   cugraph-dgl \
   'pytorch::pytorch>=1.13.1' \
