@@ -11,7 +11,7 @@ files:
       - common_python_test
       - cpp_build
       - cudatoolkit
-      - docs_build
+      - docs
       - python_build
       - test_notebook
       - test_python
@@ -24,7 +24,7 @@ files:
     output: none
     includes:
       - cudatoolkit
-      - docs_build
+      - docs
       - py_version
   test_cpp:
     output: none
@@ -119,7 +119,7 @@ dependencies:
               cuda: "11.8"
             packages:
               - nvcc_linux-aarch64=11.8
-  docs_build:
+  docs:
     common:
       - output_types: [conda]
         packages:
