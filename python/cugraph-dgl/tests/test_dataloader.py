@@ -72,7 +72,7 @@ def sample_cugraph_dgl_graphs(cugraph_gs, train_nid, fanouts):
     return cugraph_dgl_output
 
 
-@pytest.skip("Remove skip after https://github.com/rapidsai/cugraph/pull/3291")
+@pytest.mark.skip("Remove skip after https://github.com/rapidsai/cugraph/pull/3291")
 def test_same_heterograph_results():
     single_gpu = True
     data_dict = {
@@ -100,7 +100,7 @@ def test_same_heterograph_results():
     )
 
 
-@pytest.skip("Remove skip after https://github.com/rapidsai/cugraph/pull/3291")
+@pytest.mark.skip("Remove skip after https://github.com/rapidsai/cugraph/pull/3291")
 def test_same_homogeneousgraph_results():
     single_gpu = True
     train_nid = th.tensor([1])
