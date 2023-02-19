@@ -131,7 +131,7 @@ struct leiden_key_aggregated_edge_op_t {
       }
     }
 
-    //printf("\n%d %d %f\n", src, neighboring_leiden_cluster, theta);
+    // printf("\n%d %d %f\n", src, neighboring_leiden_cluster, theta);
 
     return thrust::make_tuple(neighboring_leiden_cluster, theta);
   }
@@ -454,10 +454,10 @@ refine_clustering(
   std::cout << "singleton_flags.size(): " << singleton_flags.size() << std::endl;
 
   std::cout << "sum(singleton_flags): "
-            << thrust::reduce(handle.get_thrust_policy(),
-                              singleton_flags.begin(),
-                              singleton_flags.end(),
-                              vertex_t{0})
+            << thrust::count_if(handle.get_thrust_policy(),
+                                singleton_flags.begin(),
+                                singleton_flags.end(),
+                                [] __device__(auto flag) { return flag > 0; })
             << std::endl;
 
   edge_src_property_t<GraphViewType, vertex_t> src_leiden_assignment(handle);
@@ -502,10 +502,10 @@ refine_clustering(
                     connecteds.begin(),
                     [] __device__(auto flag) { return flag > 0; });
 
-    vertex_t nr_well_connected = thrust::reduce(handle.get_thrust_policy(),
-                                                is_vertex_well_connected_in_louvain.begin(),
-                                                is_vertex_well_connected_in_louvain.end(),
-                                                vertex_t{0});
+    vertex_t nr_well_connected = thrust::count_if(handle.get_thrust_policy(),
+                                                  is_vertex_well_connected_in_louvain.begin(),
+                                                  is_vertex_well_connected_in_louvain.end(),
+                                                  [] __device__(auto flag) { return flag > 0; });
     connecteds.resize(nr_well_connected, handle.get_stream());
 
     CUDA_TRY(cudaDeviceSynchronize());
@@ -515,8 +515,10 @@ refine_clustering(
       std::min((decltype(singleton_flags.size()))50, singleton_flags.size()),
       std::cout);
 
-    vertex_t nr_singletons = thrust::reduce(
-      handle.get_thrust_policy(), singleton_flags.begin(), singleton_flags.end(), vertex_t{0});
+    vertex_t nr_singletons = thrust::count_if(handle.get_thrust_policy(),
+                                              singleton_flags.begin(),
+                                              singleton_flags.end(),
+                                              [] __device__(auto flag) { return flag > 0; });
 
     singletons.resize(nr_singletons, handle.get_stream());
     CUDA_TRY(cudaDeviceSynchronize());
@@ -541,8 +543,11 @@ refine_clustering(
       active_flags.begin(),
       [] __device__(auto singleton, auto well_connected) { return singleton && well_connected; });
 
-    vertex_t nr_remaining_active_vertices = thrust::reduce(
-      handle.get_thrust_policy(), active_flags.begin(), active_flags.end(), vertex_t{0});
+    vertex_t nr_remaining_active_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       active_flags.begin(),
+                       active_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
 
     CUDA_TRY(cudaDeviceSynchronize());
     std::cout << "nr_remaining_active_vertices: " << nr_remaining_active_vertices << std::endl;
@@ -1001,6 +1006,9 @@ refine_clustering(
 
     // Flags to indicate nodes that are chosen by MIS
 
+    cudaDeviceSynchronize();
+    std::cout << "#chosen nodes: " << chosen_nodes.size() << std::endl;
+
     thrust::sort(handle.get_thrust_policy(), chosen_nodes.begin(), chosen_nodes.end());
     rmm::device_uvector<uint8_t> flags_move(leiden_assignment.size(), handle.get_stream());
 
@@ -1037,6 +1045,37 @@ refine_clustering(
         "vertices_to_move ", vertices_to_move.data(), vertices_to_move.size(), std::cout);
     }
 
+    // debug
+    vertex_t nr_vertices_to_move_ = thrust::count_if(
+      handle.get_thrust_policy(), flags_move.begin(), flags_move.end(), [] __device__(auto flag) {
+        return flag > 0;
+      });
+    cudaDeviceSynchronize();
+    std::cout << "nr_vertices_to_move_: " << nr_vertices_to_move_ << std::endl;
+
+    vertex_t nr_singletons_and_moving = thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_move.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_move.end())),
+      [] __device__(auto flags) {
+        return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0);
+      });
+
+    cudaDeviceSynchronize();
+    std::cout << "nr_singletons_and_moving: " << nr_singletons_and_moving << std::endl;
+
+    vertex_t nr_singletons_before_marking_moving_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       singleton_flags.begin(),
+                       singleton_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
+
+    cudaDeviceSynchronize();
+    std::cout << "nr_singletons_before_marking_moving_vertices: "
+              << nr_singletons_before_marking_moving_vertices << std::endl;
+
+    //
+
     // Nodes that are moving become non-singleton
 
     thrust::transform(
@@ -1046,6 +1085,19 @@ refine_clustering(
       singleton_flags.begin(),
       singleton_flags.begin(),
       [] __device__(auto is_moving, auto current_mask) { return (!is_moving && current_mask); });
+
+    // debug
+    vertex_t nr_singletons_after_marking_moving_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       singleton_flags.begin(),
+                       singleton_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
+
+    cudaDeviceSynchronize();
+    std::cout << "nr_singletons_after_marking_moving_vertices: "
+              << nr_singletons_after_marking_moving_vertices << std::endl;
+
+    //
 
     // Gather all dest comms
 
@@ -1097,6 +1149,28 @@ refine_clustering(
                           thrust::seq, dests, dests + num_dests, target_id);
                       });
 
+    // debug
+
+    // debug
+    vertex_t nr_target_comms = thrust::count_if(
+      handle.get_thrust_policy(), flags_dest.begin(), flags_dest.end(), [] __device__(auto flag) {
+        return flag > 0;
+      });
+
+    vertex_t nr_singletons_and_target = thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_dest.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_dest.end())),
+      [] __device__(auto flags) {
+        return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0);
+      });
+
+    cudaDeviceSynchronize();
+    std::cout << "target_comms.size(): " << target_comms.size() << std::endl;
+    std::cout << "nr_target_comms: " << nr_target_comms << std::endl;
+    std::cout << "nr_singletons_and_target: " << nr_singletons_and_target << std::endl;
+    //
+
     thrust::transform(
       handle.get_thrust_policy(),
       flags_dest.begin(),
@@ -1104,6 +1178,18 @@ refine_clustering(
       singleton_flags.begin(),
       singleton_flags.begin(),
       [] __device__(auto is_dest, auto current_mask) { return (!is_dest && current_mask); });
+
+    // debug
+    vertex_t nr_singletons_after_marking_target_comms =
+      thrust::count_if(handle.get_thrust_policy(),
+                       singleton_flags.begin(),
+                       singleton_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
+
+    cudaDeviceSynchronize();
+    std::cout << "nr_singletons_after_marking_target_comms: "
+              << nr_singletons_after_marking_target_comms << std::endl;
+    //
 
     // Update leiden assignment for the nodes that are moving
 
