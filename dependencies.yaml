@@ -199,7 +199,7 @@ dependencies:
           - python-louvain
           - rapids-pytest-benchmark
           - scikit-learn>=0.23.1
-    test_python_cugraph_dgl:
+  test_python_cugraph_dgl:
     common:
       - output_types: [conda, requirements]
         packages:
