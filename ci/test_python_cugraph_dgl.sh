@@ -57,7 +57,7 @@ pushd python/cugraph-dgl/tests
 pytest \
   --cache-clear \
   --ignore=mg \
-  --ignore=nn \ # cugraph-ops nn is failing
+  --ignore=nn \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
   --cov-config=../../.coveragerc \
   --cov=cugraph_dgl \
