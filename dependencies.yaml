@@ -52,8 +52,6 @@ channels:
   - dask/label/dev
   - conda-forge
   - nvidia
-  - pytorch-nightly
-  - dglteam/label/cu117
 dependencies:
   checks:
     common:
