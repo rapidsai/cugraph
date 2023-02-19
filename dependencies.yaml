@@ -208,7 +208,3 @@ dependencies:
           - pytest
           - pytest-cov
           - rapids-pytest-benchmark
-          - pylibcugraphops==23.04.*
-          - pytorch>=2.0.0
-          - pytorch-cuda>=11.7
-          - dgl

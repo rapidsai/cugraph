@@ -31,10 +31,17 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
+  --channel pytorch-nightly \
+  --channel dglteam/label/cu117 \
+  --channel pytorch \
+  --channel rapidsai-nightly \
   libcugraph \
-  pylibcugraph \
   cugraph \
-  cugraph-dgl
+  cugraph-dgl \
+  pylibcugraph==23.04* \
+  'pytorch::pytorch>=1.13.1' \
+  'pytorch-cuda>=11.7' \
+  'dgl'
 
 rapids-logger "Check GPU usage"
 nvidia-smi
