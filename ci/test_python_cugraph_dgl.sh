@@ -38,9 +38,9 @@ rapids-mamba-retry install \
   libcugraph \
   cugraph \
   cugraph-dgl \
-  pylibcugraph==23.04* \
-  pytorch::pytorch>=2.0 \
-  pytorch-cuda>=11.7 \
+  "pylibcugraph==23.04*" \
+  "pytorch::pytorch>=2.0" \
+  "pytorch-cuda>=11.7" \
   dgl
 
 rapids-logger "Check GPU usage"
