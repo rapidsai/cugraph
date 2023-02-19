@@ -15,7 +15,7 @@ files:
       - python_build
       - test_notebook
       - test_python
-      - test_python_cugraph_dgl
+      - test_python_common
   checks:
     output: none
     includes:
@@ -39,13 +39,13 @@ files:
       - py_notebooks_and_tests
       - py_version
       - test_python
+      - test_python_common
   test_python_cugraph_dgl:
     output: none
     includes:
-      - cudatoolkit
       - py_notebooks_and_tests
       - py_version
-      - test_python_cugraph_dgl
+      - test_python_common
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -190,14 +190,9 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
-          - ogb
-          - py
-          - pytest
-          - pytest-cov
           - python-louvain
-          - rapids-pytest-benchmark
           - scikit-learn>=0.23.1
-  test_python_cugraph_dgl:
+  test_python_common:
     common:
       - output_types: [conda, requirements]
         packages:
