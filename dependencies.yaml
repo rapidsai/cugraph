@@ -8,10 +8,10 @@ files:
     includes:
       - checks
       - common_build
-      - common_python_test
       - cpp_build
       - cudatoolkit
       - doc
+      - py_notebooks_and_tests
       - python_build
       - test_notebook
       - test_python
@@ -28,22 +28,22 @@ files:
   test_notebooks:
     output: none
     includes:
-      - common_python_test
       - cudatoolkit
+      - py_notebooks_and_tests
       - py_version
       - test_notebook
   test_python:
     output: none
     includes:
-      - common_python_test
       - cudatoolkit
+      - py_notebooks_and_tests
       - py_version
       - test_python
   test_python_cugraph_dgl:
     output: none
     includes:
-      - common_python_test
       - cudatoolkit
+      - py_notebooks_and_tests
       - py_version
       - test_python_cugraph_dgl
 channels:
@@ -172,7 +172,7 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
-  common_python_test:
+  py_notebooks_and_tests:
     common:
       - output_types: [conda, requirements]
         packages:
