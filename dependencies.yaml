@@ -44,6 +44,8 @@ channels:
   - dask/label/dev
   - conda-forge
   - nvidia
+  - pytorch-nightly
+  - dglteam/label/cu117
 dependencies:
   checks:
     common:
@@ -189,3 +191,16 @@ dependencies:
           - python-louvain
           - rapids-pytest-benchmark
           - scikit-learn>=0.23.1
+    test_python_cugraph_dgl:
+    common:
+      - output_types: [conda, requirements]
+        packages:
+          - ogb
+          - py
+          - pytest
+          - pytest-cov
+          - rapids-pytest-benchmark
+          - pylibcugraphops==23.04.*
+          - pytorch>=2.0.0
+          - pytorch-cuda>=11.7
+          - dgl
