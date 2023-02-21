@@ -33,6 +33,7 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -104,6 +105,12 @@ struct leiden_key_aggregated_edge_op_t {
 
     // neighboring_leiden_cluster and dst_leiden_cluster_id must have same value
 
+    if (neighboring_leiden_cluster != dst_leiden_cluster_id) {
+      printf("\n @ (!=) neighboring_leiden_cluster = %d, dst_leiden_cluster_id =%d \n",
+             neighboring_leiden_cluster,
+             dst_leiden_cluster_id);
+    }
+
     // TODO: This is check can be done in outer scope
     // pass it as parameter
     // E(v, S-v) > ||v||*(||S|| -||v||)
@@ -119,19 +126,56 @@ struct leiden_key_aggregated_edge_op_t {
     // E(v, Cr-v) - ||v||* ||Cr-v||/||V(G)||
     // aggregated_weight_to_neighboring_leiden_cluster == E(v, Cr-v)?
 
-    weight_t theta = -1.0;
+    // if (src_leiden_cluster == dst_leiden_cluster_id) {
+    //   printf("\navoid self loop,  src = %d, src_leiden_cluster = %d dst_leiden_cluster_id =%d
+    //   \n",
+    //          src,
+    //          src_leiden_cluster,
+    //          dst_leiden_cluster_id);
+    //   return thrust::make_tuple(neighboring_leiden_cluster, theta);
+    // }
 
-    // avoid self loop should
-    if ((src_leiden_cluster != dst_leiden_cluster_id) && src_singleton_flag &&
-        is_src_well_connected) {
-      if (louvain_of_dst_leiden_cluster == src_louvain_cluster &&
+    weight_t theta = -1.0;
+    if ((src_singleton_flag > 0) && is_src_well_connected) {
+      if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
           is_dst_leiden_cluster_well_connected) {
         theta = aggregated_weight_to_neighboring_leiden_cluster -
                 src_weighted_deg * dst_leiden_volume / total_edge_weight;
       }
     }
 
-    // printf("\n%d %d %f\n", src, neighboring_leiden_cluster, theta);
+    /*
+    if ((src_singleton_flag > 0) && is_src_well_connected)
+      if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
+          is_dst_leiden_cluster_well_connected)
+        if (src < 2) {
+          if (neighboring_leiden_cluster < 0)
+            printf(
+              "\n***(neighboring_leiden_cluster -ve?) src = %d, neighboring_leiden_cluster =%d \n",
+              src,
+              neighboring_leiden_cluster);
+
+          if (louvain_of_dst_leiden_cluster == src_louvain_cluster) {
+            printf(
+              "\ns = %d, nlc = %d: swd=%f, svc=%f, lvc=%f, ssf=%d, sldc =%d, slvc=%d, d_ldv=%f, "
+              "d_ldc=%f, "
+              "d_lci=%d, lv_dlc=%d\n",
+              src,
+              neighboring_leiden_cluster,
+              src_weighted_deg,
+              src_vertex_cut_to_louvain,
+              louvain_cluster_volume,
+              static_cast<vertex_t>(src_singleton_flag),
+              src_leiden_cluster,
+              src_louvain_cluster,
+              dst_leiden_volume,
+              dst_leiden_cut_to_louvain,
+              dst_leiden_cluster_id,
+              louvain_of_dst_leiden_cluster);
+
+            printf("\nsrc=%d, returning (%d,%f)\n", src, neighboring_leiden_cluster, theta);
+          }
+        }*/
 
     return thrust::make_tuple(neighboring_leiden_cluster, theta);
   }
@@ -871,12 +915,26 @@ refine_clustering(
                       edge_end,
                       d_src_dst_gain_iterator,
                       [] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-                        return (thrust::get<2>(src_dst_gain)) > 0.0;
+                        vertex_t src  = thrust::get<0>(src_dst_gain);
+                        vertex_t dst  = thrust::get<1>(src_dst_gain);
+                        weight_t gain = thrust::get<2>(src_dst_gain);
+
+                        if (gain > 0 && dst < 0)
+                          printf(
+                            "\n can it happen? *=>* src=%d, dst=%d, gain=%f \n", src, dst, gain);
+                        return (gain > 0.0) && (dst >= 0);
                       })));
 
     cudaDeviceSynchronize();
 
     std::cout << "#+ve : " << nr_valid_tuples << std::endl;
+
+    if (GraphViewType::is_multi_gpu) {
+      nr_valid_tuples = host_scalar_allreduce(
+        handle.get_comms(), nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    if (nr_valid_tuples == 0) { break; }
 
     d_srcs.resize(nr_valid_tuples, handle.get_stream());
     d_dsts.resize(nr_valid_tuples, handle.get_stream());
@@ -988,7 +1046,7 @@ refine_clustering(
       chosen_nodes.size(),
       false);
 
-    if (debug) {
+    if (chosen_nodes.size() < 25) {
       CUDA_TRY(cudaDeviceSynchronize());
       raft::print_device_vector(
         "chosen_nodes", chosen_nodes.data(), chosen_nodes.size(), std::cout);
@@ -1023,7 +1081,10 @@ refine_clustering(
           thrust::seq, d_nodes_to_move, d_nodes_to_move + num_nodes_to_move, id_to_lookup);
       });
 
-    if (debug) {
+    if (chosen_nodes.size() < 25) {
+      raft::print_device_vector(
+        "chosen_nodes ", chosen_nodes.data(), chosen_nodes.size(), std::cout);
+
       rmm::device_uvector<vertex_t> vertices_to_move(leiden_assignment.size(), handle.get_stream());
 
       thrust::copy_if(handle.get_thrust_policy(),
@@ -1063,6 +1124,17 @@ refine_clustering(
 
     cudaDeviceSynchronize();
     std::cout << "nr_singletons_and_moving: " << nr_singletons_and_moving << std::endl;
+
+    vertex_t nr_NOT_singletons_and_moving = thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_move.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_move.end())),
+      [] __device__(auto flags) {
+        return (!(thrust::get<0>(flags) > 0)) && (thrust::get<1>(flags) > 0);
+      });
+
+    cudaDeviceSynchronize();
+    std::cout << "nr_NOT_singletons_and_moving: " << nr_NOT_singletons_and_moving << std::endl;
 
     vertex_t nr_singletons_before_marking_moving_vertices =
       thrust::count_if(handle.get_thrust_policy(),
@@ -1114,6 +1186,10 @@ refine_clustering(
                                           [] __device__(auto is_moving) { return is_moving; }))),
                         handle.get_stream());
 
+    if (chosen_nodes.size() < 25)
+      raft::print_device_vector(
+        "target_comms: ", target_comms.data(), target_comms.size(), std::cout);
+
     thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
 
     target_comms.resize(
@@ -1150,6 +1226,10 @@ refine_clustering(
                       });
 
     // debug
+
+    if (debug)
+      raft::print_device_vector(
+        "target_comms (unique): ", target_comms.data(), target_comms.size(), std::cout);
 
     // debug
     vertex_t nr_target_comms = thrust::count_if(

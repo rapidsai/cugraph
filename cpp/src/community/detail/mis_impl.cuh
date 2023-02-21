@@ -84,7 +84,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
   rmm::device_uvector<vertex_t> mis(number_of_vertices, handle.get_stream());
 
-  bool debug = graph_view.local_vertex_partition_range_size() < 25;
+  bool debug = graph_view.local_vertex_partition_range_size() < 40;
   if (debug) {
     auto offsets = graph_view.local_edge_partition_view(0).offsets();
     auto indices = graph_view.local_edge_partition_view(0).indices();
@@ -121,30 +121,40 @@ rmm::device_uvector<vertex_t> compute_mis(
   rmm::device_uvector<vertex_t> discard_list(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
 
+  auto out_degrees = graph_view.compute_out_degrees(handle);
+
+  if (debug) {
+    cudaDeviceSynchronize();
+    raft::print_device_vector("degrees: ", out_degrees.data(), out_degrees.size(), std::cout);
+  }
+
   while (true) {
     cudaDeviceSynchronize();
     std::cout << " mis loop .." << std::endl;
     // Select a random set of eligible vertices
 
-    vertex_t nr_remaining_candidates = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(
-        thrust::make_tuple(mis_inclusion_flags.begin(), discard_flags.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(mis_inclusion_flags.end(), discard_flags.end())),
-      [] __device__(auto flags) {
-        return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0);
-      });
+    vertex_t nr_remaining_candidates =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.end(), discard_flags.end(), out_degrees.end())),
+                       [] __device__(auto flags) {
+                         return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0) &&
+                                (thrust::get<2>(flags) > 0);
+                       });
 
     remaining_candidates.resize(nr_remaining_candidates, handle.get_stream());
 
     thrust::copy_if(handle.get_thrust_policy(),
                     vertex_begin,
                     vertex_end,
-                    thrust::make_zip_iterator(
-                      thrust::make_tuple(mis_inclusion_flags.begin(), discard_flags.begin())),
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                      mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
                     remaining_candidates.begin(),
                     [] __device__(auto flags) {
-                      return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0);
+                      return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0) &&
+                             (thrust::get<2>(flags) > 0);
                     });
 
     if (debug) {
@@ -337,6 +347,13 @@ rmm::device_uvector<vertex_t> compute_mis(
         }
 
         if (is_src_selected && is_dst_selected) {
+          // printf("\n (src=%d ---> dst=%d)  ss=%d ds=%d,  sr=%f dr=%f",
+          //        uint32_t{src},
+          //        uint32_t{dst},
+          //        uint32_t{is_src_selected},
+          //        uint32_t{is_dst_selected},
+          //        src_rank,
+          //        dst_rank);
           // Give priority to high rank, high id vertex
           if (src_rank < dst_rank) {
             // smaller rank, deselect it
@@ -368,6 +385,27 @@ rmm::device_uvector<vertex_t> compute_mis(
       de_selection_flags.begin(),
       selection_flags.begin(),
       [] __device__(auto status, auto deselected) { return (status > 0) && (!(deselected > 0)); });
+
+    if (debug) {
+      vertex_t nr_deselected = thrust::count_if(handle.get_thrust_policy(),
+                                                de_selection_flags.begin(),
+                                                de_selection_flags.end(),
+                                                [] __device__(auto flag) { return flag > 0; });
+
+      rmm::device_uvector<vertex_t> de_selection_list(nr_deselected, handle.get_stream());
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      de_selection_flags.begin(),
+                      de_selection_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "\nde_selection_list ", de_selection_list.data(), de_selection_list.size(), std::cout);
+    }
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -477,12 +515,16 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         // Give priority to high rank, high id vertex
         if (is_src_selected && is_dst_selected) {
+          // printf("\n (in) (src=%d ---> dst=%d)  ss=%d ds=%d,  sr=%f dr=%f",
+          //        uint32_t{src},
+          //        uint32_t{dst},
+          //        uint32_t{is_src_selected},
+          //        uint32_t{is_dst_selected},
+          //        src_rank,
+          //        dst_rank);
           return thrust::make_tuple(static_cast<FlagType>(thrust::make_tuple(src_rank, src) >
                                                           thrust::make_tuple(dst_rank, dst)),
                                     FlagType{0});
-          // if (src_rank > dst_rank){
-
-          // }
         }
 
         // printf("\n(src=%d ---> dst=%d) returning %d %d",
@@ -495,6 +537,27 @@ rmm::device_uvector<vertex_t> compute_mis(
       thrust::make_tuple(FlagType{0}, FlagType{0}),
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
+
+    if (debug) {
+      vertex_t nr_deselected = thrust::count_if(handle.get_thrust_policy(),
+                                                de_selection_flags.begin(),
+                                                de_selection_flags.end(),
+                                                [] __device__(auto flag) { return flag > 0; });
+
+      rmm::device_uvector<vertex_t> de_selection_list(nr_deselected, handle.get_stream());
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      de_selection_flags.begin(),
+                      de_selection_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "\n(in)de_selection_list ", de_selection_list.data(), de_selection_list.size(), std::cout);
+    }
 
     // Update selection flags
     thrust::transform(
@@ -565,7 +628,15 @@ rmm::device_uvector<vertex_t> compute_mis(
     }
 
     vertex_t nr_remaining_vertices_to_check =
-      number_of_vertices - nr_include_vertices - nr_discarded_vertices;
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.end(), discard_flags.end(), out_degrees.end())),
+                       [] __device__(auto flags) {
+                         return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0) &&
+                                (thrust::get<2>(flags) > 0);
+                       });
 
     if (multi_gpu) {
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
