@@ -130,7 +130,6 @@ dependencies:
           - numpydoc
           - pydata-sphinx-theme
           - recommonmark
-          - sphinx_rtd_theme
           - sphinx-copybutton
           - sphinx-markdown-tables
           - sphinx<6

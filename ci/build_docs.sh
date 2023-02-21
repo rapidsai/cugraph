@@ -40,14 +40,11 @@ set -x
 rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
 set +x
 
-
-# Build Doxygen docs
 rapids-logger "Build Doxygen docs"
 pushd cpp/doxygen
 doxygen Doxyfile
 popd
 
-# Build Python docs
 rapids-logger "Build Sphinx docs"
 pushd docs/cugraph
 sphinx-build -b dirhtml source _html
