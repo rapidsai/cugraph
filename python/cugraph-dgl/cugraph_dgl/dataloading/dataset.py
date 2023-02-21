@@ -49,21 +49,12 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
         fn, batch_offset = self._batch_to_fn_d[idx]
         if fn != self._current_batch_fn:
-            df = cudf.read_parquet(os.path.join(self._input_directory, fn))
-            if self.edge_dir == "in":
-                df.rename(
-                    columns={"sources": "destinations", "destinations": "sources"},
-                    inplace=True,
-                )
-            self._current_batch_fn = fn
-            self._current_batch_start = batch_offset
+            df = _load_sampled_file(dataset_obj=self, fn=fn)
             self._current_batches = create_homogeneous_sampled_graphs_from_dataframe(
                 df, self.total_number_of_nodes, self.edge_dir
             )
-
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
-
 
     def set_input_files(
         self,
@@ -85,8 +76,6 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         )
 
 
-
-# Todo: combine with above
 class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -116,14 +105,7 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
 
         fn, batch_offset = self._batch_to_fn_d[idx]
         if fn != self._current_batch_fn:
-            df = cudf.read_parquet(os.path.join(self._input_directory, fn))
-            if self.edge_dir == "in":
-                df.rename(
-                    columns={"sources": "destinations", "destinations": "sources"},
-                    inplace=True,
-                )
-            self._current_batch_fn = fn
-            self._current_batch_start = batch_offset
+            df = _load_sampled_file(dataset_obj=self, fn=fn)
             self._current_batches = create_heterogeneous_sampled_graphs_from_dataframe(
                 sampled_df=df,
                 num_nodes_dict=self.num_nodes_dict,
@@ -157,6 +139,17 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
         )
 
 
+def _load_sampled_file(dataset_obj, fn):
+    df = cudf.read_parquet(os.path.join(fn))
+    if dataset_obj.edge_dir == "in":
+        df.rename(
+            columns={"sources": "destinations", "destinations": "sources"},
+            inplace=True,
+        )
+    dataset_obj._current_batch_fn = fn
+    return df
+
+
 def get_batch_start_end(fn):
     batch_start = fn.split("batch=")[1].split("-")[0]
     batch_end = fn.split("-")[1].split(".")[0]
@@ -188,10 +181,9 @@ def _set_input_files(
         raise ValueError("Only one of input_directory or input_file_paths must be set")
 
     if input_file_paths:
-        dataset_obj._sampled_files = input_file_paths
+        dataset_obj._input_files = input_file_paths
     if input_directory:
-        dataset_obj._sampled_files = [fp.path for fp in os.scandir(input_directory)]
-    dataset_obj._batch_to_fn_d = get_batch_to_fn_d(dataset_obj._sampled_files)
+        dataset_obj._input_files = [fp.path for fp in os.scandir(input_directory)]
+    dataset_obj._batch_to_fn_d = get_batch_to_fn_d(dataset_obj._input_files)
     dataset_obj.num_batches = len(dataset_obj._batch_to_fn_d)
     dataset_obj._current_batch_fn = None
-
