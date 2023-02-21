@@ -64,6 +64,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
 
+
     def set_input_files(
         self,
         input_directory: Optional[str] = None,
@@ -82,6 +83,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         _set_input_files(
             self, input_directory=input_directory, input_file_paths=input_file_paths
         )
+
 
 
 # Todo: combine with above
@@ -192,3 +194,4 @@ def _set_input_files(
     dataset_obj._batch_to_fn_d = get_batch_to_fn_d(dataset_obj._sampled_files)
     dataset_obj.num_batches = len(dataset_obj._batch_to_fn_d)
     dataset_obj._current_batch_fn = None
+
