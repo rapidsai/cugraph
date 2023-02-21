@@ -895,9 +895,20 @@ renumber_edgelist(
 
   auto vertex_counts = host_scalar_allgather(
     comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
+  auto vertex_partition_ids =
+    host_scalar_allgather(comm,
+                          partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
+                          handle.get_stream());
+
   std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
-  std::partial_sum(
-    vertex_counts.begin(), vertex_counts.end(), vertex_partition_range_offsets.begin() + 1);
+  for (int i = 0; i < comm_size; ++i) {
+    vertex_partition_range_offsets[vertex_partition_ids[i]] = vertex_counts[i];
+  }
+  std::exclusive_scan(vertex_partition_range_offsets.begin(),
+                      vertex_partition_range_offsets.end(),
+                      vertex_partition_range_offsets.begin(),
+                      vertex_t{0});
 
   partition_t<vertex_t> partition(vertex_partition_range_offsets,
                                   major_comm_size,
