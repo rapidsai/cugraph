@@ -22,7 +22,7 @@ def replace_requirements(func):
         cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
         append_list = [
             f"rmm{cuda_suffix}==23.4.*",
-            f"raft-dask{cuda_suffix}==23.4.*",
+            f"pylibraft{cuda_suffix}==23.4.*",
             f"pylibcugraph{cuda_suffix}==23.4.*",
         ]
         return orig_list + append_list
