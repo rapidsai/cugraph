@@ -38,7 +38,8 @@ rapids-mamba-retry install \
   pylibcugraph \
   cugraph \
   cugraph-dgl \
-  "pytorch=*=*cuda${RAPIDS_CUDA_VERSION%.*}*"
+  "pytorch::pytorch>=2.0" \
+  "pytorch-cuda=11.7"
 
 rapids-logger "Check GPU usage"
 nvidia-smi
