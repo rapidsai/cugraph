@@ -176,7 +176,16 @@ class Tests_MGPageRank
     // 4. copmare SG & MG results
 
     if (pagerank_usecase.check_correctness) {
-      // 4-1. aggregate MG results
+      // 4-1. unrenumber & aggregate MG personalization vertices & results
+
+      if (d_mg_personalization_vertices) {
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          (*d_mg_personalization_vertices).data(),
+          (*d_mg_personalization_vertices).size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
+      }
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
@@ -201,12 +210,6 @@ class Tests_MGPageRank
         // 4-2. unrenumbr MG results
 
         if (d_mg_aggregate_personalization_vertices) {
-          cugraph::unrenumber_int_vertices<vertex_t, false>(
-            *handle_,
-            (*d_mg_aggregate_personalization_vertices).data(),
-            (*d_mg_aggregate_personalization_vertices).size(),
-            d_mg_aggregate_renumber_map_labels.data(),
-            std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
           std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
             cugraph::test::sort_by_key(*handle_,
                                        *d_mg_aggregate_personalization_vertices,

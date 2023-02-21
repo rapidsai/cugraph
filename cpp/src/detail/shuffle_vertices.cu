@@ -122,7 +122,8 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
     handle,
     std::move(vertices),
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-      {d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()},
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size});
 

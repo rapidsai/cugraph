@@ -23,6 +23,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
@@ -557,13 +558,23 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
   }
 
   if (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto const major_comm_rank = major_comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
 
-    auto local_int_vertex_first =
-      comm_rank == 0 ? vertex_t{0} : vertex_partition_range_lasts[comm_rank - 1];
-    auto local_int_vertex_last = vertex_partition_range_lasts[comm_rank];
+    auto vertex_partition_id =
+      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+    auto local_int_vertex_first = vertex_partition_id == 0
+                                    ? vertex_t{0}
+                                    : vertex_partition_range_lasts[vertex_partition_id - 1];
+    auto local_int_vertex_last  = vertex_partition_range_lasts[vertex_partition_id];
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
@@ -591,28 +602,17 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                         vertex_partition_range_lasts.data(),
                         vertex_partition_range_lasts.size(),
                         handle.get_stream());
-    rmm::device_uvector<size_t> d_tx_int_vertex_offsets(d_vertex_partition_range_lasts.size(),
-                                                        handle.get_stream());
-    thrust::lower_bound(handle.get_thrust_policy(),
-                        sorted_unique_int_vertices.begin(),
-                        sorted_unique_int_vertices.end(),
-                        d_vertex_partition_range_lasts.begin(),
-                        d_vertex_partition_range_lasts.end(),
-                        d_tx_int_vertex_offsets.begin());
-    std::vector<size_t> h_tx_int_vertex_counts(d_tx_int_vertex_offsets.size());
-    raft::update_host(h_tx_int_vertex_counts.data(),
-                      d_tx_int_vertex_offsets.data(),
-                      d_tx_int_vertex_offsets.size(),
-                      handle.get_stream());
-    handle.sync_stream();
-    std::adjacent_difference(
-      h_tx_int_vertex_counts.begin(), h_tx_int_vertex_counts.end(), h_tx_int_vertex_counts.begin());
 
-    rmm::device_uvector<vertex_t> rx_int_vertices(0, handle.get_stream());
-    std::vector<size_t> rx_int_vertex_counts{};
-    std::tie(rx_int_vertices, rx_int_vertex_counts) = shuffle_values(
-      comm, sorted_unique_int_vertices.begin(), h_tx_int_vertex_counts, handle.get_stream());
-
+    auto [rx_int_vertices, rx_int_vertex_counts] = groupby_gpu_id_and_shuffle_values(
+      comm,
+      sorted_unique_int_vertices.begin(),
+      sorted_unique_int_vertices.end(),
+      detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                          d_vertex_partition_range_lasts.size()),
+        major_comm_size,
+        minor_comm_size},
+      handle.get_stream());
     auto tx_ext_vertices = std::move(rx_int_vertices);
     thrust::transform(handle.get_thrust_policy(),
                       tx_ext_vertices.begin(),
@@ -621,7 +621,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                       [renumber_map_labels, local_int_vertex_first] __device__(auto v) {
                         return renumber_map_labels[v - local_int_vertex_first];
                       });
-
     rmm::device_uvector<vertex_t> rx_ext_vertices_for_sorted_unique_int_vertices(
       0, handle.get_stream());
     std::tie(rx_ext_vertices_for_sorted_unique_int_vertices, std::ignore) =
