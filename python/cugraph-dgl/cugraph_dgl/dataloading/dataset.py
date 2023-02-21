@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional, List, Union
 
 import os
 import cudf
@@ -29,23 +29,21 @@ torch = import_optional("torch")
 class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        num_batches: int,
         total_number_of_nodes: int,
         edge_dir: bool,
     ):
-        self.num_batches = num_batches
         self.total_number_of_nodes = total_number_of_nodes
         self.edge_dir = edge_dir
         self._current_batch_fn = None
-        self._input_directory = None
+        self._input_files = None
 
     def __len__(self):
         return self.num_batches
 
-    def __getitem__(self, idx):
-        if self._input_directory is None:
+    def __getitem__(self, idx: int):
+        if self._input_files is None:
             raise dgl.DGLError(
-                "Please set input directory by calling `set_input_directory` "
+                "Please set input files by calling `set_input_files` "
                 "before trying to fetch a sample"
             )
 
@@ -66,42 +64,51 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
 
-    def set_input_directory(self, input_directory):
-        self._input_directory = input_directory
-        self._sampled_files = os.listdir(input_directory)
-        self._batch_to_fn_d = {
-            i: get_batch_fn_batch_start(i, self._sampled_files)
-            for i in range(0, self.num_batches)
-        }
+    def set_input_files(
+        self,
+        input_directory: Optional[str] = None,
+        input_file_paths: Optional[List[str]] = None,
+    ):
+        """
+        Set input files that have been created by the `cugraph.gnn.BulkSampler`
+        Parameters
+        ----------
+        input_directory: str
+           input_directory which contains all the files that will be
+           loaded by HomogenousBulkSamplerDataset
+        input_file_paths: List[str]
+            File paths that will be loaded by the HomogenousBulkSamplerDataset
+        """
+        _set_input_files(
+            self, input_directory=input_directory, input_file_paths=input_file_paths
+        )
 
 
 # Todo: combine with above
 class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        num_batches: int,
         num_nodes_dict: Dict[str, int],
         etype_id_dict: Dict[int, Tuple[str, str, str]],
         etype_offset_dict: Dict[Tuple[str, str, str], int],
         ntype_offset_dict: Dict[str, int],
         edge_dir: str = "in",
     ):
-        self.num_batches = num_batches
         self.num_nodes_dict = num_nodes_dict
         self.etype_id_dict = etype_id_dict
         self.etype_offset_dict = etype_offset_dict
         self.ntype_offset_dict = ntype_offset_dict
         self.edge_dir = edge_dir
         self._current_batch_fn = None
-        self._input_directory = None
+        self._input_files = None
 
     def __len__(self):
         return self.num_batches
 
     def __getitem__(self, idx):
-        if self._input_directory is None:
+        if self._input_files is None:
             raise dgl.DGLError(
-                "Please set input directory by calling `set_input_directory` "
+                "Please set input files by calling `set_input_files` "
                 "before trying to fetch a sample"
             )
 
@@ -128,22 +135,60 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
         current_offset = idx - batch_offset
         return self._current_batches[current_offset]
 
-    def set_input_directory(self, input_directory):
-        self._input_directory = input_directory
-        self._sampled_files = os.listdir(input_directory)
-        self._batch_to_fn_d = {
-            i: get_batch_fn_batch_start(i, self._sampled_files)
-            for i in range(0, self.num_batches)
-        }
+    def set_input_files(
+        self,
+        input_directory: Optional[str] = None,
+        input_file_paths: Optional[List[str]] = None,
+    ):
+        """
+        Set input files that have been created by the `cugraph.gnn.BulkSampler`
+        Parameters
+        ----------
+        input_directory: str
+            input_directory which contains all the files that will be
+            loaded by HetrogenousBulkSamplerDataset
+        input_file_paths: List[str]
+            File names that will be loaded by the HetrogenousBulkSamplerDataset
+        """
+        _set_input_files(
+            self, input_directory=input_directory, input_file_paths=input_file_paths
+        )
 
 
-def get_batch_fn_batch_start(batch_id, output_files):
-    for fn in output_files:
-        batch_start = fn.split("batch=")[1].split("-")[0]
-        batch_start = int(batch_start)
-        batch_end = fn.split("-")[1].split(".")[0]
-        batch_end = int(batch_end)
-        if batch_start <= batch_id and batch_id <= batch_end:
-            return fn, batch_start
+def get_batch_start_end(fn):
+    batch_start = fn.split("batch=")[1].split("-")[0]
+    batch_end = fn.split("-")[1].split(".")[0]
+    return int(batch_start), int(batch_end)
 
-    raise ValueError(f"batch_id {batch_id} not found in output_files: {output_files}")
+
+def get_batch_to_fn_d(files):
+    batch_to_fn_d = {}
+    batch_id = 0
+    for fn in files:
+        start, end = get_batch_start_end(fn)
+        batch_offset = batch_id
+        for _ in range(start, end + 1):
+            batch_to_fn_d[batch_id] = fn, batch_offset
+            batch_id += 1
+    return batch_to_fn_d
+
+
+def _set_input_files(
+    dataset_obj: Union[HomogenousBulkSamplerDataset, HetrogenousBulkSamplerDataset],
+    input_directory: Optional[str] = None,
+    input_file_paths: Optional[List[str]] = None,
+) -> None:
+
+    if input_directory is None and input_file_paths is None:
+        raise ValueError("input_files or input_file_paths must be set")
+
+    if (input_directory is not None) and (input_file_paths is not None):
+        raise ValueError("Only one of input_directory or input_file_paths must be set")
+
+    if input_file_paths:
+        dataset_obj._sampled_files = input_file_paths
+    if input_directory:
+        dataset_obj._sampled_files = [fp.path for fp in os.scandir(input_directory)]
+    dataset_obj._batch_to_fn_d = get_batch_to_fn_d(dataset_obj._sampled_files)
+    dataset_obj.num_batches = len(dataset_obj._batch_to_fn_d)
+    dataset_obj._current_batch_fn = None
