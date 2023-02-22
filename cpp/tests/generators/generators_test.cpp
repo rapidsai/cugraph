@@ -26,8 +26,7 @@
 
 #include <random>
 
-struct GeneratorsTest : public ::testing::Test {
-};
+struct GeneratorsTest : public ::testing::Test {};
 
 TEST_F(GeneratorsTest, PathGraphTest)
 {
@@ -620,8 +619,12 @@ TEST_F(GeneratorsTest, ScrambleTest)
   auto output_src_v = cugraph::test::to_host(handle, d_src_v);
   auto output_dst_v = cugraph::test::to_host(handle, d_dst_v);
 
-  EXPECT_TRUE(cugraph::test::renumbered_vectors_same(handle, input_src_v, output_src_v));
-  EXPECT_TRUE(cugraph::test::renumbered_vectors_same(handle, input_dst_v, output_dst_v));
+  EXPECT_TRUE(cugraph::test::check_invertible(
+    raft::host_span<vertex_t const>(input_src_v.data(), input_src_v.size()),
+    raft::host_span<vertex_t const>(output_src_v.data(), output_src_v.size())));
+  EXPECT_TRUE(cugraph::test::check_invertible(
+    raft::host_span<vertex_t const>(input_dst_v.data(), input_dst_v.size()),
+    raft::host_span<vertex_t const>(output_dst_v.data(), output_dst_v.size())));
 }
 
 CUGRAPH_TEST_PROGRAM_MAIN()
