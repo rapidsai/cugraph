@@ -402,12 +402,11 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
     std::tie(sorted_unique_ext_vertices, int_vertices_for_sorted_unique_ext_vertices) =
-      collect_values_for_unique_keys(comm,
+      collect_values_for_unique_keys(handle,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
                                      detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-                                       comm_size, major_comm_size, minor_comm_size},
-                                     handle.get_stream());
+                                       comm_size, major_comm_size, minor_comm_size});
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
       sorted_unique_ext_vertices.begin(),
@@ -596,40 +595,16 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                       sorted_unique_int_vertices.end())),
       handle.get_stream());
 
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-      vertex_partition_range_lasts.size(), handle.get_stream());
-    raft::update_device(d_vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.size(),
-                        handle.get_stream());
-
-    auto [rx_int_vertices, rx_int_vertex_counts] = groupby_gpu_id_and_shuffle_values(
-      comm,
-      sorted_unique_int_vertices.begin(),
-      sorted_unique_int_vertices.end(),
-      detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-        raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
-                                          d_vertex_partition_range_lasts.size()),
-        major_comm_size,
-        minor_comm_size},
-      handle.get_stream());
-    auto tx_ext_vertices = std::move(rx_int_vertices);
-    thrust::transform(handle.get_thrust_policy(),
-                      tx_ext_vertices.begin(),
-                      tx_ext_vertices.end(),
-                      tx_ext_vertices.begin(),
-                      [renumber_map_labels, local_int_vertex_first] __device__(auto v) {
-                        return renumber_map_labels[v - local_int_vertex_first];
-                      });
-    rmm::device_uvector<vertex_t> rx_ext_vertices_for_sorted_unique_int_vertices(
-      0, handle.get_stream());
-    std::tie(rx_ext_vertices_for_sorted_unique_int_vertices, std::ignore) =
-      shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream());
+    auto [unique_int_vertices, ext_vertices_for_unique_int_vertices] =
+      collect_values_for_unique_int_vertices(handle,
+                                             std::move(sorted_unique_int_vertices),
+                                             renumber_map_labels,
+                                             vertex_partition_range_lasts);
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      sorted_unique_int_vertices.begin(),
-      sorted_unique_int_vertices.begin() + sorted_unique_int_vertices.size(),
-      rx_ext_vertices_for_sorted_unique_int_vertices.begin(),
+      unique_int_vertices.begin(),
+      unique_int_vertices.begin() + unique_int_vertices.size(),
+      ext_vertices_for_unique_int_vertices.begin(),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       handle.get_stream());

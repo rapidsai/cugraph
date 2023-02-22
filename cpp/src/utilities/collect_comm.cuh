@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <detail/graph_partition_utils.cuh>
 #include <prims/kv_store.cuh>
 
 #include <cugraph/graph.hpp>
@@ -52,65 +53,67 @@ namespace cugraph {
 template <typename KVStoreViewType, typename KeyIterator, typename KeyToGPUIdOp>
 decltype(allocate_dataframe_buffer<typename KVStoreViewType::value_type>(0,
                                                                          rmm::cuda_stream_view{}))
-collect_values_for_keys(raft::comms::comms_t const& comm,
+collect_values_for_keys(raft::handle_t const& handle,
                         KVStoreViewType kv_store_view,
                         KeyIterator collect_key_first,
                         KeyIterator collect_key_last,
-                        KeyToGPUIdOp key_to_gpu_id_op,
-                        rmm::cuda_stream_view stream_view)
+                        KeyToGPUIdOp key_to_gpu_id_op)
 {
   using key_t = typename KVStoreViewType::key_type;
   static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
   using value_t = typename KVStoreViewType::value_type;
 
+  auto& comm = handle.get_comms();
+
   // 1. collect values for the unique keys in [collect_key_first, collect_key_last)
 
   rmm::device_uvector<key_t> unique_keys(thrust::distance(collect_key_first, collect_key_last),
-                                         stream_view);
+                                         handle.get_stream());
   thrust::copy(
-    rmm::exec_policy(stream_view), collect_key_first, collect_key_last, unique_keys.begin());
-  thrust::sort(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end());
+    handle.get_thrust_policy(), collect_key_first, collect_key_last, unique_keys.begin());
+  thrust::sort(handle.get_thrust_policy(), unique_keys.begin(), unique_keys.end());
   unique_keys.resize(
     thrust::distance(
       unique_keys.begin(),
-      thrust::unique(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end())),
-    stream_view);
+      thrust::unique(handle.get_thrust_policy(), unique_keys.begin(), unique_keys.end())),
+    handle.get_stream());
 
-  auto values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
+  auto values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, handle.get_stream());
   {
-    rmm::device_uvector<key_t> rx_unique_keys(0, stream_view);
+    rmm::device_uvector<key_t> rx_unique_keys(0, handle.get_stream());
     std::vector<size_t> rx_value_counts{};
     std::tie(rx_unique_keys, rx_value_counts) = groupby_gpu_id_and_shuffle_values(
       comm,
       unique_keys.begin(),
       unique_keys.end(),
       [key_to_gpu_id_op] __device__(auto val) { return key_to_gpu_id_op(val); },
-      stream_view);
+      handle.get_stream());
 
     auto values_for_rx_unique_keys =
-      allocate_dataframe_buffer<value_t>(rx_unique_keys.size(), stream_view);
+      allocate_dataframe_buffer<value_t>(rx_unique_keys.size(), handle.get_stream());
 
     kv_store_view.find(rx_unique_keys.begin(),
                        rx_unique_keys.end(),
                        get_dataframe_buffer_begin(values_for_rx_unique_keys),
-                       stream_view);
+                       handle.get_stream());
 
-    auto rx_values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
+    auto rx_values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, handle.get_stream());
     std::tie(rx_values_for_unique_keys, std::ignore) =
-      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream_view);
+      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, handle.get_stream());
 
     values_for_unique_keys = std::move(rx_values_for_unique_keys);
   }
 
   // 2. build a kv_store_t object for the k, v pairs in unique_keys, values_for_unique_keys.
 
-  kv_store_t<key_t, value_t, KVStoreViewType::binary_search> unique_key_value_store(stream_view);
+  kv_store_t<key_t, value_t, KVStoreViewType::binary_search> unique_key_value_store(
+    handle.get_stream());
   if constexpr (KVStoreViewType::binary_search) {
     unique_key_value_store = kv_store_t<key_t, value_t, true>(std::move(unique_keys),
                                                               std::move(values_for_unique_keys),
                                                               kv_store_view.invalid_value,
                                                               false,
-                                                              stream_view);
+                                                              handle.get_stream());
   } else {
     unique_key_value_store =
       kv_store_t<key_t, value_t, false>(unique_keys.begin(),
@@ -118,16 +121,18 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
                                         get_dataframe_buffer_begin(values_for_unique_keys),
                                         kv_store_view.cuco_store->get_empty_key_sentinel(),
                                         kv_store_view.cuco_store->get_empty_value_sentinel(),
-                                        stream_view);
+                                        handle.get_stream());
   }
   auto unique_key_value_store_view = unique_key_value_store.view();
 
   // 3. find values for [collect_key_first, collect_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
-    thrust::distance(collect_key_first, collect_key_last), stream_view);
-  unique_key_value_store_view.find(
-    collect_key_first, collect_key_last, get_dataframe_buffer_begin(value_buffer), stream_view);
+    thrust::distance(collect_key_first, collect_key_last), handle.get_stream());
+  unique_key_value_store_view.find(collect_key_first,
+                                   collect_key_last,
+                                   get_dataframe_buffer_begin(value_buffer),
+                                   handle.get_stream());
 
   return value_buffer;
 }
@@ -138,154 +143,149 @@ std::tuple<rmm::device_uvector<typename KVStoreViewType::key_type>,
            decltype(allocate_dataframe_buffer<typename KVStoreViewType::value_type>(
              0, cudaStream_t{nullptr}))>
 collect_values_for_unique_keys(
-  raft::comms::comms_t const& comm,
+  raft::handle_t const& handle,
   KVStoreViewType kv_store_view,
   rmm::device_uvector<typename KVStoreViewType::key_type>&& collect_unique_keys,
-  KeyToGPUIdOp key_to_gpu_id_op,
-  rmm::cuda_stream_view stream_view)
+  KeyToGPUIdOp key_to_gpu_id_op)
 {
   using key_t   = typename KVStoreViewType::key_type;
   using value_t = typename KVStoreViewType::value_type;
 
-  auto values_for_collect_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
+  auto& comm = handle.get_comms();
+
+  auto values_for_collect_unique_keys = allocate_dataframe_buffer<value_t>(0, handle.get_stream());
   {
     auto [rx_unique_keys, rx_value_counts] = groupby_gpu_id_and_shuffle_values(
       comm,
       collect_unique_keys.begin(),
       collect_unique_keys.end(),
       [key_to_gpu_id_op] __device__(auto val) { return key_to_gpu_id_op(val); },
-      stream_view);
+      handle.get_stream());
     auto values_for_rx_unique_keys =
-      allocate_dataframe_buffer<value_t>(rx_unique_keys.size(), stream_view);
+      allocate_dataframe_buffer<value_t>(rx_unique_keys.size(), handle.get_stream());
     kv_store_view.find(rx_unique_keys.begin(),
                        rx_unique_keys.end(),
                        get_dataframe_buffer_begin(values_for_rx_unique_keys),
-                       stream_view);
+                       handle.get_stream());
 
-    std::tie(values_for_collect_unique_keys, std::ignore) = shuffle_values(
-      comm, get_dataframe_buffer_begin(values_for_rx_unique_keys), rx_value_counts, stream_view);
+    std::tie(values_for_collect_unique_keys, std::ignore) =
+      shuffle_values(comm,
+                     get_dataframe_buffer_begin(values_for_rx_unique_keys),
+                     rx_value_counts,
+                     handle.get_stream());
   }
 
   return std::make_tuple(std::move(collect_unique_keys), std::move(values_for_collect_unique_keys));
 }
 
-template <typename VertexIterator, typename ValueIterator>
-decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-  0, cudaStream_t{nullptr}))
-collect_values_for_sorted_unique_int_vertices(
-  raft::comms::comms_t const& comm,
-  VertexIterator collect_sorted_unique_vertex_first,
-  VertexIterator collect_sorted_unique_vertex_last,
-  ValueIterator local_value_first,
-  std::vector<typename thrust::iterator_traits<VertexIterator>::value_type> const&
-    vertex_partition_range_lasts,
-  rmm::cuda_stream_view stream_view)
+template <typename vertex_t, typename ValueIterator>
+std::tuple<
+  rmm::device_uvector<vertex_t>,
+  decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+    0, cudaStream_t{nullptr}))>
+collect_values_for_unique_int_vertices(raft::handle_t const& handle,
+                                       rmm::device_uvector<vertex_t>&& collect_unique_int_vertices,
+                                       ValueIterator local_value_first,
+                                       std::vector<vertex_t> const& vertex_partition_range_lasts)
 {
-  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
-  using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  // 1: Compute bounds of values
+  auto& comm                 = handle.get_comms();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto const major_comm_rank = major_comm.get_rank();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+  auto const minor_comm_rank = minor_comm.get_rank();
+
+  // 1. groupby and shuffle internal vertices
 
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
-                                                               stream_view);
-  rmm::device_uvector<size_t> d_local_counts(vertex_partition_range_lasts.size(), stream_view);
+                                                               handle.get_stream());
+  raft::update_device(d_vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
+                      handle.get_stream());
 
-  raft::copy(d_vertex_partition_range_lasts.data(),
-             vertex_partition_range_lasts.data(),
-             vertex_partition_range_lasts.size(),
-             stream_view);
+  auto [rx_int_vertices, rx_int_vertex_counts] = groupby_gpu_id_and_shuffle_values(
+    comm,
+    collect_unique_int_vertices.begin(),
+    collect_unique_int_vertices.end(),
+    detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
+      major_comm_size,
+      minor_comm_size},
+    handle.get_stream());
 
-  thrust::lower_bound(rmm::exec_policy(stream_view),
-                      collect_sorted_unique_vertex_first,
-                      collect_sorted_unique_vertex_last,
-                      d_vertex_partition_range_lasts.begin(),
-                      d_vertex_partition_range_lasts.end(),
-                      d_local_counts.begin());
+  // 2: Lookup return values
 
-  thrust::adjacent_difference(rmm::exec_policy(stream_view),
-                              d_local_counts.begin(),
-                              d_local_counts.end(),
-                              d_local_counts.begin());
+  auto vertex_partition_id =
+    partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+      major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+  auto local_int_vertex_first =
+    vertex_partition_id == 0 ? vertex_t{0} : vertex_partition_range_lasts[vertex_partition_id - 1];
 
-  std::vector<size_t> h_local_counts(d_local_counts.size());
-
-  raft::update_host(
-    h_local_counts.data(), d_local_counts.data(), d_local_counts.size(), stream_view);
-
-  // 2: Shuffle data
-
-  auto [shuffled_vertices, shuffled_counts] =
-    shuffle_values(comm, collect_sorted_unique_vertex_first, h_local_counts, stream_view);
-
-  auto value_buffer = allocate_dataframe_buffer<value_t>(shuffled_vertices.size(), stream_view);
-
-  // 3: Lookup return values
-
-  thrust::transform(rmm::exec_policy(stream_view),
-                    shuffled_vertices.begin(),
-                    shuffled_vertices.end(),
+  auto value_buffer =
+    allocate_dataframe_buffer<value_t>(rx_int_vertices.size(), handle.get_stream());
+  thrust::transform(handle.get_thrust_policy(),
+                    rx_int_vertices.begin(),
+                    rx_int_vertices.end(),
                     value_buffer.begin(),
-                    [local_value_first,
-                     vertex_local_first =
-                       (comm.get_rank() == 0
-                          ? vertex_t{0}
-                          : vertex_partition_range_lasts[comm.get_rank() - 1])] __device__(auto v) {
-                      return local_value_first[v - vertex_local_first];
+                    [local_value_first, local_int_vertex_first] __device__(auto v) {
+                      return local_value_first[v - local_int_vertex_first];
                     });
 
-  // 4: Shuffle results back to original GPU
+  // 3: Shuffle results back to original GPU
 
   std::tie(value_buffer, std::ignore) =
-    shuffle_values(comm, value_buffer.begin(), shuffled_counts, stream_view);
+    shuffle_values(comm, value_buffer.begin(), rx_int_vertex_counts, handle.get_stream());
 
-  return value_buffer;
+  return std::make_tuple(std::move(collect_unique_int_vertices), std::move(value_buffer));
 }
 
 template <typename VertexIterator, typename ValueIterator>
 decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
 collect_values_for_int_vertices(
-  raft::comms::comms_t const& comm,
+  raft::handle_t const& handle,
   VertexIterator collect_vertex_first,
   VertexIterator collect_vertex_last,
   ValueIterator local_value_first,
   std::vector<typename thrust::iterator_traits<VertexIterator>::value_type> const&
-    vertex_partition_range_lasts,
-  rmm::cuda_stream_view stream_view)
+    vertex_partition_range_lasts)
 {
   using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
   using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
 
   size_t input_size = thrust::distance(collect_vertex_first, collect_vertex_last);
 
-  rmm::device_uvector<vertex_t> sorted_unique_vertices(input_size, stream_view);
+  rmm::device_uvector<vertex_t> sorted_unique_int_vertices(input_size, handle.get_stream());
 
-  raft::copy(sorted_unique_vertices.data(), collect_vertex_first, input_size, stream_view);
+  raft::copy(
+    sorted_unique_int_vertices.data(), collect_vertex_first, input_size, handle.get_stream());
 
-  thrust::sort(
-    rmm::exec_policy(stream_view), sorted_unique_vertices.begin(), sorted_unique_vertices.end());
-  auto last = thrust::unique(
-    rmm::exec_policy(stream_view), sorted_unique_vertices.begin(), sorted_unique_vertices.end());
-  sorted_unique_vertices.resize(thrust::distance(sorted_unique_vertices.begin(), last),
-                                stream_view);
+  thrust::sort(handle.get_thrust_policy(),
+               sorted_unique_int_vertices.begin(),
+               sorted_unique_int_vertices.end());
+  auto last = thrust::unique(handle.get_thrust_policy(),
+                             sorted_unique_int_vertices.begin(),
+                             sorted_unique_int_vertices.end());
+  sorted_unique_int_vertices.resize(thrust::distance(sorted_unique_int_vertices.begin(), last),
+                                    handle.get_stream());
 
-  auto tmp_value_buffer =
-    collect_values_for_sorted_unique_int_vertices(comm,
-                                                  sorted_unique_vertices.begin(),
-                                                  sorted_unique_vertices.end(),
-                                                  local_value_first,
-                                                  vertex_partition_range_lasts,
-                                                  stream_view);
+  auto [unique_int_vertices, tmp_value_buffer] = collect_values_for_unique_int_vertices(
+    handle, std::move(sorted_unique_int_vertices), local_value_first, vertex_partition_range_lasts);
 
-  kv_store_t<vertex_t, value_t, true> kv_map(std::move(sorted_unique_vertices),
+  kv_store_t<vertex_t, value_t, true> kv_map(std::move(unique_int_vertices),
                                              std::move(tmp_value_buffer),
                                              invalid_vertex_id<vertex_t>::value,
                                              false,
-                                             stream_view);
+                                             handle.get_stream());
   auto device_view = detail::kv_binary_search_store_device_view_t(kv_map.view());
 
-  auto value_buffer = allocate_dataframe_buffer<value_t>(input_size, stream_view);
-  thrust::transform(rmm::exec_policy(stream_view),
+  auto value_buffer = allocate_dataframe_buffer<value_t>(input_size, handle.get_stream());
+  thrust::transform(handle.get_thrust_policy(),
                     collect_vertex_first,
                     collect_vertex_last,
                     value_buffer.begin(),

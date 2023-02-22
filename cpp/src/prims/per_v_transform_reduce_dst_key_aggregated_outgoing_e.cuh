@@ -602,12 +602,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       auto values_for_unique_keys =
         allocate_dataframe_buffer<kv_pair_value_t>(0, handle.get_stream());
       std::tie(unique_minor_keys, values_for_unique_keys) =
-        collect_values_for_unique_keys(comm,
+        collect_values_for_unique_keys(handle,
                                        kv_store_view,
                                        std::move(unique_minor_keys),
                                        cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-                                         comm_size, major_comm_size, minor_comm_size},
-                                       handle.get_stream());
+                                         comm_size, major_comm_size, minor_comm_size});
 
       if constexpr (KVStoreViewType::binary_search) {
         multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, kv_pair_value_t, true>>(
