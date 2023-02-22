@@ -262,8 +262,6 @@ collect_values_for_int_vertices(
 
   raft::copy(sorted_unique_vertices.data(), collect_vertex_first, input_size, stream_view);
 
-  // FIXME:  It's possible that the input data might already be sorted and unique in
-  //         which case we could skip these steps.
   thrust::sort(
     rmm::exec_policy(stream_view), sorted_unique_vertices.begin(), sorted_unique_vertices.end());
   auto last = thrust::unique(
