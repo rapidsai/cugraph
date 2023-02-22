@@ -141,7 +141,7 @@ class DataLoader(torch.utils.data.DataLoader):
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
-        self.tensorized_indices_ds = create_tensorized_dataset(
+        self.tensorized_indices_ds = create_tensorized_dataset(  # noqa: F821
             indices,
             batch_size,
             drop_last,
