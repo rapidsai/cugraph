@@ -141,9 +141,16 @@ class DataLoader(torch.utils.data.DataLoader):
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
-        self.tensorized_indices_ds = dgl.dataloading.create_tensorized_dataset(
-            indices, batch_size, drop_last, use_ddp, ddp_seed, shuffle
+        self.tensorized_indices_ds = create_tensorized_dataset(
+            indices,
+            batch_size,
+            drop_last,
+            use_ddp,
+            ddp_seed,
+            shuffle,
+            kwargs.get("persistent_workers", False),
         )
+
         if len(graph.ntypes) <= 1:
             self.cugraph_dgl_dataset = HomogenousBulkSamplerDataset(
                 num_batches=len(self.tensorized_indices_ds),

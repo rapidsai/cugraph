@@ -72,7 +72,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
         self._sampled_files = os.listdir(input_directory)
         self._batch_to_fn_d = {
             i: get_batch_fn_batch_start(i, self._sampled_files)
-            for i in range(0, self.num_batches + 1)
+            for i in range(0, self.num_batches)
         }
 
 
@@ -134,7 +134,7 @@ class HetrogenousBulkSamplerDataset(torch.utils.data.Dataset):
         self._sampled_files = os.listdir(input_directory)
         self._batch_to_fn_d = {
             i: get_batch_fn_batch_start(i, self._sampled_files)
-            for i in range(0, self.num_batches + 1)
+            for i in range(0, self.num_batches)
         }
 
 
@@ -147,4 +147,4 @@ def get_batch_fn_batch_start(batch_id, output_files):
         if batch_start <= batch_id and batch_id <= batch_end:
             return fn, batch_start
 
-    raise ValueError(f"batch_id {id} not found in output_files: {output_files}")
+    raise ValueError(f"batch_id {batch_id} not found in output_files: {output_files}")
