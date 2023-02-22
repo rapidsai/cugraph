@@ -394,7 +394,8 @@ def rmat_PropertyGraph():
 # Tests
 # =============================================================================
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
-def test_add_vertex_data(df_type):
+@pytest.mark.parametrize("set_index", [True, False])
+def test_add_vertex_data(df_type, set_index):
     """
     add_vertex_data() on "merchants" table, all properties.
     """
@@ -402,7 +403,8 @@ def test_add_vertex_data(df_type):
 
     merchants = dataset1["merchants"]
     merchants_df = df_type(columns=merchants[0], data=merchants[1])
-
+    if set_index:
+        merchants_df.set_index("merchant_id", inplace=True)
     pG = PropertyGraph()
     pG.add_vertex_data(
         merchants_df,
@@ -973,7 +975,8 @@ def test_add_edge_data_prop_columns(df_type):
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
-def test_add_edge_data_with_ids(df_type):
+@pytest.mark.parametrize("set_index", [True, False])
+def test_add_edge_data_with_ids(df_type, set_index):
     """
     add_edge_data() on "transactions" table, all properties.
     """
@@ -982,7 +985,9 @@ def test_add_edge_data_with_ids(df_type):
     transactions = dataset1["transactions"]
     transactions_df = df_type(columns=transactions[0], data=transactions[1])
     transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
-
+    transactions_ids = transactions_df["edge_id"]
+    if set_index:
+        transactions_df.set_index("edge_id", inplace=True)
     pG = PropertyGraph()
     pG.add_edge_data(
         transactions_df,
@@ -1014,6 +1019,9 @@ def test_add_edge_data_with_ids(df_type):
         )
 
     relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+    relationships_ids = relationships_df["edge_id"]
+    if set_index:
+        relationships_df.set_index("edge_id", inplace=True)
 
     pG.add_edge_data(
         relationships_df,
@@ -1030,13 +1038,13 @@ def test_add_edge_data_with_ids(df_type):
     df = pG.get_edge_data(types="transactions")
     ase(
         df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
-        transactions_df["edge_id"],
+        transactions_ids,
         check_names=False,
     )
     df = pG.get_edge_data(types="relationships")
     ase(
         df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
-        relationships_df["edge_id"],
+        relationships_ids,
         check_names=False,
     )
 

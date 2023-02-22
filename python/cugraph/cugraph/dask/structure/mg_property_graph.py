@@ -397,7 +397,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
         vertex_col_name : string
-            The column name that contains the values to be used as vertex IDs.
+            The column name that contains the values to be used as vertex IDs,
+            or the name of the index if the index is vertex IDs.
+            Specifying the index may be more efficient, and will be the most
+            efficient if the index of vertex IDs is already sorted.
         type_name : string
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about users, type_name might be
@@ -434,10 +437,14 @@ class EXPERIMENTAL__MGPropertyGraph:
         if type(dataframe) is not dask_cudf.DataFrame:
             raise TypeError("dataframe must be a Dask dataframe.")
         if vertex_col_name not in dataframe.columns:
-            raise ValueError(
-                f"{vertex_col_name} is not a column in "
-                f"dataframe: {dataframe.columns}"
-            )
+            if vertex_col_name != dataframe.index.name:
+                raise ValueError(
+                    f"{vertex_col_name} is not a column in or the index name of "
+                    f"dataframe: {dataframe.columns}"
+                )
+            index_is_set = True
+        else:
+            index_is_set = False
         if type_name is not None and not isinstance(type_name, str):
             raise TypeError(f"type_name must be a string, got: {type(type_name)}")
         if type_name is None:
@@ -514,10 +521,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
-            self.__update_dataframe_dtypes(
-                self.__vertex_prop_dataframe,
-                {self.vertex_col_name: dataframe[vertex_col_name].dtype},
-            )
+            if not index_is_set:
+                self.__update_dataframe_dtypes(
+                    self.__vertex_prop_dataframe,
+                    {self.vertex_col_name: dataframe[vertex_col_name].dtype},
+                )
             self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.set_index(
                 self.vertex_col_name
             )
@@ -540,9 +548,12 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
         tmp_df = dataframe.copy()
-        tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
-        # FIXME: handle case of a type_name column already being in tmp_df
+        if not index_is_set:
+            tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
+        elif tmp_df.index.name != self.vertex_col_name:
+            tmp_df.index = tmp_df.index.rename(self.vertex_col_name)
 
+        # FIXME: handle case of a type_name column already being in tmp_df
         # FIXME: We should do categorization first
         # Related issue: https://github.com/rapidsai/cugraph/issues/2903
         tmp_df[TCN] = type_name
@@ -566,6 +577,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             column_names_to_drop -= vector_properties.keys()
             tmp_df = self._create_vector_properties(tmp_df, vector_properties)
 
+        if index_is_set:
+            column_names_to_drop -= {self.vertex_col_name, vertex_col_name}
+
         tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
         # Save the original dtypes for each new column so they can be restored
@@ -579,8 +593,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         self.__vertex_prop_dtypes.update(new_col_info)
 
-        # TODO: allow tmp_df to come in with vertex id already as index
-        tmp_df = tmp_df.persist().set_index(self.vertex_col_name).persist()
+        tmp_df = tmp_df.persist()
+        if not index_is_set:
+            tmp_df = tmp_df.set_index(self.vertex_col_name).persist()
         self.__update_dataframe_dtypes(tmp_df, self.__vertex_prop_dtypes)
 
         if is_first_data:
@@ -682,7 +697,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
         edge_id_col_name : string, optional
-            The column name that contains the values to be used as edge IDs.
+            The column name that contains the values to be used as edge IDs,
+            or the name of the index if the index is edge IDs.
+            Specifying the index may be more efficient, and will be the most
+            efficient if the index of edge IDs is already sorted.
             If unspecified, edge IDs will be automatically assigned.
             Currently, all edge data must be added with the same method: either
             with automatically generated IDs, or from user-provided edge IDs.
@@ -733,10 +751,14 @@ class EXPERIMENTAL__MGPropertyGraph:
                     f"{type(edge_id_col_name)}"
                 )
             if edge_id_col_name not in dataframe.columns:
-                raise ValueError(
-                    "edge_id_col_name argument not in columns, "
-                    f"got {edge_id_col_name!r}"
-                )
+                if edge_id_col_name != dataframe.index.name:
+                    raise ValueError(
+                        "edge_id_col_name argument not in columns, "
+                        f"got {edge_id_col_name!r}"
+                    )
+                index_is_set = True
+            else:
+                index_is_set = False
         invalid_columns = set(vertex_col_names).difference(dataframe.columns)
         if invalid_columns:
             raise ValueError(
@@ -838,7 +860,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                 },
             )
             temp_dataframe.index = temp_dataframe.index.rename(self.edge_id_col_name)
-            if edge_id_col_name is not None:
+            if edge_id_col_name is not None and not index_is_set:
                 temp_dataframe.index = temp_dataframe.index.astype(
                     dataframe[edge_id_col_name].dtype
                 )
@@ -881,13 +903,15 @@ class EXPERIMENTAL__MGPropertyGraph:
             tmp_df = tmp_df.persist().set_index(self.edge_id_col_name).persist()
             self.__last_edge_id = starting_eid + len(tmp_df)
         else:
-            tmp_df = (
-                tmp_df.rename(columns={edge_id_col_name: self.edge_id_col_name})
-                .persist()
-                .set_index(self.edge_id_col_name)
-                .persist()
-            )
-            tmp_df.index = tmp_df.index.astype(dataframe[edge_id_col_name].dtype)
+            if not index_is_set:
+                tmp_df = tmp_df.rename(
+                    columns={edge_id_col_name: self.edge_id_col_name}
+                ).persist()
+                tmp_df = tmp_df.set_index(self.edge_id_col_name)
+                tmp_df.index = tmp_df.index.astype(dataframe[edge_id_col_name].dtype)
+            elif tmp_df.index.name != self.edge_id_col_name:
+                tmp_df.index = tmp_df.index.rename(self.edge_id_col_name)
+            tmp_df = tmp_df.persist()
 
         if property_columns:
             # all columns
@@ -921,7 +945,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         self.__edge_prop_dtypes.update(new_col_info)
 
-        # TODO: allow tmp_df to come in with edge id already as index
         self.__update_dataframe_dtypes(tmp_df, self.__edge_prop_dtypes)
 
         if is_first_data:
