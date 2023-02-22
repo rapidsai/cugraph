@@ -224,6 +224,7 @@ class Tests_MGExtractBFSPaths
         // compare
 
         ASSERT_EQ(mg_max_path_length, sg_max_path_length);
+        ASSERT_EQ(d_mg_aggregate_paths.size(), d_sg_paths.size());
 
         auto h_mg_aggregate_paths = cugraph::test::to_host(*handle_, d_mg_aggregate_paths);
         auto h_sg_paths           = cugraph::test::to_host(*handle_, d_sg_paths);
