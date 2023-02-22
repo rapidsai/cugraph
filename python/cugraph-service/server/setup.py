@@ -23,7 +23,7 @@ install_requires = [
     "cupy-cuda11x",
     "dask-cuda",
     "dask-cudf",
-    "distributed ==2023.1.1",
+    "distributed >=2023.1.1",
     "numpy",
     "rmm",
     "thriftpy2",

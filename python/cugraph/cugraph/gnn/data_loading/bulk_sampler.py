@@ -211,17 +211,21 @@ class EXPERIMENTAL__BulkSampler:
             ix_partition_end_inclusive = (
                 min_batch_id + (partition_k + 1) * self.batches_per_partition - 1
             )
+            f = (samples.batch_id >= ix_partition_start_inclusive) & (
+                samples.batch_id <= ix_partition_end_inclusive
+            )
+            if len(samples[f]) == 0:
+                break
+
+            ix_partition_end_inclusive = samples[f].batch_id.max()
+            if hasattr(ix_partition_end_inclusive, "compute"):
+                ix_partition_end_inclusive = ix_partition_end_inclusive.compute()
+            ix_partition_end_inclusive = int(ix_partition_end_inclusive)
 
             inner_path = os.path.join(
                 outer_partition_path,
                 f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}"
                 ".parquet",
             )
-
-            f = (samples.batch_id >= ix_partition_start_inclusive) & (
-                samples.batch_id <= ix_partition_end_inclusive
-            )
-            if len(samples[f]) == 0:
-                break
 
             samples[f].to_parquet(inner_path, index=False)
