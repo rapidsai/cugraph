@@ -132,13 +132,13 @@ sample_edges(raft::handle_t const& handle,
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param major Major vertices
- * @param minor Minor vertices
- * @param wgt   Optional edge weight
- * @param edge_id Optional edge id
- * @param edge_type Optional edge type
- * @param hop Optional indicator of which hop the edge was found in
- * @param label Label associated with the seed that resulted in this edge being part of the result
+ * @param majors Major vertices
+ * @param minors Minor vertices
+ * @param weights Optional edge weight
+ * @param edge_ids Optional edge id
+ * @param edge_types Optional edge type
+ * @param hops Optional indicator of which hop the edge was found in
+ * @param labels Label associated with the seed that resulted in this edge being part of the result
  * @param label_to_output_gpu_mapping Mapping that identifies the GPU that is associated with the
  * output label
  *
@@ -159,13 +159,13 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<label_t>>>
 shuffle_sampling_results(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>&& major,
-                         rmm::device_uvector<vertex_t>&& minor,
-                         std::optional<rmm::device_uvector<weight_t>>&& wgt,
-                         std::optional<rmm::device_uvector<edge_t>>&& edge_id,
-                         std::optional<rmm::device_uvector<edge_type_t>>&& edge_type,
-                         std::optional<rmm::device_uvector<int32_t>>&& hop,
-                         std::optional<rmm::device_uvector<label_t>>&& label,
+                         rmm::device_uvector<vertex_t>&& majors,
+                         rmm::device_uvector<vertex_t>&& minors,
+                         std::optional<rmm::device_uvector<weight_t>>&& weights,
+                         std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+                         std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+                         std::optional<rmm::device_uvector<int32_t>>&& hops,
+                         std::optional<rmm::device_uvector<label_t>>&& labels,
                          raft::device_span<int32_t const> label_to_output_gpu_mapping);
 
 /**
@@ -175,7 +175,7 @@ shuffle_sampling_results(raft::handle_t const& handle,
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param label offsets The offsets array for labels
+ * @param label_offsets The offsets array for labels
  *
  * @returns device vector containing labels for each seed vertex
  */
@@ -189,13 +189,14 @@ rmm::device_uvector<label_t> expand_label_offsets(raft::handle_t const& handle,
  * @tparam label_t Type of label
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param major Major vertices
+ * @param labels The list of labels
+ * @param num_labels The number of unique labels
  *
  * @returns device vector offsets for the specified labels
  */
 template <typename label_t>
 rmm::device_uvector<size_t> construct_label_offsets(raft::handle_t const& handle,
-                                                    rmm::device_uvector<label_t> const& label,
+                                                    rmm::device_uvector<label_t> const& labels,
                                                     size_t num_labels);
 
 }  // namespace detail
