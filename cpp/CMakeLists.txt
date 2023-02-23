@@ -224,6 +224,7 @@ set(CUGRAPH_SOURCES
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
+    src/cores/trim.cu
     src/components/legacy/connectivity.cu
     src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
