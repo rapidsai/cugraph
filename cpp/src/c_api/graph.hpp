@@ -28,10 +28,10 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_graph_t {
-  data_type_id_t vertex_type_;
-  data_type_id_t edge_type_;
-  data_type_id_t weight_type_;
-  data_type_id_t edge_type_id_type_;
+  cugraph_data_type_id_t vertex_type_;
+  cugraph_data_type_id_t edge_type_;
+  cugraph_data_type_id_t weight_type_;
+  cugraph_data_type_id_t edge_type_id_type_;
   bool store_transposed_;
   bool multi_gpu_;
 
