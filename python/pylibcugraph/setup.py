@@ -16,8 +16,6 @@ import os
 from setuptools import find_packages, Command
 from skbuild import setup
 
-import versioneer
-
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -45,10 +43,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
-
-
 def exclude_libcxx_symlink(cmake_manifest):
     return list(
         filter(
@@ -60,24 +54,10 @@ def exclude_libcxx_symlink(cmake_manifest):
 cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 
 
-# Ensure that wheel version patching works for nightlies.
-if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
-    orig_get_versions = versioneer.get_versions
-
-    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
-
-    def get_versions():
-        data = orig_get_versions()
-        data["version"] = version_override
-        return data
-
-    versioneer.get_versions = get_versions
-
-
 setup(
     name=f"pylibcugraph{cuda_suffix}",
     description="pylibcuGraph - RAPIDS GPU Graph Analytics",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -114,6 +94,6 @@ setup(
     },
     cmake_process_manifest_hook=exclude_libcxx_symlink,
     license="Apache 2.0",
-    cmdclass=cmdclass,
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )

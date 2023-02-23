@@ -16,8 +16,6 @@ import os
 from setuptools import find_packages, Command
 from skbuild import setup
 
-import versioneer
-
 
 cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 
@@ -76,9 +74,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
-
 PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
 PACKAGE_DATA["cugraph.experimental.datasets"].extend(
@@ -89,24 +84,10 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 )
 
 
-# Ensure that wheel version patching works for nightlies.
-if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
-    orig_get_versions = versioneer.get_versions
-
-    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
-
-    def get_versions():
-        data = orig_get_versions()
-        data["version"] = version_override
-        return data
-
-    versioneer.get_versions = get_versions
-
-
 setup(
     name=f"cugraph{cuda_suffix}",
     description="cuGraph - RAPIDS GPU Graph Analytics",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -123,7 +104,7 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     license="Apache 2.0",
-    cmdclass=cmdclass,
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
     extras_require=extras_require,
 )
