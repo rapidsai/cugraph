@@ -23,8 +23,10 @@
 template<typename vertex_t, typename edge_t>
 std::vector<edge_t> core_number_reference(edge_t const* offsets,
                                           vertex_t const* indices,
-                                          vertex_t num_vertices)
-{
+                                          vertex_t num_vertices){
+  raft::handle_t handle;
+  graph_view_t<vertex_t, edge_t, false, false> graph_view; 
+  auto graph_view_tuple =  trim(handle, graph_view);
   
 } 
 

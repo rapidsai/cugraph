@@ -225,10 +225,6 @@ set(CUGRAPH_SOURCES
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
     src/cores/trim.cu
-<<<<<<< HEAD
-=======
-    src/traversal/legacy/two_hop_neighbors.cu
->>>>>>> af38716e7b10dc3f169968c8b7126b674dde3fb0
     src/components/legacy/connectivity.cu
     src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
