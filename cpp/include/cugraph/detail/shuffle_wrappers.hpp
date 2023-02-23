@@ -40,23 +40,25 @@ namespace detail {
  * partitioning to determine the local GPU.
  * @param[in] minors Vector of second elements in vertex pairs.
  * @param[in] weights Optional vector of vertex pair weight values.
- * @param[in] edge_id_type_tuple Optional tuple of vectors of edge id and edge type values
+ * @param[in] edge_ids Optional vector of vertex pair edge id values.
+ * @param[in] edge_types Optional vector of vertex pair edge type values.
  *
- * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights.
+ * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
+ * edge ids and edge types
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
-std::tuple<
-  rmm::device_uvector<vertex_t>,
-  rmm::device_uvector<vertex_t>,
-  std::optional<rmm::device_uvector<weight_t>>,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_id_t>>>
 shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
   std::optional<rmm::device_uvector<weight_t>>&& weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>&&
-    edge_id_type_tuple);
+  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<edge_type_id_t>>&& edge_types);
 
 /**
  * @brief Shuffle internal (i.e. renumbered) vertex pairs (which can be edge end points) to their
@@ -75,25 +77,28 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
  * partitioning to determine the local GPU.
  * @param[in] minors Vector of second elements in vertex pairs.
  * @param[in] weights Optional vector of vertex pair weight values.
- * @param[in] edge_id_type_tuple Optional tuple of vectors of edge id and edge type values
+ * @param[in] edge_ids Optional vector of vertex pair edge id values.
+ * @param[in] edge_types Optional vector of vertex pair edge type values.
+ *
  * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
  * (exclusive) vertex ID.
  *
- * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights.
+ * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights,
+ * edge ids and edge types
  */
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
-std::tuple<
-  rmm::device_uvector<vertex_t>,
-  rmm::device_uvector<vertex_t>,
-  std::optional<rmm::device_uvector<weight_t>>,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_id_t>>>
 shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& majors,
   rmm::device_uvector<vertex_t>&& minors,
   std::optional<rmm::device_uvector<weight_t>>&& weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>&&
-    edge_id_type_tuple,
+  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<edge_type_id_t>>&& edge_types,
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
@@ -205,8 +210,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<edge_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>& d_edgelist_edge_types,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**

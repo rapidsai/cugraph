@@ -242,6 +242,7 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -251,8 +252,10 @@ std::enable_if_t<
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
     std::optional<
       edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                  thrust::tuple<edge_t, edge_type_t>>>,
+    std::optional<
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    std::optional<
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
     std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
@@ -260,8 +263,8 @@ create_graph_from_edgelist_impl(
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&&
-    edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check)
@@ -275,14 +278,12 @@ create_graph_from_edgelist_impl(
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_weights.size().");
-  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
-                    (edgelist_srcs.size() == std::get<0>((*edgelist_id_type_pairs)).size()),
+  CUGRAPH_EXPECTS(!edgelist_edge_ids || (edgelist_srcs.size() == (*edgelist_edge_ids).size()),
                   "Invalid input arguments: edgelist_srcs.size() != "
-                  "std::get<0>((*edgelist_id_type_pairs)).size().");
-  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
-                    (edgelist_srcs.size() == std::get<1>((*edgelist_id_type_pairs)).size()),
+                  "std::get<0>((*edgelist_edge_ids)).size().");
+  CUGRAPH_EXPECTS(!edgelist_edge_types || (edgelist_srcs.size() == (*edgelist_edge_types).size()),
                   "Invalid input arguments: edgelist_srcs.size() != "
-                  "std::get<1>((*edgelist_id_type_pairs)).size().");
+                  "std::get<1>((*edgelist_edge_types)).size().");
   CUGRAPH_EXPECTS(renumber,
                   "Invalid input arguments: renumber should be true if multi_gpu is true.");
 
@@ -302,7 +303,8 @@ create_graph_from_edgelist_impl(
     store_transposed ? edgelist_dsts : edgelist_srcs,
     store_transposed ? edgelist_srcs : edgelist_dsts,
     edgelist_weights,
-    edgelist_id_type_pairs,
+    edgelist_edge_ids,
+    edgelist_edge_types,
     true);
 
   std::vector<size_t> h_edge_counts(d_edge_counts.size());
@@ -372,27 +374,38 @@ create_graph_from_edgelist_impl(
     (*edgelist_weights).shrink_to_fit(handle.get_stream());
   }
 
-  std::optional<
-    std::vector<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>>
-    edge_partition_edgelist_id_type_pairs{};
-  if (edgelist_id_type_pairs) {
-    edge_partition_edgelist_id_type_pairs =
-      std::vector<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>{};
-    (*edge_partition_edgelist_id_type_pairs).reserve(col_comm_size);
+  std::optional<std::vector<rmm::device_uvector<edge_id_t>>> edge_partition_edgelist_edge_ids{};
+  if (edgelist_edge_ids) {
+    edge_partition_edgelist_edge_ids = std::vector<rmm::device_uvector<edge_id_t>>{};
+    (*edge_partition_edgelist_edge_ids).reserve(col_comm_size);
     for (int i = 0; i < col_comm_size; ++i) {
-      auto tmp_id_type_pairs = allocate_dataframe_buffer<thrust::tuple<edge_t, edge_type_t>>(
-        edgelist_edge_counts[i], handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(*edgelist_id_type_pairs) + edgelist_displacements[i],
-                   get_dataframe_buffer_begin(*edgelist_id_type_pairs) + edgelist_displacements[i] +
-                     edgelist_edge_counts[i],
-                   get_dataframe_buffer_begin(tmp_id_type_pairs));
-      (*edge_partition_edgelist_id_type_pairs).push_back(std::move(tmp_id_type_pairs));
+      rmm::device_uvector<edge_id_t> tmp_edge_ids(edgelist_edge_counts[i], handle.get_stream());
+      thrust::copy(
+        handle.get_thrust_policy(),
+        (*edgelist_edge_ids).begin() + edgelist_displacements[i],
+        (*edgelist_edge_ids).begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+        tmp_edge_ids.begin());
+      (*edge_partition_edgelist_edge_ids).push_back(std::move(tmp_edge_ids));
     }
-    std::get<0>(*edgelist_id_type_pairs).resize(0, handle.get_stream());
-    std::get<0>(*edgelist_id_type_pairs).shrink_to_fit(handle.get_stream());
-    std::get<1>(*edgelist_id_type_pairs).resize(0, handle.get_stream());
-    std::get<1>(*edgelist_id_type_pairs).shrink_to_fit(handle.get_stream());
+    (*edgelist_edge_ids).resize(0, handle.get_stream());
+    (*edgelist_edge_ids).shrink_to_fit(handle.get_stream());
+  }
+
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_partition_edgelist_edge_types{};
+  if (edgelist_edge_types) {
+    edge_partition_edgelist_edge_types = std::vector<rmm::device_uvector<edge_type_t>>{};
+    (*edge_partition_edgelist_edge_types).reserve(col_comm_size);
+    for (int i = 0; i < col_comm_size; ++i) {
+      rmm::device_uvector<edge_type_t> tmp_edge_types(edgelist_edge_counts[i], handle.get_stream());
+      thrust::copy(
+        handle.get_thrust_policy(),
+        (*edgelist_edge_types).begin() + edgelist_displacements[i],
+        (*edgelist_edge_types).begin() + edgelist_displacements[i] + edgelist_edge_counts[i],
+        tmp_edge_types.begin());
+      (*edge_partition_edgelist_edge_types).push_back(std::move(tmp_edge_types));
+    }
+    (*edgelist_edge_types).resize(0, handle.get_stream());
+    (*edgelist_edge_types).shrink_to_fit(handle.get_stream());
   }
 
   // 2. renumber
@@ -422,9 +435,9 @@ create_graph_from_edgelist_impl(
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets;
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices;
   std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights{std::nullopt};
-  std::optional<
-    std::vector<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>>
-    edge_partition_id_type_pairs{std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_id_t>>> edge_partition_edge_ids{std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_partition_edge_types{
+    std::nullopt};
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices{
     std::nullopt};
 
@@ -434,10 +447,13 @@ create_graph_from_edgelist_impl(
     edge_partition_weights = std::vector<rmm::device_uvector<weight_t>>{};
     (*edge_partition_weights).reserve(edge_partition_edgelist_srcs.size());
   }
-  if (edge_partition_edgelist_id_type_pairs) {
-    edge_partition_id_type_pairs =
-      std::vector<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>{};
-    (*edge_partition_id_type_pairs).reserve(edge_partition_edgelist_srcs.size());
+  if (edge_partition_edgelist_edge_ids) {
+    edge_partition_edge_ids = std::vector<rmm::device_uvector<edge_id_t>>{};
+    (*edge_partition_edge_ids).reserve(edge_partition_edgelist_srcs.size());
+  }
+  if (edge_partition_edgelist_edge_types) {
+    edge_partition_edge_types = std::vector<rmm::device_uvector<edge_type_t>>{};
+    (*edge_partition_edge_types).reserve(edge_partition_edgelist_srcs.size());
   }
   if (use_dcs) {
     edge_partition_dcs_nzd_vertices = std::vector<rmm::device_uvector<vertex_t>>{};
@@ -450,8 +466,8 @@ create_graph_from_edgelist_impl(
     rmm::device_uvector<edge_t> offsets(size_t{0}, handle.get_stream());
     rmm::device_uvector<vertex_t> indices(size_t{0}, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
-    std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
-      id_type_pairs{std::nullopt};
+    std::optional<rmm::device_uvector<edge_id_t>> edge_ids{std::nullopt};
+    std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
     std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
     auto major_hypersparse_first =
       use_dcs
@@ -460,68 +476,141 @@ create_graph_from_edgelist_impl(
             meta.edge_partition_segment_offsets[num_segments_per_vertex_partition * i +
                                                 detail::num_sparse_segments_per_vertex_partition])
         : std::nullopt;
-    if (edgelist_weights && edgelist_id_type_pairs) {
-      auto edge_value_first = thrust::make_zip_iterator(
-        thrust::make_tuple((*edge_partition_edgelist_weights)[i].begin(),
-                           std::get<0>((*edge_partition_edgelist_id_type_pairs)[i]).begin(),
-                           std::get<1>((*edge_partition_edgelist_id_type_pairs)[i]).begin()));
-      id_type_pairs =
-        std::make_tuple(rmm::device_uvector<edge_t>(size_t{0}, handle.get_stream()),
-                        rmm::device_uvector<edge_type_t>(size_t{0}, handle.get_stream()));
-      std::forward_as_tuple(
-        offsets,
-        indices,
-        std::tie(weights, std::get<0>(*id_type_pairs), std::get<1>(*id_type_pairs)),
-        dcs_nzd_vertices) =
-        detail::compress_edgelist<edge_t, store_transposed>(edge_partition_edgelist_srcs[i].begin(),
-                                                            edge_partition_edgelist_srcs[i].end(),
-                                                            edge_partition_edgelist_dsts[i].begin(),
-                                                            edge_value_first,
-                                                            major_range_first,
-                                                            major_hypersparse_first,
-                                                            major_range_last,
-                                                            minor_range_first,
-                                                            minor_range_last,
-                                                            handle.get_stream());
-    } else if (edge_partition_edgelist_weights) {
-      auto edge_value_first = (*edge_partition_edgelist_weights)[i].begin();
-      std::tie(offsets, indices, weights, dcs_nzd_vertices) =
-        detail::compress_edgelist<edge_t, store_transposed>(edge_partition_edgelist_srcs[i].begin(),
-                                                            edge_partition_edgelist_srcs[i].end(),
-                                                            edge_partition_edgelist_dsts[i].begin(),
-                                                            edge_value_first,
-                                                            major_range_first,
-                                                            major_hypersparse_first,
-                                                            major_range_last,
-                                                            minor_range_first,
-                                                            minor_range_last,
-                                                            handle.get_stream());
-    } else if (edge_partition_edgelist_id_type_pairs) {
-      auto edge_value_first =
-        get_dataframe_buffer_begin((*edge_partition_edgelist_id_type_pairs)[i]);
-      std::tie(offsets, indices, id_type_pairs, dcs_nzd_vertices) =
-        detail::compress_edgelist<edge_t, store_transposed>(edge_partition_edgelist_srcs[i].begin(),
-                                                            edge_partition_edgelist_srcs[i].end(),
-                                                            edge_partition_edgelist_dsts[i].begin(),
-                                                            edge_value_first,
-                                                            major_range_first,
-                                                            major_hypersparse_first,
-                                                            major_range_last,
-                                                            minor_range_first,
-                                                            minor_range_last,
-                                                            handle.get_stream());
+    if (edgelist_weights) {
+      if (edgelist_edge_ids) {
+        if (edgelist_edge_types) {
+          auto edge_value_first =
+            thrust::make_zip_iterator((*edge_partition_edgelist_weights)[i].begin(),
+                                      (*edge_partition_edgelist_edge_ids)[i].begin(),
+                                      (*edge_partition_edgelist_edge_types)[i].begin());
+          std::forward_as_tuple(
+            offsets, indices, std::tie(weights, edge_ids, edge_types), dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        } else {
+          auto edge_value_first =
+            thrust::make_zip_iterator((*edge_partition_edgelist_weights)[i].begin(),
+                                      (*edge_partition_edgelist_edge_ids)[i].begin());
+          std::forward_as_tuple(offsets, indices, std::tie(weights, edge_ids), dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        }
+      } else {
+        if (edgelist_edge_types) {
+          auto edge_value_first =
+            thrust::make_zip_iterator((*edge_partition_edgelist_weights)[i].begin(),
+                                      (*edge_partition_edgelist_edge_types)[i].begin());
+          std::forward_as_tuple(offsets, indices, std::tie(weights, edge_types), dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        } else {
+          auto edge_value_first = (*edge_partition_edgelist_weights)[i].begin();
+          std::forward_as_tuple(offsets, indices, weights, dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        }
+      }
     } else {
-      std::tie(offsets, indices, dcs_nzd_vertices) =
-        detail::compress_edgelist<edge_t, store_transposed>(edge_partition_edgelist_srcs[i].begin(),
-                                                            edge_partition_edgelist_srcs[i].end(),
-                                                            edge_partition_edgelist_dsts[i].begin(),
-                                                            major_range_first,
-                                                            major_hypersparse_first,
-                                                            major_range_last,
-                                                            minor_range_first,
-                                                            minor_range_last,
-                                                            handle.get_stream());
+      if (edgelist_edge_ids) {
+        if (edgelist_edge_types) {
+          auto edge_value_first =
+            thrust::make_zip_iterator((*edge_partition_edgelist_edge_ids)[i].begin(),
+                                      (*edge_partition_edgelist_edge_types)[i].begin());
+          std::forward_as_tuple(
+            offsets, indices, std::tie(edge_ids, edge_types), dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        } else {
+          auto edge_value_first = (*edge_partition_edgelist_edge_ids)[i].begin();
+          std::forward_as_tuple(offsets, indices, edge_ids, dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        }
+      } else {
+        if (edgelist_edge_types) {
+          auto edge_value_first = (*edge_partition_edgelist_edge_types)[i].begin();
+          std::forward_as_tuple(offsets, indices, edge_types, dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              edge_value_first,
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        } else {
+          std::forward_as_tuple(offsets, indices, dcs_nzd_vertices) =
+            detail::compress_edgelist<edge_t, store_transposed>(
+              edge_partition_edgelist_srcs[i].begin(),
+              edge_partition_edgelist_srcs[i].end(),
+              edge_partition_edgelist_dsts[i].begin(),
+              major_range_first,
+              major_hypersparse_first,
+              major_range_last,
+              minor_range_first,
+              minor_range_last,
+              handle.get_stream());
+        }
+      }
     }
+
     edge_partition_edgelist_srcs[i].resize(0, handle.get_stream());
     edge_partition_edgelist_srcs[i].shrink_to_fit(handle.get_stream());
     edge_partition_edgelist_dsts[i].resize(0, handle.get_stream());
@@ -530,59 +619,107 @@ create_graph_from_edgelist_impl(
       (*edge_partition_edgelist_weights)[i].resize(0, handle.get_stream());
       (*edge_partition_edgelist_weights)[i].shrink_to_fit(handle.get_stream());
     }
-    if (edge_partition_edgelist_id_type_pairs) {
-      std::get<0>((*edge_partition_edgelist_id_type_pairs)[i]).resize(0, handle.get_stream());
-      std::get<0>((*edge_partition_edgelist_id_type_pairs)[i]).shrink_to_fit(handle.get_stream());
-      std::get<1>((*edge_partition_edgelist_id_type_pairs)[i]).resize(0, handle.get_stream());
-      std::get<1>((*edge_partition_edgelist_id_type_pairs)[i]).shrink_to_fit(handle.get_stream());
+    if (edge_partition_edgelist_edge_ids) {
+      (*edge_partition_edgelist_edge_ids)[i].resize(0, handle.get_stream());
+      (*edge_partition_edgelist_edge_ids)[i].shrink_to_fit(handle.get_stream());
+    }
+    if (edge_partition_edgelist_edge_types) {
+      (*edge_partition_edgelist_edge_types)[i].resize(0, handle.get_stream());
+      (*edge_partition_edgelist_edge_types)[i].shrink_to_fit(handle.get_stream());
     }
 
     edge_partition_offsets.push_back(std::move(offsets));
     edge_partition_indices.push_back(std::move(indices));
     if (edge_partition_weights) { (*edge_partition_weights).push_back(std::move(*weights)); }
-    if (edge_partition_id_type_pairs) {
-      (*edge_partition_id_type_pairs).push_back(std::move(*id_type_pairs));
-    }
-    if (edge_partition_dcs_nzd_vertices) {
-      (*edge_partition_dcs_nzd_vertices).push_back(std::move(*dcs_nzd_vertices));
+    if (edge_partition_edge_ids) { (*edge_partition_edge_ids).push_back(std::move(*edge_ids)); }
+    if (edge_partition_edge_types) {
+      (*edge_partition_edge_types).push_back(std::move(*edge_types));
     }
   }
 
   // 4. segmented sort neighbors
 
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
-    if (edge_partition_weights && edge_partition_id_type_pairs) {
-      detail::sort_adjacency_list(handle,
-                                  raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
-                                                                  edge_partition_offsets[i].size()),
-                                  edge_partition_indices[i].begin(),
-                                  edge_partition_indices[i].end(),
-                                  thrust::make_zip_iterator(thrust::make_tuple(
-                                    (*edge_partition_weights)[i].begin(),
-                                    std::get<0>((*edge_partition_id_type_pairs)[i]).begin(),
-                                    std::get<1>((*edge_partition_id_type_pairs)[i]).begin())));
-    } else if (edge_partition_weights) {
-      detail::sort_adjacency_list(handle,
-                                  raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
-                                                                  edge_partition_offsets[i].size()),
-                                  edge_partition_indices[i].begin(),
-                                  edge_partition_indices[i].end(),
-                                  (*edge_partition_weights)[i].begin());
-    } else if (edge_partition_id_type_pairs) {
-      detail::sort_adjacency_list(handle,
-                                  raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
-                                                                  edge_partition_offsets[i].size()),
-                                  edge_partition_indices[i].begin(),
-                                  edge_partition_indices[i].end(),
-                                  thrust::make_zip_iterator(thrust::make_tuple(
-                                    std::get<0>((*edge_partition_id_type_pairs)[i]).begin(),
-                                    std::get<1>((*edge_partition_id_type_pairs)[i]).begin())));
+    if (edge_partition_weights) {
+      if (edge_partition_edge_ids) {
+        if (edge_partition_edge_types) {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            thrust::make_zip_iterator((*edge_partition_weights)[i].begin(),
+                                      (*edge_partition_edge_ids)[i].begin(),
+                                      (*edge_partition_edge_types)[i].begin()));
+        } else {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            thrust::make_zip_iterator((*edge_partition_weights)[i].begin(),
+                                      (*edge_partition_edge_ids)[i].begin()));
+        }
+      } else {
+        if (edge_partition_edge_types) {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            thrust::make_zip_iterator((*edge_partition_weights)[i].begin(),
+                                      (*edge_partition_edge_types)[i].begin()));
+        } else {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            (*edge_partition_weights)[i].begin());
+        }
+      }
     } else {
-      detail::sort_adjacency_list(handle,
-                                  raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
-                                                                  edge_partition_offsets[i].size()),
-                                  edge_partition_indices[i].begin(),
-                                  edge_partition_indices[i].end());
+      if (edge_partition_edge_ids) {
+        if (edge_partition_edge_types) {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            thrust::make_zip_iterator((*edge_partition_edge_ids)[i].begin(),
+                                      (*edge_partition_edge_types)[i].begin()));
+        } else {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            thrust::make_zip_iterator((*edge_partition_edge_ids)[i].begin()));
+        }
+      } else {
+        if (edge_partition_edge_types) {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end(),
+            thrust::make_zip_iterator((*edge_partition_edge_types)[i].begin()));
+        } else {
+          detail::sort_adjacency_list(
+            handle,
+            raft::device_span<edge_t const>(edge_partition_offsets[i].data(),
+                                            edge_partition_offsets[i].size()),
+            edge_partition_indices[i].begin(),
+            edge_partition_indices[i].end());
+        }
+      }
     }
   }
 
@@ -597,13 +734,22 @@ create_graph_from_edgelist_impl(
         std::move(*edge_partition_weights));
   }
 
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                thrust::tuple<edge_t, edge_type_t>>>
-    edge_id_type_pairs{std::nullopt};
-  if (edge_partition_id_type_pairs) {
-    edge_id_type_pairs =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                      thrust::tuple<edge_t, edge_type_t>>(std::move(*edge_partition_id_type_pairs));
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>
+    edge_ids{std::nullopt};
+  if (edge_partition_edge_ids) {
+    edge_ids =
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>(
+        std::move(*edge_partition_edge_ids));
+  }
+
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>
+    edge_types{std::nullopt};
+  if (edge_partition_edge_types) {
+    edge_types =
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>(
+        std::move(*edge_partition_edge_types));
   }
 
   return std::make_tuple(
@@ -618,13 +764,15 @@ create_graph_from_edgelist_impl(
                                                          meta.partition,
                                                          meta.edge_partition_segment_offsets}),
     std::move(edge_weights),
-    std::move(edge_id_type_pairs),
+    std::move(edge_ids),
+    std::move(edge_types),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -634,8 +782,10 @@ std::enable_if_t<
     cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
     std::optional<
       edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-    std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                  thrust::tuple<edge_t, edge_type_t>>>,
+    std::optional<
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+    std::optional<
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
     std::optional<rmm::device_uvector<vertex_t>>>>
 create_graph_from_edgelist_impl(
   raft::handle_t const& handle,
@@ -643,8 +793,8 @@ create_graph_from_edgelist_impl(
   rmm::device_uvector<vertex_t>&& edgelist_srcs,
   rmm::device_uvector<vertex_t>&& edgelist_dsts,
   std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&&
-    edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check)
@@ -657,14 +807,12 @@ create_graph_from_edgelist_impl(
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_weights.size().");
-  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
-                    (edgelist_srcs.size() == std::get<0>((*edgelist_id_type_pairs)).size()),
+  CUGRAPH_EXPECTS(!edgelist_edge_ids || (edgelist_srcs.size() == (*edgelist_edge_ids).size()),
                   "Invalid input arguments: edgelist_srcs.size() != "
-                  "std::get<0>((*edgelist_id_type_pairs)).size().");
-  CUGRAPH_EXPECTS(!edgelist_id_type_pairs ||
-                    (edgelist_srcs.size() == std::get<1>((*edgelist_id_type_pairs)).size()),
+                  "(*edgelist_edge_ids).size().");
+  CUGRAPH_EXPECTS(!edgelist_edge_types || (edgelist_srcs.size() == (*edgelist_edge_types).size()),
                   "Invalid input arguments: edgelist_srcs.size() != "
-                  "std::get<1>((*edgelist_id_type_pairs)).size().");
+                  "(*edgelist_edge_types).size().");
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,
@@ -707,69 +855,130 @@ create_graph_from_edgelist_impl(
   rmm::device_uvector<edge_t> offsets(size_t{0}, handle.get_stream());
   rmm::device_uvector<vertex_t> indices(size_t{0}, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
-    id_type_pairs{std::nullopt};
-  if (edgelist_weights && edgelist_id_type_pairs) {
-    auto edge_value_first =
-      thrust::make_zip_iterator(thrust::make_tuple((*edgelist_weights).begin(),
-                                                   std::get<0>(*edgelist_id_type_pairs).begin(),
-                                                   std::get<1>(*edgelist_id_type_pairs).begin()));
-    id_type_pairs =
-      std::make_tuple(rmm::device_uvector<edge_t>(size_t{0}, handle.get_stream()),
-                      rmm::device_uvector<edge_type_t>(size_t{0}, handle.get_stream()));
-    std::forward_as_tuple(
-      offsets,
-      indices,
-      std::tie(weights, std::get<0>(*id_type_pairs), std::get<1>(*id_type_pairs)),
-      std::ignore) =
-      detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
-                                                          edgelist_srcs.end(),
-                                                          edgelist_dsts.begin(),
-                                                          edge_value_first,
-                                                          vertex_t{0},
-                                                          std::optional<vertex_t>{std::nullopt},
-                                                          num_vertices,
-                                                          vertex_t{0},
-                                                          num_vertices,
-                                                          handle.get_stream());
-  } else if (edgelist_weights) {
-    auto edge_value_first = (*edgelist_weights).begin();
-    std::tie(offsets, indices, weights, std::ignore) =
-      detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
-                                                          edgelist_srcs.end(),
-                                                          edgelist_dsts.begin(),
-                                                          edge_value_first,
-                                                          vertex_t{0},
-                                                          std::optional<vertex_t>{std::nullopt},
-                                                          num_vertices,
-                                                          vertex_t{0},
-                                                          num_vertices,
-                                                          handle.get_stream());
-  } else if (edgelist_id_type_pairs) {
-    auto edge_value_first = get_dataframe_buffer_begin(*edgelist_id_type_pairs);
-    std::tie(offsets, indices, id_type_pairs, std::ignore) =
-      detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
-                                                          edgelist_srcs.end(),
-                                                          edgelist_dsts.begin(),
-                                                          edge_value_first,
-                                                          vertex_t{0},
-                                                          std::optional<vertex_t>{std::nullopt},
-                                                          num_vertices,
-                                                          vertex_t{0},
-                                                          num_vertices,
-                                                          handle.get_stream());
+  std::optional<rmm::device_uvector<edge_id_t>> ids{std::nullopt};
+  std::optional<rmm::device_uvector<edge_type_t>> types{std::nullopt};
+
+  if (edgelist_weights) {
+    if (edgelist_edge_ids) {
+      if (edgelist_edge_types) {
+        auto edge_value_first = thrust::make_zip_iterator((*edgelist_weights).begin(),
+                                                          (*edgelist_edge_ids).begin(),
+                                                          (*edgelist_edge_types).begin());
+        std::forward_as_tuple(offsets, indices, std::tie(weights, ids, types), std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      } else {
+        auto edge_value_first =
+          thrust::make_zip_iterator((*edgelist_weights).begin(), (*edgelist_edge_ids).begin());
+        std::forward_as_tuple(offsets, indices, std::tie(weights, ids), std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      }
+    } else {
+      if (edgelist_edge_types) {
+        auto edge_value_first =
+          thrust::make_zip_iterator((*edgelist_weights).begin(), (*edgelist_edge_types).begin());
+        std::forward_as_tuple(offsets, indices, std::tie(weights, types), std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      } else {
+        auto edge_value_first = (*edgelist_weights).begin();
+        std::forward_as_tuple(offsets, indices, weights, std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      }
+    }
   } else {
-    std::tie(offsets, indices, std::ignore) =
-      detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
-                                                          edgelist_srcs.end(),
-                                                          edgelist_dsts.begin(),
-                                                          vertex_t{0},
-                                                          std::optional<vertex_t>{std::nullopt},
-                                                          num_vertices,
-                                                          vertex_t{0},
-                                                          num_vertices,
-                                                          handle.get_stream());
+    if (edgelist_edge_ids) {
+      if (edgelist_edge_types) {
+        auto edge_value_first =
+          thrust::make_zip_iterator((*edgelist_edge_ids).begin(), (*edgelist_edge_types).begin());
+        std::forward_as_tuple(offsets, indices, std::tie(ids, types), std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      } else {
+        auto edge_value_first = (*edgelist_edge_ids).begin();
+        std::forward_as_tuple(offsets, indices, ids, std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      }
+    } else {
+      if (edgelist_edge_types) {
+        auto edge_value_first = (*edgelist_edge_types).begin();
+        std::forward_as_tuple(offsets, indices, types, std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              edge_value_first,
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      } else {
+        std::forward_as_tuple(offsets, indices, std::ignore) =
+          detail::compress_edgelist<edge_t, store_transposed>(edgelist_srcs.begin(),
+                                                              edgelist_srcs.end(),
+                                                              edgelist_dsts.begin(),
+                                                              vertex_t{0},
+                                                              std::optional<vertex_t>{std::nullopt},
+                                                              num_vertices,
+                                                              vertex_t{0},
+                                                              num_vertices,
+                                                              handle.get_stream());
+      }
+    }
   }
+
   edgelist_srcs.resize(0, handle.get_stream());
   edgelist_srcs.shrink_to_fit(handle.get_stream());
   edgelist_dsts.resize(0, handle.get_stream());
@@ -778,41 +987,78 @@ create_graph_from_edgelist_impl(
     (*edgelist_weights).resize(0, handle.get_stream());
     (*edgelist_weights).shrink_to_fit(handle.get_stream());
   }
-  if (edgelist_id_type_pairs) {
-    std::get<0>(*edgelist_id_type_pairs).resize(0, handle.get_stream());
-    std::get<0>(*edgelist_id_type_pairs).shrink_to_fit(handle.get_stream());
-    std::get<1>(*edgelist_id_type_pairs).resize(0, handle.get_stream());
-    std::get<1>(*edgelist_id_type_pairs).shrink_to_fit(handle.get_stream());
+  if (edgelist_edge_ids) {
+    (*edgelist_edge_ids).resize(0, handle.get_stream());
+    (*edgelist_edge_ids).shrink_to_fit(handle.get_stream());
+  }
+  if (edgelist_edge_types) {
+    (*edgelist_edge_types).resize(0, handle.get_stream());
+    (*edgelist_edge_types).shrink_to_fit(handle.get_stream());
   }
 
   // segmented sort neighbors
 
-  if (weights && id_type_pairs) {
-    detail::sort_adjacency_list(
-      handle,
-      raft::device_span<edge_t const>(offsets.data(), offsets.size()),
-      indices.begin(),
-      indices.end(),
-      thrust::make_zip_iterator(thrust::make_tuple((*weights).begin(),
-                                                   std::get<0>(*id_type_pairs).begin(),
-                                                   std::get<1>(*id_type_pairs).begin())));
-  } else if (weights) {
-    detail::sort_adjacency_list(handle,
-                                raft::device_span<edge_t const>(offsets.data(), offsets.size()),
-                                indices.begin(),
-                                indices.end(),
-                                (*weights).begin());
-  } else if (id_type_pairs) {
-    detail::sort_adjacency_list(handle,
-                                raft::device_span<edge_t const>(offsets.data(), offsets.size()),
-                                indices.begin(),
-                                indices.end(),
-                                get_dataframe_buffer_begin(*id_type_pairs));
+  if (weights) {
+    if (ids) {
+      if (types) {
+        detail::sort_adjacency_list(
+          handle,
+          raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+          indices.begin(),
+          indices.end(),
+          thrust::make_zip_iterator((*weights).begin(), (*ids).begin(), (*types).begin()));
+      } else {
+        detail::sort_adjacency_list(handle,
+                                    raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+                                    indices.begin(),
+                                    indices.end(),
+                                    thrust::make_zip_iterator((*weights).begin(), (*ids).begin()));
+      }
+    } else {
+      if (types) {
+        detail::sort_adjacency_list(
+          handle,
+          raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+          indices.begin(),
+          indices.end(),
+          thrust::make_zip_iterator((*weights).begin(), (*types).begin()));
+      } else {
+        detail::sort_adjacency_list(handle,
+                                    raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+                                    indices.begin(),
+                                    indices.end(),
+                                    (*weights).begin());
+      }
+    }
   } else {
-    detail::sort_adjacency_list(handle,
-                                raft::device_span<edge_t const>(offsets.data(), offsets.size()),
-                                indices.begin(),
-                                indices.end());
+    if (ids) {
+      if (types) {
+        detail::sort_adjacency_list(handle,
+                                    raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+                                    indices.begin(),
+                                    indices.end(),
+                                    thrust::make_zip_iterator((*ids).begin(), (*types).begin()));
+      } else {
+        detail::sort_adjacency_list(handle,
+                                    raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+                                    indices.begin(),
+                                    indices.end(),
+                                    (*ids).begin());
+      }
+    } else {
+      if (types) {
+        detail::sort_adjacency_list(handle,
+                                    raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+                                    indices.begin(),
+                                    indices.end(),
+                                    (*types).begin());
+      } else {
+        detail::sort_adjacency_list(handle,
+                                    raft::device_span<edge_t const>(offsets.data(), offsets.size()),
+                                    indices.begin(),
+                                    indices.end());
+      }
+    }
   }
 
   // create a graph and an edge_property_t object.
@@ -828,16 +1074,26 @@ create_graph_from_edgelist_impl(
         std::move(buffers));
   }
 
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                thrust::tuple<edge_t, edge_type_t>>>
-    edge_id_type_pairs{std::nullopt};
-  if (id_type_pairs) {
-    std::vector<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
-      buffers{};
-    buffers.push_back(std::move(*id_type_pairs));
-    edge_id_type_pairs =
-      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                      thrust::tuple<edge_t, edge_type_t>>(std::move(buffers));
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>
+    edge_ids{std::nullopt};
+  if (ids) {
+    std::vector<rmm::device_uvector<edge_id_t>> buffers{};
+    buffers.push_back(std::move(*ids));
+    edge_ids =
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>(
+        std::move(buffers));
+  }
+
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>
+    edge_types{std::nullopt};
+  if (types) {
+    std::vector<rmm::device_uvector<edge_type_t>> buffers{};
+    buffers.push_back(std::move(*types));
+    edge_types =
+      edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>(
+        std::move(buffers));
   }
 
   // graph_t constructor
@@ -852,7 +1108,8 @@ create_graph_from_edgelist_impl(
         graph_properties,
         renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
     std::move(edge_weights),
-    std::move(edge_id_type_pairs),
+    std::move(edge_ids),
+    std::move(edge_types),
     std::move(renumber_map_labels));
 }
 
@@ -861,6 +1118,7 @@ create_graph_from_edgelist_impl(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -868,24 +1126,26 @@ std::tuple<
   cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                thrust::tuple<edge_t, edge_type_t>>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&&
-    edgelist_id_type_pairs,
-  graph_properties_t graph_properties,
-  bool renumber,
-  bool do_expensive_check)
+create_graph_from_edgelist(raft::handle_t const& handle,
+                           std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                           std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+                           std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                           graph_properties_t graph_properties,
+                           bool renumber,
+                           bool do_expensive_check)
 {
   return create_graph_from_edgelist_impl<vertex_t,
                                          edge_t,
                                          weight_t,
+                                         edge_id_t,
                                          edge_type_t,
                                          store_transposed,
                                          multi_gpu>(handle,
@@ -893,7 +1153,8 @@ create_graph_from_edgelist(
                                                     std::move(edgelist_srcs),
                                                     std::move(edgelist_dsts),
                                                     std::move(edgelist_weights),
-                                                    std::move(edgelist_id_type_pairs),
+                                                    std::move(edgelist_edge_ids),
+                                                    std::move(edgelist_edge_types),
                                                     graph_properties,
                                                     renumber,
                                                     do_expensive_check);

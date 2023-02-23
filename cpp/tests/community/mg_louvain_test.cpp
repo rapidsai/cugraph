@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,13 +109,14 @@ class Tests_MGLouvain
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
         handle, d_edgelist_srcs, d_edgelist_dsts, d_renumber_map_gathered_v);
 
-      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
+      std::tie(sg_graph, sg_edge_weights, std::ignore, std::ignore, std::ignore) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, false, false>(
           handle,
           std::move(d_vertices),
           std::move(d_edgelist_srcs),
           std::move(d_edgelist_dsts),
           std::move(d_edgelist_weights),
+          std::nullopt,
           std::nullopt,
           cugraph::graph_properties_t{is_symmetric, false},
           false);

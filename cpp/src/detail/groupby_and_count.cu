@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,8 +40,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<edge_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>& d_edgelist_edge_types,
   bool groupby_and_count_local_partition_by_minor)
 {
   auto& comm               = handle.get_comms();
@@ -56,8 +56,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto element_size =
-    sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0}) +
-    (d_edgelist_id_type_pairs ? (sizeof(edge_t) + sizeof(edge_type_t)) : size_t{0});
+    sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0}) + (d_edgelist_edge_ids ? sizeof(edge_t) : size_t{0}) + (d_edgelist_edge_types ? sizeof(edge_type_t) : size_t{0});
   auto constexpr mem_frugal_ratio =
     0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
           // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
@@ -68,6 +67,8 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
 
   auto pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
+
+  rmm::device_uvector<size_t> result(0, handle.get_stream());
 
   if (groupby_and_count_local_partition_by_minor) {
     auto local_partition_id_gpu_id_pair_op =
@@ -85,40 +86,87 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                (gpu_id_key_func(thrust::get<1>(pair)) % row_comm_size);
       };
 
-    return d_edgelist_weights
-             ? (d_edgelist_id_type_pairs
-                  ? cugraph::groupby_and_count(pair_first,
-                                               pair_first + d_edgelist_majors.size(),
-                                               thrust::make_zip_iterator(thrust::make_tuple(
-                                                 d_edgelist_weights->begin(),
-                                                 std::get<0>(*d_edgelist_id_type_pairs).begin(),
-                                                 std::get<1>(*d_edgelist_id_type_pairs).begin())),
-                                               local_partition_id_gpu_id_pair_op,
-                                               comm_size,
-                                               mem_frugal_threshold,
-                                               handle.get_stream())
-                  : cugraph::groupby_and_count(pair_first,
-                                               pair_first + d_edgelist_majors.size(),
-                                               d_edgelist_weights->begin(),
-                                               local_partition_id_gpu_id_pair_op,
-                                               comm_size,
-                                               mem_frugal_threshold,
-                                               handle.get_stream()))
-             : (d_edgelist_id_type_pairs
-                  ? cugraph::groupby_and_count(
-                      pair_first,
-                      pair_first + d_edgelist_majors.size(),
-                      get_dataframe_buffer_begin(*d_edgelist_id_type_pairs),
-                      local_partition_id_gpu_id_pair_op,
-                      comm_size,
-                      mem_frugal_threshold,
-                      handle.get_stream())
-                  : cugraph::groupby_and_count(pair_first,
-                                               pair_first + d_edgelist_majors.size(),
-                                               local_partition_id_gpu_id_pair_op,
-                                               comm_size,
-                                               mem_frugal_threshold,
-                                               handle.get_stream()));
+    if (d_edgelist_weights) {
+      if (d_edgelist_edge_ids) {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_weights->begin(),
+                                                                        d_edgelist_edge_ids->begin(),
+                                                                        d_edgelist_edge_types->begin()),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_weights->begin(),
+                                                                        d_edgelist_edge_ids->begin()),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      } else {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_weights->begin(),
+                                                                        d_edgelist_edge_types->begin()),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              d_edgelist_weights->begin(),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      }
+    } else {
+      if (d_edgelist_edge_ids) {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_edge_ids->begin(),
+                                                                        d_edgelist_edge_types->begin()),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              d_edgelist_edge_ids->begin(),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      } else {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              d_edgelist_edge_types->begin(),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              local_partition_id_gpu_id_pair_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      }
+    }
   } else {
     auto local_partition_id_op =
       [comm_size,
@@ -128,41 +176,90 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                comm_size;  // global partition id to local partition id
       };
 
-    return d_edgelist_weights
-             ? (d_edgelist_id_type_pairs
-                  ? cugraph::groupby_and_count(pair_first,
-                                               pair_first + d_edgelist_majors.size(),
-                                               thrust::make_zip_iterator(thrust::make_tuple(
-                                                 d_edgelist_weights->begin(),
-                                                 std::get<0>(*d_edgelist_id_type_pairs).begin(),
-                                                 std::get<1>(*d_edgelist_id_type_pairs).begin())),
-                                               local_partition_id_op,
-                                               col_comm_size,
-                                               mem_frugal_threshold,
-                                               handle.get_stream())
-                  : cugraph::groupby_and_count(pair_first,
-                                               pair_first + d_edgelist_majors.size(),
-                                               d_edgelist_weights->begin(),
-                                               local_partition_id_op,
-                                               col_comm_size,
-                                               mem_frugal_threshold,
-                                               handle.get_stream()))
-             : (d_edgelist_id_type_pairs
-                  ? cugraph::groupby_and_count(
-                      pair_first,
-                      pair_first + d_edgelist_majors.size(),
-                      get_dataframe_buffer_begin(*d_edgelist_id_type_pairs),
-                      local_partition_id_op,
-                      col_comm_size,
-                      mem_frugal_threshold,
-                      handle.get_stream())
-                  : cugraph::groupby_and_count(pair_first,
-                                               pair_first + d_edgelist_majors.size(),
-                                               local_partition_id_op,
-                                               col_comm_size,
-                                               mem_frugal_threshold,
-                                               handle.get_stream()));
+    if (d_edgelist_weights) {
+      if (d_edgelist_edge_ids) {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_weights->begin(),
+                                                                        d_edgelist_edge_ids->begin(),
+                                                                        d_edgelist_edge_types->begin()),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_weights->begin(),
+                                                                        d_edgelist_edge_ids->begin()),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      } else {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_weights->begin(),
+                                                                        d_edgelist_edge_types->begin()),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              d_edgelist_weights->begin(),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      }
+    } else {
+      if (d_edgelist_edge_ids) {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              thrust::make_zip_iterator(d_edgelist_edge_ids->begin(),
+                                                                        d_edgelist_edge_types->begin()),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              d_edgelist_edge_ids->begin(),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      } else {
+        if (d_edgelist_edge_types) {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              d_edgelist_edge_types->begin(),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        } else {
+          result = cugraph::groupby_and_count(pair_first,
+                                              pair_first + d_edgelist_majors.size(),
+                                              local_partition_id_op,
+                                              comm_size,
+                                              mem_frugal_threshold,
+                                              handle.get_stream());
+        }
+      }
+    }
   }
+
+  return result;
 }
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -170,8 +267,8 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int32_t>& d_edgelist_majors,
   rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
   bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -179,8 +276,8 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int32_t>& d_edgelist_majors,
   rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
   bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -188,8 +285,8 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int32_t>& d_edgelist_majors,
   rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
   bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -197,8 +294,8 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int32_t>& d_edgelist_majors,
   rmm::device_uvector<int32_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
   bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -206,8 +303,8 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int64_t>& d_edgelist_majors,
   rmm::device_uvector<int64_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<float>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
   bool groupby_and_counts_local_partition);
 
 template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
@@ -215,8 +312,8 @@ template rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partiti
   rmm::device_uvector<int64_t>& d_edgelist_majors,
   rmm::device_uvector<int64_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<double>>& d_edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>>&
-    d_edgelist_id_type_pairs,
+  std::optional<rmm::device_uvector<int64_t>>& d_edgelist_edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>& d_edgelist_edge_types,
   bool groupby_and_counts_local_partition);
 
 }  // namespace detail

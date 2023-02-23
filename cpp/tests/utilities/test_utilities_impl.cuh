@@ -209,13 +209,20 @@ mg_graph_to_sg_graph(
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-  std::tie(graph, edge_weights, std::ignore, new_number_map) = cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, false>(
+  std::tie(graph, edge_weights, std::ignore, std::ignore, new_number_map) =
+    cugraph::create_graph_from_edgelist<vertex_t,
+                                        edge_t,
+                                        weight_t,
+                                        edge_t,
+                                        int32_t,
+                                        store_transposed,
+                                        false>(
       handle,
       std::make_optional(std::move(vertices)),
       std::move(d_src),
       std::move(d_dst),
       std::move(d_wgt),
+      std::nullopt,
       std::nullopt,
       cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
       renumber);

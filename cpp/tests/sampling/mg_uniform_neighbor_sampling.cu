@@ -141,11 +141,12 @@ class Tests_MGUniform_Neighbor_Sampling
     random_numbers.resize(0, handle_->get_stream());
     random_numbers.shrink_to_fit(handle_->get_stream());
 
-    rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle_->get_stream());
+    auto batch_number = std::make_optional<rmm::device_uvector<int32_t>>(random_sources.size(),
+                                                                         handle_->get_stream());
 
     thrust::tabulate(handle_->get_thrust_policy(),
-                     batch_number.begin(),
-                     batch_number.end(),
+                     batch_number->begin(),
+                     batch_number->end(),
                      [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
                        int32_t index) { return index / batch_size; });
 
@@ -163,11 +164,15 @@ class Tests_MGUniform_Neighbor_Sampling
                    mg_graph_view,
                    mg_edge_weight_view,
                    std::nullopt,
+                   std::nullopt,
                    std::move(random_sources_copy),
                    std::move(batch_number),
+                   std::nullopt,
+                   std::nullopt,
                    raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                                   uniform_neighbor_sampling_usecase.fanout.size()),
                    rng_state,
+                   true,
                    uniform_neighbor_sampling_usecase.with_replacement),
                  std::exception);
 #else
@@ -177,19 +182,24 @@ class Tests_MGUniform_Neighbor_Sampling
       hr_timer.start("MG uniform_neighbor_sample");
     }
 
-    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels] =
+    std::optional<rmm::device_uvector<size_t>> starting_vertex_offsets{std::nullopt};
+    std::optional<rmm::device_uvector<int32_t>> label_to_output_gpu_mapping{std::nullopt};
+
+    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<
-          edge_t,
-          thrust::zip_iterator<thrust::tuple<edge_t const*, int32_t const*>>>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
         std::move(random_sources_copy),
         std::move(batch_number),
+        std::move(starting_vertex_offsets),
+        std::move(label_to_output_gpu_mapping),
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,
+        true,
         uniform_neighbor_sampling_usecase.with_replacement);
 
     if (cugraph::test::g_perf) {

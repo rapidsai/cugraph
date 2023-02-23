@@ -237,8 +237,8 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   bool_t with_replacement,
-  bool_t do_expensive_check,
   bool_t return_hops,
+  bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
 

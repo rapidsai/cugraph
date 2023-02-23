@@ -1743,6 +1743,7 @@ k_core(raft::handle_t const& handle,
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
  * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param return_hops boolean flag specifying if the hop information should be returned
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
@@ -1763,7 +1764,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
            std::optional<rmm::device_uvector<label_t>>,
-           std::optional<rmm::device_vector<size_t>>>
+           std::optional<rmm::device_uvector<size_t>>>
 uniform_neighbor_sample(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
@@ -1772,10 +1773,11 @@ uniform_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   rmm::device_uvector<vertex_t>&& starting_vertices,
   std::optional<rmm::device_uvector<label_t>>&& starting_labels,
-  std::optional<rmm::device_uvector<edge_t>>&& starting_vertex_offsets,
+  std::optional<rmm::device_uvector<size_t>>&& starting_vertex_offsets,
   std::optional<rmm::device_uvector<int32_t>>&& label_to_output_gpu_mapping,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
+  bool return_hops,
   bool with_replacement = true);
 
 /*

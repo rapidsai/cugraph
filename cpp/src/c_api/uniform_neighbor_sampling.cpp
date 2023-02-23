@@ -40,6 +40,7 @@ struct cugraph_sample_result_t {
   cugraph_type_erased_device_array_t* wgt_{nullptr};
   cugraph_type_erased_device_array_t* hop_{nullptr};
   cugraph_type_erased_device_array_t* label_{nullptr};
+  cugraph_type_erased_device_array_t* offsets_{nullptr};
 };
 
 }  // namespace c_api
@@ -52,20 +53,27 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_offset_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* label_to_gpu_mapping_{nullptr};
   cugraph::c_api::cugraph_type_erased_host_array_view_t const* fan_out_{nullptr};
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
   bool with_replacement_{false};
+  bool return_hops_{false};
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
-  uniform_neighbor_sampling_functor(cugraph_resource_handle_t const* handle,
-                                    cugraph_graph_t* graph,
-                                    cugraph_type_erased_device_array_view_t const* start,
-                                    cugraph_type_erased_device_array_view_t const* label,
-                                    cugraph_type_erased_host_array_view_t const* fan_out,
-                                    cugraph_rng_state_t* rng_state,
-                                    bool with_replacement,
-                                    bool do_expensive_check)
+  uniform_neighbor_sampling_functor(
+    cugraph_resource_handle_t const* handle,
+    cugraph_graph_t* graph,
+    cugraph_type_erased_device_array_view_t const* start,
+    cugraph_type_erased_device_array_view_t const* label,
+    cugraph_type_erased_device_array_view_t const* start_offset,
+    cugraph_type_erased_device_array_view_t const* label_to_gpu_mapping,
+    cugraph_type_erased_host_array_view_t const* fan_out,
+    cugraph_rng_state_t* rng_state,
+    bool with_replacement,
+    bool return_hops,
+    bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
@@ -73,10 +81,17 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start)),
       label_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(label)),
+      start_offset_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          start_offset)),
+      label_to_gpu_mapping_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          label_to_gpu_mapping)),
       fan_out_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)),
       rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       with_replacement_(with_replacement),
+      return_hops_(return_hops),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -110,16 +125,18 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
                                  weight_t>*>(graph_->edge_weights_);
 
-      auto edge_properties = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 thrust::tuple<edge_t, edge_type_t>>*>(graph_->edge_properties_);
+      auto edge_ids = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+                                 edge_t>*>(graph_->edge_ids_);
+
+      auto edge_types = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+                                 edge_type_t>*>(graph_->edge_types_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       rmm::device_uvector<vertex_t> start(start_->size_, handle_.get_stream());
       raft::copy(start.data(), start_->as_type<vertex_t>(), start.size(), handle_.get_stream());
-
-      std::optional<rmm::device_uvector<int32_t>> label{std::nullopt};
 
       //
       // Need to renumber sources
@@ -133,23 +150,50 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         graph_view.local_vertex_partition_range_last(),
         false);
 
+      std::optional<rmm::device_uvector<int32_t>> label{std::nullopt};
+
       if (label_ != nullptr) {
-        // FIXME: Making a copy because I couldn't get the raft::device_span of a const array
-        // to construct properly.
         label = rmm::device_uvector<int32_t>(label_->size_, handle_.get_stream());
         raft::copy(label->data(), label_->as_type<int32_t>(), label->size(), handle_.get_stream());
       }
 
-      auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label] =
-        cugraph::uniform_neighbor_sample<vertex_t, edge_t, weight_t, edge_type_t, false, multi_gpu>(
+      std::optional<rmm::device_uvector<size_t>> start_offset{std::nullopt};
+
+      if (start_offset_ != nullptr) {
+        start_offset = rmm::device_uvector<size_t>(start_offset_->size_, handle_.get_stream());
+        raft::copy(start_offset->data(),
+                   start_offset_->as_type<size_t>(),
+                   start_offset->size(),
+                   handle_.get_stream());
+      }
+
+      std::optional<rmm::device_uvector<int32_t>> label_to_gpu_mapping{std::nullopt};
+
+      if (label_to_gpu_mapping_ != nullptr) {
+        label_to_gpu_mapping =
+          rmm::device_uvector<int32_t>(label_to_gpu_mapping_->size_, handle_.get_stream());
+        raft::copy(label_to_gpu_mapping->data(),
+                   label_to_gpu_mapping_->as_type<int32_t>(),
+                   label_to_gpu_mapping->size(),
+                   handle_.get_stream());
+      }
+
+      // TODO:  Ripple down effects here...
+
+      auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, return_offsets] = cugraph::
+        uniform_neighbor_sample<vertex_t, edge_t, weight_t, edge_type_t, int32_t, false, multi_gpu>(
           handle_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          (edge_properties != nullptr) ? std::make_optional(edge_properties->view()) : std::nullopt,
+          (edge_ids != nullptr) ? std::make_optional(edge_ids->view()) : std::nullopt,
+          (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
           std::move(start),
           std::move(label),
+          std::move(start_offset),
+          std::move(label_to_gpu_mapping),
           raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
           rng_state_->rng_state_,
+          return_hops_,
           with_replacement_);
 
       std::vector<vertex_t> vertex_partition_lasts = graph_view.vertex_partition_range_lasts();
@@ -179,9 +223,12 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                     : nullptr,
         (wgt) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->weight_type_)
               : nullptr,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(hop, INT32),
+        (hop) ? new cugraph::c_api::cugraph_type_erased_device_array_t(*hop, INT32) : nullptr,
         (edge_label)
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(edge_label.value(), INT32)
+          : nullptr,
+        (return_offsets)
+          ? new cugraph::c_api::cugraph_type_erased_device_array_t(return_offsets.value(), SIZE_T)
           : nullptr};
     }
   }
@@ -259,6 +306,14 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_in
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
     internal_pointer->edge_id_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->offsets_->view());
 }
 
 extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
@@ -513,22 +568,33 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,
   const cugraph_type_erased_device_array_view_t* label,
+  const cugraph_type_erased_device_array_view_t* start_offsets,
+  const cugraph_type_erased_device_array_view_t* label_to_gpu_mapping,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   bool_t with_replacement,
+  bool_t return_hops,
   bool_t do_expensive_check,
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
-  // FIXME:  We need a mechanism to specify a seed.  We should be consistent across all of the
-  //   sampling/random walk algorithms (or really any algorithm that wants a seed)
-
   CAPI_EXPECTS(
     (label == nullptr) ||
       (reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(label)
          ->type_ == INT32),
     CUGRAPH_INVALID_INPUT,
     "label should be of type int",
+    *error);
+
+  CAPI_EXPECTS((label == nullptr) || (start_offsets == nullptr),
+               CUGRAPH_INVALID_INPUT,
+               "cannot specify both label and start_offsets",
+               *error);
+
+  CAPI_EXPECTS(
+    (label_to_gpu_mapping == nullptr) == ((label == nullptr) || (start_offsets == nullptr)),
+    CUGRAPH_INVALID_INPUT,
+    "cannot specify label_to_gpu_mapping unless label or start_offset are specified",
     *error);
 
   CAPI_EXPECTS(
@@ -540,13 +606,29 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
     *error);
 
   CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start_offsets)
+        ->type_ == SIZE_T,
+    CUGRAPH_INVALID_INPUT,
+    "start_offsets should be of type size_t",
+    *error);
+
+  CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
         ->type_ == INT32,
     CUGRAPH_INVALID_INPUT,
     "fan_out should be of type int",
     *error);
 
-  uniform_neighbor_sampling_functor functor{
-    handle, graph, start, label, fan_out, rng_state, with_replacement, do_expensive_check};
+  uniform_neighbor_sampling_functor functor{handle,
+                                            graph,
+                                            start,
+                                            label,
+                                            start_offsets,
+                                            label_to_gpu_mapping,
+                                            fan_out,
+                                            rng_state,
+                                            with_replacement,
+                                            return_hops,
+                                            do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

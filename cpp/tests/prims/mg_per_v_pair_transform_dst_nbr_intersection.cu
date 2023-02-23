@@ -137,6 +137,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     std::tie(std::get<0>(mg_vertex_pair_buffer),
              std::get<1>(mg_vertex_pair_buffer),
              std::ignore,
+             std::ignore,
              std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                   edge_t,
@@ -145,6 +146,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         *handle_,
         std::move(std::get<0>(mg_vertex_pair_buffer)),
         std::move(std::get<1>(mg_vertex_pair_buffer)),
+        std::nullopt,
         std::nullopt,
         std::nullopt,
         h_vertex_partition_range_lasts);
