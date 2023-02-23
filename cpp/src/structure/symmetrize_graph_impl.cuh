@@ -96,17 +96,23 @@ symmetrize_graph_impl(
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     symmetrized_edge_weights{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(symmetrized_graph, symmetrized_edge_weights, std::ignore, std::ignore, new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(renumber_map),
-      std::move(edgelist_srcs),
-      std::move(edgelist_dsts),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
-      graph_properties_t{is_multigraph, true},
-      true);
+  std::tie(
+    symmetrized_graph, symmetrized_edge_weights, std::ignore, std::ignore, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t,
+                               edge_t,
+                               weight_t,
+                               edge_t,
+                               int32_t,
+                               store_transposed,
+                               multi_gpu>(handle,
+                                          std::move(renumber_map),
+                                          std::move(edgelist_srcs),
+                                          std::move(edgelist_dsts),
+                                          std::move(edgelist_weights),
+                                          std::nullopt,
+                                          std::nullopt,
+                                          graph_properties_t{is_multigraph, true},
+                                          true);
 
   return std::make_tuple(
     std::move(symmetrized_graph), std::move(symmetrized_edge_weights), std::move(new_renumber_map));
@@ -184,17 +190,23 @@ symmetrize_graph_impl(
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     symmetrized_edge_weights{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(symmetrized_graph, symmetrized_edge_weights, std::ignore, std::ignore, new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(vertices),
-      std::move(edgelist_srcs),
-      std::move(edgelist_dsts),
-      std::move(edgelist_weights),
-      std::nullopt,
-      std::nullopt,
-      graph_properties_t{is_multigraph, true},
-      renumber);
+  std::tie(
+    symmetrized_graph, symmetrized_edge_weights, std::ignore, std::ignore, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t,
+                               edge_t,
+                               weight_t,
+                               edge_t,
+                               int32_t,
+                               store_transposed,
+                               multi_gpu>(handle,
+                                          std::move(vertices),
+                                          std::move(edgelist_srcs),
+                                          std::move(edgelist_dsts),
+                                          std::move(edgelist_weights),
+                                          std::nullopt,
+                                          std::nullopt,
+                                          graph_properties_t{is_multigraph, true},
+                                          renumber);
 
   return std::make_tuple(
     std::move(symmetrized_graph), std::move(symmetrized_edge_weights), std::move(new_renumber_map));

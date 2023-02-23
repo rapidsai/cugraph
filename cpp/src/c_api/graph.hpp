@@ -35,17 +35,17 @@ struct cugraph_graph_t {
   bool store_transposed_;
   bool multi_gpu_;
 
-  void* graph_;            // graph_t<...>*
-  void* number_map_;       // rmm::device_uvector<vertex_t>*
-  void* edge_weights_;     // edge_property_t<
-                           //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                           //    weight_t>*
-  void* edge_ids_;         // edge_property_t<
-                           //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                           //    edge_t>*
-  void* edge_types_;       // edge_property_t<
-                           //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                           //    edge_type_id_t>*
+  void* graph_;         // graph_t<...>*
+  void* number_map_;    // rmm::device_uvector<vertex_t>*
+  void* edge_weights_;  // edge_property_t<
+                        //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                        //    weight_t>*
+  void* edge_ids_;      // edge_property_t<
+                        //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                        //    edge_t>*
+  void* edge_types_;    // edge_property_t<
+                        //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                        //    edge_type_id_t>*
 };
 
 template <typename vertex_t,
