@@ -368,8 +368,8 @@ uniform_neighbor_sample(
                                               std::move(starting_vertex_offsets),
                                               std::move(label_to_output_gpu_mapping),
                                               fan_out,
-                                              with_replacement,
                                               return_hops,
+                                              with_replacement,
                                               rng_state);
 }
 

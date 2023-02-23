@@ -177,8 +177,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                    handle_.get_stream());
       }
 
-      // TODO:  Ripple down effects here...
-
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, return_offsets] = cugraph::
         uniform_neighbor_sample<vertex_t, edge_t, weight_t, edge_type_t, int32_t, false, multi_gpu>(
           handle_,
@@ -604,12 +602,13 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_proper
     "vertex type of graph and start must match",
     *error);
 
-  CAPI_EXPECTS(
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start_offsets)
-        ->type_ == SIZE_T,
-    CUGRAPH_INVALID_INPUT,
-    "start_offsets should be of type size_t",
-    *error);
+  CAPI_EXPECTS((start_offsets == nullptr) ||
+                 reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                   start_offsets)
+                     ->type_ == SIZE_T,
+               CUGRAPH_INVALID_INPUT,
+               "start_offsets should be of type size_t",
+               *error);
 
   CAPI_EXPECTS(
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)

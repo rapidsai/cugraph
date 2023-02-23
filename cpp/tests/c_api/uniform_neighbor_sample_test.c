@@ -192,7 +192,7 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
                                                                   h_fan_out_view,
                                                                   rng_state,
                                                                   FALSE,
-                                                                  FALSE,
+                                                                  TRUE,
                                                                   FALSE,
                                                                   &result,
                                                                   &ret_error);
