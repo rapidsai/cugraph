@@ -182,9 +182,12 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         c_graph_ptr,
         start_ptr,
         batch_id_ptr,
+        NULL, # start_offsets
+        NULL, # label_to_output_gpu_mapping
         fan_out_ptr,
         rng_state_ptr,
         with_replacement,
+        <bool_t>True,  # return_hops
         do_expensive_check,
         &result_ptr,
         &error_ptr)

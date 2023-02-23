@@ -43,9 +43,12 @@ cdef extern from "cugraph_c/sampling_algorithms.h":
         cugraph_graph_t* graph,
         const cugraph_type_erased_device_array_view_t* start,
         const cugraph_type_erased_device_array_view_t* label,
+        const cugraph_type_erased_device_array_view_t* start_offsets,
+        const cugraph_type_erased_device_array_view_t* label_to_output_gpu_mapping,
         const cugraph_type_erased_host_array_view_t* fan_out,
         cugraph_rng_state_t* rng_state,
         bool_t with_replacement,
+        bool_t return_hops,
         bool_t do_expensive_check,
         cugraph_sample_result_t** result,
         cugraph_error_t** error
