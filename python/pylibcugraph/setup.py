@@ -51,11 +51,8 @@ def exclude_libcxx_symlink(cmake_manifest):
     )
 
 
-cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
-
-
 setup(
-    name=f"pylibcugraph{cuda_suffix}",
+    name="pylibcugraph",
     description="pylibcuGraph - RAPIDS GPU Graph Analytics",
     version="23.04.00",
     classifiers=[
@@ -73,8 +70,8 @@ setup(
     package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
     include_package_data=True,
     install_requires=[
-        f"pylibraft{cuda_suffix}==23.4.*",
-        f"rmm{cuda_suffix}==23.4.*",
+        "pylibraft==23.4.*",
+        "rmm==23.4.*",
     ],
     extras_require={
         "test": [
@@ -86,10 +83,10 @@ setup(
             "numpy",
             "networkx>=2.5.1",
             "scikit-learn>=0.23.1",
-            "dask",
-            "distributed",
-            "dask-cuda",
-            f"cudf{cuda_suffix}",
+            "dask>=2023.1.1",
+            "distributed>=2023.1.1",
+            "dask-cuda==23.4.*",
+            "cudf==23.4.*",
         ]
     },
     cmake_process_manifest_hook=exclude_libcxx_symlink,

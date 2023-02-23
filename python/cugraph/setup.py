@@ -17,16 +17,14 @@ from setuptools import find_packages, Command
 from skbuild import setup
 
 
-cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
-
 INSTALL_REQUIRES = [
     "numba",
     "dask-cuda",
-    f"rmm{cuda_suffix}==23.4.*",
-    f"cudf{cuda_suffix}==23.4.*",
-    f"raft-dask{cuda_suffix}==23.4.*",
-    f"dask-cudf{cuda_suffix}==23.4.*",
-    f"pylibcugraph{cuda_suffix}==23.4.*",
+    "rmm==23.4.*",
+    "cudf==23.4.*",
+    "raft-dask==23.4.*",
+    "dask-cudf==23.4.*",
+    "pylibcugraph==23.4.*",
     "cupy-cuda11x",
 ]
 
@@ -85,7 +83,7 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 
 
 setup(
-    name=f"cugraph{cuda_suffix}",
+    name="cugraph",
     description="cuGraph - RAPIDS GPU Graph Analytics",
     version="23.04.00",
     classifiers=[
