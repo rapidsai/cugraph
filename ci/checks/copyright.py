@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,9 +28,6 @@ FilesToCheck = [
     re.compile(r"[.]flake8[.]cython$"),
     re.compile(r"meta[.]yaml$"),
 ]
-ExemptFiles = [
-    re.compile(r"versioneer[.]py"),
-]
 
 # this will break starting at year 10000, which is probably OK :)
 CheckSimple = re.compile(
@@ -49,9 +46,6 @@ def checkThisFile(f):
     elif not os.path.exists(f) or os.stat(f).st_size == 0:
         # This check covers things like symlinks which point to files that DNE
         return False
-    for exempt in ExemptFiles:
-        if exempt.search(f):
-            return False
     for checker in FilesToCheck:
         if checker.search(f):
             return True
