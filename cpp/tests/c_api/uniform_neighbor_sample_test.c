@@ -124,7 +124,7 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   size_t num_edges    = 8;
   size_t num_vertices = 6;
   size_t fan_out_size = 1;
-  size_t num_starts   = 2;
+  size_t num_starts   = 1;
 
   vertex_t src[]       = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]       = {1, 3, 4, 0, 1, 3, 5, 5};
@@ -290,6 +290,204 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   cugraph_error_free(ret_error);
 }
 
+int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* handle)
+{
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
+  data_type_id_t edge_id_tid   = INT32;
+  data_type_id_t edge_type_tid = INT32;
+
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+  size_t fan_out_size = 1;
+  size_t num_starts   = 2;
+  size_t start_offsets_size = 3;
+
+  vertex_t src[]       = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]       = {1, 3, 4, 0, 1, 3, 5, 5};
+  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7};
+  weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
+  int32_t edge_types[] = {7, 6, 5, 4, 3, 2, 1, 0};
+  vertex_t start[]     = {2, 3};
+  size_t start_offsets[] = { 0, 1, 2 };
+  int fan_out[]        = {-1};
+
+  // Create graph
+  int test_ret_value              = 0;
+  cugraph_error_code_t ret_code   = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error      = NULL;
+  cugraph_graph_t* graph          = NULL;
+  cugraph_sample_result_t* result = NULL;
+
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  src,
+                                  dst,
+                                  weight_tid,
+                                  weight,
+                                  edge_type_tid,
+                                  edge_types,
+                                  edge_id_tid,
+                                  edge_ids,
+                                  num_edges,
+                                  FALSE,
+                                  TRUE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  cugraph_type_erased_device_array_t* d_start           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_view = NULL;
+  cugraph_type_erased_device_array_t* d_start_offsets           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_offsets_view = NULL;
+  cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
+
+  d_start_view = cugraph_type_erased_device_array_view(d_start);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_view, (byte_t*)start, &ret_error);
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, start_offsets_size, SIZE_T, &d_start_offsets, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_offsets create failed.");
+
+  d_start_offsets_view = cugraph_type_erased_device_array_view(d_start_offsets);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, d_start_offsets_view, (byte_t*)start_offsets, &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_offsets copy_from_host failed.");
+
+  h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, 1, INT32);
+
+  cugraph_rng_state_t *rng_state;
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+
+  ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
+                                                                  graph,
+                                                                  d_start_view,
+                                                                  NULL,
+                                                                  d_start_offsets_view,
+                                                                  NULL,
+                                                                  h_fan_out_view,
+                                                                  rng_state,
+                                                                  FALSE,
+                                                                  TRUE,
+                                                                  FALSE,
+                                                                  &result,
+                                                                  &ret_error);
+
+#ifdef NO_CUGRAPH_OPS
+  TEST_ASSERT(
+    test_ret_value, ret_code != CUGRAPH_SUCCESS, "uniform_neighbor_sample should have failed")
+#else
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
+
+  cugraph_type_erased_device_array_view_t* result_srcs;
+  cugraph_type_erased_device_array_view_t* result_dsts;
+  cugraph_type_erased_device_array_view_t* result_edge_id;
+  cugraph_type_erased_device_array_view_t* result_weights;
+  cugraph_type_erased_device_array_view_t* result_edge_types;
+  cugraph_type_erased_device_array_view_t* result_hops;
+  cugraph_type_erased_device_array_view_t* result_offsets;
+
+  result_srcs       = cugraph_sample_result_get_sources(result);
+  result_dsts       = cugraph_sample_result_get_destinations(result);
+  result_edge_id    = cugraph_sample_result_get_edge_id(result);
+  result_weights    = cugraph_sample_result_get_edge_weight(result);
+  result_edge_types = cugraph_sample_result_get_edge_type(result);
+  result_hops       = cugraph_sample_result_get_hop(result);
+  result_offsets    = cugraph_sample_result_get_offsets(result);
+
+  size_t result_size = cugraph_type_erased_device_array_view_size(result_srcs);
+  size_t result_offsets_size = cugraph_type_erased_device_array_view_size(result_offsets);
+
+  vertex_t h_srcs[result_size];
+  vertex_t h_dsts[result_size];
+  edge_t h_edge_id[result_size];
+  weight_t h_weight[result_size];
+  int32_t h_edge_types[result_size];
+  int32_t h_hops[result_size];
+  size_t h_result_offsets[result_offsets_size];
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_srcs, result_srcs, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_dsts, result_dsts, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_edge_id, result_edge_id, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_weight, result_weights, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_edge_types, result_edge_types, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_hops, result_hops, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_result_offsets, result_offsets, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  //  NOTE:  The C++ tester does a more thorough validation.  For our purposes
+  //  here we will do a simpler validation, merely checking that all edges
+  //  are actually part of the graph
+  weight_t M_w[num_vertices][num_vertices];
+  edge_t M_edge_id[num_vertices][num_vertices];
+  int32_t M_edge_type[num_vertices][num_vertices];
+
+  for (int i = 0; i < num_vertices; ++i)
+    for (int j = 0; j < num_vertices; ++j) {
+      M_w[i][j]         = 0.0;
+      M_edge_id[i][j]   = -1;
+      M_edge_type[i][j] = -1;
+    }
+
+  for (int i = 0; i < num_edges; ++i) {
+    M_w[src[i]][dst[i]]         = weight[i];
+    M_edge_id[src[i]][dst[i]]   = edge_ids[i];
+    M_edge_type[src[i]][dst[i]] = edge_types[i];
+  }
+
+  for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value,
+                M_w[h_srcs[i]][h_dsts[i]] == h_weight[i],
+                "uniform_neighbor_sample got edge that doesn't exist");
+    TEST_ASSERT(test_ret_value,
+                M_edge_id[h_srcs[i]][h_dsts[i]] == h_edge_id[i],
+                "uniform_neighbor_sample got edge that doesn't exist");
+    TEST_ASSERT(test_ret_value,
+                M_edge_type[h_srcs[i]][h_dsts[i]] == h_edge_types[i],
+                "uniform_neighbor_sample got edge that doesn't exist");
+  }
+
+  cugraph_sample_result_free(result);
+#endif
+
+  cugraph_sg_graph_free(graph);
+  cugraph_error_free(ret_error);
+}
+
 int main(int argc, char** argv)
 {
   cugraph_resource_handle_t* handle = NULL;
@@ -298,6 +496,7 @@ int main(int argc, char** argv)
 
   int result = 0;
   result |= RUN_TEST_NEW(test_uniform_neighbor_sample_with_properties, handle);
+  result |= RUN_TEST_NEW(test_uniform_neighbor_sample_with_offsets, handle);
 
   cugraph_free_resource_handle(handle);
 

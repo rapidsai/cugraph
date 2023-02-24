@@ -323,7 +323,6 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
   cugraph_type_erased_device_array_view_t* src_view;
   cugraph_type_erased_device_array_view_t* dst_view;
   cugraph_type_erased_device_array_view_t* idx_view;
-  cugraph_type_erased_device_array_view_t* wgt_view;
 
   int rank = 0;
 
@@ -370,15 +369,12 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     handle, idx_view, (byte_t*)h_idx, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_view_as_type(idx, weight_tid, &wgt_view, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt cast from idx failed.");
-
   ret_code = cugraph_mg_graph_create(handle,
                                      &properties,
                                      src_view,
                                      dst_view,
-                                     wgt_view,
                                      NULL,
+                                     idx_view,
                                      NULL,
                                      store_transposed,
                                      num_edges,
@@ -387,7 +383,6 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
                                      ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
-  cugraph_type_erased_device_array_view_free(wgt_view);
   cugraph_type_erased_device_array_view_free(idx_view);
   cugraph_type_erased_device_array_view_free(dst_view);
   cugraph_type_erased_device_array_view_free(src_view);

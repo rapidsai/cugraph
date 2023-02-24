@@ -320,7 +320,7 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the result offsets
  */
-cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_result_offsets(
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
   const cugraph_sample_result_t* result);
 
 /**

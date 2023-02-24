@@ -627,6 +627,9 @@ create_graph_from_edgelist_impl(
       (*edge_partition_edgelist_edge_types)[i].resize(0, handle.get_stream());
       (*edge_partition_edgelist_edge_types)[i].shrink_to_fit(handle.get_stream());
     }
+    if (edge_partition_dcs_nzd_vertices) {
+      (*edge_partition_dcs_nzd_vertices).push_back(std::move(*dcs_nzd_vertices));
+    }
 
     edge_partition_offsets.push_back(std::move(offsets));
     edge_partition_indices.push_back(std::move(indices));

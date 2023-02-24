@@ -82,13 +82,95 @@ shuffle_vertex_pairs_by_gpu_id_impl(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<edge_t>> rx_edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> rx_edge_types{std::nullopt};
 
-  auto d_tx_value_counts = cugraph::groupby_and_count(
-    thrust::make_zip_iterator(majors.begin(), minors.begin()),
-    thrust::make_zip_iterator(majors.end(), minors.end()),
-    [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
-    comm_size,
-    mem_frugal_threshold,
-    handle.get_stream());
+  // FIXME: Consider a generic function that takes a value tuple of optionals
+  //        to eliminate this complexity
+  rmm::device_uvector<size_t> d_tx_value_counts(0, handle.get_stream());
+
+  if (weights) {
+    if (edge_ids) {
+      if (edge_types) {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(majors.begin(),
+                                    minors.begin(),
+                                    weights->begin(),
+                                    edge_ids->begin(),
+                                    edge_types->begin()),
+          thrust::make_zip_iterator(
+            majors.end(), minors.end(), weights->end(), edge_ids->end(), edge_types->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      } else {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(
+            majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end(), weights->end(), edge_ids->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      }
+    } else {
+      if (edge_types) {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(
+            majors.begin(), minors.begin(), weights->begin(), edge_types->begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end(), weights->end(), edge_types->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      } else {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end(), weights->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      }
+    }
+  } else {
+    if (edge_ids) {
+      if (edge_types) {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(
+            majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end(), edge_ids->end(), edge_types->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      } else {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end(), edge_ids->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      }
+    } else {
+      if (edge_types) {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end(), edge_types->end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      } else {
+        d_tx_value_counts = cugraph::groupby_and_count(
+          thrust::make_zip_iterator(majors.begin(), minors.begin()),
+          thrust::make_zip_iterator(majors.end(), minors.end()),
+          [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
+          comm_size,
+          mem_frugal_threshold,
+          handle.get_stream());
+      }
+    }
+  }
 
   std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
   raft::update_host(h_tx_value_counts.data(),
