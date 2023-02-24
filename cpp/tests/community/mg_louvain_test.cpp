@@ -77,6 +77,7 @@ class Tests_MGLouvain
   {
     auto& comm           = handle.get_comms();
     auto const comm_rank = comm.get_rank();
+    std::cout << "mg_edge_weight_view.has_value()=" << mg_edge_weight_view.has_value() << std::endl;
 
     cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
     std::optional<
@@ -96,33 +97,38 @@ class Tests_MGLouvain
       thrust::make_counting_iterator<size_t>(mg_dendrogram.num_levels()),
       [&mg_dendrogram, &sg_graph, &sg_edge_weights, &sg_modularity, &handle, resolution, comm_rank](
         size_t i) {
-        auto d_dendrogram_gathered_v = cugraph::test::device_gatherv(
-          handle, mg_dendrogram.get_level_ptr_nocheck(i), mg_dendrogram.get_level_size_nocheck(i));
+        auto d_mg_aggregate_cluster_v =
+          cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+            handle,
+            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+            raft::device_span<vertex_t const>(mg_dendrogram.get_level_ptr_nocheck(i),
+                                              mg_dendrogram.get_level_size_nocheck(i)));
 
         if (comm_rank == 0) {
           auto sg_graph_view = sg_graph.view();
           auto sg_edge_weight_view =
             sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-          rmm::device_uvector<vertex_t> d_clustering_v(sg_graph_view.number_of_vertices(),
+          rmm::device_uvector<vertex_t> d_sg_cluster_v(sg_graph_view.number_of_vertices(),
                                                        handle_->get_stream());
 
           std::tie(std::ignore, sg_modularity) = cugraph::louvain(handle,
                                                                   sg_graph_view,
                                                                   sg_edge_weight_view,
-                                                                  d_clustering_v.data(),
+                                                                  d_sg_cluster_v.data(),
                                                                   size_t{1},
                                                                   resolution);
 
           EXPECT_TRUE(cugraph::test::check_invertible(
             handle,
-            raft::device_span<vertex_t const>(d_clustering_v.data(), d_clustering_v.size()),
-            raft::device_span<vertex_t const>(d_dendrogram_gathered_v.data(),
-                                              d_dendrogram_gathered_v.size())))
+            raft::device_span<vertex_t const>(d_sg_cluster_v.data(), d_sg_cluster_v.size()),
+            raft::device_span<vertex_t const>(d_mg_aggregate_cluster_v.data(),
+                                              d_mg_aggregate_cluster_v.size())))
             << "(i = " << i << "), sg_modularity = " << sg_modularity;
 
           std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::coarsen_graph(
-            handle, sg_graph_view, sg_edge_weight_view, d_dendrogram_gathered_v.data(), false);
+            handle, sg_graph_view, sg_edge_weight_view, d_mg_aggregate_cluster_v.data(), false);
         }
       });
 

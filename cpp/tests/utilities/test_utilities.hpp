@@ -506,6 +506,16 @@ mg_graph_to_sg_graph(
   std::optional<rmm::device_uvector<vertex_t>> const& number_map,
   bool renumber);
 
+// Only the rank 0 GPU holds the valid data
+template <typename vertex_t, typename value_t>
+rmm::device_uvector<value_t> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<vertex_t const>>
+    mg_renumber_map,  // std::nullopt if the MG graph is not renumbered
+  std::optional<raft::device_span<vertex_t const>>
+    sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
+  raft::device_span<value_t const> mg_values);
+
 template <typename type_t>
 struct nearly_equal {
   const type_t threshold_ratio;
