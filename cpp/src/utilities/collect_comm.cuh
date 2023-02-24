@@ -111,17 +111,33 @@ collect_values_for_keys(raft::handle_t const& handle,
   if constexpr (KVStoreViewType::binary_search) {
     unique_key_value_store = kv_store_t<key_t, value_t, true>(std::move(unique_keys),
                                                               std::move(values_for_unique_keys),
-                                                              kv_store_view.invalid_value,
+                                                              kv_store_view.invalid_value(),
                                                               false,
                                                               handle.get_stream());
   } else {
+    auto kv_pair_first = thrust::make_zip_iterator(
+      thrust::make_tuple(unique_keys.begin(), get_dataframe_buffer_begin(values_for_unique_keys)));
+    auto valid_kv_pair_last =
+      thrust::remove_if(handle.get_thrust_policy(),
+                        kv_pair_first,
+                        kv_pair_first + unique_keys.size(),
+                        [invalid_value = kv_store_view.invalid_value()] __device__(auto pair) {
+                          return thrust::get<1>(pair) == invalid_value;
+                        });  // remove (k,v) pairs with unmatched keys (it is invalid to insert a
+                             // (k,v) pair with v = empty_key_sentinel)
+    auto num_valid_pairs = static_cast<size_t>(thrust::distance(kv_pair_first, valid_kv_pair_last));
     unique_key_value_store =
       kv_store_t<key_t, value_t, false>(unique_keys.begin(),
-                                        unique_keys.begin() + unique_keys.size(),
+                                        unique_keys.begin() + num_valid_pairs,
                                         get_dataframe_buffer_begin(values_for_unique_keys),
-                                        kv_store_view.cuco_store->get_empty_key_sentinel(),
-                                        kv_store_view.cuco_store->get_empty_value_sentinel(),
+                                        kv_store_view.invalid_key(),
+                                        kv_store_view.invalid_value(),
                                         handle.get_stream());
+
+    unique_keys.resize(0, handle.get_stream());
+    values_for_unique_keys.resize(0, handle.get_stream());
+    unique_keys.shrink_to_fit(handle.get_stream());
+    values_for_unique_keys.shrink_to_fit(handle.get_stream());
   }
   auto unique_key_value_store_view = unique_key_value_store.view();
 

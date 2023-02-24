@@ -620,8 +620,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           unique_minor_keys.begin(),
           unique_minor_keys.begin() + unique_minor_keys.size(),
           get_dataframe_buffer_begin(values_for_unique_keys),
-          kv_store_view.cuco_store->get_empty_key_sentinel(),
-          kv_store_view.cuco_store->get_empty_value_sentinel(),
+          kv_store_view.invalid_key(),
+          kv_store_view.invalid_value(),
           handle.get_stream());
       }
     }
