@@ -7,20 +7,22 @@ VERSION=${1}
 CUDA_SUFFIX=${2}
 
 # __init__.py updates
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" python/cugraph/cugraph/__init__.py
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" python/cugraph-dgl/cugraph-dgl/__init__.py
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" python/cugraph-pyg/cugraph-pyg/__init__.py
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
+sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" \
+  python/cugraph/cugraph/__init__.py \
+  python/cugraph-dgl/cugraph-dgl/__init__.py \
+  python/cugraph-pyg/cugraph-pyg/__init__.py \
+  python/cugraph-service/client/cugraph_service_client/__init__.py \
+  python/cugraph-service/server/cugraph_service_server/__init__.py \
+  python/pylibcugraph/pylibcugraph/__init__.py
 
 # setup.py updates
-sed -i "s/version=.*,/version=\"${VERSION}\",/g" python/cugraph/setup.py
-sed -i "s/version=.*,/version=\"${VERSION}\",/g" python/cugraph-dgl/setup.py
-sed -i "s/version=.*,/version=\"${VERSION}\",/g" python/cugraph-pyg/setup.py
-sed -i "s/version=.*,/version=\"${VERSION}\",/g" python/cugraph-service/client/setup.py
-sed -i "s/version=.*,/version=\"${VERSION}\",/g" python/cugraph-service/server/setup.py
-sed -i "s/version=.*,/version=\"${VERSION}\",/g" python/pylibcugraph/setup.py
+sed -i "s/version=.*,/version=\"${VERSION}\",/g" \
+  python/cugraph/setup.py \
+  python/cugraph-dgl/setup.py \
+  python/cugraph-pyg/setup.py \
+  python/cugraph-service/client/setup.py \
+  python/cugraph-service/server/setup.py \
+  python/pylibcugraph/setup.py
 
 # pylibcugraph setup.py cuda suffixes
 sed -i "s/name=\"pylibcugraph\"/name=\"pylibcugraph${CUDA_SUFFIX}\"/g" python/pylibcugraph/setup.py
