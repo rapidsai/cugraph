@@ -17,30 +17,12 @@ import cugraph
 import cudf
 import cupy as cp
 import dask_cudf
-from cugraph.experimental import PropertyGraph
-from cugraph.experimental import MGPropertyGraph
 
-# Mapping to PG names for compatibility for now
-# not importing directly because we will likey remove PG from DGL UseCase
 src_n = "_SRC_"
 dst_n = "_DST_"
 eid_n = "_EDGE_ID_"
-type_n = PropertyGraph.type_col_name
-vid_n = PropertyGraph.vertex_col_name
-
-
-def get_subgraph_and_src_range_from_pg(pg, reverse_edges, etype=None):
-    if etype:
-        edge_list = pg.get_edge_data(columns=[src_n, dst_n, type_n], types=[etype])
-    else:
-        edge_list = pg.get_edge_data(columns=[src_n, dst_n, type_n])
-
-    edge_list = edge_list.reset_index(drop=True)
-
-    is_mg = isinstance(pg, MGPropertyGraph)
-    return get_subgraph_and_src_range_from_edgelist(
-        edge_list, is_mg, reverse_edges=reverse_edges
-    )
+type_n = "_TYPE_"
+vid_n = "_VERTEX_"
 
 
 def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=False):
@@ -201,58 +183,6 @@ def get_underlying_dtype_from_sg(sg):
         raise ValueError(f"Source column {src_n} not found in the subgraph")
 
     return sg_node_dtype
-
-
-def get_edgeid_type_d(pg, edge_ids, etypes):
-    if isinstance(edge_ids, cudf.Series):
-        # Work around for below issue
-        # https://github.com/rapidsai/cudf/issues/11877
-        edge_ids = edge_ids.values_host
-    df = pg.get_edge_data(edge_ids=edge_ids, columns=[type_n])
-    if isinstance(df, dask_cudf.DataFrame):
-        df = df.compute()
-    return {etype: df[df[type_n] == etype] for etype in etypes}
-
-
-def sample_pg(
-    pg,
-    has_multiple_etypes,
-    etypes,
-    sgs_obj,
-    sgs_src_range_obj,
-    sg_node_dtype,
-    nodes_ar,
-    replace,
-    fanout,
-    edge_dir,
-):
-    if isinstance(pg, MGPropertyGraph):
-        sample_f = cugraph.dask.uniform_neighbor_sample
-    else:
-        sample_f = cugraph.uniform_neighbor_sample
-
-    sampled_df = sample_cugraph_graphs(
-        sample_f=sample_f,
-        has_multiple_etypes=has_multiple_etypes,
-        sgs_obj=sgs_obj,
-        sgs_src_range_obj=sgs_src_range_obj,
-        sg_node_dtype=sg_node_dtype,
-        nodes_ar=nodes_ar,
-        replace=replace,
-        fanout=fanout,
-        edge_dir=edge_dir,
-    )
-
-    if has_multiple_etypes:
-        # Heterogeneous graph case
-        d = get_edgeid_type_d(pg, sampled_df["indices"], etypes)
-        return create_cp_result_ls(d)
-    else:
-        return (
-            sampled_df[src_n].values,
-            sampled_df[dst_n].values,
-            sampled_df["indices"].values,
-        )
 
 
 def sample_cugraph_graphs(
