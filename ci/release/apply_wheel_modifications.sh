@@ -35,7 +35,6 @@ sed -i "s/name=\"cugraph\"/name=\"cugraph${CUDA_SUFFIX}\"/g" python/cugraph/setu
 sed -i "s/rmm/rmm${CUDA_SUFFIX}/g" python/cugraph/setup.py
 sed -i "s/cudf/cudf${CUDA_SUFFIX}/g" python/cugraph/setup.py
 sed -i "s/raft-dask/raft-dask${CUDA_SUFFIX}/g" python/cugraph/setup.py
-sed -i "s/dask-cudf/dask-cudf${CUDA_SUFFIX}/g" python/cugraph/setup.py
 sed -i "s/pylibcugraph/pylibcugraph${CUDA_SUFFIX}/g" python/cugraph/setup.py
 
 # Dependency versions in pylibcugraph pyproject.toml
