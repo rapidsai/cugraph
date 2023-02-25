@@ -401,7 +401,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
-    std::tie(sorted_unique_ext_vertices, int_vertices_for_sorted_unique_ext_vertices) =
+    auto [unique_ext_vertices, int_vertices_for_unique_ext_vertices] =
       collect_values_for_unique_keys(handle,
                                      local_renumber_map.view(),
                                      std::move(sorted_unique_ext_vertices),
@@ -409,9 +409,9 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                        comm_size, major_comm_size, minor_comm_size});
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
-      sorted_unique_ext_vertices.begin(),
-      sorted_unique_ext_vertices.begin() + sorted_unique_ext_vertices.size(),
-      int_vertices_for_sorted_unique_ext_vertices.begin(),
+      unique_ext_vertices.begin(),
+      unique_ext_vertices.begin() + unique_ext_vertices.size(),
+      int_vertices_for_unique_ext_vertices.begin(),
       invalid_vertex_id<vertex_t>::value,
       invalid_vertex_id<vertex_t>::value,
       handle.get_stream());

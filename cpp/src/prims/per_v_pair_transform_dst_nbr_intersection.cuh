@@ -248,6 +248,11 @@ void per_v_pair_transform_dst_nbr_intersection(
                                              std::move(*unique_vertices),
                                              vertex_value_input_first,
                                              graph_view.vertex_partition_range_lasts());
+    thrust::sort_by_key(
+      handle.get_thrust_policy(),
+      (*unique_vertices).begin(),
+      (*unique_vertices).end(),
+      (*property_buffer_for_unique_vertices).begin());  // necessary for binary search
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
