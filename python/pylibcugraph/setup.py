@@ -82,10 +82,6 @@ setup(
             "pandas",
             "numpy",
             "networkx>=2.5.1",
-            "scikit-learn>=0.23.1",
-            "dask>=2023.1.1",
-            "distributed>=2023.1.1",
-            "dask-cuda==23.4.*",
             "cudf==23.4.*",
         ]
     },

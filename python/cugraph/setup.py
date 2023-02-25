@@ -19,7 +19,7 @@ from skbuild import setup
 
 INSTALL_REQUIRES = [
     "numba",
-    "dask-cuda",
+    "dask-cuda==23.4.*",
     "rmm==23.4.*",
     "cudf==23.4.*",
     "raft-dask==23.4.*",
