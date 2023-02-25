@@ -425,23 +425,12 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    int comm_root_rank = 0;
-    if (GraphViewType::is_multi_gpu) {
-      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto const major_comm_rank = major_comm.get_rank();
-      auto const major_comm_size = major_comm.get_size();
-      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-      auto const minor_comm_size = minor_comm.get_size();
-      comm_root_rank = partition_manager::compute_global_comm_rank_from_graph_subcomm_ranks(
-        major_comm_size, minor_comm_size, major_comm_rank, i);
-    }
-
     auto num_edges = edge_partition.number_of_edges();
 
     rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
-    if (graph_view.vertex_partition_range_size(comm_root_rank) > 0) {
+    if (num_edges > 0) {
       edge_partition_src_input_device_view_t edge_partition_src_value_input{};
       edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
       if constexpr (GraphViewType::is_storage_transposed) {
