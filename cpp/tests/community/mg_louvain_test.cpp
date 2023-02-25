@@ -77,7 +77,6 @@ class Tests_MGLouvain
   {
     auto& comm           = handle.get_comms();
     auto const comm_rank = comm.get_rank();
-    std::cout << "mg_edge_weight_view.has_value()=" << mg_edge_weight_view.has_value() << std::endl;
 
     cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
     std::optional<
