@@ -51,3 +51,8 @@ repos:
         language: python
         pass_filenames: false
         additional_dependencies: [gitpython]
+  - repo: https://github.com/rapidsai/dependency-file-generator
+    rev: v1.4.0
+    hooks:
+        - id: rapids-dependency-file-generator
+          args: ["--clean"]
