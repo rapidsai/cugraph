@@ -106,8 +106,8 @@ std::tuple<rmm::device_uvector<vertex_t>, ValueBuffer> sort_and_reduce_by_vertic
   rmm::device_uvector<vertex_t>&& vertices,
   ValueBuffer&& value_buffer)
 {
-  using value_t = typename thrust::iterator_traits<decltype(
-    get_dataframe_buffer_begin(value_buffer))>::value_type;
+  using value_t = typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(
+    value_buffer))>::value_type;
 
   thrust::sort_by_key(handle.get_thrust_policy(),
                       vertices.begin(),
@@ -469,8 +469,11 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       shrink_to_fit_dataframe_buffer(merged_value_buffer, handle.get_stream());
 
       if constexpr (GraphViewType::is_multi_gpu) {
-        // FIXME: better refactor this shuffle code for reuse
-        auto& comm = handle.get_comms();
+        auto& comm       = handle.get_comms();
+        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+        auto const major_comm_size = major_comm.get_size();
+        auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+        auto const minor_comm_size = minor_comm.get_size();
 
         auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
         rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
@@ -479,27 +482,21 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                             h_vertex_partition_range_lasts.data(),
                             h_vertex_partition_range_lasts.size(),
                             handle.get_stream());
-        rmm::device_uvector<size_t> d_lasts(d_vertex_partition_range_lasts.size(),
-                                            handle.get_stream());
-        thrust::lower_bound(handle.get_thrust_policy(),
-                            reduced_vertices.begin(),
-                            reduced_vertices.end(),
-                            d_vertex_partition_range_lasts.begin(),
-                            d_vertex_partition_range_lasts.end(),
-                            d_lasts.begin());
-        std::vector<size_t> h_lasts(d_lasts.size());
-        raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
-        handle.sync_stream();
 
-        std::vector<size_t> tx_counts(h_lasts.size());
-        std::adjacent_difference(h_lasts.begin(), h_lasts.end(), tx_counts.begin());
-
-        rmm::device_uvector<vertex_t> rx_reduced_vertices(size_t{0}, handle.get_stream());
-        auto rx_reduced_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());
-        std::tie(rx_reduced_vertices, std::ignore) =
-          shuffle_values(comm, reduced_vertices.begin(), tx_counts, handle.get_stream());
-        std::tie(rx_reduced_value_buffer, std::ignore) = shuffle_values(
-          comm, get_dataframe_buffer_begin(reduced_value_buffer), tx_counts, handle.get_stream());
+        rmm::device_uvector<vertex_t> rx_reduced_vertices(0, handle.get_stream());
+        auto rx_reduced_value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
+        std::tie(rx_reduced_vertices, rx_reduced_value_buffer, std::ignore) =
+          groupby_gpu_id_and_shuffle_kv_pairs(
+            handle.get_comms(),
+            reduced_vertices.begin(),
+            reduced_vertices.end(),
+            get_dataframe_buffer_begin(reduced_value_buffer),
+            cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+              raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                                d_vertex_partition_range_lasts.size()),
+              major_comm_size,
+              minor_comm_size},
+            handle.get_stream());
 
         std::tie(reduced_vertices, reduced_value_buffer) = detail::sort_and_reduce_by_vertices(
           handle, std::move(rx_reduced_vertices), std::move(rx_reduced_value_buffer));

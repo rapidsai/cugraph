@@ -151,21 +151,19 @@ class Tests_MGTriangleCount
     if (triangle_count_usecase.check_correctness) {
       // 4-1. aggregate MG results
 
-        if (d_mg_vertices) {
-          cugraph::unrenumber_int_vertices<vertex_t, true>(
-            *handle_,
-            (*d_mg_vertices).data(),
-            (*d_mg_vertices).size(),
-            (*d_mg_renumber_map_labels).data(),
-            mg_graph_view.vertex_partition_range_lasts());
-        }
+      std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_vertices{std::nullopt};
+      if (d_mg_vertices) {
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          (*d_mg_vertices).data(),
+          (*d_mg_vertices).size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_vertices =
-        d_mg_vertices ? std::optional<rmm::device_uvector<vertex_t>>{cugraph::test::device_gatherv(
-                          *handle_, (*d_mg_vertices).data(), (*d_mg_vertices).size())}
-                      : std::nullopt;
+        d_mg_aggregate_vertices =
+          cugraph::test::device_gatherv(*handle_, (*d_mg_vertices).data(), (*d_mg_vertices).size());
+      }
+
       auto d_mg_aggregate_triangle_counts = cugraph::test::device_gatherv(
         *handle_, d_mg_triangle_counts.data(), d_mg_triangle_counts.size());
 
@@ -177,6 +175,8 @@ class Tests_MGTriangleCount
             cugraph::test::sort_by_key(
               *handle_, *d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts);
         } else {
+          auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
+            *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
           std::tie(std::ignore, d_mg_aggregate_triangle_counts) = cugraph::test::sort_by_key(
             *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_triangle_counts);
         }
