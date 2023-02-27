@@ -156,7 +156,8 @@ shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
     std::move(vertices),
     std::move(values),
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-      {d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()},
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
       major_comm_size,
       minor_comm_size});
 
