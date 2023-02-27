@@ -36,9 +36,7 @@ rapids-mamba-retry install \
 # since this package can currently only run in `11.6` CTK environments
 # due to the dependency version specifications in its conda recipe.
 rapids-logger "Install cugraph-dgl"
-set -x
 rapids-mamba-retry install "${PYTHON_CHANNEL}/linux-64/cugraph-dgl-*.tar.bz2"
-set +x
 
 rapids-logger "Build Doxygen docs"
 pushd cpp/doxygen
