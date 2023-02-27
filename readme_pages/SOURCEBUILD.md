@@ -233,11 +233,6 @@ Run either the C++ or the Python tests with datasets
 
 Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
 
-### Building and Testing on a gpuCI image locally
-
-You can do a local build and test on your machine that mimics our gpuCI environment using the `ci/local/build.sh` script.
-For detailed information on usage of this script, see [here](ci/local/README.md).
-
 ### (OPTIONAL) Set environment variable on activation
 
 It is possible to configure the conda environment to set environmental variables on activation. Providing instructions to set PATH to include the CUDA toolkit bin directory and LD_LIBRARY_PATH to include the CUDA lib64 directory will be helpful.

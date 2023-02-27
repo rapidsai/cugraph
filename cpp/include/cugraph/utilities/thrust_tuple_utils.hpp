@@ -209,6 +209,22 @@ auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
   return tuple_value;
 }
 
+template <typename Iterator,
+          typename std::enable_if_t<std::is_arithmetic<
+            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+auto to_thrust_iterator_tuple(Iterator iter)
+{
+  return thrust::make_tuple(iter);
+}
+
+template <typename Iterator,
+          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<
+            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
+auto to_thrust_iterator_tuple(Iterator iter)
+{
+  return iter.get_iterator_tuple();
+}
+
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
 template <typename... TupleTypes>
@@ -239,28 +255,10 @@ struct thrust_tuple_get {
   }
 };
 
-namespace detail {
-template <typename Iterator,
-          typename std::enable_if_t<std::is_arithmetic<
-            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
-auto to_thrust_tuple(Iterator iter)
-{
-  return thrust::make_tuple(iter);
-}
-
-template <typename Iterator,
-          typename std::enable_if_t<is_thrust_tuple_of_arithmetic<
-            typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
-auto to_thrust_tuple(Iterator iter)
-{
-  return iter.get_iterator_tuple();
-}
-
 template <typename T, typename... Ts>
 decltype(auto) get_first_of_pack(T&& t, Ts&&...)
 {
   return std::forward<T>(t);
 }
 
-}  // namespace detail
 }  // namespace cugraph

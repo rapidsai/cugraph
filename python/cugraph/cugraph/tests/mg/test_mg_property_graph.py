@@ -459,7 +459,8 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     assert mg_ep_df.dtypes["_TYPE_"] == "category"
 
 
-def test_add_edge_data_with_ids(dask_client):
+@pytest.mark.parametrize("set_index", [True, False])
+def test_add_edge_data_with_ids(dask_client, set_index):
     """
     add_edge_data() on "transactions" table, all properties.
     """
@@ -468,6 +469,9 @@ def test_add_edge_data_with_ids(dask_client):
     transactions = dataset1["transactions"]
     transactions_df = cudf.DataFrame(columns=transactions[0], data=transactions[1])
     transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
+    transactions_ids = transactions_df["edge_id"]
+    if set_index:
+        transactions_df.set_index("edge_id", inplace=True)
     transactions_df = dask_cudf.from_cudf(transactions_df, npartitions=2)
 
     pG = MGPropertyGraph()
@@ -501,6 +505,9 @@ def test_add_edge_data_with_ids(dask_client):
         )
 
     relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+    relationships_ids = relationships_df["edge_id"]
+    if set_index:
+        relationships_df.set_index("edge_id", inplace=True)
     relationships_df = dask_cudf.from_cudf(relationships_df, npartitions=2)
 
     pG.add_edge_data(
@@ -514,13 +521,13 @@ def test_add_edge_data_with_ids(dask_client):
     df = pG.get_edge_data(types="transactions").compute()
     assert_series_equal(
         df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
-        transactions_df["edge_id"].compute(),
+        transactions_ids,
         check_names=False,
     )
     df = pG.get_edge_data(types="relationships").compute()
     assert_series_equal(
         df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
-        relationships_df["edge_id"].compute(),
+        relationships_ids,
         check_names=False,
     )
 
@@ -967,7 +974,8 @@ def test_renumber_vertices_edges_dtypes(dask_client):
     assert ed[pG.edge_id_col_name].dtype == cp.int32
 
 
-def test_add_data_noncontiguous(dask_client):
+@pytest.mark.parametrize("set_index", [True, False])
+def test_add_data_noncontiguous(dask_client, set_index):
     from cugraph.experimental import MGPropertyGraph
 
     df = cudf.DataFrame(
@@ -1014,9 +1022,10 @@ def test_add_data_noncontiguous(dask_client):
     )
     pG = MGPropertyGraph()
     for edge_type in ["cat", "dog", "pig"]:
-        pG.add_vertex_data(
-            df[df.edge_type == edge_type], vertex_col_name="vertex", type_name=edge_type
-        )
+        cur_df = df[df.edge_type == edge_type]
+        if set_index:
+            cur_df = cur_df.set_index("vertex")
+        pG.add_vertex_data(cur_df, vertex_col_name="vertex", type_name=edge_type)
     for edge_type in ["cat", "dog", "pig"]:
         cur_df = pG.get_vertex_data(types=edge_type).compute()
         assert len(cur_df) == counts[edge_type]
