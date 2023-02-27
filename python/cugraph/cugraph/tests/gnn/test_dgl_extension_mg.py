@@ -116,15 +116,17 @@ def gs_heterogeneous_dgl_eg(dask_client):
 
     return gs
 
-
+@pytest.mark.mg
 def test_num_nodes(basic_mg_gs):
     assert basic_mg_gs.num_nodes() == 5
 
 
+@pytest.mark.mg
 def test_num_edges(basic_mg_gs):
     assert basic_mg_gs.num_edges() == 6
 
 
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_sampling(basic_mg_gs):
     seed_cap = cudf.Series([1], dtype="int32").to_dlpack()
@@ -133,6 +135,7 @@ def test_sampling(basic_mg_gs):
     assert len(src_t) == 2
 
 
+@pytest.mark.mg
 def test_get_node_storage(basic_mg_gs):
     result = basic_mg_gs.get_node_storage(key="prop").fetch(indices=[2, 3])
     expected_result = cp.asarray([[300, 3], [400, 2]]).astype(cp.int32)
@@ -140,6 +143,7 @@ def test_get_node_storage(basic_mg_gs):
     cp.testing.assert_array_equal(result, expected_result)
 
 
+@pytest.mark.mg
 def test_get_edge_storage(basic_mg_gs):
     result = basic_mg_gs.get_edge_storage(key="edge_w").fetch(indices=[1, 2])
     expected_result = cp.asarray([[20, 21], [40, 41]]).astype(cp.int32)
@@ -147,6 +151,7 @@ def test_get_edge_storage(basic_mg_gs):
     cp.testing.assert_array_equal(result, expected_result)
 
 
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_in_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
@@ -196,6 +201,7 @@ def test_sampling_homogeneous_gs_in_dir(dask_client):
         )
 
 
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_out_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
@@ -244,6 +250,7 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
         )
 
 
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 
@@ -289,6 +296,7 @@ def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 # Test against DGLs output
 # See below notebook
 # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
+@pytest.mark.mg
 def test_sampling_dgl_heterogeneous_gs_m_fanouts(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg
     expected_output = {
@@ -325,6 +333,7 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(gs_heterogeneous_dgl_eg):
             assert expected_output[fanout][etype] == len(output_df)
 
 
+@pytest.mark.mg
 def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
@@ -383,6 +392,7 @@ def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.mg
 def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
@@ -452,6 +462,7 @@ def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_sampling_with_out_of_index_seed(dask_client):
     pg = MGPropertyGraph()

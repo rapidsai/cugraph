@@ -317,16 +317,18 @@ def rmat(
     --------
     >>> import cugraph
     >>> from cugraph.generators import rmat
+    >>> scale = 10
+    >>> edgefactor = 16
     >>> df = rmat(
     ...    scale,
     ...    (2**scale)*edgefactor,
     ...    0.57,
     ...    0.19,
     ...    0.19,
-    ...    seed or 42,
+    ...    seed=42,
     ...    clip_and_flip=False,
     ...    scramble_vertex_ids=True,
-    ...    create_using=None,  # return edgelist instead of Graph instance
+    ...    create_using=None,
     ...    mg=False
     ... )
 

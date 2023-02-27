@@ -168,7 +168,6 @@ def df_type_id(dataframe_type):
 df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def net_PropertyGraph(request):
     """
@@ -200,7 +199,6 @@ def net_PropertyGraph(request):
     return pG
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def dataset1_PropertyGraph(request):
     """
@@ -259,7 +257,6 @@ def dataset1_PropertyGraph(request):
     return (pG, dataset1)
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="function")
 def dataset1_MGPropertyGraph(dask_client):
     """
@@ -328,7 +325,6 @@ def dataset1_MGPropertyGraph(dask_client):
     return (mpG, dataset1)
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def dataset2_simple_MGPropertyGraph(dask_client):
     from cugraph.experimental import MGPropertyGraph
@@ -346,7 +342,6 @@ def dataset2_simple_MGPropertyGraph(dask_client):
     return (mpG, simple)
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def dataset2_MGPropertyGraph(dask_client):
     from cugraph.experimental import MGPropertyGraph
@@ -364,7 +359,6 @@ def dataset2_MGPropertyGraph(dask_client):
     return (mpG, simple)
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def net_MGPropertyGraph(dask_client):
     """
@@ -391,7 +385,7 @@ def net_MGPropertyGraph(dask_client):
     return dpG
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     """
@@ -418,7 +412,7 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     assert mg_subgraph_df.dtypes["_TYPE_"] == "category"
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     (sgpG, _) = dataset1_PropertyGraph
@@ -435,7 +429,7 @@ def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     assert mg_subgraph_df.dtypes["_TYPE_"] == "category"
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     (sgpG, _) = dataset1_PropertyGraph
@@ -468,7 +462,7 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     assert mg_ep_df.dtypes["_TYPE_"] == "category"
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_add_edge_data_with_ids(dask_client):
     """
     add_edge_data() on "transactions" table, all properties.
@@ -552,7 +546,7 @@ def test_add_edge_data_with_ids(dask_client):
         )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_property_names_attrs(dataset1_MGPropertyGraph):
     """
     Ensure the correct number of user-visible properties for vertices and edges
@@ -594,7 +588,7 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_simple_MGPropertyGraph):
     """
     Ensure a subgraph can be extracted that contains no edge_data.  Also ensure
@@ -629,7 +623,7 @@ def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_simple_MGPropertyGra
     assert hasattr(G, "edge_data") is False
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_num_vertices_with_properties(dataset2_simple_MGPropertyGraph):
     """
     Checks that the num_vertices_with_properties attr is set to the number of
@@ -657,7 +651,7 @@ def test_num_vertices_with_properties(dataset2_simple_MGPropertyGraph):
     assert type_is_categorical(pG)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_edges_attr(dataset2_simple_MGPropertyGraph):
     """
     Ensure the edges attr returns the src, dst, edge_id columns properly.
@@ -681,7 +675,7 @@ def test_edges_attr(dataset2_simple_MGPropertyGraph):
     assert edge_ids.nunique() == expected_num_edges
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_get_vertex_data(dataset1_MGPropertyGraph):
     """
     Ensure PG.get_vertex_data() returns the correct data based on vertex IDs
@@ -729,7 +723,7 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     assert_frame_equal(df1, df2, check_like=True)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_get_vertex_data_repeated(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -750,7 +744,7 @@ def test_get_vertex_data_repeated(dask_client):
     assert_frame_equal(df1, expected)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_get_edge_data(dataset1_MGPropertyGraph):
     """
     Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
@@ -824,7 +818,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     assert_frame_equal(df1, df2, check_like=True)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_get_edge_data_repeated(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -853,7 +847,7 @@ def test_get_edge_data_repeated(dask_client):
     assert_frame_equal(df1, expected)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_get_data_empty_graphs(dask_client):
     """
     Ensures that calls to pG.get_*_data() on an empty pG are handled correctly.
@@ -868,7 +862,7 @@ def test_get_data_empty_graphs(dask_client):
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
 def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
@@ -915,7 +909,7 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
         empty_pG.renumber_vertices_by_type(prev_id_column)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
 def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
@@ -944,7 +938,7 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_renumber_vertices_edges_dtypes(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -989,7 +983,7 @@ def test_renumber_vertices_edges_dtypes(dask_client):
     assert ed[pG.edge_id_col_name].dtype == cp.int32
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_add_data_noncontiguous(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -1050,7 +1044,7 @@ def test_add_data_noncontiguous(dask_client):
         )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_vertex_vector_property(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -1207,7 +1201,7 @@ def test_vertex_vector_property(dask_client):
         pG.vertex_vector_property_to_array(42, "vec1")
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_edge_vector_property(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -1275,7 +1269,7 @@ def test_edge_vector_property(dask_client):
         pG.edge_vector_property_to_array(df, "vec2", missing="error").compute()
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_fillna_vertices():
     from cugraph.experimental import MGPropertyGraph
 
@@ -1339,7 +1333,7 @@ def test_fillna_vertices():
     )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_fillna_edges():
     from cugraph.experimental import MGPropertyGraph
 
@@ -1391,7 +1385,7 @@ def test_fillna_edges():
     )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_types_from_numerals(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
@@ -1479,7 +1473,7 @@ def test_types_from_numerals(dask_client):
 # =============================================================================
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.slow
 @pytest.mark.parametrize("N", [1, 3, 10, 30])
 def bench_add_edges_cyber(gpubenchmark, dask_client, N):
@@ -1503,7 +1497,7 @@ def bench_add_edges_cyber(gpubenchmark, dask_client, N):
     gpubenchmark(func)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])

@@ -55,6 +55,8 @@ DATASETS_ASYMMETRIC = [utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.c
     params=DATASETS_ASYMMETRIC,
     ids=[f"dataset={d.as_posix()}" for d in DATASETS_ASYMMETRIC],
 )
+
+
 def daskGraphFromDataset(request, dask_client):
     """
     Returns a new dask dataframe created from the dataset file param.
@@ -114,6 +116,7 @@ def uddaskGraphFromDataset(request, dask_client):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 # FIXME: Implement more robust tests
+@pytest.mark.mg
 def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
     # Directed graphs are not supported by Louvain and a ValueError should be
     # raised
@@ -127,6 +130,7 @@ def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 # FIXME: Implement more robust tests
+@pytest.mark.mg
 def test_mg_louvain_with_edgevals_undirected_graph(uddaskGraphFromDataset):
     parts, mod = dcg.louvain(uddaskGraphFromDataset)
 

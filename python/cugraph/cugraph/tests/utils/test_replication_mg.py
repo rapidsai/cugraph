@@ -26,7 +26,7 @@ DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "input_data_path", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
@@ -45,7 +45,7 @@ def test_replicate_cudf_dataframe_with_weights(input_data_path, dask_client):
         assert_frame_equal(df, replicated_df)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "input_data_path", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
@@ -64,8 +64,7 @@ def test_replicate_cudf_dataframe_no_weights(input_data_path, dask_client):
         assert_frame_equal(df, replicated_df)
 
 
-@pytest.mark.mg_test
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "input_data_path", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
@@ -95,9 +94,8 @@ def test_replicate_cudf_series(input_data_path, dask_client):
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
 
-@pytest.mark.mg_test
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_context(graph_file, directed):
     gc.collect()
@@ -113,7 +111,7 @@ def test_enable_batch_no_context(graph_file, directed):
 )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_context_view_adj(graph_file, directed, dask_client):
     gc.collect()
@@ -122,14 +120,11 @@ def test_enable_batch_no_context_view_adj(graph_file, directed, dask_client):
     G.view_adj_list()
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
-@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_context_then_views(graph_file, directed, dask_client):
     gc.collect()
@@ -149,14 +144,11 @@ def test_enable_batch_context_then_views(graph_file, directed, dask_client):
     assert G.batch_transposed_adjlists is not None
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
-@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_view_then_context(graph_file, directed, dask_client):
     gc.collect()
@@ -180,14 +172,11 @@ def test_enable_batch_view_then_context(graph_file, directed, dask_client):
     assert G.batch_transposed_adjlists is not None
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
-@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_context_no_context_views(graph_file, directed, dask_client):
     gc.collect()
@@ -203,14 +192,11 @@ def test_enable_batch_context_no_context_views(graph_file, directed, dask_client
     G.view_transposed_adj_list()
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
-@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_edgelist_replication(graph_file, directed, dask_client):
     gc.collect()
@@ -222,14 +208,11 @@ def test_enable_batch_edgelist_replication(graph_file, directed, dask_client):
         assert_frame_equal(df, replicated_df)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
-@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_adjlist_replication_weights(graph_file, directed, dask_client):
     gc.collect()
@@ -254,14 +237,11 @@ def test_enable_batch_adjlist_replication_weights(graph_file, directed, dask_cli
         assert_series_equal(weights, rep_weights.result(), check_names=False)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
-@pytest.mark.mg_test
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_adjlist_replication_no_weights(graph_file, directed, dask_client):
     gc.collect()

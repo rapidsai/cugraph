@@ -61,7 +61,6 @@ fixture_params = gen_fixture_params_product(
 )
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -126,7 +125,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
@@ -203,7 +202,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
             )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
@@ -263,7 +262,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     assert set(start_list).issubset(set(result_nbr_vertices))
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
@@ -299,7 +298,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     assert sorted(actual_dst) == sorted(expected_dst)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
@@ -325,7 +324,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     assert len(output_df.compute()) == 3
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_edge_properties():
     edgelist_df = dask_cudf.from_cudf(
@@ -400,7 +399,7 @@ def test_uniform_neighbor_sample_edge_properties():
     # FIXME test the batch id values once that is fixed in C++
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_uniform_neighbor_sample_edge_properties_self_loops():
     df = dask_cudf.from_cudf(
         cudf.DataFrame(
@@ -458,7 +457,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("with_replacement", [True, False])
 @pytest.mark.skipif(
     int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
@@ -496,7 +495,7 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(with_replaceme
     )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_uniform_neighbor_sample_without_dask_inputs():
     df = dask_cudf.from_cudf(
         cudf.DataFrame(
@@ -557,7 +556,7 @@ def test_uniform_neighbor_sample_without_dask_inputs():
 # =============================================================================
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
 def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):

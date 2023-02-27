@@ -41,7 +41,6 @@ fixture_params = gen_fixture_params_product(
 )
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -53,7 +52,6 @@ def input_combo(request):
     return parameters
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def input_expected_output(dask_client, input_combo):
     """
@@ -104,6 +102,7 @@ def input_expected_output(dask_client, input_combo):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.mg
 def test_sg_core_number(dask_client, benchmark, input_expected_output):
     # This test is only for benchmark purposes.
     sg_core_number_results = None
@@ -114,6 +113,7 @@ def test_sg_core_number(dask_client, benchmark, input_expected_output):
     assert sg_core_number_results is not None
 
 
+@pytest.mark.mg
 def test_core_number(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
@@ -139,6 +139,7 @@ def test_core_number(dask_client, benchmark, input_expected_output):
     assert len(counts_diffs) == 0
 
 
+@pytest.mark.mg
 def test_core_number_invalid_input(input_expected_output):
     input_data_path = (
         utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"

@@ -72,7 +72,7 @@ def teardown_module():
 
 
 ###############################################################################
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
 def test_rmat_edgelist(scale):
@@ -92,7 +92,7 @@ def test_rmat_edgelist(scale):
     assert len(df) == num_edges
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_type", _graph_types, ids=_graph_test_ids)
 def test_rmat_return_type(graph_type):

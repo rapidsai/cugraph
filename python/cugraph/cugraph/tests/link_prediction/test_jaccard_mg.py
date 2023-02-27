@@ -51,7 +51,6 @@ fixture_params = gen_fixture_params_product(
 )
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -63,7 +62,6 @@ def input_combo(request):
     return parameters
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def input_expected_output(input_combo):
     """
@@ -121,7 +119,7 @@ def input_expected_output(input_combo):
 # =============================================================================
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_dask_jaccard(dask_client, benchmark, input_expected_output):
 
@@ -157,7 +155,7 @@ def test_dask_jaccard(dask_client, benchmark, input_expected_output):
     assert len(jaccard_coeff_diffs2) == 0
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_dask_weighted_jaccard():
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)

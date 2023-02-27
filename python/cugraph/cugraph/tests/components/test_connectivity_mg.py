@@ -39,7 +39,7 @@ IS_DIRECTED = [False, True]
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_wcc(dask_client, directed):
 

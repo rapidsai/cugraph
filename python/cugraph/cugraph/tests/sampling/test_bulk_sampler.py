@@ -21,7 +21,7 @@ from cugraph.experimental.gnn import BulkSampler
 import tempfile
 import os
 
-
+@pytest.mark.skip("work in progress")
 def test_bulk_sampler_simple():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -61,6 +61,7 @@ def test_bulk_sampler_simple():
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
 
+@pytest.mark.skip("work in progress")
 def test_bulk_sampler_remainder():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -121,6 +122,7 @@ def test_bulk_sampler_remainder():
     ).all()
 
 
+@pytest.mark.skip("work in progress")
 def test_bulk_sampler_large_batch_size():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")

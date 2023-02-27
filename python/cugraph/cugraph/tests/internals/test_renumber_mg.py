@@ -41,7 +41,7 @@ def setup_function():
 IS_DIRECTED = [True, False]
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file",
@@ -94,7 +94,7 @@ def test_mg_renumber(graph_file, dask_client):
     assert_series_equal(gdf["dst_old"], unrenumbered_df[f"1_{dst}"], check_names=False)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file",
@@ -129,7 +129,7 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     )
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_pagerank(dask_client, directed):
@@ -179,7 +179,7 @@ def test_dask_pagerank(dask_client, directed):
     assert err == 0
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("renumber", [False])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
@@ -200,7 +200,7 @@ def test_graph_renumber_false(renumber, dask_client, directed):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("renumber", [False])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
@@ -225,7 +225,7 @@ def test_multi_graph_renumber_false(renumber, dask_client, directed):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file",
@@ -293,7 +293,7 @@ def test_mg_renumber_common_col_names(graph_file, dask_client):
     assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_pagerank_string_vertex_ids(dask_client):
     """
@@ -331,7 +331,7 @@ def test_pagerank_string_vertex_ids(dask_client):
     assert_frame_equal(sg_results, mg_results)
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("dtype", ["int32", "int64"])
 def test_mg_renumber_multi_column(dtype, dask_client):
     df = cudf.DataFrame(

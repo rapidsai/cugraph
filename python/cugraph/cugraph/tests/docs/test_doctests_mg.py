@@ -105,6 +105,7 @@ class TestDoctests:
         finally:
             os.chdir(original_directory)
 
+    @pytest.mark.mg
     def test_docstring(self, dask_client, docstring):
         # We ignore differences in whitespace in the doctest output, and enable
         # the use of an ellipsis "..." to match any string in the doctest

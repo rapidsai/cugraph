@@ -38,7 +38,7 @@ IS_DIRECTED = [True, False]
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_sssp(dask_client, directed):
 
@@ -87,7 +87,7 @@ def test_dask_sssp(dask_client, directed):
     assert err == 0
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_dask_unweighted_sssp(dask_client):
     input_data_path = input_data_path = (
         RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"

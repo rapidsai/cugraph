@@ -54,7 +54,7 @@ def setup_function():
     gc.collect()
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]

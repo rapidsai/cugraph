@@ -51,7 +51,6 @@ fixture_params = gen_fixture_params_product(
 )
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -90,7 +89,7 @@ def input_combo(request):
     return parameters
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_nodes_functionality(dask_client, input_combo):
     G = input_combo["MGGraph"]
     ddf = input_combo["input_df"]
@@ -119,7 +118,7 @@ def test_nodes_functionality(dask_client, input_combo):
     assert len(compare) == 0
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_has_node_functionality(dask_client, input_combo):
 
     G = input_combo["MGGraph"]
@@ -138,6 +137,7 @@ def test_has_node_functionality(dask_client, input_combo):
     assert G.has_node(invalid_node) is False
 
 
+@pytest.mark.mg
 def test_create_mg_graph(dask_client, input_combo):
     G = input_combo["MGGraph"]
     ddf = input_combo["input_df"]
@@ -207,7 +207,7 @@ def test_create_mg_graph(dask_client, input_combo):
     assert err == 0
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_graph_with_edge_ids(dask_client, graph_file):
     el = utils.read_csv_file(graph_file)
@@ -261,7 +261,7 @@ def test_graph_repartition(dask_client):
     assert num_futures == num_workers
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_mg_graph_serializable(dask_client, input_combo):
     G = input_combo["MGGraph"]
     dask_client.publish_dataset(shared_g=G)
@@ -273,7 +273,7 @@ def test_mg_graph_serializable(dask_client, input_combo):
     dask_client.unpublish_dataset("shared_g")
 
 
-@pytest.mark.mg_test
+@pytest.mark.mg
 def test_mg_graph_copy():
     G = cugraph.MultiGraph(directed=True)
     G_c = copy.deepcopy(G)

@@ -41,7 +41,6 @@ fixture_params = gen_fixture_params_product(
 )
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module", params=fixture_params)
 def input_combo(request):
     """
@@ -53,7 +52,6 @@ def input_combo(request):
     return parameters
 
 
-@pytest.mark.mg_test
 @pytest.fixture(scope="module")
 def input_expected_output(dask_client, input_combo):
     """
@@ -109,6 +107,7 @@ def input_expected_output(dask_client, input_combo):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.mg
 def test_sg_triangles(dask_client, benchmark, input_expected_output):
     # This test is only for benchmark purposes.
     sg_triangle_results = None
@@ -118,6 +117,7 @@ def test_sg_triangles(dask_client, benchmark, input_expected_output):
     assert sg_triangle_results is not None
 
 
+@pytest.mark.mg
 def test_triangles(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
