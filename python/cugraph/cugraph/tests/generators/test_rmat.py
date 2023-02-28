@@ -15,26 +15,18 @@
 import pytest
 
 import cudf
-import dask_cudf
 
-from cugraph.dask.common.mg_utils import (
-    is_single_gpu,
-    setup_local_dask_cluster,
-    teardown_local_dask_cluster,
-)
 from cugraph.generators import rmat
 import cugraph
 
 
 ##############################################################################
-_cluster = None
-_client = None
-_is_single_gpu = is_single_gpu()
-_visible_devices = None
+
 _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _graph_types = [cugraph.Graph, None, int]
-_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
+_graph_test_ids = \
+    [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
 
 
 def _call_rmat(scale, num_edges, create_using, mg=False):
@@ -57,23 +49,9 @@ def _call_rmat(scale, num_edges, create_using, mg=False):
 
 
 ###############################################################################
-def setup_module():
-    global _cluster
-    global _client
-    global _visible_devices
-    if not _is_single_gpu:
-        (_cluster, _client) = setup_local_dask_cluster(p2p=True)
-        _visible_devices = _client.scheduler_info()["workers"]
-
-
-def teardown_module():
-    if not _is_single_gpu:
-        teardown_local_dask_cluster(_cluster, _client)
-
-
-###############################################################################
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.filterwarnings(
+    "ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
 def test_rmat_edgelist(scale):
     """
@@ -88,7 +66,8 @@ def test_rmat_edgelist(scale):
 
 
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.filterwarnings(
+    "ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_type", _graph_types, ids=_graph_test_ids)
 def test_rmat_return_type(graph_type):
     """

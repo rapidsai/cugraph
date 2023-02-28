@@ -13,8 +13,7 @@
 
 import pytest
 from cugraph.dask.common.mg_utils import (
-    start_dask_client,
-    setup_local_dask_cluster, 
+    setup_local_dask_cluster,
     teardown_local_dask_cluster,
 )
 

@@ -19,6 +19,11 @@ import numpy as np
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.experimental.datasets import karate
 
+from test_betweenness_centrality import (
+    calc_betweenness_centrality,
+    compare_scores,
+)
+
 # Get parameters from standard betwenness_centrality_test
 # As tests directory is not a module, we need to add it to the path
 # FIXME: Test must be reworked to import from 'cugraph.testing' instead of
@@ -30,12 +35,6 @@ NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 SUBSET_SIZE_OPTIONS = [4, None]
 SUBSET_SEED_OPTIONS = [42]
-
-
-from test_betweenness_centrality import (
-    calc_betweenness_centrality,
-    compare_scores,
-)
 
 
 # =============================================================================
@@ -56,9 +55,11 @@ def setup_function():
 
 
 @pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
-    "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
+    "graph_file", DATASETS,
+    ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
 )
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

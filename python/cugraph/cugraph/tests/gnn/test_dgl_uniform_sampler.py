@@ -15,6 +15,7 @@ import cudf
 import pandas as pd
 import numpy as np
 import cupy as cp
+import pytest
 
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import DGLUniformSampler
 
