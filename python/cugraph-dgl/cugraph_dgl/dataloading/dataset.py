@@ -151,8 +151,9 @@ def _load_sampled_file(dataset_obj, fn):
 
 
 def get_batch_start_end(fn):
-    batch_start = fn.split("batch=")[1].split("-")[0]
-    batch_end = fn.split("-")[1].split(".")[0]
+    batch_str = fn.split("batch=")[1]
+    batch_start, batch_end = batch_str.split("-")
+    batch_end = batch_end.split(".parquet")[0]
     return int(batch_start), int(batch_end)
 
 
