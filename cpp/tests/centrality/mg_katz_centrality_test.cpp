@@ -175,11 +175,11 @@ class Tests_MGKatzCentrality
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
-          1e-6  // skip comparison for low KatzCentrality verties (lowly ranked vertices)
-          auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
-            return std::abs(lhs - rhs) <
-                   std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
-          };
+          1e-6;  // skip comparison for low KatzCentrality verties (lowly ranked vertices)
+        auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+          return std::abs(lhs - rhs) <
+                 std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+        };
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_katz_centralities.begin(),
                                h_mg_aggregate_katz_centralities.end(),
