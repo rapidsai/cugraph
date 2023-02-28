@@ -171,6 +171,8 @@ def betweenness_centrality(
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
+    # FIXME: leverage the uniform neighbor sampling implementation
+    # to make it faster
     cupy_result = [
         client.submit(
             _call_plc_betweenness_centrality,
