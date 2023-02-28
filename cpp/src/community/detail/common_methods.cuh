@@ -232,17 +232,16 @@ rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
     thrust::sort_by_key(
       handle.get_thrust_policy(), map_keys.begin(), map_keys.end(), map_values.begin());
 
-    
-    if(debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug) raft::print_device_vector(
-      "keys_to_lookup: ", keys_to_lookup.data(), keys_to_lookup.size(), std::cout);
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "keys_to_lookup: ", keys_to_lookup.data(), keys_to_lookup.size(), std::cout);
 
-    if(debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug) raft::print_device_vector("map_keys: ", map_keys.data(), map_keys.size(), std::cout);
+      raft::print_device_vector("map_keys: ", map_keys.data(), map_keys.size(), std::cout);
 
-    if(debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug) raft::print_device_vector("map_values: ", map_values.data(), map_values.size(), std::cout);
-
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector("map_values: ", map_values.data(), map_values.size(), std::cout);
+    }
     // for each vertex, look up the vertex weight of the current cluster it is assigned to
     values_for_sought_keys.resize(keys_to_lookup.size(), handle.get_stream());
     thrust::transform(handle.get_thrust_policy(),
@@ -258,12 +257,13 @@ rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
                       });
   }
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug) raft::print_device_vector("values_for_sought_keys: ",
-                            values_for_sought_keys.data(),
-                            values_for_sought_keys.size(),
-                            std::cout);
-
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector("values_for_sought_keys: ",
+                              values_for_sought_keys.data(),
+                              values_for_sought_keys.size(),
+                              std::cout);
+  }
   return values_for_sought_keys;
 }
 
@@ -322,20 +322,23 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
   bool debug = next_clusters_v.size() < 50;
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << ".... Inside update_clustering_by_delta_modularity: " << std::endl;
-
-  std::cout << "before lookup_primitive_values_for_keys: " << std::endl;
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << ".... Inside update_clustering_by_delta_modularity: " << std::endl;
+    std::cout << "before lookup_primitive_values_for_keys: " << std::endl;
+  }
   rmm::device_uvector<weight_t> vertex_cluster_weights_v =
     lookup_primitive_values_for_keys<vertex_t, weight_t, multi_gpu>(
       handle, cluster_keys_v, cluster_weights_v, next_clusters_v);
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "after lookup_primitive_values_for_keys: " << std::endl;
-  if (debug) raft::print_device_vector("vertex_cluster_weights_v: ",
-                            vertex_cluster_weights_v.data(),
-                            vertex_cluster_weights_v.size(),
-                            std::cout);
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "after lookup_primitive_values_for_keys: " << std::endl;
+    raft::print_device_vector("vertex_cluster_weights_v: ",
+                              vertex_cluster_weights_v.data(),
+                              vertex_cluster_weights_v.size(),
+                              std::cout);
+  }
 
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
     src_cluster_weights(handle);
@@ -355,14 +358,16 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   rmm::device_uvector<weight_t> cluster_subtract_v(graph_view.local_vertex_partition_range_size(),
                                                    handle.get_stream());
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "before per_v_transform_reduce_outgoing_e: " << std::endl;
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "before per_v_transform_reduce_outgoing_e: " << std::endl;
 
-  if (debug) raft::print_device_vector("*edge_weight_view: ",
-                            (*edge_weight_view).value_firsts()[0],
-                            std::min((*edge_weight_view).edge_counts()[0], (decltype((*edge_weight_view).edge_counts()[0]))50),
-                            std::cout);
-
+    raft::print_device_vector("*edge_weight_view: ",
+                              (*edge_weight_view).value_firsts()[0],
+                              std::min((*edge_weight_view).edge_counts()[0],
+                                       (decltype((*edge_weight_view).edge_counts()[0]))50),
+                              std::cout);
+  }
   per_v_transform_reduce_outgoing_e(
     handle,
     graph_view,
@@ -388,19 +393,21 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "after per_v_transform_reduce_outgoing_e: " << std::endl;
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "after per_v_transform_reduce_outgoing_e: " << std::endl;
 
-  if (debug) raft::print_device_vector("*edge_weight_view: ",
-                            (*edge_weight_view).value_firsts()[0],
-                            std::min((*edge_weight_view).edge_counts()[0], (decltype((*edge_weight_view).edge_counts()[0]))50),
-                            std::cout);
+    raft::print_device_vector("*edge_weight_view: ",
+                              (*edge_weight_view).value_firsts()[0],
+                              std::min((*edge_weight_view).edge_counts()[0],
+                                       (decltype((*edge_weight_view).edge_counts()[0]))50),
+                              std::cout);
 
-  if (debug) raft::print_device_vector(
-    "old_cluster_sum_v: ", old_cluster_sum_v.data(), old_cluster_sum_v.size(), std::cout);
-  if (debug) raft::print_device_vector(
-    "cluster_subtract_v: ", cluster_subtract_v.data(), cluster_subtract_v.size(), std::cout);
-
+    raft::print_device_vector(
+      "old_cluster_sum_v: ", old_cluster_sum_v.data(), old_cluster_sum_v.size(), std::cout);
+    raft::print_device_vector(
+      "cluster_subtract_v: ", cluster_subtract_v.data(), cluster_subtract_v.size(), std::cout);
+  }
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
                       thrust::tuple<weight_t, weight_t>>
     src_old_cluster_sum_subtract_pairs(handle);
@@ -448,23 +455,24 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     std::numeric_limits<weight_t>::max(),
     handle.get_stream());
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug) raft::print_device_vector(
-    "before per_v_transform_reduce_dst_key_aggregated_outgoing_e, *edge_weight_view: ",
-    (*edge_weight_view).value_firsts()[0],
-    std::min((*edge_weight_view).edge_counts()[0], (decltype((*edge_weight_view).edge_counts()[0]))50),
-    std::cout);
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(
+      "before per_v_transform_reduce_dst_key_aggregated_outgoing_e, *edge_weight_view: ",
+      (*edge_weight_view).value_firsts()[0],
+      std::min((*edge_weight_view).edge_counts()[0],
+               (decltype((*edge_weight_view).edge_counts()[0]))50),
+      std::cout);
 
-  std::cout << "size(output_buffer): " << cugraph::size_dataframe_buffer(output_buffer)
-            << std::endl;
+    std::cout << "size(output_buffer): " << cugraph::size_dataframe_buffer(output_buffer)
+              << std::endl;
 
-  if (debug) raft::print_device_vector(
-    "next_clusters_v (before per_v_transform_reduce_dst_key_aggregated_outgoing_e): ",
-    next_clusters_v.data(),
-    next_clusters_v.size(),
-    std::cout);
-
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
+    raft::print_device_vector(
+      "next_clusters_v (before per_v_transform_reduce_dst_key_aggregated_outgoing_e): ",
+      next_clusters_v.data(),
+      next_clusters_v.size(),
+      std::cout);
+  }
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     handle,
     graph_view,
@@ -479,24 +487,27 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
 
-  if (debug) raft::print_device_vector(
-    "next_clusters_v (after per_v_transform_reduce_dst_key_aggregated_outgoing_e): ",
-    next_clusters_v.data(),
-    next_clusters_v.size(),
-    std::cout);
+    raft::print_device_vector(
+      "next_clusters_v (after per_v_transform_reduce_dst_key_aggregated_outgoing_e): ",
+      next_clusters_v.data(),
+      next_clusters_v.size(),
+      std::cout);
 
-  if (debug) raft::print_device_vector(
-    "after per_v_transform_reduce_dst_key_aggregated_outgoing_e, *edge_weight_view: ",
-    (*edge_weight_view).value_firsts()[0],
-    std::min((*edge_weight_view).edge_counts()[0], (decltype((*edge_weight_view).edge_counts()[0]))50),
-    std::cout);
+    raft::print_device_vector(
+      "after per_v_transform_reduce_dst_key_aggregated_outgoing_e, *edge_weight_view: ",
+      (*edge_weight_view).value_firsts()[0],
+      std::min((*edge_weight_view).edge_counts()[0],
+               (decltype((*edge_weight_view).edge_counts()[0]))50),
+      std::cout);
 
-  if (debug) raft::print_device_vector(
-    "targets", std::get<0>(output_buffer).data(), std::get<0>(output_buffer).size(), std::cout);
-  if (debug) raft::print_device_vector(
-    "gains", std::get<1>(output_buffer).data(), std::get<1>(output_buffer).size(), std::cout);
+    raft::print_device_vector(
+      "targets", std::get<0>(output_buffer).data(), std::get<0>(output_buffer).size(), std::cout);
+    raft::print_device_vector(
+      "gains", std::get<1>(output_buffer).data(), std::get<1>(output_buffer).size(), std::cout);
+  }
 
   thrust::transform(handle.get_thrust_policy(),
                     next_clusters_v.begin(),
@@ -505,13 +516,15 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                     next_clusters_v.begin(),
                     detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
 
-  if (debug) raft::print_device_vector("next_clusters_v (after transform): ",
-                            next_clusters_v.data(),
-                            next_clusters_v.size(),
-                            std::cout);
-  std::cout << "returning from  update_clustering_by_delta_modularity ..." << std::endl;
+    raft::print_device_vector("next_clusters_v (after transform): ",
+                              next_clusters_v.data(),
+                              next_clusters_v.size(),
+                              std::cout);
+    std::cout << "returning from  update_clustering_by_delta_modularity ..." << std::endl;
+  }
   return std::move(next_clusters_v);
 }
 
@@ -529,16 +542,18 @@ compute_cluster_keys_and_values(
 
   bool debug = next_clusters_v.size() < 50;
 
-  if(debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "... inside compute_cluster_keys_and_values " << std::endl;
-  if (debug) raft::print_device_vector(
-    "next_clusters_v: ", next_clusters_v.data(), next_clusters_v.size(), std::cout);
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "... inside compute_cluster_keys_and_values " << std::endl;
+    raft::print_device_vector(
+      "next_clusters_v: ", next_clusters_v.data(), next_clusters_v.size(), std::cout);
 
-  if (debug) raft::print_device_vector("*edge_weight_view: ",
-                            (*edge_weight_view).value_firsts()[0],
-                            std::min((*edge_weight_view).edge_counts()[0], (decltype((*edge_weight_view).edge_counts()[0]))50),
-                            std::cout);
-
+    raft::print_device_vector("*edge_weight_view: ",
+                              (*edge_weight_view).value_firsts()[0],
+                              std::min((*edge_weight_view).edge_counts()[0],
+                                       (decltype((*edge_weight_view).edge_counts()[0]))50),
+                              std::cout);
+  }
   auto [cluster_keys, cluster_values] = cugraph::transform_reduce_e_by_src_key(
     handle,
     graph_view,
@@ -552,11 +567,14 @@ compute_cluster_keys_and_values(
     weight_t{0},
     reduce_op::plus<weight_t>{});
 
-  if (debug) raft::print_device_vector("cluster_keys: ", cluster_keys.data(), cluster_keys.size(), std::cout);
-  if (debug) raft::print_device_vector(
-    "cluster_values: ", cluster_values.data(), cluster_values.size(), std::cout);
+  if (debug) {
+    raft::print_device_vector(
+      "cluster_keys: ", cluster_keys.data(), cluster_keys.size(), std::cout);
+    raft::print_device_vector(
+      "cluster_values: ", cluster_values.data(), cluster_values.size(), std::cout);
 
-  std::cout << "... returning from compute_cluster_keys_and_values" << std::endl;
+    std::cout << "... returning from compute_cluster_keys_and_values" << std::endl;
+  }
   return std::make_tuple(std::move(cluster_keys), std::move(cluster_values));
 }
 

@@ -206,19 +206,18 @@ build_leiden_to_louvain_map(raft::handle_t const& handle,
                values_of_leiden_to_louvain_map.begin());
 
   bool debug = leiden_assignment.size() < 50;
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+
     raft::print_device_vector("*keys_of_leiden_to_louvain_map: ",
                               keys_of_leiden_to_louvain_map.data(),
                               keys_of_leiden_to_louvain_map.size(),
                               std::cout);
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("*values_of_leiden_to_louvain_map: ",
                               values_of_leiden_to_louvain_map.data(),
                               values_of_leiden_to_louvain_map.size(),
                               std::cout);
-
+  }
   auto louvain_leiden_zipped_begin = thrust::make_zip_iterator(thrust::make_tuple(
     values_of_leiden_to_louvain_map.begin(), keys_of_leiden_to_louvain_map.begin()));
 
@@ -232,59 +231,55 @@ build_leiden_to_louvain_map(raft::handle_t const& handle,
     [] __device__(auto lhs, auto rhs) { return thrust::get<1>(lhs) < thrust::get<1>(rhs); });
   //  thrust::less<thrust::tuple<vertex_t, vertex_t>>());
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << " sorted: " << std::endl;
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "Sorted: " << std::endl;
     raft::print_device_vector("*keys_of_leiden_to_louvain_map: ",
                               keys_of_leiden_to_louvain_map.data(),
                               keys_of_leiden_to_louvain_map.size(),
                               std::cout);
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("*values_of_leiden_to_louvain_map: ",
                               values_of_leiden_to_louvain_map.data(),
                               values_of_leiden_to_louvain_map.size(),
                               std::cout);
-
+  }
   auto last_unique_louvain_leiden_pair = thrust::unique(
     handle.get_thrust_policy(),
     louvain_leiden_zipped_begin,
     louvain_leiden_zipped_end,
     [] __device__(auto lhs, auto rhs) { return thrust::get<1>(lhs) == thrust::get<1>(rhs); });
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << " unique: " << std::endl;
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "Unique:" << std::endl;
     raft::print_device_vector("*keys_of_leiden_to_louvain_map: ",
                               keys_of_leiden_to_louvain_map.data(),
                               keys_of_leiden_to_louvain_map.size(),
                               std::cout);
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+
     raft::print_device_vector("*values_of_leiden_to_louvain_map: ",
                               values_of_leiden_to_louvain_map.data(),
                               values_of_leiden_to_louvain_map.size(),
                               std::cout);
-
+  }
   auto nr_unique_louvain_leiden_pairs = static_cast<size_t>(
     thrust::distance(louvain_leiden_zipped_begin, last_unique_louvain_leiden_pair));
 
   keys_of_leiden_to_louvain_map.resize(nr_unique_louvain_leiden_pairs, handle.get_stream());
   values_of_leiden_to_louvain_map.resize(nr_unique_louvain_leiden_pairs, handle.get_stream());
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << " resized: " << std::endl;
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "Resized:" << std::endl;
     raft::print_device_vector("**keys_of_leiden_to_louvain_map: ",
                               keys_of_leiden_to_louvain_map.data(),
                               keys_of_leiden_to_louvain_map.size(),
                               std::cout);
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("**values_of_leiden_to_louvain_map: ",
                               values_of_leiden_to_louvain_map.data(),
                               values_of_leiden_to_louvain_map.size(),
                               std::cout);
+  }
   return std::make_tuple(std::move(keys_of_leiden_to_louvain_map),
                          std::move(values_of_leiden_to_louvain_map));
 }
@@ -315,34 +310,32 @@ refine_clustering(
   using edge_t   = typename GraphViewType::edge_type;
 
   bool debug = graph_view.local_vertex_partition_range_size() < 50;
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << ".... Inside refine_clustering: before lookup_primitive_values_for_keys "
-            << std::endl;
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << ".... Inside refine_clustering: before lookup_primitive_values_for_keys "
+              << std::endl;
+
     raft::print_device_vector(
       "cluster_keys_v: ", cluster_keys_v.data(), cluster_keys_v.size(), std::cout);
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector(
       "cluster_weights_v: ", cluster_weights_v.data(), cluster_weights_v.size(), std::cout);
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector(
       "louvain_assignment: ", louvain_assignment.data(), louvain_assignment.size(), std::cout);
+  }
 
   rmm::device_uvector<weight_t> vertex_cluster_weights_v =
     lookup_primitive_values_for_keys<vertex_t, weight_t, GraphViewType::is_multi_gpu>(
       handle, cluster_keys_v, cluster_weights_v, louvain_assignment);
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
     raft::print_device_vector("vertex_cluster_weights_v: ",
                               vertex_cluster_weights_v.data(),
                               vertex_cluster_weights_v.size(),
                               std::cout);
-
+  }
   //
   // For each vertex, compute its weighted degree (||v||)
   // and cut between itself and its Louvain community (E(v, S-v))
@@ -379,15 +372,14 @@ refine_clustering(
     thrust::make_zip_iterator(thrust::make_tuple(weighted_degree_of_vertices.begin(),
                                                  weighted_cut_of_vertices_to_louvain.begin())));
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "after per_v_transform_reduce_outgoing_e: " << std::endl;
-
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "after per_v_transform_reduce_outgoing_e: " << std::endl;
     raft::print_device_vector("weighted_degree_of_vertices: ",
                               weighted_degree_of_vertices.data(),
                               weighted_degree_of_vertices.size(),
                               std::cout);
+  }
 
   rmm::device_uvector<uint8_t> is_vertex_well_connected_in_louvain(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -397,26 +389,21 @@ refine_clustering(
                is_vertex_well_connected_in_louvain.end(),
                uint8_t{0});
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
     raft::print_device_vector("weighted_cut_of_vertices_to_louvain: ",
                               weighted_cut_of_vertices_to_louvain.data(),
                               weighted_cut_of_vertices_to_louvain.size(),
                               std::cout);
-
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("weighted_degree_of_vertices: ",
                               weighted_degree_of_vertices.data(),
                               weighted_degree_of_vertices.size(),
                               std::cout);
-
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("vertex_cluster_weights_v: ",
                               vertex_cluster_weights_v.data(),
                               vertex_cluster_weights_v.size(),
                               std::cout);
+  }
 
   weight_t gamma = 1.0 / 17.0;
 
@@ -494,15 +481,17 @@ refine_clustering(
   thrust::fill(
     handle.get_thrust_policy(), singleton_flags.begin(), singleton_flags.end(), uint8_t{1});
 
-  cudaDeviceSynchronize();
-  std::cout << "singleton_flags.size(): " << singleton_flags.size() << std::endl;
+  if (debug) {
+    cudaDeviceSynchronize();
+    std::cout << "singleton_flags.size(): " << singleton_flags.size() << std::endl;
 
-  std::cout << "sum(singleton_flags): "
-            << thrust::count_if(handle.get_thrust_policy(),
-                                singleton_flags.begin(),
-                                singleton_flags.end(),
-                                [] __device__(auto flag) { return flag > 0; })
-            << std::endl;
+    std::cout << "sum(singleton_flags): "
+              << thrust::count_if(handle.get_thrust_policy(),
+                                  singleton_flags.begin(),
+                                  singleton_flags.end(),
+                                  [] __device__(auto flag) { return flag > 0; })
+              << std::endl;
+  }
 
   edge_src_property_t<GraphViewType, vertex_t> src_leiden_assignment(handle);
   edge_dst_property_t<GraphViewType, vertex_t> dst_leiden_assignment(handle);
@@ -522,62 +511,63 @@ refine_clustering(
     rmm::device_uvector<uint8_t> active_flags(graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
 
-    rmm::device_uvector<vertex_t> singletons(graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-    rmm::device_uvector<vertex_t> connecteds(graph_view.local_vertex_partition_range_size(),
-                                             handle.get_stream());
-
     auto vertex_begin =
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
     auto vertex_end =
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
 
-    thrust::copy_if(handle.get_thrust_policy(),
-                    vertex_begin,
-                    vertex_end,
-                    singleton_flags.begin(),
-                    singletons.begin(),
-                    [] __device__(auto flag) { return flag > 0; });
+    if (debug) {
+      rmm::device_uvector<vertex_t> connecteds(graph_view.local_vertex_partition_range_size(),
+                                               handle.get_stream());
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      is_vertex_well_connected_in_louvain.begin(),
+                      connecteds.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
 
-    thrust::copy_if(handle.get_thrust_policy(),
-                    vertex_begin,
-                    vertex_end,
-                    is_vertex_well_connected_in_louvain.begin(),
-                    connecteds.begin(),
-                    [] __device__(auto flag) { return flag > 0; });
+      vertex_t nr_well_connected = thrust::count_if(handle.get_thrust_policy(),
+                                                    is_vertex_well_connected_in_louvain.begin(),
+                                                    is_vertex_well_connected_in_louvain.end(),
+                                                    [] __device__(auto flag) { return flag > 0; });
+      connecteds.resize(nr_well_connected, handle.get_stream());
 
-    vertex_t nr_well_connected = thrust::count_if(handle.get_thrust_policy(),
-                                                  is_vertex_well_connected_in_louvain.begin(),
-                                                  is_vertex_well_connected_in_louvain.end(),
-                                                  [] __device__(auto flag) { return flag > 0; });
-    connecteds.resize(nr_well_connected, handle.get_stream());
+      rmm::device_uvector<vertex_t> singletons(graph_view.local_vertex_partition_range_size(),
+                                               handle.get_stream());
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      singleton_flags.begin(),
+                      singletons.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
 
-    CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector(
-      "singleton_flags: ",
-      singleton_flags.data(),
-      std::min((decltype(singleton_flags.size()))50, singleton_flags.size()),
-      std::cout);
+      vertex_t nr_singletons = thrust::count_if(handle.get_thrust_policy(),
+                                                singleton_flags.begin(),
+                                                singleton_flags.end(),
+                                                [] __device__(auto flag) { return flag > 0; });
 
-    vertex_t nr_singletons = thrust::count_if(handle.get_thrust_policy(),
-                                              singleton_flags.begin(),
-                                              singleton_flags.end(),
-                                              [] __device__(auto flag) { return flag > 0; });
+      singletons.resize(nr_singletons, handle.get_stream());
 
-    singletons.resize(nr_singletons, handle.get_stream());
-    CUDA_TRY(cudaDeviceSynchronize());
+      CUDA_TRY(cudaDeviceSynchronize());
 
-    std::cout << "nr_well_connected: " << nr_well_connected << std::endl;
-    std::cout << "nr_singletons: " << nr_singletons << std::endl;
+      raft::print_device_vector(
+        "singleton_flags: ",
+        singleton_flags.data(),
+        std::min((decltype(singleton_flags.size()))50, singleton_flags.size()),
+        std::cout);
 
-    raft::print_device_vector("singletons: ",
-                              singletons.data(),
-                              std::min((decltype(singletons.size()))50, singletons.size()),
-                              std::cout);
-    raft::print_device_vector("connecteds: ",
-                              connecteds.data(),
-                              std::min((decltype(connecteds.size()))50, connecteds.size()),
-                              std::cout);
+      std::cout << "nr_well_connected: " << nr_well_connected << std::endl;
+      std::cout << "nr_singletons: " << nr_singletons << std::endl;
+
+      raft::print_device_vector("singletons: ",
+                                singletons.data(),
+                                std::min((decltype(singletons.size()))50, singletons.size()),
+                                std::cout);
+      raft::print_device_vector("connecteds: ",
+                                connecteds.data(),
+                                std::min((decltype(connecteds.size()))50, connecteds.size()),
+                                std::cout);
+    }
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -593,28 +583,25 @@ refine_clustering(
                        active_flags.end(),
                        [] __device__(auto flag) { return flag > 0; });
 
-    CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "nr_remaining_active_vertices: " << nr_remaining_active_vertices << std::endl;
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+      std::cout << "nr_remaining_active_vertices: " << nr_remaining_active_vertices << std::endl;
 
-    if (debug) CUDA_TRY(cudaDeviceSynchronize());
+      rmm::device_uvector<vertex_t> actives(graph_view.local_vertex_partition_range_size(),
+                                            handle.get_stream());
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      active_flags.begin(),
+                      actives.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
 
-    rmm::device_uvector<vertex_t> actives(graph_view.local_vertex_partition_range_size(),
-                                          handle.get_stream());
-
-    cudaDeviceSynchronize();
-
-    thrust::copy_if(handle.get_thrust_policy(),
-                    vertex_begin,
-                    vertex_end,
-                    active_flags.begin(),
-                    actives.begin(),
-                    [] __device__(auto flag) { return flag > 0; });
-
-    actives.resize(nr_remaining_active_vertices, handle.get_stream());
-    raft::print_device_vector("actives:",
-                              actives.data(),
-                              std::min((decltype(actives.size()))50, actives.size()),
-                              std::cout);
+      actives.resize(nr_remaining_active_vertices, handle.get_stream());
+      raft::print_device_vector("actives:",
+                                actives.data(),
+                                std::min((decltype(actives.size()))50, actives.size()),
+                                std::cout);
+    }
 
     if (GraphViewType::is_multi_gpu) {
       nr_remaining_active_vertices = host_scalar_allreduce(handle.get_comms(),
@@ -694,10 +681,6 @@ refine_clustering(
           auto dst_louvain = thrust::get<0>(dst_louvain_leiden);
           auto dst_leiden  = thrust::get<1>(dst_louvain_leiden);
 
-          // if (src == dst) {
-          //   refined_partition_volume_contribution = wt;
-          // } else
-
           if (src_louvain == dst_louvain) {
             if (src_leiden == dst_leiden) {
               refined_partition_volume_contribution = wt;
@@ -711,24 +694,24 @@ refine_clustering(
         thrust::make_tuple(weight_t{0}, weight_t{0}),
         reduce_op::plus<thrust::tuple<weight_t, weight_t>>{});
 
-    if (debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug)
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+
       raft::print_device_vector("leiden_keys_used_in_edge_reduction: ",
                                 leiden_keys_used_in_edge_reduction.data(),
                                 leiden_keys_used_in_edge_reduction.size(),
                                 std::cout);
-    if (debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug)
+
       raft::print_device_vector("refined_community_volumes: ",
                                 refined_community_volumes.data(),
                                 refined_community_volumes.size(),
                                 std::cout);
-    if (debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug)
+
       raft::print_device_vector("refined_community_cuts: ",
                                 refined_community_cuts.data(),
                                 refined_community_cuts.size(),
                                 std::cout);
+    }
 
     //
     // Primitives to decide best (at least good) next clusters for vertices
@@ -760,28 +743,27 @@ refine_clustering(
             detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
               louvain_assignment.data()));
 
-    if (debug) CUDA_TRY(cudaDeviceSynchronize());
-    if (debug)
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+
       raft::print_device_vector("leiden_keys_used_in_edge_reduction: ",
                                 leiden_keys_used_in_edge_reduction.data(),
                                 leiden_keys_used_in_edge_reduction.size(),
                                 std::cout);
 
-    //-->/
-
-    CUDA_TRY(cudaDeviceSynchronize());
-    std::cout << "Inside refine_clustering: before lookup_primitive_values_for_keys 2 "
-              << std::endl;
-    raft::print_device_vector("keys_of_leiden_to_louvain_map: ",
-                              keys_of_leiden_to_louvain_map.data(),
-                              std::min((decltype(keys_of_leiden_to_louvain_map.size()))50,
-                                       keys_of_leiden_to_louvain_map.size()),
-                              std::cout);
-    raft::print_device_vector("values_of_leiden_to_louvain_map: ",
-                              values_of_leiden_to_louvain_map.data(),
-                              std::min((decltype(values_of_leiden_to_louvain_map.size()))50,
-                                       values_of_leiden_to_louvain_map.size()),
-                              std::cout);
+      std::cout << "Inside refine_clustering: before lookup_primitive_values_for_keys 2 "
+                << std::endl;
+      raft::print_device_vector("keys_of_leiden_to_louvain_map: ",
+                                keys_of_leiden_to_louvain_map.data(),
+                                std::min((decltype(keys_of_leiden_to_louvain_map.size()))50,
+                                         keys_of_leiden_to_louvain_map.size()),
+                                std::cout);
+      raft::print_device_vector("values_of_leiden_to_louvain_map: ",
+                                values_of_leiden_to_louvain_map.data(),
+                                std::min((decltype(values_of_leiden_to_louvain_map.size()))50,
+                                         values_of_leiden_to_louvain_map.size()),
+                                std::cout);
+    }
 
     auto louvain_of_edge_reduced_leiden_keys =
       lookup_primitive_values_for_keys<vertex_t, vertex_t, GraphViewType::is_multi_gpu>(
@@ -789,13 +771,15 @@ refine_clustering(
         keys_of_leiden_to_louvain_map,
         values_of_leiden_to_louvain_map,
         leiden_keys_used_in_edge_reduction);
-    CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector("louvain_of_edge_reduced_leiden_keys: ",
-                              louvain_of_edge_reduced_leiden_keys.data(),
-                              std::min((decltype(louvain_of_edge_reduced_leiden_keys.size()))50,
-                                       louvain_of_edge_reduced_leiden_keys.size()),
-                              std::cout);
 
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector("louvain_of_edge_reduced_leiden_keys: ",
+                                louvain_of_edge_reduced_leiden_keys.data(),
+                                std::min((decltype(louvain_of_edge_reduced_leiden_keys.size()))50,
+                                         louvain_of_edge_reduced_leiden_keys.size()),
+                                std::cout);
+    }
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
     // leiden(Cr) // f(Cr)
@@ -841,18 +825,19 @@ refine_clustering(
       detail::reduce_op_t<vertex_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(target_and_gain_output_pairs));
 
-    CUDA_TRY(cudaDeviceSynchronize());
-    if (debug)
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
+
       raft::print_device_vector("targets",
                                 std::get<0>(target_and_gain_output_pairs).data(),
                                 std::get<0>(target_and_gain_output_pairs).size(),
                                 std::cout);
-    if (debug)
+
       raft::print_device_vector("gains",
                                 std::get<1>(target_and_gain_output_pairs).data(),
                                 std::get<1>(target_and_gain_output_pairs).size(),
                                 std::cout);
-
+    }
     //
     // Create edgelist from (source, target community, modulraity gain) tuple
     //
@@ -878,32 +863,25 @@ refine_clustering(
                          thrust::get<0>(dst_and_gain_last.get_iterator_tuple()),
                          thrust::get<1>(dst_and_gain_last.get_iterator_tuple())));
 
-    CUDA_TRY(cudaDeviceSynchronize());
-    if (debug)
+    if (debug) {
+      CUDA_TRY(cudaDeviceSynchronize());
 
       raft::print_device_vector("target_itr",
                                 thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
                                 num_vertices,
                                 std::cout);
 
-    if (debug)
       raft::print_device_vector("gain_itr",
                                 thrust::get<1>(dst_and_gain_first.get_iterator_tuple()),
                                 num_vertices,
                                 std::cout);
 
-    // if (debug)
-    //   raft::print_device_vector(
-    //     "srcs", thrust::get<0>(edge_begin.get_iterator_tuple()), num_vertices, std::cout);
-
-    if (debug)
       raft::print_device_vector(
         "dsts", thrust::get<1>(edge_begin.get_iterator_tuple()), num_vertices, std::cout);
-    if (debug)
+
       raft::print_device_vector(
         "gains", thrust::get<2>(edge_begin.get_iterator_tuple()), num_vertices, std::cout);
-
-    // if (debug) raft::print_device_vector("vertex_begin", vertex_begin, num_vertices, std::cout);
+    }
 
     //
     // Filter out moves with -ve gains
@@ -925,14 +903,15 @@ refine_clustering(
                         return (gain > 0.0) && (dst >= 0);
                       })));
 
-    cudaDeviceSynchronize();
-
-    std::cout << "#+ve : " << nr_valid_tuples << std::endl;
-
     if (GraphViewType::is_multi_gpu) {
       nr_valid_tuples = host_scalar_allreduce(
         handle.get_comms(), nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
     }
+
+    // if (debug) {
+    cudaDeviceSynchronize();
+    std::cout << "#+ve : " << nr_valid_tuples << std::endl;
+    // }
 
     if (nr_valid_tuples == 0) { break; }
 
@@ -940,17 +919,19 @@ refine_clustering(
     d_dsts.resize(nr_valid_tuples, handle.get_stream());
     (*d_weights).resize(nr_valid_tuples, handle.get_stream());
 
-    cudaDeviceSynchronize();
-    raft::print_device_vector(
-      "d_srcs: ", d_srcs.data(), std::min((decltype(d_srcs.size()))50, d_srcs.size()), std::cout);
+    if (debug) {
+      cudaDeviceSynchronize();
+      raft::print_device_vector(
+        "d_srcs: ", d_srcs.data(), std::min((decltype(d_srcs.size()))50, d_srcs.size()), std::cout);
 
-    raft::print_device_vector(
-      "d_dsts: ", d_dsts.data(), std::min((decltype(d_dsts.size()))50, d_dsts.size()), std::cout);
+      raft::print_device_vector(
+        "d_dsts: ", d_dsts.data(), std::min((decltype(d_dsts.size()))50, d_dsts.size()), std::cout);
 
-    raft::print_device_vector("d_weights: ",
-                              (*d_weights).data(),
-                              std::min((decltype((*d_weights).size()))50, (*d_weights).size()),
-                              std::cout);
+      raft::print_device_vector("d_weights: ",
+                                (*d_weights).data(),
+                                std::min((decltype((*d_weights).size()))50, (*d_weights).size()),
+                                std::cout);
+    }
 
     //
     // Create decision graph from edgelist
@@ -972,18 +953,19 @@ refine_clustering(
 
     thrust::copy(handle.get_thrust_policy(), d_dsts.begin(), d_dsts.end(), copied_dsts.begin());
 
-    cudaDeviceSynchronize();
-    raft::print_device_vector(
-      "d_srcs: ", d_srcs.data(), std::min((decltype(d_srcs.size()))50, d_srcs.size()), std::cout);
+    if (debug) {
+      cudaDeviceSynchronize();
+      raft::print_device_vector(
+        "d_srcs: ", d_srcs.data(), std::min((decltype(d_srcs.size()))50, d_srcs.size()), std::cout);
 
-    raft::print_device_vector(
-      "d_dsts: ", d_dsts.data(), std::min((decltype(d_dsts.size()))50, d_dsts.size()), std::cout);
+      raft::print_device_vector(
+        "d_dsts: ", d_dsts.data(), std::min((decltype(d_dsts.size()))50, d_dsts.size()), std::cout);
 
-    raft::print_device_vector("d_weights: ",
-                              (*d_weights).data(),
-                              std::min((decltype((*d_weights).size()))50, (*d_weights).size()),
-                              std::cout);
-
+      raft::print_device_vector("d_weights: ",
+                                (*d_weights).data(),
+                                std::min((decltype((*d_weights).size()))50, (*d_weights).size()),
+                                std::cout);
+    }
     std::tie(decision_graph, coarse_edge_weights, std::ignore, renumber_map) =
       create_graph_from_edgelist<vertex_t,
                                  edge_t,
@@ -1001,16 +983,18 @@ refine_clustering(
 
     auto decision_graph_view = decision_graph.view();
 
-    cudaDeviceSynchronize();
-
-    std::cout << "decision_graph_view.local_vertex_partition_range_size(): "
-              << decision_graph_view.local_vertex_partition_range_size() << std::endl;
-
     //
     // Determine a set of moves using MIS of the decision_graph
     //
 
-    std::cout << "Compute MIS..........." << std::endl;
+    if (debug) {
+      cudaDeviceSynchronize();
+      std::cout << "decision_graph_view.local_vertex_partition_range_size(): "
+                << decision_graph_view.local_vertex_partition_range_size() << std::endl;
+
+      std::cout << "Compute MIS..........." << std::endl;
+    }
+
     auto chosen_nodes = compute_mis<vertex_t, edge_t, weight_t, multi_gpu>(
       handle,
       decision_graph_view,
@@ -1046,7 +1030,7 @@ refine_clustering(
       chosen_nodes.size(),
       false);
 
-    if (chosen_nodes.size() < 25) {
+    if (chosen_nodes.size() < 25) {  // debug
       CUDA_TRY(cudaDeviceSynchronize());
       raft::print_device_vector(
         "chosen_nodes", chosen_nodes.data(), chosen_nodes.size(), std::cout);
@@ -1064,8 +1048,10 @@ refine_clustering(
 
     // Flags to indicate nodes that are chosen by MIS
 
-    cudaDeviceSynchronize();
-    std::cout << "#chosen nodes: " << chosen_nodes.size() << std::endl;
+    if (debug) {
+      cudaDeviceSynchronize();
+      std::cout << "#chosen nodes: " << chosen_nodes.size() << std::endl;
+    }
 
     thrust::sort(handle.get_thrust_policy(), chosen_nodes.begin(), chosen_nodes.end());
     rmm::device_uvector<uint8_t> flags_move(leiden_assignment.size(), handle.get_stream());
@@ -1081,7 +1067,7 @@ refine_clustering(
           thrust::seq, d_nodes_to_move, d_nodes_to_move + num_nodes_to_move, id_to_lookup);
       });
 
-    if (chosen_nodes.size() < 25) {
+    if (chosen_nodes.size() < 25) {  // debug
       raft::print_device_vector(
         "chosen_nodes ", chosen_nodes.data(), chosen_nodes.size(), std::cout);
 
@@ -1106,47 +1092,44 @@ refine_clustering(
         "vertices_to_move ", vertices_to_move.data(), vertices_to_move.size(), std::cout);
     }
 
-    // debug
-    vertex_t nr_vertices_to_move_ = thrust::count_if(
-      handle.get_thrust_policy(), flags_move.begin(), flags_move.end(), [] __device__(auto flag) {
-        return flag > 0;
-      });
-    cudaDeviceSynchronize();
-    std::cout << "nr_vertices_to_move_: " << nr_vertices_to_move_ << std::endl;
+    if (debug) {
+      cudaDeviceSynchronize();
+      vertex_t nr_vertices_to_move_ = thrust::count_if(
+        handle.get_thrust_policy(), flags_move.begin(), flags_move.end(), [] __device__(auto flag) {
+          return flag > 0;
+        });
 
-    vertex_t nr_singletons_and_moving = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_move.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_move.end())),
-      [] __device__(auto flags) {
-        return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0);
-      });
+      std::cout << "nr_vertices_to_move_: " << nr_vertices_to_move_ << std::endl;
 
-    cudaDeviceSynchronize();
-    std::cout << "nr_singletons_and_moving: " << nr_singletons_and_moving << std::endl;
+      vertex_t nr_singletons_and_moving = thrust::count_if(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_move.begin())),
+        thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_move.end())),
+        [] __device__(auto flags) {
+          return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0);
+        });
 
-    vertex_t nr_NOT_singletons_and_moving = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_move.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_move.end())),
-      [] __device__(auto flags) {
-        return (!(thrust::get<0>(flags) > 0)) && (thrust::get<1>(flags) > 0);
-      });
+      std::cout << "nr_singletons_and_moving: " << nr_singletons_and_moving << std::endl;
 
-    cudaDeviceSynchronize();
-    std::cout << "nr_NOT_singletons_and_moving: " << nr_NOT_singletons_and_moving << std::endl;
+      vertex_t nr_NOT_singletons_and_moving = thrust::count_if(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_move.begin())),
+        thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_move.end())),
+        [] __device__(auto flags) {
+          return (!(thrust::get<0>(flags) > 0)) && (thrust::get<1>(flags) > 0);
+        });
 
-    vertex_t nr_singletons_before_marking_moving_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       singleton_flags.begin(),
-                       singleton_flags.end(),
-                       [] __device__(auto flag) { return flag > 0; });
+      std::cout << "nr_NOT_singletons_and_moving: " << nr_NOT_singletons_and_moving << std::endl;
 
-    cudaDeviceSynchronize();
-    std::cout << "nr_singletons_before_marking_moving_vertices: "
-              << nr_singletons_before_marking_moving_vertices << std::endl;
+      vertex_t nr_singletons_before_marking_moving_vertices =
+        thrust::count_if(handle.get_thrust_policy(),
+                         singleton_flags.begin(),
+                         singleton_flags.end(),
+                         [] __device__(auto flag) { return flag > 0; });
 
-    //
+      std::cout << "nr_singletons_before_marking_moving_vertices: "
+                << nr_singletons_before_marking_moving_vertices << std::endl;
+    }
 
     // Nodes that are moving become non-singleton
 
@@ -1158,18 +1141,17 @@ refine_clustering(
       singleton_flags.begin(),
       [] __device__(auto is_moving, auto current_mask) { return (!is_moving && current_mask); });
 
-    // debug
-    vertex_t nr_singletons_after_marking_moving_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       singleton_flags.begin(),
-                       singleton_flags.end(),
-                       [] __device__(auto flag) { return flag > 0; });
+    if (debug) {
+      vertex_t nr_singletons_after_marking_moving_vertices =
+        thrust::count_if(handle.get_thrust_policy(),
+                         singleton_flags.begin(),
+                         singleton_flags.end(),
+                         [] __device__(auto flag) { return flag > 0; });
 
-    cudaDeviceSynchronize();
-    std::cout << "nr_singletons_after_marking_moving_vertices: "
-              << nr_singletons_after_marking_moving_vertices << std::endl;
-
-    //
+      cudaDeviceSynchronize();
+      std::cout << "nr_singletons_after_marking_moving_vertices: "
+                << nr_singletons_after_marking_moving_vertices << std::endl;
+    }
 
     // Gather all dest comms
 
@@ -1186,9 +1168,10 @@ refine_clustering(
                                           [] __device__(auto is_moving) { return is_moving; }))),
                         handle.get_stream());
 
-    if (chosen_nodes.size() < 25)
+    if (chosen_nodes.size() < 25) {  // debug
       raft::print_device_vector(
         "target_comms: ", target_comms.data(), target_comms.size(), std::cout);
+    }
 
     thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
 
@@ -1225,31 +1208,27 @@ refine_clustering(
                           thrust::seq, dests, dests + num_dests, target_id);
                       });
 
-    // debug
-
-    if (debug)
+    if (debug) {
       raft::print_device_vector(
         "target_comms (unique): ", target_comms.data(), target_comms.size(), std::cout);
+      vertex_t nr_target_comms = thrust::count_if(
+        handle.get_thrust_policy(), flags_dest.begin(), flags_dest.end(), [] __device__(auto flag) {
+          return flag > 0;
+        });
 
-    // debug
-    vertex_t nr_target_comms = thrust::count_if(
-      handle.get_thrust_policy(), flags_dest.begin(), flags_dest.end(), [] __device__(auto flag) {
-        return flag > 0;
-      });
+      vertex_t nr_singletons_and_target = thrust::count_if(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_dest.begin())),
+        thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_dest.end())),
+        [] __device__(auto flags) {
+          return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0);
+        });
 
-    vertex_t nr_singletons_and_target = thrust::count_if(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.begin(), flags_dest.begin())),
-      thrust::make_zip_iterator(thrust::make_tuple(singleton_flags.end(), flags_dest.end())),
-      [] __device__(auto flags) {
-        return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0);
-      });
-
-    cudaDeviceSynchronize();
-    std::cout << "target_comms.size(): " << target_comms.size() << std::endl;
-    std::cout << "nr_target_comms: " << nr_target_comms << std::endl;
-    std::cout << "nr_singletons_and_target: " << nr_singletons_and_target << std::endl;
-    //
+      cudaDeviceSynchronize();
+      std::cout << "target_comms.size(): " << target_comms.size() << std::endl;
+      std::cout << "nr_target_comms: " << nr_target_comms << std::endl;
+      std::cout << "nr_singletons_and_target: " << nr_singletons_and_target << std::endl;
+    }
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -1259,17 +1238,17 @@ refine_clustering(
       singleton_flags.begin(),
       [] __device__(auto is_dest, auto current_mask) { return (!is_dest && current_mask); });
 
-    // debug
-    vertex_t nr_singletons_after_marking_target_comms =
-      thrust::count_if(handle.get_thrust_policy(),
-                       singleton_flags.begin(),
-                       singleton_flags.end(),
-                       [] __device__(auto flag) { return flag > 0; });
+    if (debug) {  // debug
+      vertex_t nr_singletons_after_marking_target_comms =
+        thrust::count_if(handle.get_thrust_policy(),
+                         singleton_flags.begin(),
+                         singleton_flags.end(),
+                         [] __device__(auto flag) { return flag > 0; });
 
-    cudaDeviceSynchronize();
-    std::cout << "nr_singletons_after_marking_target_comms: "
-              << nr_singletons_after_marking_target_comms << std::endl;
-    //
+      cudaDeviceSynchronize();
+      std::cout << "nr_singletons_after_marking_target_comms: "
+                << nr_singletons_after_marking_target_comms << std::endl;
+    }
 
     // Update leiden assignment for the nodes that are moving
 
@@ -1299,17 +1278,15 @@ refine_clustering(
                leiden_keys_to_read_louvain.begin(),
                leiden_keys_to_read_louvain.end());
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
     raft::print_device_vector(
       "leiden_assignment: ", leiden_assignment.data(), leiden_assignment.size(), std::cout);
-
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("leiden_keys_to_read_louvain: ",
                               leiden_keys_to_read_louvain.data(),
                               leiden_keys_to_read_louvain.size(),
                               std::cout);
+  }
 
   auto nr_unique_leiden_clusters =
     static_cast<size_t>(thrust::distance(leiden_keys_to_read_louvain.begin(),
@@ -1334,22 +1311,20 @@ refine_clustering(
 
   leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  std::cout << "Before call to lookup_primitive_values_for_keys" << std::endl;
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    std::cout << "Before call to lookup_primitive_values_for_keys" << std::endl;
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("keys_of_leiden_to_louvain_map: ",
                               keys_of_leiden_to_louvain_map.data(),
                               keys_of_leiden_to_louvain_map.size(),
                               std::cout);
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
     raft::print_device_vector("values_of_leiden_to_louvain_map: ",
                               values_of_leiden_to_louvain_map.data(),
                               values_of_leiden_to_louvain_map.size(),
                               std::cout);
+  }
 
   auto lovain_of_leiden_cluster_keys =
     lookup_primitive_values_for_keys<vertex_t, vertex_t, GraphViewType::is_multi_gpu>(
@@ -1358,13 +1333,13 @@ refine_clustering(
       values_of_leiden_to_louvain_map,
       leiden_keys_to_read_louvain);
 
-  if (debug) CUDA_TRY(cudaDeviceSynchronize());
-  if (debug)
+  if (debug) {
+    CUDA_TRY(cudaDeviceSynchronize());
     raft::print_device_vector("lovain_of_leiden_cluster_keys: ",
                               lovain_of_leiden_cluster_keys.data(),
                               lovain_of_leiden_cluster_keys.size(),
                               std::cout);
-
+  }
   return std::make_tuple(std::move(leiden_assignment),
                          std::make_pair(std::move(leiden_keys_to_read_louvain),
                                         std::move(lovain_of_leiden_cluster_keys)));

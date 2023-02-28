@@ -128,9 +128,13 @@ rmm::device_uvector<vertex_t> compute_mis(
     raft::print_device_vector("degrees: ", out_degrees.data(), out_degrees.size(), std::cout);
   }
 
+  size_t loop_counter = 0;
   while (true) {
+    // if (debug) {
     cudaDeviceSynchronize();
-    std::cout << " mis loop .." << std::endl;
+    loop_counter++;
+    std::cout << "Mis loop, counter: " << loop_counter << std::endl;
+    // }
     // Select a random set of eligible vertices
 
     vertex_t nr_remaining_candidates =
@@ -175,7 +179,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     if (debug) {
       cudaDeviceSynchronize();
-      raft::print_device_vector("remaining_candidates: (shuffle and picked 30%) ",
+      raft::print_device_vector("remaining_candidates: (shuffle and picked 50%) ",
                                 remaining_candidates.data(),
                                 remaining_candidates.size(),
                                 std::cout);
@@ -255,6 +259,16 @@ rmm::device_uvector<vertex_t> compute_mis(
     auto ranks = compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
       handle, graph_view, *edge_weight_view);
     // rank_vertices<vertex_t, edge_t, weight_t, multi_gpu>(handle, graph_view, edge_weight_view);
+
+    vertex_t pos_rank_but_zero_outdeg = thrust::count_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_tuple(ranks.begin(), out_degrees.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(ranks.begin(), out_degrees.end())),
+      [] __device__(auto flags) {
+        return (thrust::get<0>(flags) > 0.0) && (thrust::get<1>(flags) == 0);
+      });
+
+    std::cout << "pos_rank_but_zero_outdeg: " << pos_rank_but_zero_outdeg << std::endl;
 
     edge_src_property_t<GraphViewType, weight_t> src_rank_cache(handle);
     edge_dst_property_t<GraphViewType, weight_t> dst_rank_cache(handle);
@@ -448,7 +462,6 @@ rmm::device_uvector<vertex_t> compute_mis(
                                               [] __device__(auto flag) { return flag > 0; });
 
       selection_list.resize(nr_selected_vertices, handle.get_stream());
-      CUDA_TRY(cudaDeviceSynchronize());
 
       raft::print_device_vector(
         "updated slected vertices ", selection_list.data(), selection_list.size(), std::cout);
@@ -460,9 +473,6 @@ rmm::device_uvector<vertex_t> compute_mis(
       update_edge_dst_property(
         handle, graph_view, selection_flags.begin(), dst_selection_flag_cache);
     }
-
-    // rmm::device_uvector<FlagType> final_selection_flags(
-    //   graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     per_v_transform_reduce_incoming_e(
       handle,
@@ -645,12 +655,27 @@ rmm::device_uvector<vertex_t> compute_mis(
                                                              handle.get_stream());
     }
 
+    vertex_t nr_discared_and_included =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.end(), discard_flags.end(), out_degrees.end())),
+                       [] __device__(auto flags) {
+                         return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0) &&
+                                (thrust::get<2>(flags) > 0);
+                       });
+
     cudaDeviceSynchronize();
 
-    std::cout << " number_of_vertices: " << number_of_vertices << std::endl;
-    std::cout << " nr_include_vertices: " << nr_include_vertices << std::endl;
-    std::cout << " nr_discarded_vertices: " << nr_discarded_vertices << std::endl;
-    std::cout << " nr_remaining_vertices_to_check: " << nr_remaining_vertices_to_check << std::endl;
+    std::cout << " number_of_vertices:       " << number_of_vertices << std::endl;
+    std::cout << " nr_discared_and_included: " << nr_discared_and_included << std::endl;
+    std::cout << " included : discarded:     " << nr_include_vertices << ":"
+              << nr_discarded_vertices << std::endl;
+    std::cout << " included + discarded:     " << (nr_include_vertices + nr_discarded_vertices)
+              << std::endl;
+
+    std::cout << "remaining_vts_to_check:   " << nr_remaining_vertices_to_check << std::endl;
 
     if (nr_remaining_vertices_to_check == 0) { break; }
   }
@@ -669,10 +694,12 @@ rmm::device_uvector<vertex_t> compute_mis(
 
   mis.resize(nr_vertices_in_mis, handle.get_stream());
 
-  if (debug) {
-    cudaDeviceSynchronize();
-    raft::print_device_vector("mis", mis.data(), mis.size(), std::cout);
-  }
+  // if (debug) {
+  cudaDeviceSynchronize();
+  std::cout << "Found mis of size " << mis.size() << std::endl;
+  cudaDeviceSynchronize();
+  // raft::print_device_vector("mis", mis.data(), mis.size(), std::cout);
+  // }
 
   return mis;
 }
