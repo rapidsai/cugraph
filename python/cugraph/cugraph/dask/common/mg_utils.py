@@ -107,7 +107,9 @@ def start_dask_client():
 
     visible_devices = ",".join([str(i) for i in range(1, n_devices + 1)])
 
-    print("************************** starting DASK ************************************")
+    print(
+        "************************** starting DASK ************************************"
+    )
     cluster = LocalCUDACluster(
         protocol="ucx", rmm_pool_size="25GB", CUDA_VISIBLE_DEVICES=visible_devices
     )

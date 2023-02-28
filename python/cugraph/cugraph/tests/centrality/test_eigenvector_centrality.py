@@ -60,6 +60,7 @@ def calc_eigenvector(graph_file):
     k_df = k_df.rename(columns={"eigenvector_centrality": "cu_eigen"}, copy=False)
     return k_df
 
+
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_eigenvector_centrality(graph_file):

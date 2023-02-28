@@ -14,6 +14,7 @@
 import cugraph.experimental.compat.nx as nx
 import pytest
 
+
 @pytest.mark.sg
 def test_connectivity():
     # Tests a run of a native nx algorithm that hasnt been overridden.

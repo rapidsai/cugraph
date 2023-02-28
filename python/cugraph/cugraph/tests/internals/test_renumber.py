@@ -115,6 +115,7 @@ def test_renumber_ips_cols():
     assert_series_equal(merged["check_src"], merged["source_as_int"], check_names=False)
     assert_series_equal(merged["check_dst"], merged["dest_as_int"], check_names=False)
 
+
 @pytest.mark.sg
 def test_renumber_negative():
     source_list = [4, 6, 8, -20, 1]

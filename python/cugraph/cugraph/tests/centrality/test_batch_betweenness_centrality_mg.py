@@ -55,11 +55,9 @@ def setup_function():
 
 
 @pytest.mark.mg
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
-    "graph_file", DATASETS,
-    ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
+    "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
 )
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

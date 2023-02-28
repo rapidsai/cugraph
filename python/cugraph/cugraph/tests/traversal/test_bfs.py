@@ -447,7 +447,6 @@ def test_bfs_invalid_start(
         cugraph.bfs(G, start_vertex, depth_limit=depth_limit)
 
 
-
 @pytest.mark.sg
 def test_scipy_api_compat():
     graph_file = datasets.DATASETS[0]

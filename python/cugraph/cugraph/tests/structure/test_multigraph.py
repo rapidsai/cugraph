@@ -90,6 +90,7 @@ def test_Graph_from_MultiGraph(graph_file):
     Gnxd = nx.DiGraph(GnxdM)
     assert Gnxd.number_of_edges() == Gd.number_of_edges()
 
+
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_multigraph_sssp(graph_file):

@@ -33,8 +33,7 @@ _visible_devices = None
 _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _graph_types = [cugraph.Graph, None, int]
-_graph_test_ids = \
-    [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
+_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
 
 
 def _call_rmat(scale, num_edges, create_using, mg=True):
@@ -73,8 +72,7 @@ def teardown_module():
 
 ###############################################################################
 @pytest.mark.mg
-@pytest.mark.filterwarnings(
-    "ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
 def test_rmat_edgelist(scale):
     """
@@ -94,8 +92,7 @@ def test_rmat_edgelist(scale):
 
 
 @pytest.mark.mg
-@pytest.mark.filterwarnings(
-    "ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_type", _graph_types, ids=_graph_test_ids)
 def test_rmat_return_type(graph_type):
     """

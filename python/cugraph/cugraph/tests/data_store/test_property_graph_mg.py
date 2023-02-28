@@ -427,6 +427,7 @@ def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     assert sg_subgraph_df.dtypes["_TYPE_"] == "category"
     assert mg_subgraph_df.dtypes["_TYPE_"] == "category"
 
+
 @pytest.mark.mg
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
@@ -458,6 +459,7 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     assert sg_ep_df["_SRC_"].equals(mg_ep_df["_SRC_"])
     assert sg_ep_df.dtypes["_TYPE_"] == "category"
     assert mg_ep_df.dtypes["_TYPE_"] == "category"
+
 
 @pytest.mark.mg
 @pytest.mark.parametrize("set_index", [True, False])
@@ -548,6 +550,7 @@ def test_add_edge_data_with_ids(dask_client, set_index):
             vertex_col_names=("user_id_1", "user_id_2"),
             property_columns=None,
         )
+
 
 @pytest.mark.mg
 def test_property_names_attrs(dataset1_MGPropertyGraph):
