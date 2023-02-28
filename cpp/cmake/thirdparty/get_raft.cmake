@@ -1,5 +1,5 @@
 #=============================================================================
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINO
 
 function(find_and_configure_raft)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC)
+    set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC COMPILE_RAFT_DIST_LIBS)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
     if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_raft}")
@@ -47,7 +47,7 @@ function(find_and_configure_raft)
             SOURCE_SUBDIR  cpp
             OPTIONS
                 "RAFT_COMPILE_LIBRARIES OFF"
-                "RAFT_COMPILE_DIST_LIBRARY ON"
+                "RAFT_COMPILE_DIST_LIBRARY ${PKG_COMPILE_RAFT_DIST_LIBS}"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
                 "BUILD_SHARED_LIBS ${BUILD_RAFT_SHARED}"
@@ -74,4 +74,5 @@ find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
                         # even if it's already installed.
                         CLONE_ON_PIN     ON
                         USE_RAFT_STATIC ${USE_RAFT_STATIC}
+                        COMPILE_RAFT_DIST_LIBS ${CUGRAPH_COMPILE_RAFT_DIST_LIBS}
                         )
