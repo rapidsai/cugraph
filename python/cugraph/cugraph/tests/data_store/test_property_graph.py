@@ -1781,7 +1781,6 @@ def test_get_data_empty_graphs():
 
 
 @pytest.mark.sg
-@pytest.mark.sg
 @pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
 def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
     from cugraph.experimental import PropertyGraph
