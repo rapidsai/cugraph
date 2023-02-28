@@ -28,7 +28,7 @@ Katz Centrality (MG)
    cugraph.dask.centrality.katz_centrality.katz_centrality
 
 Degree Centrality
----------------
+-----------------
 .. autosummary::
    :toctree: api/
 
