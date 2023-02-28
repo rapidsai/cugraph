@@ -33,6 +33,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 
@@ -71,17 +72,52 @@ struct e_op_t {
 };
 
 template <typename T>
+__host__ __device__ bool compare_scalar(T val0, T val1, thrust::optional<T> threshold_ratio)
+{
+  if (threshold_ratio) {
+    return std::abs(val0 - val1) < (std::max(std::abs(val0), std::abs(val1)) * *threshold_ratio);
+  } else {
+    return val0 == val1;
+  }
+}
+
+template <typename T>
 struct comparator {
   static constexpr double threshold_ratio{1e-2};
-  __host__ __device__ bool operator()(T t1, T t2) const
+
+  __host__ __device__ bool operator()(T t0, T t1) const
   {
-    if constexpr (std::is_floating_point_v<T>) {
-      bool passed = (t1 == t2)  // when t1 == t2 == 0
-                    ||
-                    (std::abs(t1 - t2) < (std::max(std::abs(t1), std::abs(t2)) * threshold_ratio));
-      return passed;
+    static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+    if constexpr (std::is_arithmetic_v<T>) {
+      return compare_scalar(
+        t0,
+        t1,
+        std::is_floating_point_v<T> ? thrust::optional<T>{threshold_ratio} : thrust::nullopt);
+    } else {
+      auto val0   = thrust::get<0>(t0);
+      auto val1   = thrust::get<0>(t1);
+      auto passed = compare_scalar(val0,
+                                   val1,
+                                   std::is_floating_point_v<decltype(val0)>
+                                     ? thrust::optional<decltype(val0)>{threshold_ratio}
+                                     : thrust::nullopt);
+      if (!passed) return false;
+
+      if constexpr (thrust::tuple_size<T>::value >= 2) {
+        auto val0   = thrust::get<1>(t0);
+        auto val1   = thrust::get<1>(t1);
+        auto passed = compare_scalar(val0,
+                                     val1,
+                                     std::is_floating_point_v<decltype(val0)>
+                                       ? thrust::optional<decltype(val0)>{threshold_ratio}
+                                       : thrust::nullopt);
+        if (!passed) return false;
+      }
+      if constexpr (thrust::tuple_size<T>::value >= 3) {
+        assert(false);  // should not be reached.
+      }
+      return true;
     }
-    return t1 == t2;
   }
 };
 
