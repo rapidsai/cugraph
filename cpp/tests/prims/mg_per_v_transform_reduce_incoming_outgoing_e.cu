@@ -75,7 +75,7 @@ template <typename T>
 __host__ __device__ bool compare_scalar(T val0, T val1, thrust::optional<T> threshold_ratio)
 {
   if (threshold_ratio) {
-    return std::abs(val0 - val1) < (std::max(std::abs(val0), std::abs(val1)) * *threshold_ratio);
+    return std::abs(val0 - val1) <= (std::max(std::abs(val0), std::abs(val1)) * *threshold_ratio);
   } else {
     return val0 == val1;
   }
