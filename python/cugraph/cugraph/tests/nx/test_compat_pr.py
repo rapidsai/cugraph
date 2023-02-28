@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -138,6 +138,7 @@ def get_personalization(personalization_perc, nnz_vtx):
     return personalization
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 def test_with_noparams(graph_file, which_import):
     nx = which_import
@@ -153,6 +154,7 @@ def test_with_noparams(graph_file, which_import):
     assert (sorted(pr, key=pr.get)[:14]) == KARATE_RANKING
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_with_max_iter(graph_file, max_iter, which_import):
@@ -167,6 +169,7 @@ def test_with_max_iter(graph_file, max_iter, which_import):
     assert (sorted(pr, key=pr.get)[:14]) == KARATE_ITER_RANKINGS
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_perc_spec(graph_file, max_iter, which_import):
@@ -198,6 +201,7 @@ def test_perc_spec(graph_file, max_iter, which_import):
     assert (sorted(pr, key=pr.get)[:14]) == KARATE_PERS_RANKING
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", FILES_UNDIRECTED)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 def test_with_nstart(graph_file, max_iter, which_import):
@@ -221,6 +225,7 @@ def test_with_nstart(graph_file, max_iter, which_import):
     assert (sorted(pr, key=pr.get)[:14]) == KARATE_NSTART_RANKINGS
 
 
+@pytest.mark.sg
 def test_fixture_data(input_expected_output, which_import):
     nx = which_import
     M = utils.read_csv_for_nx(input_expected_output["graph_file"])

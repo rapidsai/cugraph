@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -109,6 +109,7 @@ def read_csv(request):
     return M, graph_file
 
 
+@pytest.mark.sg
 def test_wjaccard(gpubenchmark, read_csv):
 
     M, graph_file = read_csv
@@ -120,12 +121,14 @@ def test_wjaccard(gpubenchmark, read_csv):
         assert diff < 1.0e-6
 
 
+@pytest.mark.sg
 def test_nx_wjaccard_time(gpubenchmark, read_csv):
 
     M, _ = read_csv
     networkx_call(M, gpubenchmark)
 
 
+@pytest.mark.sg
 def test_wjaccard_multi_column_weights(gpubenchmark, read_csv):
 
     M, graph_file = read_csv
@@ -137,6 +140,7 @@ def test_wjaccard_multi_column_weights(gpubenchmark, read_csv):
         assert diff < 1.0e-6
 
 
+@pytest.mark.sg
 def test_wjaccard_multi_column(read_csv):
 
     M, _ = read_csv

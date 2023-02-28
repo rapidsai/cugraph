@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,6 +49,7 @@ MIN_WEIGHTS = [0.05, 0.10, 0.15]
 ENSEMBLE_SIZES = [16, 32]
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
@@ -73,6 +74,7 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
     assert cu_score > (0.95 * golden_score)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)

@@ -36,6 +36,7 @@ def setup_function():
     gc.collect()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_to_from_pandas(graph_file):
     # Read in the graph
@@ -86,6 +87,7 @@ def test_to_from_pandas(graph_file):
     assert exp_pdf.equals(res_pdf)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_to_numpy(graph_file):
     # Read in the graph
@@ -155,6 +157,7 @@ def test_from_to_numpy(graph_file):
     assert exp_pdf.equals(res_pdf)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_edgelist(graph_file):
     """
@@ -170,6 +173,7 @@ def test_from_edgelist(graph_file):
     assert G1.EdgeList == G2.EdgeList
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_from_adjlist(graph_file):
     """

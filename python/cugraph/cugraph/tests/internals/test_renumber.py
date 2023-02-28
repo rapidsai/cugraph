@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,6 +25,7 @@ from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS
 
 
+@pytest.mark.sg
 def test_renumber_ips():
     source_list = [
         "192.168.1.1",
@@ -69,6 +70,7 @@ def test_renumber_ips():
     assert_series_equal(merged["check_dst"], merged["dest_as_int"], check_names=False)
 
 
+@pytest.mark.sg
 def test_renumber_ips_cols():
 
     source_list = [
@@ -113,7 +115,7 @@ def test_renumber_ips_cols():
     assert_series_equal(merged["check_src"], merged["source_as_int"], check_names=False)
     assert_series_equal(merged["check_dst"], merged["dest_as_int"], check_names=False)
 
-
+@pytest.mark.sg
 def test_renumber_negative():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -147,6 +149,7 @@ def test_renumber_negative():
     assert_series_equal(merged["check_dst"], merged["original_dst"], check_names=False)
 
 
+@pytest.mark.sg
 def test_renumber_negative_col():
     source_list = [4, 6, 8, -20, 1]
     dest_list = [1, 29, 35, 0, 77]
@@ -180,6 +183,7 @@ def test_renumber_negative_col():
     assert_series_equal(merged["check_dst"], merged["original_dst"], check_names=False)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_renumber_files(graph_file):
     gc.collect()
@@ -220,6 +224,7 @@ def test_renumber_files(graph_file):
     )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_renumber_files_col(graph_file):
     gc.collect()
@@ -260,6 +265,7 @@ def test_renumber_files_col(graph_file):
     )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_renumber_files_multi_col(graph_file):
     gc.collect()
@@ -295,6 +301,7 @@ def test_renumber_files_multi_col(graph_file):
     assert_series_equal(gdf["dst_old"], unrenumbered_df[f"1_{dst}"], check_names=False)
 
 
+@pytest.mark.sg
 def test_renumber_common_col_names():
     """
     Ensure that commonly-used column names in the input do not conflict with
@@ -341,6 +348,7 @@ def test_renumber_common_col_names():
     assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
 
 
+@pytest.mark.sg
 def test_renumber_unrenumber_non_default_vert_names():
     """
     Test that renumbering a dataframe with generated src/dst column names can

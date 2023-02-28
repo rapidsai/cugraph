@@ -81,6 +81,7 @@ def networkx_call(M):
     return parts
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
     dataset_path = graph_file.get_path()
@@ -106,11 +107,13 @@ def test_louvain(graph_file):
     assert abs(cu_mod - cu_mod_nx) < 0.0001
 
 
+@pytest.mark.sg
 def test_louvain_directed_graph():
     with pytest.raises(ValueError):
         cugraph_call(karate_asymmetric, edgevals=True, directed=True)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("is_weighted", [True, False])
 def test_louvain_csr_graph(is_weighted):
     karate = DATASETS_UNDIRECTED[0]

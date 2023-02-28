@@ -163,11 +163,13 @@ def check_all_two_hops(df, M):
                     assert has_pair(first_arr, second_arr, start, end)
 
 
+@pytest.mark.sg
 def test_version():
     cugraph.__version__
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_edge_list_to_adj_list(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -188,6 +190,7 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -213,6 +216,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_view_edge_list_from_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -232,6 +236,7 @@ def test_view_edge_list_from_adj_list(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_delete_edge_list_delete_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -258,6 +263,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
@@ -295,6 +301,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_edges_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -333,6 +340,7 @@ def test_edges_for_Graph(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_view_edge_list_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -372,6 +380,7 @@ def test_view_edge_list_for_Graph(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_consolidation(graph_file):
@@ -416,6 +425,7 @@ def test_consolidation(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -433,6 +443,7 @@ def test_two_hop_neighbors(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_degree_functionality(graph_file):
     M = utils.read_csv_for_nx(graph_file)
@@ -469,6 +480,7 @@ def test_degree_functionality(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_degrees_functionality(graph_file):
     M = utils.read_csv_for_nx(graph_file)
@@ -498,6 +510,7 @@ def test_degrees_functionality(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_number_of_vertices(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -514,6 +527,7 @@ def test_number_of_vertices(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -541,6 +555,7 @@ def test_to_directed(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_undirected(graph_file):
     # Read data and then convert to directed by dropped some edges
@@ -577,6 +592,7 @@ def test_to_undirected(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_edge(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -592,6 +608,7 @@ def test_has_edge(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_has_node(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -605,6 +622,7 @@ def test_has_node(graph_file):
         assert G.has_node(n)
 
 
+@pytest.mark.sg
 def test_invalid_has_node():
     df = cudf.DataFrame([[1, 2]], columns=["src", "dst"])
     G = cugraph.Graph()
@@ -614,6 +632,7 @@ def test_invalid_has_node():
     assert not G.has_node(G.number_of_nodes() + 1)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
@@ -642,6 +661,7 @@ def test_bipartite_api(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_neighbors(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -672,6 +692,7 @@ def test_to_pandas_edgelist(graph_file):
     assert "s" in G.to_pandas_edgelist(source="s", destination="d").columns
 
 
+@pytest.mark.sg
 def test_graph_init_with_multigraph():
     """
     Ensures only a valid MultiGraph instance can be used to initialize a Graph
@@ -692,6 +713,7 @@ def test_graph_init_with_multigraph():
     cugraph.Graph(m_graph=cDiMG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_sg_graph(graph_file):
     el = utils.read_csv_file(graph_file)
@@ -718,6 +740,7 @@ def test_create_sg_graph(graph_file):
         assert cdr[cdr.vertex == 11].predecessor.to_numpy()[0] == 51
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_graph_with_edge_ids(graph_file):
     el = utils.read_csv_file(graph_file)
@@ -751,6 +774,7 @@ def test_create_graph_with_edge_ids(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_density(graph_file):
     cu_M = utils.read_csv_file(graph_file)

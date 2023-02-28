@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -72,6 +72,7 @@ def calc_node2vec(G, start_vertices, max_depth, compress_result, p=1.0, q=1.0):
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(*_get_param_args("graph_file", [KARATE]))
 def test_node2vec_invalid(graph_file):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
@@ -130,6 +131,7 @@ def test_node2vec_invalid(graph_file):
             )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 def test_node2vec_line(graph_file, directed):
@@ -141,6 +143,7 @@ def test_node2vec_line(graph_file, directed):
     )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(*_get_param_args("graph_file", DATASETS_SMALL))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 @pytest.mark.parametrize(*_get_param_args("compress", COMPRESSED))
@@ -258,6 +261,7 @@ def test_node2vec(
                 )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", [True, False]))
 def test_node2vec_renumber_cudf(graph_file, renumber):

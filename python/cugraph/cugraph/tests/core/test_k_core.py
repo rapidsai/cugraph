@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -72,6 +72,7 @@ def compare_edges(cg, nxg):
     return True
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_Graph(graph_file):
 
@@ -80,6 +81,7 @@ def test_k_core_Graph(graph_file):
     assert compare_edges(cu_kcore, nx_kcore)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_Graph_nx(graph_file):
     dataset_path = graph_file.get_path()
@@ -91,6 +93,7 @@ def test_k_core_Graph_nx(graph_file):
     assert nx.is_isomorphic(nc, cc)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_corenumber_multicolumn(graph_file):
     dataset_path = graph_file.get_path()
@@ -128,6 +131,7 @@ def test_k_core_corenumber_multicolumn(graph_file):
         )
 
 
+@pytest.mark.sg
 def test_k_core_invalid_input():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))

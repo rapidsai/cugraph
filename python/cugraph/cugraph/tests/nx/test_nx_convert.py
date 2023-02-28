@@ -69,6 +69,7 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     assert cu_df.to_dict() == nx_df.to_dict()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_networkx_compatibility(graph_file):
     # test to make sure cuGraph and Nx build similar Graphs
@@ -95,6 +96,7 @@ def test_networkx_compatibility(graph_file):
     _compare_graphs(nxG, cuG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_undirected(graph_file):
     # read data and create a Nx Graph
@@ -111,6 +113,7 @@ def test_nx_convert_undirected(graph_file):
     _compare_graphs(nxG, cuG, has_wt=False)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_directed(graph_file):
     # read data and create a Nx DiGraph
@@ -126,6 +129,7 @@ def test_nx_convert_directed(graph_file):
     _compare_graphs(nxG, cuG, has_wt=False)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_weighted(graph_file):
     # read data and create a Nx DiGraph
@@ -142,6 +146,7 @@ def test_nx_convert_weighted(graph_file):
     _compare_graphs(nxG, cuG, has_wt=True)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_multicol(graph_file):
     # read data and create a Nx Graph

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,6 +22,7 @@ from cugraph.experimental.datasets import karate
 import numpy as np
 
 
+@pytest.mark.sg
 def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
@@ -41,6 +42,7 @@ def test_bfs_paths():
         assert "not in the result set" in str(ErrorMsg)
 
 
+@pytest.mark.sg
 def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
@@ -60,6 +62,7 @@ def test_bfs_paths_array():
         assert "not in the result set" in str(ErrorMsg)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.skip(reason="Skipping large tests")
 def test_get_traversed_cost(graph_file):

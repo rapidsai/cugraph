@@ -370,7 +370,7 @@ def rmat_PropertyGraph():
     seed = 42
     df = rmat(
         scale,
-        (2 ** scale) * edgefactor,
+        (2**scale) * edgefactor,
         0.57,  # from Graph500
         0.19,  # from Graph500
         0.19,  # from Graph500
@@ -393,8 +393,10 @@ def rmat_PropertyGraph():
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
-def test_add_vertex_data(df_type):
+@pytest.mark.parametrize("set_index", [True, False])
+def test_add_vertex_data(df_type, set_index):
     """
     add_vertex_data() on "merchants" table, all properties.
     """
@@ -402,7 +404,8 @@ def test_add_vertex_data(df_type):
 
     merchants = dataset1["merchants"]
     merchants_df = df_type(columns=merchants[0], data=merchants[1])
-
+    if set_index:
+        merchants_df.set_index("merchant_id", inplace=True)
     pG = PropertyGraph()
     pG.add_vertex_data(
         merchants_df,
@@ -418,6 +421,7 @@ def test_add_vertex_data(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_num_vertices(df_type):
     """
@@ -483,6 +487,7 @@ def test_num_vertices(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_type_names(df_type):
     from cugraph.experimental import PropertyGraph
@@ -525,6 +530,7 @@ def test_type_names(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_num_vertices_include_edge_data(df_type):
     """
@@ -581,6 +587,7 @@ def test_num_vertices_include_edge_data(df_type):
     assert pG.get_num_vertices("users", include_edge_data=True) == 4
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_num_vertices_with_properties(df_type):
     """
@@ -615,6 +622,7 @@ def test_num_vertices_with_properties(df_type):
     assert pG.get_num_vertices(include_edge_data=False) == 2
 
 
+@pytest.mark.sg
 def test_edges_attr(dataset2_simple_PropertyGraph):
     """
     Ensure the edges attr returns the src, dst, edge_id columns properly.
@@ -638,6 +646,7 @@ def test_edges_attr(dataset2_simple_PropertyGraph):
     assert edge_ids.nunique() == expected_num_edges
 
 
+@pytest.mark.sg
 def test_get_vertex_data(dataset1_PropertyGraph):
     """
     Ensure PG.get_vertex_data() returns the correct data based on vertex IDs
@@ -705,6 +714,7 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     # assert_frame_equal(df1, df2, check_like=True)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_get_vertex_data_repeated(df_type):
     from cugraph.experimental import PropertyGraph
@@ -729,6 +739,7 @@ def test_get_vertex_data_repeated(df_type):
     afe(df1, expected)
 
 
+@pytest.mark.sg
 def test_get_edge_data(dataset1_PropertyGraph):
     """
     Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
@@ -799,6 +810,7 @@ def test_get_edge_data(dataset1_PropertyGraph):
     # assert_frame_equal(df1, df2, check_like=True)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_get_edge_data_repeated(df_type):
     from cugraph.experimental import PropertyGraph
@@ -826,6 +838,7 @@ def test_get_edge_data_repeated(df_type):
     afe(df1, expected)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_null_data(df_type):
     """
@@ -841,6 +854,7 @@ def test_null_data(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_add_vertex_data_prop_columns(df_type):
     """
@@ -867,6 +881,7 @@ def test_add_vertex_data_prop_columns(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 def test_add_vertex_data_bad_args():
     """
     add_vertex_data() with various bad args, checks that proper exceptions are
@@ -915,6 +930,7 @@ def test_add_vertex_data_bad_args():
         )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_add_edge_data(df_type):
     """
@@ -944,6 +960,7 @@ def test_add_edge_data(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_add_edge_data_prop_columns(df_type):
     """
@@ -972,8 +989,10 @@ def test_add_edge_data_prop_columns(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
-def test_add_edge_data_with_ids(df_type):
+@pytest.mark.parametrize("set_index", [True, False])
+def test_add_edge_data_with_ids(df_type, set_index):
     """
     add_edge_data() on "transactions" table, all properties.
     """
@@ -982,7 +1001,9 @@ def test_add_edge_data_with_ids(df_type):
     transactions = dataset1["transactions"]
     transactions_df = df_type(columns=transactions[0], data=transactions[1])
     transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
-
+    transactions_ids = transactions_df["edge_id"]
+    if set_index:
+        transactions_df.set_index("edge_id", inplace=True)
     pG = PropertyGraph()
     pG.add_edge_data(
         transactions_df,
@@ -1014,6 +1035,9 @@ def test_add_edge_data_with_ids(df_type):
         )
 
     relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+    relationships_ids = relationships_df["edge_id"]
+    if set_index:
+        relationships_df.set_index("edge_id", inplace=True)
 
     pG.add_edge_data(
         relationships_df,
@@ -1030,13 +1054,13 @@ def test_add_edge_data_with_ids(df_type):
     df = pG.get_edge_data(types="transactions")
     ase(
         df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
-        transactions_df["edge_id"],
+        transactions_ids,
         check_names=False,
     )
     df = pG.get_edge_data(types="relationships")
     ase(
         df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
-        relationships_df["edge_id"],
+        relationships_ids,
         check_names=False,
     )
 
@@ -1058,6 +1082,7 @@ def test_add_edge_data_with_ids(df_type):
         )
 
 
+@pytest.mark.sg
 def test_add_edge_data_bad_args():
     """
     add_edge_data() with various bad args, checks that proper exceptions are
@@ -1122,6 +1147,7 @@ def test_add_edge_data_bad_args():
         )
 
 
+@pytest.mark.sg
 def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
 
     (pG, data) = dataset1_PropertyGraph
@@ -1149,6 +1175,7 @@ def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_extract_subgraph_vertex_edge_prop_condition(dataset1_PropertyGraph):
     from cugraph.experimental import PropertyGraph
 
@@ -1169,6 +1196,7 @@ def test_extract_subgraph_vertex_edge_prop_condition(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph):
     from cugraph.experimental import PropertyGraph
 
@@ -1192,6 +1220,7 @@ def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_extract_subgraph_unweighted(dataset1_PropertyGraph):
     """
     Ensure a subgraph is unweighted if the edge_weight_property is None.
@@ -1207,6 +1236,7 @@ def test_extract_subgraph_unweighted(dataset1_PropertyGraph):
     assert G.is_weighted() is False
 
 
+@pytest.mark.sg
 def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
     """
     Graph of only transactions after time 1639085000 for merchant_id 4 (should
@@ -1233,6 +1263,7 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
     """
     Ensures that the intersection of vertices of multiple types (only vertices
@@ -1261,6 +1292,7 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_extract_subgraph_graph_without_vert_props():
     """
     Ensure a subgraph can be extracted from a PropertyGraph that does not have
@@ -1304,6 +1336,7 @@ def test_extract_subgraph_graph_without_vert_props():
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
     """
     Valid query that only matches a single vertex.
@@ -1321,6 +1354,7 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
     assert len(G.edgelist.edgelist_df) == 0
 
 
+@pytest.mark.sg
 def test_extract_subgraph_no_query(dataset1_PropertyGraph):
     """
     Call extract with no args, should result in the entire property graph.
@@ -1340,6 +1374,7 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph):
     assert len(G.edgelist.edgelist_df) == num_edges
 
 
+@pytest.mark.sg
 def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
     """
     Ensure an exception is thrown if a graph is attempted to be extracted with
@@ -1362,6 +1397,7 @@ def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
         )
 
 
+@pytest.mark.sg
 def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
     from cugraph.experimental import PropertyGraph
 
@@ -1399,6 +1435,7 @@ def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
         pG.extract_subgraph(selection=selection, edge_weight_property="card_type")
 
 
+@pytest.mark.sg
 def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     """
     Ensure the default_edge_weight value is added to edges with missing
@@ -1435,6 +1472,7 @@ def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
+@pytest.mark.sg
 def test_extract_subgraph_default_edge_weight_no_property(dataset1_PropertyGraph):
     """
     Ensure default_edge_weight can be used to provide an edge value when a
@@ -1446,6 +1484,7 @@ def test_extract_subgraph_default_edge_weight_no_property(dataset1_PropertyGraph
     assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
 
 
+@pytest.mark.sg
 def test_extract_subgraph_nonrenumbered_noedgedata():
     """
     Ensure a subgraph can be extracted that is not renumbered and contains no
@@ -1481,6 +1520,7 @@ def test_extract_subgraph_nonrenumbered_noedgedata():
     assert hasattr(G, "edge_data") is False
 
 
+@pytest.mark.sg
 def test_graph_edge_data_added(dataset1_PropertyGraph):
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data
@@ -1515,6 +1555,7 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
     assert edge_ids[-1] == (expected_num_edges - 1)
 
 
+@pytest.mark.sg
 def test_annotate_dataframe(dataset1_PropertyGraph):
     """
     FIXME: Add tests for:
@@ -1571,6 +1612,7 @@ def test_annotate_dataframe(dataset1_PropertyGraph):
         ase(new_algo_result[col], expected_algo_result[col])
 
 
+@pytest.mark.sg
 def test_different_vertex_edge_input_dataframe_types():
     """
     Ensures that a PropertyGraph initialized with one DataFrame type cannot be
@@ -1609,6 +1651,7 @@ def test_different_vertex_edge_input_dataframe_types():
         pG.add_edge_data(pdf, type_name="bar", vertex_col_names=("a", "b"))
 
 
+@pytest.mark.sg
 def test_get_vertices(dataset1_PropertyGraph):
     """
     Test that get_vertices() returns the correct set of vertices without
@@ -1634,6 +1677,7 @@ def test_get_vertices(dataset1_PropertyGraph):
     assert sorted(pG.get_vertices().values) == sorted(expected_vertices)
 
 
+@pytest.mark.sg
 def test_get_edges(dataset1_PropertyGraph):
     """
     Test that get_edges() returns the correct set of edges (as src/dst
@@ -1667,6 +1711,7 @@ def test_get_edges(dataset1_PropertyGraph):
         assert (src, dst) in expected_edges
 
 
+@pytest.mark.sg
 def test_property_names_attrs(dataset1_PropertyGraph):
     """
     Ensure the correct number of user-visible properties for vertices and edges
@@ -1708,6 +1753,7 @@ def test_property_names_attrs(dataset1_PropertyGraph):
     assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
 
 
+@pytest.mark.sg
 @pytest.mark.skip(reason="unfinished")
 def test_extract_subgraph_with_vertex_ids():
     """
@@ -1719,6 +1765,7 @@ def test_extract_subgraph_with_vertex_ids():
     raise NotImplementedError
 
 
+@pytest.mark.sg
 def test_get_data_empty_graphs():
     """
     Ensures that calls to pG.get_*_data() on an empty pG are handled correctly.
@@ -1733,6 +1780,8 @@ def test_get_data_empty_graphs():
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
+@pytest.mark.sg
+@pytest.mark.sg
 @pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
 def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
     from cugraph.experimental import PropertyGraph
@@ -1773,6 +1822,7 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         empty_pG.renumber_vertices_by_type(prev_id_column)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
 def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
     from cugraph.experimental import PropertyGraph
@@ -1806,6 +1856,7 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
     assert empty_pG.renumber_edges_by_type(prev_id_column) is None
 
 
+@pytest.mark.sg
 def test_renumber_vertices_edges_dtypes():
     from cugraph.experimental import PropertyGraph
 
@@ -1836,6 +1887,7 @@ def test_renumber_vertices_edges_dtypes():
     assert ed.index.dtype == cp.int32
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_add_data_noncontiguous(df_type):
     from cugraph.experimental import PropertyGraph
@@ -1900,6 +1952,7 @@ def test_add_data_noncontiguous(df_type):
         )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_vertex_ids_different_type(df_type):
     """Getting the number of vertices requires combining vertex ids from
@@ -1926,6 +1979,7 @@ def test_vertex_ids_different_type(df_type):
     assert pg.get_num_vertices() == 3
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_vertex_vector_property(df_type):
     from cugraph.experimental import PropertyGraph
@@ -2092,6 +2146,7 @@ def test_vertex_vector_property(df_type):
         pG.vertex_vector_property_to_array(42, "vec1")
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_edge_vector_property(df_type):
     from cugraph.experimental import PropertyGraph
@@ -2160,6 +2215,7 @@ def test_edge_vector_property(df_type):
         pG.edge_vector_property_to_array(df, "vec2", missing="error")
 
 
+@pytest.mark.sg
 @pytest.mark.skip(reason="feature not implemented")
 def test_single_csv_multi_vertex_edge_attrs():
     """
@@ -2168,6 +2224,7 @@ def test_single_csv_multi_vertex_edge_attrs():
     pass
 
 
+@pytest.mark.sg
 def test_fillna_vertices():
     from cugraph.experimental import PropertyGraph
 
@@ -2225,6 +2282,7 @@ def test_fillna_vertices():
     )
 
 
+@pytest.mark.sg
 def test_fillna_edges():
     from cugraph.experimental import PropertyGraph
 
@@ -2270,6 +2328,7 @@ def test_fillna_edges():
     )
 
 
+@pytest.mark.sg
 def test_types_from_numerals():
     from cugraph.experimental import PropertyGraph
 

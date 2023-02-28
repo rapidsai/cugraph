@@ -62,6 +62,7 @@ def nx_call(M, verts, directed=True):
 
 
 ###############################################################################
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     dataset_path = graph_file.get_path()
@@ -75,6 +76,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
     dataset_path = graph_file.get_path()
@@ -88,6 +90,7 @@ def test_subgraph_extraction_Graph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
     directed = False
@@ -116,6 +119,7 @@ def test_subgraph_extraction_Graph_nx(graph_file):
         assert nx_sub.has_edge(u, v)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_multi_column(graph_file):
     dataset_path = graph_file.get_path()
@@ -159,6 +163,7 @@ def test_subgraph_extraction_multi_column(graph_file):
 
 # FIXME: the coverage provided by this test could probably be handled by
 # another test that also checks using renumber=False
+@pytest.mark.sg
 def test_subgraph_extraction_graph_not_renumbered():
     """
     Ensure subgraph() works with a Graph that has not been renumbered

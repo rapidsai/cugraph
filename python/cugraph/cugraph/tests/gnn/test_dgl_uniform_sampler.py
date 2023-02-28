@@ -43,6 +43,7 @@ def convert_array_dict_to_df(d):
     return df_d
 
 
+@pytest.mark.sg
 def test_sampling_homogeneous_gs_out_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -88,6 +89,7 @@ def test_sampling_homogeneous_gs_out_dir():
         assert_correct_eids(df, sample_edge_id_df)
 
 
+@pytest.mark.sg
 def test_sampling_homogeneous_gs_in_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -161,6 +163,7 @@ def create_gs_heterogeneous_dgl_sampler():
     return DGLUniformSampler(edge_list_dict, edge_id_range_dict, etype_id_dict, True)
 
 
+@pytest.mark.sg
 def test_sampling_gs_heterogeneous_out_dir():
     sampler = create_gs_heterogeneous_dgl_sampler()
     # DGL expected_output from
@@ -230,6 +233,7 @@ def test_sampling_gs_heterogeneous_out_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.sg
 def test_sampling_gs_heterogeneous_in_dir():
     sampler = create_gs_heterogeneous_dgl_sampler()
     # DGL expected_output from
@@ -288,6 +292,7 @@ def test_sampling_gs_heterogeneous_in_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.sg
 def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     gs = create_gs_heterogeneous_dgl_sampler()
     # Test against DGLs output

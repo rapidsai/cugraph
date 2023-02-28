@@ -128,6 +128,7 @@ def simple_unweighted_input_expected_output(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_simple(input_combo):
 
@@ -217,6 +218,7 @@ def test_uniform_neighbor_sample_simple(input_combo):
             )
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_uniform_neighbor_sample_tree(directed):
@@ -278,6 +280,7 @@ def test_uniform_neighbor_sample_tree(directed):
     assert set(start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
     test_data = simple_unweighted_input_expected_output
@@ -298,6 +301,7 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
     assert sorted(actual_dst) == sorted(test_data["expected_dst"])
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_uniform_neighbor_sample_edge_properties():
     edgelist_df = cudf.DataFrame(
@@ -359,6 +363,7 @@ def test_uniform_neighbor_sample_edge_properties():
     # FIXME test the batch id values once that is fixed in C++
 
 
+@pytest.mark.sg
 def test_uniform_neighbor_sample_edge_properties_self_loops():
     df = cudf.DataFrame(
         {
@@ -412,6 +417,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
+@pytest.mark.sg
 def test_uniform_neighbor_sample_empty_start_list():
     df = cudf.DataFrame(
         {
@@ -445,6 +451,7 @@ def test_uniform_neighbor_sample_empty_start_list():
     assert sampling_results.empty
 
 
+@pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
 def test_multi_client_sampling():
     # See gist for example test to write

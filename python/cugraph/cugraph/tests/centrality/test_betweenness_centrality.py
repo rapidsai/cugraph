@@ -302,6 +302,7 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -336,6 +337,7 @@ def test_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
@@ -380,6 +382,7 @@ def test_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNRENUMBERED)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -418,6 +421,7 @@ def test_betweenness_centrality_fixed_sample(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -458,6 +462,7 @@ def test_betweenness_centrality_weight_except(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -496,6 +501,7 @@ def test_betweenness_invalid_dtype(
 
 
 # FIXME: update the datasets API to return Nx graph
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)

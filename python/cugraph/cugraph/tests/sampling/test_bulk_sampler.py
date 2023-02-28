@@ -22,6 +22,7 @@ import tempfile
 import os
 
 
+@pytest.mark.sg
 @pytest.mark.skip("work in progress")
 def test_bulk_sampler_simple():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
@@ -62,6 +63,7 @@ def test_bulk_sampler_simple():
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
 
+@pytest.mark.sg
 @pytest.mark.skip("work in progress")
 def test_bulk_sampler_remainder():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
@@ -123,6 +125,7 @@ def test_bulk_sampler_remainder():
     ).all()
 
 
+@pytest.mark.sg
 @pytest.mark.skip("work in progress")
 def test_bulk_sampler_large_batch_size():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})

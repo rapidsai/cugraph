@@ -293,6 +293,7 @@ def single_dataset_nxresults_strong(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     (
@@ -347,6 +348,7 @@ def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
     assert nx_vertices == cg_vertices
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(
     "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
@@ -356,6 +358,7 @@ def test_weak_cc_nonnative_inputs(
     test_weak_cc(gpubenchmark, single_dataset_nxresults_weak, cugraph_input_type)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_strong_cc(gpubenchmark, dataset_nxresults_strong, cugraph_input_type):
 
@@ -411,6 +414,7 @@ def test_strong_cc(gpubenchmark, dataset_nxresults_strong, cugraph_input_type):
     assert nx_vertices == cg_vertices
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(
     "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
@@ -420,16 +424,19 @@ def test_strong_cc_nonnative_inputs(
     test_strong_cc(gpubenchmark, single_dataset_nxresults_strong, cugraph_input_type)
 
 
+@pytest.mark.sg
 def test_scipy_api_compat_weak(single_dataset_nxresults_weak):
     (G, dataset_path, _, _, _, api_type) = single_dataset_nxresults_weak
     assert_scipy_api_compat(G, dataset_path, api_type)
 
 
+@pytest.mark.sg
 def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
     (G, dataset_path, _, _, _, api_type) = single_dataset_nxresults_strong
     assert_scipy_api_compat(G, dataset_path, api_type)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("connection_type", ["strong", "weak"])
 def test_scipy_api_compat(connection_type):
     if connection_type == "strong":

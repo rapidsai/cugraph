@@ -218,6 +218,7 @@ def single_dataset_source_nxresults_weighted(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
@@ -252,6 +253,7 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     assert err == 0
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     (G, _, source, nx_paths, Gnx) = dataset_source_nxresults
@@ -264,6 +266,7 @@ def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_inpu
         cugraph_call(gpubenchmark, G, source)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(
     "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
@@ -273,6 +276,7 @@ def test_sssp_nonnative_inputs(
     test_sssp(gpubenchmark, single_dataset_source_nxresults, cugraph_input_type)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_edgevals(
     gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
@@ -307,6 +311,7 @@ def test_sssp_edgevals(
     assert err == 0
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(
     "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
@@ -318,6 +323,7 @@ def test_sssp_edgevals_nonnative_inputs(
     )
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
@@ -373,6 +379,7 @@ def test_sssp_data_type_conversion(graph_file, source):
     assert err == 0
 
 
+@pytest.mark.sg
 def test_scipy_api_compat():
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()
@@ -442,6 +449,7 @@ def test_scipy_api_compat():
     cugraph.shortest_path(input_coo_matrix, indices=0)
 
 
+@pytest.mark.sg
 def test_sssp_with_no_edgevals():
     G = datasets.karate.get_graph(ignore_weights=True)
     warning_msg = (

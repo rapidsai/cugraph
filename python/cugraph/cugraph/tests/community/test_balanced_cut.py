@@ -55,6 +55,7 @@ PARTITIONS = [2, 4, 8]
 # Test all combinations of default/managed and pooled/non-pooled allocation
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering(graph_file, partitions):
@@ -75,6 +76,7 @@ def test_edge_cut_clustering(graph_file, partitions):
     assert cu_score < rand_score
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
@@ -97,6 +99,7 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     assert cu_score < rand_score
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):

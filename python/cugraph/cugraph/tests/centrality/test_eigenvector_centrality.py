@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -60,7 +60,7 @@ def calc_eigenvector(graph_file):
     k_df = k_df.rename(columns={"eigenvector_centrality": "cu_eigen"}, copy=False)
     return k_df
 
-
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_eigenvector_centrality(graph_file):
     eigen_scores = calc_eigenvector(graph_file)
@@ -71,6 +71,7 @@ def test_eigenvector_centrality(graph_file):
     assert topKNX.equals(topKCU)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_eigenvector_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
@@ -135,6 +136,7 @@ def test_eigenvector_centrality_multi_column(graph_file):
 """
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [TOY])
 def test_eigenvector_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
@@ -156,6 +158,7 @@ def test_eigenvector_centrality_toy(graph_file):
         )
 
 
+@pytest.mark.sg
 def test_eigenvector_centrality_transposed_false():
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
     warning_msg = (

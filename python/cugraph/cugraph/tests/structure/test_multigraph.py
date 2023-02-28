@@ -29,6 +29,7 @@ def setup_function():
     gc.collect()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_multigraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
@@ -59,6 +60,7 @@ def test_multigraph(graph_file):
     assert nxedges.equals(cuedges[["source", "target", "weight"]])
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
@@ -88,7 +90,7 @@ def test_Graph_from_MultiGraph(graph_file):
     Gnxd = nx.DiGraph(GnxdM)
     assert Gnxd.number_of_edges() == Gd.number_of_edges()
 
-
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_multigraph_sssp(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available

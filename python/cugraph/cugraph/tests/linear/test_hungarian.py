@@ -58,6 +58,7 @@ def setup_function():
     gc.collect()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("v1_size, v2_size, weight_limit", SPARSE_SIZES)
 def test_hungarian(v1_size, v2_size, weight_limit):
     v1, g, m = create_random_bipartite(v1_size, v2_size, weight_limit, np.float64)
@@ -79,6 +80,7 @@ def test_hungarian(v1_size, v2_size, weight_limit):
     assert scipy_cost == cugraph_cost
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("n, weight_limit", DENSE_SIZES)
 def test_dense_hungarian(n, weight_limit):
     C = np.random.uniform(0, weight_limit, size=(n, n)).round().astype(np.float32)

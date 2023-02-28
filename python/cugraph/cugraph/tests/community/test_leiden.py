@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -61,6 +61,7 @@ def cugraph_louvain(G):
     return parts, mod
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_leiden(graph_file):
     edgevals = True
@@ -73,6 +74,7 @@ def test_leiden(graph_file):
     assert leiden_mod >= (0.99 * louvain_mod)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_leiden_nx(graph_file):
     dataset_path = graph_file.get_path()
@@ -89,6 +91,7 @@ def test_leiden_nx(graph_file):
     assert leiden_mod >= (0.99 * louvain_mod)
 
 
+@pytest.mark.sg
 def test_leiden_directed_graph():
 
     edgevals = True

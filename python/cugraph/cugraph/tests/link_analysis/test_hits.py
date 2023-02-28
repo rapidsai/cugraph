@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,6 +75,7 @@ def input_expected_output(input_combo):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 def test_nx_hits(benchmark, input_combo):
     """
     Simply run NetworkX HITS on the same set of input combinations used for the
@@ -92,6 +93,7 @@ def test_nx_hits(benchmark, input_combo):
     input_combo["nxResults"] = nxResults
 
 
+@pytest.mark.sg
 def test_hits(benchmark, input_expected_output):
     graph_file = input_expected_output["graph_file"]
 
@@ -120,6 +122,7 @@ def test_hits(benchmark, input_expected_output):
     assert len(authorities_diffs2) == 0
 
 
+@pytest.mark.sg
 def test_hits_transposed_false():
 
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))

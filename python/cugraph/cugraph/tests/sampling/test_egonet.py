@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,6 +36,7 @@ SEEDS = [0, 5, 13]
 RADIUS = [1, 2, 3]
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
@@ -56,6 +57,7 @@ def test_ego_graph_nx(graph_file, seed, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seeds", [[0, 5, 13]])
 @pytest.mark.parametrize("radius", [1, 2, 3])
@@ -80,6 +82,7 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)

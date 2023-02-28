@@ -17,6 +17,7 @@ import cudf
 import pytest
 
 
+@pytest.mark.sg
 def test_feature_storage_from_numpy():
     ar1 = np.random.randint(low=0, high=100, size=100_000)
     ar2 = np.random.randint(low=0, high=100, size=100_000)
@@ -42,6 +43,7 @@ def test_feature_storage_from_numpy():
     np.testing.assert_array_equal(output_fs, expected)
 
 
+@pytest.mark.sg
 def test_feature_storage_from_cudf():
     ar1 = np.random.randint(low=0, high=100, size=100_000).reshape(10_000, -1)
     df1 = cudf.DataFrame(ar1)
@@ -71,6 +73,7 @@ def test_feature_storage_from_cudf():
     np.testing.assert_array_equal(output_fs, expected)
 
 
+@pytest.mark.sg
 def test_feature_storage_pytorch_backend():
     try:
         import torch

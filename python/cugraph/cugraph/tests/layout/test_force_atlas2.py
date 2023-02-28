@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -96,6 +96,7 @@ class TestCallback(GraphBasedDimRedCallback):
         self.on_train_end_called_count += 1
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file, score", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
@@ -147,6 +148,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 
 # FIXME: this test occasionally fails - skipping to prevent CI failures but
 # need to revisit ASAP
+@pytest.mark.sg
 @pytest.mark.skip(reason="non-deterministric - needs fixing!")
 @pytest.mark.parametrize("graph_file, score", DATASETS[:-1])
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)

@@ -149,6 +149,7 @@ class TestDoctests:
         finally:
             os.chdir(original_directory)
 
+    @pytest.mark.sg
     @pytest.mark.parametrize(
         "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name
     )

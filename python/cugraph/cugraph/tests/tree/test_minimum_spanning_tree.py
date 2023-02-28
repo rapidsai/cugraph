@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,6 +53,7 @@ def _get_param_args(param_name, param_values):
     return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
 def test_minimum_spanning_tree_nx(graph_file):
     # cugraph
@@ -81,6 +82,7 @@ def test_minimum_spanning_tree_nx(graph_file):
     utils.compare_mst(cugraph_mst, mst_nx)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
 @pytest.mark.parametrize(*_get_param_args("use_adjlist", [True, False]))
 def test_minimum_spanning_tree_graph_repr_compat(graph_file, use_adjlist):
@@ -102,6 +104,7 @@ DATASETS_SIZES = [
 ]
 
 
+@pytest.mark.sg
 @pytest.mark.skip(reason="Skipping large tests")
 @pytest.mark.parametrize("graph_size", DATASETS_SIZES)
 def test_random_minimum_spanning_tree_nx(graph_size):

@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -158,6 +158,7 @@ def read_csv(request):
     return M_cu, M, graph_file
 
 
+@pytest.mark.sg
 def test_sorensen(gpubenchmark, read_csv):
 
     M_cu, M, graph_file = read_csv
@@ -177,12 +178,14 @@ def test_sorensen(gpubenchmark, read_csv):
     assert err == 0
 
 
+@pytest.mark.sg
 def test_nx_sorensen_time(gpubenchmark, read_csv):
 
     _, M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [netscience])
 def test_sorensen_edgevals(gpubenchmark, graph_file):
     dataset_path = netscience.get_path()
@@ -206,6 +209,7 @@ def test_sorensen_edgevals(gpubenchmark, graph_file):
     assert err == 0
 
 
+@pytest.mark.sg
 def test_sorensen_two_hop(read_csv):
 
     _, M, graph_file = read_csv
@@ -216,6 +220,7 @@ def test_sorensen_two_hop(read_csv):
     compare_sorensen_two_hop(G, Gnx)
 
 
+@pytest.mark.sg
 def test_sorensen_two_hop_edge_vals(read_csv):
 
     _, M, graph_file = read_csv
@@ -229,6 +234,7 @@ def test_sorensen_two_hop_edge_vals(read_csv):
     compare_sorensen_two_hop(G, Gnx, edgevals=True)
 
 
+@pytest.mark.sg
 def test_sorensen_multi_column(read_csv):
 
     _, M, _ = read_csv
@@ -271,6 +277,7 @@ def test_sorensen_multi_column(read_csv):
     assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])
 
 
+@pytest.mark.sg
 def test_weighted_exp_sorensen():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()

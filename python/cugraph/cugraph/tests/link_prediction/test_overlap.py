@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -145,6 +145,7 @@ def extract_two_hop(read_csv):
 
 
 # Test
+@pytest.mark.sg
 def test_overlap(gpubenchmark, read_csv, extract_two_hop):
 
     M, graph_file = read_csv
@@ -157,6 +158,7 @@ def test_overlap(gpubenchmark, read_csv, extract_two_hop):
 
 
 # Test
+@pytest.mark.sg
 def test_overlap_edge_vals(gpubenchmark, read_csv, extract_two_hop):
 
     M, graph_file = read_csv
@@ -168,6 +170,7 @@ def test_overlap_edge_vals(gpubenchmark, read_csv, extract_two_hop):
     compare_overlap(cu_coeff, cpu_coeff)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_overlap_multi_column(graph_file):
     dataset_path = graph_file.get_path()
@@ -211,6 +214,7 @@ def test_overlap_multi_column(graph_file):
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
 
 
+@pytest.mark.sg
 def test_weighted_exp_overlap():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()

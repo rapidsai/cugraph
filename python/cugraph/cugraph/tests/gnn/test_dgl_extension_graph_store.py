@@ -24,6 +24,7 @@ from cugraph.experimental.datasets import DATASETS
 from tempfile import TemporaryDirectory
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_no_graph(graph_file):
     with pytest.raises(TypeError):
@@ -31,6 +32,7 @@ def test_no_graph(graph_file):
         gstore.num_edges()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_using_graph(graph_file):
     with pytest.raises(ValueError):
@@ -38,6 +40,7 @@ def test_using_graph(graph_file):
         cugraph.gnn.CuGraphStore(graph=g)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_using_pgraph(graph_file):
     g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
@@ -55,6 +58,7 @@ def test_using_pgraph(graph_file):
     assert g.number_of_vertices() == gstore.num_vertices
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_node_data_pg(graph_file):
     cu_M = graph_file.get_edgelist().rename(
@@ -75,6 +79,7 @@ def test_node_data_pg(graph_file):
     assert edata.shape[0] > 0
 
 
+@pytest.mark.sg
 @pytest.mark.skip("Skipping egonet testing for now")
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_egonet(graph_file):
@@ -97,6 +102,7 @@ def test_egonet(graph_file):
     assert seeds_offsets1 == seeds_offsets2
 
 
+@pytest.mark.sg
 @pytest.mark.skip("Skipping egonet testing for now")
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_workflow(graph_file):
@@ -119,6 +125,7 @@ def test_workflow(graph_file):
     assert len(ego_edge_list) > 0
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbors(graph_file):
@@ -142,6 +149,7 @@ def test_sample_neighbors(graph_file):
     assert len(parents_list) > 0
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
@@ -160,6 +168,7 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
     assert len(parents_list) > 0
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_get_node_storage_graph_file(graph_file):
     cu_M = graph_file.get_edgelist().rename(
@@ -192,6 +201,7 @@ def test_get_node_storage_graph_file(graph_file):
     assert ndata.shape[0] > 0
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_edge_storage_data_graph_file(graph_file):
     cu_M = graph_file.get_edgelist().rename(
@@ -356,16 +366,19 @@ def dataset1_CuGraphStore():
     return graph
 
 
+@pytest.mark.sg
 def test_num_nodes_gs(dataset1_CuGraphStore):
     # Added unique id in tax_payer so changed to 16
     assert dataset1_CuGraphStore.num_nodes() == 16
 
 
+@pytest.mark.sg
 def test_num_edges(dataset1_CuGraphStore):
     gs = dataset1_CuGraphStore
     assert gs.num_edges() == 14
 
 
+@pytest.mark.sg
 def test_etypes(dataset1_CuGraphStore):
     expected_types = [
         "('user', 'refers', 'user')",
@@ -375,10 +388,12 @@ def test_etypes(dataset1_CuGraphStore):
     assert dataset1_CuGraphStore.etypes == expected_types
 
 
+@pytest.mark.sg
 def test_ntypes(dataset1_CuGraphStore):
     assert dataset1_CuGraphStore.ntypes == ["merchant", "taxpayers", "user"]
 
 
+@pytest.mark.sg
 def test_get_node_storage_gs(dataset1_CuGraphStore):
     fs = dataset1_CuGraphStore.get_node_storage(key="merchant_k", ntype="merchant")
     indices = [11, 4, 21, 316, 11]
@@ -391,6 +406,7 @@ def test_get_node_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, merchant_gs)
 
 
+@pytest.mark.sg
 def test_get_node_storage_ntypes():
     node_ser = cudf.Series([1, 2, 3])
     feat_ser = cudf.Series([1.0, 1.0, 1.0])
@@ -413,6 +429,7 @@ def test_get_node_storage_ntypes():
     cp.testing.assert_array_equal(cp.asarray([2.0], dtype=cp.float32), output_ar)
 
 
+@pytest.mark.sg
 def test_get_edge_storage_gs(dataset1_CuGraphStore):
     etype = "('user', 'relationship', 'user')"
     fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", etype)
@@ -426,6 +443,7 @@ def test_get_edge_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, relationship_t)
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_ds1(dataset1_CuGraphStore):
     node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
@@ -437,6 +455,7 @@ def test_sampling_gs_heterogeneous_ds1(dataset1_CuGraphStore):
     assert len(src_ser) != 0
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_ds1_neg_one_fanout(dataset1_CuGraphStore):
     node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
@@ -448,6 +467,7 @@ def test_sampling_gs_heterogeneous_ds1_neg_one_fanout(dataset1_CuGraphStore):
     assert len(src_ser) != 0
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_out_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
@@ -498,6 +518,7 @@ def test_sampling_homogeneous_gs_out_dir():
         assert_correct_eids(df, sample_edge_id_df)
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_in_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
@@ -593,6 +614,7 @@ def create_gs_heterogeneous_dgl_eg():
     return gs
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_in_dir():
     gs = create_gs_heterogeneous_dgl_eg()
@@ -652,6 +674,7 @@ def test_sampling_gs_heterogeneous_in_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_gs_heterogeneous_out_dir():
     gs = create_gs_heterogeneous_dgl_eg()
@@ -722,6 +745,7 @@ def test_sampling_gs_heterogeneous_out_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     gs = create_gs_heterogeneous_dgl_eg()
@@ -761,6 +785,7 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts():
             assert expected_output[fanout][etype] == len(output_df)
 
 
+@pytest.mark.sg
 def test_clear_cache():
     gs = create_gs_heterogeneous_dgl_eg()
     prev_nodes = gs.num_nodes_dict["nt.a"]
@@ -774,6 +799,7 @@ def test_clear_cache():
     assert new_nodes == prev_nodes + 3
 
 
+@pytest.mark.sg
 def test_add_node_data_scaler_feats():
     pg = PropertyGraph()
     gs = CuGraphStore(pg, backend_lib="cupy")
@@ -812,6 +838,7 @@ def test_add_node_data_scaler_feats():
         )
 
 
+@pytest.mark.sg
 def test_add_node_data_vector_feats():
     pg = PropertyGraph()
     gs = CuGraphStore(pg, backend_lib="cupy")
@@ -845,6 +872,7 @@ def test_add_node_data_vector_feats():
     cp.testing.assert_array_equal(out_vec, exp_vec)
 
 
+@pytest.mark.sg
 def test_add_node_data_vector_feats_from_parquet():
     pg = PropertyGraph()
     gs = CuGraphStore(pg, backend_lib="cupy")
@@ -883,6 +911,7 @@ def test_add_node_data_vector_feats_from_parquet():
     tmpd.cleanup()
 
 
+@pytest.mark.sg
 def test_add_edge_data_vector_feats_from_parquet():
     pg = PropertyGraph()
     gs = CuGraphStore(pg, backend_lib="cupy")
@@ -921,6 +950,7 @@ def test_add_edge_data_vector_feats_from_parquet():
     tmpd.cleanup()
 
 
+@pytest.mark.sg
 @pytest.mark.cugraph_ops
 def test_sampling_with_out_of_index_seed():
     pg = PropertyGraph()

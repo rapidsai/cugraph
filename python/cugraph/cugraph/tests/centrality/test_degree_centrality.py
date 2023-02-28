@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,6 +36,7 @@ def topKVertices(degree, col, k):
     return top["vertex"]
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_degree_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
@@ -67,6 +68,7 @@ def test_degree_centrality_nx(graph_file):
     assert err < (0.1 * len(ck))
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_degree_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()

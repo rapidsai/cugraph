@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,6 +74,7 @@ def calc_katz(graph_file):
     return k_df
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_katz_centrality(graph_file):
     katz_scores = calc_katz(graph_file)
@@ -84,6 +85,7 @@ def test_katz_centrality(graph_file):
     assert topKNX.equals(topKCU)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_katz_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
@@ -115,6 +117,7 @@ def test_katz_centrality_nx(graph_file):
     assert err < (0.1 * len(ck))
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_katz_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()
@@ -154,6 +157,7 @@ def test_katz_centrality_multi_column(graph_file):
     assert top_res.equals(top_exp)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [TOY])
 def test_katz_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
@@ -176,6 +180,7 @@ def test_katz_centrality_toy(graph_file):
         )
 
 
+@pytest.mark.sg
 def test_katz_centrality_transposed_false():
 
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))

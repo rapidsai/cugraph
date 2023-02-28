@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -157,6 +157,7 @@ def setup_function():
 #
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -222,6 +223,7 @@ def test_pagerank(
     assert err < (0.01 * len(cugraph_pr))
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -266,6 +268,7 @@ def test_pagerank_nx(graph_file, max_iter, tol, alpha, personalization_perc, has
     assert err < (0.01 * len(cugraph_pr))
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -371,6 +374,7 @@ def test_pagerank_multi_column(
     assert err < (0.01 * len(cugraph_pr))
 
 
+@pytest.mark.sg
 def test_pagerank_invalid_personalization_dtype():
     dataset_path = karate.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -402,6 +406,7 @@ def test_pagerank_invalid_personalization_dtype():
         cugraph.pagerank(G, personalization=personalization_vec)
 
 
+@pytest.mark.sg
 def test_pagerank_transposed_false():
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
     warning_msg = (

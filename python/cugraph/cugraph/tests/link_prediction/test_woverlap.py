@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -93,6 +93,7 @@ def cpu_call(M, first, second):
     return result
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_woverlap(gpubenchmark, graph_file):
     dataset_path = graph_file.get_path()
@@ -120,6 +121,7 @@ def test_woverlap(gpubenchmark, graph_file):
             assert diff < 1.0e-6
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_woverlap_multi_column(graph_file):
     dataset_path = graph_file.get_path()

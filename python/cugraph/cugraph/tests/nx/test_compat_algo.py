@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 import cugraph.experimental.compat.nx as nx
 
 
+@pytest.mark.sg
 def test_connectivity():
     # Tests a run of a native nx algorithm that hasnt been overridden.
     expected = [{1, 2, 3, 4, 5}, {8, 9, 7}]
@@ -23,6 +24,7 @@ def test_connectivity():
     assert list(nx.connected_components(G)) == expected
 
 
+@pytest.mark.sg
 def test_pagerank_result_type():
     G = nx.DiGraph()
     [G.add_node(k) for k in ["A", "B", "C", "D", "E", "F", "G"]]

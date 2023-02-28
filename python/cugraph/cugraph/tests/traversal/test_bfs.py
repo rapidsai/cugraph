@@ -381,6 +381,7 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type):
     """
@@ -413,6 +414,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
     compare_bfs(gpubenchmark, G_or_matrix, nx_values, start_vertex, depth_limit)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize(
     "cugraph_input_type", utils.NX_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
@@ -422,6 +424,7 @@ def test_bfs_nonnative_inputs(
     test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs_invalid_start(
     gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
@@ -444,6 +447,8 @@ def test_bfs_invalid_start(
         cugraph.bfs(G, start_vertex, depth_limit=depth_limit)
 
 
+
+@pytest.mark.sg
 def test_scipy_api_compat():
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()

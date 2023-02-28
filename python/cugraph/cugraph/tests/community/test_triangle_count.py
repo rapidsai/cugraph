@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -80,6 +80,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 def test_triangles(input_combo):
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
@@ -112,6 +113,7 @@ def test_triangles(input_combo):
     assert len(counts_diff) == 0
 
 
+@pytest.mark.sg
 def test_triangles_int64(input_combo):
     Gnx = input_combo["Gnx"]
     count_legacy_32 = cugraph.triangle_count(Gnx)
@@ -134,6 +136,7 @@ def test_triangles_int64(input_combo):
     assert cugraph_exp_triangle_results == count_legacy_32
 
 
+@pytest.mark.sg
 def test_triangles_no_weights(input_combo):
     G_weighted = input_combo["Gnx"]
     count_legacy = (
@@ -157,6 +160,7 @@ def test_triangles_no_weights(input_combo):
     assert cugraph_exp_triangle_results == count_legacy
 
 
+@pytest.mark.sg
 def test_triangles_directed_graph():
     input_data_path = karate_asymmetric.get_path()
     M = utils.read_csv_for_nx(input_data_path)
@@ -173,6 +177,7 @@ def test_triangles_directed_graph():
 
 
 # FIXME: Remove this test once experimental.triangle count is removed
+@pytest.mark.sg
 def test_experimental_triangle_count(input_combo):
     G = input_combo["G"]
     with pytest.warns(Warning):

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -153,6 +153,7 @@ def read_csv(request):
     return M_cu, M, graph_file
 
 
+@pytest.mark.sg
 def test_jaccard(read_csv, gpubenchmark):
 
     M_cu, M, graph_file = read_csv
@@ -172,6 +173,7 @@ def test_jaccard(read_csv, gpubenchmark):
     assert err == 0
 
 
+@pytest.mark.sg
 def test_directed_graph_check(read_csv):
     _, M, _ = read_csv
 
@@ -191,12 +193,14 @@ def test_directed_graph_check(read_csv):
         cugraph.jaccard(G1, vertex_pair)
 
 
+@pytest.mark.sg
 def test_nx_jaccard_time(read_csv, gpubenchmark):
 
     _, M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [netscience])
 def test_jaccard_edgevals(gpubenchmark, graph_file):
     dataset_path = netscience.get_path()
@@ -220,6 +224,7 @@ def test_jaccard_edgevals(gpubenchmark, graph_file):
     assert err == 0
 
 
+@pytest.mark.sg
 def test_jaccard_two_hop(read_csv):
 
     _, M, graph_file = read_csv
@@ -230,6 +235,7 @@ def test_jaccard_two_hop(read_csv):
     compare_jaccard_two_hop(G, Gnx)
 
 
+@pytest.mark.sg
 def test_jaccard_two_hop_edge_vals(read_csv):
 
     _, M, graph_file = read_csv
@@ -243,6 +249,7 @@ def test_jaccard_two_hop_edge_vals(read_csv):
     compare_jaccard_two_hop(G, Gnx, edgevals=True)
 
 
+@pytest.mark.sg
 def test_jaccard_nx(read_csv):
 
     M_cu, M, _ = read_csv
@@ -264,6 +271,7 @@ def test_jaccard_nx(read_csv):
     # assert nx_j == cg_j
 
 
+@pytest.mark.sg
 def test_jaccard_multi_column(read_csv):
 
     _, M, _ = read_csv
@@ -307,6 +315,7 @@ def test_jaccard_multi_column(read_csv):
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
 
 
+@pytest.mark.sg
 def test_weighted_exp_jaccard():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()

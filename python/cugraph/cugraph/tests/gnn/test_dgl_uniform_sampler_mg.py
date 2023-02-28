@@ -10,8 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import pytest
 import dask_cudf
 import cudf
 import pandas as pd
@@ -46,7 +44,6 @@ def convert_array_dict_to_df(d):
 
 
 @pytest.mark.mg
-@pytest.mark.skip("unfinished")
 def test_sampling_homogeneous_gs_out_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -54,9 +51,11 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
         {"_SRC_": src_ser, "_DST_": dst_ser, "_EDGE_ID_": np.arange(len(src_ser))}
     )
     df = dask_cudf.from_cudf(df, 4)
-
     sampler = DGLUniformSampler(
-        {("_N", "connects", "_N"): df}, {"_N": (0, 8)}, single_gpu=False
+        {("_N", "connects", "_N"): df},
+        {("_N", "connects", "_N"): (0, 8)},
+        {("_N", "connects", "_N"): 1},
+        False,
     )
 
     # below are obtained from dgl runs on the same graph
@@ -91,7 +90,6 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.skip("unfinished")
 def test_sampling_homogeneous_gs_in_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -99,7 +97,12 @@ def test_sampling_homogeneous_gs_in_dir(dask_client):
         {"_SRC_": src_ser, "_DST_": dst_ser, "_EDGE_ID_": np.arange(len(src_ser))}
     )
     df = dask_cudf.from_cudf(df, 4)
-    sampler = DGLUniformSampler({("_N", "connects", "_N"): df}, {"_N": (0, 8)}, False)
+    sampler = DGLUniformSampler(
+        {("_N", "connects", "_N"): df},
+        {("_N", "connects", "_N"): (0, 8)},
+        {("_N", "connects", "_N"): 1},
+        False,
+    )
 
     # below are obtained from dgl runs on the same graph
     expected_in = {
@@ -157,11 +160,11 @@ def create_gs_heterogeneous_dgl_sampler():
         edge_list_dict[etype_map[e]] = subset_df
         edge_id_range_dict[etype_map[e]] = (etype_offset, etype_offset + len(subset_df))
         etype_offset = etype_offset + len(subset_df)
-    return DGLUniformSampler(edge_list_dict, edge_id_range_dict, False)
+    etype_id_dict = {value: key for key, value in etype_map.items()}
+    return DGLUniformSampler(edge_list_dict, edge_id_range_dict, etype_id_dict, False)
 
 
 @pytest.mark.mg
-@pytest.mark.skip("unfinished")
 def test_sampling_gs_heterogeneous_out_dir(dask_client):
     sampler = create_gs_heterogeneous_dgl_sampler()
     # DGL expected_output from
@@ -232,7 +235,6 @@ def test_sampling_gs_heterogeneous_out_dir(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.skip("unfinished")
 def test_sampling_gs_heterogeneous_in_dir(dask_client):
     sampler = create_gs_heterogeneous_dgl_sampler()
     # DGL expected_output from
@@ -292,7 +294,6 @@ def test_sampling_gs_heterogeneous_in_dir(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.skip("unfinished")
 def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
     gs = create_gs_heterogeneous_dgl_sampler()
     # Test against DGLs output

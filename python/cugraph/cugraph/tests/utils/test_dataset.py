@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,6 +64,7 @@ def create_config(custom_path="custom_storage_location"):
 
 
 # setting download_dir to None effectively re-initialized the default
+@pytest.mark.sg
 def test_env_var(datasets):
     os.environ["RAPIDS_DATASET_ROOT_DIR"] = "custom_storage_location"
     datasets.set_download_dir(None)
@@ -74,6 +75,7 @@ def test_env_var(datasets):
     del os.environ["RAPIDS_DATASET_ROOT_DIR"]
 
 
+@pytest.mark.sg
 def test_home_dir(datasets):
     datasets.set_download_dir(None)
     expected_path = Path.home() / ".cugraph/datasets"
@@ -81,6 +83,7 @@ def test_home_dir(datasets):
     assert datasets.get_download_dir() == expected_path
 
 
+@pytest.mark.sg
 def test_set_config(datasets):
     cfg = create_config()
     datasets.set_config(cfg.name)
@@ -90,6 +93,7 @@ def test_set_config(datasets):
     cfg.close()
 
 
+@pytest.mark.sg
 def test_set_download_dir(datasets):
     tmpd = TemporaryDirectory()
     datasets.set_download_dir(tmpd.name)
@@ -99,6 +103,7 @@ def test_set_download_dir(datasets):
     tmpd.cleanup()
 
 
+@pytest.mark.sg
 @pytest.mark.skip(
     reason="Timeout errors; see: https://github.com/rapidsai/cugraph/issues/2810"
 )
@@ -117,6 +122,7 @@ def test_load_all(datasets):
     tmpd.cleanup()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_fetch(dataset, datasets):
     tmpd = TemporaryDirectory()
@@ -131,6 +137,7 @@ def test_fetch(dataset, datasets):
     tmpd.cleanup()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset, datasets):
     datasets.set_download_dir(dataset_path)
@@ -139,6 +146,7 @@ def test_get_edgelist(dataset, datasets):
     assert E is not None
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset, datasets):
     datasets.set_download_dir(dataset_path)
@@ -147,6 +155,7 @@ def test_get_graph(dataset, datasets):
     assert G is not None
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_metadata(dataset):
     M = dataset.metadata
@@ -154,6 +163,7 @@ def test_metadata(dataset):
     assert M is not None
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_path(dataset, datasets):
     tmpd = TemporaryDirectory()
@@ -164,6 +174,7 @@ def test_get_path(dataset, datasets):
     tmpd.cleanup()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
 def test_weights(dataset, datasets):
     datasets.set_download_dir(dataset_path)
@@ -175,6 +186,7 @@ def test_weights(dataset, datasets):
     assert not G.is_weighted()
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset, datasets):
     datasets.set_download_dir(dataset_path)

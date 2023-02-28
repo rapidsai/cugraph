@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -67,6 +67,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.sg
 def test_core_number(input_combo):
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
@@ -94,6 +95,7 @@ def test_core_number(input_combo):
     assert len(counts_diff) == 0
 
 
+@pytest.mark.sg
 def test_core_number_invalid_input(input_combo):
     input_data_path = (
         utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"

@@ -77,6 +77,7 @@ def graphs(request):
         yield cugraph_G, nx_G, cupy_df
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_connected_graph_shortest_path_length(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -114,6 +115,7 @@ def test_connected_graph_shortest_path_length(graphs):
     assert path_1_to_6_length == cugraph.shortest_path_length(cupy_df, 1, 6)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_invalid_source(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -128,6 +130,7 @@ def test_shortest_path_length_invalid_source(graphs):
         cugraph.shortest_path_length(cupy_df, -1, 1)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graphs", [DISCONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_invalid_target(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -142,6 +145,7 @@ def test_shortest_path_length_invalid_target(graphs):
         cugraph.shortest_path_length(cupy_df, 1, 10)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graphs", [CONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_invalid_vertexes(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -156,6 +160,7 @@ def test_shortest_path_length_invalid_vertexes(graphs):
         cugraph.shortest_path_length(cupy_df, 0, 42)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graphs", [DISCONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_no_path(graphs):
     cugraph_G, nx_G, cupy_df = graphs
@@ -170,6 +175,7 @@ def test_shortest_path_length_no_path(graphs):
     assert path_1_to_8 == cugraph.shortest_path_length(cupy_df, 1, 8)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("graphs", [DISCONNECTED_GRAPH], indirect=True)
 def test_shortest_path_length_no_target(graphs):
     cugraph_G, nx_G, cupy_df = graphs

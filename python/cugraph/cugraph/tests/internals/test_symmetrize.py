@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,7 @@ import cugraph
 from cugraph.experimental.datasets import DATASETS
 
 
+@pytest.mark.sg
 def test_version():
     gc.collect()
     cugraph.__version__
@@ -152,6 +153,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     #
 
 
+@pytest.mark.sg
 @pytest.mark.skip("debugging")
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_symmetrize_unweighted(graph_file):
@@ -174,6 +176,7 @@ def test_symmetrize_unweighted(graph_file):
     )
 
 
+@pytest.mark.sg
 @pytest.mark.skip("debugging")
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_symmetrize_weighted(graph_file):

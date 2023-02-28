@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -164,6 +164,7 @@ def assert_valid_gs(gs):
     np.testing.assert_equal(src_vals, expected_vals)
 
 
+@pytest.mark.sg
 @pytest.mark.skip(reason="Enable when cugraph-service lands in the CI")
 def test_remote_wrappers():
     from cugraph_service_client.client import CugraphServiceClient as Client

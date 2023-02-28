@@ -238,6 +238,7 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
     )
 
 
+@pytest.mark.mg
 @pytest.mark.mg_test
 def test_graph_repartition(dask_client):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()

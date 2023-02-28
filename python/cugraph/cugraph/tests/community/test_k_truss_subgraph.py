@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -83,6 +83,7 @@ __unsupported_cuda_version = (11, 4)
 
 
 # FIXME: remove when ktruss is supported on CUDA 11.4
+@pytest.mark.sg
 def test_unsupported_cuda_version():
     """
     Ensures the proper exception is raised when ktruss is called in an
@@ -99,6 +100,7 @@ def test_unsupported_cuda_version():
         cugraph.k_truss(G, k)
 
 
+@pytest.mark.sg
 @pytest.mark.skipif(
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
@@ -115,6 +117,7 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
+@pytest.mark.sg
 @pytest.mark.skipif(
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
@@ -134,6 +137,7 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     assert nx.is_isomorphic(k_subgraph, k_truss_nx)
 
 
+@pytest.mark.sg
 @pytest.mark.skipif(
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
