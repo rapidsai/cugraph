@@ -370,7 +370,7 @@ def rmat_PropertyGraph():
     seed = 42
     df = rmat(
         scale,
-        (2 ** scale) * edgefactor,
+        (2**scale) * edgefactor,
         0.57,  # from Graph500
         0.19,  # from Graph500
         0.19,  # from Graph500

@@ -56,7 +56,7 @@ def test_rmat_edgelist(scale):
     Verifies that the edgelist returned by rmat() is valid based on inputs.
     """
 
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
 
     df = _call_rmat(scale, num_edges, create_using)
@@ -72,7 +72,7 @@ def test_rmat_return_type(graph_type):
     exception is raised) based on inputs.
     """
     scale = 2
-    num_edges = (2 ** scale) * 4
+    num_edges = (2**scale) * 4
 
     if graph_type not in [cugraph.Graph, None]:
         with pytest.raises(TypeError):
