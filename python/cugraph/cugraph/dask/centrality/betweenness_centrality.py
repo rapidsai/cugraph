@@ -134,7 +134,8 @@ def betweenness_centrality(
     >>> pr = dcg.betweenness_centrality(dg)
 
     """
-
+    # FIXME: Fails when passing a list
+    # FIXME: check results when python/C++ renumbering is True
     client = input_graph._client
 
     if input_graph.store_transposed is True:
@@ -151,6 +152,8 @@ def betweenness_centrality(
                 k_dtype = input_graph.nodes().dtype
                 k = cudf.Series(k, dtype=k_dtype)
                 # convert into a dask_cudf
+                # convert into a dask_cudf
+                # FIXME: This logic is wrong as we only get a dask cudf when we have a list
                 k = dask_cudf.from_cudf(k, input_graph._npartitions)
 
     if input_graph.renumbered:
