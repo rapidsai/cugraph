@@ -32,12 +32,10 @@ SUBSET_SIZE_OPTIONS = [4, None]
 SUBSET_SEED_OPTIONS = [42]
 
 
-
 from test_betweenness_centrality import (
     calc_betweenness_centrality,
     compare_scores,
 )
-
 
 
 # =============================================================================

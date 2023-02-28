@@ -56,9 +56,8 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
     df = dask_cudf.from_cudf(df, 4)
 
     sampler = DGLUniformSampler(
-        {("_N", "connects", "_N"): df},
-        {"_N": (0, 8)}, 
-        single_gpu=False)
+        {("_N", "connects", "_N"): df}, {"_N": (0, 8)}, single_gpu=False
+    )
 
     # below are obtained from dgl runs on the same graph
     expected_out = {

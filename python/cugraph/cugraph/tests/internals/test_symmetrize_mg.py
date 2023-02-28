@@ -28,6 +28,7 @@ from cugraph.testing import utils
 def setup_function():
     gc.collect()
 
+
 @pytest.mark.mg
 def test_version():
     cugraph.__version__

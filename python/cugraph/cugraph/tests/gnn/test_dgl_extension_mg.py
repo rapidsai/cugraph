@@ -116,6 +116,7 @@ def gs_heterogeneous_dgl_eg(dask_client):
 
     return gs
 
+
 @pytest.mark.mg
 def test_num_nodes(basic_mg_gs):
     assert basic_mg_gs.num_nodes() == 5

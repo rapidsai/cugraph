@@ -21,6 +21,7 @@ from cugraph.experimental.gnn import BulkSampler
 import tempfile
 import os
 
+
 @pytest.mark.skip("work in progress")
 def test_bulk_sampler_simple():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})

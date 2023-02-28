@@ -82,7 +82,7 @@ def test_rmat_edgelist(scale):
     if _is_single_gpu:
         pytest.skip("skipping MG testing on Single GPU system")
 
-    num_edges = (2**scale) * 4
+    num_edges = (2 ** scale) * 4
     create_using = None  # Returns the edgelist from RMAT
 
     df = _call_rmat(scale, num_edges, create_using)
@@ -104,9 +104,9 @@ def test_rmat_return_type(graph_type):
         pytest.skip("skipping MG testing on Single GPU system")
 
     scale = 2
-    num_edges = (2**scale) * 4
+    num_edges = (2 ** scale) * 4
 
-    if (graph_type not in [cugraph.Graph, None]):
+    if graph_type not in [cugraph.Graph, None]:
         with pytest.raises(TypeError):
             _call_rmat(scale, num_edges, graph_type)
     else:

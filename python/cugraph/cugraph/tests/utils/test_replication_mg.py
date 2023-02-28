@@ -93,8 +93,6 @@ def test_replicate_cudf_series(input_data_path, dask_client):
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_context(graph_file, directed):
@@ -109,8 +107,6 @@ def test_enable_batch_no_context(graph_file, directed):
 @pytest.mark.parametrize(
     "graph_file", DATASETS_OPTIONS, ids=[f"dataset={d}" for d in DATASETS_OPTIONS]
 )
-
-
 @pytest.mark.mg
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_enable_batch_no_context_view_adj(graph_file, directed, dask_client):
