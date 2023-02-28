@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph.experimental.compat.nx as nx
-
+import pytest
 
 @pytest.mark.sg
 def test_connectivity():

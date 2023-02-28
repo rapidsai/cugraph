@@ -17,7 +17,6 @@ import random
 import pytest
 import dask_cudf
 from pylibcugraph.testing import gen_fixture_params_product
-from cugraph.dask.common.mg_utils import is_single_gpu
 
 import cugraph
 import cugraph.dask as dcg
