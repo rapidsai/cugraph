@@ -116,6 +116,8 @@ todo_include_todos = False
 #
 html_theme_options = {
     "external_links": [],
+    # https://github.com/pydata/pydata-sphinx-theme/issues/1220
+    "icon_links": [],
     "github_url": "https://github.com/rapidsai/cugraph",
     "twitter_url": "https://twitter.com/rapidsai",
     "show_toc_level": 1,
