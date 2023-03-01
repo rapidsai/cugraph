@@ -282,6 +282,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
   raft::random::RngState& rng_state,
   size_t K)
 {
+#ifndef NO_CUGRAPH_OPS
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
   size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
@@ -640,6 +641,9 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
   frontier_degrees.shrink_to_fit(handle.get_stream());
 
   return sample_nbr_indices;
+#else
+  CUGRAPH_FAIL("unimplemented.");
+#endif
 }
 
 template <bool incoming,
