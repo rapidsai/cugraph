@@ -108,8 +108,8 @@ struct comparator {
         auto val1   = thrust::get<1>(t1);
         auto passed = compare_scalar(val0,
                                      val1,
-                                     std::is_floating_point_v<decltype(val0)>
-                                       ? thrust::optional<decltype(val0)>{threshold_ratio}
+                                     std::is_floating_point_v<decltype(val1)>
+                                       ? thrust::optional<decltype(val1)>{threshold_ratio}
                                        : thrust::nullopt);
         if (!passed) return false;
       }
@@ -147,18 +147,6 @@ struct result_compare {
     return (... && (result_compare::operator()(std::get<I>(t1), std::get<I>(t2))));
   }
 };
-
-template <typename buffer_type>
-buffer_type aggregate(const raft::handle_t& handle, const buffer_type& result)
-{
-  auto aggregated_result =
-    cugraph::allocate_dataframe_buffer<cugraph::dataframe_element_t<buffer_type>>(
-      0, handle.get_stream());
-  cugraph::transform(result, aggregated_result, [&handle](auto& input, auto& output) {
-    output = cugraph::test::device_gatherv(handle, input.data(), input.size());
-  });
-  return aggregated_result;
-}
 
 struct Prims_Usecase {
   bool check_correctness{true};
@@ -453,16 +441,37 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           default: FAIL() << "should not be reached.";
         }
 
-        auto aggregate_labels      = aggregate(*handle_, *d_mg_renumber_map_labels);
-        auto aggregate_in_results  = aggregate(*handle_, in_results[i]);
-        auto aggregate_out_results = aggregate(*handle_, out_results[i]);
+        auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
+          *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+        auto mg_aggregate_in_results =
+          cugraph::allocate_dataframe_buffer<result_t>(0, handle_->get_stream());
+        auto mg_aggregate_out_results =
+          cugraph::allocate_dataframe_buffer<result_t>(0, handle_->get_stream());
+        static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<result_t>::value);
+        if constexpr (std::is_arithmetic_v<result_t>) {
+          mg_aggregate_in_results =
+            cugraph::test::device_gatherv(*handle_, in_results[i].data(), in_results[i].size());
+          mg_aggregate_out_results =
+            cugraph::test::device_gatherv(*handle_, out_results[i].data(), out_results[i].size());
+        } else {
+          static_assert(thrust::tuple_size<result_t>::value == 2);
+          std::get<0>(mg_aggregate_in_results) = cugraph::test::device_gatherv(
+            *handle_, std::get<0>(in_results[i]).data(), std::get<0>(in_results[i]).size());
+          std::get<0>(mg_aggregate_out_results) = cugraph::test::device_gatherv(
+            *handle_, std::get<0>(out_results[i]).data(), std::get<0>(out_results[i]).size());
+          std::get<1>(mg_aggregate_in_results) = cugraph::test::device_gatherv(
+            *handle_, std::get<1>(in_results[i]).data(), std::get<1>(in_results[i]).size());
+          std::get<1>(mg_aggregate_out_results) = cugraph::test::device_gatherv(
+            *handle_, std::get<1>(out_results[i]).data(), std::get<1>(out_results[i]).size());
+        }
+
         if (handle_->get_comms().get_rank() == int{0}) {
-          std::tie(std::ignore, aggregate_in_results) =
-            cugraph::test::sort_by_key(*handle_, aggregate_labels, aggregate_in_results);
-          ASSERT_TRUE(comp(aggregate_in_results, global_in_result));
-          std::tie(std::ignore, aggregate_out_results) =
-            cugraph::test::sort_by_key(*handle_, aggregate_labels, aggregate_out_results);
-          ASSERT_TRUE(comp(aggregate_out_results, global_out_result));
+          std::tie(std::ignore, mg_aggregate_in_results) = cugraph::test::sort_by_key(
+            *handle_, mg_aggregate_renumber_map_labels, mg_aggregate_in_results);
+          ASSERT_TRUE(comp(mg_aggregate_in_results, global_in_result));
+          std::tie(std::ignore, mg_aggregate_out_results) = cugraph::test::sort_by_key(
+            *handle_, mg_aggregate_renumber_map_labels, mg_aggregate_out_results);
+          ASSERT_TRUE(comp(mg_aggregate_out_results, global_out_result));
         }
       }
     }
