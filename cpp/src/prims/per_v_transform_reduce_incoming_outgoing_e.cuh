@@ -899,6 +899,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       handle.get_stream());
       }
     }
+
+    if (stream_pool_indices && ((i + 1) % major_tmp_buffers.size() == 0)) {
+      handle.sync_stream_pool(
+        *stream_pool_indices);  // to prevent buffer over-write (this can happen as *segment_offsets
+                                // do not necessarily coincide in different edge partitions).
+    }
   }
 
   if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
