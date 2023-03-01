@@ -26,7 +26,8 @@
 
 #include <random>
 
-struct GeneratorsTest : public ::testing::Test {};
+struct GeneratorsTest : public ::testing::Test {
+};
 
 TEST_F(GeneratorsTest, PathGraphTest)
 {
