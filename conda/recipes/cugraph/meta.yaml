@@ -63,7 +63,6 @@ requirements:
     - setuptools
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
-    - versioneer
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - cuda-python >=11.7.1,<12.0
