@@ -19,8 +19,6 @@ from skbuild import setup
 
 from setuputils import get_environment_option
 
-import versioneer
-
 
 INSTALL_REQUIRES = []
 
@@ -65,8 +63,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
 # FIXME possibly remove this since there is no Cython code in cugraph_pyg
 PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph_pyg*"])}
 
@@ -75,7 +71,7 @@ setup(
     name="cugraph_pyg",
     description="cugraph_pyg - PyG support for cuGraph massive-scale,"
     " ultra-fast GPU graph analytics.",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -93,6 +89,6 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     license="Apache",
-    cmdclass=cmdclass,
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )
