@@ -19,6 +19,8 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
+#include <raft/random/rng.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
@@ -26,7 +28,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
-#include <random>
 #include <rmm/detail/error.hpp>
 #include <tuple>
 
@@ -35,12 +36,12 @@ namespace cugraph {
 template <typename vertex_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   size_t scale,
   size_t num_edges,
   double a,
   double b,
   double c,
-  uint64_t seed,
   bool clip_and_flip)
 {
   CUGRAPH_EXPECTS((size_t{1} << scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
@@ -65,11 +66,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin())) +
                       num_edges_generated;
 
-    // FIXME: This should be passed as a parameter instead of the seed
-    raft::random::RngState rng_state(seed);
     detail::uniform_random_fill(
       handle.get_stream(), rands.data(), num_edges_to_generate * 2 * scale, 0.0f, 1.0f, rng_state);
-    seed += num_edges_to_generate * 2 * scale;
 
     thrust::transform(
       handle.get_thrust_policy(),
@@ -110,15 +108,32 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
 }
 
 template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generate_rmat_edgelist(
+  raft::handle_t const& handle,
+  size_t scale,
+  size_t num_edges,
+  double a,
+  double b,
+  double c,
+  uint64_t seed,
+  bool clip_and_flip)
+{
+  raft::random::RngState rng_state(seed);
+
+  return generate_rmat_edgelist<vertex_t>(
+    handle, rng_state, scale, num_edges, a, b, c, clip_and_flip);
+}
+
+template <typename vertex_t>
 std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
 generate_rmat_edgelists(raft::handle_t const& handle,
+                        raft::random::RngState& rng_state,
                         size_t n_edgelists,
                         size_t min_scale,
                         size_t max_scale,
                         size_t edge_factor,
-                        generator_distribution_t component_distribution,
+                        generator_distribution_t size_distribution,
                         generator_distribution_t edge_distribution,
-                        uint64_t seed,
                         bool clip_and_flip)
 {
   CUGRAPH_EXPECTS(min_scale > 0, "minimum graph scale is 1.");
@@ -129,22 +144,33 @@ generate_rmat_edgelists(raft::handle_t const& handle,
   std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>> output{};
   output.reserve(n_edgelists);
   std::vector<vertex_t> scale(n_edgelists);
+  rmm::device_uvector<vertex_t> d_scale(n_edgelists, handle.get_stream());
 
-  std::default_random_engine eng;
-  eng.seed(seed);
-  if (component_distribution == generator_distribution_t::UNIFORM) {
-    std::uniform_int_distribution<vertex_t> dist(min_scale, max_scale);
-    std::generate(scale.begin(), scale.end(), [&dist, &eng]() { return dist(eng); });
+  if (size_distribution == generator_distribution_t::UNIFORM) {
+    detail::uniform_random_fill(handle.get_stream(),
+                                d_scale.data(),
+                                d_scale.size(),
+                                static_cast<vertex_t>(min_scale),
+                                static_cast<vertex_t>(max_scale),
+                                rng_state);
   } else {
-    // May expose this as a parameter in the future
-    std::exponential_distribution<float> dist(4);
+    // May expose lambda as a parameter in the future
+    rmm::device_uvector<float> rand(n_edgelists, handle.get_stream());
+    raft::random::exponential(handle, rng_state, rand.data(), rand.size(), float{4});
     // The modulo is here to protect the range because exponential distribution is defined on
     // [0,infinity). With exponent 4 most values are between 0 and 1
     auto range = max_scale - min_scale;
-    std::generate(scale.begin(), scale.end(), [&dist, &eng, &min_scale, &range]() {
-      return min_scale + static_cast<vertex_t>(static_cast<float>(range) * dist(eng)) % range;
-    });
+    thrust::transform(handle.get_thrust_policy(),
+                      rand.begin(),
+                      rand.end(),
+                      d_scale.begin(),
+                      [min_scale, range] __device__(auto rnd) {
+                        return min_scale +
+                               static_cast<vertex_t>(static_cast<float>(range) * rnd) % range;
+                      });
   }
+
+  raft::update_host(scale.data(), d_scale.data(), d_scale.size(), handle.get_stream());
 
   // intialized to standard powerlaw values
   double a = 0.57, b = 0.19, c = 0.19;
@@ -156,11 +182,79 @@ generate_rmat_edgelists(raft::handle_t const& handle,
 
   for (size_t i = 0; i < n_edgelists; i++) {
     output.push_back(generate_rmat_edgelist<vertex_t>(
-      handle, scale[i], scale[i] * edge_factor, a, b, c, i, clip_and_flip));
+      handle, rng_state, scale[i], scale[i] * edge_factor, a, b, c, clip_and_flip));
   }
   return output;
 }
 
+template <typename vertex_t>
+std::vector<std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>>
+generate_rmat_edgelists(raft::handle_t const& handle,
+                        size_t n_edgelists,
+                        size_t min_scale,
+                        size_t max_scale,
+                        size_t edge_factor,
+                        generator_distribution_t size_distribution,
+                        generator_distribution_t edge_distribution,
+                        uint64_t seed,
+                        bool clip_and_flip)
+{
+  raft::random::RngState rng_state(seed);
+
+  return generate_rmat_edgelists<vertex_t>(handle,
+                                           rng_state,
+                                           n_edgelists,
+                                           min_scale,
+                                           max_scale,
+                                           edge_factor,
+                                           size_distribution,
+                                           edge_distribution,
+                                           clip_and_flip);
+}
+
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
+                                raft::random::RngState& rng_state,
+                                size_t scale,
+                                size_t num_edges,
+                                double a,
+                                double b,
+                                double c,
+                                bool clip_and_flip);
+
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
+generate_rmat_edgelist<int64_t>(raft::handle_t const& handle,
+                                raft::random::RngState& rng_state,
+                                size_t scale,
+                                size_t num_edges,
+                                double a,
+                                double b,
+                                double c,
+                                bool clip_and_flip);
+
+template std::vector<std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
+generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
+                                 raft::random::RngState& rng_state,
+                                 size_t n_edgelists,
+                                 size_t min_scale,
+                                 size_t max_scale,
+                                 size_t edge_factor,
+                                 generator_distribution_t size_distribution,
+                                 generator_distribution_t edge_distribution,
+                                 bool clip_and_flip);
+
+template std::vector<std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
+generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
+                                 raft::random::RngState& rng_state,
+                                 size_t n_edgelists,
+                                 size_t min_scale,
+                                 size_t max_scale,
+                                 size_t edge_factor,
+                                 generator_distribution_t size_distribution,
+                                 generator_distribution_t edge_distribution,
+                                 bool clip_and_flip);
+
+/* DEPRECATED */
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
 generate_rmat_edgelist<int32_t>(raft::handle_t const& handle,
                                 size_t scale,
@@ -187,7 +281,7 @@ generate_rmat_edgelists<int32_t>(raft::handle_t const& handle,
                                  size_t min_scale,
                                  size_t max_scale,
                                  size_t edge_factor,
-                                 generator_distribution_t component_distribution,
+                                 generator_distribution_t size_distribution,
                                  generator_distribution_t edge_distribution,
                                  uint64_t seed,
                                  bool clip_and_flip);
@@ -198,7 +292,7 @@ generate_rmat_edgelists<int64_t>(raft::handle_t const& handle,
                                  size_t min_scale,
                                  size_t max_scale,
                                  size_t edge_factor,
-                                 generator_distribution_t component_distribution,
+                                 generator_distribution_t size_distribution,
                                  generator_distribution_t edge_distribution,
                                  uint64_t seed,
                                  bool clip_and_flip);

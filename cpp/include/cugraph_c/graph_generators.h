@@ -18,6 +18,7 @@
 
 #include <cugraph_c/array.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
 #ifdef __cplusplus
@@ -46,7 +47,7 @@ typedef struct {
  * @param [in]     coo   Opaque pointer to COO
  * @return type erased array view of source vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_coo_get_sources(const cugraph_coo_t* coo);
+cugraph_type_erased_device_array_view_t* cugraph_coo_get_sources(cugraph_coo_t* coo);
 
 /**
  * @brief       Get the destination vertex ids
@@ -95,7 +96,21 @@ size_t cugraph_coo_list_size(const cugraph_coo_list_t* coo_list);
  * @param [in]     index      Index of desired COO from list
  * @return a cugraph_coo_t* object from the list
  */
-cugraph_coo_t* cugraph_coo_list_size(cugraph_coo_list_t* coo_list);
+cugraph_coo_t* cugraph_coo_list_element(cugraph_coo_list_t* coo_list, size_t index);
+
+/**
+ * @brief     Free coo object
+ *
+ * @param [in]    coo Opaque pointer to COO
+ */
+void cugraph_coo_free(cugraph_coo_t* coo);
+
+/**
+ * @brief     Free coo list
+ *
+ * @param [in]    coo_list Opaque pointer to list of COO objects
+ */
+void cugraph_list_coo_free(cugraph_coo_list_t* coo_list);
 
 /**
  * @brief      Generate RMAT edge list
@@ -194,7 +209,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
 cugraph_error_code_t cugraph_generate_edge_weights(const cugraph_resource_handle_t* handle,
                                                    cugraph_rng_state_t* rng_state,
                                                    cugraph_coo_t* coo,
-                                                   data_type_id_t dtype,
+                                                   cugraph_data_type_id_t dtype,
                                                    double minimum_weight,
                                                    double maximum_weight,
                                                    cugraph_error_t** error);
@@ -208,11 +223,13 @@ cugraph_error_code_t cugraph_generate_edge_weights(const cugraph_resource_handle
  * @param [in]     handle             Handle for accessing resources
  * @param [in/out] coo                Opaque pointer to the coo, weights will be added (overwriting
  * any existing weights)
+ * @param [in]     multi_gpu          Flag if the COO is being created on multiple GPUs
  * @param [out]    error              Pointer to an error object storing details of any error.  Will
  *                                    be populated if error code is not CUGRAPH_SUCCESS
  */
 cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource_handle_t* handle,
                                                cugraph_coo_t* coo,
+                                               bool_t multi_gpu,
                                                cugraph_error_t** error);
 
 /**
