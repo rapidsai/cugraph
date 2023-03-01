@@ -54,6 +54,22 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
+# Python __init__.py updates
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph-dgl/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph-pyg/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
+
+# Python setup.py updates
+sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph/setup.py
+sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-dgl/setup.py
+sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-pyg/setup.py
+sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-service/client/setup.py
+sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-service/server/setup.py
+sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/pylibcugraph/setup.py
+
 for FILE in conda/environments/*.yaml dependencies.yaml; do
    sed_runner "s/libcugraphops=${CURRENT_SHORT_TAG}/libcugraphops=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/cudf=${CURRENT_SHORT_TAG}/cudf=${NEXT_SHORT_TAG}/g" ${FILE};
