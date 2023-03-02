@@ -8,6 +8,3 @@ requires = [
     "scikit-build>=0.13.1",
     "ninja",
 ]
-
-[tool.black]
-extend-exclude = "versioneer.py"
