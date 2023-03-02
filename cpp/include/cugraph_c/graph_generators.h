@@ -110,7 +110,7 @@ void cugraph_coo_free(cugraph_coo_t* coo);
  *
  * @param [in]    coo_list Opaque pointer to list of COO objects
  */
-void cugraph_list_coo_free(cugraph_coo_list_t* coo_list);
+void cugraph_coo_list_free(cugraph_coo_list_t* coo_list);
 
 /**
  * @brief      Generate RMAT edge list
@@ -148,7 +148,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(const cugraph_resource_handl
                                                     double a,
                                                     double b,
                                                     double c,
-                                                    bool clip_and_flip,
+                                                    bool_t clip_and_flip,
                                                     cugraph_coo_t** result,
                                                     cugraph_error_t** error);
 

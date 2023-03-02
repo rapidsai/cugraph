@@ -55,7 +55,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(raft::handle_t const& handle
                                                     double a,
                                                     double b,
                                                     double c,
-                                                    bool clip_and_flip,
+                                                    bool_t clip_and_flip,
                                                     cugraph::c_api::cugraph_coo_t** result,
                                                     cugraph::c_api::cugraph_error_t** error)
 {
@@ -89,7 +89,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
   size_t edge_factor,
   cugraph_generator_distribution_t size_distribution,
   cugraph_generator_distribution_t edge_distribution,
-  bool clip_and_flip,
+  bool_t clip_and_flip,
   cugraph::c_api::cugraph_coo_list_t** result,
   cugraph::c_api::cugraph_error_t** error)
 {
@@ -106,18 +106,22 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
       clip_and_flip);
 
     *result = new cugraph::c_api::cugraph_coo_list_t;
-    (*result)->list_.reserve(tuple_vector.size());
+    (*result)->list_.resize(tuple_vector.size());
 
     std::transform(
       tuple_vector.begin(),
       tuple_vector.end(),
       (*result)->list_.begin(),
       [vertex_dtype](auto& tuple) {
-        auto result  = std::make_unique<cugraph::c_api::cugraph_coo_t>();
-        result->src_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
-          std::get<0>(tuple), vertex_dtype);
-        result->dst_ = std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(
-          std::get<1>(tuple), vertex_dtype);
+        auto result = std::make_unique<cugraph::c_api::cugraph_coo_t>();
+
+        auto& src = std::get<0>(tuple);
+        auto& dst = std::get<1>(tuple);
+
+        result->src_ =
+          std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(src, vertex_dtype);
+        result->dst_ =
+          std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(dst, vertex_dtype);
 
         return result;
       });
@@ -181,7 +185,7 @@ extern "C" void cugraph_coo_free(cugraph_coo_t* coo)
   delete internal_pointer;
 }
 
-extern "C" void cugraph_list_coo_free(cugraph_coo_list_t* coo_list)
+extern "C" void cugraph_coo_list_free(cugraph_coo_list_t* coo_list)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_coo_list_t*>(coo_list);
   delete internal_pointer;
@@ -195,7 +199,7 @@ extern "C" cugraph_error_code_t cugraph_generate_rmat_edgelist(
   double a,
   double b,
   double c,
-  bool clip_and_flip,
+  bool_t clip_and_flip,
   cugraph_coo_t** result,
   cugraph_error_t** error)
 {
