@@ -386,23 +386,15 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcValueInputWrapper::value_iterator>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeDstValueInputWrapper::value_iterator>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
@@ -410,13 +402,8 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       edge_t,
       typename EdgeValueInputWrapper::value_iterator>>;
   using edge_partition_src_dst_key_device_view_t =
-    std::conditional_t<edge_src_key != GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcDstKeyInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcDstKeyInputWrapper::value_iterator>>;
+    detail::edge_partition_endpoint_property_device_view_t<vertex_t,
+        typename EdgeSrcDstKeyInputWrapper::value_iterator>;
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
