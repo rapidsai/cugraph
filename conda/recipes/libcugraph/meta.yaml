@@ -1,12 +1,11 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 
-# Usage:
-#   conda build -c rapidsai -c conda-forge -c nvidia .
-{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
 {% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
-{% set cuda_version = '.'.join(environ.get('CUDA', '11.5').split('.')[:2]) %}
+{% set cuda_version = '.'.join(environ['RAPIDS_CUDA_VERSION'].split('.')[:2]) %}
 {% set cuda_major = cuda_version.split('.')[0] %}
 {% set cuda_spec = ">=" + cuda_major ~ ",<" + (cuda_major | int + 1) ~ ".0a0" %} # i.e. >=11,<12.0a0
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
 
 package:
   name: libcugraph-split
@@ -16,38 +15,50 @@ source:
 
 build:
   script_env:
-    - PARALLEL_LEVEL
-    - VERSION_SUFFIX
-    - CMAKE_GENERATOR
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
     - CMAKE_C_COMPILER_LAUNCHER
-    - CMAKE_CXX_COMPILER_LAUNCHER
     - CMAKE_CUDA_COMPILER_LAUNCHER
+    - CMAKE_CXX_COMPILER_LAUNCHER
+    - CMAKE_GENERATOR
+    - PARALLEL_LEVEL
+    - SCCACHE_BUCKET
+    - SCCACHE_IDLE_TIMEOUT
+    - SCCACHE_REGION
     - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64 # [aarch64]
     - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64 # [linux64]
-    - SCCACHE_BUCKET=rapids-sccache
-    - SCCACHE_REGION=us-west-2
-    - SCCACHE_IDLE_TIMEOUT=32768
 
 requirements:
   build:
-    - cmake {{ cmake_version }}
     - {{ compiler('c') }}
-    - {{ compiler('cxx') }}
     - {{ compiler('cuda') }} {{ cuda_version }}
+    - {{ compiler('cxx') }}
+    - cmake {{ cmake_version }}
+    - ninja
+    - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
+    - cuda-nvtx ={{ cuda_version }}
+    - cuda-profiler-api {{ cuda_profiler_api_version }}
+    - cudatoolkit ={{ cuda_version }}
     - doxygen {{ doxygen_version }}
-    - cudatoolkit {{ cuda_version }}.*
-    - libraft-headers {{ minor_version }}
-    - libraft-distance {{ minor_version }}
-    - libcugraphops {{ minor_version }}.*
-    - librmm {{ minor_version }}.*
-    - libcudf {{ minor_version }}.*
-    - boost-cpp {{ boost_cpp_version }}
+    - gmock {{ gtest_version }}
+    - gtest {{ gtest_version }}
+    - libcublas {{ libcublas_host_version }}
+    - libcublas-dev {{ libcublas_host_version }}
+    - libcudf ={{ minor_version }}
+    - libcugraphops ={{ minor_version }}
+    - libcurand {{ libcurand_host_version }}
+    - libcurand-dev {{ libcurand_host_version }}
+    - libcusolver {{ libcusolver_host_version }}
+    - libcusolver-dev {{ libcusolver_host_version }}
+    - libcusparse {{ libcusparse_host_version }}
+    - libcusparse-dev {{ libcusparse_host_version }}
+    - libraft-distance ={{ minor_version }}
+    - libraft-headers ={{ minor_version }}
+    - librmm ={{ minor_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu
-    - gtest {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
-    - gmock {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
 
 outputs:
   - name: libcugraph
@@ -55,7 +66,7 @@ outputs:
     script: install_libcugraph.sh
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
         - {{ compiler('cuda') }}
     requirements:
@@ -63,15 +74,14 @@ outputs:
         - cmake {{ cmake_version }}
       run:
         - cudatoolkit {{ cuda_spec }}
-        - libraft-headers {{ minor_version }}
-        - libraft-distance {{ minor_version }}
-        - librmm {{ minor_version }}
+        - libcugraphops ={{ minor_version }}
+        - libraft-distance ={{ minor_version }}
+        - libraft-headers ={{ minor_version }}
+        - librmm ={{ minor_version }}
         - nccl {{ nccl_version }}
         - ucx-proc=*=gpu
-        - libcugraphops {{ minor_version }}
-        - libcusolver {{ libcusolver_version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph library
@@ -80,7 +90,7 @@ outputs:
     script: install_libcugraph_etl.sh
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
         - {{ compiler('cuda') }}
     requirements:
@@ -89,10 +99,10 @@ outputs:
       run:
         - {{ pin_subpackage('libcugraph', exact=True) }}
         - cudatoolkit {{ cuda_spec }}
-        - libcudf {{ minor_version }}
-        - librmm {{ minor_version }}
+        - libcudf ={{ minor_version }}
+        - librmm ={{ minor_version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph_etl library
@@ -101,20 +111,20 @@ outputs:
     script: install_libcugraph_tests.sh
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      string: cuda{{ cuda_major }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
       ignore_run_exports_from:
         - {{ compiler('cuda') }}
     requirements:
       build:
         - cmake {{ cmake_version }}
       run:
-        - {{ pin_subpackage('libcugraph', exact=True) }}
         - {{ pin_subpackage('libcugraph_etl', exact=True) }}
+        - {{ pin_subpackage('libcugraph', exact=True) }}
         - cudatoolkit {{ cuda_spec }}
-        - gtest {{ gtest_version }}
         - gmock {{ gtest_version }}
+        - gtest {{ gtest_version }}
     about:
-      home: http://rapids.ai/
+      home: https://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph test & benchmark executables

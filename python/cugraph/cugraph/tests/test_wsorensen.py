@@ -60,7 +60,7 @@ def cugraph_call(benchmark_callable, graph_file):
     # cugraph Sorensen Call
     df = benchmark_callable(cugraph.sorensen_w, G, weights)
 
-    df = df.sort_values(["source", "destination"]).reset_index(drop=True)
+    df = df.sort_values(["first", "second"]).reset_index(drop=True)
 
     return df["sorensen_coeff"]
 
@@ -173,6 +173,6 @@ def test_wsorensen_multi_column(read_csv):
     df_exp = cugraph.sorensen_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
-    expected = df_exp.sort_values("source").reset_index()
+    actual = df_res.sort_values("0_first").reset_index()
+    expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])

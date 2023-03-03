@@ -15,6 +15,8 @@
  */
 #pragma once
 
+//#define TIMING
+
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
 #include <structure/detail/structure_utils.cuh>
@@ -28,8 +30,11 @@
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -49,8 +54,6 @@
 #include <thrust/tuple.h>
 
 #include <tuple>
-
-#include <utilities/high_res_timer.hpp>
 
 namespace cugraph {
 
@@ -293,7 +296,7 @@ extract_induced_subgraphs(
 
 #ifdef TIMING
   hr_timer.stop();
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 #endif
   return std::make_tuple(std::move(edge_majors),
                          std::move(edge_minors),

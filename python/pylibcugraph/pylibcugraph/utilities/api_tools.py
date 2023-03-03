@@ -76,6 +76,7 @@ def experimental_warning_wrapper(obj):
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
+        WarningWrapperClass.__doc__ = obj.__doc__
 
         return WarningWrapperClass
 
@@ -90,6 +91,7 @@ def experimental_warning_wrapper(obj):
     warning_wrapper_function.__module__ = ns_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name
+    warning_wrapper_function.__doc__ = obj.__doc__
 
     return warning_wrapper_function
 

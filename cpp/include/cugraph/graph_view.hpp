@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
 
-// visitor logic:
-//
-#include <cugraph/visitors/graph_envelope.hpp>
-
 #include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
-#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cugraph/graph_mask.hpp>
@@ -245,8 +241,6 @@ struct graph_properties_t {
 
 namespace detail {
 
-using namespace cugraph::visitors;
-
 // use (key, value) pairs to store source/destination properties if (unique edge
 // sources/destinations) over (V / row_comm_size|col_comm_size) is smaller than the threshold value
 double constexpr edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold = 0.1;
@@ -261,9 +255,9 @@ size_t constexpr num_sparse_segments_per_vertex_partition{3};
 
 // Common for both graph_view_t & graph_t and both single-GPU & multi-GPU versions
 template <typename vertex_t, typename edge_t>
-class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ {
+class graph_base_t {
  public:
-  graph_base_t() = default;  // Note: required by visitor logic
+  graph_base_t() = default;
 
   graph_base_t(raft::handle_t const& handle,
                vertex_t number_of_vertices,
@@ -291,11 +285,6 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
-
-  void apply(visitor_t& v) const override  // <- visitor logic
-  {
-    v.visit_graph(*this);
-  }
 
  protected:
   raft::handle_t const* handle_ptr() const { return handle_ptr_; };

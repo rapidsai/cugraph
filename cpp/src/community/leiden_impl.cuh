@@ -19,9 +19,8 @@
 #include <community/detail/common_methods.hpp>
 #include <community/detail/refine.hpp>
 #include <community/flatten_dendrogram.hpp>
-
-// FIXME:  Only outstanding items preventing this becoming a .hpp file
 #include <prims/update_edge_src_dst_property.cuh>
+
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>

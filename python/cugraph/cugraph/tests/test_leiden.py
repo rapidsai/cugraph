@@ -98,13 +98,3 @@ def test_leiden_directed_graph():
 
     with pytest.raises(ValueError):
         parts, mod = cugraph_leiden(G)
-
-
-def test_leiden_unweighted_graph():
-
-    G = karate_asymmetric.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=True
-    )
-
-    with pytest.raises(RuntimeError):
-        parts, mod = cugraph_leiden(G)

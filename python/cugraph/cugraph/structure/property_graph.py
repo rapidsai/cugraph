@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,13 @@ import cudf
 import numpy as np
 
 import cugraph
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import (
+    import_optional,
+    MissingModule,
+    create_list_series_from_2d_ar,
+)
+
+from typing import Union
 
 pd = import_optional("pandas")
 
@@ -497,6 +503,42 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
+    def vertex_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string vertex type names given the numeric category labels.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
+        return self.__vertex_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
+    def edge_types_from_numerals(
+        self, nums: Union[cudf.Series, pd.Series]
+    ) -> Union[cudf.Series, pd.Series]:
+        """
+        Returns the string edge type names given the numeric category labels.
+
+        Parameters
+        ----------
+        nums: Union[cudf.Series, pandas.Series] (Required)
+            The list of numeric category labels to convert.
+
+        Returns
+        -------
+        Union[cudf.Series, pd.Series]
+            The string type names converted from the input numerals.
+        """
+        return self.__edge_prop_dataframe[self.type_col_name].dtype.categories[nums]
+
     def add_vertex_data(
         self,
         dataframe,
@@ -508,7 +550,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -516,7 +558,9 @@ class EXPERIMENTAL__PropertyGraph:
             A DataFrame instance with a compatible Pandas-like DataFrame
             interface.
         vertex_col_name : string
-            The column name that contains the values to be used as vertex IDs.
+            The column name that contains the values to be used as vertex IDs,
+            or the name of the index if the index is vertex IDs.
+            Specifying the index may be more efficient.
         type_name : string, optional
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about users, type_name might be
@@ -579,10 +623,14 @@ class EXPERIMENTAL__PropertyGraph:
                 f"{_dataframe_types}, got: {type(dataframe)}"
             )
         if vertex_col_name not in dataframe.columns:
-            raise ValueError(
-                f"{vertex_col_name} is not a column in "
-                f"dataframe: {dataframe.columns}"
-            )
+            if vertex_col_name != dataframe.index.name:
+                raise ValueError(
+                    f"{vertex_col_name} is not a column in "
+                    f"dataframe: {dataframe.columns}"
+                )
+            index_is_set = True
+        else:
+            index_is_set = False
         if type_name is not None and not isinstance(type_name, str):
             raise TypeError(f"type_name must be a string, got: {type(type_name)}")
         if type_name is None:
@@ -669,10 +717,11 @@ class EXPERIMENTAL__PropertyGraph:
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
-            self.__vertex_prop_dataframe = self.__update_dataframe_dtypes(
-                self.__vertex_prop_dataframe,
-                {self.vertex_col_name: dataframe[vertex_col_name].dtype},
-            )
+            if not index_is_set:
+                self.__vertex_prop_dataframe = self.__update_dataframe_dtypes(
+                    self.__vertex_prop_dataframe,
+                    {self.vertex_col_name: dataframe[vertex_col_name].dtype},
+                )
             self.__vertex_prop_dataframe.set_index(self.vertex_col_name, inplace=True)
 
             # Use categorical dtype for the type column
@@ -693,9 +742,12 @@ class EXPERIMENTAL__PropertyGraph:
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
         tmp_df = dataframe.copy(deep=True)
-        tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
-        # FIXME: handle case of a type_name column already being in tmp_df
+        if not index_is_set:
+            tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
+        elif tmp_df.index.name != self.vertex_col_name:
+            tmp_df.index = tmp_df.index.rename(self.vertex_col_name)
 
+        # FIXME: handle case of a type_name column already being in tmp_df
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
             tmp_df[TCN] = cudf.Series(
@@ -715,6 +767,10 @@ class EXPERIMENTAL__PropertyGraph:
             )
         else:
             column_names_to_drop = {vertex_col_name}
+
+        if index_is_set:
+            column_names_to_drop -= {self.vertex_col_name, vertex_col_name}
+
         if vector_properties:
             # Drop vector property source columns by default
             more_to_drop = set().union(*vector_properties.values())
@@ -737,8 +793,8 @@ class EXPERIMENTAL__PropertyGraph:
             )
         self.__vertex_prop_dtypes.update(new_col_info)
 
-        # TODO: allow tmp_df to come in with vertex id already as index
-        tmp_df.set_index(self.vertex_col_name, inplace=True)
+        if not index_is_set:
+            tmp_df.set_index(self.vertex_col_name, inplace=True)
         tmp_df = self.__update_dataframe_dtypes(tmp_df, self.__vertex_prop_dtypes)
 
         if is_first_data:
@@ -825,11 +881,14 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
-                df = df.loc[vertex_ids]
+
+                try:
+                    df = df.loc[vertex_ids]
+                except TypeError:
+                    raise TypeError(
+                        "vertex_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(vertex_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -845,7 +904,16 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[[self.type_col_name] + columns]
-            return df.reset_index()
+
+            # Should not drop to ensure vertex ids are returned as a column.
+            df_out = df.reset_index(drop=False)
+
+            # Preserve the dtype (vertex id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__vertex_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
+            return df_out
         return None
 
     def add_edge_data(
@@ -871,7 +939,9 @@ class EXPERIMENTAL__PropertyGraph:
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
         edge_id_col_name : string, optional
-            The column name that contains the values to be used as edge IDs.
+            The column name that contains the values to be used as edge IDs,
+            or the name of the index if the index is edge IDs.
+            Specifying the index may be more efficient.
             If unspecified, edge IDs will be automatically assigned.
             Currently, all edge data must be added with the same method: either
             with automatically generated IDs, or from user-provided edge IDs.
@@ -937,10 +1007,14 @@ class EXPERIMENTAL__PropertyGraph:
                     f"{type(edge_id_col_name)}"
                 )
             if edge_id_col_name not in dataframe.columns:
-                raise ValueError(
-                    "edge_id_col_name argument not in columns, "
-                    f"got {edge_id_col_name!r}"
-                )
+                if edge_id_col_name != dataframe.index.name:
+                    raise ValueError(
+                        "edge_id_col_name argument not in columns, "
+                        f"got {edge_id_col_name!r}"
+                    )
+                index_is_set = True
+            else:
+                index_is_set = False
         invalid_columns = set(vertex_col_names).difference(dataframe.columns)
         if invalid_columns:
             raise ValueError(
@@ -1100,7 +1174,8 @@ class EXPERIMENTAL__PropertyGraph:
             tmp_df.index = index_class(start_eid, end_eid, name=self.edge_id_col_name)
             self.__last_edge_id = end_eid
         else:
-            tmp_df.set_index(edge_id_col_name, inplace=True)
+            if not index_is_set:
+                tmp_df.set_index(edge_id_col_name, inplace=True)
             tmp_df.index.name = self.edge_id_col_name
 
         if property_columns:
@@ -1135,7 +1210,6 @@ class EXPERIMENTAL__PropertyGraph:
             )
         self.__edge_prop_dtypes.update(new_col_info)
 
-        # TODO: allow tmp_df to come in with edge id already as index
         tmp_df = self.__update_dataframe_dtypes(tmp_df, self.__edge_prop_dtypes)
 
         if is_first_data:
@@ -1214,11 +1288,14 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(
-                    edge_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    edge_ids = list(edge_ids)
-                df = df.loc[edge_ids]
+
+                try:
+                    df = df.loc[edge_ids]
+                except TypeError:
+                    raise TypeError(
+                        "edge_ids needs to be a list-like type "
+                        f"compatible with DataFrame.loc[], got {type(edge_ids)}"
+                    )
 
             if types is not None:
                 if isinstance(types, str):
@@ -1241,7 +1318,16 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df[
                     [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
                 ]
-            return df.reset_index()
+
+            # Should not drop so the edge ids are returned as a column.
+            df_out = df.reset_index()
+
+            # Preserve the dtype (edge id type) to avoid cugraph algorithms
+            # throwing errors due to a dtype mismatch
+            index_dtype = self.__edge_prop_dataframe.index.dtype
+            df_out.index = df_out.index.astype(index_dtype)
+
+            return df_out
 
         return None
 
@@ -1732,7 +1818,14 @@ class EXPERIMENTAL__PropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property in edge_prop_df.columns:
+            # Also allow the type column to be specified as the edge weight
+            # property so that uniform_neighbor_sample can be called with
+            # the weights interpreted as types.
+            if edge_weight_property == self.type_col_name:
+                prop_col = edge_prop_df[self.type_col_name].cat.codes.astype("float32")
+                edge_prop_df["_temp_type_col"] = prop_col
+                edge_weight_property = "_temp_type_col"
+            elif edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
             else:
                 prop_col = edge_prop_df.index.to_series()
@@ -1888,7 +1981,9 @@ class EXPERIMENTAL__PropertyGraph:
                 TCN
             ].astype(cat_dtype)
 
+        index_dtype = self.__vertex_prop_dataframe.index.dtype
         df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
+        df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
             self.__edge_prop_dataframe[self.src_col_name] = self.__edge_prop_dataframe[
@@ -1975,12 +2070,14 @@ class EXPERIMENTAL__PropertyGraph:
             )
 
         df = self.__edge_prop_dataframe
+        index_dtype = df.index.dtype
         if prev_id_column is None:
             df = df.sort_values(by=TCN, ignore_index=True)
         else:
             df = df.sort_values(by=TCN)
             df.index.name = prev_id_column
             df.reset_index(inplace=True)
+        df.index = df.index.astype(index_dtype)
         df.index.name = self.edge_id_col_name
         self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
@@ -2091,16 +2188,20 @@ class EXPERIMENTAL__PropertyGraph:
         for key, columns in vector_properties.items():
             vector_property_lengths[key] = len(columns)
 
-    def _create_vector_properties(self, df, vector_properties):
-        # Make each vector contigous and 1-d
+    @staticmethod
+    def _create_vector_properties(df, vector_properties):
         vectors = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
-            vectors[key] = [
-                np.squeeze(vec, 0)
-                for vec in np.split(np.ascontiguousarray(values, like=values), len(df))
-            ]
-        # Create all vectors before assigning in case column names are reused
+            if isinstance(df, cudf.DataFrame):
+                vectors[key] = create_list_series_from_2d_ar(values, index=df.index)
+            else:
+                vectors[key] = [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        np.ascontiguousarray(values, like=values), len(df)
+                    )
+                ]
         for key, vec in vectors.items():
             df[key] = vec
 

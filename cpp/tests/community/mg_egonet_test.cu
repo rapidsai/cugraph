@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,18 +20,18 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -63,12 +63,12 @@ class Tests_MGEgonet
   {
     auto [egonet_usecase, input_usecase] = param;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
     auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
@@ -78,9 +78,8 @@ class Tests_MGEgonet
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -92,7 +91,7 @@ class Tests_MGEgonet
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Egonet");
     }
 
     rmm::device_uvector<vertex_t> d_ego_sources(0, handle_->get_stream());
@@ -124,7 +123,7 @@ class Tests_MGEgonet
       mg_graph_view.local_vertex_partition_range_first(),
       mg_graph_view.local_vertex_partition_range_last());
 
-    d_ego_sources = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+    d_ego_sources = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
       *handle_, std::move(d_ego_sources), mg_graph_view.vertex_partition_range_lasts());
 
     auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_wgt, d_ego_edgelist_offsets] =
@@ -138,9 +137,8 @@ class Tests_MGEgonet
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG Egonet took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (egonet_usecase.check_correctness_) {

@@ -17,11 +17,15 @@
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
 # python 3.7.  Also, this import networkx needs to be relocated in the
 # third-party group once this gets fixed.
-import pytest
-from cugraph.testing import utils
-import numpy as np
 import gc
 import importlib
+
+import pytest
+import numpy as np
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
+from cugraph.testing import utils
+from cugraph.experimental.datasets import karate
 
 
 MAX_ITERATIONS = [100, 200]
@@ -30,7 +34,7 @@ ALPHA = [0.85, 0.70]
 PERS_PERCENT = [0, 15]
 HAS_GUESS = [0, 1]
 
-FILES_UNDIRECTED = [utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"]
+FILES_UNDIRECTED = [karate.get_path()]
 
 # these are only used in the missing parameter tests.
 KARATE_RANKING = [11, 9, 14, 15, 18, 20, 22, 17, 21, 12, 26, 16, 28, 19]
@@ -50,7 +54,7 @@ def setup_function():
 
 
 datasets = FILES_UNDIRECTED
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (MAX_ITERATIONS, "max_iter"),
     (TOLERANCE, "tol"),

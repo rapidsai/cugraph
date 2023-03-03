@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import importlib
 from numba import cuda
 
 import cudf
+from cudf.core.column import as_column
 
 from cuda.cudart import cudaDeviceAttr
 from rmm._cuda.gpu import getDeviceAttribute
@@ -256,7 +257,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
 
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
-    DiGraph, etc.) and return a tuple of (cugraph Graph-type obj, original
+    etc.) and return a tuple of (cugraph Graph-type obj, original
     input obj type). If matrix_graph_type is specified, it is used as the
     cugraph Graph-type obj to create when converting from a matrix type.
     """
@@ -362,10 +363,9 @@ def is_nx_graph_type(g):
 
 def is_cugraph_graph_type(g):
     # FIXME: importing here to avoid circular import
-    from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+    from cugraph.structure import Graph, MultiGraph
 
-    # FIXME: Remove DiGraph when support is dropped
-    return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
+    return g in [Graph, MultiGraph]
 
 
 def renumber_vertex_pair(input_graph, vertex_pair):
@@ -502,3 +502,25 @@ def sample_groups(df, by, n_samples):
     result = df.loc[df.groupby(by)["_"].rank("first") <= n_samples, :]
     del result["_"]
     return result
+
+
+def create_list_series_from_2d_ar(ar, index):
+    """
+    Create a cudf list series  from 2d arrays
+    """
+    n_rows, n_cols = ar.shape
+    data = as_column(ar.flatten())
+    offset_col = as_column(
+        cp.arange(start=0, stop=len(data) + 1, step=n_cols), dtype="int32"
+    )
+    mask_col = cp.full(shape=n_rows, fill_value=True)
+    mask = cudf._lib.transform.bools_to_mask(as_column(mask_col))
+    lc = cudf.core.column.ListColumn(
+        size=n_rows,
+        dtype=cudf.ListDtype(data.dtype),
+        mask=mask,
+        offset=0,
+        null_count=0,
+        children=(offset_col, data),
+    )
+    return cudf.Series(lc, index=index)

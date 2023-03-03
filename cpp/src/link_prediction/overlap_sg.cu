@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,36 +21,42 @@ template rmm::device_uvector<float> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
-  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs);
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool do_expensive_check);
 
 template rmm::device_uvector<float> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs);
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool do_expensive_check);
 
 template rmm::device_uvector<float> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-  std::tuple<raft::device_span<int64_t const>, raft::device_span<int64_t const>> vertex_pairs);
+  std::tuple<raft::device_span<int64_t const>, raft::device_span<int64_t const>> vertex_pairs,
+  bool do_expensive_check);
 
 template rmm::device_uvector<double> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
-  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs);
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool do_expensive_check);
 
 template rmm::device_uvector<double> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs);
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool do_expensive_check);
 
 template rmm::device_uvector<double> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-  std::tuple<raft::device_span<int64_t const>, raft::device_span<int64_t const>> vertex_pairs);
+  std::tuple<raft::device_span<int64_t const>, raft::device_span<int64_t const>> vertex_pairs,
+  bool do_expensive_check);
 
 }  // namespace cugraph

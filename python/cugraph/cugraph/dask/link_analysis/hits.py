@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
@@ -128,7 +128,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
 
     """
 
-    client = input_graph._client
+    client = default_client()
 
     if input_graph.store_transposed is False:
         warning_msg = (

@@ -30,6 +30,8 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_vertex_pairs_t,
+    cugraph_vertex_pairs_get_first,
+    cugraph_vertex_pairs_get_second,
     cugraph_vertex_pairs_free,
     cugraph_create_vertex_pairs
 )
@@ -50,7 +52,6 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
@@ -63,13 +64,9 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
         bool_t use_weight,
         bool_t do_expensive_check):
     """
-    Compute the similarity for the specified vertex_pairs
+    Compute the Jaccard coefficients for the specified vertex_pairs.
     
-    Note that Jaccard similarity must run on a symmetric graph
-
-    The HITS algorithm computes two numbers for a node.  Authorities
-    estimates the node value based on the incoming links.  Hubs estimates
-    the node value based on outgoing links.
+    Note that Jaccard similarity must run on a symmetric graph.
 
     Parameters
     ----------
@@ -95,10 +92,8 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays, where the third item in the tuple is a device
-    array containing the vertex identifiers, the first and second items are device
-    arrays containing respectively the hubs and authorities values for the corresponding
-    vertices 
+    A tuple of device arrays containing the vertex pairs with
+    their corresponding Jaccard coefficient scores.
 
     Examples
     --------
@@ -152,6 +147,16 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
 
     cupy_similarity = copy_to_cupy_array(c_resource_handle_ptr, similarity_ptr)
 
+    cdef cugraph_type_erased_device_array_view_t* first_ptr = \
+        cugraph_vertex_pairs_get_first(vertex_pairs_ptr)
+
+    cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_ptr)
+
+    cdef cugraph_type_erased_device_array_view_t* second_ptr = \
+        cugraph_vertex_pairs_get_second(vertex_pairs_ptr)
+
+    cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_ptr)
+
     # Free all pointers
     cugraph_similarity_result_free(result_ptr)
     cugraph_vertex_pairs_free(vertex_pairs_ptr)
@@ -159,4 +164,4 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
     cugraph_type_erased_device_array_view_free(first_view_ptr)
     cugraph_type_erased_device_array_view_free(second_view_ptr)
 
-    return first, second, cupy_similarity
+    return cupy_first, cupy_second, cupy_similarity

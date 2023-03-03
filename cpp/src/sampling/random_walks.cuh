@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 
 #include <utilities/graph_utils.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
@@ -146,8 +146,9 @@ struct rrandom_gen_t {
   //
   static void generate_random(raft::handle_t const& handle, real_t* p_d_rnd, size_t sz, seed_t seed)
   {
+    raft::random::RngState rng_state{seed};
     cugraph::detail::uniform_random_fill(
-      handle.get_stream(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, seed);
+      handle.get_stream(), p_d_rnd, sz, real_t{0.0}, real_t{1.0}, rng_state);
   }
 
  private:

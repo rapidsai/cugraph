@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,6 @@ from .graph_implementation import (
 )
 import cudf
 import dask_cudf
-import warnings
 
 from cugraph.utilities.utils import import_optional
 
@@ -82,7 +81,14 @@ class Graph:
                 )
 
     def __getattr__(self, name):
-        if self._Impl is None:
+        """
+        __getattr__() is called automatically by python when an attribute does not
+        exist. Since this class is attempting to hide the internal `_Impl` object,
+        which is intended to contain many of the attributes needed by this class,
+        __getattr__ is used to "pass through" attribute access to _Impl and make it
+        appear as if the _Impl attributes are contained in this class.
+        """
+        if name == "_Impl":
             raise AttributeError(name)
         if hasattr(self._Impl, name):
             return getattr(self._Impl, name)
@@ -173,7 +179,14 @@ class Graph:
             legacy_renum_only=legacy_renum_only,
         )
 
-    def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
+    def from_cudf_adjlist(
+        self,
+        offset_col,
+        index_col,
+        value_col=None,
+        renumber=True,
+        store_transposed=False,
+    ):
         """
         Initialize a graph from the adjacency list. It is an error to call this
         method on an initialized Graph object. The passed offset_col and
@@ -202,6 +215,14 @@ class Graph:
             gdf_column of size E (E: number of edges).  The gdf column contains
             the weight value for each edge.  The expected type of
             the gdf_column element is floating point number.
+
+        renumber : bool, optional (default=True)
+            Indicate whether or not to renumber the source and destination
+            vertex IDs.
+
+        store_transposed : bool, optional (default=False)
+            If True, stores the transpose of the adjacency matrix.  Required
+            for certain algorithms.
 
         Examples
         --------
@@ -669,17 +690,40 @@ class Graph:
         """
         self._Impl._nodes["all_nodes"] = cudf.Series(nodes)
 
+    def density(self) -> float:
+        """
+        Compute the density of the graph.
+        Density is the measure of how many edges are in the graph versus
+        the max number of edges that could be present.
+
+        Returns
+        -------
+        density : float
+            Density is the measure of how many edges are in the graph versus
+            the max number of edges that could be present.
+
+        Examples
+        --------
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> DiG = cugraph.Graph(directed=True)
+        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> density = G.density()
+
+        """
+        if self.is_directed():
+            factor = 1
+        else:
+            factor = 2
+
+        num_e = self._Impl.number_of_edges(directed_edges=True)
+        num_v = self._Impl.number_of_vertices()
+
+        density = (factor * num_e) / (num_v * (num_v - 1))
+        return density
+
     # TODO: Add function
     # def properties():
-
-
-class DiGraph(Graph):
-    def __init__(self, m_graph=None):
-        warnings.warn(
-            "DiGraph is deprecated, use Graph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(DiGraph, self).__init__(m_graph, directed=True)
 
 
 class MultiGraph(Graph):
@@ -698,15 +742,18 @@ class MultiGraph(Graph):
         # TO DO: Call coloring algorithm
         return True
 
-
-class MultiDiGraph(MultiGraph):
-    def __init__(self):
-        warnings.warn(
-            "MultiDiGraph is deprecated,\
-                use MultiGraph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(MultiDiGraph, self).__init__(directed=True)
+    def density(self):
+        """
+        Density is the measure of how many edges are in the graph versus
+        the max number of edges that could be present.
+        This function is not support on a Multigraph.
+        Since the maximal number of possible edges between any vertex pairs
+        can be greater than 1 (undirected) a realistic max number of possible
+        edges cannot be determined. Running density on a MultiGraph
+        could produce a density score greater than 1 - meaning more than
+        100% of possible edges are present in the Graph
+        """
+        raise TypeError("The density function is not support on a Multigraph.")
 
 
 class Tree(Graph):
@@ -903,30 +950,6 @@ class BiPartiteGraph(NPartiteGraph):
         This does not parse the graph to check if it is bipartite.
         """
         return True
-
-
-class BiPartiteDiGraph(BiPartiteGraph):
-    """
-    A Directed Bipartite Graph
-    """
-
-    def __init__(self):
-        warnings.warn(
-            "BiPartiteDiGraph is deprecated,\
- use BiPartiteGraph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(BiPartiteDiGraph, self).__init__(directed=True)
-
-
-class NPartiteDiGraph(NPartiteGraph):
-    def __init__(self):
-        warnings.warn(
-            "NPartiteDiGraph is deprecated,\
- use NPartiteGraph(directed=True) instead",
-            DeprecationWarning,
-        )
-        super(NPartiteGraph, self).__init__(directed=True)
 
 
 def is_directed(G):

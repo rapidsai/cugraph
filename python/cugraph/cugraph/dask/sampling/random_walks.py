@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dask.distributed import wait
-
+from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 import operator as op
@@ -131,7 +130,7 @@ def random_walks(
     wait(start_vertices)
     start_vertices = start_vertices.worker_to_parts
 
-    client = input_graph._client
+    client = default_client()
 
     result = [
         client.submit(

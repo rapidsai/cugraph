@@ -11,14 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.dask as dcg
 import gc
-import pytest
-import cugraph
-import dask_cudf
 import random
 
-# from cugraph.dask.common.mg_utils import is_single_gpu
+import pytest
+import dask_cudf
+from pylibcugraph.testing import gen_fixture_params_product
+
+import cugraph.dask as dcg
+import cugraph
 from cugraph.testing import utils
 
 
@@ -43,7 +44,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
 ]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     (HAS_VERTEX_PAIR, "has_vertex_pair"),
@@ -129,14 +130,14 @@ def test_dask_jaccard(dask_client, benchmark, input_expected_output):
 
     result_jaccard = (
         result_jaccard.compute()
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
         .rename(columns={"jaccard_coeff": "mg_cugraph_jaccard_coeff"})
     )
 
     expected_output = (
         input_expected_output["sg_cugraph_results"]
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
 
@@ -176,7 +177,7 @@ def test_dask_weighted_jaccard():
         legacy_renum_only=True,
         store_transposed=True,
     )
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         dcg.jaccard(dg)
 
     dg = cugraph.Graph(directed=False)

@@ -1,29 +1,16 @@
-=============
-API reference
-=============
+Python API reference
+====================
 
 This page provides a list of all publicly accessible modules, methods and classes through
 ``cugraph.*`` namespace.
 
 .. toctree::
     :maxdepth: 2
-    :caption: API Documentation
+    :caption: Python API Documentation
 
-    structure
-    graph_implementation
-    property_graph
-    centrality
-    community
-    components
-    cores
-    layout
-    linear_assignment
-    link_analysis
-    link_prediction
-    sampling
-    traversal
-    tree
-    generator
-    helper_functions
-    dask-cugraph.rst
+    cugraph_top.rst
     pylibcugraph.rst
+    cugraph_dgl.rst
+    cugraph_pyg.rst
+    cugraph_service_client.rst
+    cugraph_service_server.rst

@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
@@ -80,7 +80,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph
+    input_graph : cugraph.Graph, networkx.Graph
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
@@ -108,7 +108,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
     """
 
     # Initialize dask client
-    client = input_graph._client
+    client = default_client()
 
     if isinstance(n, (int, list)):
         n = cudf.Series(n)

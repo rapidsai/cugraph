@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <cuda/atomic>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -175,6 +176,119 @@ struct kv_pair_group_id_greater_equal_t {
     return key_to_group_id_op(thrust::get<0>(t)) >= pivot;
   }
 };
+
+template <typename ValueIterator, typename ValueToGroupIdOp>
+void multi_partition(ValueIterator value_first,
+                     ValueIterator value_last,
+                     ValueToGroupIdOp value_to_group_id_op,
+                     int group_first,
+                     int group_last,
+                     rmm::cuda_stream_view stream_view)
+{
+  auto num_values = static_cast<size_t>(thrust::distance(value_first, value_last));
+  auto num_groups = group_last - group_first;
+
+  rmm::device_uvector<size_t> counts(num_groups, stream_view);
+  rmm::device_uvector<int> group_ids(num_values, stream_view);
+  rmm::device_uvector<size_t> intra_partition_offsets(num_values, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
+  thrust::transform(
+    rmm::exec_policy(stream_view),
+    value_first,
+    value_last,
+    thrust::make_zip_iterator(
+      thrust::make_tuple(group_ids.begin(), intra_partition_offsets.begin())),
+    [value_to_group_id_op, group_first, counts = counts.data()] __device__(auto value) {
+      auto group_id = value_to_group_id_op(value);
+      cuda::std::atomic_ref<size_t> counter(counts[group_id - group_first]);
+      return thrust::make_tuple(group_id,
+                                counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed));
+    });
+
+  rmm::device_uvector<size_t> displacements(num_groups, stream_view);
+  thrust::exclusive_scan(
+    rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
+
+  auto tmp_value_buffer =
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+      num_values, stream_view);
+  auto input_triplet_first = thrust::make_zip_iterator(
+    thrust::make_tuple(value_first, group_ids.begin(), intra_partition_offsets.begin()));
+  auto tmp_value_first = get_dataframe_buffer_begin(tmp_value_buffer);
+  thrust::for_each(
+    rmm::exec_policy(stream_view),
+    input_triplet_first,
+    input_triplet_first + num_values,
+    [group_first,
+     displacements = displacements.data(),
+     output_first  = get_dataframe_buffer_begin(tmp_value_buffer)] __device__(auto triplet) {
+      auto group_id            = thrust::get<1>(triplet);
+      auto offset              = displacements[group_id - group_first] + thrust::get<2>(triplet);
+      *(output_first + offset) = thrust::get<0>(triplet);
+    });
+  thrust::copy(
+    rmm::exec_policy(stream_view), tmp_value_first, tmp_value_first + num_values, value_first);
+}
+
+template <typename KeyIterator, typename ValueIterator, typename KeyToGroupIdOp>
+void multi_partition(KeyIterator key_first,
+                     KeyIterator key_last,
+                     ValueIterator value_first,
+                     KeyToGroupIdOp key_to_group_id_op,
+                     int group_first,
+                     int group_last,
+                     rmm::cuda_stream_view stream_view)
+{
+  auto num_keys   = static_cast<size_t>(thrust::distance(key_first, key_last));
+  auto num_groups = group_last - group_first;
+
+  rmm::device_uvector<size_t> counts(num_groups, stream_view);
+  rmm::device_uvector<int> group_ids(num_keys, stream_view);
+  rmm::device_uvector<size_t> intra_partition_offsets(num_keys, stream_view);
+  thrust::fill(rmm::exec_policy(stream_view), counts.begin(), counts.end(), size_t{0});
+  thrust::transform(rmm::exec_policy(stream_view),
+                    key_first,
+                    key_last,
+                    thrust::make_zip_iterator(
+                      thrust::make_tuple(group_ids.begin(), intra_partition_offsets.begin())),
+                    [key_to_group_id_op, group_first, counts = counts.data()] __device__(auto key) {
+                      auto group_id = key_to_group_id_op(key);
+                      cuda::std::atomic_ref<size_t> counter(counts[group_id - group_first]);
+                      return thrust::make_tuple(
+                        group_id, counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed));
+                    });
+
+  rmm::device_uvector<size_t> displacements(num_groups, stream_view);
+  thrust::exclusive_scan(
+    rmm::exec_policy(stream_view), counts.begin(), counts.end(), displacements.begin());
+
+  auto tmp_key_buffer =
+    allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
+      num_keys, stream_view);
+  auto tmp_value_buffer =
+    allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
+      num_keys, stream_view);
+  auto input_quadraplet_first = thrust::make_zip_iterator(
+    thrust::make_tuple(key_first, value_first, group_ids.begin(), intra_partition_offsets.begin()));
+  auto tmp_kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+    get_dataframe_buffer_begin(tmp_key_buffer), get_dataframe_buffer_begin(tmp_value_buffer)));
+  thrust::for_each(rmm::exec_policy(stream_view),
+                   input_quadraplet_first,
+                   input_quadraplet_first + num_keys,
+                   [group_first,
+                    displacements = displacements.data(),
+                    output_first  = tmp_kv_pair_first] __device__(auto quadraplet) {
+                     auto group_id = thrust::get<2>(quadraplet);
+                     auto offset =
+                       displacements[group_id - group_first] + thrust::get<3>(quadraplet);
+                     *(output_first + offset) =
+                       thrust::make_tuple(thrust::get<0>(quadraplet), thrust::get<1>(quadraplet));
+                   });
+  thrust::copy(rmm::exec_policy(stream_view),
+               tmp_kv_pair_first,
+               tmp_kv_pair_first + num_keys,
+               thrust::make_zip_iterator(thrust::make_tuple(key_first, value_first)));
+}
 
 template <typename ValueIterator>
 void swap_partitions(ValueIterator value_first,
@@ -461,12 +575,22 @@ void mem_frugal_groupby(
             value_group_id_less_t<typename thrust::iterator_traits<ValueIterator>::value_type,
                                   ValueToGroupIdOp>{value_to_group_id_op, pivot});
         } else {
+#if 1  // FIXME: keep the both if and else cases till the performance improvement gets fully
+       // validated. The else path should be eventually deleted.
+          multi_partition(value_firsts[i],
+                          value_lasts[i],
+                          value_to_group_id_op,
+                          group_firsts[i],
+                          group_lasts[i],
+                          stream_view);
+#else
           thrust::sort(rmm::exec_policy(stream_view),
                        value_firsts[i],
                        value_lasts[i],
                        [value_to_group_id_op] __device__(auto lhs, auto rhs) {
                          return value_to_group_id_op(lhs) < value_to_group_id_op(rhs);
                        });
+#endif
         }
       } else {
         ValueIterator second_first{};
@@ -552,6 +676,16 @@ void mem_frugal_groupby(
                                     typename thrust::iterator_traits<ValueIterator>::value_type,
                                     KeyToGroupIdOp>{key_to_group_id_op, pivot});
         } else {
+#if 1  // FIXME: keep the both if and else cases till the performance improvement gets fully
+       // validated. The else path should be eventually deleted.
+          multi_partition(key_firsts[i],
+                          key_lasts[i],
+                          value_firsts[i],
+                          key_to_group_id_op,
+                          group_firsts[i],
+                          group_lasts[i],
+                          stream_view);
+#else
           thrust::sort_by_key(rmm::exec_policy(stream_view),
                               key_firsts[i],
                               key_lasts[i],
@@ -559,6 +693,7 @@ void mem_frugal_groupby(
                               [key_to_group_id_op] __device__(auto lhs, auto rhs) {
                                 return key_to_group_id_op(lhs) < key_to_group_id_op(rhs);
                               });
+#endif
         }
       } else {
         std::tuple<KeyIterator, ValueIterator> second_first{};

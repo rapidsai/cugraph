@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sequence.h>
@@ -35,6 +35,7 @@ namespace cugraph {
 
 namespace {
 
+// FIXME:  This function should support edge id/type
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -85,11 +86,14 @@ transpose_graph_storage_impl(
 
   std::tie(!store_transposed ? edgelist_dsts : edgelist_srcs,
            !store_transposed ? edgelist_srcs : edgelist_dsts,
-           edgelist_weights) =
-    detail::shuffle_edgelist_by_gpu_id(handle,
-                                       std::move(!store_transposed ? edgelist_dsts : edgelist_srcs),
-                                       std::move(!store_transposed ? edgelist_srcs : edgelist_dsts),
-                                       std::move(edgelist_weights));
+           edgelist_weights,
+           std::ignore) = detail::
+    shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t, edge_t, weight_t, int32_t>(
+      handle,
+      std::move(!store_transposed ? edgelist_dsts : edgelist_srcs),
+      std::move(!store_transposed ? edgelist_srcs : edgelist_dsts),
+      std::move(edgelist_weights),
+      std::nullopt);
 
   graph_t<vertex_t, edge_t, !store_transposed, multi_gpu> storage_transposed_graph(handle);
   std::optional<

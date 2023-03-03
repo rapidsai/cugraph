@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,33 +12,38 @@
 # limitations under the License.
 
 import os
-import shutil
 
 from setuptools import find_packages, Command
 from skbuild import setup
 
-from setuputils import get_environment_option
 
-import versioneer
+INSTALL_REQUIRES = [
+    "numba",
+    "dask-cuda==23.4.*",
+    "rmm==23.4.*",
+    "cudf==23.4.*",
+    "raft-dask==23.4.*",
+    "dask-cudf==23.4.*",
+    "pylibcugraph==23.4.*",
+    "cupy-cuda11x",
+]
 
-
-INSTALL_REQUIRES = ["numba", "cython"]
-
-CUDA_HOME = get_environment_option("CUDA_HOME")
-
-if not CUDA_HOME:
-    path_to_cuda_gdb = shutil.which("cuda-gdb")
-    if path_to_cuda_gdb is None:
-        raise OSError(
-            "Could not locate CUDA. "
-            "Please set the environment variable "
-            "CUDA_HOME to the path to the CUDA installation "
-            "and try again."
-        )
-    CUDA_HOME = os.path.dirname(os.path.dirname(path_to_cuda_gdb))
-
-if not os.path.isdir(CUDA_HOME):
-    raise OSError("Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}")
+extras_require = {
+    "test": [
+        "pytest",
+        "pytest-xdist",
+        "pytest-benchmark",
+        "scipy",
+        "numpy",
+        "pandas",
+        "networkx>=2.5.1",
+        "scikit-learn>=0.23.1",
+        "python-louvain",
+        # cudf will use fsspec but is protocol independent. cugraph tests
+        # specifically require http for the test files it asks cudf to read.
+        "fsspec[http]>=0.6.0",
+    ]
+}
 
 
 class CleanCommand(Command):
@@ -67,8 +72,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
 PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
 PACKAGE_DATA["cugraph.experimental.datasets"].extend(
@@ -82,7 +85,7 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 setup(
     name="cugraph",
     description="cuGraph - RAPIDS GPU Graph Analytics",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -90,15 +93,16 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
-    setup_requires=["Cython>=0.29,<0.30"],
     packages=find_packages(include=["cugraph", "cugraph.*"]),
     package_data=PACKAGE_DATA,
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
-    license="Apache",
-    cmdclass=cmdclass,
+    license="Apache 2.0",
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
+    extras_require=extras_require,
 )

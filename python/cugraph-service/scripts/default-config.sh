@@ -21,6 +21,7 @@ THIS_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
 # simply not use that syntax and override, since these variables are
 # read last.
 SCRIPTS_DIR=$THIS_DIR
+WORKSPACE=$THIS_DIR
 
 # These really should be oerridden by the project config!
 CONDA_ENV=${CONDA_ENV:-rapids}

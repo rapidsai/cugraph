@@ -15,7 +15,7 @@
 set(cython_sources
     sampling_result.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
   CXX
