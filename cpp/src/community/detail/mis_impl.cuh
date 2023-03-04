@@ -29,8 +29,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -388,6 +387,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
       thrust::make_tuple(FlagType{0}, FlagType{0}),
+      cugraph::reduce_op::plus<thrust::tuple<FlagType, FlagType>>{},
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
@@ -545,6 +545,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
       thrust::make_tuple(FlagType{0}, FlagType{0}),
+      cugraph::reduce_op::plus<thrust::tuple<FlagType, FlagType>>{},
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 

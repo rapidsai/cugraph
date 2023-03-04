@@ -25,6 +25,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
@@ -69,7 +70,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     input_edge_weight_view);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_property(handle);
 
-  HighResTimer hr_timer;
+  #ifdef TIMING
+  HighResTimer hr_timer{};
+  #endif
 
   weight_t best_modularity = weight_t{-1.0};
   weight_t total_edge_weight =
@@ -133,9 +136,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     //
     //  Compute the vertex and cluster weights, these are different for each
     //  graph in the hierarchical decomposition
-    //
+    #ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
+    #endif
 
     vertex_weights = compute_out_weight_sums(handle, current_graph_view, *edge_weight_view);
     cluster_keys.resize(vertex_weights.size(), handle.get_stream());
@@ -166,7 +170,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                  handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
-        std::tie(cluster_keys, cluster_weights) = shuffle_ext_vertices_and_values_by_gpu_id(
+        std::tie(cluster_keys, cluster_weights) = shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
           handle, std::move(cluster_keys), std::move(cluster_weights));
       }
 
@@ -206,7 +210,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       tmp_cluster_weights.resize(0, handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
-        std::tie(tmp_cluster_keys, tmp_cluster_weights) = shuffle_ext_vertices_and_values_by_gpu_id(
+        std::tie(tmp_cluster_keys, tmp_cluster_weights) = shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
           handle, std::move(cluster_keys), std::move(cluster_weights));
 
         cluster_keys.resize(tmp_cluster_keys.size(), handle.get_stream());
@@ -241,12 +245,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       vertex_weights.shrink_to_fit(handle.get_stream());
     }
 
+    #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
-
-    //
+    #endif
+    
     //  Update the clustering assignment, this is the main loop of Louvain
-    //
+    #ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "update_clustering");
+    #endif
 
     louvain_assignment_for_vertices =
       rmm::device_uvector<vertex_t>(dendrogram->current_level_size(), handle.get_stream());
@@ -439,7 +445,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       }
     }
 
+    #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+    #endif
 
     if (cur_Q <= best_modularity) { break; }
 
@@ -474,7 +482,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     copied_louvain_partition.resize(nr_unique_clusters, handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      copied_louvain_partition = cugraph::detail::shuffle_ext_vertices_by_gpu_id(
+      copied_louvain_partition = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(copied_louvain_partition));
 
       thrust::sort(handle.get_thrust_policy(),
@@ -547,8 +555,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     }
 
     // Clear buffer and contract the graph
-
+    #ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
+    #endif
 
     cluster_keys.resize(0, handle.get_stream());
     cluster_weights.resize(0, handle.get_stream());
@@ -620,10 +629,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                 louvain_of_refined_partition.size(),
                                 std::cout);
     }
+    #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+    #endif
   }
 
+  #ifdef TIMING
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
+  #endif
+
   return std::make_pair(std::move(dendrogram), best_modularity);
 }
 

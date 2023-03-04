@@ -369,6 +369,7 @@ refine_clustering(
       return thrust::make_tuple(weighted_deg_contribution, weighted_cut_contribution);
     },
     thrust::make_tuple(weight_t{0}, weight_t{0}),
+    cugraph::reduce_op::plus<thrust::tuple<weight_t, weight_t>>{},
     thrust::make_zip_iterator(thrust::make_tuple(weighted_degree_of_vertices.begin(),
                                                  weighted_cut_of_vertices_to_louvain.begin())));
 
@@ -1182,8 +1183,8 @@ refine_clustering(
       handle.get_stream());
 
     if constexpr (GraphViewType::is_multi_gpu) {
-      target_comms = shuffle_int_vertices_by_gpu_id(
-        handle, std::move(target_comms), graph_view.vertex_partition_range_lasts());
+      target_comms = shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(target_comms));
 
       thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
 
@@ -1295,7 +1296,7 @@ refine_clustering(
                                                         leiden_keys_to_read_louvain.end())));
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    leiden_keys_to_read_louvain = cugraph::detail::shuffle_ext_vertices_by_gpu_id(
+    leiden_keys_to_read_louvain = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
       handle, std::move(leiden_keys_to_read_louvain));
 
     thrust::sort(handle.get_thrust_policy(),

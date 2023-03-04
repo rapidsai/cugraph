@@ -15,13 +15,15 @@
  */
 #pragma once
 
-#include <utilities/high_res_timer.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
