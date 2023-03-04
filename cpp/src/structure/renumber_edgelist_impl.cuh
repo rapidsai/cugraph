@@ -575,7 +575,7 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
 
   auto vertex_count = static_cast<vertex_t>(sorted_local_vertices.size());
   d_segment_offsets.set_element_to_zero_async(0, handle.get_stream());
-  d_segment_offsets.set_element_async(
+  d_segment_offsets.set_element(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
 
   thrust::upper_bound(handle.get_thrust_policy(),
