@@ -102,7 +102,7 @@ dependencies:
           - matrix:
               arch: x86_64
             packages:
-              - gcc_linux-64=9.*
+              - gcc_linux-64=11.*
           - matrix:
               arch: aarch64
             packages:
