@@ -19,7 +19,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
-#include <raft/random/rng.hpp>
+#include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
 
