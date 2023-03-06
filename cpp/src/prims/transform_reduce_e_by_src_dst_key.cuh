@@ -402,8 +402,9 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       edge_t,
       typename EdgeValueInputWrapper::value_iterator>>;
   using edge_partition_src_dst_key_device_view_t =
-    detail::edge_partition_endpoint_property_device_view_t<vertex_t,
-        typename EdgeSrcDstKeyInputWrapper::value_iterator>;
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcDstKeyInputWrapper::value_iterator>;
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
