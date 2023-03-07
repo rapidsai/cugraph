@@ -105,7 +105,6 @@ from cugraph.experimental import find_bicliques
 
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
-from raft_dask import raft_include_test
 
 from cugraph.sampling import (
     random_walks,
@@ -120,8 +119,4 @@ from cugraph import experimental
 from cugraph import gnn
 
 
-# Versioneer
-from ._version import get_versions
-
-__version__ = get_versions()["version"]
-del get_versions
+__version__ = "23.04.00"
