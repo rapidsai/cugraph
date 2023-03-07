@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <prims/extract_if_e.cuh>
+#include <prims/extract_transform_e.cuh>
 #include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 

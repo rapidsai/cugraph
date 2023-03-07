@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <prims/extract_if_e.cuh>
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>

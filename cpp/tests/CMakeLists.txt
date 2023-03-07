@@ -536,9 +536,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
-    # - MG PRIMS EXTRACT_IF_E tests ---------------------------------------------------------------
-    ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
-    target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
+    # - MG PRIMS EXTRACT_TRANSFORM_E tests --------------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_E_TEST prims/mg_extract_transform_e.cu)
+    target_link_libraries(MG_EXTRACT_TRANSFORM_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
