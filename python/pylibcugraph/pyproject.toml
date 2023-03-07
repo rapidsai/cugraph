@@ -13,3 +13,6 @@ requires = [
     "pylibraft==23.4.*",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["pylibcugraph/tests"]

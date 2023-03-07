@@ -8,3 +8,6 @@ requires = [
     "scikit-build>=0.13.1",
     "ninja",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["cugraph_pyg/tests"]
