@@ -237,8 +237,7 @@ def edge_betweenness_centrality(
     random_state : optional (default=None)
         if k is specified and k is an integer, use random_state to initialize the
         random number generator.
-        Using None as random_state relies on random.random_state() behavior: using current
-        system time
+        Using None defaults to a hash of process id, time, and hostname
         If k is either None or list: random_state parameter is ignored
 
     result_dtype : np.float32 or np.float64, optional (default=np.float64)
