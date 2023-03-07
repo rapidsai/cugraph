@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cudf
-
+from cugraph.structure import Graph
 from cugraph.community import subgraph_extraction_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
@@ -57,9 +57,7 @@ def subgraph(G, vertices):
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
-
-    if not G.edgelist.weights:
-        raise RuntimeError("input graph must be weighted")
+    directed = G.is_directed()
 
     if G.renumbered:
         if isinstance(vertices, cudf.DataFrame):
@@ -67,7 +65,7 @@ def subgraph(G, vertices):
         else:
             vertices = G.lookup_internal_vertex_id(vertices)
 
-    result_graph = type(G)()
+    result_graph = Graph(directed=directed)
 
     df = subgraph_extraction_wrapper.subgraph(G, vertices)
     src_names = "src"

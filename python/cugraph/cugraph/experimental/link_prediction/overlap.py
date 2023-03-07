@@ -30,9 +30,9 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None, use_weight=False):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    G : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
+        as an edge list (edge weights are not supported yet for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
@@ -55,14 +55,14 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None, use_weight=False):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified)
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
-            specified)
-        df['overlap_coeff'] : cudf.Series
-            The computed Overlap coefficient between the source and destination
-            vertices
+        ddf['first']: dask_cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        ddf['second']: dask_cudf.Series
+            The second vertex ID of each pair (will be identical to second if
+            specified).
+        ddf['overlap_coeff']: dask_cudf.Series
+            The computed overlap coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
@@ -84,7 +84,7 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None, use_weight=False):
 
     if isNx is True:
         df = df_edge_score_to_dictionary(
-            df, k="overlap_coeff", src="source", dst="destination"
+            df, k="overlap_coeff", src="first", dst="second"
         )
 
     return df
@@ -112,7 +112,7 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
     ----------
     G : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
+        as an edge list (edge weights are not supported yet for this algorithm). The
         adjacency list will be computed if not already present.
 
         This implementation only supports undirected, unweighted Graph.
@@ -133,14 +133,14 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified).
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            The second vertex ID of each pair (will be identical to second if
             specified).
         df['overlap_coeff'] : cudf.Series
-            The computed Overlap coefficient between the source and destination
-            vertices.
+            The computed overlap coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
@@ -154,13 +154,11 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
     if G.is_directed():
         raise ValueError("Input must be an undirected Graph.")
 
-    if G.edgelist.weights:
-        raise RuntimeError("input graph must be unweighted")
+    if G.is_weighted():
+        raise ValueError("Weighted graphs are currently not supported.")
 
     if use_weight:
-        raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'"
-        )
+        raise ValueError("'use_weight' is currently not supported.")
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
@@ -195,7 +193,7 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
     if v_p_num_col == 2:
         # single column vertex
         vertex_pair = vertex_pair.rename(
-            columns={src_col_name: "source", dst_col_name: "destination"}
+            columns={src_col_name: "first", dst_col_name: "second"}
         )
 
     df = vertex_pair

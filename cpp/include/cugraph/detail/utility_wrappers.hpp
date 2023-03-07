@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
  */
 #pragma once
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sequence.h>
@@ -36,7 +38,7 @@ namespace detail {
  * @param[in]   size         number of elements in array
  * @param[in]   min_value    minimum value
  * @param[in]   max_value    maximum value
- * @param[in]   seed         seed for initializing random number generator
+ * @param[in]   rng_state    The RngState instance holding pseudo-random number generator state.
  *
  */
 template <typename value_t>
@@ -45,7 +47,7 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          size_t size,
                          value_t min_value,
                          value_t max_value,
-                         uint64_t seed);
+                         raft::random::RngState& rng_state);
 
 /**
  * @brief    Fill a buffer with a constant value

@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,11 @@
 import numpy as np
 import importlib
 
+from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client.remote_graph_utils import (
     _transform_to_backend_dtype,
     _transform_to_backend_dtype_1d,
+    _offsets_to_backend_dtype,
     MissingModule,
 )
 
@@ -65,6 +67,12 @@ class RemoteGraph:
         self.__edge_categorical_dtype = None
 
     def __del__(self):
+        # Assume if a connection cannot be opened that the service is already
+        # stopped and the delete call can be skipped.
+        try:
+            self.__client.open()
+        except CugraphServiceError:
+            return
         self.__client.delete_graph(self.__graph_id)
 
     def is_remote(self):
@@ -144,10 +152,10 @@ class RemoteGraph:
         destination vertex, and edge type.
 
         """
+        # default edge props include src, dst, edge ID, and edge type
         np_edges = self.__client.get_graph_edge_data(
             -1,
             graph_id=self.__graph_id,
-            property_keys=[self.src_col_name, self.dst_col_name],
         )
 
         # Convert edge type to numeric if necessary
@@ -219,6 +227,9 @@ class RemoteGraph:
         """
         return self.__client.get_num_vertices(type, include_edge_data, self.__graph_id)
 
+    def number_of_vertices(self):
+        return self.get_num_vertices(type=None, include_edge_data=True)
+
     def get_num_edges(self, type=None):
         """Return the number of all edges or edges of a given type.
 
@@ -233,6 +244,9 @@ class RemoteGraph:
         PropertyGraph.get_num_vertices
         """
         return self.__client.get_num_edges(type, self.__graph_id)
+
+    def number_of_edges(self):
+        return self.get_num_edges(type=None)
 
     def get_vertices(self, selection=None, backend="cudf"):
         """
@@ -646,18 +660,55 @@ class RemoteGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(
+        self, prev_id_column=None, backend="cudf" if cudf_installed else "numpy"
+    ):
         """Renumber vertex IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each vertex type.
         Stop is *inclusive*.
-        """
-        raise NotImplementedError("not implemented")
 
-    def renumber_edges_by_type(self):
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        -------
+
+
+        """
+        offsets = self.__client.renumber_vertices_by_type(
+            prev_id_column=prev_id_column, graph_id=self.__graph_id
+        )
+        return _offsets_to_backend_dtype(offsets, backend)
+
+    def renumber_edges_by_type(
+        self, prev_id_column=None, backend="cudf" if cudf_installed else "numpy"
+    ):
         """Renumber edge IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each edge type.
         Stop is *inclusive*.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        A DataFrame or dict (depending on backend) with the start and stop IDs for
+        each edge type.
+        Stop is *inclusive*.
+        -------
+
+
         """
-        raise NotImplementedError("not implemented")
+        offsets = self.__client.renumber_edges_by_type(
+            prev_id_column=prev_id_column, graph_id=self.__graph_id
+        )
+        return _offsets_to_backend_dtype(offsets, backend)

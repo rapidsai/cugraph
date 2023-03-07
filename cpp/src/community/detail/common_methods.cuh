@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@ rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
   rmm::device_uvector<map_key_t>& keys_to_lookup)
 {
   bool debug = keys_to_lookup.size() < 50;
-  static_assert(std::is_integral<map_key_t>::value);
+  // static_assert(std::is_integral<map_key_t>::value);
   static_assert(std::is_same<map_key_t, std::int32_t>::value ||
                 std::is_same<map_key_t, std::int64_t>::value);
 
@@ -218,8 +218,9 @@ rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
       map_keys.end(),
       map_values.data(),
       invalid_vertex_id<map_key_t>::value,
-      std::is_floating_point<map_value_t>::value ? std::numeric_limits<map_value_t>::max()
-                                                 : invalid_vertex_id<map_key_t>::value,
+      // std::is_floating_point<map_value_t>::value
+      std::is_floating_point_v<map_value_t> ? std::numeric_limits<map_value_t>::max()
+                                            : invalid_vertex_id<map_key_t>::value,
       handle.get_stream());
     values_for_sought_keys = cugraph::collect_values_for_keys(handle.get_comms(),
                                                               cluster_key_weight_map.view(),
@@ -390,6 +391,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       return thrust::make_tuple(sum, subtract);
     },
     thrust::make_tuple(weight_t{0}, weight_t{0}),
+    reduce_op::plus<thrust::tuple<weight_t, weight_t>>{},
     thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
 

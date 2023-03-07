@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,10 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import warnings
 
 from pylibcugraph import ResourceHandle, core_number as pylibcugraph_core_number
 
@@ -43,7 +42,7 @@ def _call_plc_core_number(sID, mg_graph_x, dt_x, do_expensive_check):
     )
 
 
-def core_number(input_graph, degree_type=None):
+def core_number(input_graph, degree_type="bidirectional"):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -58,12 +57,10 @@ def core_number(input_graph, degree_type=None):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    degree_type: str
+    degree_type: str, (default="bidirectional")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
-        This option is currently ignored in this release, and setting it will
-        result in a warning.
 
 
     Returns
@@ -80,19 +77,14 @@ def core_number(input_graph, degree_type=None):
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if degree_type is not None:
-        warning_msg = "The 'degree_type' parameter is ignored in this release."
-        warnings.warn(warning_msg, Warning)
-
-    # FIXME: enable this check once 'degree_type' is supported
-    """
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(f"'degree_type' must be either incoming, "
-                         f"outgoing or bidirectional, got: {degree_type}")
-    """
+        raise ValueError(
+            f"'degree_type' must be either incoming, "
+            f"outgoing or bidirectional, got: {degree_type}"
+        )
 
     # Initialize dask client
-    client = input_graph._client
+    client = default_client()
 
     do_expensive_check = False
 

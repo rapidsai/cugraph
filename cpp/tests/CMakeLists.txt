@@ -1,5 +1,5 @@
 ﻿#=============================================================================
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -110,11 +110,11 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph_mg
-            EXCLUDE_FROM_ALL)
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_mg
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
@@ -134,11 +134,11 @@ function(ConfigureCTest CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph_c
-            EXCLUDE_FROM_ALL)
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_c
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTestMG CMAKE_TEST_NAME)
@@ -167,11 +167,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph_c
-            EXCLUDE_FROM_ALL)
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_c
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 if(NOT USE_CUGRAPH_OPS)
@@ -235,10 +235,6 @@ ConfigureTest(EGO_TEST community/egonet_test.cpp)
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
 ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
-
-###################################################################################################
-# - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
-ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
 
 ###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
@@ -352,7 +348,7 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 # - NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
-        
+
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 set(RENUMBERING_TEST_SRCS
@@ -411,6 +407,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
             cugraph::cugraph
             NCCL::NCCL
             MPI::MPI_CXX
+        PRIVATE
+            GTest::gtest
     )
 
     # Set the GPU count to 1.  If the caller wants to execute MG tests using
@@ -629,10 +627,6 @@ target_link_libraries(cugraph_c_testutil
         cugraph
 )
 
-
-# FIXME: Disabling these tests, they test an older version of the API which
-#        will be deleted in this release.  Leaving them here to help me remember :-)
-#ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE c_api/create_sg_graph_envelope_test.c)
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)

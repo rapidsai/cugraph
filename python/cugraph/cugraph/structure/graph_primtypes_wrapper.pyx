@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 from cugraph.structure.graph_primtypes cimport *
-from cugraph.structure.graph_primtypes cimport get_two_hop_neighbors as c_get_two_hop_neighbors
 from cugraph.structure.utils_wrapper import *
 from libcpp cimport bool
 import enum
@@ -255,43 +254,6 @@ def _degrees(input_graph):
     verts, outdegrees = _degree(input_graph, Direction.OUT)
 
     return verts, indegrees, outdegrees
-
-
-# FIXME: this generates a cython warning about overriding a cdef method of the
-# same name.
-def get_two_hop_neighbors(input_graph):
-    # FIXME: this function assumes columns named "src" and "dst" and can only
-    # be used for SG graphs due to that assumption.
-    cdef GraphCSRView[int,int,float] graph
-
-    offsets = None
-    indices = None
-    transposed = False
-
-    if input_graph.adjlist:
-        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-    elif input_graph.transposedadjlist:
-        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-        transposed = True
-    else:
-        input_graph.view_adj_list()
-        [offsets, indices] = datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
-
-    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
-
-    num_verts = input_graph.number_of_vertices()
-    num_edges = input_graph.number_of_edges(directed_edges=True)
-
-    graph = GraphCSRView[int,int,float](<int*>c_offsets, <int*> c_indices, <float*>NULL, num_verts, num_edges)
-
-    df = coo_to_df(move(c_get_two_hop_neighbors(graph)))
-    if not transposed:
-        df.rename(columns={'src':'first', 'dst':'second'}, inplace=True)
-    else:
-        df.rename(columns={'dst':'first', 'src':'second'}, inplace=True)
-
-    return df
 
 
 def weight_type(input_graph):

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <memory>
 
@@ -33,7 +33,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size = 64);
 
 // NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
 // measurements
-void enforce_p2p_initialization(raft::handle_t const& handle);
+void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream);
 
 }  // namespace test
 }  // namespace cugraph

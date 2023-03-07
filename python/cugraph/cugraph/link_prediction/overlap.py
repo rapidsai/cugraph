@@ -36,7 +36,7 @@ def overlap_coefficient(G, ebunch=None):
 
     if isNx is True:
         df = df_edge_score_to_dictionary(
-            df, k="overlap_coeff", src="source", dst="destination"
+            df, k="overlap_coeff", src="first", dst="second"
         )
 
     return df
@@ -74,14 +74,14 @@ def overlap(input_graph, vertex_pair=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified).
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            The second vertex ID of each pair (will be identical to second if
             specified).
         df['overlap_coeff'] : cudf.Series
-            The computed Overlap coefficient between the source and destination
-            vertices.
+            The computed overlap coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
@@ -99,7 +99,7 @@ def overlap(input_graph, vertex_pair=None):
     df = overlap_wrapper.overlap(input_graph, None, vertex_pair)
 
     if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+        df = input_graph.unrenumber(df, "first")
+        df = input_graph.unrenumber(df, "second")
 
     return df

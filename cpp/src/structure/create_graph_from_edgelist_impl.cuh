@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
@@ -137,9 +137,10 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     if (vertices) {
       auto num_unique_vertices = host_scalar_allreduce(
         comm, (*vertices).size(), raft::comms::op_t::SUM, handle.get_stream());
-      CUGRAPH_EXPECTS(num_unique_vertices < std::numeric_limits<vertex_t>::max(),
-                      "Invalid input arguments: # unique vertex IDs should be smaller than "
-                      "std::numeric_limits<vertex_t>::Max().");
+      CUGRAPH_EXPECTS(
+        num_unique_vertices < static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
+        "Invalid input arguments: # unique vertex IDs should be smaller than "
+        "std::numeric_limits<vertex_t>::Max().");
 
       CUGRAPH_EXPECTS(
         thrust::count_if(
@@ -648,9 +649,10 @@ create_graph_from_edgelist_impl(
   bool renumber,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(!vertices || ((*vertices).size() < std::numeric_limits<vertex_t>::max()),
-                  "Invalid input arguments: # unique vertex IDs should be smaller than "
-                  "std::numeric_limits<vertex_t>::Max().");
+  CUGRAPH_EXPECTS(
+    !vertices || ((*vertices).size() < static_cast<size_t>(std::numeric_limits<vertex_t>::max())),
+    "Invalid input arguments: # unique vertex IDs should be smaller than "
+    "std::numeric_limits<vertex_t>::Max().");
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),

@@ -25,7 +25,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 
 #include <cugraph/utilities/error.hpp>
 

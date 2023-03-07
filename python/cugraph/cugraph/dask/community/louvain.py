@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
@@ -102,7 +102,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
         raise ValueError("input graph must be undirected")
 
     # Initialize dask client
-    client = input_graph._client
+    client = default_client()
 
     do_expensive_check = False
 

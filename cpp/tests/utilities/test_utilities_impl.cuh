@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -51,6 +52,16 @@ graph_to_host_coo(
     if (d_wgt)
       *d_wgt = cugraph::test::device_gatherv(
         handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+    if (handle.get_comms().get_rank() != 0) {
+      d_src.resize(0, handle.get_stream());
+      d_src.shrink_to_fit(handle.get_stream());
+      d_dst.resize(0, handle.get_stream());
+      d_dst.shrink_to_fit(handle.get_stream());
+      if (d_wgt) {
+        (*d_wgt).resize(0, handle.get_stream());
+        (*d_wgt).shrink_to_fit(handle.get_stream());
+      }
+    }
   }
 
   std::vector<vertex_t> h_src(d_src.size());
@@ -93,6 +104,16 @@ graph_to_host_csr(
     if (d_wgt)
       *d_wgt = cugraph::test::device_gatherv(
         handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+    if (handle.get_comms().get_rank() != 0) {
+      d_src.resize(0, handle.get_stream());
+      d_src.shrink_to_fit(handle.get_stream());
+      d_dst.resize(0, handle.get_stream());
+      d_dst.shrink_to_fit(handle.get_stream());
+      if (d_wgt) {
+        (*d_wgt).resize(0, handle.get_stream());
+        (*d_wgt).shrink_to_fit(handle.get_stream());
+      }
+    }
   }
 
   rmm::device_uvector<edge_t> d_offsets(0, handle.get_stream());
@@ -168,15 +189,30 @@ mg_graph_to_sg_graph(
   if (d_wgt)
     *d_wgt = cugraph::test::device_gatherv(
       handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+  if (handle.get_comms().get_rank() != 0) {
+    d_src.resize(0, handle.get_stream());
+    d_src.shrink_to_fit(handle.get_stream());
+    d_dst.resize(0, handle.get_stream());
+    d_dst.shrink_to_fit(handle.get_stream());
+    if (d_wgt) {
+      (*d_wgt).resize(0, handle.get_stream());
+      (*d_wgt).shrink_to_fit(handle.get_stream());
+    }
+  }
+
+  rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
+  cugraph::detail::sequence_fill(
+    handle.get_stream(), vertices.data(), vertices.size(), vertex_t{0});
 
   graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+
   std::tie(graph, edge_weights, std::ignore, new_number_map) = cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, false>(
       handle,
-      std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+      std::make_optional(std::move(vertices)),
       std::move(d_src),
       std::move(d_dst),
       std::move(d_wgt),

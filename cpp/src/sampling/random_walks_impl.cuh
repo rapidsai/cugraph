@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/random/rng.cuh>
 
 #include <rmm/device_uvector.hpp>
@@ -46,9 +46,9 @@ namespace detail {
 
 inline uint64_t get_current_time_nanoseconds()
 {
-  timespec current_time;
-  clock_gettime(CLOCK_REALTIME, &current_time);
-  return current_time.tv_sec * 1000000000 + current_time.tv_nsec;
+  auto cur = std::chrono::steady_clock::now();
+  return static_cast<uint64_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(cur.time_since_epoch()).count());
 }
 
 template <typename vertex_t, typename weight_t>
@@ -285,8 +285,9 @@ random_walk_impl(raft::handle_t const& handle,
                                                     current_gpu.begin(),
                                                     current_position.begin());
 
-        CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
-                        "remove_if will fail, current_vertices.size() is too large");
+        CUGRAPH_EXPECTS(
+          current_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+          "remove_if will fail, current_vertices.size() is too large");
 
         // FIXME: remove_if has a 32-bit overflow issue
         // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
@@ -341,8 +342,9 @@ random_walk_impl(raft::handle_t const& handle,
         auto input_iter = thrust::make_zip_iterator(
           current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
-        CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
-                        "remove_if will fail, current_vertices.size() is too large");
+        CUGRAPH_EXPECTS(
+          current_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
+          "remove_if will fail, current_vertices.size() is too large");
 
         auto compacted_length = thrust::distance(
           input_iter,

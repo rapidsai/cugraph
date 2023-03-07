@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -11,10 +11,11 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
+
 add_subdirectory(components)
-add_subdirectory(raft/common)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
+
 set(cython_sources
     bfs.pyx
     core_number.pyx
@@ -23,6 +24,7 @@ set(cython_sources
     graph_properties.pyx
     graphs.pyx
     hits.pyx
+    k_core.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
     overlap_coefficients.pyx
@@ -31,6 +33,7 @@ set(cython_sources
     node2vec.pyx
     pagerank.pyx
     personalized_pagerank.pyx
+    random.pyx
     resource_handle.pyx
     sssp.pyx
     triangle_count.pyx
@@ -40,7 +43,7 @@ set(cython_sources
     utils.pyx
     weakly_connected_components.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
   CXX

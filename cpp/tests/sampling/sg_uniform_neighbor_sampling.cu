@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,17 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
-struct Prims_Usecase {
+struct Uniform_Neighbor_Sampling_Usecase {
+  std::vector<int32_t> fanout{{-1}};
+  int32_t batch_size{10};
   bool check_correctness{true};
   bool flag_replacement{true};
 };
 
 template <typename input_usecase_t>
 class Tests_Uniform_Neighbor_Sampling
-  : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<
+      std::tuple<Uniform_Neighbor_Sampling_Usecase, input_usecase_t>> {
  public:
   Tests_Uniform_Neighbor_Sampling() {}
 
@@ -40,14 +43,15 @@ class Tests_Uniform_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
+  void run_current_test(Uniform_Neighbor_Sampling_Usecase const& uniform_neighbor_sampling_usecase,
+                        input_usecase_t const& input_usecase)
   {
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
     auto [graph, edge_weights, renumber_map_labels] =
@@ -56,91 +60,159 @@ class Tests_Uniform_Neighbor_Sampling
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    constexpr edge_t indices_per_source       = 2;
-    constexpr vertex_t repetitions_per_vertex = 5;
-    constexpr vertex_t source_sample_count    = 3;
+    //
+    // Test is designed like GNN sampling.  We'll select 90% of vertices
+    // to be included in sampling batches
+    //
+    constexpr float select_probability{0.9};
 
-    // Generate random vertex ids in the range of current gpu
+    // FIXME:  Update the tests to initialize RngState and use it instead
+    //         of seed...
+    constexpr uint64_t seed{0};
 
-    // Generate random sources to gather on
-    auto random_sources =
-      cugraph::test::random_vertex_ids(handle,
-                                       graph_view.local_vertex_partition_range_first(),
-                                       graph_view.local_vertex_partition_range_last(),
-                                       std::min(graph_view.local_vertex_partition_range_size() *
-                                                  (repetitions_per_vertex + vertex_t{1}),
-                                                source_sample_count),
-                                       repetitions_per_vertex,
-                                       uint64_t{0});
+    raft::random::RngState rng_state(seed);
+    rmm::device_uvector<float> random_numbers(graph_view.local_vertex_partition_range_size(),
+                                              handle.get_stream());
+    rmm::device_uvector<vertex_t> random_sources(graph_view.local_vertex_partition_range_size(),
+                                                 handle.get_stream());
 
-    std::vector<int> h_fan_out{indices_per_source};  // depth = 1
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         random_numbers.data(),
+                                         random_numbers.size(),
+                                         float{0},
+                                         float{1},
+                                         rng_state);
+
+    auto random_sources_end = thrust::copy_if(
+      handle.get_thrust_policy(),
+      thrust::make_counting_iterator(vertex_t{0}),
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_size()),
+      random_sources.begin(),
+      [d_random_number = random_numbers.data(), select_probability] __device__(vertex_t offset) {
+        return d_random_number[offset] < select_probability;
+      });
+
+    random_sources.resize(thrust::distance(random_sources.begin(), random_sources_end),
+                          handle.get_stream());
+    random_sources.shrink_to_fit(handle.get_stream());
+
+    random_numbers.resize(random_sources.size(), handle.get_stream());
+    random_numbers.shrink_to_fit(handle.get_stream());
+
+    //
+    //  Now we'll assign the vertices to batches
+    //
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         random_numbers.data(),
+                                         random_numbers.size(),
+                                         float{0},
+                                         float{1},
+                                         rng_state);
+
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        random_numbers.begin(),
+                        random_numbers.end(),
+                        random_sources.begin());
+
+    random_numbers.resize(0, handle.get_stream());
+    random_numbers.shrink_to_fit(handle.get_stream());
+
+    rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle.get_stream());
+
+    thrust::tabulate(handle.get_thrust_policy(),
+                     batch_number.begin(),
+                     batch_number.end(),
+                     [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
+                       int32_t index) { return index / batch_size; });
+
+    rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle.get_stream());
+
+    raft::copy(random_sources_copy.data(),
+               random_sources.data(),
+               random_sources.size(),
+               handle.get_stream());
 
 #ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(cugraph::uniform_nbr_sample(
+    EXPECT_THROW(cugraph::uniform_neighbor_sample(
                    handle,
                    graph_view,
                    edge_weight_view,
-                   raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
-                   raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
-                   prims_usecase.flag_replacement),
+                   std::nullopt,
+                   std::move(random_sources_copy),
+                   std::move(batch_number),
+                   raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
+                                                  uniform_neighbor_sampling_usecase.fanout.size()),
+                   rng_state,
+                   uniform_neighbor_sampling_usecase.flag_replacement),
                  std::exception);
 #else
-    auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
-      handle,
-      graph_view,
-      edge_weight_view,
-      raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
-      raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
-      prims_usecase.flag_replacement);
+    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels] =
+      cugraph::uniform_neighbor_sample(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<
+          edge_t,
+          thrust::zip_iterator<thrust::tuple<edge_t const*, int32_t const*>>>>{std::nullopt},
+        std::move(random_sources_copy),
+        std::move(batch_number),
+        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
+                                       uniform_neighbor_sampling_usecase.fanout.size()),
+        rng_state,
+        uniform_neighbor_sampling_usecase.flag_replacement);
 
-    if (prims_usecase.check_correctness) {
+    if (uniform_neighbor_sampling_usecase.check_correctness) {
       //  First validate that the extracted edges are actually a subset of the
       //  edges in the input graph
-      rmm::device_uvector<vertex_t> d_vertices(2 * d_src_out.size(), handle.get_stream());
-      raft::copy(d_vertices.data(), d_src_out.data(), d_src_out.size(), handle.get_stream());
-      raft::copy(d_vertices.data() + d_src_out.size(),
-                 d_dst_out.data(),
-                 d_dst_out.size(),
-                 handle.get_stream());
-      thrust::sort(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
+      rmm::device_uvector<vertex_t> vertices(2 * src_out.size(), handle.get_stream());
+      raft::copy(vertices.data(), src_out.data(), src_out.size(), handle.get_stream());
+      raft::copy(
+        vertices.data() + src_out.size(), dst_out.data(), dst_out.size(), handle.get_stream());
+      thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
       auto vertices_end =
-        thrust::unique(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end());
-      d_vertices.resize(thrust::distance(d_vertices.begin(), vertices_end), handle.get_stream());
+        thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+      vertices.resize(thrust::distance(vertices.begin(), vertices_end), handle.get_stream());
 
       rmm::device_uvector<size_t> d_subgraph_offsets(2, handle.get_stream());
-      std::vector<size_t> h_subgraph_offsets({0, d_vertices.size()});
+      std::vector<size_t> h_subgraph_offsets({0, vertices.size()});
 
       raft::update_device(d_subgraph_offsets.data(),
                           h_subgraph_offsets.data(),
                           h_subgraph_offsets.size(),
                           handle.get_stream());
 
-      auto [d_src_in, d_dst_in, d_indices_in, d_ignore] = extract_induced_subgraphs(
+      rmm::device_uvector<vertex_t> src_compare(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> dst_compare(0, handle.get_stream());
+      std::optional<rmm::device_uvector<weight_t>> wgt_compare{std::nullopt};
+
+      std::tie(src_compare, dst_compare, wgt_compare, std::ignore) = extract_induced_subgraphs(
         handle,
         graph_view,
         edge_weight_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), 2),
-        raft::device_span<vertex_t const>(d_vertices.data(), d_vertices.size()),
+        raft::device_span<vertex_t const>(vertices.data(), vertices.size()),
         true);
 
       cugraph::test::validate_extracted_graph_is_subgraph(
-        handle, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
+        handle, src_compare, dst_compare, wgt_compare, src_out, dst_out, wgt_out);
 
-      cugraph::test::validate_sampling_depth(handle,
-                                             std::move(d_src_out),
-                                             std::move(d_dst_out),
-                                             std::move(d_indices),
-                                             std::move(random_sources),
-                                             h_fan_out.size());
+      if (random_sources.size() < 100) {
+        // This validation is too expensive for large number of vertices
+        cugraph::test::validate_sampling_depth(handle,
+                                               std::move(src_out),
+                                               std::move(dst_out),
+                                               std::move(wgt_out),
+                                               std::move(random_sources),
+                                               uniform_neighbor_sampling_usecase.fanout.size());
+      }
     }
 #endif
   }
@@ -192,7 +264,8 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_Uniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true, true}, Prims_Usecase{true, false}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true},
+                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -201,7 +274,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
+  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
@@ -212,7 +285,7 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
+  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 

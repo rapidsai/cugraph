@@ -3,10 +3,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
-
-#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {

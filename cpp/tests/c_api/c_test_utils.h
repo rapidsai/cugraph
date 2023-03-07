@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,12 @@ int run_sg_test(int (*test)(), const char* test_name);
 
 #define RUN_TEST(test_name) run_sg_test(test_name, #test_name)
 
+int run_sg_test_new(int (*test)(const cugraph_resource_handle_t*),
+                    const char* test_name,
+                    const cugraph_resource_handle_t* handle);
+
+#define RUN_TEST_NEW(test_name, handle) run_sg_test_new(test_name, #test_name, handle)
+
 int nearlyEqual(float a, float b, float epsilon);
 int nearlyEqualDouble(double a, double b, double epsilon);
 
@@ -75,6 +81,25 @@ int create_test_graph_double(const cugraph_resource_handle_t* p_handle,
                              bool_t is_symmetric,
                              cugraph_graph_t** p_graph,
                              cugraph_error_t** ret_error);
+
+int create_sg_test_graph(const cugraph_resource_handle_t* handle,
+                         data_type_id_t vertex_tid,
+                         data_type_id_t edge_tid,
+                         void* h_src,
+                         void* h_dst,
+                         data_type_id_t weight_tid,
+                         void* h_wgt,
+                         data_type_id_t edge_type_tid,
+                         void* h_edge_type,
+                         data_type_id_t edge_id_tid,
+                         void* h_edge_id,
+                         size_t num_edges,
+                         bool_t store_transposed,
+                         bool_t renumber,
+                         bool_t is_symmetric,
+                         bool_t is_multigraph,
+                         cugraph_graph_t** graph,
+                         cugraph_error_t** ret_error);
 
 void* create_raft_handle(int prows);
 void free_raft_handle(void* raft_handle);

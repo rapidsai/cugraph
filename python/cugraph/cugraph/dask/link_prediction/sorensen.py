@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
@@ -31,11 +31,11 @@ def convert_to_cudf(cp_arrays):
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
 
-    cupy_source, cupy_destination, cupy_similarity = cp_arrays
+    cupy_first, cupy_second, cupy_similarity = cp_arrays
 
     df = cudf.DataFrame()
-    df["source"] = cupy_source
-    df["destination"] = cupy_destination
+    df["first"] = cupy_first
+    df["second"] = cupy_second
     df["sorensen_coeff"] = cupy_similarity
 
     return df
@@ -77,7 +77,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     ----------
     input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
+        as an edge list (edge weights are not supported yet for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
@@ -99,14 +99,14 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     result : dask_cudf.DataFrame
         GPU distributed data frame containing 2 dask_cudf.Series
 
-        ddf['source']: dask_cudf.Series
-            The source vertex ID (will be identical to first if specified)
-        ddf['destination']: dask_cudf.Series
-            The destination vertex ID (will be identical to second if
-            specified)
+        ddf['first']: dask_cudf.Series
+            The first vertex ID of each pair(will be identical to first if specified).
+        ddf['second']: dask_cudf.Series
+            The second vertex ID of each pair(will be identical to second if
+            specified).
         ddf['sorensen_coeff']: dask_cudf.Series
-            The computed sorensen coefficient between the source and destination
-            vertices
+            The computed sorensen coefficient between the first and the second
+            vertex ID.
     """
 
     if input_graph.is_directed():
@@ -119,14 +119,10 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     vertex_pair_col_name = vertex_pair.columns
 
     if use_weight:
-        raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'"
-        )
+        raise ValueError("'use_weight' is currently not supported.")
 
-    # FIXME: Implement a better way to check if the graph is weighted similar
-    # to 'simpleGraph'
-    if len(input_graph.edgelist.edgelist_df.columns) == 3:
-        raise RuntimeError("input graph must be unweighted")
+    if input_graph.is_weighted():
+        raise ValueError("Weighted graphs are currently not supported.")
 
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
@@ -143,7 +139,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     vertex_pair = vertex_pair.worker_to_parts
 
     # Initialize dask client
-    client = input_graph._client
+    client = default_client()
 
     do_expensive_check = False
 
@@ -176,7 +172,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "source")
-        ddf = input_graph.unrenumber(ddf, "destination")
+        ddf = input_graph.unrenumber(ddf, "first")
+        ddf = input_graph.unrenumber(ddf, "second")
 
     return ddf

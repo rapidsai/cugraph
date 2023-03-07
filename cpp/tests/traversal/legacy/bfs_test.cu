@@ -24,7 +24,7 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <queue>
 #include <stack>

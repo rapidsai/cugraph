@@ -14,7 +14,7 @@
 
 import pytest
 
-from . import utils
+from cugraph_service_server.testing import utils
 
 graph_creation_extension1_file_contents = """
 import cudf
@@ -230,6 +230,38 @@ def my_extension(arg1, arg2, server):
 
 
 @pytest.fixture(scope="module")
+def server():
+    """
+    Start a cugraph_service server, stop it when done with the fixture.
+    """
+    from cugraph_service_client import CugraphServiceClient
+    from cugraph_service_client.exceptions import CugraphServiceError
+
+    host = "localhost"
+    port = 9090
+    client = CugraphServiceClient(host, port)
+
+    try:
+        client.uptime()
+        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
+        yield
+
+    except CugraphServiceError:
+        # A server was not found, so start one for testing then stop it when
+        # testing is done.
+        server_process = utils.start_server_subprocess(host=host, port=port)
+
+        # yield control to the tests, cleanup on return
+        yield
+
+        # tests are done, now stop the server
+        print("\nTerminating server...", end="", flush=True)
+        server_process.terminate()
+        server_process.wait(timeout=60)
+        print("done.", flush=True)
+
+
+@pytest.fixture(scope="module")
 def graph_creation_extension1():
     tmp_extension_dir = utils.create_tmp_extension_dir(
         graph_creation_extension1_file_contents
@@ -336,3 +368,29 @@ def extension_adds_graph():
     )
 
     yield tmp_extension_dir.name
+
+
+###############################################################################
+# function scope fixtures
+
+
+@pytest.fixture(scope="function")
+def client(server):
+    """
+    Creates a client instance to the running server, closes the client when the
+    fixture is no longer used by tests.
+    """
+    from cugraph_service_client import CugraphServiceClient, defaults
+
+    client = CugraphServiceClient(defaults.host, defaults.port)
+
+    for gid in client.get_graph_ids():
+        client.delete_graph(gid)
+
+    # FIXME: should this fixture always unconditionally unload all extensions?
+    # client.unload_graph_creation_extensions()
+
+    # yield control to the tests, cleanup on return
+    yield client
+
+    client.close()

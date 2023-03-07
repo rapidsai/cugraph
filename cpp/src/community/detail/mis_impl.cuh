@@ -29,8 +29,7 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
@@ -121,7 +120,11 @@ rmm::device_uvector<vertex_t> compute_mis(
   rmm::device_uvector<vertex_t> discard_list(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
 
+  // Out degree must of 1 to be included in MIS
   auto out_degrees = graph_view.compute_out_degrees(handle);
+  // Each vertex has at most one outgoing edge,
+  auto ranks = compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
+    handle, graph_view, *edge_weight_view);
 
   if (debug) {
     cudaDeviceSynchronize();
@@ -256,10 +259,6 @@ rmm::device_uvector<vertex_t> compute_mis(
     edge_src_property_t<GraphViewType, FlagType> src_selection_flag_cache(handle);
     edge_dst_property_t<GraphViewType, FlagType> dst_selection_flag_cache(handle);
 
-    auto ranks = compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
-      handle, graph_view, *edge_weight_view);
-    // rank_vertices<vertex_t, edge_t, weight_t, multi_gpu>(handle, graph_view, edge_weight_view);
-
     vertex_t pos_rank_but_zero_outdeg = thrust::count_if(
       handle.get_thrust_policy(),
       thrust::make_zip_iterator(thrust::make_tuple(ranks.begin(), out_degrees.begin())),
@@ -361,6 +360,11 @@ rmm::device_uvector<vertex_t> compute_mis(
         }
 
         if (is_src_selected && is_dst_selected) {
+          return thrust::make_tuple(static_cast<FlagType>(thrust::make_tuple(src_rank, src) <
+                                                          thrust::make_tuple(dst_rank, dst)),
+                                    FlagType{0});
+        }
+        /*if (is_src_selected && is_dst_selected) {
           // printf("\n (src=%d ---> dst=%d)  ss=%d ds=%d,  sr=%f dr=%f",
           //        uint32_t{src},
           //        uint32_t{dst},
@@ -378,7 +382,7 @@ rmm::device_uvector<vertex_t> compute_mis(
               return thrust::make_tuple(FlagType{1}, FlagType{0});
             }
           }
-        }
+        }*/
 
         // printf("\n (src=%d ---> dst=%d) returning %d %d",
         //        uint32_t{src},
@@ -388,6 +392,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
       thrust::make_tuple(FlagType{0}, FlagType{0}),
+      cugraph::reduce_op::plus<thrust::tuple<FlagType, FlagType>>{},
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
@@ -398,7 +403,29 @@ rmm::device_uvector<vertex_t> compute_mis(
       selection_flags.end(),
       de_selection_flags.begin(),
       selection_flags.begin(),
-      [] __device__(auto status, auto deselected) { return (status > 0) && (!(deselected > 0)); });
+      [] __device__(auto prev, auto deselected) { return (prev > 0) && (!(deselected > 0)); });
+
+    // Update discard flags
+    thrust::transform(
+      handle.get_thrust_policy(),
+      discard_flags.begin(),
+      discard_flags.end(),
+      newly_discarded_flags.begin(),
+      discard_flags.begin(),
+      [] __device__(auto prev, auto current) { return (prev > 0) || (current > 0); });
+
+    vertex_t nr_discarded_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       discard_flags.begin(),
+                       discard_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
+
+    if constexpr (multi_gpu) {
+      update_edge_src_property(
+        handle, graph_view, selection_flags.begin(), src_selection_flag_cache);
+      update_edge_dst_property(
+        handle, graph_view, selection_flags.begin(), dst_selection_flag_cache);
+    }
 
     if (debug) {
       vertex_t nr_deselected = thrust::count_if(handle.get_thrust_policy(),
@@ -420,20 +447,6 @@ rmm::device_uvector<vertex_t> compute_mis(
       raft::print_device_vector(
         "\nde_selection_list ", de_selection_list.data(), de_selection_list.size(), std::cout);
     }
-
-    thrust::transform(
-      handle.get_thrust_policy(),
-      discard_flags.begin(),
-      discard_flags.end(),
-      newly_discarded_flags.begin(),
-      discard_flags.begin(),
-      [] __device__(auto prev, auto current) { return (prev > 0) || (current > 0); });
-
-    vertex_t nr_discarded_vertices =
-      thrust::count_if(handle.get_thrust_policy(),
-                       discard_flags.begin(),
-                       discard_flags.end(),
-                       [] __device__(auto flag) { return flag > 0; });
 
     if (debug) {
       thrust::copy_if(handle.get_thrust_policy(),
@@ -467,12 +480,15 @@ rmm::device_uvector<vertex_t> compute_mis(
         "updated slected vertices ", selection_list.data(), selection_list.size(), std::cout);
     }
 
-    if constexpr (multi_gpu) {
-      update_edge_src_property(
-        handle, graph_view, selection_flags.begin(), src_selection_flag_cache);
-      update_edge_dst_property(
-        handle, graph_view, selection_flags.begin(), dst_selection_flag_cache);
-    }
+    thrust::uninitialized_fill(handle.get_thrust_policy(),
+                               de_selection_flags.begin(),
+                               de_selection_flags.end(),
+                               FlagType{0});
+
+    thrust::uninitialized_fill(handle.get_thrust_policy(),
+                               newly_discarded_flags.begin(),
+                               newly_discarded_flags.end(),
+                               FlagType{0});
 
     per_v_transform_reduce_incoming_e(
       handle,
@@ -545,6 +561,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
       thrust::make_tuple(FlagType{0}, FlagType{0}),
+      cugraph::reduce_op::plus<thrust::tuple<FlagType, FlagType>>{},
       thrust::make_zip_iterator(
         thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
@@ -576,8 +593,9 @@ rmm::device_uvector<vertex_t> compute_mis(
       selection_flags.end(),
       de_selection_flags.begin(),
       selection_flags.begin(),
-      [] __device__(auto status, auto deselected) { return (status > 0) && (!(deselected > 0)); });
+      [] __device__(auto prev, auto deselected) { return (prev > 0) && (!(deselected > 0)); });
 
+    // Update discard flags
     thrust::transform(
       handle.get_thrust_policy(),
       discard_flags.begin(),
@@ -593,7 +611,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                       mis_inclusion_flags.begin(),
                       mis_inclusion_flags.begin(),
                       [] __device__(auto selected, auto prev_inclusion_flag) {
-                        return static_cast<FlagType>(selected || prev_inclusion_flag);
+                        return static_cast<FlagType>((selected > 0) || (prev_inclusion_flag > 0));
                       });
 
     vertex_t nr_include_vertices = thrust::count_if(handle.get_thrust_policy(),
@@ -666,6 +684,10 @@ rmm::device_uvector<vertex_t> compute_mis(
                                 (thrust::get<2>(flags) > 0);
                        });
 
+    if (multi_gpu) {
+      nr_discared_and_included = host_scalar_allreduce(
+        handle.get_comms(), nr_discared_and_included, raft::comms::op_t::SUM, handle.get_stream());
+    }
     cudaDeviceSynchronize();
 
     std::cout << " number_of_vertices:       " << number_of_vertices << std::endl;

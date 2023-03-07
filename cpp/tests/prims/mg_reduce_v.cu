@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -28,14 +27,15 @@
 #include <prims/reduce_v.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/graph_view.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/distance.h>
@@ -119,14 +119,14 @@ class Tests_MGReduceV
             bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
@@ -138,9 +138,8 @@ class Tests_MGReduceV
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -158,7 +157,7 @@ class Tests_MGReduceV
     auto property_iter = cugraph::get_dataframe_buffer_begin(mg_vertex_prop);
 
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
-    reduction_type_t reduction_types[] = {
+    std::array<reduction_type_t, 3> reduction_types = {
       reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
     std::unordered_map<reduction_type_t, result_t> results;
@@ -167,7 +166,7 @@ class Tests_MGReduceV
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         handle_->get_comms().barrier();
-        hr_clock.start();
+        hr_timer.start("MG reduce_v");
       }
 
       switch (reduction_type) {
@@ -198,9 +197,8 @@ class Tests_MGReduceV
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         handle_->get_comms().barrier();
-        double elapsed_time{0.0};
-        hr_clock.stop(&elapsed_time);
-        std::cout << "MG reduce_v took " << elapsed_time * 1e-6 << " s.\n";
+        hr_timer.stop();
+        hr_timer.display_and_clear(std::cout);
       }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <optional>
@@ -24,78 +24,155 @@ namespace cugraph {
 namespace detail {
 
 /**
- * @brief Shuffle edgelist using the edge key function which returns the target GPU ID.
+ * @brief Shuffle external (i.e. before renumbering) vertex pairs (which can be edge end points) to
+ * their local GPUs based on edge partitioning.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
- * @param[in] d_edgelist_majors Vertex IDs for sources (if we are internally storing edges in the
- * sparse 2D matrix using sources as major indices) or destinations (otherwise)
- * @param[in] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges in
- * the sparse 2D matrix using sources as major indices) or sources (otherwise)
- * @param[in] d_edgelist_weights Optional edge weights
+ * @param[in] majors Vector of first elemetns in vertex pairs. To determine the local GPU of a
+ * (major, minor) pair, we assume there exists an edge from major=>minor (if we store edges in the
+ * sparse 2D matrix using sources as major indices) or minor=>major (otherwise) and apply the edge
+ * partitioning to determine the local GPU.
+ * @param[in] minors Vector of second elements in vertex pairs.
+ * @param[in] weights Optional vector of vertex pair weight values.
+ * @param[in] edge_id_type_tuple Optional tuple of vectors of edge id and edge type values
  *
- * @return Tuple of shuffled major vertices, minor vertices and optional weights
+ * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights.
  */
-template <typename vertex_t, typename weight_t>
-std::tuple<rmm::device_uvector<vertex_t>,
-           rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<weight_t>>>
-shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<vertex_t>&& d_edgelist_majors,
-                           rmm::device_uvector<vertex_t>&& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<weight_t>>&& d_edgelist_weights);
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
+std::tuple<
+  rmm::device_uvector<vertex_t>,
+  rmm::device_uvector<vertex_t>,
+  std::optional<rmm::device_uvector<weight_t>>,
+  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>>
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>&&
+    edge_id_type_tuple);
 
 /**
- * @brief Shuffle vertices using the external vertex key function which returns the target GPU ID.
+ * @brief Shuffle internal (i.e. renumbered) vertex pairs (which can be edge end points) to their
+ * local GPUs based on edge partitioning.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] majors Vector of first elemetns in vertex pairs. To determine the local GPU of a
+ * (major, minor) pair, we assume there exists an edge from major=>minor (if we store edges in the
+ * sparse 2D matrix using sources as major indices) or minor=>major (otherwise) and apply the edge
+ * partitioning to determine the local GPU.
+ * @param[in] minors Vector of second elements in vertex pairs.
+ * @param[in] weights Optional vector of vertex pair weight values.
+ * @param[in] edge_id_type_tuple Optional tuple of vectors of edge id and edge type values
+ * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
+ * (exclusive) vertex ID.
+ *
+ * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_id_t>
+std::tuple<
+  rmm::device_uvector<vertex_t>,
+  rmm::device_uvector<vertex_t>,
+  std::optional<rmm::device_uvector<weight_t>>,
+  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_id_t>>>&&
+    edge_id_type_tuple,
+  std::vector<vertex_t> const& vertex_partition_range_lasts);
+
+/**
+ * @brief Shuffle external (i.e. before renumbering) vertices to their local GPU based on vertex
+ * partitioning.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * @param[in] d_vertices Vertex IDs to shuffle
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] vertices Vertices to shuffle.
  *
- * @return device vector of shuffled vertices
+ * @return Vector of shuffled vertices.
  */
 template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_ext_vertices_by_gpu_id(
-  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& d_vertices);
+rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& vertices);
 
 /**
- * @brief Shuffle vertex/value tuples using the external vertex key function which returns the
- * target GPU ID.
+ * @brief Shuffle external (i.e. before renumbering) vertex & value pairs to their local GPU based
+ * on vertex partitioning.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam value_t Type of values.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * @param[in] d_vertices Vertex IDs to shuffle
- * @param[in] d_values Values to shuffle
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] vertices Vertices to shuffle.
+ * @param[in] values Values to shuffle.
  *
- * @return tuple containing device vector of shuffled vertices and device vector of shuffled values
+ * @return Tuple of vectors storing shuffled vertex & value pairs.
  */
 template <typename vertex_t, typename value_t>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
-shuffle_ext_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
-                                          rmm::device_uvector<vertex_t>&& d_vertices,
-                                          rmm::device_uvector<value_t>&& d_values);
+shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  rmm::device_uvector<value_t>&& values);
+
+/**
+ * @brief Shuffle internal (i.e. renumbered) vertices to their local GPUs based on vertex
+ * partitioning.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] vertices Vertices to shuffle.
+ * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
+ * (exclusive) vertex ID.
+ *
+ * @return Vector of shuffled vertices.
+ */
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
  * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t Type of vertex values. Needs to be an integral type.
  *
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
- * @param[in] d_vertices Vertex IDs to shuffle
+ * @param[in] vertices Vertex IDs to shuffle
+ * @param[in] values Vertex Values to shuffle
  * @param[in] vertex_partition_range_lasts From graph view, vector of last vertex id for each gpu
  *
- * @return device vector of shuffled vertices
+ * @return tuple containing device vector of shuffled vertices and device vector of corresponding
+ *         values
  */
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
+template <typename vertex_t, typename value_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& d_vertices,
+  rmm::device_uvector<vertex_t>&& vertices,
+  rmm::device_uvector<value_t>&& values,
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**

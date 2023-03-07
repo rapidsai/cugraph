@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
@@ -72,7 +73,8 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * compute_partition_id_from_ext_edge_endpoints_t to every (destination ID, source ID) pair (if
  * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
  * also return the corresponding edge partition ID. The best way to enforce this is to use
- * shuffle_edgelist_by_gpu_id & groupby_and_count_edgelist_by_local_partition_id.
+ * shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning &
+ * groupby_and_count_edgelist_by_local_partition_id.
  * @param edgelist_dsts Pointers (one pointer per local edge partition assigned to this process) to
  * edge destination vertex IDs. Destination IDs are updated in-place ([INOUT] parameter).
  * @param edgelist_edge_counts Edge counts (one count per local edge partition assigned to this
@@ -873,5 +875,32 @@ weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/**
+ * @brief Select random vertices
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
+ * edge weight sums.
+ * @param  rng_state The RngState instance holding pseudo-random number generator state.
+ * @param  select_count The number of vertices to select from the graph
+ * @param  with_replacement If true, select with replacement, if false select without replacement
+ * @return Device vector of selected vertices.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state,
+  vertex_t select_count,
+  bool with_replacement);
 
 }  // namespace cugraph

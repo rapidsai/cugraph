@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,24 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import gc
-
-import pytest
-import cugraph.dask as dcg
-import dask_cudf
-from cugraph.testing import utils
-import cugraph
 import random
+import copy
+import pytest
 import cupy
-
-from pylibcugraph import bfs as pylibcugraph_bfs
-from pylibcugraph import ResourceHandle
-
-from cugraph.dask.traversal.bfs import convert_to_cudf
-
-import cugraph.dask.comms.comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
 from dask.distributed import wait
 import cudf
+import dask_cudf
+from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import ResourceHandle
+from pylibcugraph.testing.utils import gen_fixture_params_product
+
+import cugraph
+import cugraph.dask as dcg
+from cugraph.testing import utils
+from cugraph.dask.traversal.bfs import convert_to_cudf
+import cugraph.dask.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
 
 
 # =============================================================================
@@ -45,7 +44,7 @@ IS_DIRECTED = [True, False]
 
 datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([True, False], "legacy_renum_only"),
@@ -219,12 +218,19 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
     with pytest.raises(ValueError):
         G = cugraph.Graph()
         G.from_dask_cudf_edgelist(
-            el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+            el,
+            source="0",
+            destination="1",
+            edge_attr=["2", "id", "etype"],
         )
 
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(
-        el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+        el,
+        source="0",
+        destination="1",
+        edge_attr=["2", "id", "etype"],
+        legacy_renum_only=True,
     )
 
 
@@ -248,3 +254,20 @@ def test_graph_repartition(dask_client):
 
     num_futures = len(ddf.worker_to_parts.values())
     assert num_futures == num_workers
+
+
+def test_mg_graph_serializable(dask_client, input_combo):
+    G = input_combo["MGGraph"]
+    dask_client.publish_dataset(shared_g=G)
+    shared_g = dask_client.get_dataset("shared_g")
+    assert type(shared_g) == type(G)
+    assert G.number_of_vertices() == shared_g.number_of_vertices()
+    assert G.number_of_edges() == shared_g.number_of_edges()
+    # cleanup
+    dask_client.unpublish_dataset("shared_g")
+
+
+def test_mg_graph_copy():
+    G = cugraph.MultiGraph(directed=True)
+    G_c = copy.deepcopy(G)
+    assert type(G) == type(G_c)
