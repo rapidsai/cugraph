@@ -16,3 +16,43 @@ build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
 testpaths = ["pylibcugraph/tests"]
+
+[project]
+name = "pylibcugraph"
+version = "23.04.00"
+description = "cuGraph - RAPIDS GPU Graph Analytics"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "NVIDIA Corporation" },
+]
+license = { text = "Apache 2.0" }
+requires-python = ">=3.8"
+dependencies = [
+    "pylibraft==23.4.*",
+    "rmm==23.4.*",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-xdist",
+    "pytest-benchmark",
+    "scipy",
+    "pandas",
+    "numpy",
+    "networkx>=2.5.1",
+    "cudf==23.4.*",
+]
+
+[project.urls]
+Homepage = "https://github.com/rapidsai/cugraph"
+Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
