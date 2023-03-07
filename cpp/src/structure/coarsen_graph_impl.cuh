@@ -336,7 +336,7 @@ coarsen_graph(raft::handle_t const& handle,
     // 1-2. globally shuffle
 
     std::tie(edgelist_majors, edgelist_minors, edgelist_weights, std::ignore, std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                   edge_t,
                                                                                   weight_t,
                                                                                   int32_t>(
@@ -462,7 +462,7 @@ coarsen_graph(raft::handle_t const& handle,
              reversed_edgelist_weights,
              std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                   edge_t,
                                                                                   weight_t,
                                                                                   int32_t>(

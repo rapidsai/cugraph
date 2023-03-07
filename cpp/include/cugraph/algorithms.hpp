@@ -1730,14 +1730,16 @@ k_core(raft::handle_t const& handle,
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param starting_vertices Device vector of starting vertex IDs for the sampling.
+ * @param starting_vertices Device vector of starting vertex IDs for the sampling.  Note
+ * that unlike most of our MG algorithms, these starting vertices do not need to be shuffled to
+ * the proper GPU prior to calling, they will get shuffled as part of the algorithm execution.
  * @param starting_labels Optional device vector of starting vertex labels for the sampling.
  * @param starting_vertex_offsets Optional device vector organizing @p starting_vertices into
  * batches of vertices, used in place of @p starting_labels.  If @p starting_vertex_offsets is
  * specified then output will include offsets element (defining the offsets that correspond to a
  * particular input batch)
- * @param batch_id_to_output_gpu_mapping Optional device vector maping batch id to a particular
- * output GPU.  Index is the batch id (either from @p starting_labels, or an intger <
+ * @param label_to_output_gpu_mapping Optional device vector maping label to a particular
+ * output GPU.  Index is the label (either from @p starting_labels, or an integer <
  * starting_vertex_offsets->size() - 1), value should be in the range 0 to num_gpus - 1
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
@@ -1747,7 +1749,7 @@ k_core(raft::handle_t const& handle,
  * (true); or, without replacement (false); default = true;
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
- * optional int32_t hop, optional int32_t label, optional size_t offsets)
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,

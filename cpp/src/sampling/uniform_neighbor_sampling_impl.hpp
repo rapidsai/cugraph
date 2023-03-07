@@ -50,9 +50,9 @@ uniform_neighbor_sample_impl(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  rmm::device_uvector<vertex_t>&& seed_vertices,
-  std::optional<rmm::device_uvector<label_t>>&& seed_vertex_labels,
-  std::optional<rmm::device_uvector<size_t>>&& seed_vertex_offsets,
+  rmm::device_uvector<vertex_t>&& start_vertices,
+  std::optional<rmm::device_uvector<label_t>>&& start_vertex_labels,
+  std::optional<rmm::device_uvector<size_t>>&& start_vertex_offsets,
   std::optional<rmm::device_uvector<int32_t>>&& label_to_output_gpu_mapping,
   raft::host_span<int32_t const> fan_out,
   bool return_hops,
@@ -69,20 +69,20 @@ uniform_neighbor_sample_impl(
     "Invalid input argument: number of levels should not overflow int32_t");  // as we use int32_t
                                                                               // to store hops
 
-  CUGRAPH_EXPECTS(!(seed_vertex_labels && seed_vertex_offsets),
-                  "Cannot specify both seed_vertex_labels and seed_vertex_offsets");
+  CUGRAPH_EXPECTS(!(start_vertex_labels && start_vertex_offsets),
+                  "Cannot specify both start_vertex_labels and start_vertex_offsets");
 
   if constexpr (!multi_gpu) {
     CUGRAPH_EXPECTS(!label_to_output_gpu_mapping,
                     "cannot specify output GPU mapping in SG implementation");
-
-    CUGRAPH_EXPECTS(!label_to_output_gpu_mapping || seed_vertex_labels || seed_vertex_offsets,
-                    "cannot specify output GPU mapping without also specifying either "
-                    "seed_vertex_labels or seed_vertex_offsets");
   }
 
-  if (seed_vertex_offsets) {
-    seed_vertex_labels = detail::expand_label_offsets<label_t>(handle, *seed_vertex_offsets);
+  CUGRAPH_EXPECTS(!label_to_output_gpu_mapping || start_vertex_labels || start_vertex_offsets,
+                  "cannot specify output GPU mapping without also specifying either "
+                  "start_vertex_labels or start_vertex_offsets");
+
+  if (start_vertex_offsets) {
+    start_vertex_labels = detail::expand_label_offsets<label_t>(handle, *start_vertex_offsets);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> level_result_src_vectors{};
@@ -96,7 +96,7 @@ uniform_neighbor_sample_impl(
     edge_type_view ? std::make_optional(std::vector<rmm::device_uvector<edge_type_t>>{})
                    : std::nullopt;
   auto level_result_label_vectors =
-    seed_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
+    start_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
                        : std::nullopt;
 
   level_result_src_vectors.reserve(fan_out.size());
@@ -111,16 +111,16 @@ uniform_neighbor_sample_impl(
   for (auto&& k_level : fan_out) {
     // prep step for extracting out-degs(sources):
     if constexpr (multi_gpu) {
-      if (seed_vertex_labels) {
-        std::tie(seed_vertices, *seed_vertex_labels) =
+      if (start_vertex_labels) {
+        std::tie(start_vertices, *start_vertex_labels) =
           shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
             handle,
-            std::move(seed_vertices),
-            std::move(*seed_vertex_labels),
+            std::move(start_vertices),
+            std::move(*start_vertex_labels),
             graph_view.vertex_partition_range_lasts());
       } else {
-        seed_vertices = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-          handle, std::move(seed_vertices), graph_view.vertex_partition_range_lasts());
+        start_vertices = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+          handle, std::move(start_vertices), graph_view.vertex_partition_range_lasts());
       }
     }
 
@@ -139,8 +139,8 @@ uniform_neighbor_sample_impl(
                      edge_id_view,
                      edge_type_view,
                      rng_state,
-                     seed_vertices,
-                     seed_vertex_labels,
+                     start_vertices,
+                     start_vertex_labels,
                      static_cast<size_t>(k_level),
                      with_replacement);
     } else {
@@ -150,8 +150,8 @@ uniform_neighbor_sample_impl(
                                 edge_weight_view,
                                 edge_id_view,
                                 edge_type_view,
-                                seed_vertices,
-                                seed_vertex_labels);
+                                start_vertices,
+                                start_vertex_labels);
     }
 
     level_sizes.push_back(srcs.size());
@@ -165,14 +165,14 @@ uniform_neighbor_sample_impl(
 
     ++hop;
     if (hop < fan_out.size()) {
-      seed_vertices.resize(level_sizes.back(), handle.get_stream());
-      raft::copy(seed_vertices.data(),
+      start_vertices.resize(level_sizes.back(), handle.get_stream());
+      raft::copy(start_vertices.data(),
                  level_result_dst_vectors.back().data(),
                  level_sizes.back(),
                  handle.get_stream());
-      if (seed_vertex_labels) {
-        (*seed_vertex_labels).resize(level_sizes.back(), handle.get_stream());
-        raft::copy((*seed_vertex_labels).data(),
+      if (start_vertex_labels) {
+        (*start_vertex_labels).resize(level_sizes.back(), handle.get_stream());
+        raft::copy((*start_vertex_labels).data(),
                    (*level_result_label_vectors).back().data(),
                    level_sizes.back(),
                    handle.get_stream());
@@ -180,9 +180,9 @@ uniform_neighbor_sample_impl(
     }
   }
 
-  seed_vertices.resize(0, handle.get_stream());
-  seed_vertices.shrink_to_fit(handle.get_stream());
-  if (seed_vertex_labels) { seed_vertex_labels = std::nullopt; }
+  start_vertices.resize(0, handle.get_stream());
+  start_vertices.shrink_to_fit(handle.get_stream());
+  if (start_vertex_labels) { start_vertex_labels = std::nullopt; }
 
   auto result_size = std::reduce(level_sizes.begin(), level_sizes.end());
   size_t output_offset{};
@@ -309,9 +309,9 @@ uniform_neighbor_sample_impl(
   }
 
   std::optional<rmm::device_uvector<size_t>> result_offsets{std::nullopt};
-  if (seed_vertex_offsets) {
+  if (start_vertex_offsets) {
     result_offsets =
-      detail::construct_label_offsets(handle, *result_labels, seed_vertex_offsets->size());
+      detail::construct_label_offsets(handle, *result_labels, start_vertex_offsets->size());
     result_labels.reset();
   }
 

@@ -72,7 +72,7 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
 
       if constexpr (multi_gpu) {
         std::tie(first_copy, second_copy, std::ignore, std::ignore, std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<
+          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
             vertex_t,
             edge_t,
             weight_t,

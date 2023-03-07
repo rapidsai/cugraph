@@ -311,7 +311,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                  tmp_weights_v,
                  std::ignore,
                  std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
                                                                                       vertex_t,
                                                                                       weight_t,
                                                                                       int32_t>(

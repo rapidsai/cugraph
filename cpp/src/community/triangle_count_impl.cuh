@@ -207,10 +207,10 @@ void triangle_count(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                           edge_t,
-                                                                           weight_t,
-                                                                           int32_t>(
+        detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                       edge_t,
+                                                                                       weight_t,
+                                                                                       int32_t>(
           handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
     }
 
@@ -267,10 +267,10 @@ void triangle_count(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                           edge_t,
-                                                                           weight_t,
-                                                                           int32_t>(
+        detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                       edge_t,
+                                                                                       weight_t,
+                                                                                       int32_t>(
           handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
     }
 
@@ -324,10 +324,10 @@ void triangle_count(raft::handle_t const& handle,
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore, std::ignore) =
-        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                           edge_t,
-                                                                           weight_t,
-                                                                           int32_t>(
+        detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                       edge_t,
+                                                                                       weight_t,
+                                                                                       int32_t>(
           handle, std::move(srcs), std::move(dsts), std::nullopt, std::nullopt, std::nullopt);
     }
 

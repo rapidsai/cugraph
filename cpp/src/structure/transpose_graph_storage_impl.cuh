@@ -89,7 +89,7 @@ transpose_graph_storage_impl(
            edgelist_weights,
            std::ignore,
            std::ignore) = detail::
-    shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t, edge_t, weight_t, int32_t>(
+    shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t, edge_t, weight_t, int32_t>(
       handle,
       std::move(!store_transposed ? edgelist_dsts : edgelist_srcs),
       std::move(!store_transposed ? edgelist_srcs : edgelist_dsts),
