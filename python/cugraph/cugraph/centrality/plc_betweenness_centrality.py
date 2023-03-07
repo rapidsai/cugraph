@@ -31,7 +31,7 @@ def plc_betweenness_centrality(
     normalized=True,
     weight=None,
     endpoints=False,
-    seed=None,
+    random_state=None,
     result_dtype=np.float64,
 ):
     """
@@ -84,11 +84,11 @@ def plc_betweenness_centrality(
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
 
-    seed : optional (default=None)
-        if k is specified and k is an integer, use seed to initialize the
+    random_state : optional (default=None)
+        if k is specified and k is an integer, use random_state to initialize the
         random number generator.
         Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: seed parameter is ignored
+        If k is either None or list: random_state parameter is ignored
 
     result_dtype : np.float32 or np.float64, optional, default=np.float64
         Indicate the data type of the betweenness centrality scores
@@ -141,7 +141,7 @@ def plc_betweenness_centrality(
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
     # FIXME: Do not deprecate this parameter
-    if seed is not None:
+    if random_state is not None:
         warning_msg = (
             "This parameter is deprecated and will be remove " "in the next release."
         )
@@ -160,7 +160,7 @@ def plc_betweenness_centrality(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
         k=k,
-        seed=seed,
+        random_state=random_state,
         normalized=normalized,
         include_endpoints=endpoints,
         do_expensive_check=False,
@@ -186,8 +186,9 @@ def plc_betweenness_centrality(
         return df
 
 
+# FIXME: Leverage the vertex sampling algorithm
 def edge_betweenness_centrality(
-    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
+    G, k=None, normalized=True, weight=None, random_state=None, result_dtype=np.float64
 ):
     """
     Compute the edge betweenness centrality for all edges of the graph G.
@@ -233,12 +234,12 @@ def edge_betweenness_centrality(
         edges and weights.
         (Not Supported)
 
-    seed : optional (default=None)
-        if k is specified and k is an integer, use seed to initialize the
+    random_state : optional (default=None)
+        if k is specified and k is an integer, use random_state to initialize the
         random number generator.
-        Using None as seed relies on random.seed() behavior: using current
+        Using None as random_state relies on random.random_state() behavior: using current
         system time
-        If k is either None or list: seed parameter is ignored
+        If k is either None or list: random_state parameter is ignored
 
     result_dtype : np.float32 or np.float64, optional (default=np.float64)
         Indicate the data type of the betweenness centrality scores
