@@ -82,7 +82,7 @@ __global__ void per_v_transform_reduce_e_hypersparse(
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */,
+  T init /* relevant only if update_major == true */,
   ReduceOp reduce_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
@@ -192,7 +192,7 @@ __global__ void per_v_transform_reduce_e_low_degree(
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */,
+  T init /* relevant only if update_major == true */,
   ReduceOp reduce_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
@@ -302,8 +302,8 @@ __global__ void per_v_transform_reduce_e_mid_degree(
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */,
-  T identity_element /* relevent only if update_major == true */,
+  T init /* relevant only if update_major == true */,
+  T identity_element /* relevant only if update_major == true */,
   ReduceOp reduce_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
@@ -333,7 +333,7 @@ __global__ void per_v_transform_reduce_e_mid_degree(
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     [[maybe_unused]] auto reduced_e_op_result =
-      lane_id == 0 ? init : identity_element;  // relevent only if update_major == true
+      lane_id == 0 ? init : identity_element;  // relevant only if update_major == true
     for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       auto minor        = indices[i];
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
@@ -396,8 +396,8 @@ __global__ void per_v_transform_reduce_e_high_degree(
   EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
   EdgeOp e_op,
-  T init /* relevent only if update_major == true */,
-  T identity_element /* relevent only if update_major == true */,
+  T init /* relevant only if update_major == true */,
+  T identity_element /* relevant only if update_major == true */,
   ReduceOp reduce_op)
 {
   static_assert(update_major || reduce_op::has_compatible_raft_comms_op_v<
@@ -423,7 +423,7 @@ __global__ void per_v_transform_reduce_e_high_degree(
     edge_t local_degree{};
     thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     [[maybe_unused]] auto reduced_e_op_result =
-      threadIdx.x == 0 ? init : identity_element;  // relevent only if update_major == true
+      threadIdx.x == 0 ? init : identity_element;  // relevant only if update_major == true
     for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
       auto minor        = indices[i];
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
