@@ -58,7 +58,7 @@ from pylibcugraph.select_random_vertices import (
 def betweenness_centrality(ResourceHandle resource_handle,
                            _GPUGraph graph,
                            k,
-                           seed,
+                           random_state,
                            bool_t normalized,
                            bool_t include_endpoints,
                            bool_t do_expensive_check):
@@ -87,11 +87,11 @@ def betweenness_centrality(ResourceHandle resource_handle,
         defined as a list will be used as sources for traversals inside the
         algorithm.
 
-    seed : optional (default=None)
-        if k is specified and k is an integer, use seed to initialize the
+    random_state : optional (default=None)
+        if k is specified and k is an integer, use random_state to initialize the
         random number generator.
         Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: seed parameter is ignored
+        If k is either None or list: random_state parameter is ignored
     
     normalized : bool_t
         Normalization will ensure that values are in [0, 1].
@@ -112,7 +112,7 @@ def betweenness_centrality(ResourceHandle resource_handle,
 
     if isinstance(k, int):
         # randomly select vertices
-        vertex_list = select_random_vertices(resource_handle, graph, seed, k)
+        vertex_list = select_random_vertices(resource_handle, graph, random_state, k)
     else:
         vertex_list = k
 

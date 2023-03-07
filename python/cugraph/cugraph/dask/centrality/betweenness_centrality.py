@@ -29,7 +29,7 @@ def _call_plc_betweenness_centrality(
     sID,
     mg_graph_x,
     k,
-    seed,
+    random_state,
     normalized,
     endpoints,
     do_expensive_check,
@@ -39,7 +39,7 @@ def _call_plc_betweenness_centrality(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         k=k,
-        seed=seed,
+        random_state=random_state,
         normalized=normalized,
         include_endpoints=endpoints,
         do_expensive_check=do_expensive_check,
@@ -62,7 +62,7 @@ def betweenness_centrality(
     k=None,
     normalized=True,
     endpoints=False,
-    seed=None
+    random_state=None
 ):
     """
     Compute the betweenness centrality for all vertices of the graph G.
@@ -100,11 +100,11 @@ def betweenness_centrality(
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
     
-    seed : optional (default=None)
-        if k is specified and k is an integer, use seed to initialize the
+    random_state : optional (default=None)
+        if k is specified and k is an integer, use random_state to initialize the
         random number generator.
         Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: seed parameter is ignored
+        If k is either None or list: random_state parameter is ignored
 
     Returns
     -------
@@ -180,7 +180,7 @@ def betweenness_centrality(
                 Comms.get_session_id(),
                 input_graph._plc_graph[w],
                 k[0],
-                seed,
+                random_state,
                 normalized,
                 endpoints,
                 do_expensive_check,
@@ -198,7 +198,7 @@ def betweenness_centrality(
                 Comms.get_session_id(),
                 input_graph._plc_graph[w],
                 k,
-                seed,
+                random_state,
                 normalized,
                 endpoints,
                 do_expensive_check,
