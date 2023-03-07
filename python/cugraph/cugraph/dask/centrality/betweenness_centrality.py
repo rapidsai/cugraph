@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait
+from dask.distributed import wait, default_client
 from pylibcugraph import (
     ResourceHandle,
     betweenness_centrality as pylibcugraph_betweenness_centrality,
@@ -136,7 +136,7 @@ def betweenness_centrality(
     """
     # FIXME: Fails when passing a list
     # FIXME: check results when python/C++ renumbering is True
-    client = input_graph._client
+    client = default_client()
 
     if input_graph.store_transposed is True:
         warning_msg = (
@@ -147,14 +147,15 @@ def betweenness_centrality(
         warnings.warn(warning_msg, UserWarning)
 
     if not isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
-        if not isinstance(k, (cudf.DataFrame, cudf.Series)):
+        if isinstance(k, (cudf.DataFrame, cudf.Series, list)):
             if isinstance(k, list):
                 k_dtype = input_graph.nodes().dtype
                 k = cudf.Series(k, dtype=k_dtype)
                 # convert into a dask_cudf
                 # convert into a dask_cudf
                 # FIXME: This logic is wrong as we only get a dask cudf when we have a list
-                k = dask_cudf.from_cudf(k, input_graph._npartitions)
+
+            k = dask_cudf.from_cudf(k, input_graph._npartitions)
 
     if input_graph.renumbered:
         if isinstance(k, dask_cudf.DataFrame):
@@ -166,28 +167,46 @@ def betweenness_centrality(
         if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
             k = input_graph.lookup_internal_vertex_id(k, tmp_col_names)
 
-    if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
-        k = get_distributed_data(k)
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
-    # FIXME: leverage the uniform neighbor sampling implementation
-    # to make it faster
-    cupy_result = [
-        client.submit(
-            _call_plc_betweenness_centrality,
-            Comms.get_session_id(),
-            input_graph._plc_graph[w],
-            k,
-            seed,
-            normalized,
-            endpoints,
-            do_expensive_check,
-            workers=[w],
-            allow_other_workers=False,
-        )
-        for w in Comms.get_workers()
-    ]
+    if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
+        samples = get_distributed_data(k)
+        # FIXME: leverage the uniform neighbor sampling implementation
+        # to make it faster
+        cupy_result = [
+            client.submit(
+                _call_plc_betweenness_centrality,
+                Comms.get_session_id(),
+                input_graph._plc_graph[w],
+                k[0],
+                seed,
+                normalized,
+                endpoints,
+                do_expensive_check,
+                workers=[w],
+                allow_other_workers=False,
+            )
+            for w, k in samples.worker_to_parts.items()
+        ]
+    else:
+        # FIXME: leverage the uniform neighbor sampling implementation
+        # to make it faster
+        cupy_result = [
+            client.submit(
+                _call_plc_betweenness_centrality,
+                Comms.get_session_id(),
+                input_graph._plc_graph[w],
+                k,
+                seed,
+                normalized,
+                endpoints,
+                do_expensive_check,
+                workers=[w],
+                allow_other_workers=False,
+            )
+            for w in Comms.get_workers()
+        ]
 
     wait(cupy_result)
 
