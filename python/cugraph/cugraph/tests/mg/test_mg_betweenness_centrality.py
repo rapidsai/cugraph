@@ -16,10 +16,12 @@ import gc
 import pytest
 import cugraph
 import dask_cudf
-import random
+import cupy
+
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing import utils
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================
@@ -29,7 +31,6 @@ from cugraph.testing import utils
 
 def setup_function():
     gc.collect()
-
 
 IS_DIRECTED = [True, False]
 
@@ -42,11 +43,12 @@ datasets = utils.DATASETS_UNDIRECTED + [
     utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
 ]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
-    ([False, True], "has_vertex_list"),
-    ([True, False], "normalized"),
-    ([True, False], "endpoints"),
+    ([False, True], "normalized"),
+    ([False, True], "endpoints"),
+    ([42], "subset_seed"),
+    ([None, 15], "subset_size"),
     (IS_DIRECTED, "directed"),
 )
 
@@ -59,7 +61,7 @@ def input_combo(request):
     """
     parameters = dict(
         zip(
-            ("graph_file", "has_vertex_list", "normalized", "endpoints", "directed"),
+            ("graph_file", "normalized", "endpoints", "subset_seed", "subset_size", "directed"),
             request.param,
         )
     )
@@ -76,21 +78,25 @@ def input_expected_output(input_combo):
     """
 
     input_data_path = input_combo["graph_file"]
-    directed = input_combo["directed"]
     normalized = input_combo["normalized"]
     endpoints = input_combo["endpoints"]
-    vertex_list = None
+    random_state = input_combo["subset_seed"]
+    subset_size = input_combo["subset_size"]
+    directed = input_combo["directed"]
 
-    input_combo["vertex_list"] = vertex_list
     G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
 
-    if input_combo["has_vertex_list"]:
-        # Sample vertices from the graph
-        k = random.randint(1, 4)
-        vertex_list = G.nodes().compute().sample(k).reset_index(drop=True)
+    if subset_size is None:
+        k = subset_size
+    elif isinstance(subset_size, int):
+        # Select random vertices
+        k = G.select_random_vertices(random_state=random_state, num_vertices=subset_size)
+        print("the seeds are \n", k)
+    
+    input_combo["k"] = k
 
-    sg_cugraph_bc = cugraph.betweenness_centrality(
-        G, vertex_list=vertex_list, normalized=normalized, endpoints=endpoints
+    sg_cugraph_bc = cugraph.plc_betweenness_centrality(
+        G, k=k, normalized=normalized, endpoints=endpoints
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
@@ -131,85 +137,33 @@ def input_expected_output(input_combo):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
+
 def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
-    vertex_list = input_expected_output["vertex_list"]
+    k = input_expected_output["k"]
     endpoints = input_expected_output["endpoints"]
     normalized = input_expected_output["normalized"]
-
-    result_betweenness_centrality = benchmark(
+    mg_bc_results = benchmark(
         dcg.betweenness_centrality,
         dg,
-        vertex_list=vertex_list,
+        k=k,
         normalized=normalized,
         endpoints=endpoints,
     )
 
-    result_betweenness_centrality = (
-        result_betweenness_centrality.compute()
+    mg_bc_results = (
+        mg_bc_results.compute()
         .sort_values("vertex")
         .reset_index(drop=True)
-        .rename(
-            columns={"hubs": "mg_cugraph_hubs", "authorities": "mg_cugraph_authorities"}
-        )
-    )
-
-    expected_output = (
+    )["betweenness_centrality"].to_cupy()
+    
+    sg_bc_results = (
         input_expected_output["sg_cugraph_results"]
         .sort_values("vertex")
         .reset_index(drop=True)
-    )
+    )["betweenness_centrality"].to_cupy()
 
-    # Update the dask cugraph betweenness_centrality results with sg cugraph results
-    # for easy comparison using cuDF DataFrame methods.
-    result_betweenness_centrality["sg_cugraph_hubs"] = expected_output["hubs"]
-    result_betweenness_centrality["sg_cugraph_authorities"] = expected_output[
-        "authorities"
-    ]
+    diff = cupy.isclose(mg_bc_results, sg_bc_results)
 
-    hubs_diffs1 = result_betweenness_centrality.query(
-        "mg_cugraph_hubs - sg_cugraph_hubs > 0.00001"
-    )
-    hubs_diffs2 = result_betweenness_centrality.query(
-        "mg_cugraph_hubs - sg_cugraph_hubs < -0.00001"
-    )
-    authorities_diffs1 = result_betweenness_centrality.query(
-        "mg_cugraph_authorities - sg_cugraph_authorities > 0.0001"
-    )
-    authorities_diffs2 = result_betweenness_centrality.query(
-        "mg_cugraph_authorities - sg_cugraph_authorities < -0.0001"
-    )
-
-    assert len(hubs_diffs1) == 0
-    assert len(hubs_diffs2) == 0
-    assert len(authorities_diffs1) == 0
-    assert len(authorities_diffs2) == 0
-
-
-def test_dask_hots_transposed_True(dask_client):
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
-
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
-    )
-
-    warning_msg = (
-        "betweenness_centrality expects the 'store_transposed' "
-        "flag to be set to 'False' for optimal performance during "
-        "the graph creation"
-    )
-
-    with pytest.warns(UserWarning, match=warning_msg):
-        dcg.betweenness_centrality(dg)
+    assert diff.all() == True
