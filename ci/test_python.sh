@@ -103,6 +103,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     --channel pytorch \
     --channel pytorch-nightly \
     --channel dglteam/label/cu117 \
+    --channel nvidia \
     cugraph-dgl \
     dgl \
     'pytorch::pytorch>=2.0' \
