@@ -86,8 +86,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   rmm::device_uvector<vertex_t> tmp_cluster_keys(0, handle.get_stream());     // #C
   rmm::device_uvector<weight_t> tmp_cluster_weights(0, handle.get_stream());  // #C
 
-  rmm::device_uvector<vertex_t> tmp_cluster_keys(0, handle.get_stream());     //#C
-  rmm::device_uvector<weight_t> tmp_cluster_weights(0, handle.get_stream());  //#C
 
   //
   // Bookkeeping per vertex
