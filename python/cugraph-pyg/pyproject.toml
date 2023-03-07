@@ -5,9 +5,36 @@
 requires = [
     "wheel",
     "setuptools",
-    "scikit-build>=0.13.1",
-    "ninja",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["cugraph_pyg/tests"]
+
+[project]
+name = "cugraph_pyg"
+version = "23.04.00"
+description = "cugraph_pyg - PyG support for cuGraph massive-scale, ultra-fast GPU graph analytics."
+authors = [
+    { name = "NVIDIA Corporation" },
+]
+license = { text = "Apache 2.0" }
+requires-python = ">=3.8"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/rapidsai/cugraph"
+Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+include = [
+    "cugraph_pyg*",
+    "cugraph_pyg.*",
+]
