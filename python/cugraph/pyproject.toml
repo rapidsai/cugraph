@@ -17,3 +17,53 @@ build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
 testpaths = ["cugraph/tests"]
+
+[project]
+name = "cugraph"
+version = "23.04.00"
+description = "cuGraph - RAPIDS GPU Graph Analytics"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "NVIDIA Corporation" },
+]
+license = { text = "Apache 2.0" }
+requires-python = ">=3.8"
+dependencies = [
+    "numba",
+    "dask-cuda==23.4.*",
+    "rmm==23.4.*",
+    "cudf==23.4.*",
+    "raft-dask==23.4.*",
+    "dask-cudf==23.4.*",
+    "pylibcugraph==23.4.*",
+    "cupy-cuda11x",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-xdist",
+    "pytest-benchmark",
+    "scipy",
+    "numpy",
+    "pandas",
+    "networkx>=2.5.1",
+    "scikit-learn>=0.23.1",
+    "python-louvain",
+    # cudf will use fsspec but is protocol independent. cugraph tests
+    # specifically require http for the test files it asks cudf to read.
+    "fsspec[http]>=0.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/rapidsai/cugraph"
+Documentation = "https://docs.rapids.ai/api/cugraph/stable/"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
