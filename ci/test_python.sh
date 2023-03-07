@@ -86,6 +86,52 @@ pytest \
   cugraph/pytest-based/bench_algos.py
 popd
 
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  # we are only testing in a single cuda version
+  # because of pytorch and rapids compatibilty problems
+
+  # create a clone of existing environment
+  rapids-mamba-retry create --clone test --name test_cugraph_dgl
+
+  # activate test_cugraph_dgl environment for dgl
+  set +u
+  conda activate test_cugraph_dgl
+  set -u
+  rapids-mamba-retry install \
+    --force-reinstall \
+    --channel "${PYTHON_CHANNEL}" \
+    --channel pytorch \
+    --channel pytorch-nightly \
+    --channel dglteam/label/cu117 \
+    cugraph-dgl \
+    dgl \
+    'pytorch::pytorch>=2.0' \
+    'pytorch-cuda>=11.7' \
+
+  rapids-logger "pytest cugraph_dgl (single GPU)"
+  pushd python/cugraph-dgl/tests
+  pytest \
+    --cache-clear \
+    --ignore=mg \
+    --ignore=nn \
+    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
+    --cov-config=../../.coveragerc \
+    --cov=cugraph_dgl \
+    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
+    --cov-report=term \
+    .
+  popd
+
+  # Reactivate the test environment back
+  set +u
+  conda deactivate
+  conda activate test
+  set -u
+else
+  rapids-logger "skipping cugraph_dgl pytest on CUDA!=11.8"
+fi
+
+
 rapids-logger "pytest cugraph_pyg (single GPU)"
 pushd python/cugraph-pyg/cugraph_pyg
 # rmat is not tested because of multi-GPU testing
