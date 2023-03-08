@@ -99,7 +99,7 @@ if hasArg "--run-python-tests"; then
 
     echo "Python benchmarks for cuGraph (running as tests)..."
     cd ${CUGRAPH_ROOT}/benchmarks/cugraph
-    pytest -sv -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
+    pytest -sv -m sg -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python pytest for cugraph_pyg (single-GPU only)..."
