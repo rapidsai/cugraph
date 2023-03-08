@@ -15,7 +15,9 @@
  */
 #pragma once
 
+#include <prims/detail/extract_transform_v_frontier_e.cuh>
 #include <prims/property_op_utils.cuh>
+#include <prims/vertex_frontier.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
@@ -82,18 +84,14 @@ struct call_e_op_t {
 
 }  // namespace detail
 
-// FIXME: better rename this primitive to extract_transform_e and update to return a vector of @p
-// e_op outputs (matching extract_transform_v_frontier_outgoing_e).
 /**
- * @brief Iterate over the entire set of edges and return an edge list with the edges with @p
- * edge_op evaluated to be true.
- *
- * This function is inspired by thrust::copy_if & thrust::remove_if().
+ * @brief Iterate over the entire set of edges and extract the valid edge functor outputs.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -107,121 +105,64 @@ struct call_e_op_t {
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * boolean value to designate whether to include this edge in the returned edge list (if true is
- * returned) or not (if false is returned).
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * property values for the destination, and property values for the edge and returns thrust::nullopt
+ * (if the return value is to be discarded) or a valid @p e_op output to be extracted and
+ * accumulated.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
- * rmm::device_uvector<typename GraphViewType::vertex_type>,
- * std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>> Tuple storing an
- * extracted edge list (sources, destinations, and optional weights).
+ * @return Dataframe buffer object storing extracted and accumulated valid @p e_op return values.
  */
 template <typename GraphViewType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>>
-extract_if_e(raft::handle_t const& handle,
-             GraphViewType const& graph_view,
-             EdgeSrcValueInputWrapper edge_src_value_input,
-             EdgeDstValueInputWrapper edge_dst_value_input,
-             EdgeOp e_op,
-             bool do_expensive_check = false)
+extract_transform_e(raft::handle_t const& handle,
+                    GraphViewType const& graph_view,
+                    EdgeSrcValueInputWrapper edge_src_value_input,
+                    EdgeDstValueInputWrapper edge_dst_value_input,
+                    EdgeValueInputWrapper edge_value_input,
+                    EdgeOp e_op,
+                    bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = float;  // dummy
+  using e_op_result_t =
+    typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
+                                         typename GraphViewType::vertex_type,
+                                         typename EdgeSrcValueInputWrapper::value_type,
+                                         typename EdgeDstValueInputWrapper::value_type,
+                                         typename EdgeValueInputWrapper::value_type,
+                                         EdgeOp>::type;
+  static_assert(!std::is_same_v<e_op_result_t, void>);
+  using payload_t = typename e_op_result_t::value_type;
 
-  using edge_partition_src_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
-    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
-  using edge_partition_dst_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
-    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+  // FIXME: Consider updating detail::extract_transform_v_forntier_e to take std::nullopt to as a
+  // frontier or create a new key bucket type that just stores [vertex_first, vertex_last) for
+  // further optimization. Better revisit this once this becomes a performance bottleneck and after
+  // updating primitives to support masking & graph updates.
+  key_bucket_t<vertex_t, void, GraphViewType::is_multi_gpu, true> frontier(handle);
+  frontier.insert(thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
+                  thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()));
 
-  if (do_expensive_check) {
-    // currently, nothing to do
-  }
-
-  std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(), size_t{0});
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    edgelist_edge_counts[i] =
-      static_cast<size_t>(graph_view.number_of_local_edge_partition_edges(i));
-  }
-  auto number_of_local_edges =
-    std::reduce(edgelist_edge_counts.begin(), edgelist_edge_counts.end());
-
-  rmm::device_uvector<vertex_t> edgelist_majors(number_of_local_edges, handle.get_stream());
-  rmm::device_uvector<vertex_t> edgelist_minors(edgelist_majors.size(), handle.get_stream());
-
-  size_t cur_size{0};
-  for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(i));
-
-    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
-    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
-    if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
-      edge_partition_dst_value_input =
-        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
-    } else {
-      edge_partition_src_value_input =
-        edge_partition_src_input_device_view_t(edge_src_value_input, i);
-      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
-    }
-
-    detail::decompress_edge_partition_to_edgelist<vertex_t,
-                                                  edge_t,
-                                                  weight_t,
-                                                  GraphViewType::is_multi_gpu>(
+  auto value_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
+  std::tie(std::ignore, value_buffer) =
+    detail::extract_transform_v_frontier_e<GraphViewType::is_storage_transposed, void, payload_t>(
       handle,
-      edge_partition,
-      std::nullopt,
-      edgelist_majors.data() + cur_size,
-      edgelist_minors.data() + cur_size,
-      std::nullopt,
-      graph_view.local_edge_partition_segment_offsets(i));
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
-    cur_size += static_cast<size_t>(thrust::distance(
-      edge_first + cur_size,
-      thrust::remove_if(
-        handle.get_thrust_policy(),
-        edge_first + cur_size,
-        edge_first + cur_size + edgelist_edge_counts[i],
-        detail::call_e_op_t<GraphViewType,
-                            edge_partition_src_input_device_view_t,
-                            edge_partition_dst_input_device_view_t,
-                            EdgeOp>{
-          edge_partition, edge_partition_src_value_input, edge_partition_dst_value_input, e_op})));
-  }
+      graph_view,
+      frontier,
+      edge_src_value_input,
+      edge_dst_value_input,
+      edge_value_input,
+      e_op,
+      do_expensive_check);
 
-  edgelist_majors.resize(cur_size, handle.get_stream());
-  edgelist_minors.resize(edgelist_majors.size(), handle.get_stream());
-  edgelist_majors.shrink_to_fit(handle.get_stream());
-  edgelist_minors.shrink_to_fit(handle.get_stream());
-
-  return std::make_tuple(
-    std::move(GraphViewType::is_storage_transposed ? edgelist_minors : edgelist_majors),
-    std::move(GraphViewType::is_storage_transposed ? edgelist_majors : edgelist_minors));
+  return value_buffer;
 }
 
 }  // namespace cugraph
