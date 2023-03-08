@@ -333,7 +333,7 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
         NOTE
             For Graph-type values of G, weak components are only
             supported for undirected graphs.
-    
+
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.
 
