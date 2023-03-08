@@ -109,7 +109,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   set +u
   conda activate test_cugraph_pyg
   set -u
-
   
   rapids-mamba-retry install \
     --force-reinstall \
