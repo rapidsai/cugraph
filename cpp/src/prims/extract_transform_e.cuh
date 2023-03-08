@@ -43,47 +43,6 @@
 
 namespace cugraph {
 
-namespace detail {
-
-template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgeOp>
-struct call_e_op_t {
-  edge_partition_device_view_t<typename GraphViewType::vertex_type,
-                               typename GraphViewType::edge_type,
-                               GraphViewType::is_multi_gpu>
-    edge_partition{};
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input{};
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input{};
-  EdgeOp e_op{};
-
-  template <typename Edge>
-  __device__ bool operator()(Edge e) const
-  {
-    static_assert(thrust::tuple_size<Edge>::value == 2);
-
-    using vertex_t = typename GraphViewType::vertex_type;
-    using edge_t   = typename GraphViewType::edge_type;
-
-    auto major        = thrust::get<0>(e);
-    auto minor        = thrust::get<1>(e);
-    auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-    auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-    auto src          = GraphViewType::is_storage_transposed ? minor : major;
-    auto dst          = GraphViewType::is_storage_transposed ? major : minor;
-    auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-    auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-    return !e_op(src,
-                 dst,
-                 edge_partition_src_value_input.get(src_offset),
-                 edge_partition_dst_value_input.get(dst_offset),
-                 thrust::nullopt);
-  }
-};
-
-}  // namespace detail
-
 /**
  * @brief Iterate over the entire set of edges and extract the valid edge functor outputs.
  *
