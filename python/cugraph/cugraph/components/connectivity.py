@@ -174,7 +174,6 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     >>> df = cugraph.weakly_connected_components(G)
 
     """
-
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels
     )
@@ -332,8 +331,8 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
     connection : str, optional (default='weak')
 
         NOTE
-            For Graph-type values of G, 'weak' components are only supported
-            for undirected graphs.
+            For Graph-type values of G, weak components are only
+            supported for undirected graphs.
     
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.
