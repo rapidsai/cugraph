@@ -93,8 +93,7 @@ if hasArg "--run-python-tests"; then
     echo "Python pytest for cuGraph (single-GPU only)..."
     conda list
     cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
-    # rmat is not tested because of MG testing
-    pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
+    pytest -sv -m sg --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
     echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python benchmarks for cuGraph (running as tests)..."
