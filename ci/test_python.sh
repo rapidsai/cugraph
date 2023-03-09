@@ -115,7 +115,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     --channel pytorch \
     --channel pytorch-nightly \
     --channel nvidia \
-    'pytorch::pytorch>=2.0' \
+    'pytorch>=2.0' \
     'pytorch-cuda>=11.8'
 
   pip install pyg-nightly
