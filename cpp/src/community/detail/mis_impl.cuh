@@ -175,7 +175,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         "remaining_vertices:", remaining_vertices.data(), remaining_vertices.size(), std::cout);
       raft::print_device_vector("candidates:", candidates.data(), candidates.size(), std::cout);
 
-      std::cout << "ID :    tempoary rank        " << std::endl;
+      std::cout << " vertex id : temporary rank " << std::endl;
       thrust::for_each(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(thrust::make_tuple(vertex_begin, temporary_ranks.begin())),
@@ -285,26 +285,15 @@ rmm::device_uvector<vertex_t> compute_mis(
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
       std::cout << "Id and rank of maximum rank neighbor" << std::endl;
-      std::cout << "verterx: (id, rank) [of maximum rank neighbor]" << std::endl;
-
       auto pair_begin = cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs);
       auto pair_end   = cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs);
 
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_zip_iterator(
-                         thrust::make_tuple(vertex_begin,
-                                            thrust::get<0>(pair_begin.get_iterator_tuple()),
-                                            thrust::get<1>(pair_begin.get_iterator_tuple()))),
-                       thrust::make_zip_iterator(
-                         thrust::make_tuple(vertex_begin,
-                                            thrust::get<0>(pair_end.get_iterator_tuple()),
-                                            thrust::get<1>(pair_end.get_iterator_tuple()))),
-                       [] __device__(auto triple) {
-                         auto v                 = thrust::get<0>(triple);
-                         auto max_neighbor_rank = thrust::get<1>(triple);
-                         auto max_neighbor_id   = thrust::get<2>(triple);
-                         printf("\n%d: %d %f\n", v, max_neighbor_id, max_neighbor_rank);
-                       });
+      thrust::for_each(
+        handle.get_thrust_policy(), pair_begin, pair_end, [] __device__(auto rank_id) {
+          auto max_neighbor_rank = thrust::get<0>(rank_id);
+          auto max_neighbor_id   = thrust::get<1>(rank_id);
+          printf("%d : %f\n", max_neighbor_id, max_neighbor_rank);
+        });
     }
 
     //
