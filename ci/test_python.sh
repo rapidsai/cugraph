@@ -102,50 +102,54 @@ pytest \
   tests
 popd
 
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0"  &&  "${RUNNER_ARCH}"=="ARM64" ]]; then
-  rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
 
-  # Temporarily allow unbound variables for conda activation.
-  set +u
-  conda activate test_cugraph_pyg
-  set -u
-  
-  # Install pytorch
-  rapids-mamba-retry install \
-    --force-reinstall \
-    --channel pytorch \
-    --channel pytorch-nightly \
-    --channel nvidia \
-    'pytorch>=2.0' \
-    'pytorch-cuda>=11.8'
+    # Temporarily allow unbound variables for conda activation.
+    set +u
+    conda activate test_cugraph_pyg
+    set -u
+    
+    # Install pytorch
+    rapids-mamba-retry install \
+      --force-reinstall \
+      --channel pytorch \
+      --channel pytorch-nightly \
+      --channel nvidia \
+      'pytorch>=2.0' \
+      'pytorch-cuda>=11.8'
 
-  # Install the nightly version of pyg
-  pip install pyg-nightly
+    # Install the nightly version of pyg
+    pip install pyg-nightly
 
-  rapids-print-env
+    rapids-print-env
 
-  rapids-mamba-retry install \
-    --channel "${CPP_CHANNEL}" \
-    --channel "${PYTHON_CHANNEL}" \
-    libcugraph \
-    pylibcugraph \
-    cugraph \
-    cugraph-pyg
+    rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
+      --channel "${PYTHON_CHANNEL}" \
+      libcugraph \
+      pylibcugraph \
+      cugraph \
+      cugraph-pyg
 
-  rapids-logger "pytest cugraph_pyg (single GPU)"
-  pushd python/cugraph-pyg/cugraph_pyg
-  # rmat is not tested because of multi-GPU testing
-  pytest \
-    --cache-clear \
-    --ignore=tests/int \
-    --ignore=tests/mg \
-    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
-    --cov-config=../../.coveragerc \
-    --cov=cugraph_pyg \
-    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
-    --cov-report=term \
-    .
-  popd
+    rapids-logger "pytest cugraph_pyg (single GPU)"
+    pushd python/cugraph-pyg/cugraph_pyg
+    # rmat is not tested because of multi-GPU testing
+    pytest \
+      --cache-clear \
+      --ignore=tests/int \
+      --ignore=tests/mg \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-pyg.xml" \
+      --cov-config=../../.coveragerc \
+      --cov=cugraph_pyg \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-pyg-coverage.xml" \
+      --cov-report=term \
+      .
+    popd
+  else
+    rapids-logger "skipping cugraph_pyg pytest on ARM64"
+  fi
 else
   rapids-logger "skipping cugraph_pyg pytest on CUDA != 11.8"
 fi
