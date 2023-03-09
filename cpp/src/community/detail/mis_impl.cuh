@@ -62,7 +62,7 @@ namespace cugraph {
 
 namespace detail {
 
-const double EPSILON = 1e-4;
+const double EPSILON = 1e-6;
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
@@ -162,7 +162,7 @@ rmm::device_uvector<vertex_t> compute_mis(
         // is not already in MIS), set it to -Inf
         //
         auto v_offset = v - v_first;
-        if ((temporary_ranks[v_offset] + EPSILON) < std::numeric_limits<weight_t>::max()) {
+        if (temporary_ranks[v_offset] < (std::numeric_limits<weight_t>::max() - EPSILON)) {
           temporary_ranks[v_offset] = std::numeric_limits<weight_t>::lowest();
         }
       });
@@ -286,19 +286,25 @@ rmm::device_uvector<vertex_t> compute_mis(
       CUDA_TRY(cudaDeviceSynchronize());
       std::cout << "Id and rank of maximum rank neighbor" << std::endl;
       std::cout << "verterx: (id, rank) [of maximum rank neighbor]" << std::endl;
-      thrust::for_each(
-        handle.get_thrust_policy(),
-        thrust::make_zip_iterator(thrust::make_tuple(
-          vertex_begin, cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs))),
-        thrust::make_zip_iterator(thrust::make_tuple(
-          vertex_end, cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs))),
-        [] __device__(auto v_and_rank_id_of_max) {
-          auto v                    = thrust::get<0>(v_and_rank_id_of_max);
-          auto rank_id_tuple_of_max = thrust::get<1>(v_and_rank_id_of_max);
-          auto rank                 = thrust::get<0>(rank_id_tuple_of_max);
-          auto id                   = thrust::get<1>(rank_id_tuple_of_max);
-          printf("\n%d: %d %f\n", v, id, rank);
-        });
+
+      auto pair_begin = cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs);
+      auto pair_end   = cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs);
+
+      thrust::for_each(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(
+                         thrust::make_tuple(vertex_begin,
+                                            thrust::get<0>(pair_begin.get_iterator_tuple()),
+                                            thrust::get<1>(pair_begin.get_iterator_tuple()))),
+                       thrust::make_zip_iterator(
+                         thrust::make_tuple(vertex_begin,
+                                            thrust::get<0>(pair_end.get_iterator_tuple()),
+                                            thrust::get<1>(pair_end.get_iterator_tuple()))),
+                       [] __device__(auto triple) {
+                         auto v                 = thrust::get<0>(triple);
+                         auto max_neighbor_rank = thrust::get<1>(triple);
+                         auto max_neighbor_id   = thrust::get<2>(triple);
+                         printf("\n%d: %d %f\n", v, max_neighbor_id, max_neighbor_rank);
+                       });
     }
 
     //
@@ -316,15 +322,17 @@ rmm::device_uvector<vertex_t> compute_mis(
        ranks   = raft::device_span<weight_t>(ranks.data(), ranks.size()),
        v_first = graph_view.local_vertex_partition_range_first(),
        debug   = debug] __device__(auto v) {
-        auto v_offset         = v - v_first;
-        auto max_rank_id_pair = *(max_rank_id_pair_first + v_offset);
-        auto max_rank         = thrust::get<0>(max_rank_id_pair);
-        auto max_id           = thrust::get<1>(max_rank_id_pair);
-        auto v_rank           = temporary_ranks[v_offset];
+        auto v_offset                      = v - v_first;
+        auto max_neighbor_rank_and_id_pair = *(max_rank_id_pair_first + v_offset);
+        auto max_neighbor_rank             = thrust::get<0>(max_neighbor_rank_and_id_pair);
+        auto max_neighbor_id               = thrust::get<1>(max_neighbor_rank_and_id_pair);
+        auto tmp_rank_of_v                 = temporary_ranks[v_offset];
 
-        if (debug) { printf("(%d, %f) ==> (%d, %f)", v, v_rank, max_id, max_rank); }
+        if (debug) {
+          printf("(%d, %f) ==> (%d, %f)", v, tmp_rank_of_v, max_neighbor_id, max_neighbor_rank);
+        }
 
-        if (fabs(max_rank - std::numeric_limits<weight_t>::max()) < EPSILON) {
+        if (fabs(max_neighbor_rank - std::numeric_limits<weight_t>::max()) < EPSILON) {
           if (debug) { printf("---> discarding %d\n", v); }
 
           // Maximum rank neighbor is alreay in MIS
@@ -332,8 +340,9 @@ rmm::device_uvector<vertex_t> compute_mis(
           ranks[v_offset] = std::numeric_limits<weight_t>::lowest();
           return true;
 
-        } else if ((v_rank > std::numeric_limits<weight_t>::lowest()) &&
-                   (thrust::make_tuple(v_rank, v) > thrust::make_tuple(max_rank, max_id))) {
+        } else if ((tmp_rank_of_v > (EPSILON + std::numeric_limits<weight_t>::lowest())) &&
+                   (thrust::make_tuple(tmp_rank_of_v, v) >
+                    thrust::make_tuple(max_neighbor_rank, max_neighbor_id))) {
           if (debug) { printf("---> including %d\n", v); }
 
           // Mark it included by setting (global) rank to +Inf
@@ -359,7 +368,6 @@ rmm::device_uvector<vertex_t> compute_mis(
                        [] __device__(auto id_rank_tuple) {
                          auto id   = thrust::get<0>(id_rank_tuple);
                          auto rank = thrust::get<1>(id_rank_tuple);
-
                          printf("%d : %f\n", id, rank);
                        });
     }
@@ -386,14 +394,13 @@ rmm::device_uvector<vertex_t> compute_mis(
                      [] __device__(auto id_rank_tuple) {
                        auto id   = thrust::get<0>(id_rank_tuple);
                        auto rank = thrust::get<1>(id_rank_tuple);
-
                        printf("%d : %f\n", id, rank);
                      });
   }
 
   //
   // Count number of vertices included in MIS
-  //  A rank of +Inf means that the corresponding vertex has been included in MIS
+  // A rank of +Inf means that the corresponding vertex has been included in MIS
   //
   rmm::device_uvector<vertex_t> mis(0, handle.get_stream());
   vertex_t nr_vertices_included_in_mis = thrust::count_if(

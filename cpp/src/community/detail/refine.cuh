@@ -898,10 +898,10 @@ refine_clustering(
                         vertex_t dst  = thrust::get<1>(src_dst_gain);
                         weight_t gain = thrust::get<2>(src_dst_gain);
 
-                        if (gain > 0 && dst < 0)
+                        if (gain > 1e-4 && dst < 0)
                           printf(
                             "\n can it happen? *=>* src=%d, dst=%d, gain=%f \n", src, dst, gain);
-                        return (gain > 0.0) && (dst >= 0);
+                        return (gain > 1e-4) && (dst >= 0);
                       })));
 
     if (GraphViewType::is_multi_gpu) {
