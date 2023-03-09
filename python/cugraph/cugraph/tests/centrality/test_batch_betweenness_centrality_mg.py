@@ -24,10 +24,6 @@ from test_betweenness_centrality import (
     compare_scores,
 )
 
-# Get parameters from standard betwenness_centrality_test
-# As tests directory is not a module, we need to add it to the path
-# FIXME: Test must be reworked to import from 'cugraph.testing' instead of
-# importing from other tests
 DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
 ENDPOINTS_OPTIONS = [False, True]
