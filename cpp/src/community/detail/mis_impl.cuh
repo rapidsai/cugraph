@@ -289,15 +289,9 @@ rmm::device_uvector<vertex_t> compute_mis(
       auto pair_end   = cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs);
 
       thrust::for_each(
-<<<<<<< HEAD
         handle.get_thrust_policy(), pair_begin, pair_end, [] __device__(auto rank_id) {
           auto max_neighbor_rank = thrust::get<0>(rank_id);
           auto max_neighbor_id   = thrust::get<1>(rank_id);
-=======
-        handle.get_thrust_policy(), pair_begin, pair_end, [] __device__(auto triple) {
-          auto max_neighbor_rank = thrust::get<1>(triple);
-          auto max_neighbor_id   = thrust::get<2>(triple);
->>>>>>> fbd0120ea8fa9d8d042b27b6e01aa6350c3f0e6a
           printf("%d : %f\n", max_neighbor_id, max_neighbor_rank);
         });
     }
