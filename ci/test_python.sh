@@ -102,7 +102,7 @@ pytest \
   tests
 popd
 
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0"  &&  "${RUNNER_ARCH}"=="ARM64" ]]; then
   rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
 
   # Temporarily allow unbound variables for conda activation.
