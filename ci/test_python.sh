@@ -110,6 +110,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   conda activate test_cugraph_pyg
   set -u
   
+  # Install pytorch
   rapids-mamba-retry install \
     --force-reinstall \
     --channel pytorch \
@@ -118,6 +119,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     'pytorch>=2.0' \
     'pytorch-cuda>=11.8'
 
+  # Install the nightly version of pyg
   pip install pyg-nightly
 
   rapids-print-env
