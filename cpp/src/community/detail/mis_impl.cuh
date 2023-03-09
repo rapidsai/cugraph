@@ -183,7 +183,6 @@ rmm::device_uvector<vertex_t> compute_mis(
         [] __device__(auto id_rank_tuple) {
           auto id   = thrust::get<0>(id_rank_tuple);
           auto rank = thrust::get<1>(id_rank_tuple);
-
           printf("%d : %f\n", id, rank);
         });
     }
@@ -285,15 +284,21 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "Max neighbor rank-ids: ";
-      thrust::for_each(handle.get_thrust_policy(),
-                       cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs),
-                       cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs),
-                       [] __device__(auto rank_id_tuple) {
-                         auto rank = thrust::get<0>(rank_id_tuple);
-                         auto id   = thrust::get<1>(rank_id_tuple);
-                         printf("\n%d %f\n", id, rank);
-                       });
+      std::cout << "Id and rank of maximum rank neighbor" << std::endl;
+      std::cout << "verterx: (id, rank) [of maximum rank neighbor]" << std::endl;
+      thrust::for_each(
+        handle.get_thrust_policy(),
+        thrust::make_zip_iterator(thrust::make_tuple(
+          vertex_begin, cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs))),
+        thrust::make_zip_iterator(thrust::make_tuple(
+          vertex_end, cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs))),
+        [] __device__(auto v_and_rank_id_of_max) {
+          auto v                    = thrust::get<0>(v_and_rank_id_of_max);
+          auto rank_id_tuple_of_max = thrust::get<1>(v_and_rank_id_of_max);
+          auto rank                 = thrust::get<0>(rank_id_tuple_of_max);
+          auto id                   = thrust::get<1>(rank_id_tuple_of_max);
+          printf("\n%d: %d %f\n", v, id, rank);
+        });
     }
 
     //
@@ -323,7 +328,7 @@ rmm::device_uvector<vertex_t> compute_mis(
           if (debug) { printf("---> discarding %d\n", v); }
 
           // Maximum rank neighbor is alreay in MIS
-          // Discard current vertex by setting rank to -Inf
+          // Discard current vertex by setting (global) rank to -Inf
           ranks[v_offset] = std::numeric_limits<weight_t>::lowest();
           return true;
 
@@ -331,7 +336,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                    (thrust::make_tuple(v_rank, v) > thrust::make_tuple(max_rank, max_id))) {
           if (debug) { printf("---> including %d\n", v); }
 
-          // Mark it included by setting rank to +Inf
+          // Mark it included by setting (global) rank to +Inf
           ranks[v_offset] = std::numeric_limits<weight_t>::max();
           return true;
         }
