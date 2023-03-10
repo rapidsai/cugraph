@@ -27,7 +27,7 @@ import warnings
 import numpy as np
 
 
-def plc_betweenness_centrality(
+def betweenness_centrality(
     G,
     k=None,
     normalized=True,
