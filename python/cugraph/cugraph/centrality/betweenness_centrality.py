@@ -58,7 +58,7 @@ def betweenness_centrality(
         betweenness. If weights are provided in the edgelist, they will not be
         used.
 
-    k : int or list or cudf object or None, optional (default=None)
+    k : list or cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.  If k is either a list or a cudf, use its
         content for estimation: it contain vertex identifiers. If k is None
