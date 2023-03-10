@@ -782,7 +782,11 @@ class simpleDistributedGraphImpl:
         return random vertices from the graph as a cudf
         """
 
-        def _call_plc_select_random_vertices(sID, mg_graph_x, random_state, num_vertices):
+        _client = default_client()
+
+        def _call_plc_select_random_vertices(sID, mg_graph_x, random_state, wid, num_vertices):
+            if isinstance(random_state, int):
+                random_state += wid
             return pylibcugraph_select_random_vertices(
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
@@ -790,17 +794,19 @@ class simpleDistributedGraphImpl:
                 num_vertices=num_vertices,
             )
 
+        # The seed must be different on each GPU
         result = [
-                self._client.submit(
+                _client.submit(
                     _call_plc_select_random_vertices,
                     Comms.get_session_id(),
                     self._plc_graph[w],
                     random_state,
+                    wid,
                     num_vertices,
                     workers=[w],
                     allow_other_workers=False,
                 )
-                for w in Comms.get_workers()
+                for wid, w in enumerate(Comms.get_workers())
             ]
 
         wait(result)
@@ -819,7 +825,7 @@ class simpleDistributedGraphImpl:
             return vertices
 
         cudf_result = [
-            self._client.submit(
+            _client.submit(
                 convert_to_cudf, cp_arrays, self.renumber_map) for cp_arrays in result
         ]
 
