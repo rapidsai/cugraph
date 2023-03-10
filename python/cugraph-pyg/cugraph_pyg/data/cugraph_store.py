@@ -656,7 +656,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         return self.__graph
 
-    def _get_vertex_groups_from_sample(self, nodes_of_interest: cudf.Series) -> dict:
+    def _get_vertex_groups_from_sample(self, nodes_of_interest: TensorType, is_sorted:bool=False) -> dict:
         """
         Given a cudf (NOT dask_cudf) Series of nodes of interest, this
         method a single dictionary, noi_index.
@@ -667,8 +667,8 @@ class EXPERIMENTAL__CuGraphStore:
         Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
 
         """
-
-        nodes_of_interest = self.asarray(nodes_of_interest.sort_values())
+        if not is_sorted:
+            nodes_of_interest, _ = torch.sorted(nodes_of_interest)
 
         noi_index = {}
 
