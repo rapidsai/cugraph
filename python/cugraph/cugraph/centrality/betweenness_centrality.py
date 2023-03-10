@@ -145,13 +145,6 @@ def betweenness_centrality(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    # FIXME: Do not deprecate this parameter
-    if random_state is not None:
-        warning_msg = (
-            "This parameter is deprecated and will be remove " "in the next release."
-        )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
-
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
             vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
