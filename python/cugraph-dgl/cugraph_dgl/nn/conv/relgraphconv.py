@@ -13,6 +13,7 @@
 """Torch Module for Relational graph convolution layer using the aggregation
 primitives in cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
+from __future__ import annotations
 import math
 from typing import Optional
 
