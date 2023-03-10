@@ -13,7 +13,6 @@
 # =============================================================================
 
 set(cython_sources
-    betweenness_centrality_wrapper.pyx
     edge_betweenness_centrality_wrapper.pyx
 )
 set(linked_libraries cugraph::cugraph)

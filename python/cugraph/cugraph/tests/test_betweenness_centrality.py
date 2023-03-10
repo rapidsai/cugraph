@@ -162,7 +162,7 @@ def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype
     random.seed(seed)  # It will be called again in nx's call
     sources = random.sample(list(Gnx.nodes()), k)
     print("\nsources are ", sources)
-    df = cugraph.plc_betweenness_centrality(
+    df = cugraph.betweenness_centrality(
         G,
         k=sources,
         normalized=normalized,
@@ -210,7 +210,7 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed, result
 
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
-    df = cugraph.plc_betweenness_centrality(
+    df = cugraph.betweenness_centrality(
         G,
         k=k,
         normalized=normalized,
@@ -228,7 +228,7 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed, result
     # The second call is going to process source that were already sampled
     # We set seed to None as k : int, seed : not none should not be normal
     # behavior
-    df2 = cugraph.plc_betweenness_centrality(
+    df2 = cugraph.betweenness_centrality(
         G,
         k=sources,
         normalized=normalized,
@@ -251,7 +251,7 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, endpoints, k, seed, result
 
 
 def _calc_bc_full(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype):
-    df = cugraph.plc_betweenness_centrality(
+    df = cugraph.betweenness_centrality(
         G,
         k=k,
         normalized=normalized,
@@ -505,7 +505,7 @@ def test_betweenness_centrality_nx(graph_file, directed, edgevals):
     Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
 
     nx_bc = nx.betweenness_centrality(Gnx)
-    cu_bc = cugraph.plc_betweenness_centrality(Gnx)
+    cu_bc = cugraph.betweenness_centrality(Gnx)
 
     # Calculating mismatch
     networkx_bc = sorted(nx_bc.items(), key=lambda x: x[0])

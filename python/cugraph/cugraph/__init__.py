@@ -56,7 +56,6 @@ from cugraph.structure import (
 
 from cugraph.centrality import (
     betweenness_centrality,
-    plc_betweenness_centrality,
     edge_betweenness_centrality,
     katz_centrality,
     degree_centrality,

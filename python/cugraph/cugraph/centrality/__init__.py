@@ -18,4 +18,3 @@ from cugraph.centrality.betweenness_centrality import (
 )
 from cugraph.centrality.degree_centrality import degree_centrality
 from cugraph.centrality.eigenvector_centrality import eigenvector_centrality
-from cugraph.centrality.plc_betweenness_centrality import plc_betweenness_centrality
