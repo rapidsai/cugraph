@@ -17,6 +17,7 @@ import pytest
 import cugraph
 import dask_cudf
 import cupy
+import cudf
 
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
@@ -50,6 +51,7 @@ fixture_params = gen_fixture_params_product(
     ([42], "subset_seed"),
     ([None, 15], "subset_size"),
     (IS_DIRECTED, "directed"),
+    ([list, cudf], "vertex_list_type"),
 )
 
 
@@ -61,7 +63,7 @@ def input_combo(request):
     """
     parameters = dict(
         zip(
-            ("graph_file", "normalized", "endpoints", "subset_seed", "subset_size", "directed"),
+            ("graph_file", "normalized", "endpoints", "subset_seed", "subset_size", "directed", "vertex_list_type"),
             request.param,
         )
     )
@@ -83,6 +85,7 @@ def input_expected_output(input_combo):
     random_state = input_combo["subset_seed"]
     subset_size = input_combo["subset_size"]
     directed = input_combo["directed"]
+    vertex_list_type = input_combo["vertex_list_type"]
 
     G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
 
@@ -91,11 +94,14 @@ def input_expected_output(input_combo):
     elif isinstance(subset_size, int):
         # Select random vertices
         k = G.select_random_vertices(random_state=random_state, num_vertices=subset_size)
+        if vertex_list_type is list:
+            k = k.to_arrow().to_pylist()
+
         print("the seeds are \n", k)
     
     input_combo["k"] = k
 
-    sg_cugraph_bc = cugraph.plc_betweenness_centrality(
+    sg_cugraph_bc = cugraph.betweenness_centrality(
         G, k=k, normalized=normalized, endpoints=endpoints
     )
     # Save the results back to the input_combo dictionary to prevent redundant
