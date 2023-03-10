@@ -15,8 +15,10 @@ from pylibcugraph import (
     betweenness_centrality as pylibcugraph_betweenness_centrality,
     ResourceHandle,
 )
+from cugraph.centrality import edge_betweenness_centrality_wrapper
 
 from cugraph.utilities import (
+    df_edge_score_to_dictionary,
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
@@ -114,6 +116,9 @@ def plc_betweenness_centrality(
 
     """
 
+    # FIXME: 'seed' was renamed to 'random_state'. Should we raise a deprecated
+    # warning first?
+
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     # FIXME: Should we raise an error if the graph created is weighted?
@@ -186,9 +191,8 @@ def plc_betweenness_centrality(
         return df
 
 
-# FIXME: Leverage the vertex sampling algorithm
 def edge_betweenness_centrality(
-    G, k=None, normalized=True, weight=None, random_state=None, result_dtype=np.float64
+    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
 ):
     """
     Compute the edge betweenness centrality for all edges of the graph G.
@@ -234,11 +238,12 @@ def edge_betweenness_centrality(
         edges and weights.
         (Not Supported)
 
-    random_state : optional (default=None)
-        if k is specified and k is an integer, use random_state to initialize the
+    seed : optional (default=None)
+        if k is specified and k is an integer, use seed to initialize the
         random number generator.
-        Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: random_state parameter is ignored
+        Using None as seed relies on random.seed() behavior: using current
+        system time
+        If k is either None or list: seed parameter is ignored
 
     result_dtype : np.float32 or np.float64, optional (default=np.float64)
         Indicate the data type of the betweenness centrality scores
@@ -354,3 +359,4 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
         vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()
 
     return vertices
+
