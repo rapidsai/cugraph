@@ -271,3 +271,26 @@ def test_mg_graph_copy():
     G = cugraph.MultiGraph(directed=True)
     G_c = copy.deepcopy(G)
     assert type(G) == type(G_c)
+
+
+@pytest.mark.parametrize("random_state", [42, None])
+@pytest.mark.parametrize("num_vertices", [5, None])
+def test_mg_select_random_vertices(dask_client, input_combo, random_state, num_vertices):
+    G = input_combo["MGGraph"]
+
+    if num_vertices is None:
+        # Select all vertices
+        num_vertices = len(G.nodes())
+    
+    sampled_vertices = G.select_random_vertices(random_state, num_vertices).compute()
+
+    original_vertices_df = cudf.DataFrame()
+    sampled_vertices_df = cudf.DataFrame()
+
+    sampled_vertices_df["sampled_vertices"] = sampled_vertices
+    original_vertices_df["original_vertices"] = G.nodes().compute()
+
+    join = sampled_vertices_df.merge(original_vertices_df, left_on="sampled_vertices", right_on="original_vertices")
+
+    assert len(join) == len(sampled_vertices)
+
