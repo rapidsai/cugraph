@@ -114,12 +114,13 @@ rmm::device_uvector<vertex_t> compute_mis(
       "remaining_vertices: ", remaining_vertices.data(), remaining_vertices.size(), std::cout);
   }
 
-  size_t loop_counter = 0;
+  size_t loop_counter                              = 0;
+  vertex_t nr_remaining_vertices_in_last_iteration = 0;
   while (true) {
+    loop_counter++;
     if (debug) {
       cudaDeviceSynchronize();
       std::cout << "Mis loop, counter: " << loop_counter << std::endl;
-      loop_counter++;
     }
     //
     // Copy ranks into temporary vector to begin with
@@ -138,7 +139,9 @@ rmm::device_uvector<vertex_t> compute_mis(
       handle.get_thrust_policy(), remaining_vertices.begin(), remaining_vertices.end(), g);
 
     vertex_t nr_candidates =
-      std::max(vertex_t{1}, static_cast<vertex_t>(0.60 * remaining_vertices.size()));
+      std::max(vertex_t{1},
+               std::min(vertex_t{(0.50 + 0.1 * loop_counter) * remaining_vertices.size()},
+                        vertex_t{remaining_vertices.size()}));
 
     // Set temporary ranks of non-candidate vertices to -Inf
     thrust::for_each(
@@ -166,6 +169,9 @@ rmm::device_uvector<vertex_t> compute_mis(
         //                                      : std::numeric_limits<weight_t>::lowest();
         //
       });
+
+    std::cout << "nr_remaining_vertices: " << remaining_vertices.size()
+              << ", nr_candidates: " << nr_candidates << std::endl;
 
     if (debug) {
       cudaDeviceSynchronize();
@@ -315,7 +321,7 @@ rmm::device_uvector<vertex_t> compute_mis(
     //
     auto last = thrust::remove_if(
       handle.get_thrust_policy(),
-      remaining_vertices.begin() - nr_candidates,
+      remaining_vertices.end() - nr_candidates,
       remaining_vertices.end(),
       [max_rank_id_pair_first = cugraph::get_dataframe_buffer_begin(max_outgoing_rank_id_pairs),
        //  temporary_ranks =
@@ -392,6 +398,11 @@ rmm::device_uvector<vertex_t> compute_mis(
     std::cout << "remaining_vts_to_check:   " << nr_remaining_vertices_to_check << std::endl;
 
     if (nr_remaining_vertices_to_check == 0) { break; }
+    if (nr_remaining_vertices_in_last_iteration == nr_remaining_vertices_to_check) {
+      break;
+    } else {
+      nr_remaining_vertices_in_last_iteration = nr_remaining_vertices_to_check;
+    }
   }
 
   if (debug) {

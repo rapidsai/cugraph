@@ -205,7 +205,7 @@ build_leiden_to_louvain_map(raft::handle_t const& handle,
                louvain_assignment.end(),
                values_of_leiden_to_louvain_map.begin());
 
-  bool debug = leiden_assignment.size() < 50;
+  bool debug = leiden_assignment.size() < 40;
   if (debug) {
     CUDA_TRY(cudaDeviceSynchronize());
 
@@ -309,7 +309,7 @@ refine_clustering(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  bool debug = graph_view.local_vertex_partition_range_size() < 50;
+  bool debug = graph_view.local_vertex_partition_range_size() < 40;
   if (debug) {
     CUDA_TRY(cudaDeviceSynchronize());
     std::cout << ".... Inside refine_clustering: before lookup_primitive_values_for_keys "
@@ -1031,7 +1031,7 @@ refine_clustering(
       chosen_nodes.size(),
       false);
 
-    if (chosen_nodes.size() < 25) {  // debug
+    if (debug) {  // debug
       CUDA_TRY(cudaDeviceSynchronize());
       raft::print_device_vector(
         "chosen_nodes", chosen_nodes.data(), chosen_nodes.size(), std::cout);
@@ -1068,7 +1068,7 @@ refine_clustering(
           thrust::seq, d_nodes_to_move, d_nodes_to_move + num_nodes_to_move, id_to_lookup);
       });
 
-    if (chosen_nodes.size() < 25) {  // debug
+    if (debug) {  // debug
       raft::print_device_vector(
         "chosen_nodes ", chosen_nodes.data(), chosen_nodes.size(), std::cout);
 
@@ -1169,7 +1169,7 @@ refine_clustering(
                                           [] __device__(auto is_moving) { return is_moving; }))),
                         handle.get_stream());
 
-    if (chosen_nodes.size() < 25) {  // debug
+    if (debug) {  // debug
       raft::print_device_vector(
         "target_comms: ", target_comms.data(), target_comms.size(), std::cout);
     }
