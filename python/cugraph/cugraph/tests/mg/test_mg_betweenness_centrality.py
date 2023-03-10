@@ -49,7 +49,7 @@ fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([False, True], "normalized"),
     ([False, True], "endpoints"),
-    ([42], "subset_seed"),
+    ([42, None], "subset_seed"),
     ([None, 15], "subset_size"),
     (IS_DIRECTED, "directed"),
     ([list, cudf], "vertex_list_type"),
@@ -109,11 +109,17 @@ def input_expected_output(input_combo):
             k = k.to_arrow().to_pylist()
 
         print("the seeds are \n", k)
+        if vertex_list_type is int:
+            # This internally sample k vertices in betweenness centrality.
+            # Since the nodes that will be sampled by each implementation will
+            # be random, therefore sample all vertices which will make the test
+            # consistent.
+            k = len(G.nodes())
 
     input_combo["k"] = k
 
     sg_cugraph_bc = cugraph.betweenness_centrality(
-        G, k=k, normalized=normalized, endpoints=endpoints
+        G, k=k, normalized=normalized, endpoints=endpoints, random_state=random_state
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
@@ -162,12 +168,14 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
     k = input_expected_output["k"]
     endpoints = input_expected_output["endpoints"]
     normalized = input_expected_output["normalized"]
+    random_state = input_expected_output["subset_seed"]
     mg_bc_results = benchmark(
         dcg.betweenness_centrality,
         dg,
         k=k,
         normalized=normalized,
         endpoints=endpoints,
+        random_state=random_state,
     )
 
     mg_bc_results = (
