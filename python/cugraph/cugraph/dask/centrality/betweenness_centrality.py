@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
+from dask.distributed import wait, get_client
 from pylibcugraph import (
     ResourceHandle,
     betweenness_centrality as pylibcugraph_betweenness_centrality,
@@ -22,28 +22,8 @@ import cugraph.dask.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_distributed_data
 import dask_cudf
 import cudf
+import cupy as cp
 import warnings
-
-
-def _call_plc_betweenness_centrality(
-    sID,
-    mg_graph_x,
-    k,
-    random_state,
-    normalized,
-    endpoints,
-    do_expensive_check,
-):
-
-    return pylibcugraph_betweenness_centrality(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-        graph=mg_graph_x,
-        k=k,
-        random_state=random_state,
-        normalized=normalized,
-        include_endpoints=endpoints,
-        do_expensive_check=do_expensive_check,
-    )
 
 
 def convert_to_cudf(cp_arrays):
@@ -57,12 +37,63 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def betweenness_centrality(
+def _call_plc_betweenness_centrality(
+    sID,
+    mg_graph_x,
+    k,
+    random_state,
+    normalized,
+    endpoints,
+    do_expensive_check,
+):
+
+    cp_arrays = pylibcugraph_betweenness_centrality(
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        graph=mg_graph_x,
+        k=k,
+        random_state=random_state,
+        normalized=normalized,
+        include_endpoints=endpoints,
+        do_expensive_check=do_expensive_check,
+    )
+    return convert_to_cudf(cp_arrays)
+
+
+def _mg_call_plc_betweenness_centrality(
+    client,
+    sID,
     input_graph,
-    k=None,
-    normalized=True,
-    endpoints=False,
-    random_state=None
+    k,
+    random_state,
+    normalized,
+    endpoints,
+    do_expensive_check,
+):
+    result = [
+        client.submit(
+            _call_plc_betweenness_centrality,
+            sID,
+            input_graph._plc_graph[w],
+            k if isinstance(k, (int, type(None))) else k[w][0],
+            hash((random_state, i)),
+            normalized,
+            endpoints,
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
+            pure=False,
+        )
+        for i, w in enumerate(Comms.get_workers())
+    ]
+
+    ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
+    wait(ddf)
+    wait([r.release() for r in result])
+    return ddf
+
+
+def betweenness_centrality(
+    input_graph, k=None, normalized=True, endpoints=False, random_state=None
 ):
     """
     Compute the betweenness centrality for all vertices of the graph G.
@@ -85,8 +116,8 @@ def betweenness_centrality(
         variation of the Brandes Algorithm (2001) to compute exact or approximate
         betweenness. If weights are provided in the edgelist, they will not be
         used.
-    
-    k : list or (dask)cudf object or None, optional (default=None)
+
+    k : int, list or (dask)cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.  If k is either a list or a (dask)cudf,
         use its content for estimation: it contain vertex identifiers. If k is None
@@ -99,12 +130,13 @@ def betweenness_centrality(
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
-    
-    random_state : optional (default=None)
+
+    random_state : int, optional (default=None)
         if k is specified and k is an integer, use random_state to initialize the
         random number generator.
         Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: random_state parameter is ignored
+        If k is either None or list or cudf objects: random_state parameter is
+        ignored.
 
     Returns
     -------
@@ -134,9 +166,6 @@ def betweenness_centrality(
     >>> pr = dcg.betweenness_centrality(dg)
 
     """
-    # FIXME: Fails when passing a list
-    # FIXME: check results when python/C++ renumbering is True
-    client = default_client()
 
     if input_graph.store_transposed is True:
         warning_msg = (
@@ -151,11 +180,17 @@ def betweenness_centrality(
             if isinstance(k, list):
                 k_dtype = input_graph.nodes().dtype
                 k = cudf.Series(k, dtype=k_dtype)
-                # convert into a dask_cudf
-                # convert into a dask_cudf
-                # FIXME: This logic is wrong as we only get a dask cudf when we have a list
 
-            k = dask_cudf.from_cudf(k, input_graph._npartitions)
+        # FIXME: Add test for dask_cudf vertex list
+        if isinstance(k, (cudf.Series, cudf.DataFrame)):
+            splits = cp.array_split(cp.arange(len(k)), len(Comms.get_workers()))
+            k = {w: [k.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
+
+    else:
+        if k is not None:
+            k = get_distributed_data(k)
+            wait(k)
+            k = k.worker_to_parts
 
     if input_graph.renumbered:
         if isinstance(k, dask_cudf.DataFrame):
@@ -170,25 +205,23 @@ def betweenness_centrality(
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
-    if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
-        samples = get_distributed_data(k)
-        # FIXME: leverage the uniform neighbor sampling implementation
-        # to make it faster
-        cupy_result = [
-            client.submit(
-                _call_plc_betweenness_centrality,
-                Comms.get_session_id(),
-                input_graph._plc_graph[w],
-                k[0],
-                random_state,
-                normalized,
-                endpoints,
-                do_expensive_check,
-                workers=[w],
-                allow_other_workers=False,
-            )
-            for w, k in samples.worker_to_parts.items()
-        ]
+    client = get_client()
+
+    # if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
+    # samples = get_distributed_data(k)
+    # FIXME: leverage the uniform neighbor sampling implementation
+    # to make it faster
+    ddf = _mg_call_plc_betweenness_centrality(
+        client,
+        Comms.get_session_id(),
+        input_graph,
+        k,
+        random_state,
+        normalized,
+        endpoints,
+        do_expensive_check,
+    )
+    """
     else:
         # FIXME: leverage the uniform neighbor sampling implementation
         # to make it faster
@@ -198,33 +231,16 @@ def betweenness_centrality(
                 Comms.get_session_id(),
                 input_graph._plc_graph[w],
                 k,
-                random_state,
+                hash((random_state, i)),
                 normalized,
                 endpoints,
                 do_expensive_check,
                 workers=[w],
                 allow_other_workers=False,
             )
-            for w in Comms.get_workers()
+            for i, w in enumerate(Comms.get_workers())
         ]
-
-    wait(cupy_result)
-
-    cudf_result = [
-        client.submit(
-            convert_to_cudf, cp_arrays, workers=client.who_has(cp_arrays)[cp_arrays.key]
-        )
-        for cp_arrays in cupy_result
-    ]
-
-    wait(cudf_result)
-
-    ddf = dask_cudf.from_delayed(cudf_result).persist()
-    wait(ddf)
-
-    # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(cupy_result, cudf_result)])
-
+    """
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, "vertex")
 

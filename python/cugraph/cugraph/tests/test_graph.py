@@ -783,7 +783,7 @@ def test_select_random_vertices(graph_file, random_state, num_vertices):
     if num_vertices is None:
         # Select all vertices
         num_vertices = G.number_of_nodes()
-    
+
     sampled_vertices = G.select_random_vertices(random_state, num_vertices)
 
     original_vertices_df = cudf.DataFrame()
@@ -792,6 +792,8 @@ def test_select_random_vertices(graph_file, random_state, num_vertices):
     sampled_vertices_df["sampled_vertices"] = sampled_vertices
     original_vertices_df["original_vertices"] = G.nodes()
 
-    join = sampled_vertices_df.merge(original_vertices_df, left_on="sampled_vertices", right_on="original_vertices")
-    
+    join = sampled_vertices_df.merge(
+        original_vertices_df, left_on="sampled_vertices", right_on="original_vertices"
+    )
+
     assert len(join) == len(sampled_vertices)

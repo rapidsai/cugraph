@@ -29,7 +29,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
-    select_random_vertices as pylibcugraph_select_random_vertices
+    select_random_vertices as pylibcugraph_select_random_vertices,
 )
 import cugraph.dask.comms.comms as Comms
 
@@ -763,7 +763,7 @@ class simpleDistributedGraphImpl:
             ddf = self.renumber_map.unrenumber(ddf, "second")
 
         return ddf
-    
+
     def select_random_vertices(self, random_state=None, num_vertices=None):
         """
         Select random vertices from the graph
@@ -784,7 +784,9 @@ class simpleDistributedGraphImpl:
 
         _client = default_client()
 
-        def _call_plc_select_random_vertices(sID, mg_graph_x, random_state, wid, num_vertices):
+        def _call_plc_select_random_vertices(
+            sID, mg_graph_x, random_state, wid, num_vertices
+        ):
             if isinstance(random_state, int):
                 random_state += wid
             return pylibcugraph_select_random_vertices(
@@ -796,18 +798,18 @@ class simpleDistributedGraphImpl:
 
         # The seed must be different on each GPU
         result = [
-                _client.submit(
-                    _call_plc_select_random_vertices,
-                    Comms.get_session_id(),
-                    self._plc_graph[w],
-                    random_state,
-                    wid,
-                    num_vertices,
-                    workers=[w],
-                    allow_other_workers=False,
-                )
-                for wid, w in enumerate(Comms.get_workers())
-            ]
+            _client.submit(
+                _call_plc_select_random_vertices,
+                Comms.get_session_id(),
+                self._plc_graph[w],
+                random_state,
+                wid,
+                num_vertices,
+                workers=[w],
+                allow_other_workers=False,
+            )
+            for wid, w in enumerate(Comms.get_workers())
+        ]
 
         wait(result)
 
@@ -821,12 +823,12 @@ class simpleDistributedGraphImpl:
                 df_["vertex"] = vertices
                 df_ = number_map.unrenumber(df_, "vertex").compute()
                 vertices = cudf.Series(df_["vertex"])
-            
+
             return vertices
 
         cudf_result = [
-            _client.submit(
-                convert_to_cudf, cp_arrays, self.renumber_map) for cp_arrays in result
+            _client.submit(convert_to_cudf, cp_arrays, self.renumber_map)
+            for cp_arrays in result
         ]
 
         wait(cudf_result)

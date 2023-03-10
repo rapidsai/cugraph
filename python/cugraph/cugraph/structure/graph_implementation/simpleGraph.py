@@ -646,7 +646,7 @@ class simpleGraphImpl:
         random_state : int , optional(default=None)
             Random state to use when generating samples.  Optional argument,
             defaults to a hash of process id, time, and hostname.
-    
+
         num_vertices : int, optional(default=None)
             Number of vertices to sample. If None, all vertices will be selected
 
@@ -658,7 +658,7 @@ class simpleGraphImpl:
             resource_handle=ResourceHandle(),
             graph=self._plc_graph,
             random_state=random_state,
-            num_vertices=num_vertices
+            num_vertices=num_vertices,
         )
 
         vertices = cudf.Series(vertices)
@@ -669,7 +669,6 @@ class simpleGraphImpl:
             vertices = df_["vertex"]
 
         return vertices
-
 
     def number_of_vertices(self):
         """

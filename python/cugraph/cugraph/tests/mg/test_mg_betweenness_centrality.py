@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,6 +33,7 @@ from pylibcugraph.testing import gen_fixture_params_product
 def setup_function():
     gc.collect()
 
+
 IS_DIRECTED = [True, False]
 
 
@@ -63,7 +64,15 @@ def input_combo(request):
     """
     parameters = dict(
         zip(
-            ("graph_file", "normalized", "endpoints", "subset_seed", "subset_size", "directed", "vertex_list_type"),
+            (
+                "graph_file",
+                "normalized",
+                "endpoints",
+                "subset_seed",
+                "subset_size",
+                "directed",
+                "vertex_list_type",
+            ),
             request.param,
         )
     )
@@ -93,12 +102,14 @@ def input_expected_output(input_combo):
         k = subset_size
     elif isinstance(subset_size, int):
         # Select random vertices
-        k = G.select_random_vertices(random_state=random_state, num_vertices=subset_size)
+        k = G.select_random_vertices(
+            random_state=random_state, num_vertices=subset_size
+        )
         if vertex_list_type is list:
             k = k.to_arrow().to_pylist()
 
         print("the seeds are \n", k)
-    
+
     input_combo["k"] = k
 
     sg_cugraph_bc = cugraph.betweenness_centrality(
@@ -144,6 +155,7 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 
+
 def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
@@ -159,11 +171,9 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
     )
 
     mg_bc_results = (
-        mg_bc_results.compute()
-        .sort_values("vertex")
-        .reset_index(drop=True)
+        mg_bc_results.compute().sort_values("vertex").reset_index(drop=True)
     )["betweenness_centrality"].to_cupy()
-    
+
     sg_bc_results = (
         input_expected_output["sg_cugraph_results"]
         .sort_values("vertex")

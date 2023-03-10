@@ -25,6 +25,7 @@ from cugraph.utilities import (
 import cudf
 import warnings
 import numpy as np
+import random
 
 
 def betweenness_centrality(
@@ -58,7 +59,7 @@ def betweenness_centrality(
         betweenness. If weights are provided in the edgelist, they will not be
         used.
 
-    k : list or cudf object or None, optional (default=None)
+    k : int, list or cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
         values give better approximation.  If k is either a list or a cudf, use its
         content for estimation: it contain vertex identifiers. If k is None
@@ -86,7 +87,7 @@ def betweenness_centrality(
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
 
-    random_state : optional (default=None)
+    random_state : int, optional (default=None)
         if k is specified and k is an integer, use random_state to initialize the
         random number generator.
         Using None defaults to a hash of process id, time, and hostname
@@ -153,7 +154,7 @@ def betweenness_centrality(
     if isinstance(k, (cudf.DataFrame, cudf.Series)):
         if G.renumbered:
             k = G.lookup_internal_vertex_id(k)
-    
+
     vertices, values = pylibcugraph_betweenness_centrality(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
@@ -173,7 +174,7 @@ def betweenness_centrality(
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
-    
+
     if df["betweenness_centrality"].dtype != result_dtype:
         df["betweenness_centrality"] = df["betweenness_centrality"].astype(result_dtype)
 
@@ -352,4 +353,3 @@ def _initialize_vertices_from_identifiers_list(G, identifiers):
         vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()
 
     return vertices
-
