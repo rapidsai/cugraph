@@ -229,10 +229,7 @@ class EXPERIMENTAL__CuGraphStore:
                 num_nodes_dict : dict (Required)
                     A dictionary mapping each node type to the count of nodes
                     of that type in the graph.
-        <<<<<<< HEAD
 
-        =======
-        >>>>>>> update-pyg-recipe
                 backend : ('torch', 'cupy') (Optional, default = 'torch')
                     The backend that manages tensors (default = 'torch')
                     Should usually be 'torch' ('torch', 'cupy' supported).
@@ -291,10 +288,15 @@ class EXPERIMENTAL__CuGraphStore:
         self._edge_attr_cls = CuGraphEdgeAttr
 
         self.__features = F
+        self.__graph = None
+        
         if construct_graph:
-            self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
-        else:
-            self.__graph = None
+            if multi_gpu:
+                self.__graph = get_client().get_dataset('cugraph_graph', default=None)
+            
+            if self.__graph is None:
+                self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+
         self.__subgraphs = {}
 
     def __make_offsets(self, input_dict):

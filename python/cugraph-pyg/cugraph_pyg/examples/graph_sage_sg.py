@@ -142,7 +142,7 @@ def train(device: int, features_device: Union[str, int]='cpu', num_epochs=2) -> 
         for epoch in range(num_epochs):
             for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
                 num_batches += 1
-                if iter_i % 50 == 0:
+                if iter_i % 20 == 0:
                     print(f'iteration {iter_i}')
 
                 # train
