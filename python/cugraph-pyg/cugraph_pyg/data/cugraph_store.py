@@ -197,46 +197,46 @@ class EXPERIMENTAL__CuGraphStore:
         multi_gpu: bool = False,
     ):
         """
-                Constructs a new CuGraphStore from the provided
-                arguments.
-                Parameters
-                ----------
-                F : cugraph.gnn.FeatureStore (Required)
-                    The feature store containing this graph's features.
-                    Typed lexicographic-ordered numbering convention
-                    should match that of the graph.
+        Constructs a new CuGraphStore from the provided
+        arguments.
+        Parameters
+        ----------
+        F : cugraph.gnn.FeatureStore (Required)
+            The feature store containing this graph's features.
+            Typed lexicographic-ordered numbering convention
+            should match that of the graph.
 
-                G : dict[str, tuple[tensor]] or dict[str, int] (Required)
-                    Dictionary of edge indices.
-                    Option 1 (graph in memory):
-                        Pass the edge indices
-                        i.e. {
-                            ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
-                            ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
-                        }
-                    Option 2 (graph not in memory):
-                        Pass the number of edges
-                        i.e. {
-                            ('author', 'writes', 'paper'): 2,
-                            ('author', 'affiliated', 'institution'): 2
-                        }
-                        If the graph is not in memory, manipulating the edge indices
-                        or calling sampling is not possible.  This is for cases where
-                        sampling has already been done and samples were written to disk.
-                    Note: the internal cugraph representation will use
-                    offsetted vertex and edge ids.
+        G : dict[str, tuple[tensor]] or dict[str, int] (Required)
+            Dictionary of edge indices.
+            Option 1 (graph in memory):
+                Pass the edge indices
+                i.e. {
+                    ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                    ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+                }
+            Option 2 (graph not in memory):
+                Pass the number of edges
+                i.e. {
+                    ('author', 'writes', 'paper'): 2,
+                    ('author', 'affiliated', 'institution'): 2
+                }
+                If the graph is not in memory, manipulating the edge indices
+                or calling sampling is not possible.  This is for cases where
+                sampling has already been done and samples were written to disk.
+            Note: the internal cugraph representation will use
+            offsetted vertex and edge ids.
 
-                num_nodes_dict : dict (Required)
-                    A dictionary mapping each node type to the count of nodes
-                    of that type in the graph.
+        num_nodes_dict : dict (Required)
+            A dictionary mapping each node type to the count of nodes
+            of that type in the graph.
 
-                backend : ('torch', 'cupy') (Optional, default = 'torch')
-                    The backend that manages tensors (default = 'torch')
-                    Should usually be 'torch' ('torch', 'cupy' supported).
+        backend : ('torch', 'cupy') (Optional, default = 'torch')
+            The backend that manages tensors (default = 'torch')
+            Should usually be 'torch' ('torch', 'cupy' supported).
 
-                multi_gpu : bool (Optional, default = False)
-                    Whether the store should be backed by a multi-GPU graph.
-                    Requires dask to have been set up.
+        multi_gpu : bool (Optional, default = False)
+            Whether the store should be backed by a multi-GPU graph.
+            Requires dask to have been set up.
         """
 
         if None in G:
@@ -289,11 +289,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         self.__features = F
         self.__graph = None
-        
+
         if construct_graph:
             if multi_gpu:
-                self.__graph = get_client().get_dataset('cugraph_graph', default=None)
-            
+                self.__graph = get_client().get_dataset("cugraph_graph", default=None)
+
             if self.__graph is None:
                 self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
 
@@ -658,7 +658,9 @@ class EXPERIMENTAL__CuGraphStore:
 
         return self.__graph
 
-    def _get_vertex_groups_from_sample(self, nodes_of_interest: TensorType, is_sorted:bool=False) -> dict:
+    def _get_vertex_groups_from_sample(
+        self, nodes_of_interest: TensorType, is_sorted: bool = False
+    ) -> dict:
         """
         Given a cudf (NOT dask_cudf) Series of nodes of interest, this
         method a single dictionary, noi_index.

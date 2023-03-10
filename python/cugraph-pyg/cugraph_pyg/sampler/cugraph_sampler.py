@@ -55,15 +55,19 @@ def _sampler_output_from_sampling_results(
     dict, if PyG is not installed.
     """
     nodes_of_interest = torch.unique(
-        torch.stack([
-            torch.as_tensor(sampling_results.destinations, device='cuda'),
-            torch.as_tensor(sampling_results.sources, device='cuda'),
-        ])
+        torch.stack(
+            [
+                torch.as_tensor(sampling_results.destinations, device="cuda"),
+                torch.as_tensor(sampling_results.sources, device="cuda"),
+            ]
+        )
     )
     # unique will always sort this array
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
-    noi_index = graph_store._get_vertex_groups_from_sample(nodes_of_interest, is_sorted=True)
+    noi_index = graph_store._get_vertex_groups_from_sample(
+        nodes_of_interest, is_sorted=True
+    )
 
     # Get the new edge index (by type as expected for HeteroData)
     # FIXME handle edge ids/types after the C++ updates

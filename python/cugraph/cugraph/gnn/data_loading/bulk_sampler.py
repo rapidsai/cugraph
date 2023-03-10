@@ -61,10 +61,12 @@ class EXPERIMENTAL__BulkSampler:
         max_batches_per_partition = seeds_per_call // batch_size
         if batches_per_partition > max_batches_per_partition:
             import warnings
+
             warnings.warn(
-                f'batches_per_partition ({batches_per_partition}) is >'
-                f' seeds_per_call / batch size ({max_batches_per_partition})'
-                f'; automatically setting batches_per_partition to {max_batches_per_partition}'
+                f"batches_per_partition ({batches_per_partition}) is >"
+                f" seeds_per_call / batch size ({max_batches_per_partition})"
+                "; automatically setting batches_per_partition to "
+                "{max_batches_per_partition}"
             )
             batches_per_partition = max_batches_per_partition
 
@@ -157,10 +159,7 @@ class EXPERIMENTAL__BulkSampler:
                     concat_fn = dask_cudf.concat
                 else:
                     concat_fn = cudf.concat
-                self.__batches = concat_fn([
-                    self.__batches,
-                    df
-                ])
+                self.__batches = concat_fn([self.__batches, df])
             else:
                 raise TypeError(
                     "Provided batches must match the dataframe"
@@ -195,7 +194,7 @@ class EXPERIMENTAL__BulkSampler:
             sample_fn = cugraph.uniform_neighbor_sample
         else:
             sample_fn = cugraph.dask.uniform_neighbor_sample
-            self.__sample_call_args['_multiple_clients'] = True
+            self.__sample_call_args["_multiple_clients"] = True
 
         samples = sample_fn(
             self.__graph,
