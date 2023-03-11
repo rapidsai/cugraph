@@ -825,7 +825,7 @@ class simpleDistributedGraphImpl:
             wait(ddf)
             wait([r.release() for r in result])
             return ddf
-        
+
         ddf = _mg_call_plc_select_random_vertices(
             _client,
             Comms.get_session_id(),
