@@ -779,64 +779,68 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        return random vertices from the graph as a cudf
+        return random vertices from the graph as a dask object
         """
 
         _client = default_client()
 
+        def convert_to_cudf(cp_arrays, number_map=None):
+            """
+            Creates a cudf Series from cupy arrays
+            """
+            vertices = cudf.Series(cp_arrays)
+
+            return vertices
+
         def _call_plc_select_random_vertices(
-            sID, mg_graph_x, random_state, wid, num_vertices
+            sID, mg_graph_x, random_state, num_vertices
         ):
-            if isinstance(random_state, int):
-                random_state += wid
-            return pylibcugraph_select_random_vertices(
+
+            cp_arrays = pylibcugraph_select_random_vertices(
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
                 random_state=random_state,
                 num_vertices=num_vertices,
             )
+            return convert_to_cudf(cp_arrays)
 
-        # The seed must be different on each GPU
-        result = [
-            _client.submit(
-                _call_plc_select_random_vertices,
-                Comms.get_session_id(),
-                self._plc_graph[w],
-                random_state,
-                wid,
-                num_vertices,
-                workers=[w],
-                allow_other_workers=False,
-            )
-            for wid, w in enumerate(Comms.get_workers())
-        ]
+        def _mg_call_plc_select_random_vertices(
+            client, sID, input_graph, random_state, num_vertices
+        ):
 
-        wait(result)
+            result = [
+                client.submit(
+                    _call_plc_select_random_vertices,
+                    sID,
+                    input_graph._plc_graph[w],
+                    hash((random_state, i)),
+                    num_vertices,
+                    workers=[w],
+                    allow_other_workers=False,
+                    pure=False,
+                )
+                for i, w in enumerate(Comms.get_workers())
+            ]
+            ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
+            wait(ddf)
+            wait([r.release() for r in result])
+            return ddf
+        
+        ddf = _mg_call_plc_select_random_vertices(
+            _client,
+            Comms.get_session_id(),
+            self,
+            random_state,
+            num_vertices,
+        )
 
-        def convert_to_cudf(cp_arrays, number_map=None):
-            """
-            Creates a cudf Series from cupy arrays from pylibcugraph wrapper
-            """
-            vertices = cudf.Series(cp_arrays)
-            if number_map.implementation.numbered:
-                df_ = cudf.DataFrame()
-                df_["vertex"] = vertices
-                df_ = number_map.unrenumber(df_, "vertex").compute()
-                vertices = cudf.Series(df_["vertex"])
-
-            return vertices
-
-        cudf_result = [
-            _client.submit(convert_to_cudf, cp_arrays, self.renumber_map)
-            for cp_arrays in result
-        ]
-
-        wait(cudf_result)
-        vertices = dask_cudf.from_delayed(cudf_result).persist()
-        wait(vertices)
-
-        # Wait until the inactive futures are released
-        wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+        if self.properties.renumbered:
+            vertices = ddf.rename("vertex").to_frame()
+            vertices = self.renumber_map.unrenumber(vertices, "vertex")
+            if len(vertices.columns) == 1:
+                vertices = vertices["vertex"]
+        else:
+            vertices = ddf
 
         return vertices
 
