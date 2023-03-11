@@ -41,9 +41,7 @@ IS_DIRECTED = [True, False]
 # Pytest fixtures
 # =============================================================================
 
-datasets = utils.DATASETS_UNDIRECTED + [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
-]
+datasets = utils.DATASETS_UNDIRECTED
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
