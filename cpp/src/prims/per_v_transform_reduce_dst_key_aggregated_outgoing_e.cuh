@@ -726,7 +726,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           std::make_unique<kv_store_t<vertex_t, kv_pair_value_t, true>>(
             std::move(unique_minor_keys),
             std::move(values_for_unique_keys),
-            kv_store_view.invalid_value,
+            kv_store_view.invalid_value(),
             false,
             handle.get_stream());
       } else {
