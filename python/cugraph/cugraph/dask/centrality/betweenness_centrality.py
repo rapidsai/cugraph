@@ -207,10 +207,6 @@ def betweenness_centrality(
 
     client = get_client()
 
-    # if isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
-    # samples = get_distributed_data(k)
-    # FIXME: leverage the uniform neighbor sampling implementation
-    # to make it faster
     ddf = _mg_call_plc_betweenness_centrality(
         client,
         Comms.get_session_id(),
@@ -221,26 +217,7 @@ def betweenness_centrality(
         endpoints,
         do_expensive_check,
     )
-    """
-    else:
-        # FIXME: leverage the uniform neighbor sampling implementation
-        # to make it faster
-        cupy_result = [
-            client.submit(
-                _call_plc_betweenness_centrality,
-                Comms.get_session_id(),
-                input_graph._plc_graph[w],
-                k,
-                hash((random_state, i)),
-                normalized,
-                endpoints,
-                do_expensive_check,
-                workers=[w],
-                allow_other_workers=False,
-            )
-            for i, w in enumerate(Comms.get_workers())
-        ]
-    """
+
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, "vertex")
 
