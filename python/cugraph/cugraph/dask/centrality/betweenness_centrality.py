@@ -181,7 +181,6 @@ def betweenness_centrality(
                 k_dtype = input_graph.nodes().dtype
                 k = cudf.Series(k, dtype=k_dtype)
 
-        # FIXME: Add test for dask_cudf vertex list
         if isinstance(k, (cudf.Series, cudf.DataFrame)):
             splits = cp.array_split(cp.arange(len(k)), len(Comms.get_workers()))
             k = {w: [k.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
