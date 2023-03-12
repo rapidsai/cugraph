@@ -18,6 +18,9 @@ from cugraph.structure.symmetrize import symmetrize
 import cupy
 import cudf
 import dask_cudf
+import cupy as cp
+import dask
+from typing import Union
 
 from pylibcugraph import (
     MGGraph,
@@ -764,7 +767,11 @@ class simpleDistributedGraphImpl:
 
         return ddf
 
-    def select_random_vertices(self, random_state=None, num_vertices=None):
+    def select_random_vertices(
+        self,
+        random_state: int = None,
+        num_vertices: int = None
+    ) -> Union[dask_cudf.Series, dask_cudf.DataFrame]:
         """
         Select random vertices from the graph
 
@@ -784,7 +791,7 @@ class simpleDistributedGraphImpl:
 
         _client = default_client()
 
-        def convert_to_cudf(cp_arrays, number_map=None):
+        def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.Series:
             """
             Creates a cudf Series from cupy arrays
             """
@@ -793,26 +800,30 @@ class simpleDistributedGraphImpl:
             return vertices
 
         def _call_plc_select_random_vertices(
-            sID, mg_graph_x, random_state, num_vertices
-        ):
+            mg_graph_x, sID: bytes, random_state: int, num_vertices:int
+        ) -> cudf.Series:
 
             cp_arrays = pylibcugraph_select_random_vertices(
-                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 random_state=random_state,
                 num_vertices=num_vertices,
             )
             return convert_to_cudf(cp_arrays)
 
         def _mg_call_plc_select_random_vertices(
-            client, sID, input_graph, random_state, num_vertices
-        ):
+            input_graph,
+            client: dask.distributed.client.Client,
+            sID: bytes,
+            random_state: int,
+            num_vertices: int,
+        ) -> dask_cudf.Series:
 
             result = [
                 client.submit(
                     _call_plc_select_random_vertices,
-                    sID,
                     input_graph._plc_graph[w],
+                    sID,
                     hash((random_state, i)),
                     num_vertices,
                     workers=[w],

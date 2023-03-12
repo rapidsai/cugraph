@@ -23,6 +23,7 @@ import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
+from typing import Union
 from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
@@ -637,7 +638,11 @@ class simpleGraphImpl:
 
         return df
 
-    def select_random_vertices(self, random_state=None, num_vertices=None):
+    def select_random_vertices(
+        self,
+        random_state: int = None,
+        num_vertices: int = None,
+    ) -> Union[cudf.Series, cudf.DataFrame]:
         """
         Select random vertices from the graph
 
