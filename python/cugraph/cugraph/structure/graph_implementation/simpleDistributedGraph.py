@@ -768,9 +768,7 @@ class simpleDistributedGraphImpl:
         return ddf
 
     def select_random_vertices(
-        self,
-        random_state: int = None,
-        num_vertices: int = None
+        self, random_state: int = None, num_vertices: int = None
     ) -> Union[dask_cudf.Series, dask_cudf.DataFrame]:
         """
         Select random vertices from the graph
@@ -800,7 +798,7 @@ class simpleDistributedGraphImpl:
             return vertices
 
         def _call_plc_select_random_vertices(
-            mg_graph_x, sID: bytes, random_state: int, num_vertices:int
+            mg_graph_x, sID: bytes, random_state: int, num_vertices: int
         ) -> cudf.Series:
 
             cp_arrays = pylibcugraph_select_random_vertices(

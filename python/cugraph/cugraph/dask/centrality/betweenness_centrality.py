@@ -97,8 +97,10 @@ def _mg_call_plc_betweenness_centrality(
 
 def betweenness_centrality(
     input_graph,
-    k: Union[int, list, cudf.Series, cudf.DataFrame, dask_cudf.Series, dask_cudf.DataFrame] = None,
-    normalized: bool=True,
+    k: Union[
+        int, list, cudf.Series, cudf.DataFrame, dask_cudf.Series, dask_cudf.DataFrame
+    ] = None,
+    normalized: bool = True,
     endpoints: bool = False,
     random_state: int = None,
 ) -> dask_cudf.DataFrame:

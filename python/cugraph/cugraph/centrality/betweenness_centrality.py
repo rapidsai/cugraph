@@ -32,7 +32,7 @@ from typing import Union
 def betweenness_centrality(
     G,
     k: Union[int, list, cudf.Series, cudf.DataFrame] = None,
-    normalized: bool=True,
+    normalized: bool = True,
     weight: cudf.DataFrame = None,
     endpoints: bool = False,
     random_state: int = None,
@@ -189,7 +189,7 @@ def betweenness_centrality(
 def edge_betweenness_centrality(
     G,
     k: Union[int, list, cudf.Series, cudf.DataFrame] = None,
-    normalized: bool=True,
+    normalized: bool = True,
     weight: cudf.DataFrame = None,
     seed: int = None,
     result_dtype: Union[np.float32, np.float64] = np.float64,
