@@ -26,17 +26,18 @@ import cudf
 import warnings
 import numpy as np
 import random
+from typing import Union
 
 
 def betweenness_centrality(
     G,
-    k=None,
-    normalized=True,
-    weight=None,
-    endpoints=False,
-    random_state=None,
-    result_dtype=np.float64,
-):
+    k: Union[int, list, cudf.Series, cudf.DataFrame] = None,
+    normalized: bool=True,
+    weight: cudf.DataFrame = None,
+    endpoints: bool = False,
+    random_state: int = None,
+    result_dtype: Union[np.float32, np.float64] = np.float64,
+) -> Union[cudf.DataFrame, dict]:
     """
     Compute the betweenness centrality for all vertices of the graph G.
     Betweenness centrality is a measure of the number of shortest paths that
@@ -186,8 +187,13 @@ def betweenness_centrality(
 
 
 def edge_betweenness_centrality(
-    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
-):
+    G,
+    k: Union[int, list, cudf.Series, cudf.DataFrame] = None,
+    normalized: bool=True,
+    weight: cudf.DataFrame = None,
+    seed: int = None,
+    result_dtype: Union[np.float32, np.float64] = np.float64,
+) -> Union[cudf.DataFrame, dict]:
     """
     Compute the edge betweenness centrality for all edges of the graph G.
     Betweenness centrality is a measure of the number of shortest paths
@@ -319,7 +325,7 @@ def edge_betweenness_centrality(
 #  int: Generate an random sample with k elements
 # list: k become the length of the list and vertices become the content
 # None: All the vertices are considered
-def _initialize_vertices(G, k, seed):
+def _initialize_vertices(G, k: Union[int, list], seed: int) -> np.ndarray:
     vertices = None
     numpy_vertices = None
     if k is not None:
@@ -341,13 +347,13 @@ def _initialize_vertices(G, k, seed):
 # - vertices '0' '1' '3' '4' exist
 # - There is a vertex at index 2 (there is not guarantee that it is
 #   vertice '3' )
-def _initialize_vertices_from_indices_sampling(G, k, seed):
+def _initialize_vertices_from_indices_sampling(G, k: int, seed: int) -> list:
     random.seed(seed)
     vertices = random.sample(range(G.number_of_vertices()), k)
     return vertices
 
 
-def _initialize_vertices_from_identifiers_list(G, identifiers):
+def _initialize_vertices_from_identifiers_list(G, identifiers: list) -> np.ndarray:
     vertices = identifiers
     if G.renumbered:
         vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()
