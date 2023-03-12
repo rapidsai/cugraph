@@ -24,9 +24,11 @@ import dask_cudf
 import cudf
 import cupy as cp
 import warnings
+import dask
+from typing import Union
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
     """
     create a cudf DataFrame from cupy arrays
     """
@@ -38,14 +40,14 @@ def convert_to_cudf(cp_arrays):
 
 
 def _call_plc_betweenness_centrality(
-    sID,
     mg_graph_x,
-    k,
-    random_state,
-    normalized,
-    endpoints,
-    do_expensive_check,
-):
+    sID: bytes,
+    k: Union[int, cudf.Series],
+    random_state: int,
+    normalized: bool,
+    endpoints: bool,
+    do_expensive_check: bool,
+) -> cudf.DataFrame:
 
     cp_arrays = pylibcugraph_betweenness_centrality(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -60,20 +62,21 @@ def _call_plc_betweenness_centrality(
 
 
 def _mg_call_plc_betweenness_centrality(
-    client,
-    sID,
     input_graph,
-    k,
-    random_state,
-    normalized,
-    endpoints,
-    do_expensive_check,
-):
+    client: dask.distributed.client.Client,
+    sID: bytes,
+    k: dict,
+    random_state: int,
+    normalized: bool,
+    endpoints: bool,
+    do_expensive_check: bool,
+) -> dask_cudf.DataFrame:
+
     result = [
         client.submit(
             _call_plc_betweenness_centrality,
-            sID,
             input_graph._plc_graph[w],
+            sID,
             k if isinstance(k, (int, type(None))) else k[w][0],
             hash((random_state, i)),
             normalized,
@@ -93,8 +96,12 @@ def _mg_call_plc_betweenness_centrality(
 
 
 def betweenness_centrality(
-    input_graph, k=None, normalized=True, endpoints=False, random_state=None
-):
+    input_graph,
+    k: Union[int, list, cudf.Series, cudf.DataFrame, dask_cudf.Series, dask_cudf.DataFrame] = None,
+    normalized: bool=True,
+    endpoints: bool = False,
+    random_state: int = None,
+) -> dask_cudf.DataFrame:
     """
     Compute the betweenness centrality for all vertices of the graph G.
     Betweenness centrality is a measure of the number of shortest paths that
@@ -207,9 +214,9 @@ def betweenness_centrality(
     client = get_client()
 
     ddf = _mg_call_plc_betweenness_centrality(
+        input_graph,
         client,
         Comms.get_session_id(),
-        input_graph,
         k,
         random_state,
         normalized,
