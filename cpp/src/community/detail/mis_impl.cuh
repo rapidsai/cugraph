@@ -118,10 +118,10 @@ rmm::device_uvector<vertex_t> compute_mis(
   vertex_t nr_remaining_vertices_in_last_iteration = 0;
   while (true) {
     loop_counter++;
-    if (debug) {
-      cudaDeviceSynchronize();
-      std::cout << "Mis loop, counter: " << loop_counter << std::endl;
-    }
+    // if (debug) {
+    cudaDeviceSynchronize();
+    std::cout << "------------Mis loop, counter: ---------- " << loop_counter << std::endl;
+    // }
     //
     // Copy ranks into temporary vector to begin with
     //
@@ -138,10 +138,10 @@ rmm::device_uvector<vertex_t> compute_mis(
     thrust::shuffle(
       handle.get_thrust_policy(), remaining_vertices.begin(), remaining_vertices.end(), g);
 
-    vertex_t nr_candidates =
-      std::max(vertex_t{1},
-               std::min(vertex_t{(0.50 + 0.1 * loop_counter) * remaining_vertices.size()},
-                        vertex_t{remaining_vertices.size()}));
+    vertex_t nr_candidates = std::max(
+      vertex_t{1},
+      std::min(static_cast<vertex_t>((0.50 + 0.25 * loop_counter) * remaining_vertices.size()),
+               vertex_t{remaining_vertices.size()}));
 
     // Set temporary ranks of non-candidate vertices to -Inf
     thrust::for_each(
@@ -287,8 +287,8 @@ rmm::device_uvector<vertex_t> compute_mis(
     // Compute max of outgoing and incoming
     //
 
-    temporary_ranks.resize(0, handle.get_stream());
-    temporary_ranks.shrink_to_fit(handle.get_stream());
+    // temporary_ranks.resize(0, handle.get_stream());
+    // temporary_ranks.shrink_to_fit(handle.get_stream());
 
     thrust::transform(handle.get_thrust_policy(),
                       cugraph::get_dataframe_buffer_cbegin(max_incoming_rank_id_pairs),
@@ -297,8 +297,8 @@ rmm::device_uvector<vertex_t> compute_mis(
                       cugraph::get_dataframe_buffer_begin(max_outgoing_rank_id_pairs),
                       thrust::maximum<thrust::tuple<weight_t, vertex_t>>());
 
-    cugraph::resize_dataframe_buffer(max_incoming_rank_id_pairs, size_t{0}, handle.get_stream());
-    cugraph::shrink_to_fit_dataframe_buffer(max_incoming_rank_id_pairs, handle.get_stream());
+    // cugraph::resize_dataframe_buffer(max_incoming_rank_id_pairs, size_t{0}, handle.get_stream());
+    // cugraph::shrink_to_fit_dataframe_buffer(max_incoming_rank_id_pairs, handle.get_stream());
 
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
@@ -314,6 +314,197 @@ rmm::device_uvector<vertex_t> compute_mis(
         });
     }
 
+    vertex_t nr_candidates_to_remove = thrust::count_if(
+      handle.get_thrust_policy(),
+      remaining_vertices.end() - nr_candidates,
+      remaining_vertices.end(),
+      [max_rank_id_pair_first = cugraph::get_dataframe_buffer_begin(max_outgoing_rank_id_pairs),
+       temporary_ranks =
+         raft::device_span<weight_t const>(temporary_ranks.data(), temporary_ranks.size()),
+       ranks   = raft::device_span<weight_t>(ranks.data(), ranks.size()),
+       v_first = graph_view.local_vertex_partition_range_first(),
+       debug   = debug] __device__(auto v) {
+        auto v_offset                      = v - v_first;
+        auto max_neighbor_rank_and_id_pair = *(max_rank_id_pair_first + v_offset);
+        auto max_neighbor_rank             = thrust::get<0>(max_neighbor_rank_and_id_pair);
+        auto max_neighbor_id               = thrust::get<1>(max_neighbor_rank_and_id_pair);
+        auto rank_of_v                     = ranks[v_offset];
+        auto tmp_rank_of_v                 = temporary_ranks[v_offset];  // debug
+
+        if (debug) {
+          printf("%d, (r= %f, t= %f)  ==> (%d, %f) [t= %f, r= %f]\n",
+                 v,
+                 rank_of_v,
+                 tmp_rank_of_v,
+                 max_neighbor_id,
+                 max_neighbor_rank,
+                 temporary_ranks[max_neighbor_id - v_first],
+                 ranks[max_neighbor_id - v_first]);
+        }
+
+        if (max_neighbor_rank >= std::numeric_limits<weight_t>::max()) {
+          if (debug) { printf("---> to discard %d\n", v); }
+
+          // Maximum rank neighbor is alreay in MIS
+          // Discard current vertex by setting (global) rank to -Inf
+          return true;
+        }
+
+        if (thrust::make_tuple(rank_of_v, v) >
+            thrust::make_tuple(max_neighbor_rank, max_neighbor_id)) {
+          if (debug) { printf("---> to include %d\n", v); }
+          // Mark it included by setting (global) rank to +Inf
+          return true;
+        }
+        if (debug) { printf("\n"); }
+        return false;
+      });
+
+    std::cout << "----------> nr_candidates_to_remove: " << nr_candidates_to_remove << std::endl;
+
+    if (nr_candidates_to_remove == 0) {
+      std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
+      // sort
+      thrust::sort(handle.get_thrust_policy(),
+                   remaining_vertices.end() - nr_candidates,
+                   remaining_vertices.end());
+
+      std::cout << "----------> nr_candidates_to_remove(recounted): " << nr_candidates_to_remove
+                << std::endl;
+
+      std::cout << " Incoming  ............." << std::endl;
+
+      thrust::count_if(
+        handle.get_thrust_policy(),
+        remaining_vertices.end() - 5,
+        remaining_vertices.end(),
+        [max_rank_id_pair_first = cugraph::get_dataframe_buffer_begin(max_incoming_rank_id_pairs),
+         temporary_ranks =
+           raft::device_span<weight_t const>(temporary_ranks.data(), temporary_ranks.size()),
+         ranks   = raft::device_span<weight_t>(ranks.data(), ranks.size()),
+         v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+          auto v_offset                      = v - v_first;
+          auto max_neighbor_rank_and_id_pair = *(max_rank_id_pair_first + v_offset);
+          auto max_neighbor_rank             = thrust::get<0>(max_neighbor_rank_and_id_pair);
+          auto max_neighbor_id               = thrust::get<1>(max_neighbor_rank_and_id_pair);
+          auto rank_of_v                     = ranks[v_offset];
+
+          auto tmp_rank_of_v = temporary_ranks[v_offset];  // debug
+
+          uint8_t debug = 1;
+
+          if (debug) {
+            printf("%d, (r= %f, t= %f)  ==> (%d, %f) [t= %f, r= %f]\n",
+                   v,
+                   rank_of_v,
+                   tmp_rank_of_v,
+                   max_neighbor_id,
+                   max_neighbor_rank,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first]);
+          }
+          return false;
+        });
+
+      std::cout << " Max (incoming, outgoing) ............." << std::endl;
+      thrust::count_if(
+        handle.get_thrust_policy(),
+        remaining_vertices.end() - 5,
+        remaining_vertices.end(),
+        [max_rank_id_pair_first = cugraph::get_dataframe_buffer_begin(max_outgoing_rank_id_pairs),
+         temporary_ranks =
+           raft::device_span<weight_t const>(temporary_ranks.data(), temporary_ranks.size()),
+         ranks   = raft::device_span<weight_t>(ranks.data(), ranks.size()),
+         v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+          auto v_offset                      = v - v_first;
+          auto max_neighbor_rank_and_id_pair = *(max_rank_id_pair_first + v_offset);
+          auto max_neighbor_rank             = thrust::get<0>(max_neighbor_rank_and_id_pair);
+          auto max_neighbor_id               = thrust::get<1>(max_neighbor_rank_and_id_pair);
+          auto rank_of_v                     = ranks[v_offset];
+          auto tmp_rank_of_v                 = temporary_ranks[v_offset];
+
+          uint8_t debug = 1;
+
+          if (debug) {
+            printf("%d, (r= %f, t= %f)  ==> (%d, %f) [t= %f, r= %f]\n",
+                   v,
+                   rank_of_v,
+                   tmp_rank_of_v,
+                   max_neighbor_id,
+                   max_neighbor_rank,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first]);
+
+            auto max_of_max = *(max_rank_id_pair_first + max_neighbor_id - v_first);
+
+            printf("([%d, t= %f] [r= %f] >>> (max_of_max= [%d, %f])\n",
+                   max_neighbor_id,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first],
+                   thrust::get<1>(max_of_max),
+                   thrust::get<0>(max_of_max));
+          }
+          return false;
+        });
+
+      std::cout << "-------------- Before removing -------------------" << std::endl;
+      // just print
+      thrust::count_if(
+        handle.get_thrust_policy(),
+        remaining_vertices.end() - 5,
+        remaining_vertices.end(),
+        [max_rank_id_pair_first = cugraph::get_dataframe_buffer_begin(max_outgoing_rank_id_pairs),
+         temporary_ranks =
+           raft::device_span<weight_t const>(temporary_ranks.data(), temporary_ranks.size()),
+         ranks   = raft::device_span<weight_t>(ranks.data(), ranks.size()),
+         v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+          auto v_offset                      = v - v_first;
+          auto max_neighbor_rank_and_id_pair = *(max_rank_id_pair_first + v_offset);
+          auto max_neighbor_rank             = thrust::get<0>(max_neighbor_rank_and_id_pair);
+          auto max_neighbor_id               = thrust::get<1>(max_neighbor_rank_and_id_pair);
+          auto rank_of_v                     = ranks[v_offset];
+          auto tmp_rank_of_v                 = temporary_ranks[v_offset];
+
+          uint8_t debug = 1;
+
+          if (debug) {
+            printf("%d, (r= %f, t= %f)  ==> (%d, %f) [t= %f, r= %f]\n",
+                   v,
+                   rank_of_v,
+                   tmp_rank_of_v,
+                   max_neighbor_id,
+                   max_neighbor_rank,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first]);
+          }
+
+          if (max_neighbor_rank >= std::numeric_limits<weight_t>::max()) {
+            if (debug) { printf("---> to discard %d\n", v); }
+
+            // Maximum rank neighbor is alreay in MIS
+            // Discard current vertex by setting (global) rank to -Inf
+            return true;
+          }
+
+          if (thrust::make_tuple(rank_of_v, v) >
+              thrust::make_tuple(max_neighbor_rank, max_neighbor_id)) {
+            if (debug) { printf("---> to include %d\n", v); }
+            // Mark it included by setting (global) rank to +Inf
+            return true;
+          }
+
+          if (debug) { printf("\n"); }
+          return false;
+        });
+
+      std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+    }
+
+    // temporary_ranks.resize(0, handle.get_stream());
+    // temporary_ranks.shrink_to_fit(handle.get_stream());
+    cugraph::resize_dataframe_buffer(max_incoming_rank_id_pairs, size_t{0}, handle.get_stream());
+    cugraph::shrink_to_fit_dataframe_buffer(max_incoming_rank_id_pairs, handle.get_stream());
+
     //
     // If the max neighbor of a vertex is already in MIS (i.e. has +Inf rank), discard it
     // Otherwise, include the vertex if it has larger rank than its maximum rank neighbor
@@ -324,8 +515,8 @@ rmm::device_uvector<vertex_t> compute_mis(
       remaining_vertices.end() - nr_candidates,
       remaining_vertices.end(),
       [max_rank_id_pair_first = cugraph::get_dataframe_buffer_begin(max_outgoing_rank_id_pairs),
-       //  temporary_ranks =
-       //    raft::device_span<weight_t const>(temporary_ranks.data(), temporary_ranks.size()),
+       temporary_ranks =
+         raft::device_span<weight_t const>(temporary_ranks.data(), temporary_ranks.size()),
        ranks   = raft::device_span<weight_t>(ranks.data(), ranks.size()),
        v_first = graph_view.local_vertex_partition_range_first(),
        debug   = debug] __device__(auto v) {
@@ -333,11 +524,19 @@ rmm::device_uvector<vertex_t> compute_mis(
         auto max_neighbor_rank_and_id_pair = *(max_rank_id_pair_first + v_offset);
         auto max_neighbor_rank             = thrust::get<0>(max_neighbor_rank_and_id_pair);
         auto max_neighbor_id               = thrust::get<1>(max_neighbor_rank_and_id_pair);
-        // auto tmp_rank_of_v                 = temporary_ranks[v_offset];
-        auto tmp_rank_of_v = ranks[v_offset];
+
+        auto rank_of_v     = ranks[v_offset];
+        auto tmp_rank_of_v = temporary_ranks[v_offset];
 
         if (debug) {
-          printf("(%d, %f) ==> (%d, %f)", v, tmp_rank_of_v, max_neighbor_id, max_neighbor_rank);
+          printf("%d, (r= %f, t= %f)  ==> (%d, %f) [t= %f, r= %f]\n",
+                 v,
+                 rank_of_v,
+                 tmp_rank_of_v,
+                 max_neighbor_id,
+                 max_neighbor_rank,
+                 temporary_ranks[max_neighbor_id - v_first],
+                 ranks[max_neighbor_id - v_first]);
         }
 
         if (max_neighbor_rank >= std::numeric_limits<weight_t>::max()) {
@@ -349,11 +548,8 @@ rmm::device_uvector<vertex_t> compute_mis(
           return true;
         }
 
-        if (thrust::make_tuple(tmp_rank_of_v, v) >
+        if (thrust::make_tuple(rank_of_v, v) >
             thrust::make_tuple(max_neighbor_rank, max_neighbor_id)) {
-          // else if ((tmp_rank_of_v > (EPSILON + std::numeric_limits<weight_t>::lowest())) &&
-          //            (thrust::make_tuple(tmp_rank_of_v, v) >
-          //             thrust::make_tuple(max_neighbor_rank, max_neighbor_id))) {
           if (debug) { printf("---> including %d\n", v); }
 
           // Mark it included by setting (global) rank to +Inf
@@ -364,8 +560,14 @@ rmm::device_uvector<vertex_t> compute_mis(
         return false;
       });
 
+    temporary_ranks.resize(0, handle.get_stream());
+    temporary_ranks.shrink_to_fit(handle.get_stream());
+
     cugraph::resize_dataframe_buffer(max_outgoing_rank_id_pairs, size_t{0}, handle.get_stream());
     cugraph::shrink_to_fit_dataframe_buffer(max_outgoing_rank_id_pairs, handle.get_stream());
+
+    std::cout << "---------->nr of removed candidates: "
+              << thrust::distance(last, remaining_vertices.end()) << std::endl;
 
     remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), last),
                               handle.get_stream());
@@ -394,12 +596,12 @@ rmm::device_uvector<vertex_t> compute_mis(
                                                              handle.get_stream());
     }
 
-    std::cout << " local_vtx_partitoin_size:       " << local_vtx_partitoin_size << std::endl;
+    std::cout << "local_vtx_partitoin_size:       " << local_vtx_partitoin_size << std::endl;
     std::cout << "remaining_vts_to_check:   " << nr_remaining_vertices_to_check << std::endl;
 
     if (nr_remaining_vertices_to_check == 0) { break; }
     if (nr_remaining_vertices_in_last_iteration == nr_remaining_vertices_to_check) {
-      break;
+      // break;
     } else {
       nr_remaining_vertices_in_last_iteration = nr_remaining_vertices_to_check;
     }

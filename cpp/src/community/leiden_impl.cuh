@@ -86,7 +86,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   rmm::device_uvector<vertex_t> tmp_cluster_keys(0, handle.get_stream());     // #C
   rmm::device_uvector<weight_t> tmp_cluster_weights(0, handle.get_stream());  // #C
 
-
   //
   // Bookkeeping per vertex
   //
@@ -136,6 +135,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       std::cout << "---- Graph -----: " << max_level << std::endl;
       raft::print_device_vector("offsets: ", offsets.data(), offsets.size(), std::cout);
       raft::print_device_vector("indices: ", indices.data(), indices.size(), std::cout);
+      raft::print_device_vector("edges  : ",
+                                (*edge_weight_view).value_firsts()[0],
+                                (*edge_weight_view).edge_counts()[0],
+                                std::cout);
 
       CUDA_TRY(cudaDeviceSynchronize());
       std::cout << "---------------- outer loop -------------------: " << max_level << std::endl;

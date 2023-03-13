@@ -470,9 +470,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_LOUVAIN_TEST
-        community/mg_louvain_helper.cu
-        community/mg_louvain_test.cpp)
+    ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------

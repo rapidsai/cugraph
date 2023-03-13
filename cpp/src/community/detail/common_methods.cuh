@@ -17,7 +17,7 @@
 
 #include <community/detail/common_methods.hpp>
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_op.cuh>
@@ -222,12 +222,11 @@ rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
       std::is_floating_point_v<map_value_t> ? std::numeric_limits<map_value_t>::max()
                                             : invalid_vertex_id<map_key_t>::value,
       handle.get_stream());
-    values_for_sought_keys = cugraph::collect_values_for_keys(handle.get_comms(),
+    values_for_sought_keys = cugraph::collect_values_for_keys(handle,
                                                               cluster_key_weight_map.view(),
                                                               keys_to_lookup.begin(),
                                                               keys_to_lookup.end(),
-                                                              vertex_to_gpu_id_op,
-                                                              handle.get_stream());
+                                                              vertex_to_gpu_id_op);
   } else {
     // sort so we can use lower_bound in the transform function
     thrust::sort_by_key(
@@ -345,6 +344,29 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     src_cluster_weights(handle);
 
   if constexpr (multi_gpu) {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      comm_size, major_comm_size, minor_comm_size};
+
+    kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
+      cluster_keys_v.begin(),
+      cluster_keys_v.end(),
+      cluster_weights_v.data(),
+      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<weight_t>::max(),
+      handle.get_stream());
+    vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle,
+                                                                cluster_key_weight_map.view(),
+                                                                next_clusters_v.begin(),
+                                                                next_clusters_v.end(),
+                                                                vertex_to_gpu_id_op);
+
     src_cluster_weights =
       edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(handle,
                                                                                       graph_view);

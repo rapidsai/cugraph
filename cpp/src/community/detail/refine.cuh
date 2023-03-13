@@ -19,7 +19,7 @@
 
 #include <community/detail/mis.hpp>
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_op.cuh>
@@ -408,18 +408,18 @@ refine_clustering(
 
   weight_t gamma = 1.0 / 17.0;
 
-  auto wcut_deg_and_cluster_volume_begin =
+  auto wcut_deg_and_cluster_vol_triple_begin =
     thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.begin(),
                                                  weighted_degree_of_vertices.begin(),
                                                  vertex_cluster_weights_v.begin()));
-  auto wcut_deg_and_cluster_volume_end =
+  auto wcut_deg_and_cluster_vol_triple_end =
     thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.end(),
                                                  weighted_degree_of_vertices.end(),
                                                  vertex_cluster_weights_v.end()));
 
   thrust::transform(handle.get_thrust_policy(),
-                    wcut_deg_and_cluster_volume_begin,
-                    wcut_deg_and_cluster_volume_end,
+                    wcut_deg_and_cluster_vol_triple_begin,
+                    wcut_deg_and_cluster_vol_triple_end,
                     is_vertex_well_connected_in_louvain.begin(),
                     [gamma = gamma] __device__(auto wcut_wdeg_and_louvain_volume) {
                       auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
@@ -570,13 +570,14 @@ refine_clustering(
                                 std::cout);
     }
 
-    thrust::transform(
-      handle.get_thrust_policy(),
-      singleton_flags.begin(),
-      singleton_flags.end(),
-      is_vertex_well_connected_in_louvain.begin(),
-      active_flags.begin(),
-      [] __device__(auto singleton, auto well_connected) { return singleton && well_connected; });
+    thrust::transform(handle.get_thrust_policy(),
+                      singleton_flags.begin(),
+                      singleton_flags.end(),
+                      is_vertex_well_connected_in_louvain.begin(),
+                      active_flags.begin(),
+                      [] __device__(auto is_singleton, auto is_well_connected) {
+                        return is_singleton && is_well_connected;
+                      });
 
     vertex_t nr_remaining_active_vertices =
       thrust::count_if(handle.get_thrust_policy(),
@@ -766,7 +767,7 @@ refine_clustering(
                                 std::cout);
     }
 
-    auto louvain_of_edge_reduced_leiden_keys =
+    auto louvain_of_leiden_keys_used_in_edge_reduction =
       lookup_primitive_values_for_keys<vertex_t, vertex_t, GraphViewType::is_multi_gpu>(
         handle,
         keys_of_leiden_to_louvain_map,
@@ -775,11 +776,12 @@ refine_clustering(
 
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
-      raft::print_device_vector("louvain_of_edge_reduced_leiden_keys: ",
-                                louvain_of_edge_reduced_leiden_keys.data(),
-                                std::min((decltype(louvain_of_edge_reduced_leiden_keys.size()))50,
-                                         louvain_of_edge_reduced_leiden_keys.size()),
-                                std::cout);
+      raft::print_device_vector(
+        "louvain_of_leiden_keys_used_in_edge_reduction: ",
+        louvain_of_leiden_keys_used_in_edge_reduction.data(),
+        std::min((decltype(louvain_of_leiden_keys_used_in_edge_reduction.size()))50,
+                 louvain_of_leiden_keys_used_in_edge_reduction.size()),
+        std::cout);
     }
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
@@ -789,7 +791,7 @@ refine_clustering(
       thrust::make_tuple(refined_community_volumes.begin(),
                          refined_community_cuts.begin(),
                          leiden_keys_used_in_edge_reduction.begin(),  // redundant
-                         louvain_of_edge_reduced_leiden_keys.begin()));
+                         louvain_of_leiden_keys_used_in_edge_reduction.begin()));
 
     using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
     kv_store_t<vertex_t, value_t, true> leiden_cluster_key_values_map(
@@ -853,13 +855,14 @@ refine_clustering(
       thrust::make_tuple(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin()));
 
     auto dst_and_gain_first = get_dataframe_buffer_cbegin(target_and_gain_output_pairs);
-    auto edge_begin         = thrust::make_zip_iterator(
+    auto dst_and_gain_last  = cugraph::get_dataframe_buffer_cend(target_and_gain_output_pairs);
+
+    // edge (src, dst, gain)
+    auto edge_begin = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_begin,
                          thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
                          thrust::get<1>(dst_and_gain_first.get_iterator_tuple())));
-
-    auto dst_and_gain_last = cugraph::get_dataframe_buffer_cend(target_and_gain_output_pairs);
-    auto edge_end          = thrust::make_zip_iterator(
+    auto edge_end = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_end,
                          thrust::get<0>(dst_and_gain_last.get_iterator_tuple()),
                          thrust::get<1>(dst_and_gain_last.get_iterator_tuple())));
@@ -867,6 +870,15 @@ refine_clustering(
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
 
+      thrust::for_each(
+        handle.get_thrust_policy(), edge_begin, edge_end, [] __device__(auto src_dst_gain_triple) {
+          vertex_t src  = thrust::get<0>(src_dst_gain_triple);
+          vertex_t dst  = thrust::get<1>(src_dst_gain_triple);
+          weight_t gain = thrust::get<2>(src_dst_gain_triple);
+          printf("%d %d %f\n", src, dst, gain);
+        });
+
+      std::cout << "-------------------------------------------" << std::endl;
       raft::print_device_vector("target_itr",
                                 thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
                                 num_vertices,
@@ -882,11 +894,22 @@ refine_clustering(
 
       raft::print_device_vector(
         "gains", thrust::get<2>(edge_begin.get_iterator_tuple()), num_vertices, std::cout);
+
+      std::cout << "-----------------all moves ---------------------" << std::endl;
+
+      thrust::for_each(
+        handle.get_thrust_policy(), edge_begin, edge_end, [] __device__(auto src_dst_gain_triple) {
+          vertex_t src  = thrust::get<0>(src_dst_gain_triple);
+          vertex_t dst  = thrust::get<1>(src_dst_gain_triple);
+          weight_t gain = thrust::get<2>(src_dst_gain_triple);
+          printf("%d %d %f\n", src, dst, gain);
+        });
     }
 
     //
     // Filter out moves with -ve gains
     //
+    // TODO: if possible, replace with remove_if
     auto nr_valid_tuples = static_cast<vertex_t>(thrust::distance(
       d_src_dst_gain_iterator,
       thrust::copy_if(handle.get_thrust_policy(),
@@ -921,6 +944,22 @@ refine_clustering(
     (*d_weights).resize(nr_valid_tuples, handle.get_stream());
 
     if (debug) {
+      std::cout << "----------------  +ve moves ----------------" << std::endl;
+
+      thrust::for_each(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(
+                         thrust::make_tuple(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin())),
+                       thrust::make_zip_iterator(
+                         thrust::make_tuple(d_srcs.end(), d_dsts.end(), (*d_weights).end())),
+                       [] __device__(auto src_dst_gain_triple) {
+                         vertex_t src  = thrust::get<0>(src_dst_gain_triple);
+                         vertex_t dst  = thrust::get<1>(src_dst_gain_triple);
+                         weight_t gain = thrust::get<2>(src_dst_gain_triple);
+                         printf("%d %d %f\n", src, dst, gain);
+                       });
+
+      std::cout << "-------------------------------------------" << std::endl;
+
       cudaDeviceSynchronize();
       raft::print_device_vector(
         "d_srcs: ", d_srcs.data(), std::min((decltype(d_srcs.size()))50, d_srcs.size()), std::cout);
@@ -946,13 +985,6 @@ refine_clustering(
     std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
     std::optional<edge_property_t<DecisionGraphViewType, weight_t>> coarse_edge_weights{
       std::nullopt};
-
-    rmm::device_uvector<vertex_t> copied_srcs(nr_valid_tuples, handle.get_stream());
-    rmm::device_uvector<vertex_t> copied_dsts(nr_valid_tuples, handle.get_stream());
-
-    thrust::copy(handle.get_thrust_policy(), d_srcs.begin(), d_srcs.end(), copied_srcs.begin());
-
-    thrust::copy(handle.get_thrust_policy(), d_dsts.begin(), d_dsts.end(), copied_dsts.begin());
 
     if (debug) {
       cudaDeviceSynchronize();
@@ -1054,18 +1086,30 @@ refine_clustering(
       std::cout << "#chosen nodes: " << chosen_nodes.size() << std::endl;
     }
 
-    thrust::sort(handle.get_thrust_policy(), chosen_nodes.begin(), chosen_nodes.end());
+    // thrust::sort(handle.get_thrust_policy(), chosen_nodes.begin(), chosen_nodes.end());
     rmm::device_uvector<uint8_t> flags_move(leiden_assignment.size(), handle.get_stream());
 
-    thrust::transform(
+    // thrust::transform(
+    //   handle.get_thrust_policy(),
+    //   vertex_begin,
+    //   vertex_end,
+    //   flags_move.begin(),
+    //   [d_nodes_to_move   = chosen_nodes.data(),
+    //    num_nodes_to_move = chosen_nodes.size()] __device__(vertex_t id_to_lookup) {
+    //     return thrust::binary_search(
+    //       thrust::seq, d_nodes_to_move, d_nodes_to_move + num_nodes_to_move, id_to_lookup);
+    //   });
+
+    thrust::uninitialized_fill(
+      handle.get_thrust_policy(), flags_move.begin(), flags_move.end(), uint8_t{0});
+
+    thrust::for_each(
       handle.get_thrust_policy(),
-      vertex_begin,
-      vertex_end,
-      flags_move.begin(),
-      [d_nodes_to_move   = chosen_nodes.data(),
-       num_nodes_to_move = chosen_nodes.size()] __device__(vertex_t id_to_lookup) {
-        return thrust::binary_search(
-          thrust::seq, d_nodes_to_move, d_nodes_to_move + num_nodes_to_move, id_to_lookup);
+      chosen_nodes.begin(),
+      chosen_nodes.end(),
+      [flags_move = flags_move.data(),
+       v_first    = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
+        flags_move[v - v_first] = true;
       });
 
     if (debug) {  // debug
@@ -1140,7 +1184,7 @@ refine_clustering(
       flags_move.end(),
       singleton_flags.begin(),
       singleton_flags.begin(),
-      [] __device__(auto is_moving, auto current_mask) { return (!is_moving && current_mask); });
+      [] __device__(auto is_moving, auto is_singleton) { return (!is_moving && is_singleton); });
 
     if (debug) {
       vertex_t nr_singletons_after_marking_moving_vertices =
@@ -1183,8 +1227,8 @@ refine_clustering(
       handle.get_stream());
 
     if constexpr (GraphViewType::is_multi_gpu) {
-      target_comms = shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-        handle, std::move(target_comms));
+      target_comms =
+        shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle, std::move(target_comms));
 
       thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
 
@@ -1199,15 +1243,27 @@ refine_clustering(
 
     rmm::device_uvector<uint8_t> flags_dest(leiden_assignment.size(), handle.get_stream());
 
-    thrust::transform(handle.get_thrust_policy(),
-                      vertex_begin,
-                      vertex_end,
-                      flags_dest.begin(),
-                      [dests     = target_comms.data(),
-                       num_dests = target_comms.size()] __device__(vertex_t target_id) {
-                        return thrust::binary_search(
-                          thrust::seq, dests, dests + num_dests, target_id);
-                      });
+    // thrust::transform(handle.get_thrust_policy(),
+    //                   vertex_begin,
+    //                   vertex_end,
+    //                   flags_dest.begin(),
+    //                   [dests     = target_comms.data(),
+    //                    num_dests = target_comms.size()] __device__(vertex_t target_id) {
+    //                     return thrust::binary_search(
+    //                       thrust::seq, dests, dests + num_dests, target_id);
+    //                   });
+
+    thrust::uninitialized_fill(
+      handle.get_thrust_policy(), flags_dest.begin(), flags_dest.end(), uint8_t{0});
+
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      target_comms.begin(),
+      target_comms.end(),
+      [flags_dest = flags_dest.data(),
+       v_first    = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
+        flags_dest[v - v_first] = true;
+      });
 
     if (debug) {
       raft::print_device_vector(
@@ -1237,7 +1293,7 @@ refine_clustering(
       flags_dest.end(),
       singleton_flags.begin(),
       singleton_flags.begin(),
-      [] __device__(auto is_dest, auto current_mask) { return (!is_dest && current_mask); });
+      [] __device__(auto is_dest, auto is_singleton) { return (!is_dest && is_singleton); });
 
     if (debug) {  // debug
       vertex_t nr_singletons_after_marking_target_comms =
@@ -1296,8 +1352,9 @@ refine_clustering(
                                                         leiden_keys_to_read_louvain.end())));
 
   if constexpr (GraphViewType::is_multi_gpu) {
-    leiden_keys_to_read_louvain = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(leiden_keys_to_read_louvain));
+    leiden_keys_to_read_louvain =
+      cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+        handle, std::move(leiden_keys_to_read_louvain));
 
     thrust::sort(handle.get_thrust_policy(),
                  leiden_keys_to_read_louvain.begin(),
