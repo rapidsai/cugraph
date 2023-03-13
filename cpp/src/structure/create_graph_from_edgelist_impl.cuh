@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <structure/detail/structure_utils.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -126,13 +126,13 @@ void expensive_check_edgelist(raft::handle_t const& handle,
   }
 
   if constexpr (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_size     = comm.get_size();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     if (vertices) {
       auto num_unique_vertices = host_scalar_allreduce(
@@ -143,15 +143,15 @@ void expensive_check_edgelist(raft::handle_t const& handle,
         "std::numeric_limits<vertex_t>::Max().");
 
       CUGRAPH_EXPECTS(
-        thrust::count_if(
-          handle.get_thrust_policy(),
-          (*vertices).begin(),
-          (*vertices).end(),
-          [comm_rank,
-           key_func =
-             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-            return key_func(val) != comm_rank;
-          }) == 0,
+        thrust::count_if(handle.get_thrust_policy(),
+                         (*vertices).begin(),
+                         (*vertices).end(),
+                         [comm_rank,
+                          key_func =
+                            detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                              comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
+                           return key_func(val) != comm_rank;
+                         }) == 0,
         "Invalid input argument: vertices should be pre-shuffled.");
     }
 
@@ -164,20 +164,20 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                        [comm_rank,
                         gpu_id_key_func =
                           detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-                            comm_size, row_comm_size, col_comm_size}] __device__(auto e) {
-                         return (gpu_id_key_func(thrust::get<0>(e), thrust::get<1>(e)) !=
-                                 comm_rank);
+                            comm_size, major_comm_size, minor_comm_size}] __device__(auto e) {
+                         return (gpu_id_key_func(e) != comm_rank);
                        }) == 0,
       "Invalid input argument: edgelist_majors & edgelist_minors should be pre-shuffled.");
 
     if (vertices) {
       rmm::device_uvector<vertex_t> sorted_majors(0, handle.get_stream());
       {
-        auto recvcounts = host_scalar_allgather(col_comm, (*vertices).size(), handle.get_stream());
+        auto recvcounts =
+          host_scalar_allgather(minor_comm, (*vertices).size(), handle.get_stream());
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_majors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
-        device_allgatherv(col_comm,
+        device_allgatherv(minor_comm,
                           (*vertices).data(),
                           sorted_majors.data(),
                           recvcounts,
@@ -188,11 +188,12 @@ void expensive_check_edgelist(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> sorted_minors(0, handle.get_stream());
       {
-        auto recvcounts = host_scalar_allgather(row_comm, (*vertices).size(), handle.get_stream());
+        auto recvcounts =
+          host_scalar_allgather(major_comm, (*vertices).size(), handle.get_stream());
         std::vector<size_t> displacements(recvcounts.size(), size_t{0});
         std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
         sorted_minors.resize(displacements.back() + recvcounts.back(), handle.get_stream());
-        device_allgatherv(row_comm,
+        device_allgatherv(major_comm,
                           (*vertices).data(),
                           sorted_minors.data(),
                           recvcounts,
@@ -269,10 +270,10 @@ create_graph_from_edgelist_impl(
   bool renumber,
   bool do_expensive_check)
 {
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
@@ -312,19 +313,19 @@ create_graph_from_edgelist_impl(
     h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
   handle.sync_stream();
 
-  std::vector<edge_t> edgelist_edge_counts(col_comm_size, edge_t{0});
+  std::vector<edge_t> edgelist_edge_counts(minor_comm_size, edge_t{0});
   auto edgelist_intra_partition_segment_offsets =
     std::make_optional<std::vector<std::vector<edge_t>>>(
-      col_comm_size, std::vector<edge_t>(row_comm_size + 1, edge_t{0}));
-  for (int i = 0; i < col_comm_size; ++i) {
-    edgelist_edge_counts[i] = std::accumulate(h_edge_counts.begin() + row_comm_size * i,
-                                              h_edge_counts.begin() + row_comm_size * (i + 1),
+      minor_comm_size, std::vector<edge_t>(major_comm_size + 1, edge_t{0}));
+  for (int i = 0; i < minor_comm_size; ++i) {
+    edgelist_edge_counts[i] = std::accumulate(h_edge_counts.begin() + major_comm_size * i,
+                                              h_edge_counts.begin() + major_comm_size * (i + 1),
                                               edge_t{0});
-    std::partial_sum(h_edge_counts.begin() + row_comm_size * i,
-                     h_edge_counts.begin() + row_comm_size * (i + 1),
+    std::partial_sum(h_edge_counts.begin() + major_comm_size * i,
+                     h_edge_counts.begin() + major_comm_size * (i + 1),
                      (*edgelist_intra_partition_segment_offsets)[i].begin() + 1);
   }
-  std::vector<edge_t> edgelist_displacements(col_comm_size, edge_t{0});
+  std::vector<edge_t> edgelist_displacements(minor_comm_size, edge_t{0});
   std::partial_sum(edgelist_edge_counts.begin(),
                    edgelist_edge_counts.end() - 1,
                    edgelist_displacements.begin() + 1);
@@ -332,8 +333,8 @@ create_graph_from_edgelist_impl(
   // 2. split the input edges to local partitions
 
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_srcs{};
-  edge_partition_edgelist_srcs.reserve(col_comm_size);
-  for (int i = 0; i < col_comm_size; ++i) {
+  edge_partition_edgelist_srcs.reserve(minor_comm_size);
+  for (int i = 0; i < minor_comm_size; ++i) {
     rmm::device_uvector<vertex_t> tmp_srcs(edgelist_edge_counts[i], handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_srcs.begin() + edgelist_displacements[i],
@@ -345,8 +346,8 @@ create_graph_from_edgelist_impl(
   edgelist_srcs.shrink_to_fit(handle.get_stream());
 
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_edgelist_dsts{};
-  edge_partition_edgelist_dsts.reserve(col_comm_size);
-  for (int i = 0; i < col_comm_size; ++i) {
+  edge_partition_edgelist_dsts.reserve(minor_comm_size);
+  for (int i = 0; i < minor_comm_size; ++i) {
     rmm::device_uvector<vertex_t> tmp_dsts(edgelist_edge_counts[i], handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  edgelist_dsts.begin() + edgelist_displacements[i],
@@ -360,8 +361,8 @@ create_graph_from_edgelist_impl(
   std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_edgelist_weights{};
   if (edgelist_weights) {
     edge_partition_edgelist_weights = std::vector<rmm::device_uvector<weight_t>>{};
-    (*edge_partition_edgelist_weights).reserve(col_comm_size);
-    for (int i = 0; i < col_comm_size; ++i) {
+    (*edge_partition_edgelist_weights).reserve(minor_comm_size);
+    for (int i = 0; i < minor_comm_size; ++i) {
       rmm::device_uvector<weight_t> tmp_weights(edgelist_edge_counts[i], handle.get_stream());
       thrust::copy(
         handle.get_thrust_policy(),
@@ -377,8 +378,8 @@ create_graph_from_edgelist_impl(
   std::optional<std::vector<rmm::device_uvector<edge_id_t>>> edge_partition_edgelist_edge_ids{};
   if (edgelist_edge_ids) {
     edge_partition_edgelist_edge_ids = std::vector<rmm::device_uvector<edge_id_t>>{};
-    (*edge_partition_edgelist_edge_ids).reserve(col_comm_size);
-    for (int i = 0; i < col_comm_size; ++i) {
+    (*edge_partition_edgelist_edge_ids).reserve(minor_comm_size);
+    for (int i = 0; i < minor_comm_size; ++i) {
       rmm::device_uvector<edge_id_t> tmp_edge_ids(edgelist_edge_counts[i], handle.get_stream());
       thrust::copy(
         handle.get_thrust_policy(),
@@ -394,8 +395,8 @@ create_graph_from_edgelist_impl(
   std::optional<std::vector<rmm::device_uvector<edge_type_t>>> edge_partition_edgelist_edge_types{};
   if (edgelist_edge_types) {
     edge_partition_edgelist_edge_types = std::vector<rmm::device_uvector<edge_type_t>>{};
-    (*edge_partition_edgelist_edge_types).reserve(col_comm_size);
-    for (int i = 0; i < col_comm_size; ++i) {
+    (*edge_partition_edgelist_edge_types).reserve(minor_comm_size);
+    for (int i = 0; i < minor_comm_size; ++i) {
       rmm::device_uvector<edge_type_t> tmp_edge_types(edgelist_edge_counts[i], handle.get_stream());
       thrust::copy(
         handle.get_thrust_policy(),
@@ -408,11 +409,11 @@ create_graph_from_edgelist_impl(
     (*edgelist_edge_types).shrink_to_fit(handle.get_stream());
   }
 
-  // 2. renumber
+  // 3. renumber
 
-  std::vector<vertex_t*> src_ptrs(col_comm_size);
+  std::vector<vertex_t*> src_ptrs(minor_comm_size);
   std::vector<vertex_t*> dst_ptrs(src_ptrs.size());
-  for (int i = 0; i < col_comm_size; ++i) {
+  for (int i = 0; i < minor_comm_size; ++i) {
     src_ptrs[i] = edge_partition_edgelist_srcs[i].begin();
     dst_ptrs[i] = edge_partition_edgelist_dsts[i].begin();
   }
@@ -426,11 +427,11 @@ create_graph_from_edgelist_impl(
     store_transposed);
 
   auto num_segments_per_vertex_partition =
-    static_cast<size_t>(meta.edge_partition_segment_offsets.size() / col_comm_size);
+    static_cast<size_t>(meta.edge_partition_segment_offsets.size() / minor_comm_size);
   auto use_dcs =
     num_segments_per_vertex_partition > (detail::num_sparse_segments_per_vertex_partition + 2);
 
-  // 3. compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
+  // 4. compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
 
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets;
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices;
@@ -639,7 +640,7 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  // 4. segmented sort neighbors
+  // 5. segmented sort neighbors
 
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     if (edge_partition_weights) {
@@ -725,7 +726,7 @@ create_graph_from_edgelist_impl(
     }
   }
 
-  // 5. create a graph and an edge_property_t object.
+  // 6. create a graph and an edge_property_t object.
 
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -231,7 +231,7 @@ class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<mu
   std::vector<vertex_t> edge_partition_segment_offsets_{};
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
-  // rows/cols << V / row_comm_size|col_comm_size).
+  // sources/destinations << V / major_comm_size|minor_comm_size).
 
   std::conditional_t<store_transposed,
                      std::optional<rmm::device_uvector<vertex_t>>,

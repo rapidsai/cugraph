@@ -1065,7 +1065,7 @@ void bfs(raft::handle_t const& handle,
  *
  * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
  *       the paths as a dense matrix in the vector and the maximum path length.
- *       Unused elements in the paths * will be set to invalid_vertex_id (-1 for a signed
+ *       Unused elements in the paths will be set to invalid_vertex_id (-1 for a signed
  *       vertex_t, std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -1419,7 +1419,7 @@ std::
  * @p start_vertices can contain duplicates, in which case different random walks will
  * be generated for each instance.
  *
- * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If the graph is @p
+ * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If @p
  * edge_weight_view.has_value() is false, the returned value will be std::nullopt.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.

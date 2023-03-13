@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -293,6 +293,54 @@ mg_graph_to_sg_graph(
   std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<rmm::device_uvector<int64_t>> const& number_map,
   bool renumber);
+
+template rmm::device_uvector<int32_t> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  raft::device_span<int32_t const> mg_values);
+
+template rmm::device_uvector<int64_t> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  raft::device_span<int64_t const> mg_values);
+
+template rmm::device_uvector<float> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  raft::device_span<float const> mg_values);
+
+template rmm::device_uvector<double> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  raft::device_span<double const> mg_values);
+
+template rmm::device_uvector<int32_t> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  raft::device_span<int32_t const> mg_values);
+
+template rmm::device_uvector<int64_t> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  raft::device_span<int64_t const> mg_values);
+
+template rmm::device_uvector<float> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  raft::device_span<float const> mg_values);
+
+template rmm::device_uvector<double> mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  raft::device_span<double const> mg_values);
 
 }  // namespace test
 }  // namespace cugraph

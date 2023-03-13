@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -44,15 +44,15 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   std::optional<rmm::device_uvector<edge_type_t>>& d_edgelist_edge_types,
   bool groupby_and_count_local_partition_by_minor)
 {
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto const comm_rank     = comm.get_rank();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto const row_comm_rank = row_comm.get_rank();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
-  auto const col_comm_rank = col_comm.get_rank();
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto const comm_rank       = comm.get_rank();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto const major_comm_rank = major_comm.get_rank();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+  auto const minor_comm_rank = minor_comm.get_rank();
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto element_size = sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0}) +
@@ -72,19 +72,18 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   rmm::device_uvector<size_t> result(0, handle.get_stream());
 
   if (groupby_and_count_local_partition_by_minor) {
-    auto local_partition_id_gpu_id_pair_op =
-      [comm_size,
-       row_comm_size,
-       partition_id_key_func =
-         cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
-           comm_size, row_comm_size, col_comm_size},
-       gpu_id_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-         comm_size}] __device__(auto pair) {
-        auto local_partition_id =
-          partition_id_key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
-          comm_size;  // global partition id to local partition id
-        return local_partition_id * row_comm_size +
-               (gpu_id_key_func(thrust::get<1>(pair)) % row_comm_size);
+    auto local_edge_and_vertex_partition_id_pair_op =
+      [major_comm_size,
+       local_edge_partition_id_key_func =
+         cugraph::detail::compute_local_edge_partition_id_from_ext_edge_endpoints_t<vertex_t>{
+           comm_size, major_comm_size, minor_comm_size},
+       vertex_partition_id_key_func =
+         cugraph::detail::compute_vertex_partition_id_from_ext_vertex_t<vertex_t>{
+           comm_size}] __device__(auto pair) {
+        auto local_edge_partition_id = local_edge_partition_id_key_func(pair);
+        auto vertex_partition_id     = vertex_partition_id_key_func(thrust::get<1>(pair));
+        return (local_edge_partition_id * major_comm_size) +
+               ((vertex_partition_id) % major_comm_size);
       };
 
     if (d_edgelist_weights) {
@@ -96,7 +95,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                        thrust::make_zip_iterator(d_edgelist_weights->begin(),
                                                                  d_edgelist_edge_ids->begin(),
                                                                  d_edgelist_edge_types->begin()),
-                                       local_partition_id_gpu_id_pair_op,
+                                       local_edge_and_vertex_partition_id_pair_op,
                                        comm_size,
                                        mem_frugal_threshold,
                                        handle.get_stream());
@@ -105,7 +104,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
             pair_first,
             pair_first + d_edgelist_majors.size(),
             thrust::make_zip_iterator(d_edgelist_weights->begin(), d_edgelist_edge_ids->begin()),
-            local_partition_id_gpu_id_pair_op,
+            local_edge_and_vertex_partition_id_pair_op,
             comm_size,
             mem_frugal_threshold,
             handle.get_stream());
@@ -116,7 +115,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
             pair_first,
             pair_first + d_edgelist_majors.size(),
             thrust::make_zip_iterator(d_edgelist_weights->begin(), d_edgelist_edge_types->begin()),
-            local_partition_id_gpu_id_pair_op,
+            local_edge_and_vertex_partition_id_pair_op,
             comm_size,
             mem_frugal_threshold,
             handle.get_stream());
@@ -124,7 +123,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
                                               d_edgelist_weights->begin(),
-                                              local_partition_id_gpu_id_pair_op,
+                                              local_edge_and_vertex_partition_id_pair_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
@@ -137,7 +136,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
             pair_first,
             pair_first + d_edgelist_majors.size(),
             thrust::make_zip_iterator(d_edgelist_edge_ids->begin(), d_edgelist_edge_types->begin()),
-            local_partition_id_gpu_id_pair_op,
+            local_edge_and_vertex_partition_id_pair_op,
             comm_size,
             mem_frugal_threshold,
             handle.get_stream());
@@ -145,7 +144,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
                                               d_edgelist_edge_ids->begin(),
-                                              local_partition_id_gpu_id_pair_op,
+                                              local_edge_and_vertex_partition_id_pair_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
@@ -155,14 +154,14 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
                                               d_edgelist_edge_types->begin(),
-                                              local_partition_id_gpu_id_pair_op,
+                                              local_edge_and_vertex_partition_id_pair_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
         } else {
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
-                                              local_partition_id_gpu_id_pair_op,
+                                              local_edge_and_vertex_partition_id_pair_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
@@ -170,12 +169,11 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
       }
     }
   } else {
-    auto local_partition_id_op =
-      [comm_size,
-       key_func = cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
-         comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
-        return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
-               comm_size;  // global partition id to local partition id
+    auto local_edge_partition_id_op =
+      [key_func =
+         cugraph::detail::compute_local_edge_partition_id_from_ext_edge_endpoints_t<vertex_t>{
+           comm_size, major_comm_size, minor_comm_size}] __device__(auto pair) {
+        return key_func(pair);
       };
 
     if (d_edgelist_weights) {
@@ -187,7 +185,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
                                        thrust::make_zip_iterator(d_edgelist_weights->begin(),
                                                                  d_edgelist_edge_ids->begin(),
                                                                  d_edgelist_edge_types->begin()),
-                                       local_partition_id_op,
+                                       local_edge_partition_id_op,
                                        comm_size,
                                        mem_frugal_threshold,
                                        handle.get_stream());
@@ -196,7 +194,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
             pair_first,
             pair_first + d_edgelist_majors.size(),
             thrust::make_zip_iterator(d_edgelist_weights->begin(), d_edgelist_edge_ids->begin()),
-            local_partition_id_op,
+            local_edge_partition_id_op,
             comm_size,
             mem_frugal_threshold,
             handle.get_stream());
@@ -207,7 +205,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
             pair_first,
             pair_first + d_edgelist_majors.size(),
             thrust::make_zip_iterator(d_edgelist_weights->begin(), d_edgelist_edge_types->begin()),
-            local_partition_id_op,
+            local_edge_partition_id_op,
             comm_size,
             mem_frugal_threshold,
             handle.get_stream());
@@ -215,7 +213,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
                                               d_edgelist_weights->begin(),
-                                              local_partition_id_op,
+                                              local_edge_partition_id_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
@@ -228,7 +226,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
             pair_first,
             pair_first + d_edgelist_majors.size(),
             thrust::make_zip_iterator(d_edgelist_edge_ids->begin(), d_edgelist_edge_types->begin()),
-            local_partition_id_op,
+            local_edge_partition_id_op,
             comm_size,
             mem_frugal_threshold,
             handle.get_stream());
@@ -236,7 +234,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
                                               d_edgelist_edge_ids->begin(),
-                                              local_partition_id_op,
+                                              local_edge_partition_id_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
@@ -246,14 +244,14 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
                                               d_edgelist_edge_types->begin(),
-                                              local_partition_id_op,
+                                              local_edge_partition_id_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());
         } else {
           result = cugraph::groupby_and_count(pair_first,
                                               pair_first + d_edgelist_majors.size(),
-                                              local_partition_id_op,
+                                              local_edge_partition_id_op,
                                               comm_size,
                                               mem_frugal_threshold,
                                               handle.get_stream());

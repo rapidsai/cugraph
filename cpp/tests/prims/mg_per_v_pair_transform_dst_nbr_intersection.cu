@@ -46,8 +46,8 @@
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
+    vertex_t v0,
     vertex_t v1,
-    vertex_t v2,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
     raft::device_span<vertex_t const> intersection) const
@@ -82,10 +82,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
-    auto const row_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().row_name()).get_size();
-    auto const col_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
 
     // 1. create MG graph
 
@@ -139,17 +135,17 @@ class Tests_MGPerVPairTransformDstNbrIntersection
              std::ignore,
              std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                              edge_t,
-                                                                                              weight_t,
-                                                                                              int32_t>(
-        *handle_,
-        std::move(std::get<0>(mg_vertex_pair_buffer)),
-        std::move(std::get<1>(mg_vertex_pair_buffer)),
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        h_vertex_partition_range_lasts);
+      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+        vertex_t,
+        edge_t,
+        weight_t,
+        int32_t>(*handle_,
+                 std::move(std::get<0>(mg_vertex_pair_buffer)),
+                 std::move(std::get<1>(mg_vertex_pair_buffer)),
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 h_vertex_partition_range_lasts);
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
