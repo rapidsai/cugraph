@@ -86,48 +86,54 @@ pytest \
   cugraph/pytest-based/bench_algos.py
 popd
 
-if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
-  # we are only testing in a single cuda version
-  # because of pytorch and rapids compatibilty problems
+if [[ "${RAPIDS_CUDA_VEqRSION}" == "11.8.0" ]]; then
+  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+    # we are only testing in a single cuda version
+    # because of pytorch and rapids compatibilty problems
 
-  # create a clone of existing environment
-  rapids-mamba-retry create --clone test --name test_cugraph_dgl
+    # create a clone of existing environment
+    rapids-mamba-retry create --clone test --name test_cugraph_dgl
 
-  # activate test_cugraph_dgl environment for dgl
-  set +u
-  conda activate test_cugraph_dgl
-  set -u
-  rapids-mamba-retry install \
-    --force-reinstall \
-    --channel "${PYTHON_CHANNEL}" \
-    --channel pytorch \
-    --channel pytorch-nightly \
-    --channel dglteam/label/cu117 \
-    --channel nvidia \
-    cugraph-dgl \
-    dgl \
-    'pytorch::pytorch>=2.0' \
-    'pytorch-cuda>=11.7' \
+    # activate test_cugraph_dgl environment for dgl
+    set +u
+    conda activate test_cugraph_dgl
+    set -u
+    rapids-mamba-retry install \
+      --force-reinstall \
+      --channel "${PYTHON_CHANNEL}" \
+      --channel pytorch \
+      --channel pytorch-nightly \
+      --channel dglteam/label/cu117 \
+      --channel nvidia \
+      cugraph-dgl \
+      'dgl>=1.0' \
+      'pytorch>=2.0' \
+      'pytorch-cuda>=11.8'
 
-  rapids-logger "pytest cugraph_dgl (single GPU)"
-  pushd python/cugraph-dgl/tests
-  pytest \
-    --cache-clear \
-    --ignore=mg \
-    --ignore=nn \
-    --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
-    --cov-config=../../.coveragerc \
-    --cov=cugraph_dgl \
-    --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
-    --cov-report=term \
-    .
-  popd
+    rapids-print-env
 
-  # Reactivate the test environment back
-  set +u
-  conda deactivate
-  conda activate test
-  set -u
+    rapids-logger "pytest cugraph_dgl (single GPU)"
+    pushd python/cugraph-dgl/tests
+    pytest \
+      --cache-clear \
+      --ignore=mg \
+      --ignore=nn \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
+      --cov-config=../../.coveragerc \
+      --cov=cugraph_dgl \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
+      --cov-report=term \
+      .
+    popd
+
+    # Reactivate the test environment back
+    set +u
+    conda deactivate
+    conda activate test
+    set -u
+  else
+    rapids-logger "skipping cugraph_dgl pytest on ARM64"
+  fi
 else
   rapids-logger "skipping cugraph_dgl pytest on CUDA!=11.8"
 fi
