@@ -29,6 +29,7 @@ set(cython_sources
     sorensen_coefficients.pyx
     overlap_coefficients.pyx
     katz_centrality.pyx
+    leiden.pyx
     louvain.pyx
     node2vec.pyx
     pagerank.pyx

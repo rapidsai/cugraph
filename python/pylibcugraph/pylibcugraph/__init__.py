@@ -59,5 +59,7 @@ from pylibcugraph.uniform_random_walks import uniform_random_walks
 
 from pylibcugraph.random import CuGraphRandomState
 
+from pylibcugraph.leiden import leiden
+
 
 __version__ = "23.04.00"
