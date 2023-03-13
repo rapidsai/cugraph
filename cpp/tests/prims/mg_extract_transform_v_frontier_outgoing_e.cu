@@ -81,39 +81,35 @@ struct e_op_t {
                                     thrust::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return src_val < dst_val ? thrust::make_optional(
-                                     thrust::make_tuple(optionally_tagged_src, dst, output_payload))
-                                 : thrust::nullopt;
+    if (src_val < dst_val) {
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        if constexpr (std::is_arithmetic_v<output_payload_t>) {
+          return thrust::make_tuple(optionally_tagged_src, dst, output_payload);
+        } else {
+          static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+          return thrust::make_tuple(optionally_tagged_src,
+                                    dst,
+                                    thrust::get<0>(output_payload),
+                                    thrust::get<1>(output_payload));
+        }
       } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(optionally_tagged_src,
-                                                            dst,
-                                                            thrust::get<0>(output_payload),
-                                                            thrust::get<1>(output_payload)))
-                 : thrust::nullopt;
+        static_assert(thrust::tuple_size<key_t>::value == size_t{2});
+        if constexpr (std::is_arithmetic_v<output_payload_t>) {
+          return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
+                                    thrust::get<1>(optionally_tagged_src),
+                                    dst,
+                                    output_payload);
+        } else {
+          static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+          return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
+                                    thrust::get<1>(optionally_tagged_src),
+                                    dst,
+                                    thrust::get<0>(output_payload),
+                                    thrust::get<1>(output_payload));
+        }
       }
     } else {
-      static_assert(thrust::tuple_size<key_t>::value == size_t{2});
-      if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                                            thrust::get<1>(optionally_tagged_src),
-                                                            dst,
-                                                            output_payload))
-                 : thrust::nullopt;
-      } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                                            thrust::get<1>(optionally_tagged_src),
-                                                            dst,
-                                                            thrust::get<0>(output_payload),
-                                                            thrust::get<1>(output_payload)))
-                 : thrust::nullopt;
-      }
+      return thrust::nullopt;
     }
   }
 };
