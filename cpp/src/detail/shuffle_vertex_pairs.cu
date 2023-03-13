@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -269,12 +269,12 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
   std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&&
     edge_id_type_tuple)
 {
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   return shuffle_vertex_pairs_by_gpu_id_impl(
     handle,
@@ -283,7 +283,7 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
     std::move(weights),
     std::move(edge_id_type_tuple),
     cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-      comm_size, row_comm_size, col_comm_size});
+      comm_size, major_comm_size, minor_comm_size});
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
@@ -300,12 +300,12 @@ shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
     edge_id_type_tuple,
   std::vector<vertex_t> const& vertex_partition_range_lasts)
 {
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                                handle.get_stream());
@@ -324,8 +324,8 @@ shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
       raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
                                         d_vertex_partition_range_lasts.size()),
       comm_size,
-      row_comm_size,
-      col_comm_size});
+      major_comm_size,
+      minor_comm_size});
 }
 
 template std::tuple<

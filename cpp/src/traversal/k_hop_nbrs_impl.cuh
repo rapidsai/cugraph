@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -175,7 +175,7 @@ k_hop_nbrs(raft::handle_t const& handle,
                         start_vertex_displacements.size() - 1,
                         handle.get_stream());
     auto num_indices = start_vertex_displacements.back() + start_vertex_counts.back();
-    lasts.set_element_async(lasts.size() - 1, num_indices, handle.get_stream());
+    lasts.set_element(lasts.size() - 1, num_indices, handle.get_stream());
     std::tie(start_vertex_indices, nbrs, std::ignore) = groupby_gpu_id_and_shuffle_kv_pairs(
       handle.get_comms(),
       start_vertex_indices.begin(),

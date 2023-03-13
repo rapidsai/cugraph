@@ -20,6 +20,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -55,15 +56,15 @@ struct compute_local_degree_displacements_and_global_degree_t {
   raft::device_span<edge_t const> gathered_local_degrees{};
   raft::device_span<edge_t> segmented_local_degree_displacements{};
   raft::device_span<edge_t> global_degrees{};
-  int col_comm_size{};
+  int minor_comm_size{};
 
   __device__ void operator()(size_t i) const
   {
     constexpr int buffer_size = 8;  // tuning parameter
     edge_t displacements[buffer_size];
     edge_t sum{0};
-    for (int round = 0; round < (col_comm_size + buffer_size - 1) / buffer_size; ++round) {
-      auto loop_count = std::min(buffer_size, col_comm_size - round * buffer_size);
+    for (int round = 0; round < (minor_comm_size + buffer_size - 1) / buffer_size; ++round) {
+      auto loop_count = std::min(buffer_size, minor_comm_size - round * buffer_size);
       for (int j = 0; j < loop_count; ++j) {
         displacements[j] = sum;
         sum += gathered_local_degrees[i + (round * buffer_size + j) * global_degrees.size()];
@@ -72,20 +73,21 @@ struct compute_local_degree_displacements_and_global_degree_t {
         thrust::seq,
         displacements,
         displacements + loop_count,
-        segmented_local_degree_displacements.begin() + i * col_comm_size + round * buffer_size);
+        segmented_local_degree_displacements.begin() + i * minor_comm_size + round * buffer_size);
     }
     global_degrees[i] = sum;
   }
 };
 
-// convert a (neighbor index, key index) pair  to a (col_comm_rank, intra-partition offset, neighbor
-// index, key index) quadruplet, col_comm_rank is set to -1 if an neighbor index is invalid
+// convert a (neighbor index, key index) pair  to a (minor_comm_rank, intra-partition offset,
+// neighbor index, key index) quadruplet, minor_comm_rank is set to -1 if an neighbor index is
+// invalid
 template <typename edge_t>
 struct convert_pair_to_quadruplet_t {
   raft::device_span<edge_t const> segmented_local_degree_displacements{};
   raft::device_span<size_t> tx_counts{};
   size_t stride{};
-  int col_comm_size{};
+  int minor_comm_size{};
   edge_t invalid_idx{};
 
   __device__ thrust::tuple<int, size_t, edge_t, size_t> operator()(
@@ -94,35 +96,35 @@ struct convert_pair_to_quadruplet_t {
     auto nbr_idx       = thrust::get<0>(index_pair);
     auto key_idx       = thrust::get<1>(index_pair);
     auto local_nbr_idx = nbr_idx;
-    int col_comm_rank{-1};
+    int minor_comm_rank{-1};
     size_t intra_partition_offset{};
     if (nbr_idx != invalid_idx) {
       auto displacement_first =
-        segmented_local_degree_displacements.begin() + key_idx * col_comm_size;
-      col_comm_rank =
+        segmented_local_degree_displacements.begin() + key_idx * minor_comm_size;
+      minor_comm_rank =
         static_cast<int>(thrust::distance(
           displacement_first,
           thrust::upper_bound(
-            thrust::seq, displacement_first, displacement_first + col_comm_size, nbr_idx))) -
+            thrust::seq, displacement_first, displacement_first + minor_comm_size, nbr_idx))) -
         1;
-      local_nbr_idx -= *(displacement_first + col_comm_rank);
-      cuda::std::atomic_ref<size_t> counter(tx_counts[col_comm_rank]);
+      local_nbr_idx -= *(displacement_first + minor_comm_rank);
+      cuda::std::atomic_ref<size_t> counter(tx_counts[minor_comm_rank]);
       intra_partition_offset = counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
     }
-    return thrust::make_tuple(col_comm_rank, intra_partition_offset, local_nbr_idx, key_idx);
+    return thrust::make_tuple(minor_comm_rank, intra_partition_offset, local_nbr_idx, key_idx);
   }
 };
 
 struct shuffle_index_compute_offset_t {
-  raft::device_span<int const> col_comm_ranks{};
+  raft::device_span<int const> minor_comm_ranks{};
   raft::device_span<size_t const> intra_partition_displacements{};
   raft::device_span<size_t const> tx_displacements{};
 
   __device__ size_t operator()(size_t i) const
   {
-    auto col_comm_rank = col_comm_ranks[i];
-    assert(col_comm_rank != -1);
-    return tx_displacements[col_comm_rank] + intra_partition_displacements[i];
+    auto minor_comm_rank = minor_comm_ranks[i];
+    assert(minor_comm_rank != -1);
+    return tx_displacements[minor_comm_rank] + intra_partition_displacements[i];
   }
 };
 
@@ -137,11 +139,11 @@ struct check_invalid_t {
 };
 
 template <typename edge_t>
-struct invalid_col_comm_rank_t {
-  int invalid_col_comm_rank{};
+struct invalid_minor_comm_rank_t {
+  int invalid_minor_comm_rank{};
   __device__ bool operator()(thrust::tuple<edge_t, int, size_t> triplet) const
   {
-    return thrust::get<1>(triplet) == invalid_col_comm_rank;
+    return thrust::get<1>(triplet) == invalid_minor_comm_rank;
   }
 };
 
@@ -286,7 +288,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
   size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
-  assert(high_partition_degree_range_last > K);
+  assert(high_partition_over_sampling_K > K);
 
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier_degrees.size() * K, handle.get_stream());
 
@@ -679,23 +681,15 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+    edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcValueInputWrapper::value_iterator>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+    edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeDstValueInputWrapper::value_iterator>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
@@ -719,9 +713,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                   "Invalid input argument: the current implementation expects K to be no larger "
                   "than std::numeric_limits<int32_t>::max().");
 
-  auto col_comm_size =
+  auto minor_comm_size =
     GraphViewType::is_multi_gpu
-      ? handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size()
+      ? handle.get_subcomm(cugraph::partition_manager::minor_comm_name()).get_size()
       : int{1};
 
   if (do_expensive_check) {
@@ -754,10 +748,10 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   auto frontier_key_last  = frontier.end();
 
   std::vector<size_t> local_frontier_sizes{};
-  if (col_comm_size > 1) {
-    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  if (minor_comm_size > 1) {
+    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     local_frontier_sizes = host_scalar_allgather(
-      col_comm,
+      minor_comm,
       static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
       handle.get_stream());
   } else {
@@ -773,13 +767,13 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   // 1. aggregate frontier
 
   auto aggregate_local_frontier_keys =
-    (col_comm_size > 1)
+    (minor_comm_size > 1)
       ? std::make_optional<key_buffer_t>(
           local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream())
       : std::nullopt;
-  if (col_comm_size > 1) {
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    device_allgatherv(col_comm,
+  if (minor_comm_size > 1) {
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    device_allgatherv(minor_comm,
                       frontier_key_first,
                       get_dataframe_buffer_begin(*aggregate_local_frontier_keys),
                       local_frontier_sizes,
@@ -790,7 +784,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   // 2. compute degrees
 
   auto aggregate_local_frontier_local_degrees =
-    (col_comm_size > 1)
+    (minor_comm_size > 1)
       ? std::make_optional<rmm::device_uvector<edge_t>>(
           local_frontier_displacements.back() + local_frontier_sizes.back(), handle.get_stream())
       : std::nullopt;
@@ -803,8 +797,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     vertex_t const* edge_partition_frontier_major_first{nullptr};
 
     auto edge_partition_frontier_key_first =
-      ((col_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
-                           : frontier_key_first) +
+      ((minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
+                             : frontier_key_first) +
       local_frontier_displacements[i];
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       edge_partition_frontier_major_first = edge_partition_frontier_key_first;
@@ -817,7 +811,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                         local_frontier_sizes[i]),
       handle.get_stream());
 
-    if (col_comm_size > 1) {
+    if (minor_comm_size > 1) {
       // FIXME: this copy is unnecessary if edge_partition.compute_local_degrees() takes a pointer
       // to the output array
       thrust::copy(
@@ -831,21 +825,21 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   auto frontier_segmented_local_degree_displacements =
-    (col_comm_size > 1)
+    (minor_comm_size > 1)
       ? std::make_optional<rmm::device_uvector<edge_t>>(size_t{0}, handle.get_stream())
       : std::nullopt;
-  if (col_comm_size > 1) {
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  if (minor_comm_size > 1) {
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
     rmm::device_uvector<edge_t> frontier_gathered_local_degrees(0, handle.get_stream());
     std::tie(frontier_gathered_local_degrees, std::ignore) =
-      shuffle_values(col_comm,
+      shuffle_values(minor_comm,
                      (*aggregate_local_frontier_local_degrees).begin(),
                      local_frontier_sizes,
                      handle.get_stream());
     aggregate_local_frontier_local_degrees = std::nullopt;
     frontier_segmented_local_degree_displacements =
-      rmm::device_uvector<edge_t>(frontier_degrees.size() * col_comm_size, handle.get_stream());
+      rmm::device_uvector<edge_t>(frontier_degrees.size() * minor_comm_size, handle.get_stream());
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(size_t{0}),
@@ -856,7 +850,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         raft::device_span<edge_t>((*frontier_segmented_local_degree_displacements).data(),
                                   (*frontier_segmented_local_degree_displacements).size()),
         raft::device_span<edge_t>(frontier_degrees.data(), frontier_degrees.size()),
-        col_comm_size});
+        minor_comm_size});
   }
 
   // 3. randomly select neighbor indices
@@ -884,21 +878,21 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   auto sample_local_nbr_indices = std::move(
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
-                          // neighbors are distributed in col_comm_size partitions)
+                          // neighbors are distributed in minor_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};  // relevant only when (col_comm_size > 1)
+    std::nullopt};  // relevant only when (minor_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
-  if (col_comm_size > 1) {
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  if (minor_comm_size > 1) {
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
     sample_key_indices =
       rmm::device_uvector<size_t>(sample_local_nbr_indices.size(), handle.get_stream());
-    auto col_comm_ranks =
+    auto minor_comm_ranks =
       rmm::device_uvector<int>(sample_local_nbr_indices.size(), handle.get_stream());
     auto intra_partition_displacements =
       rmm::device_uvector<size_t>(sample_local_nbr_indices.size(), handle.get_stream());
-    rmm::device_uvector<size_t> d_tx_counts(col_comm_size, handle.get_stream());
+    rmm::device_uvector<size_t> d_tx_counts(minor_comm_size, handle.get_stream());
     thrust::fill(handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), size_t{0});
     auto input_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(sample_local_nbr_indices.begin(),
@@ -908,7 +902,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       handle.get_thrust_policy(),
       input_pair_first,
       input_pair_first + sample_local_nbr_indices.size(),
-      thrust::make_zip_iterator(thrust::make_tuple(col_comm_ranks.begin(),
+      thrust::make_zip_iterator(thrust::make_tuple(minor_comm_ranks.begin(),
                                                    intra_partition_displacements.begin(),
                                                    sample_local_nbr_indices.begin(),
                                                    (*sample_key_indices).begin())),
@@ -917,9 +911,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                         (*frontier_segmented_local_degree_displacements).size()),
         raft::device_span<size_t>(d_tx_counts.data(), d_tx_counts.size()),
         frontier.size(),
-        col_comm_size,
+        minor_comm_size,
         cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
-    rmm::device_uvector<size_t> tx_displacements(col_comm_size, handle.get_stream());
+    rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
     thrust::exclusive_scan(
       handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
     auto tmp_sample_local_nbr_indices =
@@ -937,11 +931,11 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       thrust::make_transform_iterator(
         thrust::make_counting_iterator(size_t{0}),
         shuffle_index_compute_offset_t{
-          raft::device_span<int const>(col_comm_ranks.data(), col_comm_ranks.size()),
+          raft::device_span<int const>(minor_comm_ranks.data(), minor_comm_ranks.size()),
           raft::device_span<size_t const>(intra_partition_displacements.data(),
                                           intra_partition_displacements.size()),
           raft::device_span<size_t const>(tx_displacements.data(), tx_displacements.size())}),
-      col_comm_ranks.begin(),
+      minor_comm_ranks.begin(),
       thrust::make_zip_iterator(
         thrust::make_tuple(tmp_sample_local_nbr_indices.begin(), tmp_sample_key_indices.begin())),
       not_equal_t<int>{-1});
@@ -957,7 +951,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(sample_local_nbr_indices.begin(), (*sample_key_indices).begin()));
     auto [rx_value_buffer, rx_counts] =
-      shuffle_values(col_comm, pair_first, h_tx_counts, handle.get_stream());
+      shuffle_values(minor_comm, pair_first, h_tx_counts, handle.get_stream());
 
     sample_local_nbr_indices            = std::move(std::get<0>(rx_value_buffer));
     sample_key_indices                  = std::move(std::get<1>(rx_value_buffer));
@@ -981,8 +975,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         graph_view.local_edge_partition_view(i));
 
     auto edge_partition_frontier_key_first =
-      ((col_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
-                           : frontier_key_first) +
+      ((minor_comm_size > 1) ? get_dataframe_buffer_begin(*aggregate_local_frontier_keys)
+                             : frontier_key_first) +
       local_frontier_displacements[i];
     auto edge_partition_sample_local_nbr_index_first =
       sample_local_nbr_indices.begin() + local_frontier_sample_displacements[i];
@@ -1003,7 +997,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     }
     auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
-    if (col_comm_size > 1) {
+    if (minor_comm_size > 1) {
       auto edge_partition_sample_key_index_first =
         (*sample_key_indices).begin() + local_frontier_sample_displacements[i];
       thrust::for_each(
@@ -1066,19 +1060,19 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                       : std::make_optional<rmm::device_uvector<size_t>>(
                                           frontier.size() + 1, handle.get_stream());
   assert(K <= std::numeric_limits<int32_t>::max());
-  if (col_comm_size > 1) {
+  if (minor_comm_size > 1) {
     sample_local_nbr_indices.resize(0, handle.get_stream());
     sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
 
     std::tie(sample_e_op_results, std::ignore) =
-      shuffle_values(col_comm,
+      shuffle_values(minor_comm,
                      get_dataframe_buffer_begin(sample_e_op_results),
                      local_frontier_sample_counts,
                      handle.get_stream());
     std::tie(sample_key_indices, std::ignore) = shuffle_values(
-      col_comm, (*sample_key_indices).begin(), local_frontier_sample_counts, handle.get_stream());
+      minor_comm, (*sample_key_indices).begin(), local_frontier_sample_counts, handle.get_stream());
 
     rmm::device_uvector<int32_t> sample_counts(frontier.size(), handle.get_stream());
     thrust::fill(

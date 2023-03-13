@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -134,13 +133,25 @@ class Tests_MGKHopNbrs
     // 3. compare SG & MG results
 
     if (k_hop_nbrs_usecase.check_correctness) {
-      // 3-1. aggregate MG results
+      // 3-1. unrenumber & aggregate MG start vertices & results
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_start_vertices.data(),
+        d_mg_start_vertices.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_nbrs.data(),
+        d_mg_nbrs.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
       auto h_mg_offsets = cugraph::test::to_host(*handle_, d_mg_offsets);
       std::vector<size_t> h_mg_counts(d_mg_start_vertices.size());
-      for (size_t i = 0; i < h_mg_counts.size(); ++i) {
-        h_mg_counts[i] = h_mg_offsets[i + 1] - h_mg_offsets[i];
-      }
+      std::adjacent_difference(h_mg_offsets.begin() + 1, h_mg_offsets.end(), h_mg_counts.begin());
       rmm::device_uvector<size_t> d_mg_counts(h_mg_counts.size(), handle_->get_stream());
       raft::update_device(
         d_mg_counts.data(), h_mg_counts.data(), h_mg_counts.size(), handle_->get_stream());
@@ -159,23 +170,7 @@ class Tests_MGKHopNbrs
         *handle_, raft::device_span<vertex_t const>(d_mg_nbrs.data(), d_mg_nbrs.size()));
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. unrenumbr MG start vertices & neighbors
-
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          d_mg_aggregate_start_vertices.data(),
-          d_mg_aggregate_start_vertices.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          d_mg_aggregate_nbrs.data(),
-          d_mg_aggregate_nbrs.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-
-        // 3-3. create SG graph
+        // 3-2. create SG graph
 
         cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
         std::tie(sg_graph, std::ignore, std::ignore) =
@@ -186,7 +181,7 @@ class Tests_MGKHopNbrs
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        // 3-4. run SG K-hop neighbors
+        // 3-3. run SG K-hop neighbors
 
         auto [d_sg_offsets, d_sg_nbrs] = cugraph::k_hop_nbrs(
           *handle_,
@@ -195,7 +190,7 @@ class Tests_MGKHopNbrs
                                             d_mg_aggregate_start_vertices.size()),
           k_hop_nbrs_usecase.k);
 
-        // 3-5. compare
+        // 3-4. compare
 
         auto h_sg_offsets = cugraph::test::to_host(*handle_, d_sg_offsets);
         auto h_sg_nbrs    = cugraph::test::to_host(*handle_, d_sg_nbrs);
