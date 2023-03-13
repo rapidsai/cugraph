@@ -188,4 +188,4 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
 
     diff = cupy.isclose(mg_bc_results, sg_bc_results)
 
-    assert diff.all() == True
+    assert diff.all()
