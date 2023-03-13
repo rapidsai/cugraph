@@ -45,7 +45,9 @@ def _call_plc_leiden(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
     )
 
 
-def leiden(input_graph, max_iter: int = 100, resolution: int =1.0) -> Tuple[dask_cudf.DataFrame, float]:
+def leiden(
+    input_graph, max_iter: int = 100, resolution: int = 1.0
+) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     Leiden method
