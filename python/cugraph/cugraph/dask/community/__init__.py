@@ -11,5 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .leiden import leiden
 from .louvain import louvain
 from .triangle_count import triangle_count
