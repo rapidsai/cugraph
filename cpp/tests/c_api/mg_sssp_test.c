@@ -101,16 +101,16 @@ int generic_sssp_test(const cugraph_resource_handle_t* p_handle,
 }
 
 int generic_sssp_test_double(const cugraph_resource_handle_t* p_handle,
-                      vertex_t* h_src,
-                      vertex_t* h_dst,
-                      double* h_wgt,
-                      vertex_t source,
-                      double const* expected_distances,
-                      vertex_t const* expected_predecessors,
-                      size_t num_vertices,
-                      size_t num_edges,
-                      double cutoff,
-                      bool_t store_transposed)
+                             vertex_t* h_src,
+                             vertex_t* h_dst,
+                             double* h_wgt,
+                             vertex_t source,
+                             double const* expected_distances,
+                             vertex_t const* expected_predecessors,
+                             size_t num_vertices,
+                             size_t num_edges,
+                             double cutoff,
+                             bool_t store_transposed)
 {
   int test_ret_value = 0;
 
@@ -180,8 +180,8 @@ int test_sssp(const cugraph_resource_handle_t* p_handle)
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-  float wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  float expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
+  float wgt[]                      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  float expected_distances[]       = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
@@ -205,8 +205,8 @@ int test_sssp_with_transpose(const cugraph_resource_handle_t* p_handle)
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-  float wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  float expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
+  float wgt[]                      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  float expected_distances[]       = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
@@ -231,57 +231,39 @@ int test_sssp_with_transpose_double(const cugraph_resource_handle_t* p_handle)
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-  double wgt[]                   = {0.1d, 2.1d, 1.1d, 5.1d, 3.1d, 4.1d, 7.2d, 3.2d};
-  double expected_distances[]    = {0.0d, 0.1d, DBL_MAX, 2.2d, 1.2d, 4.4d};
+  double wgt[]                     = {0.1d, 2.1d, 1.1d, 5.1d, 3.1d, 4.1d, 7.2d, 3.2d};
+  double expected_distances[]      = {0.0d, 0.1d, DBL_MAX, 2.2d, 1.2d, 4.4d};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
   //    This call will force cugraph_sssp to transpose the graph
   return generic_sssp_test_double(p_handle,
-                           src,
-                           dst,
-                           wgt,
-                           0,
-                           expected_distances,
-                           expected_predecessors,
-                           num_vertices,
-                           num_edges,
-                           10,
-                           TRUE);
+                                  src,
+                                  dst,
+                                  wgt,
+                                  0,
+                                  expected_distances,
+                                  expected_predecessors,
+                                  num_vertices,
+                                  num_edges,
+                                  10,
+                                  TRUE);
 }
 
 /******************************************************************************/
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
-
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-  int result        = 0;
+  int result = 0;
   result |= RUN_MG_TEST(test_sssp, handle);
   result |= RUN_MG_TEST(test_sssp_with_transpose, handle);
   result |= RUN_MG_TEST(test_sssp_with_transpose_double, handle);
 
   cugraph_free_resource_handle(handle);
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }

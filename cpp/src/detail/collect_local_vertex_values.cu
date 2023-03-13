@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -36,15 +36,20 @@ rmm::device_uvector<value_t> collect_local_vertex_values_from_ext_vertex_value_p
   rmm::device_uvector<value_t> d_local_values(0, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     std::tie(d_vertices, d_values, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_kv_pairs(
       comm,
       d_vertices.begin(),
       d_vertices.end(),
       d_values.begin(),
-      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
+      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+        comm_size, major_comm_size, minor_comm_size},
       handle.get_stream());
   }
 
