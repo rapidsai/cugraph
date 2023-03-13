@@ -46,8 +46,8 @@
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
+    vertex_t v0,
     vertex_t v1,
-    vertex_t v2,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
     raft::device_span<vertex_t const> intersection) const
@@ -82,10 +82,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
-    auto const row_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().row_name()).get_size();
-    auto const col_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
 
     // 1. create MG graph
 

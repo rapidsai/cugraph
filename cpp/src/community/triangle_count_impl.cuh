@@ -391,13 +391,12 @@ void triangle_count(raft::handle_t const& handle,
     auto local_counts   = std::move(cur_graph_counts);
 
     if constexpr (multi_gpu) {
-      // FIXME: better refactor this shuffle for reuse
-      auto& comm = handle.get_comms();
+      auto& comm       = handle.get_comms();
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
 
-      thrust::sort_by_key(handle.get_thrust_policy(),
-                          local_vertices.begin(),
-                          local_vertices.end(),
-                          local_counts.begin());
       auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
       rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
         h_vertex_partition_range_lasts.size(), handle.get_stream());
@@ -405,27 +404,21 @@ void triangle_count(raft::handle_t const& handle,
                           h_vertex_partition_range_lasts.data(),
                           h_vertex_partition_range_lasts.size(),
                           handle.get_stream());
-      rmm::device_uvector<size_t> d_lasts(d_vertex_partition_range_lasts.size(),
-                                          handle.get_stream());
-      thrust::lower_bound(handle.get_thrust_policy(),
-                          local_vertices.begin(),
-                          local_vertices.end(),
-                          d_vertex_partition_range_lasts.begin(),
-                          d_vertex_partition_range_lasts.end(),
-                          d_lasts.begin());
-      std::vector<size_t> h_lasts(d_lasts.size());
-      raft::update_host(h_lasts.data(), d_lasts.data(), d_lasts.size(), handle.get_stream());
-      handle.sync_stream();
-
-      std::vector<size_t> tx_counts(h_lasts.size());
-      std::adjacent_difference(h_lasts.begin(), h_lasts.end(), tx_counts.begin());
 
       rmm::device_uvector<vertex_t> rx_local_vertices(size_t{0}, handle.get_stream());
       rmm::device_uvector<edge_t> rx_local_counts(size_t{0}, handle.get_stream());
-      std::tie(rx_local_vertices, std::ignore) =
-        shuffle_values(comm, local_vertices.begin(), tx_counts, handle.get_stream());
-      std::tie(rx_local_counts, std::ignore) =
-        shuffle_values(comm, local_counts.begin(), tx_counts, handle.get_stream());
+      std::tie(rx_local_vertices, rx_local_counts, std::ignore) =
+        groupby_gpu_id_and_shuffle_kv_pairs(
+          handle.get_comms(),
+          local_vertices.begin(),
+          local_vertices.end(),
+          local_counts.begin(),
+          cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+            raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                              d_vertex_partition_range_lasts.size()),
+            major_comm_size,
+            minor_comm_size},
+          handle.get_stream());
 
       local_vertices = std::move(rx_local_vertices);
       local_counts   = std::move(rx_local_counts);
