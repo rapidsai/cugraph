@@ -270,18 +270,51 @@ rmm::device_uvector<vertex_t> compute_mis(
       cugraph::reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>{},
       cugraph::get_dataframe_buffer_begin(max_incoming_rank_id_pairs));
 
-    // if (debug) {
-    //   CUDA_TRY(cudaDeviceSynchronize());
-    //   std::cout << "Incoming max neighbor rank-ids: ";
-    //   thrust::for_each(handle.get_thrust_policy(),
-    //                    cugraph::get_dataframe_buffer_cbegin(max_incoming_rank_id_pairs),
-    //                    cugraph::get_dataframe_buffer_cend(max_incoming_rank_id_pairs),
-    //                    [] __device__(auto rank_id_tuple) {
-    //                      auto rank = thrust::get<0>(rank_id_tuple);
-    //                      auto id   = thrust::get<1>(rank_id_tuple);
-    //                      printf("\n%d %f\n", id, rank);
-    //                    });
-    // }
+    std::cout << "Check outgoing max" << std::endl;
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs),
+      cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs),
+      [ranks           = ranks.data(),
+       temporary_ranks = temporary_ranks.data(),
+       v_first         = graph_view.local_vertex_partition_range_first()] __device__(auto rank_id) {
+        auto max_neighbor_rank = thrust::get<0>(rank_id);
+        auto max_neighbor_id   = thrust::get<1>(rank_id);
+
+        if (max_neighbor_id != invalid_vertex_id<vertex_t>::value) {
+          if ((max_neighbor_rank > temporary_ranks[max_neighbor_id - v_first]) ||
+              (max_neighbor_rank < temporary_ranks[max_neighbor_id - v_first])) {
+            printf("?  %d : %f != %f (r = %f ) \n",
+                   max_neighbor_id,
+                   max_neighbor_rank,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first]);
+          }
+        }
+      });
+
+    std::cout << "Check incoming max" << std::endl;
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      cugraph::get_dataframe_buffer_cbegin(max_incoming_rank_id_pairs),
+      cugraph::get_dataframe_buffer_cend(max_incoming_rank_id_pairs),
+      [ranks           = ranks.data(),
+       temporary_ranks = temporary_ranks.data(),
+       v_first         = graph_view.local_vertex_partition_range_first()] __device__(auto rank_id) {
+        auto max_neighbor_rank = thrust::get<0>(rank_id);
+        auto max_neighbor_id   = thrust::get<1>(rank_id);
+
+        if (max_neighbor_id != invalid_vertex_id<vertex_t>::value) {
+          if ((max_neighbor_rank > temporary_ranks[max_neighbor_id - v_first]) ||
+              (max_neighbor_rank < temporary_ranks[max_neighbor_id - v_first])) {
+            printf("?  %d : %f != %f (r = %f ) \n",
+                   max_neighbor_id,
+                   max_neighbor_rank,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first]);
+          }
+        }
+      });
 
     //
     // Compute max of outgoing and incoming
@@ -300,12 +333,35 @@ rmm::device_uvector<vertex_t> compute_mis(
     // cugraph::resize_dataframe_buffer(max_incoming_rank_id_pairs, size_t{0}, handle.get_stream());
     // cugraph::shrink_to_fit_dataframe_buffer(max_incoming_rank_id_pairs, handle.get_stream());
 
+    auto pair_begin = cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs);
+    auto pair_end   = cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs);
+
+    std::cout << "Check max (incoming, outgoing):" << std::endl;
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      pair_begin,
+      pair_end,
+      [ranks           = ranks.data(),
+       temporary_ranks = temporary_ranks.data(),
+       v_first         = graph_view.local_vertex_partition_range_first()] __device__(auto rank_id) {
+        auto max_neighbor_rank = thrust::get<0>(rank_id);
+        auto max_neighbor_id   = thrust::get<1>(rank_id);
+
+        if (max_neighbor_id != invalid_vertex_id<vertex_t>::value) {
+          if ((max_neighbor_rank > temporary_ranks[max_neighbor_id - v_first]) ||
+              (max_neighbor_rank < temporary_ranks[max_neighbor_id - v_first])) {
+            printf("?  %d : %f != %f (r = %f ) \n",
+                   max_neighbor_id,
+                   max_neighbor_rank,
+                   temporary_ranks[max_neighbor_id - v_first],
+                   ranks[max_neighbor_id - v_first]);
+          }
+        }
+      });
+
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
       std::cout << "Id and rank of maximum rank neighbor" << std::endl;
-      auto pair_begin = cugraph::get_dataframe_buffer_cbegin(max_outgoing_rank_id_pairs);
-      auto pair_end   = cugraph::get_dataframe_buffer_cend(max_outgoing_rank_id_pairs);
-
       thrust::for_each(
         handle.get_thrust_policy(), pair_begin, pair_end, [] __device__(auto rank_id) {
           auto max_neighbor_rank = thrust::get<0>(rank_id);
