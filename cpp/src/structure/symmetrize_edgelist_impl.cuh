@@ -297,9 +297,9 @@ symmetrize_edgelist(raft::handle_t const& handle,
              std::ignore,
              std::ignore) =
       detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                         vertex_t,
-                                                                         weight_t,
-                                                                         int32_t>(
+                                                                                     vertex_t,
+                                                                                     weight_t,
+                                                                                     int32_t>(
         handle,
         std::move(upper_triangular_minors),
         std::move(upper_triangular_majors),
@@ -483,9 +483,9 @@ symmetrize_edgelist(raft::handle_t const& handle,
              std::ignore,
              std::ignore) =
       detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                         vertex_t,
-                                                                         weight_t,
-                                                                         int32_t>(
+                                                                                     vertex_t,
+                                                                                     weight_t,
+                                                                                     int32_t>(
         handle,
         std::move(upper_triangular_majors),
         std::move(upper_triangular_minors),

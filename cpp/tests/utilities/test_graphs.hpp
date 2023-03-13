@@ -311,16 +311,16 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                  tmp_weights_v,
                  std::ignore,
                  std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                      vertex_t,
-                                                                                      weight_t,
-                                                                                      int32_t>(
-            handle,
-            store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
-            store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
-            std::move(tmp_weights_v),
-            std::nullopt,
-            std::nullopt);
+          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+            vertex_t,
+            vertex_t,
+            weight_t,
+            int32_t>(handle,
+                     store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
+                     store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
+                     std::move(tmp_weights_v),
+                     std::nullopt,
+                     std::nullopt);
       }
 
       src_partitions.push_back(std::move(tmp_src_v));

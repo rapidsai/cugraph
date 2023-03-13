@@ -665,7 +665,8 @@ extract_induced_subgraphs(
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weight.  Needs to be floating point type
  * @tparam edge_id_t Type of edge id.  Needs to be an integral type
- * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is supported
+ * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
+ * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -901,6 +902,7 @@ weight_t compute_total_edge_weight(
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
+
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state,
   vertex_t select_count,
