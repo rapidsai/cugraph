@@ -23,7 +23,7 @@ def leiden(G, max_iter=100, resolution=1.0):
     Compute the modularity optimizing partition of the input graph using the
     Leiden algorithm
 
-    It uses the Louvain method described in:
+    It uses the Leiden method described in:
 
     Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
     guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
