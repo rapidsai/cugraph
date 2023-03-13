@@ -157,8 +157,8 @@ class Tests_Uniform_Neighbor_Sampling
                    uniform_neighbor_sampling_usecase.flag_replacement),
                  std::exception);
 #else
-    std::optional<rmm::device_uvector<size_t>> starting_vertex_offsets{std::nullopt};
-    std::optional<rmm::device_uvector<int32_t>> label_to_output_gpu_mapping{std::nullopt};
+    std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
+      label_to_output_comm_rank_mapping{std::nullopt};
 
     auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
@@ -167,10 +167,11 @@ class Tests_Uniform_Neighbor_Sampling
         edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
-        std::move(random_sources_copy),
-        std::move(batch_number),
-        std::move(starting_vertex_offsets),
-        std::move(label_to_output_gpu_mapping),
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                           batch_number->size()})
+                     : std::nullopt,
+        label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,

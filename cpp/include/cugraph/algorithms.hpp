@@ -1711,10 +1711,26 @@ k_core(raft::handle_t const& handle,
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * label), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
  * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in, label (optional) identifies which vertex label this edge was derived from.
+ * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
+ * (optional) will be described below and is dependent upon the input parameters.
+ *
+ *
+ * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
+ * label and offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is not specified then
+ * the label output has values.  This will also result in the output being sorted by vertex label.
+ * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
+ * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is specified then the
+ * label output has values.  This will also result in the output being sorted by vertex label.  The
+ * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
+ * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
+ * be shuffled so that all data with a particular label will be on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1730,17 +1746,13 @@ k_core(raft::handle_t const& handle,
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
- * @param starting_vertices Device vector of starting vertex IDs for the sampling.  Note
- * that unlike most of our MG algorithms, these starting vertices do not need to be shuffled to
- * the proper GPU prior to calling, they will get shuffled as part of the algorithm execution.
- * @param starting_labels Optional device vector of starting vertex labels for the sampling.
- * @param starting_vertex_offsets Optional device vector organizing @p starting_vertices into
- * batches of vertices, used in place of @p starting_labels.  If @p starting_vertex_offsets is
- * specified then output will include offsets element (defining the offsets that correspond to a
- * particular input batch)
- * @param label_to_output_gpu_mapping Optional device vector maping label to a particular
- * output GPU.  Index is the label (either from @p starting_labels, or an integer <
- * starting_vertex_offsets->size() - 1), value should be in the range 0 to num_gpus - 1
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
+ * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
+ * output rank.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
  * @param rng_state A pre-initialized raft::RngState object for generating random numbers
@@ -1772,10 +1784,10 @@ uniform_neighbor_sample(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  rmm::device_uvector<vertex_t>&& starting_vertices,
-  std::optional<rmm::device_uvector<label_t>>&& starting_labels,
-  std::optional<rmm::device_uvector<size_t>>&& starting_vertex_offsets,
-  std::optional<rmm::device_uvector<int32_t>>&& label_to_output_gpu_mapping,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,

@@ -31,8 +31,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_type_view,
-  rmm::device_uvector<int32_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -47,8 +47,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
-  rmm::device_uvector<int32_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -63,8 +63,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
-  rmm::device_uvector<int64_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  raft::device_span<int64_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -79,8 +79,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_type_view,
-  rmm::device_uvector<int32_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -95,8 +95,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
-  rmm::device_uvector<int32_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  raft::device_span<int32_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -111,8 +111,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
   std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
   std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
-  rmm::device_uvector<int64_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  raft::device_span<int64_t const> active_majors,
+  std::optional<raft::device_span<int32_t const>> active_major_labels,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -127,8 +127,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
              std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+             raft::device_span<int32_t const> active_majors,
+             std::optional<raft::device_span<int32_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
 
@@ -144,8 +144,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
              std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+             raft::device_span<int32_t const> active_majors,
+             std::optional<raft::device_span<int32_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
 
@@ -161,8 +161,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
              std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<int64_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+             raft::device_span<int64_t const> active_majors,
+             std::optional<raft::device_span<int32_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
 
@@ -178,8 +178,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
              std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+             raft::device_span<int32_t const> active_majors,
+             std::optional<raft::device_span<int32_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
 
@@ -195,8 +195,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
              std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<int32_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+             raft::device_span<int32_t const> active_majors,
+             std::optional<raft::device_span<int32_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
 
@@ -212,16 +212,10 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
              std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<int64_t> const& active_majors,
-             std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+             raft::device_span<int64_t const> active_majors,
+             std::optional<raft::device_span<int32_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
-
-template rmm::device_uvector<int32_t> expand_label_offsets(
-  raft::handle_t const& handle, rmm::device_uvector<size_t> const& label_offsets);
-
-template rmm::device_uvector<size_t> construct_label_offsets(
-  raft::handle_t const& handle, rmm::device_uvector<int32_t> const& label, size_t num_labels);
 
 }  // namespace detail
 }  // namespace cugraph

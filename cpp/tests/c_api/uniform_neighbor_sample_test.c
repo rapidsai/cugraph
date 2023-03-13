@@ -290,7 +290,7 @@ int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t
   cugraph_error_free(ret_error);
 }
 
-int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* handle)
+int test_uniform_neighbor_sample_with_labels(const cugraph_resource_handle_t* handle)
 {
   data_type_id_t vertex_tid    = INT32;
   data_type_id_t edge_tid      = INT32;
@@ -302,7 +302,6 @@ int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* h
   size_t num_vertices = 6;
   size_t fan_out_size = 1;
   size_t num_starts   = 2;
-  size_t start_offsets_size = 3;
 
   vertex_t src[]       = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]       = {1, 3, 4, 0, 1, 3, 5, 5};
@@ -310,7 +309,7 @@ int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* h
   weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
   int32_t edge_types[] = {7, 6, 5, 4, 3, 2, 1, 0};
   vertex_t start[]     = {2, 3};
-  size_t start_offsets[] = { 0, 1, 2 };
+  size_t start_labels[] = { 6, 12 };
   int fan_out[]        = {-1};
 
   // Create graph
@@ -343,8 +342,8 @@ int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* h
 
   cugraph_type_erased_device_array_t* d_start           = NULL;
   cugraph_type_erased_device_array_view_t* d_start_view = NULL;
-  cugraph_type_erased_device_array_t* d_start_offsets           = NULL;
-  cugraph_type_erased_device_array_view_t* d_start_offsets_view = NULL;
+  cugraph_type_erased_device_array_t* d_start_labels           = NULL;
+  cugraph_type_erased_device_array_view_t* d_start_labels_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
 
   ret_code =
@@ -357,15 +356,15 @@ int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* h
     handle, d_start_view, (byte_t*)start, &ret_error);
 
   ret_code =
-    cugraph_type_erased_device_array_create(handle, start_offsets_size, SIZE_T, &d_start_offsets, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_offsets create failed.");
+    cugraph_type_erased_device_array_create(handle, num_starts, INT32, &d_start_labels, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start_labels create failed.");
 
-  d_start_offsets_view = cugraph_type_erased_device_array_view(d_start_offsets);
+  d_start_labels_view = cugraph_type_erased_device_array_view(d_start_labels);
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-    handle, d_start_offsets_view, (byte_t*)start_offsets, &ret_error);
+    handle, d_start_labels_view, (byte_t*)start_labels, &ret_error);
 
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_offsets copy_from_host failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start_labels copy_from_host failed.");
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, 1, INT32);
 
@@ -376,8 +375,8 @@ int test_uniform_neighbor_sample_with_offsets(const cugraph_resource_handle_t* h
   ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
                                                                   graph,
                                                                   d_start_view,
+                                                                  d_start_labels_view,
                                                                   NULL,
-                                                                  d_start_offsets_view,
                                                                   NULL,
                                                                   h_fan_out_view,
                                                                   rng_state,
@@ -496,7 +495,7 @@ int main(int argc, char** argv)
 
   int result = 0;
   result |= RUN_TEST_NEW(test_uniform_neighbor_sample_with_properties, handle);
-  result |= RUN_TEST_NEW(test_uniform_neighbor_sample_with_offsets, handle);
+  result |= RUN_TEST_NEW(test_uniform_neighbor_sample_with_labels, handle);
 
   cugraph_free_resource_handle(handle);
 

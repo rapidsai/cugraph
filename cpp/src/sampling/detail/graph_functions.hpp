@@ -39,7 +39,7 @@ namespace detail {
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param graph_view Graph View object to generate neighbor sampling on.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
@@ -67,8 +67,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_edge_type_view,
-  rmm::device_uvector<vertex_t> const& active_majors,
-  std::optional<rmm::device_uvector<label_t>> const& active_major_labels,
+  raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<label_t const>> active_major_labels,
   bool do_expensive_check = false);
 
 /**
@@ -83,7 +83,7 @@ gather_one_hop_edgelist(
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param graph_view Graph View object to generate neighbor sampling on.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param edge_id_view Optional view object holding edge ids for @p graph_view.
  * @param edge_type_view Optional view object holding edge types for @p graph_view.
@@ -115,8 +115,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
              std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<vertex_t> const& active_majors,
-             std::optional<rmm::device_uvector<label_t>> const& active_major_labels,
+             raft::device_span<vertex_t const> active_majors,
+             std::optional<raft::device_span<label_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
 
@@ -168,36 +168,29 @@ shuffle_sampling_results(raft::handle_t const& handle,
                          std::optional<rmm::device_uvector<label_t>>&& labels,
                          raft::device_span<int32_t const> label_to_output_gpu_mapping);
 
-/**
- * @brief Convert a CSR-style set of offsets into a list of values (COO-style)
- *
- * @tparam label_t Type of label
- *
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param label_offsets The offsets array for labels
- *
- * @returns device vector containing labels for each seed vertex
- */
-template <typename label_t>
-rmm::device_uvector<label_t> expand_label_offsets(raft::handle_t const& handle,
-                                                  rmm::device_uvector<size_t> const& label_offsets);
-
-/**
- * @brief Convert a sorted list of labels into an offsets array (CSR-style)
- *
- * @tparam label_t Type of label
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param labels The list of labels
- * @param num_labels The number of unique labels
- *
- * @returns device vector offsets for the specified labels
- */
-template <typename label_t>
-rmm::device_uvector<size_t> construct_label_offsets(raft::handle_t const& handle,
-                                                    rmm::device_uvector<label_t> const& labels,
-                                                    size_t num_labels);
-
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename label_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+shuffle_and_organize_output(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<label_t>>&& labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank);
 }  // namespace detail
 }  // namespace cugraph

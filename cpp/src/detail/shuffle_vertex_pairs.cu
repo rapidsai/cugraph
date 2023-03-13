@@ -40,13 +40,14 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>>
-shuffle_vertex_pairs_with_values_by_gpu_id_impl(raft::handle_t const& handle,
-                                    rmm::device_uvector<vertex_t>&& majors,
-                                    rmm::device_uvector<vertex_t>&& minors,
-                                    std::optional<rmm::device_uvector<weight_t>>&& weights,
-                                    std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-                                    std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
-                                    func_t func)
+shuffle_vertex_pairs_with_values_by_gpu_id_impl(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  func_t func)
 {
   auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
@@ -76,11 +77,6 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(raft::handle_t const& handle,
   // buffer in a single chunk, and the pool allocator  often cannot handle a large single allocation
   // (due to fragmentation) even when the remaining free memory in aggregate is significantly larger
   // than the requested size).
-  rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> rx_minors(0, handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> rx_weights{std::nullopt};
-  std::optional<rmm::device_uvector<edge_t>> rx_edge_ids{std::nullopt};
-  std::optional<rmm::device_uvector<edge_type_t>> rx_edge_types{std::nullopt};
 
   // FIXME: Consider a generic function that takes a value tuple of optionals
   //        to eliminate this complexity
@@ -180,42 +176,32 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(raft::handle_t const& handle,
   handle.sync_stream();
 
   if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-    std::tie(rx_majors, std::ignore) =
+    std::tie(majors, std::ignore) =
       shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
-    majors.resize(0, handle.get_stream());
-    majors.shrink_to_fit(handle.get_stream());
 
-    std::tie(rx_minors, std::ignore) =
+    std::tie(minors, std::ignore) =
       shuffle_values(comm, minors.begin(), h_tx_value_counts, handle.get_stream());
-    minors.resize(0, handle.get_stream());
-    minors.shrink_to_fit(handle.get_stream());
 
     if (weights) {
-      std::tie(rx_weights, std::ignore) =
+      std::tie(weights, std::ignore) =
         shuffle_values(comm, (*weights).begin(), h_tx_value_counts, handle.get_stream());
-      (*weights).resize(0, handle.get_stream());
-      (*weights).shrink_to_fit(handle.get_stream());
     }
 
     if (edge_ids) {
-      std::tie(rx_edge_ids, std::ignore) =
+      std::tie(edge_ids, std::ignore) =
         shuffle_values(comm, (*edge_ids).begin(), h_tx_value_counts, handle.get_stream());
-      (*edge_ids).resize(0, handle.get_stream());
-      (*edge_ids).shrink_to_fit(handle.get_stream());
     }
 
     if (edge_types) {
-      std::tie(rx_edge_types, std::ignore) =
+      std::tie(edge_types, std::ignore) =
         shuffle_values(comm, (*edge_types).begin(), h_tx_value_counts, handle.get_stream());
-      (*edge_types).resize(0, handle.get_stream());
-      (*edge_types).shrink_to_fit(handle.get_stream());
     }
   } else {
     if (weights) {
       if (edge_ids) {
         if (edge_types) {
-          std::forward_as_tuple(
-            std::tie(rx_majors, rx_minors, rx_weights, rx_edge_ids, rx_edge_types), std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, edge_types),
+                                std::ignore) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(majors.begin(),
                                                      minors.begin(),
@@ -224,132 +210,70 @@ shuffle_vertex_pairs_with_values_by_gpu_id_impl(raft::handle_t const& handle,
                                                      edge_types->begin()),
                            h_tx_value_counts,
                            handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*weights).resize(0, handle.get_stream());
-          (*weights).shrink_to_fit(handle.get_stream());
-          (*edge_ids).resize(0, handle.get_stream());
-          (*edge_ids).shrink_to_fit(handle.get_stream());
-          (*edge_types).resize(0, handle.get_stream());
-          (*edge_types).shrink_to_fit(handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_weights, rx_edge_ids),
-                                std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids), std::ignore) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(
                              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()),
                            h_tx_value_counts,
                            handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*weights).resize(0, handle.get_stream());
-          (*weights).shrink_to_fit(handle.get_stream());
-          (*edge_ids).resize(0, handle.get_stream());
-          (*edge_ids).shrink_to_fit(handle.get_stream());
         }
       } else {
         if (edge_types) {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_weights, rx_edge_types),
-                                std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, weights, edge_types), std::ignore) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(
                              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()),
                            h_tx_value_counts,
                            handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*weights).resize(0, handle.get_stream());
-          (*weights).shrink_to_fit(handle.get_stream());
-          (*edge_types).resize(0, handle.get_stream());
-          (*edge_types).shrink_to_fit(handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_weights), std::ignore) =
-            shuffle_values(
-              comm,
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
-              h_tx_value_counts,
-              handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*weights).resize(0, handle.get_stream());
-          (*weights).shrink_to_fit(handle.get_stream());
+          std::forward_as_tuple(std::tie(majors, minors, weights), std::ignore) = shuffle_values(
+            comm,
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
+            h_tx_value_counts,
+            handle.get_stream());
         }
       }
     } else {
       if (edge_ids) {
         if (edge_types) {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_edge_ids, rx_edge_types),
-                                std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types), std::ignore) =
             shuffle_values(
               comm,
               thrust::make_zip_iterator(
                 majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()),
               h_tx_value_counts,
               handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*edge_ids).resize(0, handle.get_stream());
-          (*edge_ids).shrink_to_fit(handle.get_stream());
-          (*edge_types).resize(0, handle.get_stream());
-          (*edge_types).shrink_to_fit(handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_edge_ids), std::ignore) =
-            shuffle_values(
-              comm,
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
-              h_tx_value_counts,
-              handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*edge_ids).resize(0, handle.get_stream());
-          (*edge_ids).shrink_to_fit(handle.get_stream());
+          std::forward_as_tuple(std::tie(majors, minors, edge_ids), std::ignore) = shuffle_values(
+            comm,
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
+            h_tx_value_counts,
+            handle.get_stream());
         }
       } else {
         if (edge_types) {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_edge_types), std::ignore) =
-            shuffle_values(
-              comm,
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
-              h_tx_value_counts,
-              handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
-          (*edge_types).resize(0, handle.get_stream());
-          (*edge_types).shrink_to_fit(handle.get_stream());
+          std::forward_as_tuple(std::tie(majors, minors, edge_types), std::ignore) = shuffle_values(
+            comm,
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
+            h_tx_value_counts,
+            handle.get_stream());
         } else {
-          std::forward_as_tuple(std::tie(rx_majors, rx_minors), std::ignore) =
+          std::forward_as_tuple(std::tie(majors, minors), std::ignore) =
             shuffle_values(comm,
                            thrust::make_zip_iterator(majors.begin(), minors.begin()),
                            h_tx_value_counts,
                            handle.get_stream());
-          majors.resize(0, handle.get_stream());
-          majors.shrink_to_fit(handle.get_stream());
-          minors.resize(0, handle.get_stream());
-          minors.shrink_to_fit(handle.get_stream());
         }
       }
     }
   }
 
-  return std::make_tuple(std::move(rx_majors),
-                         std::move(rx_minors),
-                         std::move(rx_weights),
-                         std::move(rx_edge_ids),
-                         std::move(rx_edge_types));
+  return std::make_tuple(std::move(majors),
+                         std::move(minors),
+                         std::move(weights),
+                         std::move(edge_ids),
+                         std::move(edge_types));
 }
 
 }  // namespace

@@ -200,18 +200,17 @@ typedef struct {
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
- * @param [in]  start        Device array of start vertices for the sampling
- * @param [in]  label        Device array of start labels for the sampling.  The labels associated
- * with each start vertex will be included in the output associated with results that were derived
- * from that start vertex.  We only support label of type INT32. If label is NULL, the return data
- * will not be labeled.
- * @param [in]  start_offsets Device array of offsets, organinzing the start array into batches.  If
- *                            @p start_offsets is NULL there are no batches.  If start_offsets is
- *                            specified, then @p label must be NULL.
- * @param [in]  label_to_output_gpu_mapping Device array mapping the labels to the output
- *                           gpu.  Only specify if running in multi-gpu mode and if labels is
- * specified. Indices should run cover all unique entries in the label array, values should run from
- * 0 to number of GPUs. All GPUs should specify the same mapping.
+ * @param [in]  start_vertices Device array of start vertices for the sampling
+ * @param [in]  start_vertex_labels  Device array of start vertex labels for the sampling.  The
+ * labels associated with each start vertex will be included in the output associated with results
+ * that were derived from that start vertex.  We only support label of type INT32. If label is
+ * NULL, the return data will not be labeled.
+ * @param [in]  label_list Device array of the labels included in @p start_vertex_labels.  If
+ * @p label_to_comm_rank is not specified this parameter is ignored.
+ * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
+ * particular label should be shuffled in the output.  If not specifed the data is not organized in
+ * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p
+ * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
  * @param [in/out] rng_state State of the random number generator, updated with each call
@@ -230,10 +229,10 @@ typedef struct {
 cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* start,
-  const cugraph_type_erased_device_array_view_t* label,
-  const cugraph_type_erased_device_array_view_t* start_offsets,
-  const cugraph_type_erased_device_array_view_t* label_to_output_gpu_mapping,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  const cugraph_type_erased_device_array_view_t* start_vertex_labels,
+  const cugraph_type_erased_device_array_view_t* label_list,
+  const cugraph_type_erased_device_array_view_t* label_to_comm_rank,
   const cugraph_type_erased_host_array_view_t* fan_out,
   cugraph_rng_state_t* rng_state,
   bool_t with_replacement,

@@ -155,7 +155,6 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  rmm::device_uvector<vertex_t> const& active_majors,
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> const& vertex_frontier,
   bool do_expensive_check)
 {
@@ -390,8 +389,8 @@ gather_one_hop_edgelist(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  rmm::device_uvector<vertex_t> const& active_majors,
-  std::optional<rmm::device_uvector<label_t>> const& active_major_labels,
+  raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<label_t const>> active_major_labels,
   bool do_expensive_check)
 {
   if (active_major_labels) {
@@ -412,7 +411,6 @@ gather_one_hop_edgelist(
                                               edge_weight_view,
                                               edge_id_view,
                                               edge_type_view,
-                                              active_majors,
                                               vertex_label_frontier,
                                               do_expensive_check);
   } else {
@@ -430,7 +428,6 @@ gather_one_hop_edgelist(
                                               edge_weight_view,
                                               edge_id_view,
                                               edge_type_view,
-                                              active_majors,
                                               vertex_frontier,
                                               do_expensive_check);
   }
@@ -454,8 +451,8 @@ sample_edges(raft::handle_t const& handle,
              std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
              std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<vertex_t> const& active_majors,
-             std::optional<rmm::device_uvector<label_t>> const& active_major_labels,
+             raft::device_span<vertex_t const> active_majors,
+             std::optional<raft::device_span<label_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement)
 {
@@ -612,15 +609,13 @@ sample_edges(raft::handle_t const& handle,
   if (active_major_labels) {
     labels = rmm::device_uvector<int32_t>((*sample_offsets).back_element(handle.get_stream()),
                                           handle.get_stream());
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(active_majors.size()),
-      segmented_fill_t{
-        raft::device_span<int32_t const>((*active_major_labels).data(),
-                                         (*active_major_labels).size()),
-        raft::device_span<size_t const>((*sample_offsets).data(), (*sample_offsets).size()),
-        raft::device_span<int32_t>((*labels).data(), (*labels).size())});
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(active_majors.size()),
+                     segmented_fill_t{*active_major_labels,
+                                      raft::device_span<size_t const>(sample_offsets->data(),
+                                                                      sample_offsets->size()),
+                                      raft::device_span<int32_t>(labels->data(), labels->size())});
   }
 
   return std::make_tuple(std::move(majors),
@@ -642,94 +637,63 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<int32_t>>,
-           std::optional<rmm::device_uvector<label_t>>>
-shuffle_sampling_results(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>&& majors,
-                         rmm::device_uvector<vertex_t>&& minors,
-                         std::optional<rmm::device_uvector<weight_t>>&& weights,
-                         std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
-                         std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
-                         std::optional<rmm::device_uvector<int32_t>>&& hops,
-                         std::optional<rmm::device_uvector<label_t>>&& labels,
-                         raft::device_span<int32_t const> label_to_output_gpu_mapping)
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+shuffle_and_organize_output(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<label_t>>&& labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank)
 {
-  CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
+  if (label_to_output_comm_rank) {
+    CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
 
-  auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0}) +
-                      (edge_ids ? sizeof(edge_t) : size_t{0}) +
-                      (edge_types ? sizeof(edge_type_t) : size_t{0}) +
-                      (hops ? sizeof(int32_t) : size_t{0}) + sizeof(label_t);
+    auto& comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
 
-  auto constexpr mem_frugal_ratio =
-    0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-          // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-          // group-by by default, and thrust::sort requires temporary buffer comparable to the input
-          // data size)
-  auto mem_frugal_threshold =
-    static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+    auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0}) +
+                        (edge_ids ? sizeof(edge_t) : size_t{0}) +
+                        (edge_types ? sizeof(edge_type_t) : size_t{0}) +
+                        (hops ? sizeof(int32_t) : size_t{0}) + sizeof(label_t);
 
-  auto mem_frugal_flag =
-    host_scalar_allreduce(comm,
-                          majors.size() > mem_frugal_threshold ? int{1} : int{0},
-                          raft::comms::op_t::MAX,
-                          handle.get_stream());
+    auto constexpr mem_frugal_ratio =
+      0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+    // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+    // group-by by default, and thrust::sort requires temporary buffer comparable to the input
+    // data size)
+    auto mem_frugal_threshold =
+      static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-  // invoke groupby_and_count and shuffle values to pass mem_frugal_threshold instead of directly
-  // calling groupby_gpu_id_and_shuffle_values there is no benefit in reducing peak memory as we
-  // need to allocate a receive buffer anyways) but this reduces the maximum memory allocation size
-  // by half or more (thrust::sort used inside the groupby_and_count allocates the entire temporary
-  // buffer in a single chunk, and the pool allocator  often cannot handle a large single allocation
-  // (due to fragmentation) even when the remaining free memory in aggregate is significantly larger
-  // than the requested size).
-  auto d_tx_value_counts = cugraph::groupby_and_count(
-    labels->begin(),
-    labels->end(),
-    [label_to_output_gpu_mapping] __device__(auto val) { return label_to_output_gpu_mapping[val]; },
-    comm_size,
-    mem_frugal_threshold,
-    handle.get_stream());
+    // FIXME:  Need some MG tests that actually exercise all of these variations...
 
-  std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
-  raft::update_host(h_tx_value_counts.data(),
-                    d_tx_value_counts.data(),
-                    d_tx_value_counts.size(),
-                    handle.get_stream());
-  handle.sync_stream();
+    auto d_tx_value_counts = cugraph::groupby_and_count(
+      labels->begin(),
+      labels->end(),
+      [output_label = std::get<0>(*label_to_output_comm_rank),
+       output_rank  = std::get<1>(*label_to_output_comm_rank)] __device__(auto val) {
+        auto pos = thrust::find(thrust::seq, output_label.begin(), output_label.end(), val);
+        return output_rank[thrust::distance(output_label.begin(), pos)];
+      },
+      comm_size,
+      mem_frugal_threshold,
+      handle.get_stream());
 
-  if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-    std::tie(majors, std::ignore) =
-      shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
+    std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+    raft::update_host(h_tx_value_counts.data(),
+                      d_tx_value_counts.data(),
+                      d_tx_value_counts.size(),
+                      handle.get_stream());
+    handle.sync_stream();
 
-    std::tie(minors, std::ignore) =
-      shuffle_values(comm, minors.begin(), h_tx_value_counts, handle.get_stream());
-
-    if (weights) {
-      std::tie(*weights, std::ignore) =
-        shuffle_values(comm, weights->begin(), h_tx_value_counts, handle.get_stream());
-    }
-
-    if (edge_ids) {
-      std::tie(*edge_ids, std::ignore) =
-        shuffle_values(comm, edge_ids->begin(), h_tx_value_counts, handle.get_stream());
-    }
-
-    if (edge_types) {
-      std::tie(*edge_types, std::ignore) =
-        shuffle_values(comm, edge_types->begin(), h_tx_value_counts, handle.get_stream());
-    }
-
-    if (hops) {
-      std::tie(*hops, std::ignore) =
-        shuffle_values(comm, hops->begin(), h_tx_value_counts, handle.get_stream());
-    }
-
-    std::tie(*labels, std::ignore) =
-      shuffle_values(comm, edge_types->begin(), h_tx_value_counts, handle.get_stream());
-  } else {
     if (weights) {
       if (edge_ids) {
         if (edge_types) {
@@ -918,32 +882,198 @@ shuffle_sampling_results(raft::handle_t const& handle,
     }
   }
 
+  if (labels) {
+    if (weights) {
+      if (edge_ids) {
+        if (edge_types) {
+          if (hops) {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(majors.begin(),
+                                                          minors.begin(),
+                                                          weights->begin(),
+                                                          edge_ids->begin(),
+                                                          edge_types->begin(),
+                                                          hops->begin()));
+          } else {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(majors.begin(),
+                                                          minors.begin(),
+                                                          weights->begin(),
+                                                          edge_ids->begin(),
+                                                          edge_types->begin()));
+          }
+        } else {
+          if (hops) {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(majors.begin(),
+                                                          minors.begin(),
+                                                          weights->begin(),
+                                                          edge_ids->begin(),
+                                                          hops->begin()));
+          } else {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(
+                majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
+          }
+        }
+      } else {
+        if (edge_types) {
+          if (hops) {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(majors.begin(),
+                                                          minors.begin(),
+                                                          weights->begin(),
+                                                          edge_types->begin(),
+                                                          hops->begin()));
+          } else {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(
+                majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
+          }
+        } else {
+          if (hops) {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(
+                                  majors.begin(), minors.begin(), weights->begin(), hops->begin()));
+          } else {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
+          }
+        }
+      }
+    } else {
+      if (edge_ids) {
+        if (edge_types) {
+          if (hops) {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(majors.begin(),
+                                                          minors.begin(),
+                                                          edge_ids->begin(),
+                                                          edge_types->begin(),
+                                                          hops->begin()));
+          } else {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(
+                majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
+          }
+        } else {
+          if (hops) {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(
+                majors.begin(), minors.begin(), edge_ids->begin(), hops->begin()));
+          } else {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
+          }
+        }
+      } else {
+        if (edge_types) {
+          if (hops) {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(
+                majors.begin(), minors.begin(), edge_types->begin(), hops->begin()));
+          } else {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
+          }
+        } else {
+          if (hops) {
+            thrust::sort_by_key(
+              handle.get_thrust_policy(),
+              labels->begin(),
+              labels->end(),
+              thrust::make_zip_iterator(majors.begin(), minors.begin(), hops->begin()));
+          } else {
+            thrust::sort_by_key(handle.get_thrust_policy(),
+                                labels->begin(),
+                                labels->end(),
+                                thrust::make_zip_iterator(majors.begin(), minors.begin()));
+          }
+        }
+      }
+    }
+
+    size_t num_unique_labels =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator<size_t>(0),
+                       thrust::make_counting_iterator<size_t>(labels->size()),
+                       [d_labels = labels->data()] __device__(size_t idx) {
+                         return (idx == 0) || (d_labels[idx - 1] != d_labels[idx]);
+                       });
+
+    rmm::device_uvector<label_t> unique_labels(num_unique_labels, handle.get_stream());
+
+    thrust::copy_if(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(thrust::make_counting_iterator<size_t>(0), labels->begin()),
+      thrust::make_zip_iterator(thrust::make_counting_iterator<size_t>(labels->size()),
+                                labels->end()),
+      thrust::make_zip_iterator(thrust::make_discard_iterator(), unique_labels.begin()),
+      [d_labels = labels->data()] __device__(auto tuple) {
+        size_t idx = thrust::get<0>(tuple);
+        return (idx == 0) || (d_labels[idx - 1] != d_labels[idx]);
+      });
+
+    thrust::transform(handle.get_thrust_policy(),
+                      labels->begin(),
+                      labels->end(),
+                      labels->begin(),
+                      [d_unique_labels = raft::device_span<label_t const>{
+                         unique_labels.data(), unique_labels.size()}] __device__(label_t label) {
+                        auto pos = thrust::lower_bound(
+                          thrust::seq, d_unique_labels.begin(), d_unique_labels.end(), label);
+                        return static_cast<label_t>(thrust::distance(d_unique_labels.begin(), pos));
+                      });
+
+    offsets = detail::compute_sparse_offsets<size_t>(
+      labels->begin(), labels->end(), size_t{0}, unique_labels.size(), handle.get_stream());
+    labels = std::move(unique_labels);
+  }
+
   return std::make_tuple(std::move(majors),
                          std::move(minors),
                          std::move(weights),
                          std::move(edge_ids),
                          std::move(edge_types),
                          std::move(hops),
-                         std::move(labels));
-}
-
-template <typename label_t>
-rmm::device_uvector<label_t> expand_label_offsets(raft::handle_t const& handle,
-                                                  rmm::device_uvector<size_t> const& label_offsets)
-{
-  return detail::expand_sparse_offsets(
-    raft::device_span<size_t const>(label_offsets.data(), label_offsets.size()),
-    label_t{0},
-    handle.get_stream());
-}
-
-template <typename label_t>
-rmm::device_uvector<size_t> construct_label_offsets(raft::handle_t const& handle,
-                                                    rmm::device_uvector<label_t> const& label,
-                                                    size_t num_labels)
-{
-  return detail::compute_sparse_offsets<size_t>(
-    label.begin(), label.end(), size_t{0}, num_labels - 1, handle.get_stream());
+                         std::move(labels),
+                         std::move(offsets));
 }
 
 }  // namespace detail
