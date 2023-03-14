@@ -29,7 +29,7 @@ def ensure_valid_dtype(input_graph, start_list):
         start_list_dtypes = start_list.dtype
     else:
         start_list_dtypes = start_list.dtypes[0]
-    
+
     if start_list_dtypes != vertex_dtype:
         warning_msg = (
             "Triangle_count requires 'start_list' to match the graph's 'vertex' type. "
@@ -40,6 +40,7 @@ def ensure_valid_dtype(input_graph, start_list):
         start_list = start_list.astype(vertex_dtype)
 
     return start_list
+
 
 def triangle_count(G, start_list=None):
     """

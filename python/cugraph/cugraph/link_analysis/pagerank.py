@@ -57,7 +57,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         )
         warnings.warn(warning_msg, UserWarning)
         input_df = input_df.astype({"values": edge_attr_dtype})
-    
+
     if input_df_vertex_dtype != vertex_dtype:
         warning_msg = (
             f"PageRank requires '{input_df_name}' vertex "

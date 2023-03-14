@@ -294,14 +294,16 @@ def strongly_connected_components(
     # Renumber the vertices so that they are contiguous (required)
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df
-        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(edgelist, ["src"], ["dst"])
+        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
+            edgelist, ["src"], ["dst"]
+        )
         renumbered_src_col_name = renumber_map.renumbered_src_col_name
         renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
         G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
-            columns={renumbered_src_col_name:"src", renumbered_dst_col_name:"dst"})
+            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
+        )
         G.properties.renumbered = True
         G.renumber_map = renumber_map
-
 
     df = connectivity_wrapper.strongly_connected_components(G)
 

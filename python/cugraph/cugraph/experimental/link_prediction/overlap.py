@@ -26,10 +26,10 @@ from pylibcugraph import ResourceHandle
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
 def ensure_valid_dtype(input_graph, vertex_pair):
-    
+
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
     vertex_pair_dtypes = vertex_pair.dtypes
-    
+
     if vertex_pair_dtypes[0] != vertex_dtype or vertex_pair_dtypes[1] != vertex_dtype:
         warning_msg = (
             "Overlap requires 'vertex_pair' to match the graph's 'vertex' type. "

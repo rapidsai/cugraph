@@ -320,7 +320,7 @@ class simpleGraphImpl:
         """
         Returns the graph adjacency matrix as a NumPy array.
         """
-        
+
         nlen = self.number_of_nodes()
         elen = self.number_of_edges()
         df = self.edgelist.edgelist_df
@@ -328,11 +328,9 @@ class simpleGraphImpl:
         nodes = self.nodes()
         for i in range(0, elen):
             # Map vertices to consecutive integers
-            idx_src = nodes[nodes==df[simpleGraphImpl.srcCol].iloc[i]].index[0]
-            idx_dst = nodes[nodes==df[simpleGraphImpl.dstCol].iloc[i]].index[0]
-            np_array[
-                idx_src, idx_dst
-            ] = df[self.edgeWeightCol].iloc[i]
+            idx_src = nodes[nodes == df[simpleGraphImpl.srcCol].iloc[i]].index[0]
+            idx_dst = nodes[nodes == df[simpleGraphImpl.dstCol].iloc[i]].index[0]
+            np_array[idx_src, idx_dst] = df[self.edgeWeightCol].iloc[i]
         return np_array
 
     def to_numpy_matrix(self):

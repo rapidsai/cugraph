@@ -30,7 +30,7 @@ def ensure_valid_dtype(input_graph, start_list):
         start_list_dtypes = start_list.dtype
     else:
         start_list_dtypes = start_list.dtypes[0]
-    
+
     if start_list_dtypes != vertex_dtype:
         warning_msg = (
             "Uniform_neighbor_sample requires 'start_list' to match the graph's 'vertex' type. "
