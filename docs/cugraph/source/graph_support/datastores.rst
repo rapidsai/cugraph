@@ -6,4 +6,8 @@ Data Stores
 .. toctree::
    :maxdepth: 3
    
-Datastores supported in cuGraph
+Property Graph
+
+Feature Stores
+
+Knowledge Store

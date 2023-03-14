@@ -1,2 +1,2 @@
 # Commmunity Resources
-[Rapids Notebooks](https://github.com/rapidsai/notebooks/tree/branch-23.04/repos)
+Rapids Community Repository(https://github.com/rapidsai-community/notebooks-contrib)
