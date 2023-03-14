@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
@@ -180,7 +179,20 @@ class Tests_MGExtractIfE
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      // 3-1. aggregate MG results
+      // 3-1. unrenumber & aggregate MG results
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        mg_edgelist_srcs.data(),
+        mg_edgelist_srcs.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        mg_edgelist_dsts.data(),
+        mg_edgelist_dsts.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
       auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
@@ -190,22 +202,7 @@ class Tests_MGExtractIfE
         cugraph::test::device_gatherv(*handle_, mg_edgelist_dsts.data(), mg_edgelist_dsts.size());
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. unrenumber MG results
-
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          mg_aggregate_edgelist_srcs.data(),
-          mg_aggregate_edgelist_srcs.size(),
-          mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          mg_aggregate_edgelist_dsts.data(),
-          mg_aggregate_edgelist_dsts.size(),
-          mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-
-        // 3-3. create SG graph
+        // 3-2. create SG graph
 
         cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
         std::tie(sg_graph, std::ignore, std::ignore) =
@@ -214,7 +211,7 @@ class Tests_MGExtractIfE
 
         auto sg_graph_view = sg_graph.view();
 
-        // 3-4. run SG extract_if_e
+        // 3-3. run SG extract_if_e
 
         auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
           *handle_,
@@ -235,7 +232,7 @@ class Tests_MGExtractIfE
             return src_val < dst_val;
           });
 
-        // 3-5. compare
+        // 3-4. compare
 
         auto mg_edge_first = thrust::make_zip_iterator(thrust::make_tuple(
           mg_aggregate_edgelist_srcs.begin(), mg_aggregate_edgelist_dsts.begin()));

@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
-//#include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <thrust/tuple.h>
@@ -68,12 +67,17 @@ template <typename vertex_t>
 rmm::device_uvector<vertex_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& vertices)
 {
-  auto const comm_size = handle.get_comms().get_size();
+  auto const comm_size       = handle.get_comms().get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   return shuffle_vertices_by_gpu_id_impl(
     handle,
     std::move(vertices),
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size});
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size});
 }
 
 template <typename vertex_t, typename value_t>
@@ -83,13 +87,18 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
   rmm::device_uvector<vertex_t>&& vertices,
   rmm::device_uvector<value_t>&& values)
 {
-  auto const comm_size = handle.get_comms().get_size();
+  auto const comm_size       = handle.get_comms().get_size();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   return shuffle_vertices_and_values_by_gpu_id_impl(
     handle,
     std::move(vertices),
     std::move(values),
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size});
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size});
 }
 
 template <typename vertex_t>
@@ -104,14 +113,53 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_to_local_gpu_by_vertex_partit
                       vertex_partition_range_lasts.data(),
                       vertex_partition_range_lasts.size(),
                       handle.get_stream());
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
 
   auto return_value = shuffle_vertices_by_gpu_id_impl(
     handle,
     std::move(vertices),
     cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-      {d_vertex_partition_range_lasts.data(), d_vertex_partition_range_lasts.size()}});
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
+      major_comm_size,
+      minor_comm_size});
 
   handle.sync_stream();
+
+  return return_value;
+}
+
+template <typename vertex_t, typename value_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& vertices,
+  rmm::device_uvector<value_t>&& values,
+  std::vector<vertex_t> const& vertex_partition_range_lasts)
+{
+  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
+                                                               handle.get_stream());
+  raft::update_device(d_vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
+                      handle.get_stream());
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+
+  auto return_value = shuffle_vertices_and_values_by_gpu_id_impl(
+    handle,
+    std::move(vertices),
+    std::move(values),
+    cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
+      major_comm_size,
+      minor_comm_size});
 
   return return_value;
 }
@@ -120,9 +168,24 @@ template rmm::device_uvector<int32_t> shuffle_int_vertices_to_local_gpu_by_verte
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& vertices,
   std::vector<int32_t> const& vertex_partition_range_lasts);
+
 template rmm::device_uvector<int64_t> shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& vertices,
+  std::vector<int64_t> const& vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  rmm::device_uvector<int32_t>&& d_values,
+  std::vector<int32_t> const& vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>>
+shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& d_vertices,
+  rmm::device_uvector<int32_t>&& d_values,
   std::vector<int64_t> const& vertex_partition_range_lasts);
 
 template rmm::device_uvector<int32_t> shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(

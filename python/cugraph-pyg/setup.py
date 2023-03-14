@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,8 +18,6 @@ from setuptools import find_packages, Command
 from skbuild import setup
 
 from setuputils import get_environment_option
-
-import versioneer
 
 
 INSTALL_REQUIRES = []
@@ -65,8 +63,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
 # FIXME possibly remove this since there is no Cython code in cugraph_pyg
 PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph_pyg*"])}
 
@@ -75,7 +71,7 @@ setup(
     name="cugraph_pyg",
     description="cugraph_pyg - PyG support for cuGraph massive-scale,"
     " ultra-fast GPU graph analytics.",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -83,6 +79,7 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
@@ -92,6 +89,6 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     license="Apache",
-    cmdclass=cmdclass,
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,11 +51,18 @@
     }                                 \
   } while (0)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
                 const char* test_name,
                 const cugraph_resource_handle_t* rank);
 
 #define RUN_MG_TEST(test_name, handle) run_mg_test(test_name, #test_name, handle)
+
+void* create_mg_raft_handle(int argc, char** argv);
+void free_mg_raft_handle(void* raft_handle);
 
 int create_mg_test_graph(const cugraph_resource_handle_t* p_handle,
                          int32_t* h_src,
@@ -86,3 +93,19 @@ int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle
                                        bool_t is_symmetric,
                                        cugraph_graph_t** p_graph,
                                        cugraph_error_t** ret_error);
+
+int create_mg_test_graph_with_properties(const cugraph_resource_handle_t* p_handle,
+                                         int32_t* h_src,
+                                         int32_t* h_dst,
+                                         int32_t* h_idx,
+                                         int32_t* h_type,
+                                         float* h_wgt,
+                                         size_t num_edges,
+                                         bool_t store_transposed,
+                                         bool_t is_symmetric,
+                                         cugraph_graph_t** p_graph,
+                                         cugraph_error_t** ret_error);
+
+#ifdef __cplusplus
+}
+#endif

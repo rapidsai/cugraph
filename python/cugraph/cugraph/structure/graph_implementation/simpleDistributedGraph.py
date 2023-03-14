@@ -174,12 +174,20 @@ class simpleDistributedGraphImpl:
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
-            if len(edge_attr) == 3 and not self.properties.directed:
-                raise ValueError(
-                    "User-provided edge ids and edge "
-                    "types are not permitted for an "
-                    "undirected graph."
-                )
+            if len(edge_attr) == 3:
+                if not self.properties.directed:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are not permitted for an "
+                        "undirected graph."
+                    )
+                if not legacy_renum_only:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are only permitted when "
+                        "from_edgelist is called with "
+                        "legacy_renum_only=True."
+                    )
 
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
@@ -249,9 +257,9 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
 
-        self._client = default_client()
+        _client = default_client()
         self._plc_graph = {
-            w: self._client.submit(
+            w: _client.submit(
                 simpleDistributedGraphImpl._make_plc_graph,
                 Comms.get_session_id(),
                 edata,
@@ -697,9 +705,10 @@ class simpleDistributedGraphImpl:
                 do_expensive_check=False,
             )
 
+        _client = default_client()
         if start_vertices is not None:
             result = [
-                self._client.submit(
+                _client.submit(
                     _call_plc_two_hop_neighbors,
                     Comms.get_session_id(),
                     self._plc_graph[w],
@@ -711,7 +720,7 @@ class simpleDistributedGraphImpl:
             ]
         else:
             result = [
-                self._client.submit(
+                _client.submit(
                     _call_plc_two_hop_neighbors,
                     Comms.get_session_id(),
                     self._plc_graph[w],
@@ -734,8 +743,9 @@ class simpleDistributedGraphImpl:
             df["second"] = second
             return df
 
+        _client = default_client()
         cudf_result = [
-            self._client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+            _client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
         ]
 
         wait(cudf_result)

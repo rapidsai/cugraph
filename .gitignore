@@ -14,6 +14,7 @@ __pycache__
 *~
 DartConfiguration.tcl
 .DS_Store
+rmm_log.txt
 
 # Unit test / coverage reports
 htmlcov/
@@ -93,3 +94,5 @@ python/cugraph/cugraph/tests/dask-worker-space
 
 # Sphinx docs & build artifacts
 docs/cugraph/source/api_docs/api/*
+_html
+_text

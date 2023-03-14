@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,19 +16,15 @@ import os
 from setuptools import find_packages, Command
 from skbuild import setup
 
-import versioneer
-
-
-cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 
 INSTALL_REQUIRES = [
     "numba",
-    "dask-cuda",
-    f"rmm{cuda_suffix}",
-    f"cudf{cuda_suffix}",
-    f"raft-dask{cuda_suffix}",
-    f"dask-cudf{cuda_suffix}",
-    f"pylibcugraph{cuda_suffix}",
+    "dask-cuda==23.4.*",
+    "rmm==23.4.*",
+    "cudf==23.4.*",
+    "raft-dask==23.4.*",
+    "dask-cudf==23.4.*",
+    "pylibcugraph==23.4.*",
     "cupy-cuda11x",
 ]
 
@@ -76,9 +72,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
-
 PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
 PACKAGE_DATA["cugraph.experimental.datasets"].extend(
@@ -89,24 +82,10 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 )
 
 
-# Ensure that wheel version patching works for nightlies.
-if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
-    orig_get_versions = versioneer.get_versions
-
-    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
-
-    def get_versions():
-        data = orig_get_versions()
-        data["version"] = version_override
-        return data
-
-    versioneer.get_versions = get_versions
-
-
 setup(
-    name=f"cugraph{cuda_suffix}",
+    name="cugraph",
     description="cuGraph - RAPIDS GPU Graph Analytics",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -114,6 +93,7 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
@@ -122,7 +102,7 @@ setup(
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     license="Apache 2.0",
-    cmdclass=cmdclass,
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
     extras_require=extras_require,
 )

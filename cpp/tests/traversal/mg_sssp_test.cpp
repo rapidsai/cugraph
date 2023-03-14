@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -119,7 +118,24 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
     // 3. copmare SG & MG results
 
     if (sssp_usecase.check_correctness) {
-      // 3-1. aggregate MG results
+      // 3-1. unrenumber & aggregate MG source & results
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_predecessors.data(),
+        d_mg_predecessors.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      rmm::device_scalar<vertex_t> d_sg_source(static_cast<vertex_t>(sssp_usecase.source),
+                                               handle_->get_stream());
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_sg_source.data(),
+        size_t{1},
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
@@ -129,14 +145,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         cugraph::test::device_gatherv(*handle_, d_mg_predecessors.data(), d_mg_predecessors.size());
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. unrenumber MG results
-
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          d_mg_aggregate_predecessors.data(),
-          d_mg_aggregate_predecessors.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
+        // 3-2. sort MG results
 
         std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
           *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
@@ -165,19 +174,13 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         rmm::device_uvector<vertex_t> d_sg_predecessors(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-        vertex_t unrenumbered_source{};
-        raft::update_host(&unrenumbered_source,
-                          d_mg_aggregate_renumber_map_labels.data() + sssp_usecase.source,
-                          size_t{1},
-                          handle_->get_stream());
-        handle_->sync_stream();
 
         cugraph::sssp(*handle_,
                       sg_graph_view,
                       *sg_edge_weight_view,
                       d_sg_distances.data(),
                       d_sg_predecessors.data(),
-                      unrenumbered_source,
+                      d_sg_source.value(handle_->get_stream()),
                       std::numeric_limits<weight_t>::max());
 
         // 3-5. compare

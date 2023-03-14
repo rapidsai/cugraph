@@ -88,16 +88,15 @@ class Tests_MGEdgeBetweennessCentrality
     rmm::device_uvector<vertex_t> d_seeds(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(),
-                                            handle_->get_stream());
+      d_seeds.resize(mg_graph_view.number_of_vertices(), handle_->get_stream());
       cugraph::detail::sequence_fill(
         handle_->get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
 
       d_seeds = cugraph::test::randomly_select(*handle_, d_seeds, betweenness_usecase.num_seeds);
     }
 
-    d_seeds = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(d_seeds));
+    d_seeds = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_seeds), mg_graph_view.vertex_partition_range_lasts());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -110,7 +109,7 @@ class Tests_MGEdgeBetweennessCentrality
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+      std::make_optional<raft::device_span<vertex_t const>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       do_expensive_check);
@@ -119,7 +118,7 @@ class Tests_MGEdgeBetweennessCentrality
                    *handle_,
                    mg_graph_view,
                    mg_edge_weight_view,
-                   std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+                   std::make_optional<raft::device_span<vertex_t const>>(
                      raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
                    betweenness_usecase.normalized,
                    do_expensive_check),
@@ -207,10 +206,10 @@ INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGEdgeBetweennessCentrality_Rmat,
   // enable correctness checks
-  ::testing::Combine(
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{50, false, false, true},
-                      EdgeBetweennessCentrality_Usecase{50, false, true, true}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+  ::testing::Combine(::testing::Values(EdgeBetweennessCentrality_Usecase{50, false, false, true},
+                                       EdgeBetweennessCentrality_Usecase{50, false, true, true}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -220,9 +219,9 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGEdgeBetweennessCentrality_Rmat,
   // disable correctness checks for large graphs
-  ::testing::Combine(
-    ::testing::Values(EdgeBetweennessCentrality_Usecase{500, false, false, false},
-                      EdgeBetweennessCentrality_Usecase{500, false, true, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
+  ::testing::Combine(::testing::Values(EdgeBetweennessCentrality_Usecase{500, false, false, false},
+                                       EdgeBetweennessCentrality_Usecase{500, false, true, false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

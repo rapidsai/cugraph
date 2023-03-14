@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,6 @@ import os
 
 from setuptools import find_packages, Command
 from skbuild import setup
-
-import versioneer
 
 
 class CleanCommand(Command):
@@ -45,10 +43,6 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
-
-
 def exclude_libcxx_symlink(cmake_manifest):
     return list(
         filter(
@@ -57,27 +51,10 @@ def exclude_libcxx_symlink(cmake_manifest):
     )
 
 
-cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
-
-
-# Ensure that wheel version patching works for nightlies.
-if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
-    orig_get_versions = versioneer.get_versions
-
-    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
-
-    def get_versions():
-        data = orig_get_versions()
-        data["version"] = version_override
-        return data
-
-    versioneer.get_versions = get_versions
-
-
 setup(
-    name=f"pylibcugraph{cuda_suffix}",
+    name="pylibcugraph",
     description="pylibcuGraph - RAPIDS GPU Graph Analytics",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -85,6 +62,7 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
@@ -92,8 +70,8 @@ setup(
     package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
     include_package_data=True,
     install_requires=[
-        f"pylibraft{cuda_suffix}",
-        f"rmm{cuda_suffix}",
+        "pylibraft==23.4.*",
+        "rmm==23.4.*",
     ],
     extras_require={
         "test": [
@@ -104,15 +82,11 @@ setup(
             "pandas",
             "numpy",
             "networkx>=2.5.1",
-            "scikit-learn>=0.23.1",
-            "dask",
-            "distributed",
-            "dask-cuda",
-            f"cudf{cuda_suffix}",
+            "cudf==23.4.*",
         ]
     },
     cmake_process_manifest_hook=exclude_libcxx_symlink,
     license="Apache 2.0",
-    cmdclass=cmdclass,
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )

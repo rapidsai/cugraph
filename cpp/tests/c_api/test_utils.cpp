@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -230,4 +230,161 @@ extern "C" int run_sg_test(int (*test)(), const char* test_name)
   fflush(stdout);
 
   return ret_val;
+}
+
+extern "C" int run_sg_test_new(int (*test)(const cugraph_resource_handle_t*),
+                               const char* test_name,
+                               const cugraph_resource_handle_t* handle)
+{
+  int ret_val = 0;
+  time_t start_time, end_time;
+
+  printf("RUNNING: %s...", test_name);
+  fflush(stdout);
+
+  time(&start_time);
+
+  ret_val = test(handle);
+
+  time(&end_time);
+
+  printf("done (%f seconds).", difftime(end_time, start_time));
+  if (ret_val == 0) {
+    printf(" - passed\n");
+  } else {
+    printf(" - FAILED\n");
+  }
+  fflush(stdout);
+
+  return ret_val;
+}
+
+int create_sg_test_graph(const cugraph_resource_handle_t* handle,
+                         data_type_id_t vertex_tid,
+                         data_type_id_t edge_tid,
+                         void* h_src,
+                         void* h_dst,
+                         data_type_id_t weight_tid,
+                         void* h_wgt,
+                         data_type_id_t edge_type_tid,
+                         void* h_edge_type,
+                         data_type_id_t edge_id_tid,
+                         void* h_edge_id,
+                         size_t num_edges,
+                         bool_t store_transposed,
+                         bool_t renumber,
+                         bool_t is_symmetric,
+                         bool_t is_multigraph,
+                         cugraph_graph_t** graph,
+                         cugraph_error_t** ret_error)
+{
+  int test_ret_value = 0;
+  cugraph_error_code_t ret_code;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = is_symmetric;
+  properties.is_multigraph = is_multigraph;
+
+  cugraph_type_erased_device_array_t* src                 = NULL;
+  cugraph_type_erased_device_array_t* dst                 = NULL;
+  cugraph_type_erased_device_array_t* wgt                 = NULL;
+  cugraph_type_erased_device_array_t* edge_type           = NULL;
+  cugraph_type_erased_device_array_t* edge_id             = NULL;
+  cugraph_type_erased_device_array_view_t* src_view       = NULL;
+  cugraph_type_erased_device_array_view_t* dst_view       = NULL;
+  cugraph_type_erased_device_array_view_t* wgt_view       = NULL;
+  cugraph_type_erased_device_array_view_t* edge_type_view = NULL;
+  cugraph_type_erased_device_array_view_t* edge_id_view   = NULL;
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &src, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+  src_view = cugraph_type_erased_device_array_view(src);
+  dst_view = cugraph_type_erased_device_array_view(dst);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, src_view, (byte_t*)h_src, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, dst_view, (byte_t*)h_dst, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
+
+  if (h_wgt != NULL) {
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
+
+    wgt_view = cugraph_type_erased_device_array_view(wgt);
+
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, wgt_view, (byte_t*)h_wgt, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
+  }
+
+  if (h_edge_type != NULL) {
+    ret_code = cugraph_type_erased_device_array_create(
+      handle, num_edges, edge_type_tid, &edge_type, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_type create failed.");
+
+    edge_type_view = cugraph_type_erased_device_array_view(edge_type);
+
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, edge_type_view, (byte_t*)h_edge_type, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_type copy_from_host failed.");
+  }
+
+  if (h_edge_id != NULL) {
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, edge_id_tid, &edge_id, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id create failed.");
+
+    edge_id_view = cugraph_type_erased_device_array_view(edge_id);
+
+    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+      handle, edge_id_view, (byte_t*)h_edge_id, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "edge_id copy_from_host failed.");
+  }
+
+  ret_code = cugraph_sg_graph_create(handle,
+                                     &properties,
+                                     src_view,
+                                     dst_view,
+                                     wgt_view,
+                                     edge_id_view,
+                                     edge_type_view,
+                                     store_transposed,
+                                     renumber,
+                                     FALSE,
+                                     graph,
+                                     ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  if (edge_id != NULL) {
+    cugraph_type_erased_device_array_view_free(edge_id_view);
+    cugraph_type_erased_device_array_free(edge_id);
+  }
+
+  if (edge_type != NULL) {
+    cugraph_type_erased_device_array_view_free(edge_type_view);
+    cugraph_type_erased_device_array_free(edge_type);
+  }
+
+  if (wgt != NULL) {
+    cugraph_type_erased_device_array_view_free(wgt_view);
+    cugraph_type_erased_device_array_free(wgt);
+  }
+
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(dst);
+  cugraph_type_erased_device_array_free(src);
+
+  return test_ret_value;
 }
