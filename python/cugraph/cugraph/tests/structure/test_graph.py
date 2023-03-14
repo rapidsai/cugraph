@@ -461,7 +461,7 @@ def test_degree_functionality(graph_file):
 
     cu_results = cu_degree
     cu_results["in_degree"] = cu_in_degree["degree"]
-    cu_results["out_degree"] = cu_in_degree["degree"]
+    cu_results["out_degree"] = cu_out_degree["degree"]
 
     nx_in_degree = list(Gnx.in_degree())
     nx_out_degree = list(Gnx.out_degree())
@@ -473,10 +473,9 @@ def test_degree_functionality(graph_file):
 
     nx_results = cudf.DataFrame()
     nx_results["vertex"] = dict(nx_degree).keys()
-    nx_results["degree"] = dict(nx_degree).values()   
+    nx_results["degree"] = dict(nx_degree).values()
     nx_results["in_degree"] = dict(nx_in_degree).values()
     nx_results["out_degree"] = dict(nx_out_degree).values()
-
 
     assert_series_equal(
         cu_results["in_degree"],
