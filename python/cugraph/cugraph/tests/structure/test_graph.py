@@ -461,15 +461,11 @@ def test_degree_functionality(graph_file):
 
     cu_results = cu_degree
     cu_results["in_degree"] = cu_in_degree["degree"]
-    cu_results["out_degree"] = cu_out_degree["degree"]
+    cu_results["out_degree"] = cu_in_degree["degree"]
 
-
-# Test
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_degrees_functionality(graph_file):
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    nx_in_degree = list(Gnx.in_degree())
+    nx_out_degree = list(Gnx.out_degree())
+    nx_degree = list(Gnx.degree())
 
     nx_in_degree.sort(key=lambda v: v[0])
     nx_out_degree.sort(key=lambda v: v[0])
@@ -477,9 +473,10 @@ def test_degrees_functionality(graph_file):
 
     nx_results = cudf.DataFrame()
     nx_results["vertex"] = dict(nx_degree).keys()
-    nx_results["degree"] = dict(nx_degree).values()
+    nx_results["degree"] = dict(nx_degree).values()   
     nx_results["in_degree"] = dict(nx_in_degree).values()
     nx_results["out_degree"] = dict(nx_out_degree).values()
+
 
     assert_series_equal(
         cu_results["in_degree"],
