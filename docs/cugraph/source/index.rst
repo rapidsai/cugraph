@@ -11,6 +11,9 @@ NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
 
    installation/index
    tutorials/index
+   graph_support/index
+   references/index
+   releases/index
    api_docs/index
 
 Indices and tables
