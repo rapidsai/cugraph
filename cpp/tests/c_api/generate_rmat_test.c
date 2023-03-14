@@ -48,20 +48,16 @@ int test_rmat_generation()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
  
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
-
   ret_code = cugraph_generate_rmat_edgelist(handle,
-                                 rng_state,
-                                 5,
-                                 30,
-                                 0.57,
-                                 0.19,
-                                 0.19,
-                                 FALSE,
-                                 &coo,
-                                 &ret_error);
+                                            rng_state,
+                                            5,
+                                            30,
+                                            0.57,
+                                            0.19,
+                                            0.19,
+                                            FALSE,
+                                            &coo,
+                                            &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "generate_rmat_edgelist failed.");
 
   cugraph_type_erased_device_array_view_t* src_view;
@@ -140,10 +136,6 @@ int test_rmat_list_generation()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
  
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t edge_tid   = INT32;
-  data_type_id_t weight_tid = FLOAT32;
-
   ret_code = cugraph_generate_rmat_edgelists(handle,
                                              rng_state,
                                              num_lists,
@@ -184,6 +176,11 @@ int test_rmat_list_generation()
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
       handle, (byte_t*)h_dst, dst_view, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_to_host failed.");
+
+    for (size_t j = 0 ; (j < src_size) && (test_ret_value == 0) ; ++j) {
+      printf("Edge %d  expected (%d, %d), got (%d, %d)\n", j, expected_src[i][j], expected_dst[i][j],
+             h_src[j], h_dst[j]);
+    }
 
     for (size_t j = 0 ; (j < src_size) && (test_ret_value == 0) ; ++j) {
       TEST_ASSERT(test_ret_value,
