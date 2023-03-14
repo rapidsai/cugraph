@@ -80,8 +80,14 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeValueInputWrapper,
           typename EdgeOp>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>>
+decltype(allocate_dataframe_buffer<
+         typename detail::edge_op_result_type<typename GraphViewType::vertex_type,
+                                              typename GraphViewType::vertex_type,
+                                              typename EdgeSrcValueInputWrapper::value_type,
+                                              typename EdgeDstValueInputWrapper::value_type,
+                                              typename EdgeValueInputWrapper::value_type,
+                                              EdgeOp>::type::value_type>(size_t{0},
+                                                                         rmm::cuda_stream_view{}))
 extract_transform_e(raft::handle_t const& handle,
                     GraphViewType const& graph_view,
                     EdgeSrcValueInputWrapper edge_src_value_input,
