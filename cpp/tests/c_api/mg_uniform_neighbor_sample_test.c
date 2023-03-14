@@ -51,6 +51,13 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_type_erased_device_array_view_t* d_start_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
 
+  int rank = cugraph_resource_handle_get_rank(handle);
+
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(handle, rank, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
   ret_code = create_mg_test_graph_with_edge_ids(
     handle, h_src, h_dst, h_idx, num_edges, store_transposed, FALSE, &graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
@@ -67,8 +74,16 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, max_depth, INT32);
 
-  ret_code = cugraph_uniform_neighbor_sample(
-    handle, graph, d_start_view, h_fan_out_view, with_replacement, FALSE, &result, &ret_error);
+  ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(handle,
+                                                                  graph,
+                                                                  d_start_view,
+                                                                  NULL,
+                                                                  h_fan_out_view,
+                                                                  rng_state,
+                                                                  with_replacement,
+                                                                  FALSE,
+                                                                  &result,
+                                                                  &ret_error);
 
 #ifdef NO_CUGRAPH_OPS
   TEST_ASSERT(
@@ -79,18 +94,15 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
 
   cugraph_type_erased_device_array_view_t* srcs;
   cugraph_type_erased_device_array_view_t* dsts;
-  cugraph_type_erased_device_array_view_t* index;
 
-  srcs  = cugraph_sample_result_get_sources(result);
-  dsts  = cugraph_sample_result_get_destinations(result);
-  index = cugraph_sample_result_get_index(result);
+  srcs = cugraph_sample_result_get_sources(result);
+  dsts = cugraph_sample_result_get_destinations(result);
 
   size_t result_size = cugraph_type_erased_device_array_view_size(srcs);
 
   vertex_t h_srcs[result_size];
   vertex_t h_dsts[result_size];
   int h_labels[result_size];
-  edge_t h_index[result_size];
   size_t* h_counts;
 
   ret_code =
@@ -99,10 +111,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
 
   ret_code =
     cugraph_type_erased_device_array_view_copy_to_host(handle, (byte_t*)h_dsts, dsts, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_to_host(handle, (byte_t*)h_index, index, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   //  NOTE:  The C++ tester does a more thorough validation.  For our purposes
@@ -330,37 +338,15 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
+  result |= RUN_MG_TEST(test_uniform_neighbor_from_alex, handle);
 
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
-    result |= RUN_MG_TEST(test_uniform_neighbor_from_alex, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }

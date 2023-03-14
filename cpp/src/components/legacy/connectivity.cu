@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,11 +34,7 @@ namespace detail {
 
 /**
  * @brief Compute connected components.
- * The weak version (for undirected graphs, only) was imported from cuML.
- * This implementation comes from [1] and solves component labeling problem in
- * parallel on CSR-indexes based upon the vertex degree and adjacency graph.
- *
- * [1] Hawick, K.A et al, 2010. "Parallel graph component labelling with GPUs and CUDA"
+ * The weak version has been eliminated in lieu of the primitive based implementation
  *
  * The strong version (for directed or undirected graphs) is based on:
  * [2] Gilbert, J. et al, 2011. "Graph Algorithms in the Language of Linear Algebra"
@@ -52,7 +48,7 @@ namespace detail {
  * @tparam IndexT the numeric type of non-floating point elements
  * @tparam TPB_X the threads to use per block when configuring the kernel
  * @param graph input graph; assumed undirected for weakly CC [in]
- * @param connectivity_type CUGRAPH_WEAK or CUGRAPH_STRONG [in]
+ * @param connectivity_type Ignored [in]
  * @param stream the cuda stream [in]
  */
 template <typename VT, typename ET, typename WT, int TPB_X = 32>
@@ -69,17 +65,8 @@ std::enable_if_t<std::is_signed<VT>::value> connected_components_impl(
 
   VT nrows = graph.number_of_vertices;
 
-  if (connectivity_type == cugraph_cc_t::CUGRAPH_WEAK) {
-    MLCommon::Sparse::weak_cc_entry<VT, ET, TPB_X>(labels,
-                                                   graph.offsets,
-                                                   graph.indices,
-                                                   graph.number_of_edges,
-                                                   graph.number_of_vertices,
-                                                   stream);
-  } else {
-    SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);
-    auto num_iters = sccd.run_scc(labels);
-  }
+  SCC_Data<ByteT, VT> sccd(nrows, graph.offsets, graph.indices);
+  auto num_iters = sccd.run_scc(labels);
 }
 }  // namespace detail
 

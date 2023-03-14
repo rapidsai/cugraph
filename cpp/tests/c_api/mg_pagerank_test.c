@@ -50,8 +50,18 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
-  ret_code = cugraph_pagerank(
-                              handle, p_graph, NULL, NULL, NULL, NULL, alpha, epsilon, max_iterations, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_pagerank(handle,
+                              p_graph,
+                              NULL,
+                              NULL,
+                              NULL,
+                              NULL,
+                              alpha,
+                              epsilon,
+                              max_iterations,
+                              FALSE,
+                              &p_result,
+                              &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
 
   // NOTE: Because we get back vertex ids and pageranks, we can simply compare
@@ -90,7 +100,7 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   return test_ret_value;
 }
 
-int generic_personalized_pagerank_test(const cugraph_resource_handle_t *handle,
+int generic_personalized_pagerank_test(const cugraph_resource_handle_t* handle,
                                        vertex_t* h_src,
                                        vertex_t* h_dst,
                                        weight_t* h_wgt,
@@ -126,9 +136,7 @@ int generic_personalized_pagerank_test(const cugraph_resource_handle_t *handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  if (cugraph_resource_handle_get_rank(handle) != 0) {
-    num_personalization_vertices = 0;
-  }
+  if (cugraph_resource_handle_get_rank(handle) != 0) { num_personalization_vertices = 0; }
 
   ret_code = cugraph_type_erased_device_array_create(
     handle, num_personalization_vertices, vertex_tid, &personalization_vertices, &ret_error);
@@ -200,7 +208,6 @@ int generic_personalized_pagerank_test(const cugraph_resource_handle_t *handle,
 
   return test_ret_value;
 }
-
 
 int test_pagerank(const cugraph_resource_handle_t* handle)
 {
@@ -353,52 +360,18 @@ int test_personalized_pagerank(const cugraph_resource_handle_t* handle)
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_pagerank, handle);
+  result |= RUN_MG_TEST(test_pagerank_with_transpose, handle);
+  result |= RUN_MG_TEST(test_pagerank_4, handle);
+  result |= RUN_MG_TEST(test_pagerank_4_with_transpose, handle);
+  result |= RUN_MG_TEST(test_personalized_pagerank, handle);
 
-#if 0
-  // TODO:  Need something a bit more sophisticated for bigger systems
-  prows = (int)sqrt((double)comm_size);
-  while (comm_size % prows != 0) {
-    --prows;
-  }
-
-  ret_code = cugraph_resource_handle_init_comms(handle, prows, &ret_error);
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, "handle create failed.");
-  TEST_ASSERT(result, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-#endif
-
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_pagerank, handle);
-    result |= RUN_MG_TEST(test_pagerank_with_transpose, handle);
-    result |= RUN_MG_TEST(test_pagerank_4, handle);
-    result |= RUN_MG_TEST(test_pagerank_4_with_transpose, handle);
-    result |= RUN_MG_TEST(test_personalized_pagerank, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }

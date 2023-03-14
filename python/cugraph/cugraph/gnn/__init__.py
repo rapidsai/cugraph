@@ -11,8 +11,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO: Import these as dgl_
-from .dgl_extensions.cugraph_store import CuGraphStore
-from .dgl_extensions.cugraph_service_store import CuGraphRemoteStore
-from .dgl_extensions.feature_storage import CuFeatureStorage
 from .feature_storage.feat_storage import FeatureStore

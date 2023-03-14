@@ -12,9 +12,6 @@
 # limitations under the License.
 
 from setuptools import setup, find_packages
-import versioneer
-
-cmdclass = versioneer.get_cmdclass()
 
 install_requires = [
     "cudf",
@@ -23,7 +20,7 @@ install_requires = [
     "cupy-cuda11x",
     "dask-cuda",
     "dask-cudf",
-    "distributed ==2023.1.1",
+    "distributed >=2023.1.1",
     "numpy",
     "rmm",
     "thriftpy2",
@@ -33,7 +30,7 @@ install_requires = [
 setup(
     name="cugraph-service-server",
     description="cuGraph Service server",
-    version=versioneer.get_version(),
+    version="23.04.00",
     classifiers=[
         "Intended Audience :: Developers",
         "Programming Language :: Python",
@@ -50,6 +47,5 @@ setup(
     },
     install_requires=install_requires,
     license="Apache",
-    cmdclass=cmdclass,
     zip_safe=True,
 )

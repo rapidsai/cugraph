@@ -20,6 +20,7 @@ build:
   script_env:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
+    - AWS_SESSION_TOKEN
     - CMAKE_C_COMPILER_LAUNCHER
     - CMAKE_CUDA_COMPILER_LAUNCHER
     - CMAKE_CXX_COMPILER_LAUNCHER
@@ -30,9 +31,9 @@ build:
     - SCCACHE_REGION
     - SCCACHE_S3_KEY_PREFIX=pylibcugraph-aarch64 # [aarch64]
     - SCCACHE_S3_KEY_PREFIX=pylibcugraph-linux64 # [linux64]
+    - SCCACHE_S3_USE_SSL
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
-  preserve_egg_dir: True
 
 requirements:
   build:
@@ -64,18 +65,16 @@ requirements:
     - setuptools
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}
-    - versioneer
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libcugraph ={{ version }}
     - python x.x
 
-# TODO: Remove the linux64 tags on tests after disabling gpuCI / Jenkins
-tests:                                 # [linux64]
-  requirements:                        # [linux64]
-    - cudatoolkit ={{ cuda_version }}  # [linux64]
-  imports:                             # [linux64]
-    - pylibcugraph                     # [linux64]
+tests:
+  requirements:
+    - cudatoolkit ={{ cuda_version }}
+  imports:
+    - pylibcugraph
 
 about:
   home: https://rapids.ai/

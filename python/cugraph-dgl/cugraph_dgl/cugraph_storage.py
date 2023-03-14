@@ -83,6 +83,7 @@ class CuGraphStorage:
             information this can be ``torch.int32`` or ``torch.int64``
             for PyTorch.
             Defaults to ``torch.int64`` if pytorch is installed
+
          Examples
          --------
          The following example uses `CuGraphStorage` :

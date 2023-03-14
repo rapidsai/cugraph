@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,3 +34,5 @@ extension_return_dtype_map.update(
 
 from cugraph_service_client.client import CugraphServiceClient
 from cugraph_service_client.remote_graph import RemoteGraph
+
+__version__ = "23.04.00"
