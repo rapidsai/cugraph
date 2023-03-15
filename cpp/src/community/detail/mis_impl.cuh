@@ -154,10 +154,11 @@ rmm::device_uvector<vertex_t> compute_mis(
     thrust::shuffle(
       handle.get_thrust_policy(), remaining_vertices.begin(), remaining_vertices.end(), g);
 
-    vertex_t nr_candidates = std::max(
-      vertex_t{1},
-      std::min(static_cast<vertex_t>((0.50 + 0.25 * loop_counter) * remaining_vertices.size()),
-               vertex_t{remaining_vertices.size()}));
+    vertex_t nr_candidates =
+      (remaining_vertices.size() < 1024)
+        ? remaining_vertices.size()
+        : std::min(static_cast<vertex_t>((0.50 + 0.25 * loop_counter) * remaining_vertices.size()),
+                   static_cast<vertex_t>(remaining_vertices.size()));
 
     // Set temporary ranks of non-candidate vertices to -Inf
     thrust::for_each(handle.get_thrust_policy(),
@@ -395,6 +396,18 @@ rmm::device_uvector<vertex_t> compute_mis(
         return false;
       });
 
+    std::cout << "check out degree of candidates\n";
+
+    thrust::for_each(handle.get_thrust_policy(),
+                     remaining_vertices.end() - nr_candidates,
+                     remaining_vertices.end(),
+                     [out_degrees = out_degrees.data(),
+                      v_first     = graph_view.local_vertex_partition_range_size()] __device__(auto v) {
+                       if (out_degrees[v - v_first] <= 0) {
+                         printf("?v=%d, out_degrees[%d] = \n", v, v, out_degrees[v - v_first]);
+                       }
+                     });
+
     std::cout << "----------> nr_candidates_to_remove: " << nr_candidates_to_remove << std::endl;
 
     std::cout << "---------check ranks, temporary_ranks --------" << nr_candidates_to_remove
@@ -415,12 +428,22 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         auto tmp_rank = temporary_ranks[v_offset];
 
+        if (!((tmp_rank == invalid_vertex_id<vertex_t>::value) ||
+              (tmp_rank == std::numeric_limits<vertex_t>::max()) || (tmp_rank == v))) {
+          printf("?? %d %d\n", v, temporary_ranks[v_offset]);
+        }
+
         if ((tmp_rank != invalid_vertex_id<vertex_t>::value) &&
             (tmp_rank != std::numeric_limits<vertex_t>::max()) && (tmp_rank != v)) {
           printf("?? %d %d\n", v, temporary_ranks[v_offset]);
         }
 
         auto rank = ranks[v_offset];
+
+        if (!((rank == invalid_vertex_id<vertex_t>::value) ||
+              (rank == std::numeric_limits<vertex_t>::max()) || (rank == v))) {
+          printf("?? %d %d\n", v, ranks[v_offset]);
+        }
 
         if ((rank != invalid_vertex_id<vertex_t>::value) &&
             (rank != std::numeric_limits<vertex_t>::max()) && (rank != v)) {
@@ -437,6 +460,9 @@ rmm::device_uvector<vertex_t> compute_mis(
 
       std::cout << " Incoming  ............." << std::endl;
 
+      auto neighbors    = graph_view.local_edge_partition_view(0).indices();
+      auto offsets_ptrs = graph_view.local_edge_partition_view(0).offsets();
+
       thrust::count_if(
         handle.get_thrust_policy(),
         remaining_vertices.end() - 5,
@@ -444,8 +470,11 @@ rmm::device_uvector<vertex_t> compute_mis(
         [max_rank_neighbor_first = max_incoming_ranks.begin(),
          temporary_ranks =
            raft::device_span<vertex_t const>(temporary_ranks.data(), temporary_ranks.size()),
-         ranks   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-         v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+         ranks        = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
+         neighbors    = neighbors.data(),
+         offsets_ptrs = offsets_ptrs.data(),
+         out_degrees  = out_degrees.data(),
+         v_first      = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
           auto v_offset          = v - v_first;
           auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
@@ -464,6 +493,34 @@ rmm::device_uvector<vertex_t> compute_mis(
                    max_neighbor_rank,
                    valid ? temporary_ranks[max_neighbor_rank - v_first] : max_neighbor_rank,
                    valid ? ranks[max_neighbor_rank - v_first] : max_neighbor_rank);
+
+            printf("rank and tmp rank check for %d\n", v);
+            auto rank = ranks[v_offset];
+            if (!((rank == invalid_vertex_id<vertex_t>::value) ||
+                  (rank == std::numeric_limits<vertex_t>::max()) || (rank == v))) {
+              printf("?? %d %d\n", v, ranks[v_offset]);
+            }
+
+            auto tmp_rank = temporary_ranks[v_offset];
+
+            if (!((tmp_rank == invalid_vertex_id<vertex_t>::value) ||
+                  (tmp_rank == std::numeric_limits<vertex_t>::max()) || (tmp_rank == v))) {
+              printf("?? %d %d\n", v, temporary_ranks[v_offset]);
+            }
+
+            printf("----neighborlist of %d (%d -- %d) \n",
+                   v,
+                   offsets_ptrs[v_offset],
+                   offsets_ptrs[v_offset + 1]);
+
+            for (int idx = offsets_ptrs[v_offset]; idx < offsets_ptrs[v_offset + 1]; idx++) {
+              int nbr = neighbors[idx];
+              printf("%d r=%d t=%d, od=%d\n",
+                     nbr,
+                     ranks[nbr - v_first],
+                     temporary_ranks[nbr - v_first],
+                     out_degrees[nbr - v_first]);
+            }
           }
 
           return false;
@@ -477,8 +534,11 @@ rmm::device_uvector<vertex_t> compute_mis(
         [max_rank_neighbor_first = max_outgoing_ranks.begin(),
          temporary_ranks =
            raft::device_span<vertex_t const>(temporary_ranks.data(), temporary_ranks.size()),
-         ranks   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-         v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+         neighbors    = neighbors.data(),
+         offsets_ptrs = offsets_ptrs.data(),
+         out_degrees  = out_degrees.data(),
+         ranks        = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
+         v_first      = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
           auto v_offset          = v - v_first;
           auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
@@ -491,6 +551,7 @@ rmm::device_uvector<vertex_t> compute_mis(
           if (debug) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
                          (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
+
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d], max_of_max= %d \n",
                    v,
                    rank_of_v,
@@ -499,6 +560,34 @@ rmm::device_uvector<vertex_t> compute_mis(
                    valid ? temporary_ranks[max_neighbor_rank - v_first] : max_neighbor_rank,
                    valid ? ranks[max_neighbor_rank - v_first] : max_neighbor_rank,
                    max_of_max);
+
+            printf("rank and tmp rank check for %d\n", v);
+            auto rank = ranks[v_offset];
+            if (!((rank == invalid_vertex_id<vertex_t>::value) ||
+                  (rank == std::numeric_limits<vertex_t>::max()) || (rank == v))) {
+              printf("?? %d %d\n", v, ranks[v_offset]);
+            }
+
+            auto tmp_rank = temporary_ranks[v_offset];
+
+            if (!((tmp_rank == invalid_vertex_id<vertex_t>::value) ||
+                  (tmp_rank == std::numeric_limits<vertex_t>::max()) || (tmp_rank == v))) {
+              printf("?? %d %d\n", v, temporary_ranks[v_offset]);
+            }
+
+            printf("----neighborlist of %d (%d -- %d) \n",
+                   v,
+                   offsets_ptrs[v_offset],
+                   offsets_ptrs[v_offset + 1]);
+
+            for (int idx = offsets_ptrs[v_offset]; idx < offsets_ptrs[v_offset + 1]; idx++) {
+              int nbr = neighbors[idx];
+              printf("%d r=%d t=%d, od=%d\n",
+                     nbr,
+                     ranks[nbr - v_first],
+                     temporary_ranks[nbr - v_first],
+                     out_degrees[nbr - v_first]);
+            }
           }
           return false;
         });
