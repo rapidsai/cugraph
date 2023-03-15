@@ -446,19 +446,19 @@ INSTANTIATE_TEST_SUITE_P(
 // /raid/charlesh/datasets/test/datasets/webbase-1M.mtx
 // /raid/charlesh/datasets/test/datasets/wiki-Talk.mtx
 
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
-                          (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
+// INSTANTIATE_TEST_SUITE_P(
+//   file_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
+//                           (with
+//                           --gtest_filter to select only the file_benchmark_test with a specific
+//                           vertex & edge type combination) by command line arguments and do not
+//                           include more than one File_Usecase that differ only in filename
+//                           (to avoid running same benchmarks more than once) */
+//   Tests_Leiden_File64,
+//   ::testing::Combine(
+//     // disable correctness checks for large graphs
+//     ::testing::Values(Leiden_Usecase{}),
+//     ::testing::Values(
+//       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking
