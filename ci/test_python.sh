@@ -86,7 +86,7 @@ pytest \
   cugraph/pytest-based/bench_algos.py
 popd
 
-if [[ "${RAPIDS_CUDA_VEqRSION}" == "11.8.0" ]]; then
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
