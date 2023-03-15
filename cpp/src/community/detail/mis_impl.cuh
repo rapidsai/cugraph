@@ -62,7 +62,7 @@ namespace cugraph {
 
 namespace detail {
 
-const double EPSILON = 1e-6;
+#define DEBUG 0
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
@@ -75,8 +75,11 @@ rmm::device_uvector<vertex_t> compute_mis(
 
   vertex_t local_vtx_partitoin_size = graph_view.local_vertex_partition_range_size();
 
-  bool debug = graph_view.local_vertex_partition_range_size() < 40;
-  if (debug) {
+  bool is_small_graph = graph_view.local_vertex_partition_range_size() < 40;
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+  if (is_small_graph) {
     auto offsets = graph_view.local_edge_partition_view(0).offsets();
     auto indices = graph_view.local_edge_partition_view(0).indices();
     cudaDeviceSynchronize();
@@ -84,6 +87,7 @@ rmm::device_uvector<vertex_t> compute_mis(
     raft::print_device_vector("offsets: ", offsets.data(), offsets.size(), std::cout);
     raft::print_device_vector("indices: ", indices.data(), indices.size(), std::cout);
   }
+#endif
 
   rmm::device_uvector<vertex_t> remaining_vertices(local_vtx_partitoin_size, handle.get_stream());
 
@@ -105,14 +109,18 @@ rmm::device_uvector<vertex_t> compute_mis(
                                      [] __device__(auto deg) { return deg > 0; })),
     handle.get_stream());
 
-  if (debug) {
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+
+  if (is_small_graph) {
     cudaDeviceSynchronize();
     raft::print_device_vector("degrees: ", out_degrees.data(), out_degrees.size(), std::cout);
     raft::print_device_vector(
       "remaining_vertices: ", remaining_vertices.data(), remaining_vertices.size(), std::cout);
   }
+#endif
 
-  // Each vertex's ID is its rank
+  // Set ID of each vertex as its rank
   rmm::device_uvector<vertex_t> ranks(local_vtx_partitoin_size, handle.get_stream());
   thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, ranks.begin());
 
@@ -125,19 +133,27 @@ rmm::device_uvector<vertex_t> compute_mis(
      v_first     = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
       auto v_offset = v - v_first;
 
-      if (out_degrees[v_offset] == 0) { ranks[v_offset] = invalid_vertex_id<vertex_t>::value; }
+      if (out_degrees[v_offset] == 0) { ranks[v_offset] = std::numeric_limits<vertex_t>::lowest(); }
     });
 
-  if (debug) { raft::print_device_vector("ranks: ", ranks.data(), ranks.size(), std::cout); }
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+  if (is_small_graph) {
+    raft::print_device_vector("ranks: ", ranks.data(), ranks.size(), std::cout);
+  }
+#endif
 
   size_t loop_counter                              = 0;
   vertex_t nr_remaining_vertices_in_last_iteration = 0;
   while (true) {
     loop_counter++;
-    // if (debug) {
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
     cudaDeviceSynchronize();
     std::cout << "------------Mis loop, counter: ---------- " << loop_counter << std::endl;
-    // }
+#endif
+
     //
     // Copy ranks into temporary vector to begin with
     //
@@ -166,24 +182,31 @@ rmm::device_uvector<vertex_t> compute_mis(
                      remaining_vertices.end() - nr_candidates,
                      [temporary_ranks =
                         raft::device_span<vertex_t>(temporary_ranks.data(), temporary_ranks.size()),
-                      v_first = graph_view.local_vertex_partition_range_first(),
-                      debug   = debug] __device__(auto v) {
+                      v_first        = graph_view.local_vertex_partition_range_first(),
+                      is_small_graph = is_small_graph] __device__(auto v) {
                        //
                        // if rank of a non-candidate vertex is not +Inf (i.e. the vertex
                        // is not already in MIS), set it to -Inf
                        //
                        auto v_offset = v - v_first;
                        if (temporary_ranks[v_offset] < std::numeric_limits<vertex_t>::max()) {
-                         temporary_ranks[v_offset] = invalid_vertex_id<vertex_t>::value;
-                         if (debug)
+                         temporary_ranks[v_offset] = std::numeric_limits<vertex_t>::lowest();
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+                         if (is_small_graph) {
                            printf("Setting rank of %d to %d\n", v, temporary_ranks[v_offset]);
+                         }
+#endif
                        }
                      });
 
+// FIXME: delete, temporary code for debugging
+#if DEBUG
     std::cout << "nr_remaining_vertices: " << remaining_vertices.size()
               << ", nr_candidates: " << nr_candidates << std::endl;
 
-    if (debug) {
+    if (is_small_graph) {
       cudaDeviceSynchronize();
       std::cout << "nr_remaining_vertices: " << remaining_vertices.size()
                 << ", nr_candidates: " << nr_candidates << std::endl;
@@ -200,12 +223,13 @@ rmm::device_uvector<vertex_t> compute_mis(
         handle.get_thrust_policy(),
         thrust::make_zip_iterator(thrust::make_tuple(vertex_begin, temporary_ranks.begin())),
         thrust::make_zip_iterator(thrust::make_tuple(vertex_end, temporary_ranks.end())),
-        [debug = debug] __device__(auto vertex_id_rank_pair) {
+        [is_small_graph = is_small_graph] __device__(auto vertex_id_rank_pair) {
           auto id   = thrust::get<0>(vertex_id_rank_pair);
           auto rank = thrust::get<1>(vertex_id_rank_pair);
-          if (debug) printf("%d : %d\n", id, rank);
+          if (is_small_graph) printf("%d : %d\n", id, rank);
         });
     }
+#endif
 
     // Update rank caches with temporary ranks
     edge_src_property_t<GraphViewType, vertex_t> src_rank_cache(handle);
@@ -235,7 +259,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                     temporary_ranks.data(), vertex_t{0}),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
-      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<vertex_t>::lowest(),
       cugraph::reduce_op::maximum<vertex_t>{},
       max_outgoing_ranks.begin());
 
@@ -256,21 +280,23 @@ rmm::device_uvector<vertex_t> compute_mis(
                     temporary_ranks.data(), vertex_t{0}),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },
-      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<vertex_t>::lowest(),
       cugraph::reduce_op::maximum<vertex_t>{},
       max_incoming_ranks.begin());
 
-    if (debug) std::cout << "Check outgoing max" << std::endl;
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+    if (is_small_graph) std::cout << "Check outgoing max" << std::endl;
     thrust::for_each(handle.get_thrust_policy(),
                      max_outgoing_ranks.begin(),
                      max_outgoing_ranks.end(),
                      [ranks           = ranks.data(),
                       temporary_ranks = temporary_ranks.data(),
                       v_first         = graph_view.local_vertex_partition_range_first(),
-                      debug           = debug] __device__(auto max_neighbor_rank) {
-                       if (debug) printf("%d \n", max_neighbor_rank);
+                      is_small_graph  = is_small_graph] __device__(auto max_neighbor_rank) {
+                       if (is_small_graph) printf("%d \n", max_neighbor_rank);
                        if ((max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                           (max_neighbor_rank > invalid_vertex_id<vertex_t>::value)) {
+                           (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest())) {
                          if (max_neighbor_rank != temporary_ranks[max_neighbor_rank - v_first]) {
                            printf("?  %d : %d != %d (r = %d ) \n",
                                   max_neighbor_rank,
@@ -281,17 +307,17 @@ rmm::device_uvector<vertex_t> compute_mis(
                        }
                      });
 
-    if (debug) std::cout << "Check incoming max" << std::endl;
+    if (is_small_graph) std::cout << "Check incoming max" << std::endl;
     thrust::for_each(handle.get_thrust_policy(),
                      max_incoming_ranks.begin(),
                      max_incoming_ranks.end(),
                      [ranks           = ranks.data(),
                       temporary_ranks = temporary_ranks.data(),
                       v_first         = graph_view.local_vertex_partition_range_first(),
-                      debug           = debug] __device__(auto max_neighbor_rank) {
-                       if (debug) printf("%d \n", max_neighbor_rank);
+                      is_small_graph  = is_small_graph] __device__(auto max_neighbor_rank) {
+                       if (is_small_graph) printf("%d \n", max_neighbor_rank);
                        if ((max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                           (max_neighbor_rank > invalid_vertex_id<vertex_t>::value)) {
+                           (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest())) {
                          if (max_neighbor_rank != temporary_ranks[max_neighbor_rank - v_first]) {
                            printf("?  %d : %d != %d (r = %d ) \n",
                                   max_neighbor_rank,
@@ -302,13 +328,14 @@ rmm::device_uvector<vertex_t> compute_mis(
                        }
                      });
 
-    //
-    // Compute max of outgoing and incoming
-    //
+#endif
 
     // temporary_ranks.resize(0, handle.get_stream());
     // temporary_ranks.shrink_to_fit(handle.get_stream());
 
+    //
+    // Compute max of outgoing and incoming
+    //
     thrust::transform(handle.get_thrust_policy(),
                       max_incoming_ranks.begin(),
                       max_incoming_ranks.end(),
@@ -316,20 +343,22 @@ rmm::device_uvector<vertex_t> compute_mis(
                       max_outgoing_ranks.begin(),
                       thrust::maximum<vertex_t>());
 
-    // cugraph::resize_dataframe_buffer(max_incoming_ranks, size_t{0}, handle.get_stream());
-    // cugraph::shrink_to_fit_dataframe_buffer(max_incoming_ranks, handle.get_stream());
+    // max_incoming_ranks.resize(0, handle.get_stream());
+    // max_incoming_ranks.shrink_to_fit(handle.get_stream());
 
-    if (debug) std::cout << "Check max (incoming, outgoing):" << std::endl;
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+    if (is_small_graph) std::cout << "Check max (incoming, outgoing):" << std::endl;
     thrust::for_each(handle.get_thrust_policy(),
                      max_outgoing_ranks.begin(),
                      max_outgoing_ranks.end(),
                      [ranks           = ranks.data(),
                       temporary_ranks = temporary_ranks.data(),
                       v_first         = graph_view.local_vertex_partition_range_first(),
-                      debug           = debug] __device__(auto max_neighbor_rank) {
-                       if (debug) printf("%d \n", max_neighbor_rank);
+                      is_small_graph  = is_small_graph] __device__(auto max_neighbor_rank) {
+                       if (is_small_graph) printf("%d \n", max_neighbor_rank);
                        if ((max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                           (max_neighbor_rank > invalid_vertex_id<vertex_t>::value)) {
+                           (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest())) {
                          if (max_neighbor_rank != temporary_ranks[max_neighbor_rank - v_first]) {
                            printf("?  %d : %d != %d (r = %d ) \n",
                                   max_neighbor_rank,
@@ -340,7 +369,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                        }
                      });
 
-    if (debug) {
+    if (is_small_graph) {
       CUDA_TRY(cudaDeviceSynchronize());
       std::cout << "Rank of maximum rank neighbors" << std::endl;
       thrust::for_each(
@@ -350,7 +379,8 @@ rmm::device_uvector<vertex_t> compute_mis(
         [] __device__(auto max_rank_neighbor) { printf("%d \n", max_rank_neighbor); });
     }
 
-    if (debug) std::cout << "----------------count-------------------" << std::endl;
+#endif
+
     vertex_t nr_candidates_to_remove = thrust::count_if(
       handle.get_thrust_policy(),
       remaining_vertices.end() - nr_candidates,
@@ -358,18 +388,20 @@ rmm::device_uvector<vertex_t> compute_mis(
       [max_rank_neighbor_first = max_outgoing_ranks.begin(),
        temporary_ranks =
          raft::device_span<vertex_t const>(temporary_ranks.data(), temporary_ranks.size()),
-       ranks   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-       v_first = graph_view.local_vertex_partition_range_first(),
-       debug   = debug] __device__(auto v) {
+       ranks          = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
+       v_first        = graph_view.local_vertex_partition_range_first(),
+       is_small_graph = is_small_graph] __device__(auto v) {
         auto v_offset          = v - v_first;
         auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
         auto rank_of_v     = ranks[v_offset];
-        auto tmp_rank_of_v = temporary_ranks[v_offset];  // debug
+        auto tmp_rank_of_v = temporary_ranks[v_offset];  // is_small_graph
 
-        if (debug) {
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+        if (is_small_graph) {
           bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                       (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
+                       (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
           printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                  v,
                  rank_of_v,
@@ -378,38 +410,56 @@ rmm::device_uvector<vertex_t> compute_mis(
                  valid ? temporary_ranks[max_neighbor_rank - v_first] : max_neighbor_rank,
                  valid ? ranks[max_neighbor_rank - v_first] : max_neighbor_rank);
         }
+#endif
 
         if (max_neighbor_rank >= std::numeric_limits<vertex_t>::max()) {
-          if (debug) { printf("---> to discard %d\n", v); }
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+          if (is_small_graph) { printf("---> to discard %d\n", v); }
+
+#endif
 
           // Maximum rank neighbor is alreay in MIS
-          // Discard current vertex by setting (global) rank to -Inf
+
           return true;
         }
 
-        if (rank_of_v > max_neighbor_rank) {
-          if (debug) { printf("---> to include %d\n", v); }
-          // Mark it included by setting (global) rank to +Inf
+        if (rank_of_v >= max_neighbor_rank) {
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+          if (is_small_graph) { printf("---> to include %d\n", v); }
+
+#endif
+
           return true;
         }
-        if (debug) { printf("\n"); }
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+        if (is_small_graph) { printf("\n"); }
+#endif
         return false;
       });
 
-    std::cout << "check out degree of candidates\n";
+// FIXME: delete, temporary code for debugging
+#if DEBUG
 
-    thrust::for_each(handle.get_thrust_policy(),
-                     remaining_vertices.end() - nr_candidates,
-                     remaining_vertices.end(),
-                     [out_degrees = out_degrees.data(),
-                      v_first     = graph_view.local_vertex_partition_range_size()] __device__(auto v) {
-                       if (out_degrees[v - v_first] <= 0) {
-                         printf("?v=%d, out_degrees[%d] = \n", v, v, out_degrees[v - v_first]);
-                       }
-                     });
+    std::cout << "check out_degree of candidates\n";
+
+    thrust::for_each(
+      handle.get_thrust_policy(),
+      remaining_vertices.end() - nr_candidates,
+      remaining_vertices.end(),
+      [out_degrees = out_degrees.data(),
+       v_first     = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
+        if (out_degrees[v - v_first] <= 0) {
+          printf("?v=%d, out_degrees[%d] = %d\n", v, v, out_degrees[v - v_first]);
+        }
+      });
 
     std::cout << "----------> nr_candidates_to_remove: " << nr_candidates_to_remove << std::endl;
-
     std::cout << "---------check ranks, temporary_ranks --------" << nr_candidates_to_remove
               << std::endl;
 
@@ -428,24 +478,24 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         auto tmp_rank = temporary_ranks[v_offset];
 
-        if (!((tmp_rank == invalid_vertex_id<vertex_t>::value) ||
+        if (!((tmp_rank == std::numeric_limits<vertex_t>::lowest()) ||
               (tmp_rank == std::numeric_limits<vertex_t>::max()) || (tmp_rank == v))) {
           printf("?? %d %d\n", v, temporary_ranks[v_offset]);
         }
 
-        if ((tmp_rank != invalid_vertex_id<vertex_t>::value) &&
+        if ((tmp_rank != std::numeric_limits<vertex_t>::lowest()) &&
             (tmp_rank != std::numeric_limits<vertex_t>::max()) && (tmp_rank != v)) {
           printf("?? %d %d\n", v, temporary_ranks[v_offset]);
         }
 
         auto rank = ranks[v_offset];
 
-        if (!((rank == invalid_vertex_id<vertex_t>::value) ||
+        if (!((rank == std::numeric_limits<vertex_t>::lowest()) ||
               (rank == std::numeric_limits<vertex_t>::max()) || (rank == v))) {
           printf("?? %d %d\n", v, ranks[v_offset]);
         }
 
-        if ((rank != invalid_vertex_id<vertex_t>::value) &&
+        if ((rank != std::numeric_limits<vertex_t>::lowest()) &&
             (rank != std::numeric_limits<vertex_t>::max()) && (rank != v)) {
           printf("??? %d %d\n", v, ranks[v_offset]);
         }
@@ -479,13 +529,13 @@ rmm::device_uvector<vertex_t> compute_mis(
           auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
           auto rank_of_v     = ranks[v_offset];
-          auto tmp_rank_of_v = temporary_ranks[v_offset];  // debug
+          auto tmp_rank_of_v = temporary_ranks[v_offset];  // is_small_graph
 
-          uint8_t debug = 1;
+          uint8_t is_small_graph = 1;
 
-          if (debug) {
+          if (is_small_graph) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                         (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
+                         (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                    v,
                    rank_of_v,
@@ -496,14 +546,14 @@ rmm::device_uvector<vertex_t> compute_mis(
 
             printf("rank and tmp rank check for %d\n", v);
             auto rank = ranks[v_offset];
-            if (!((rank == invalid_vertex_id<vertex_t>::value) ||
+            if (!((rank == std::numeric_limits<vertex_t>::lowest()) ||
                   (rank == std::numeric_limits<vertex_t>::max()) || (rank == v))) {
               printf("?? %d %d\n", v, ranks[v_offset]);
             }
 
             auto tmp_rank = temporary_ranks[v_offset];
 
-            if (!((tmp_rank == invalid_vertex_id<vertex_t>::value) ||
+            if (!((tmp_rank == std::numeric_limits<vertex_t>::lowest()) ||
                   (tmp_rank == std::numeric_limits<vertex_t>::max()) || (tmp_rank == v))) {
               printf("?? %d %d\n", v, temporary_ranks[v_offset]);
             }
@@ -543,14 +593,14 @@ rmm::device_uvector<vertex_t> compute_mis(
           auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
           auto rank_of_v     = ranks[v_offset];
-          auto tmp_rank_of_v = temporary_ranks[v_offset];  // debug
+          auto tmp_rank_of_v = temporary_ranks[v_offset];  // is_small_graph
           auto max_of_max    = *(max_rank_neighbor_first + max_neighbor_rank - v_first);
 
-          uint8_t debug = 1;
+          uint8_t is_small_graph = 1;
 
-          if (debug) {
+          if (is_small_graph) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                         (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
+                         (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
 
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d], max_of_max= %d \n",
                    v,
@@ -563,14 +613,14 @@ rmm::device_uvector<vertex_t> compute_mis(
 
             printf("rank and tmp rank check for %d\n", v);
             auto rank = ranks[v_offset];
-            if (!((rank == invalid_vertex_id<vertex_t>::value) ||
+            if (!((rank == std::numeric_limits<vertex_t>::lowest()) ||
                   (rank == std::numeric_limits<vertex_t>::max()) || (rank == v))) {
               printf("?? %d %d\n", v, ranks[v_offset]);
             }
 
             auto tmp_rank = temporary_ranks[v_offset];
 
-            if (!((tmp_rank == invalid_vertex_id<vertex_t>::value) ||
+            if (!((tmp_rank == std::numeric_limits<vertex_t>::lowest()) ||
                   (tmp_rank == std::numeric_limits<vertex_t>::max()) || (tmp_rank == v))) {
               printf("?? %d %d\n", v, temporary_ranks[v_offset]);
             }
@@ -607,13 +657,13 @@ rmm::device_uvector<vertex_t> compute_mis(
           auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
           auto rank_of_v     = ranks[v_offset];
-          auto tmp_rank_of_v = temporary_ranks[v_offset];  // debug
+          auto tmp_rank_of_v = temporary_ranks[v_offset];  // is_small_graph
 
-          bool debug = true;
+          bool is_small_graph = true;
 
-          if (debug) {
+          if (is_small_graph) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                         (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
+                         (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                    v,
                    rank_of_v,
@@ -624,27 +674,25 @@ rmm::device_uvector<vertex_t> compute_mis(
           }
 
           if (max_neighbor_rank >= std::numeric_limits<vertex_t>::max()) {
-            if (debug) { printf("---> to discard %d\n", v); }
+            if (is_small_graph) { printf("---> to discard %d\n", v); }
 
             // Maximum rank neighbor is alreay in MIS
             // Discard current vertex by setting (global) rank to -Inf
             return true;
           }
 
-          if (rank_of_v > max_neighbor_rank) {
-            if (debug) { printf("---> to include %d\n", v); }
+          if (rank_of_v >= max_neighbor_rank) {
+            if (is_small_graph) { printf("---> to include %d\n", v); }
             // Mark it included by setting (global) rank to +Inf
             return true;
           }
-          if (debug) { printf("\n"); }
+          if (is_small_graph) { printf("\n"); }
           return false;
         });
 
       std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
     }
-
-    // temporary_ranks.resize(0, handle.get_stream());
-    // temporary_ranks.shrink_to_fit(handle.get_stream());
+#endif
 
     max_incoming_ranks.resize(0, handle.get_stream());
     max_incoming_ranks.shrink_to_fit(handle.get_stream());
@@ -661,18 +709,20 @@ rmm::device_uvector<vertex_t> compute_mis(
       [max_rank_neighbor_first = max_outgoing_ranks.begin(),
        temporary_ranks =
          raft::device_span<vertex_t const>(temporary_ranks.data(), temporary_ranks.size()),
-       ranks   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-       v_first = graph_view.local_vertex_partition_range_first(),
-       debug   = debug] __device__(auto v) {
+       ranks          = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
+       v_first        = graph_view.local_vertex_partition_range_first(),
+       is_small_graph = is_small_graph] __device__(auto v) {
         auto v_offset          = v - v_first;
         auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
 
         auto rank_of_v     = ranks[v_offset];
-        auto tmp_rank_of_v = temporary_ranks[v_offset];  // debug
+        auto tmp_rank_of_v = temporary_ranks[v_offset];  // is_small_graph
 
-        if (debug) {
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+        if (is_small_graph) {
           bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                       (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
+                       (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
           printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                  v,
                  rank_of_v,
@@ -681,39 +731,58 @@ rmm::device_uvector<vertex_t> compute_mis(
                  valid ? temporary_ranks[max_neighbor_rank - v_first] : max_neighbor_rank,
                  valid ? ranks[max_neighbor_rank - v_first] : max_neighbor_rank);
         }
+#endif
 
         if (max_neighbor_rank >= std::numeric_limits<vertex_t>::max()) {
-          if (debug) { printf("---> discarding %d\n", v); }
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+          if (is_small_graph) { printf("---> discarding %d\n", v); }
+#endif
 
           // Maximum rank neighbor is alreay in MIS
           // Discard current vertex by setting (global) rank to -Inf
-          ranks[v_offset] = invalid_vertex_id<vertex_t>::value;
+          ranks[v_offset] = std::numeric_limits<vertex_t>::lowest();
           return true;
         }
 
-        if (rank_of_v > max_neighbor_rank) {
-          if (debug) { printf("---> including %d\n", v); }
+        if (rank_of_v >= max_neighbor_rank) {
+
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+          if (is_small_graph) { printf("---> including %d\n", v); }
+#endif
           // Mark it included by setting (global) rank to +Inf
           ranks[v_offset] = std::numeric_limits<vertex_t>::max();
           return true;
         }
-        if (debug) { printf("\n"); }
+      // FIXME: delete, temporary code for debugging
+#if DEBUG
+        if (is_small_graph) { printf("\n"); }
+#endif
+
         return false;
       });
 
+    // FIXME: clear temporary_ranks and max_outgoing_ranks earlier
     temporary_ranks.resize(0, handle.get_stream());
     temporary_ranks.shrink_to_fit(handle.get_stream());
 
     max_outgoing_ranks.resize(0, handle.get_stream());
     max_outgoing_ranks.shrink_to_fit(handle.get_stream());
 
+// FIXME: delete, temporary code for debugging
+#if DEBUG
     std::cout << "---------->nr of removed candidates: "
               << thrust::distance(last, remaining_vertices.end()) << std::endl;
+#endif
 
     remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), last),
                               handle.get_stream());
 
-    if (debug) {
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+    if (is_small_graph) {
       cudaDeviceSynchronize();
       raft::print_device_vector(
         "remaining_vertices*: ", remaining_vertices.data(), remaining_vertices.size(), std::cout);
@@ -729,6 +798,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                          printf("%d : %d\n", vertex_id, rank);
                        });
     }
+#endif
 
     vertex_t nr_remaining_vertices_to_check = remaining_vertices.size();
     if (multi_gpu) {
@@ -738,18 +808,18 @@ rmm::device_uvector<vertex_t> compute_mis(
                                                              handle.get_stream());
     }
 
+// FIXME: delete, temporary code for debugging
+#if DEBUG
     std::cout << "local_vtx_partitoin_size:       " << local_vtx_partitoin_size << std::endl;
     std::cout << "remaining_vts_to_check:   " << nr_remaining_vertices_to_check << std::endl;
-
+#endif
     if (nr_remaining_vertices_to_check == 0) { break; }
-    if (nr_remaining_vertices_in_last_iteration == nr_remaining_vertices_to_check) {
-      // break;
-    } else {
-      nr_remaining_vertices_in_last_iteration = nr_remaining_vertices_to_check;
-    }
   }
 
-  if (debug) {
+// FIXME: delete, temporary code for debugging
+#if DEBUG
+
+  if (is_small_graph) {
     std::cout << "ID :    Rank (final)" << std::endl;
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_zip_iterator(thrust::make_tuple(vertex_begin, ranks.begin())),
@@ -760,6 +830,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                        printf("%d : %d\n", vertex_id, rank);
                      });
   }
+#endif
 
   //
   // Count number of vertices included in MIS
@@ -779,13 +850,16 @@ rmm::device_uvector<vertex_t> compute_mis(
     mis.begin(),
     [] __device__(auto v_rank) { return v_rank >= std::numeric_limits<vertex_t>::max(); });
 
+// FIXME: delete, temporary code for debugging
+#if DEBUG
   cudaDeviceSynchronize();
   std::cout << "Found mis of size " << mis.size() << std::endl;
 
-  if (debug) {
+  if (is_small_graph) {
     cudaDeviceSynchronize();
     raft::print_device_vector("mis", mis.data(), mis.size(), std::cout);
   }
+#endif
 
   return mis;
 }

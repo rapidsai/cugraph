@@ -8,17 +8,16 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <utilities/base_fixture.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <utilities/base_fixture.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 
-
-#include <raft/util/cudart_utils.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -117,32 +116,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     }
   }
 
-  // template <typename vertex_t, typename edge_t, typename weight_t>
-  // void leiden_legacy(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
-  //                     vertex_t num_vertices,
-  //                     bool check_correctness,
-  //                     int expected_level,
-  //                     float expected_modularity)
-  // {
-  //   raft::handle_t handle{};
-
-  //   rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
-  //   size_t level;
-  //   weight_t modularity;
-
-  //   std::tie(level, modularity) =
-  //     cugraph::leiden(handle, graph_view, clustering_v.data(), size_t{100}, weight_t{1});
-
-  //   RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-
-  //   float compare_modularity = static_cast<float>(modularity);
-
-  //   if (check_correctness) {
-  //     ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
-  //     ASSERT_EQ(level, expected_level);
-  //   }
-  // }
-
   template <typename vertex_t, typename edge_t, typename weight_t>
   void leiden(
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
@@ -174,156 +147,12 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
   }
 };
 
-// FIXME: add tests for type combinations
-
-// TEST(leiden_legacy, success)
-// {
-//   raft::handle_t handle;
-
-//   auto stream = handle.get_stream();
-
-//   std::vector<int> off_h = {0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
-//                             67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
-//                             98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156};
-//   std::vector<int> ind_h = {
-//     1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 0,  2,  3,  7,  13, 17, 19,
-//     21, 30, 0,  1,  3,  7,  8,  9,  13, 27, 28, 32, 0,  1,  2,  7,  12, 13, 0,  6,  10, 0,  6,
-//     10, 16, 0,  4,  5,  16, 0,  1,  2,  3,  0,  2,  30, 32, 33, 2,  33, 0,  4,  5,  0,  0,  3,
-//     0,  1,  2,  3,  33, 32, 33, 32, 33, 5,  6,  0,  1,  32, 33, 0,  1,  33, 32, 33, 0,  1,  32,
-//     33, 25, 27, 29, 32, 33, 25, 27, 31, 23, 24, 31, 29, 33, 2,  23, 24, 33, 2,  31, 33, 23, 26,
-//     32, 33, 1,  8,  32, 33, 0,  24, 25, 28, 32, 33, 2,  8,  14, 15, 18, 20, 22, 23, 29, 30, 31,
-//     33, 8,  9,  13, 14, 15, 18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32};
-//   std::vector<float> w_h = {
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-//   std::vector<int> result_h = {1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0,
-//                                1, 3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 1, 3, 3, 2, 3, 3};
-
-//   int num_verts = off_h.size() - 1;
-//   int num_edges = ind_h.size();
-
-//   rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
-//   rmm::device_uvector<int> indices_v(num_edges, stream);
-//   rmm::device_uvector<float> weights_v(num_edges, stream);
-//   rmm::device_uvector<int> result_v(num_verts, stream);
-
-//   raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
-//   raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
-//   raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
-
-//   cugraph::legacy::GraphCSRView<int, int, float> G(
-//     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
-
-//   float modularity{0.0};
-//   size_t num_level = 40;
-
-//   // "FIXME": remove this check once we drop support for Pascal
-//   //
-//   // Calling Leiden on Pascal will throw an exception, we'll check that
-//   // this is the behavior while we still support Pascal (device_prop.major < 7)
-//   //
-//   if (handle.get_device_properties().major < 7) {
-//     EXPECT_THROW(cugraph::leiden(handle, G, result_v.data()), cugraph::logic_error);
-//   } else {
-//     std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data());
-
-//     auto cluster_id = cugraph::test::to_host(handle, result_v);
-
-//     int min = *min_element(cluster_id.begin(), cluster_id.end());
-
-//     ASSERT_GE(min, 0);
-//     ASSERT_FLOAT_EQ(modularity, 0.408695);
-//     ASSERT_EQ(cluster_id, result_h);
-//   }
-// }
-
-// TEST(leiden_legacy_renumbered, success)
-// {
-//   raft::handle_t handle;
-
-//   auto stream = handle.get_stream();
-
-//   std::vector<int> off_h = {0,   16,  25,  30,  34,  38,  42,  44,  46,  48,  50,  52,
-//                             54,  56,  73,  85,  95,  101, 107, 112, 117, 121, 125, 129,
-//                             132, 135, 138, 141, 144, 147, 149, 151, 153, 155, 156};
-//   std::vector<int> ind_h = {
-//     1,  3,  7,  11, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 30, 33, 0,  5,  11, 15, 16, 19, 21,
-//     25, 30, 4,  13, 14, 22, 27, 0,  9,  20, 24, 2,  13, 15, 26, 1,  13, 14, 18, 13, 15, 0,  16,
-//     13, 14, 3,  20, 13, 14, 0,  1,  13, 22, 2,  4,  5,  6,  8,  10, 12, 14, 17, 18, 19, 22, 25,
-//     28, 29, 31, 32, 2,  5,  8,  10, 13, 15, 17, 18, 22, 29, 31, 32, 0,  1,  4,  6,  14, 16, 18,
-//     19, 21, 28, 0,  1,  7,  15, 19, 21, 0,  13, 14, 26, 27, 28, 0,  5,  13, 14, 15, 0,  1,  13,
-//     16, 16, 0,  3,  9,  23, 0,  1,  15, 16, 2,  12, 13, 14, 0,  20, 24, 0,  3,  23, 0,  1,  13,
-//     4,  17, 27, 2,  17, 26, 13, 15, 17, 13, 14, 0,  1,  13, 14, 13, 14, 0};
-
-//   std::vector<float> w_h = {
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-//     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-//   int num_verts = off_h.size() - 1;
-//   int num_edges = ind_h.size();
-
-//   rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
-//   rmm::device_uvector<int> indices_v(num_edges, stream);
-//   rmm::device_uvector<float> weights_v(num_edges, stream);
-//   rmm::device_uvector<int> result_v(num_verts, stream);
-
-//   raft::update_device(offsets_v.data(), off_h.data(), off_h.size(), stream);
-//   raft::update_device(indices_v.data(), ind_h.data(), ind_h.size(), stream);
-//   raft::update_device(weights_v.data(), w_h.data(), w_h.size(), stream);
-
-//   cugraph::legacy::GraphCSRView<int, int, float> G(
-//     offsets_v.data(), indices_v.data(), weights_v.data(), num_verts, num_edges);
-
-//   float modularity{0.0};
-//   size_t num_level = 40;
-
-//   // "FIXME": remove this check once we drop support for Pascal
-//   //
-//   // Calling Leiden on Pascal will throw an exception, we'll check that
-//   // this is the behavior while we still support Pascal (device_prop.major < 7)
-//   //
-//   if (handle.get_device_properties().major < 7) {
-//     EXPECT_THROW(cugraph::leiden(handle, G, result_v.data()), cugraph::logic_error);
-//   } else {
-
-//     std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data());
-
-//     auto cluster_id = cugraph::test::to_host(handle, result_v);
-
-//     int min = *min_element(cluster_id.begin(), cluster_id.end());
-
-//     ASSERT_GE(min, 0);
-//     ASSERT_FLOAT_EQ(modularity, 0.41880345);
-//   }
-// }
-
 using Tests_Leiden_File   = Tests_Leiden<cugraph::test::File_Usecase>;
 using Tests_Leiden_File32 = Tests_Leiden<cugraph::test::File_Usecase>;
 using Tests_Leiden_File64 = Tests_Leiden<cugraph::test::File_Usecase>;
 using Tests_Leiden_Rmat   = Tests_Leiden<cugraph::test::Rmat_Usecase>;
 using Tests_Leiden_Rmat32 = Tests_Leiden<cugraph::test::Rmat_Usecase>;
 using Tests_Leiden_Rmat64 = Tests_Leiden<cugraph::test::Rmat_Usecase>;
-
-// TEST_P(Tests_Leiden_File, CheckInt32Int32FloatFloatLegacy)
-// {
-//   run_legacy_test<int32_t, int32_t, float, float>(
-//     override_File_Usecase_with_cmd_line_arguments(GetParam()));
-// }
 
 TEST_P(Tests_Leiden_File, CheckInt32Int32FloatFloat)
 {
@@ -383,7 +212,7 @@ TEST_P(Tests_Leiden_Rmat64, CheckInt64Int64FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Leiden_File,
-  ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, true, 3, 0.408695}),
+  ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, false, 3, 0.408695}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -446,19 +275,19 @@ INSTANTIATE_TEST_SUITE_P(
 // /raid/charlesh/datasets/test/datasets/webbase-1M.mtx
 // /raid/charlesh/datasets/test/datasets/wiki-Talk.mtx
 
-// INSTANTIATE_TEST_SUITE_P(
-//   file_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
-//                           (with
-//                           --gtest_filter to select only the file_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one File_Usecase that differ only in filename
-//                           (to avoid running same benchmarks more than once) */
-//   Tests_Leiden_File64,
-//   ::testing::Combine(
-//     // disable correctness checks for large graphs
-//     ::testing::Values(Leiden_Usecase{}),
-//     ::testing::Values(
-//       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
+                          (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking
@@ -474,32 +303,32 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   file_benchmark_test_ljournal2008, /* note that the test filename can be overridden in benchmarking
-//                           (with
-//                           --gtest_filter to select only the file_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one File_Usecase that differ only in filename
-//                           (to avoid running same benchmarks more than once) */
-//   Tests_Leiden_File64,
-//   ::testing::Combine(
-//     // disable correctness checks for large graphs
-//     ::testing::Values(Leiden_Usecase{}),
-//     ::testing::Values(
-//       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_ljournal2008, /* note that the test filename can be overridden in benchmarking
+                          (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   file_benchmark_test_soc_LiveJournal1, /* note that the test filename can be overridden in
-//                           benchmarking (with
-//                           --gtest_filter to select only the file_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one File_Usecase that differ only in filename
-//                           (to avoid running same benchmarks more than once) */
-//   Tests_Leiden_File64,
-//   ::testing::Combine(
-//     // disable correctness checks for large graphs
-//     ::testing::Values(Leiden_Usecase{}),
-//     ::testing::Values(
-//       cugraph::test::File_Usecase("raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_soc_LiveJournal1, /* note that the test filename can be overridden in
+                          benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
