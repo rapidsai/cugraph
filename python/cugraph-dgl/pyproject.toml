@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 
 [build-system]
 
@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cugraph-dgl"
 version = "23.04.00"
-description = "cugraph wrappers around DGL"
+description = "cugraph extensions for DGL"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "NVIDIA Corporation" },
