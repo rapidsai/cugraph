@@ -180,6 +180,7 @@ int test_rmat_list_generation()
     for (size_t j = 0 ; (j < src_size) && (test_ret_value == 0) ; ++j) {
       printf("Edge %d  expected (%d, %d), got (%d, %d)\n", j, expected_src[i][j], expected_dst[i][j],
              h_src[j], h_dst[j]);
+
     }
 
     for (size_t j = 0 ; (j < src_size) && (test_ret_value == 0) ; ++j) {
