@@ -125,7 +125,7 @@ rmm::device_uvector<vertex_t> compute_mis(
      v_first     = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
       auto v_offset = v - v_first;
 
-      if (out_degrees[v_offset] == 0) { ranks[v_offset] = std::numeric_limits<vertex_t>::lowest(); }
+      if (out_degrees[v_offset] == 0) { ranks[v_offset] = invalid_vertex_id<vertex_t>::value; }
     });
 
   if (debug) { raft::print_device_vector("ranks: ", ranks.data(), ranks.size(), std::cout); }
@@ -173,7 +173,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                        //
                        auto v_offset = v - v_first;
                        if (temporary_ranks[v_offset] < std::numeric_limits<vertex_t>::max()) {
-                         temporary_ranks[v_offset] = std::numeric_limits<vertex_t>::lowest();
+                         temporary_ranks[v_offset] = invalid_vertex_id<vertex_t>::value;
                          if (debug)
                            printf("Setting rank of %d to %d\n", v, temporary_ranks[v_offset]);
                        }
@@ -234,7 +234,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                     temporary_ranks.data(), vertex_t{0}),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return dst_rank; },
-      std::numeric_limits<vertex_t>::lowest(),
+      invalid_vertex_id<vertex_t>::value,
       cugraph::reduce_op::maximum<vertex_t>{},
       max_outgoing_ranks.begin());
 
@@ -255,7 +255,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                     temporary_ranks.data(), vertex_t{0}),
       edge_dummy_property_t{}.view(),
       [] __device__(auto src, auto dst, auto src_rank, auto dst_rank, auto wt) { return src_rank; },
-      std::numeric_limits<vertex_t>::lowest(),
+      invalid_vertex_id<vertex_t>::value,
       cugraph::reduce_op::maximum<vertex_t>{},
       max_incoming_ranks.begin());
 
@@ -269,7 +269,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                       debug           = debug] __device__(auto max_neighbor_rank) {
                        if (debug) printf("%d \n", max_neighbor_rank);
                        if ((max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                           (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest())) {
+                           (max_neighbor_rank > invalid_vertex_id<vertex_t>::value)) {
                          if (max_neighbor_rank != temporary_ranks[max_neighbor_rank - v_first]) {
                            printf("?  %d : %d != %d (r = %d ) \n",
                                   max_neighbor_rank,
@@ -290,7 +290,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                       debug           = debug] __device__(auto max_neighbor_rank) {
                        if (debug) printf("%d \n", max_neighbor_rank);
                        if ((max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                           (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest())) {
+                           (max_neighbor_rank > invalid_vertex_id<vertex_t>::value)) {
                          if (max_neighbor_rank != temporary_ranks[max_neighbor_rank - v_first]) {
                            printf("?  %d : %d != %d (r = %d ) \n",
                                   max_neighbor_rank,
@@ -328,7 +328,7 @@ rmm::device_uvector<vertex_t> compute_mis(
                       debug           = debug] __device__(auto max_neighbor_rank) {
                        if (debug) printf("%d \n", max_neighbor_rank);
                        if ((max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                           (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest())) {
+                           (max_neighbor_rank > invalid_vertex_id<vertex_t>::value)) {
                          if (max_neighbor_rank != temporary_ranks[max_neighbor_rank - v_first]) {
                            printf("?  %d : %d != %d (r = %d ) \n",
                                   max_neighbor_rank,
@@ -368,7 +368,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         if (debug) {
           bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                       (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
+                       (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
           printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                  v,
                  rank_of_v,
@@ -415,14 +415,14 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         auto tmp_rank = temporary_ranks[v_offset];
 
-        if ((tmp_rank != std::numeric_limits<vertex_t>::lowest()) &&
+        if ((tmp_rank != invalid_vertex_id<vertex_t>::value) &&
             (tmp_rank != std::numeric_limits<vertex_t>::max()) && (tmp_rank != v)) {
           printf("?? %d %d\n", v, temporary_ranks[v_offset]);
         }
 
         auto rank = ranks[v_offset];
 
-        if ((rank != std::numeric_limits<vertex_t>::lowest()) &&
+        if ((rank != invalid_vertex_id<vertex_t>::value) &&
             (rank != std::numeric_limits<vertex_t>::max()) && (rank != v)) {
           printf("??? %d %d\n", v, ranks[v_offset]);
         }
@@ -456,7 +456,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
           if (debug) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                         (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
+                         (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                    v,
                    rank_of_v,
@@ -490,7 +490,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
           if (debug) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                         (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
+                         (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d], max_of_max= %d \n",
                    v,
                    rank_of_v,
@@ -524,7 +524,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
           if (debug) {
             bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                         (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
+                         (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
             printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                    v,
                    rank_of_v,
@@ -583,7 +583,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
         if (debug) {
           bool valid = (max_neighbor_rank < std::numeric_limits<vertex_t>::max()) &&
-                       (max_neighbor_rank > std::numeric_limits<vertex_t>::lowest());
+                       (max_neighbor_rank > invalid_vertex_id<vertex_t>::value);
           printf("%d, (r= %d, t= %d)  ==> %d [t= %d, r= %d]\n",
                  v,
                  rank_of_v,
@@ -598,7 +598,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
           // Maximum rank neighbor is alreay in MIS
           // Discard current vertex by setting (global) rank to -Inf
-          ranks[v_offset] = std::numeric_limits<vertex_t>::lowest();
+          ranks[v_offset] = invalid_vertex_id<vertex_t>::value;
           return true;
         }
 
