@@ -411,18 +411,20 @@ rmm::device_uvector<vertex_t> compute_mis(
        v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
         auto v_offset = v - v_first;
 
+        if (v == 0) printf("\nChecking ranks and temporary ranks\n");
+
         auto tmp_rank = temporary_ranks[v_offset];
 
         if ((tmp_rank != std::numeric_limits<vertex_t>::lowest()) &&
             (tmp_rank != std::numeric_limits<vertex_t>::max()) && (tmp_rank != v)) {
-          printf("?? %d %d %d\n", v, temporary_ranks[v_offset]);
+          printf("?? %d %d\n", v, temporary_ranks[v_offset]);
         }
 
         auto rank = ranks[v_offset];
 
         if ((rank != std::numeric_limits<vertex_t>::lowest()) &&
             (rank != std::numeric_limits<vertex_t>::max()) && (rank != v)) {
-          printf("??? %d %d %d\n", v, ranks[v_offset]);
+          printf("??? %d %d\n", v, ranks[v_offset]);
         }
       });
 
