@@ -1098,7 +1098,14 @@ class simpleGraphImpl:
                 # FIXME: This relies on current implementation
                 #        of NumberMap, should not really expose
                 #        this, perhaps add a method to NumberMap
-                df = self.renumber_map.implementation.df.drop(columns="id")
+                df = self.renumber_map.implementation.df
+
+                # Drop the "id" column which is usually added at renumbering
+                # if it exists.
+                # FIXME: Verify if this column still exists after removing cython.cu
+                # renumbering.
+                if "id" in df.columns:
+                    df = self.renumber_map.implementation.df.drop(columns="id")
                 if len(df.columns) > 1:
                     return df
                 else:
