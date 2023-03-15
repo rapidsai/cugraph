@@ -673,14 +673,12 @@ shuffle_and_organize_output(
     auto mem_frugal_threshold =
       static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
 
-    // FIXME:  Need some MG tests that actually exercise all of these variations...
-
     auto d_tx_value_counts = cugraph::groupby_and_count(
       labels->begin(),
       labels->end(),
       [output_label = std::get<0>(*label_to_output_comm_rank),
        output_rank  = std::get<1>(*label_to_output_comm_rank)] __device__(auto val) {
-        auto pos = thrust::find(thrust::seq, output_label.begin(), output_label.end(), val);
+        auto pos = thrust::lower_bound(thrust::seq, output_label.begin(), output_label.end(), val);
         return output_rank[thrust::distance(output_label.begin(), pos)];
       },
       comm_size,
@@ -1033,36 +1031,20 @@ shuffle_and_organize_output(
       thrust::count_if(handle.get_thrust_policy(),
                        thrust::make_counting_iterator<size_t>(0),
                        thrust::make_counting_iterator<size_t>(labels->size()),
-                       [d_labels = labels->data()] __device__(size_t idx) {
-                         return (idx == 0) || (d_labels[idx - 1] != d_labels[idx]);
-                       });
+                       is_first_in_run_t<label_t const*>{labels->data()});
 
     rmm::device_uvector<label_t> unique_labels(num_unique_labels, handle.get_stream());
+    offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
 
-    thrust::copy_if(
-      handle.get_thrust_policy(),
-      thrust::make_zip_iterator(thrust::make_counting_iterator<size_t>(0), labels->begin()),
-      thrust::make_zip_iterator(thrust::make_counting_iterator<size_t>(labels->size()),
-                                labels->end()),
-      thrust::make_zip_iterator(thrust::make_discard_iterator(), unique_labels.begin()),
-      [d_labels = labels->data()] __device__(auto tuple) {
-        size_t idx = thrust::get<0>(tuple);
-        return (idx == 0) || (d_labels[idx - 1] != d_labels[idx]);
-      });
+    thrust::reduce_by_key(handle.get_thrust_policy(),
+                          labels->begin(),
+                          labels->end(),
+                          thrust::make_constant_iterator(size_t{1}),
+                          unique_labels.begin(),
+                          offsets->begin());
 
-    thrust::transform(handle.get_thrust_policy(),
-                      labels->begin(),
-                      labels->end(),
-                      labels->begin(),
-                      [d_unique_labels = raft::device_span<label_t const>{
-                         unique_labels.data(), unique_labels.size()}] __device__(label_t label) {
-                        auto pos = thrust::lower_bound(
-                          thrust::seq, d_unique_labels.begin(), d_unique_labels.end(), label);
-                        return static_cast<label_t>(thrust::distance(d_unique_labels.begin(), pos));
-                      });
-
-    offsets = detail::compute_sparse_offsets<size_t>(
-      labels->begin(), labels->end(), size_t{0}, unique_labels.size(), handle.get_stream());
+    thrust::exclusive_scan(
+      handle.get_thrust_policy(), offsets->begin(), offsets->end(), offsets->begin());
     labels = std::move(unique_labels);
   }
 

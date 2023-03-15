@@ -1752,13 +1752,14 @@ k_core(raft::handle_t const& handle,
  * for the sampling.
  * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
  * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
- * output rank.
+ * output rank.  The label span must be sorted in ascending order.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
  * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @param return_hops boolean flag specifying if the hop information should be returned
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
  * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
  * optional int32_t hop, optional label_t label, optional size_t offsets)
@@ -1791,7 +1792,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement = true);
+  bool with_replacement   = true,
+  bool do_expensive_check = false);
 
 /*
  * @brief Compute triangle counts.

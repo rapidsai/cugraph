@@ -57,7 +57,8 @@ uniform_neighbor_sample_impl(
   raft::host_span<int32_t const> fan_out,
   bool return_hops,
   bool with_replacement,
-  raft::random::RngState& rng_state)
+  raft::random::RngState& rng_state,
+  bool do_expensive_check)
 {
 #ifdef NO_CUGRAPH_OPS
   CUGRAPH_FAIL(
@@ -77,6 +78,14 @@ uniform_neighbor_sample_impl(
   CUGRAPH_EXPECTS(
     !label_to_output_comm_rank || starting_vertex_labels,
     "cannot specify output GPU mapping without also specifying starting_vertex_labels");
+
+  if (do_expensive_check) {
+    if (label_to_output_comm_rank) {
+      CUGRAPH_EXPECTS(
+        cugraph::detail::is_span_sorted(handle, std::get<0>(*label_to_output_comm_rank)),
+        "Labels in label_to_output_comm_rank must be sorted");
+    }
+  }
 
   std::vector<rmm::device_uvector<vertex_t>> level_result_src_vectors{};
   std::vector<rmm::device_uvector<vertex_t>> level_result_dst_vectors{};
@@ -340,7 +349,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement)
+  bool with_replacement,
+  bool do_expensive_check)
 {
   return detail::uniform_neighbor_sample_impl(handle,
                                               graph_view,
@@ -353,7 +363,8 @@ uniform_neighbor_sample(
                                               fan_out,
                                               return_hops,
                                               with_replacement,
-                                              rng_state);
+                                              rng_state,
+                                              do_expensive_check);
 }
 
 }  // namespace cugraph

@@ -902,7 +902,6 @@ weight_t compute_total_edge_weight(
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
-
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state,
   vertex_t select_count,

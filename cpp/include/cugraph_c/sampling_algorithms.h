@@ -206,7 +206,8 @@ typedef struct {
  * that were derived from that start vertex.  We only support label of type INT32. If label is
  * NULL, the return data will not be labeled.
  * @param [in]  label_list Device array of the labels included in @p start_vertex_labels.  If
- * @p label_to_comm_rank is not specified this parameter is ignored.
+ * @p label_to_comm_rank is not specified this parameter is ignored.  If specified, label_list
+ * must be sorted in ascending order.
  * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
  * particular label should be shuffled in the output.  If not specifed the data is not organized in
  * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p

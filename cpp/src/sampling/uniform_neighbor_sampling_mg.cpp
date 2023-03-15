@@ -41,7 +41,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement);
+  bool with_replacement,
+  bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -64,7 +65,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement);
+  bool with_replacement,
+  bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -87,7 +89,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement);
+  bool with_replacement,
+  bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -110,7 +113,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement);
+  bool with_replacement,
+  bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -133,7 +137,8 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement);
+  bool with_replacement,
+  bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -156,6 +161,7 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement);
+  bool with_replacement,
+  bool do_expensive_check);
 
 }  // namespace cugraph

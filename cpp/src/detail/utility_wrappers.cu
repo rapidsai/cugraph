@@ -26,6 +26,7 @@
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
+#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
@@ -193,6 +194,17 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 filter_degree_0_vertices(raft::handle_t const& handle,
                          rmm::device_uvector<int64_t>&& d_vertices,
                          rmm::device_uvector<int64_t>&& d_out_degs);
+
+template <typename data_t>
+bool is_span_sorted(raft::handle_t const& handle, raft::device_span<data_t> span)
+{
+  return thrust::is_sorted(handle.get_thrust_policy(), span.begin(), span.end());
+}
+
+template bool is_span_sorted(raft::handle_t const& handle, raft::device_span<int32_t> span);
+template bool is_span_sorted(raft::handle_t const& handle, raft::device_span<int32_t const> span);
+template bool is_span_sorted(raft::handle_t const& handle, raft::device_span<int64_t> span);
+template bool is_span_sorted(raft::handle_t const& handle, raft::device_span<int64_t const> span);
 
 }  // namespace detail
 }  // namespace cugraph

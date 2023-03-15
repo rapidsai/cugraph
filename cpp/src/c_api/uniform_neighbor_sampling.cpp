@@ -179,8 +179,6 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         graph_view.local_vertex_partition_range_last(),
         do_expensive_check_);
 
-      std::cout << "label_list = " << label_list_ << std::endl;
-
       auto&& [src, dst, wgt, edge_id, edge_type, hop, edge_label, offsets] =
         cugraph::uniform_neighbor_sample(
           handle_,
