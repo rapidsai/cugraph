@@ -1,2 +1,2 @@
 # Commmunity Resources
-Rapids Community Repository(https://github.com/rapidsai-community/notebooks-contrib)
+[Rapids Community Repository](https://github.com/rapidsai-community/notebooks-contrib)

@@ -1,9 +1,7 @@
-============================
-Graph Neural Network Support
-============================
+========
+Releases
+========
 
 
 .. toctree::
    :maxdepth: 3
-   
-GNN Support in cugraph

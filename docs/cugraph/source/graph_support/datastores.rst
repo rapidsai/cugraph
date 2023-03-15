@@ -6,8 +6,6 @@ Data Stores
 .. toctree::
    :maxdepth: 3
    
-Property Graph
-
-Feature Stores
-
-Knowledge Store
+   property_graph.md
+   feature_stores.md
+   knowledge_stores.md
