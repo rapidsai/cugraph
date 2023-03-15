@@ -42,7 +42,7 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
                             bool_t use_weight,
                             similarity_t test_type)
 {
-  int test_ret_value = 0;
+  int test_ret_value        = 0;
   data_type_id_t vertex_tid = INT32;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
@@ -62,9 +62,7 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  if (cugraph_resource_handle_get_rank(handle) != 0) {
-    num_pairs = 0;
-  }
+  if (cugraph_resource_handle_get_rank(handle) != 0) { num_pairs = 0; }
 
   ret_code =
     cugraph_type_erased_device_array_create(handle, num_pairs, vertex_tid, &v1, &ret_error);
@@ -303,41 +301,19 @@ int test_weighted_overlap(const cugraph_resource_handle_t* handle)
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_jaccard, handle);
+  result |= RUN_MG_TEST(test_sorensen, handle);
+  result |= RUN_MG_TEST(test_overlap, handle);
+  // result |= RUN_MG_TEST(test_weighted_jaccard, handle);
+  // result |= RUN_MG_TEST(test_weighted_sorensen, handle);
+  // result |= RUN_MG_TEST(test_weighted_overlap, handle);
 
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_jaccard, handle);
-    result |= RUN_MG_TEST(test_sorensen, handle);
-    result |= RUN_MG_TEST(test_overlap, handle);
-    //result |= RUN_MG_TEST(test_weighted_jaccard, handle);
-    //result |= RUN_MG_TEST(test_weighted_sorensen, handle);
-    //result |= RUN_MG_TEST(test_weighted_overlap, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }
