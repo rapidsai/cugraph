@@ -60,7 +60,8 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(raft::handle_t const& handle
                                                     cugraph::c_api::cugraph_error_t** error)
 {
   try {
-    std::cout << "calling cugraph::generate_rmat_edgelist, rng_state = (" << rng_state.seed << ", " << rng_state.base_subsequence << ")" << std::endl;
+    std::cout << "calling cugraph::generate_rmat_edgelist, rng_state = (" << rng_state.seed << ", "
+              << rng_state.base_subsequence << ")" << std::endl;
     auto [src, dst] = cugraph::generate_rmat_edgelist<vertex_t>(
       handle, rng_state, scale, num_edges, a, b, c, clip_and_flip);
 
@@ -95,7 +96,9 @@ cugraph_error_code_t cugraph_generate_rmat_edgelists(
   cugraph::c_api::cugraph_error_t** error)
 {
   try {
-    std::cout << "calling cugraph::generate_rmat_edgelists, rng_state = (" << rng_state.seed << ", " << rng_state.base_subsequence << "), vertex_dtype = " << vertex_dtype << ", sizeof = " << sizeof(vertex_t) << std::endl;
+    std::cout << "calling cugraph::generate_rmat_edgelists, rng_state = (" << rng_state.seed << ", "
+              << rng_state.base_subsequence << "), vertex_dtype = " << vertex_dtype
+              << ", sizeof = " << sizeof(vertex_t) << std::endl;
     auto tuple_vector = cugraph::generate_rmat_edgelists<vertex_t>(
       handle,
       rng_state,
