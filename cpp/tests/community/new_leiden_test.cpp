@@ -31,7 +31,7 @@
 
 struct Leiden_Usecase {
   size_t max_level_{100};
-  double resolution_{1};
+  double resolution_{0.05};
   bool check_correctness_{false};
   int expected_level_{0};
   float expected_modularity_{0};
@@ -98,7 +98,9 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
                           graph_view.local_vertex_partition_range_size(),
                           leiden_usecase.check_correctness_,
                           leiden_usecase.expected_level_,
-                          leiden_usecase.expected_modularity_),
+                          leiden_usecase.resolution_,
+                          leiden_usecase.expected_modularity_
+                          ),
                    cugraph::logic_error);
     } else {
       leiden(graph_view,
@@ -106,6 +108,7 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
              graph_view.local_vertex_partition_range_size(),
              leiden_usecase.check_correctness_,
              leiden_usecase.expected_level_,
+             leiden_usecase.resolution_,
              leiden_usecase.expected_modularity_);
     }
 
@@ -123,6 +126,7 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     vertex_t num_vertices,
     bool check_correctness,
     int expected_level,
+    float resolution,
     float expected_modularity)
   {
     raft::handle_t handle{};
@@ -132,7 +136,7 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     weight_t modularity;
 
     std::tie(level, modularity) = cugraph::leiden(
-      handle, graph_view, edge_weight_view, clustering_v.data(), size_t{100}, weight_t{1});
+      handle, graph_view, edge_weight_view, clustering_v.data(), size_t{100}, resolution);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
     std::cout << "modularity: " << modularity << std::endl;
@@ -234,6 +238,66 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one File_Usecase that differ only in filename
                           (to avoid running same benchmarks more than once) */
   Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_ex2, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_ex2, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File32,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_ex1, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_ex1, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File32,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_karate, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File32,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{}),
