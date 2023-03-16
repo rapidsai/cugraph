@@ -40,6 +40,9 @@ def renumber_vertices(input_graph, input_df):
 # shared by other algos
 def ensure_valid_dtype(input_graph, input_df, input_df_name):
     if input_graph.edgelist.weights is False:
+        # If the graph is not weighted, an artificial weight column
+        # of type 'float32' is added and it must match the user
+        # personalization/nstart values.
         edge_attr_dtype = np.float32
     else:
         edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
