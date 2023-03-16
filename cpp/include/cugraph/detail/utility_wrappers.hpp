@@ -156,7 +156,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
  * @return true if sorted, false if not sorted
  */
 template <typename data_t>
-bool is_span_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
+bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
 
 }  // namespace detail
 }  // namespace cugraph

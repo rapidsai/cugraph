@@ -81,9 +81,8 @@ uniform_neighbor_sample_impl(
 
   if (do_expensive_check) {
     if (label_to_output_comm_rank) {
-      CUGRAPH_EXPECTS(
-        cugraph::detail::is_span_sorted(handle, std::get<0>(*label_to_output_comm_rank)),
-        "Labels in label_to_output_comm_rank must be sorted");
+      CUGRAPH_EXPECTS(cugraph::detail::is_sorted(handle, std::get<0>(*label_to_output_comm_rank)),
+                      "Labels in label_to_output_comm_rank must be sorted");
     }
   }
 
