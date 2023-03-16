@@ -99,7 +99,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda activate test_cugraph_dgl
     set -u
     rapids-mamba-retry install \
-      --force-reinstall \
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
       --channel pytorch-nightly \
