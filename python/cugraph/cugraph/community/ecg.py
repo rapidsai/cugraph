@@ -70,6 +70,21 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
 
     input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph, weight)
 
+    # Renumber the vertices so that they are contiguous (required)
+    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
+    if not input_graph.renumbered:
+        edgelist = input_graph.edgelist.edgelist_df
+        renumbered_edgelist_df, renumber_map = input_graph.renumber_map.renumber(
+            edgelist, ["src"], ["dst"]
+        )
+        renumbered_src_col_name = renumber_map.renumbered_src_col_name
+        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
+        input_graph.edgelist.edgelist_df = renumbered_edgelist_df.rename(
+            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
+        )
+        input_graph.properties.renumbered = True
+        input_graph.renumber_map = renumber_map
+
     parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
 
     if input_graph.renumbered:

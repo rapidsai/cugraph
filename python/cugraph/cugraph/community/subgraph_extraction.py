@@ -59,6 +59,23 @@ def subgraph(G, vertices):
     G, isNx = ensure_cugraph_obj_for_nx(G)
     directed = G.is_directed()
 
+    # Renumber the vertices so that they are contiguous (required)
+    # FIXME: renumber needs to be set to 'True' at the graph creation
+    # but there is nway to track that.
+    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
+    if not G.renumbered:
+        edgelist = G.edgelist.edgelist_df
+        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
+            edgelist, ["src"], ["dst"]
+        )
+        renumbered_src_col_name = renumber_map.renumbered_src_col_name
+        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
+        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
+            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
+        )
+        G.properties.renumbered = True
+        G.renumber_map = renumber_map
+
     if G.renumbered:
         if isinstance(vertices, cudf.DataFrame):
             vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)

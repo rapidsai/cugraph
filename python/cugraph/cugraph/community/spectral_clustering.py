@@ -83,6 +83,8 @@ def spectralBalancedCutClustering(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     # Renumber the vertices so that they are contiguous (required)
+    # FIXME: renumber needs to be set to 'True' at the graph creation
+    # but there is nway to track that.
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df
@@ -180,6 +182,8 @@ def spectralModularityMaximizationClustering(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     # Renumber the vertices so that they are contiguous (required)
+    # FIXME: renumber needs to be set to 'True' at the graph creation
+    # but there is nway to track that.
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df
@@ -266,6 +270,8 @@ def analyzeClustering_modularity(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     # Renumber the vertices so that they are contiguous (required)
+    # FIXME: renumber needs to be set to 'True' at the graph creation
+    # but there is nway to track that.
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df
@@ -347,6 +353,8 @@ def analyzeClustering_edge_cut(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     # Renumber the vertices so that they are contiguous (required)
+    # FIXME: renumber needs to be set to 'True' at the graph creation
+    # but there is nway to track that.
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df

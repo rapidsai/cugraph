@@ -292,6 +292,7 @@ def strongly_connected_components(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
     # Renumber the vertices so that they are contiguous (required)
+    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df
         renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
