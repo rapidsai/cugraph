@@ -90,20 +90,22 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
-
-    # create a clone of existing environment
-    rapids-mamba-retry create --clone test --name test_cugraph_dgl
+    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
 
     # activate test_cugraph_dgl environment for dgl
     set +u
     conda activate test_cugraph_dgl
     set -u
     rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
       --channel pytorch-nightly \
       --channel dglteam/label/cu117 \
       --channel nvidia \
+      libcugraph \
+      pylibcugraph \
+      cugraph \
       cugraph-dgl \
       'dgl>=1.0' \
       'pytorch>=2.0' \
