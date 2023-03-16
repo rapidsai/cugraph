@@ -146,6 +146,8 @@ generate_rmat_edgelists(raft::handle_t const& handle,
   std::vector<vertex_t> scale(n_edgelists);
   rmm::device_uvector<vertex_t> d_scale(n_edgelists, handle.get_stream());
 
+  std::cout << "  before generating scale values, rng_state = (" << rng_state.seed << ", "
+            << rng_state.base_subsequence << ")" << std::endl;
   if (size_distribution == generator_distribution_t::UNIFORM) {
     detail::uniform_random_fill(handle.get_stream(),
                                 d_scale.data(),
@@ -181,6 +183,8 @@ generate_rmat_edgelists(raft::handle_t const& handle,
   }
 
   for (size_t i = 0; i < n_edgelists; i++) {
+    std::cout << "  generating list " << i << " values, rng_state = (" << rng_state.seed << ", "
+              << rng_state.base_subsequence << ")" << std::endl;
     output.push_back(generate_rmat_edgelist<vertex_t>(
       handle, rng_state, scale[i], scale[i] * edge_factor, a, b, c, clip_and_flip));
   }
