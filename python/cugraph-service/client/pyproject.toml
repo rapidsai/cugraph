@@ -6,19 +6,21 @@ requires = [
     "wheel",
     "setuptools",
 ]
-
-[tool.pytest.ini_options]
-testpaths = ["cugraph_pyg/tests"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "cugraph_pyg"
+name = "cugraph-service-client"
 version = "23.04.00"
-description = "cugraph_pyg - PyG support for cuGraph massive-scale, ultra-fast GPU graph analytics."
+description = "cuGraph Service client"
+readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "NVIDIA Corporation" },
 ]
 license = { text = "Apache 2.0" }
 requires-python = ">=3.8"
+dependencies = [
+    "thriftpy2",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
@@ -35,6 +37,5 @@ license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 include = [
-    "cugraph_pyg*",
-    "cugraph_pyg.*",
+    "cugraph_service_client",
 ]
