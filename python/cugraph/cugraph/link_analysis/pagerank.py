@@ -46,21 +46,22 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         edge_attr_dtype = np.float32
     else:
         edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
+
+    if "values" in input_df.columns:
+        input_df_values_dtype = input_df["values"].dtype
+        if input_df_values_dtype != edge_attr_dtype:
+            warning_msg = (
+                f"PageRank requires '{input_df_name}' values "
+                "to match the graph's 'edge_attr' type. "
+                f"edge_attr type is: {edge_attr_dtype} and got "
+                f"'{input_df_name}' values of type: "
+                f"{input_df_values_dtype}."
+            )
+            warnings.warn(warning_msg, UserWarning)
+            input_df = input_df.astype({"values": edge_attr_dtype})
+
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
-
-    input_df_values_dtype = input_df["values"].dtype
     input_df_vertex_dtype = input_df["vertex"].dtype
-    if input_df_values_dtype != edge_attr_dtype:
-        warning_msg = (
-            f"PageRank requires '{input_df_name}' values "
-            "to match the graph's 'edge_attr' type. "
-            f"edge_attr type is: {edge_attr_dtype} and got "
-            f"'{input_df_name}' values of type: "
-            f"{input_df_values_dtype}."
-        )
-        warnings.warn(warning_msg, UserWarning)
-        input_df = input_df.astype({"values": edge_attr_dtype})
-
     if input_df_vertex_dtype != vertex_dtype:
         warning_msg = (
             f"PageRank requires '{input_df_name}' vertex "
