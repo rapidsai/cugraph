@@ -12,16 +12,16 @@
 # limitations under the License.
 from __future__ import annotations
 from typing import Tuple, Dict
-from torch.utils.dlpack import from_dlpack
 from collections import defaultdict
 import cudf
-import torch
-import dgl
+from cugraph.utilities.utils import import_optional
+
+dgl = import_optional("dgl")
+torch = import_optional("torch")
 
 
 def cast_to_tensor(ser: cudf.Series):
-    # TODO: Maybe use torch.as_tensor
-    return from_dlpack(ser.values.toDlpack())
+    return torch.as_tensor(ser.values, device="cuda")
 
 
 def create_homogeneous_sampled_graphs_from_dataframe(

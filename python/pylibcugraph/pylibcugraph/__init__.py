@@ -58,3 +58,6 @@ from pylibcugraph.weakly_connected_components import weakly_connected_components
 from pylibcugraph.uniform_random_walks import uniform_random_walks
 
 from pylibcugraph.random import CuGraphRandomState
+
+
+__version__ = "23.04.00"
