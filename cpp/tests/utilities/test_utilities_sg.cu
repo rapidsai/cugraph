@@ -162,5 +162,19 @@ graph_to_host_csr(
   cugraph::graph_view_t<int64_t, int64_t, true, false> const& graph_view,
   std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view);
 
+template rmm::device_uvector<int32_t> randomly_sample_vertices<int32_t, false>(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  std::vector<int32_t> const& vertex_partition_range_lasts,
+  size_t sample_size,
+  bool with_replacement);
+
+template rmm::device_uvector<int64_t> randomly_sample_vertices<int64_t, false>(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  std::vector<int64_t> const& vertex_partition_range_lasts,
+  size_t sample_size,
+  bool with_replacement);
+
 }  // namespace test
 }  // namespace cugraph
