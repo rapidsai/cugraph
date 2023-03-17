@@ -110,9 +110,9 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
 
         Graph or matrix object, which should contain the connectivity
         information (edge weights are not used for this algorithm). If using a
-        graph object, the graph can be either directed or undirected where an
+        graph object, the graph must be undirected where an
         undirected edge is represented by a directed edge in both directions.
-        The adjacency list will be computed if not already present.  The number
+        The adjacency list will be computed if not already present. The number
         of vertices should fit into a 32b int.
 
     directed : bool, optional (default=None)
@@ -174,7 +174,6 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     >>> df = cugraph.weakly_connected_components(G)
 
     """
-
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels
     )
@@ -330,6 +329,10 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
         csgraph[j, i].
 
     connection : str, optional (default='weak')
+
+        NOTE
+            For Graph-type values of G, weak components are only
+            supported for undirected graphs.
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.

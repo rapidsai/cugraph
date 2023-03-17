@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -152,12 +151,23 @@ class Tests_MGTriangleCount
     if (triangle_count_usecase.check_correctness) {
       // 4-1. aggregate MG results
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_vertices =
-        d_mg_vertices ? std::optional<rmm::device_uvector<vertex_t>>{cugraph::test::device_gatherv(
-                          *handle_, (*d_mg_vertices).data(), (*d_mg_vertices).size())}
-                      : std::nullopt;
+      std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_vertices{std::nullopt};
+      std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_renumber_map_labels{std::nullopt};
+      if (d_mg_vertices) {
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          (*d_mg_vertices).data(),
+          (*d_mg_vertices).size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
+
+        d_mg_aggregate_vertices =
+          cugraph::test::device_gatherv(*handle_, (*d_mg_vertices).data(), (*d_mg_vertices).size());
+      } else {
+        d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
+          *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+      }
+
       auto d_mg_aggregate_triangle_counts = cugraph::test::device_gatherv(
         *handle_, d_mg_triangle_counts.data(), d_mg_triangle_counts.size());
 
@@ -165,18 +175,12 @@ class Tests_MGTriangleCount
         // 4-2. unrenumbr MG results
 
         if (d_mg_aggregate_vertices) {
-          cugraph::unrenumber_int_vertices<vertex_t, false>(
-            *handle_,
-            (*d_mg_aggregate_vertices).data(),
-            (*d_mg_aggregate_vertices).size(),
-            d_mg_aggregate_renumber_map_labels.data(),
-            std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
           std::tie(d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts) =
             cugraph::test::sort_by_key(
               *handle_, *d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts);
         } else {
           std::tie(std::ignore, d_mg_aggregate_triangle_counts) = cugraph::test::sort_by_key(
-            *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_triangle_counts);
+            *handle_, *d_mg_aggregate_renumber_map_labels, d_mg_aggregate_triangle_counts);
         }
 
         // 4-3. create SG graph

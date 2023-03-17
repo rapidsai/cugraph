@@ -56,19 +56,19 @@ sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/sour
 
 # Python __init__.py updates
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph-dgl/__init__.py
-sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph-pyg/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph_dgl/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph_pyg/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
 sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
 
-# Python setup.py updates
-sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph/setup.py
-sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-dgl/setup.py
-sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-pyg/setup.py
-sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-service/client/setup.py
-sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/cugraph-service/server/setup.py
-sed_runner "s/version=.*,/version=\"${NEXT_FULL_TAG}\",/g" python/pylibcugraph/setup.py
+# Python pyproject.toml updates
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pyproject.toml
 
 for FILE in conda/environments/*.yaml dependencies.yaml; do
    sed_runner "s/libcugraphops=${CURRENT_SHORT_TAG}/libcugraphops=${NEXT_SHORT_TAG}/g" ${FILE};
@@ -106,7 +106,13 @@ done
 NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}'))")
 
 # Wheel builds install intra-RAPIDS dependencies from same release
-sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/setup.py
-sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/_custom_build/backend.py
-sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/setup.py
-sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/_custom_build/backend.py
+sed_runner "s/rmm==.*\",/rmm==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/pyproject.toml
+sed_runner "s/pylibraft==.*\",/pylibraft==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/pyproject.toml
+sed_runner "s/pylibcugraph==.*\",/pylibcugraph==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/pyproject.toml
+sed_runner "s/raft-dask==.*\",/raft-dask==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/pyproject.toml
+sed_runner "s/cudf==.*\",/cudf==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/pyproject.toml
+sed_runner "s/dask-cuda==.*\",/dask-cuda==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/pyproject.toml
+
+sed_runner "s/rmm==.*\",/rmm==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/pyproject.toml
+sed_runner "s/pylibraft==.*\",/pylibraft==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/pyproject.toml
+sed_runner "s/cudf==.*\",/cudf==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/pyproject.toml

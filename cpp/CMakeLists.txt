@@ -394,6 +394,7 @@ add_library(cugraph_c
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
+	src/c_api/heirarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
         src/c_api/induced_subgraph_helper.cu
         src/c_api/graph_helper.cu
@@ -406,6 +407,7 @@ add_library(cugraph_c
         src/c_api/random_walks.cpp
         src/c_api/random.cpp
         src/c_api/similarity.cpp
+        src/c_api/leiden.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
