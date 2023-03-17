@@ -2,6 +2,4 @@
 Releases
 ========
 
-
-.. toctree::
-   :maxdepth: 3
+https://github.com/rapidsai/cugraph/blob/main/CHANGELOG.md
