@@ -35,6 +35,7 @@ def betweenness_centrality(
     normalized: bool = True,
     weight: cudf.DataFrame = None,
     endpoints: bool = False,
+    seed: int = None,
     random_state: int = None,
     result_dtype: Union[np.float32, np.float64] = np.float64,
 ) -> Union[cudf.DataFrame, dict]:
@@ -88,11 +89,11 @@ def betweenness_centrality(
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
 
-    random_state : int, optional (default=None)
-        if k is specified and k is an integer, use random_state to initialize the
-        random number generator.
+    seed/random_state : int, optional (default=None)
+        if k is specified and k is an integer, use seed/random_state to initialize
+        the random number generator.
         Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: random_state parameter is ignored
+        If k is either None or list: seed/random_state parameter is ignored
 
     result_dtype : np.float32 or np.float64, optional, default=np.float64
         Indicate the data type of the betweenness centrality scores
@@ -118,8 +119,12 @@ def betweenness_centrality(
 
     """
 
-    # FIXME: 'seed' was renamed to 'random_state'. Should we raise a deprecated
-    # warning first?
+    if seed is not None:
+        warning_msg = (
+            "This parameter is deprecated and will be remove " "in the next release. "
+            "Use 'random_state' instead."
+        )
+        warnings.warn(warning_msg, UserWarning)
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
