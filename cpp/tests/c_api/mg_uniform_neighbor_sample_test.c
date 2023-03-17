@@ -95,8 +95,8 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_type_erased_device_array_view_t* srcs;
   cugraph_type_erased_device_array_view_t* dsts;
 
-  srcs  = cugraph_sample_result_get_sources(result);
-  dsts  = cugraph_sample_result_get_destinations(result);
+  srcs = cugraph_sample_result_get_sources(result);
+  dsts = cugraph_sample_result_get_destinations(result);
 
   size_t result_size = cugraph_type_erased_device_array_view_size(srcs);
 
@@ -338,37 +338,15 @@ int test_uniform_neighbor_from_alex(const cugraph_resource_handle_t* handle)
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
+  result |= RUN_MG_TEST(test_uniform_neighbor_from_alex, handle);
 
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
-    result |= RUN_MG_TEST(test_uniform_neighbor_from_alex, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }

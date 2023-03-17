@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/functions.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/util/cudart_utils.hpp>
@@ -322,15 +321,16 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
   thrust::sequence(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
   if (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_size     = comm.get_size();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
-    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
+    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+      comm_size, major_comm_size, minor_comm_size};
     d_vertices.resize(
       thrust::distance(d_vertices.begin(),
                        thrust::remove_if(handle.get_thrust_policy(),
@@ -342,7 +342,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     d_vertices.shrink_to_fit(handle.get_stream());
 
     auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-      comm_size, row_comm_size, col_comm_size};
+      comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
       auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(

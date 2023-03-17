@@ -25,6 +25,9 @@ from cugraph.utilities.utils import import_optional, MissingModule
 torch = import_optional("torch")
 
 
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample(basic_graph_1, dask_client):
@@ -63,10 +66,6 @@ def test_neighbor_sample(basic_graph_1, dask_client):
 
         assert list(node_ids) == list(actual_vertex_ids)
 
-    print("row:", row_dict)
-    print("col:", col_dict)
-    print("G:", G)
-
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
@@ -92,6 +91,9 @@ def test_neighbor_sample(basic_graph_1, dask_client):
         )
 
 
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_client):

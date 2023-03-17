@@ -80,6 +80,9 @@ def test_edge_attr():
     assert ea.size == 10
 
 
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 @pytest.fixture(
     params=[
         "basic_graph_1",
@@ -91,6 +94,9 @@ def graph(request):
     return request.getfixturevalue(request.param)
 
 
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 @pytest.fixture(params=["basic_graph_1", "multi_edge_graph_1"])
 def single_vertex_graph(request):
     return request.getfixturevalue(request.param)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -93,13 +93,12 @@ if hasArg "--run-python-tests"; then
     echo "Python pytest for cuGraph (single-GPU only)..."
     conda list
     cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
-    # rmat is not tested because of MG testing
-    pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
+    pytest -sv -m sg --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
     echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python benchmarks for cuGraph (running as tests)..."
     cd ${CUGRAPH_ROOT}/benchmarks/cugraph
-    pytest -sv -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
+    pytest -sv -m sg -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python pytest for cugraph_pyg (single-GPU only)..."

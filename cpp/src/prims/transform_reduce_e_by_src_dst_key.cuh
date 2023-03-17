@@ -15,13 +15,14 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -385,23 +386,15 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcValueInputWrapper::value_iterator>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeDstValueInputWrapper::value_iterator>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
@@ -409,13 +402,9 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       edge_t,
       typename EdgeValueInputWrapper::value_iterator>>;
   using edge_partition_src_dst_key_device_view_t =
-    std::conditional_t<edge_src_key != GraphViewType::is_storage_transposed,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcDstKeyInputWrapper::value_iterator>,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcDstKeyInputWrapper::value_iterator>>;
+    detail::edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcDstKeyInputWrapper::value_iterator>;
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
@@ -424,22 +413,12 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    int comm_root_rank = 0;
-    if (GraphViewType::is_multi_gpu) {
-      auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-      auto const row_comm_rank = row_comm.get_rank();
-      auto const row_comm_size = row_comm.get_size();
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
-      comm_root_rank           = i * row_comm_size + row_comm_rank;
-    }
-
     auto num_edges = edge_partition.number_of_edges();
 
     rmm::device_uvector<vertex_t> tmp_keys(num_edges, handle.get_stream());
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
-    if (graph_view.vertex_partition_range_size(comm_root_rank) > 0) {
+    if (num_edges > 0) {
       edge_partition_src_input_device_view_t edge_partition_src_value_input{};
       edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
       if constexpr (GraphViewType::is_storage_transposed) {
@@ -567,6 +546,10 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();
+      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
 
       rmm::device_uvector<vertex_t> rx_unique_keys(0, handle.get_stream());
       auto rx_value_for_unique_key_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
@@ -576,8 +559,11 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
           tmp_keys.begin(),
           tmp_keys.end(),
           get_dataframe_buffer_begin(tmp_value_buffer),
-          [key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(
-            auto val) { return key_func(val); },
+          [key_func =
+             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+               comm_size, major_comm_size, minor_comm_size}] __device__(auto val) {
+            return key_func(val);
+          },
           handle.get_stream());
 
       std::tie(tmp_keys, tmp_value_buffer) =

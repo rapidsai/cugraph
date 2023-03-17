@@ -121,11 +121,10 @@ int generic_uniform_random_walks_test(const cugraph_resource_handle_t* handle,
                       "uniform_random_walks found no edge when an edge exists");
         }
       } else {
-        TEST_ASSERT(
-          test_ret_value,
-          M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
-            h_result_wgts[i * max_depth + j],
-          "uniform_random_walks got edge that doesn't exist");
+        TEST_ASSERT(test_ret_value,
+                    M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
+                      h_result_wgts[i * max_depth + j],
+                    "uniform_random_walks got edge that doesn't exist");
       }
     }
   }
@@ -396,38 +395,16 @@ int test_node2vec_random_walks(const cugraph_resource_handle_t* handle)
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_uniform_random_walks, handle);
+  result |= RUN_MG_TEST(test_biased_random_walks, handle);
+  result |= RUN_MG_TEST(test_node2vec_random_walks, handle);
 
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_uniform_random_walks, handle);
-    result |= RUN_MG_TEST(test_biased_random_walks, handle);
-    result |= RUN_MG_TEST(test_node2vec_random_walks, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }
