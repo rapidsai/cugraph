@@ -74,18 +74,21 @@ struct scc_functor : public cugraph::c_api::abstract_functor {
 
         auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-        auto graph_view = graph->view();
+        auto graph_view          = graph->view();
         auto edge_partition_view = graph_view.local_edge_partition_view();
 
-        cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(edge_partition_view.offsets().data(),
-                                                                                    edge_partition_view.indices().data(),
-                                                                                    nullptr,
-                                                                                    edge_partition_view.offsets().size() - 1,
-                                                                                    edge_partition_view.indices().size());
+        cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
+          const_cast<edge_t*>(edge_partition_view.offsets().data()),
+          const_cast<vertex_t*>(edge_partition_view.indices().data()),
+          nullptr,
+          edge_partition_view.offsets().size() - 1,
+          edge_partition_view.indices().size());
 
-        rmm::device_uvector<vertex_t> components(graph_view->number_of_vertices(), handle.get_stream());
+        rmm::device_uvector<vertex_t> components(graph_view.number_of_vertices(),
+                                                 handle_.get_stream());
 
-        cugraph::connected_components(legacy_graph_view, cugraph_cc_t::CUGRAPH_STRONG, components.data());
+        cugraph::connected_components(
+          legacy_graph_view, cugraph::cugraph_cc_t::CUGRAPH_STRONG, components.data());
         rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                  handle_.get_stream());
         raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
