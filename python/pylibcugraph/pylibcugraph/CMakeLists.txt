@@ -24,6 +24,7 @@ set(cython_sources
     graph_properties.pyx
     graphs.pyx
     hits.pyx
+    induced_subgraph.pyx
     k_core.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
