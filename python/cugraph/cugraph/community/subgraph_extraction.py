@@ -41,7 +41,7 @@ def ensure_valid_dtype(input_graph, input, input_name):
     return input
 
 
-def subgraph(G, vertices, offsets=None):
+def subgraph(G, vertices):
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
@@ -82,6 +82,9 @@ def subgraph(G, vertices, offsets=None):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     directed = G.is_directed()
+
+    # FIXME: Hardcoded for now
+    offsets=None
 
 
     if G.renumbered:
@@ -132,7 +135,7 @@ def subgraph(G, vertices, offsets=None):
     if isNx is True:
         result_graph = cugraph_to_nx(result_graph)
 
-    # FIXME: And extra output 'offsets' is not used when returning a graph.
+    # FIXME: An extra output 'offsets' is not used when returning a graph.
     # Should we also return a dataframe with ["src", "dst", "weight"] along with an
     # offsets array?
     return result_graph
