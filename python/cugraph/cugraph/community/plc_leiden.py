@@ -22,7 +22,9 @@ from pylibcugraph import ResourceHandle
 from typing import Tuple
 
 
-def plc_leiden(G, max_iter: int = 100, resolution: float = 1.0) -> Tuple[cudf.DataFrame, float]:
+def plc_leiden(
+    G, max_iter: int = 100, resolution: float = 1.0
+) -> Tuple[cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     leiden method
