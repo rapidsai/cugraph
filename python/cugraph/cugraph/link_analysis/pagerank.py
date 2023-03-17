@@ -212,6 +212,8 @@ def pagerank(
             precomputed_vertex_out_weight = renumber_vertices(
                 G, precomputed_vertex_out_weight
             )
+        precomputed_vertex_out_weight = ensure_valid_dtype(
+            G, precomputed_vertex_out_weight, "precomputed_vertex_out_weight")
         pre_vtx_o_wgt_vertices = precomputed_vertex_out_weight["vertex"]
         pre_vtx_o_wgt_sums = precomputed_vertex_out_weight["sums"]
 
