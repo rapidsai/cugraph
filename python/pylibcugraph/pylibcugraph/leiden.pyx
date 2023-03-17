@@ -50,10 +50,10 @@ from pylibcugraph.utils cimport (
 
 
 def leiden(ResourceHandle resource_handle,
-            _GPUGraph graph,
-            size_t max_level,
-            double resolution,
-            bool_t do_expensive_check):
+           _GPUGraph graph,
+           size_t max_level,
+           double resolution,
+           bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
     Leiden method.
@@ -118,12 +118,12 @@ def leiden(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
 
     error_code = cugraph_leiden(c_resource_handle_ptr,
-                                 c_graph_ptr,
-                                 max_level,
-                                 resolution,
-                                 do_expensive_check,
-                                 &result_ptr,
-                                 &error_ptr)
+                                c_graph_ptr,
+                                max_level,
+                                resolution,
+                                do_expensive_check,
+                                &result_ptr,
+                                &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_leiden")
 
     # Extract individual device array pointers from result and copy to cupy
