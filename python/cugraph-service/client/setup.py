@@ -11,24 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
-install_requires = [
-    "thriftpy2",
-]
-
-setup(
-    name="cugraph-service-client",
-    description="cuGraph Service client",
-    version="23.04.00",
-    classifiers=[
-        "Intended Audience :: Developers",
-        "Programming Language :: Python",
-    ],
-    author="NVIDIA Corporation",
-    url="https://github.com/rapidsai/cugraph",
-    packages=find_packages(include=["cugraph_service_client"]),
-    install_requires=install_requires,
-    license="Apache",
-    zip_safe=True,
-)
+setup()
