@@ -48,6 +48,8 @@ outputs:
       host:
         - pip
         - python x.x
+        - setuptools
+        - wheel
       run:
         - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cudf ={{ minor_version }}
