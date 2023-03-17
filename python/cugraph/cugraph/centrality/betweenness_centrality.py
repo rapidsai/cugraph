@@ -121,8 +121,8 @@ def betweenness_centrality(
 
     if seed is not None:
         warning_msg = (
-            "This parameter is deprecated and will be remove " "in the next release. "
-            "Use 'random_state' instead."
+            "This parameter is deprecated and will be remove "
+            "in the next release. Use 'random_state' instead."
         )
         warnings.warn(warning_msg, UserWarning)
 
