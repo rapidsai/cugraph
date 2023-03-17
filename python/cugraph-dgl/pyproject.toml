@@ -1,29 +1,30 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 
 [build-system]
 
 requires = [
-    "wheel",
     "setuptools",
 ]
-
-[tool.pytest.ini_options]
-testpaths = ["cugraph_pyg/tests"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "cugraph_pyg"
+name = "cugraph-dgl"
 version = "23.04.00"
-description = "cugraph_pyg - PyG support for cuGraph massive-scale, ultra-fast GPU graph analytics."
+description = "cugraph extensions for DGL"
+readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "NVIDIA Corporation" },
 ]
 license = { text = "Apache 2.0" }
 requires-python = ">=3.8"
+dependencies = [
+    "cugraph",
+    "numba>=0.56.2",
+    "numpy",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.10",
 ]
 
 [project.urls]
@@ -35,6 +36,5 @@ license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 include = [
-    "cugraph_pyg*",
-    "cugraph_pyg.*",
+    "cugraph_dgl*",
 ]
