@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@
 
 namespace {
 
-struct louvain_functor : public cugraph::c_api::abstract_functor {
+struct leiden_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_;
   size_t max_level_;
@@ -39,11 +39,11 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
   bool do_expensive_check_;
   cugraph::c_api::cugraph_heirarchical_clustering_result_t* result_{};
 
-  louvain_functor(::cugraph_resource_handle_t const* handle,
-                  ::cugraph_graph_t* graph,
-                  size_t max_level,
-                  double resolution,
-                  bool do_expensive_check)
+  leiden_functor(::cugraph_resource_handle_t const* handle,
+                 ::cugraph_graph_t* graph,
+                 size_t max_level,
+                 double resolution,
+                 bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
@@ -64,7 +64,7 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      // louvain expects store_transposed == false
+      // leiden expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -86,7 +86,8 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      auto [level, modularity] = cugraph::louvain(
+#if 0
+      auto [level, modularity] = cugraph::leiden(
         handle_,
         graph_view,
         (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
@@ -102,21 +103,24 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
         modularity,
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
+#else
+      CUGRAPH_FAIL("NOT IMPLEMENTED YET");
+#endif
     }
   }
 };
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
-                                                cugraph_graph_t* graph,
-                                                size_t max_level,
-                                                double resolution,
-                                                bool_t do_expensive_check,
-                                                cugraph_heirarchical_clustering_result_t** result,
-                                                cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
+                                               cugraph_graph_t* graph,
+                                               size_t max_level,
+                                               double resolution,
+                                               bool_t do_expensive_check,
+                                               cugraph_heirarchical_clustering_result_t** result,
+                                               cugraph_error_t** error)
 {
-  louvain_functor functor(handle, graph, max_level, resolution, do_expensive_check);
+  leiden_functor functor(handle, graph, max_level, resolution, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
