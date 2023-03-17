@@ -58,9 +58,6 @@ def subgraph(G, vertices):
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
         vertices, vertices should be provided as a cudf.DataFrame
-    
-    offsets : list or cudf
-        Specifies the start offset into 'vertices' for each extracted subgraph
 
     Returns
     -------
@@ -84,17 +81,16 @@ def subgraph(G, vertices):
     directed = G.is_directed()
 
     # FIXME: Hardcoded for now
-    offsets=None
-
+    offsets = None
 
     if G.renumbered:
         if isinstance(vertices, cudf.DataFrame):
             vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
         else:
             vertices = G.lookup_internal_vertex_id(vertices)
-    
+
     vertices = ensure_valid_dtype(G, vertices, "subgraph_vertices")
-    
+
     if not isinstance(offsets, cudf.Series):
         if isinstance(offsets, list):
             offsets = cudf.Series(offsets)
