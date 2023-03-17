@@ -653,233 +653,6 @@ shuffle_and_organize_output(
 {
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
-  if (label_to_output_comm_rank) {
-    CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
-
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-
-    auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-    auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0}) +
-                        (edge_ids ? sizeof(edge_t) : size_t{0}) +
-                        (edge_types ? sizeof(edge_type_t) : size_t{0}) +
-                        (hops ? sizeof(int32_t) : size_t{0}) + sizeof(label_t);
-
-    auto constexpr mem_frugal_ratio =
-      0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
-    // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
-    // group-by by default, and thrust::sort requires temporary buffer comparable to the input
-    // data size)
-    auto mem_frugal_threshold =
-      static_cast<size_t>(static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
-
-    auto d_tx_value_counts = cugraph::groupby_and_count(
-      labels->begin(),
-      labels->end(),
-      [output_label = std::get<0>(*label_to_output_comm_rank),
-       output_rank  = std::get<1>(*label_to_output_comm_rank)] __device__(auto val) {
-        auto pos = thrust::lower_bound(thrust::seq, output_label.begin(), output_label.end(), val);
-        return output_rank[thrust::distance(output_label.begin(), pos)];
-      },
-      comm_size,
-      mem_frugal_threshold,
-      handle.get_stream());
-
-    std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
-    raft::update_host(h_tx_value_counts.data(),
-                      d_tx_value_counts.data(),
-                      d_tx_value_counts.size(),
-                      handle.get_stream());
-    handle.sync_stream();
-
-    if (weights) {
-      if (edge_ids) {
-        if (edge_types) {
-          if (hops) {
-            std::forward_as_tuple(
-              std::tie(majors, minors, weights, edge_ids, edge_types, hops, labels), std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       weights->begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin(),
-                                                       hops->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, edge_types, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       weights->begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          }
-        } else {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, hops, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       weights->begin(),
-                                                       edge_ids->begin(),
-                                                       hops->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       weights->begin(),
-                                                       edge_ids->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          }
-        }
-      } else {
-        if (edge_types) {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, hops, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       weights->begin(),
-                                                       edge_types->begin(),
-                                                       hops->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       weights->begin(),
-                                                       edge_types->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          }
-        } else {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, weights, hops, labels), std::ignore) =
-              shuffle_values(
-                comm,
-                thrust::make_zip_iterator(
-                  majors.begin(), minors.begin(), weights->begin(), hops->begin(), labels->begin()),
-                h_tx_value_counts,
-                handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, weights, labels), std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(
-                               majors.begin(), minors.begin(), weights->begin(), labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          }
-        }
-      }
-    } else {
-      if (edge_ids) {
-        if (edge_types) {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, hops, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin(),
-                                                       hops->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, labels),
-                                  std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_ids->begin(),
-                                                       edge_types->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          }
-        } else {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, edge_ids, hops, labels), std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_ids->begin(),
-                                                       hops->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, edge_ids, labels), std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(
-                               majors.begin(), minors.begin(), edge_ids->begin(), labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          }
-        }
-      } else {
-        if (edge_types) {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, edge_types, hops, labels), std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(majors.begin(),
-                                                       minors.begin(),
-                                                       edge_types->begin(),
-                                                       hops->begin(),
-                                                       labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, edge_types, labels), std::ignore) =
-              shuffle_values(
-                comm,
-                thrust::make_zip_iterator(
-                  majors.begin(), minors.begin(), edge_types->begin(), labels->begin()),
-                h_tx_value_counts,
-                handle.get_stream());
-          }
-        } else {
-          if (hops) {
-            std::forward_as_tuple(std::tie(majors, minors, hops, labels), std::ignore) =
-              shuffle_values(comm,
-                             thrust::make_zip_iterator(
-                               majors.begin(), minors.begin(), hops->begin(), labels->begin()),
-                             h_tx_value_counts,
-                             handle.get_stream());
-          } else {
-            std::forward_as_tuple(std::tie(majors, minors, labels), std::ignore) = shuffle_values(
-              comm,
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), labels->begin()),
-              h_tx_value_counts,
-              handle.get_stream());
-          }
-        }
-      }
-    }
-  }
-
   if (labels) {
     if (weights) {
       if (edge_ids) {
@@ -1022,6 +795,238 @@ shuffle_and_organize_output(
                                 labels->begin(),
                                 labels->end(),
                                 thrust::make_zip_iterator(majors.begin(), minors.begin()));
+          }
+        }
+      }
+    }
+
+    if (label_to_output_comm_rank) {
+      CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
+
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+
+      auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+      auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0}) +
+                          (edge_ids ? sizeof(edge_t) : size_t{0}) +
+                          (edge_types ? sizeof(edge_type_t) : size_t{0}) +
+                          (hops ? sizeof(int32_t) : size_t{0}) + sizeof(label_t);
+
+      auto constexpr mem_frugal_ratio =
+        0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+      // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+      // group-by by default, and thrust::sort requires temporary buffer comparable to the input
+      // data size)
+      auto mem_frugal_threshold = static_cast<size_t>(
+        static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
+      auto d_tx_value_counts = cugraph::groupby_and_count(
+        labels->begin(),
+        labels->end(),
+        [output_label = std::get<0>(*label_to_output_comm_rank),
+         output_rank  = std::get<1>(*label_to_output_comm_rank)] __device__(auto val) {
+          auto pos =
+            thrust::lower_bound(thrust::seq, output_label.begin(), output_label.end(), val);
+          return output_rank[thrust::distance(output_label.begin(), pos)];
+        },
+        comm_size,
+        mem_frugal_threshold,
+        handle.get_stream());
+
+      std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+      raft::update_host(h_tx_value_counts.data(),
+                        d_tx_value_counts.data(),
+                        d_tx_value_counts.size(),
+                        handle.get_stream());
+      handle.sync_stream();
+
+      if (weights) {
+        if (edge_ids) {
+          if (edge_types) {
+            if (hops) {
+              std::forward_as_tuple(
+                std::tie(majors, minors, weights, edge_ids, edge_types, hops, labels),
+                std::ignore) = shuffle_values(comm,
+                                              thrust::make_zip_iterator(majors.begin(),
+                                                                        minors.begin(),
+                                                                        weights->begin(),
+                                                                        edge_ids->begin(),
+                                                                        edge_types->begin(),
+                                                                        hops->begin(),
+                                                                        labels->begin()),
+                                              h_tx_value_counts,
+                                              handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, edge_types, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_ids->begin(),
+                                                         edge_types->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_ids->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_ids->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          }
+        } else {
+          if (edge_types) {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_types->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_types->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, weights, hops, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, weights, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(
+                                 majors.begin(), minors.begin(), weights->begin(), labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          }
+        }
+      } else {
+        if (edge_ids) {
+          if (edge_types) {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_ids->begin(),
+                                                         edge_types->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_ids->begin(),
+                                                         edge_types->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, hops, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_ids->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, labels), std::ignore) =
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(
+                    majors.begin(), minors.begin(), edge_ids->begin(), labels->begin()),
+                  h_tx_value_counts,
+                  handle.get_stream());
+            }
+          }
+        } else {
+          if (edge_types) {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, edge_types, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_types->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, edge_types, labels), std::ignore) =
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(
+                    majors.begin(), minors.begin(), edge_types->begin(), labels->begin()),
+                  h_tx_value_counts,
+                  handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              std::forward_as_tuple(std::tie(majors, minors, hops, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(
+                                 majors.begin(), minors.begin(), hops->begin(), labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              std::forward_as_tuple(std::tie(majors, minors, labels), std::ignore) = shuffle_values(
+                comm,
+                thrust::make_zip_iterator(majors.begin(), minors.begin(), labels->begin()),
+                h_tx_value_counts,
+                handle.get_stream());
+            }
           }
         }
       }
