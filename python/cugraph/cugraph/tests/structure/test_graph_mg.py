@@ -128,7 +128,6 @@ def test_has_node_functionality(dask_client, input_combo):
 
 @pytest.mark.mg
 def test_create_mg_graph(dask_client, input_combo):
-    dask_client = dask_client[0]
     G = input_combo["MGGraph"]
     ddf = input_combo["input_df"]
     df = ddf.compute()
