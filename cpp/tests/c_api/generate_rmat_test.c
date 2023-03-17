@@ -105,23 +105,6 @@ int test_rmat_list_generation()
   typedef int32_t edge_t;
   typedef float weight_t;
 
-  size_t num_lists = 3;
-
-  vertex_t expected_src_1[] = {29,16,16,5,6,1,20,5,22,14,3,12,4,0,10,0,4,16,20,16};
-  vertex_t expected_dst_1[] = {0,18,0,8,1,0,11,8,21,16,0,2,2,0,17,0,9,0,8,0};
-
-  vertex_t expected_src_2[] = {2,6,8,0,8,0,0,2,8,0,12,0,2,9,4,8};
-  vertex_t expected_dst_2[] = {10,5,0,4,10,5,4,1,0,1,11,0,0,6,2,14};
-
-  vertex_t expected_src_3[] = {5,0,24,11,2,20,2,1,0,18,2,0,0,0,8,4,1,22,0,1};
-  vertex_t expected_dst_3[] = {16,4,0,1,8,0,0,0,8,7,3,15,0,0,4,26,16,0,8,2};
-
-  vertex_t *expected_src[] = { expected_src_1, expected_src_2, expected_src_3 };
-  vertex_t *expected_dst[] = { expected_dst_1, expected_dst_2, expected_dst_3 };
-  size_t    expected_len[] = { sizeof(expected_src_1) / sizeof(expected_src_1[0]),
-                               sizeof(expected_src_2) / sizeof(expected_src_2[0]),
-                               sizeof(expected_src_3) / sizeof(expected_src_3[0]) };
-
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
@@ -135,7 +118,22 @@ int test_rmat_list_generation()
   ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
- 
+
+  //
+  // NOTE: We can't exactly compare results for functions that make multiple RNG calls
+  // within them.  When the RNG state is advanced, it is advanced by a multiple of
+  // the number of possible threads involved, not based on how many of the values
+  // were actually used.  So different GPU versions will result in subtly different
+  // random sequences.
+  //
+  size_t   num_lists = 3;
+  vertex_t max_vertex_id[] = { 32, 16, 32 };
+  size_t   expected_len[]  = { 20, 16, 20 };
+  
+  ret_code = cugraph_rng_state_create(handle, 0, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
   ret_code = cugraph_generate_rmat_edgelists(handle,
                                              rng_state,
                                              num_lists,
@@ -148,6 +146,7 @@ int test_rmat_list_generation()
                                              &coo_list,
                                              &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "generate_rmat_edgelist failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   TEST_ASSERT(test_ret_value, cugraph_coo_list_size(coo_list) == num_lists, "generated wrong number of results");
 
@@ -178,17 +177,11 @@ int test_rmat_list_generation()
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_to_host failed.");
 
     for (size_t j = 0 ; (j < src_size) && (test_ret_value == 0) ; ++j) {
-      printf("Edge %d  expected (%d, %d), got (%d, %d)\n", j, expected_src[i][j], expected_dst[i][j],
-             h_src[j], h_dst[j]);
-
-    }
-
-    for (size_t j = 0 ; (j < src_size) && (test_ret_value == 0) ; ++j) {
       TEST_ASSERT(test_ret_value,
-                  expected_src[i][j] == h_src[j],
+                  h_src[j] < max_vertex_id[i],
                   "generated edges don't match");
       TEST_ASSERT(test_ret_value,
-                  expected_dst[i][j] == h_dst[j],
+                  h_dst[j] < max_vertex_id[i],
                   "generated edges don't match");
     }
 
