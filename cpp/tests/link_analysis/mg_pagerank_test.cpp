@@ -103,7 +103,7 @@ class Tests_MGPageRank
             static_cast<size_t>(mg_graph_view.number_of_vertices()),
             size_t{1})),  // there should be at least one vertex unless the graph is an empty graph
         false,
-        true);
+        false);
       d_mg_personalization_values = rmm::device_uvector<result_t>(
         (*d_mg_personalization_vertices).size(), handle_->get_stream());
       cugraph::detail::uniform_random_fill(handle_->get_stream(),

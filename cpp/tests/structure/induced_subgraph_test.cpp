@@ -130,15 +130,13 @@ class Tests_InducedSubgraph
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     // Construct random subgraph vertex lists
+
+    raft::random::RngState rng_state(0);
+
     std::vector<size_t> h_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1, 0);
     std::partial_sum(induced_subgraph_usecase.subgraph_sizes.begin(),
                      induced_subgraph_usecase.subgraph_sizes.end(),
                      h_subgraph_offsets.begin() + 1);
-
-    rmm::device_uvector<vertex_t> all_vertices(graph_view.number_of_vertices(),
-                                               handle.get_stream());
-    cugraph::detail::sequence_fill(
-      handle.get_stream(), all_vertices.data(), all_vertices.size(), vertex_t{0});
 
     rmm::device_uvector<vertex_t> d_subgraph_vertices(h_subgraph_offsets.back(),
                                                       handle.get_stream());
@@ -147,11 +145,9 @@ class Tests_InducedSubgraph
       auto start = h_subgraph_offsets[i];
       auto last  = h_subgraph_offsets[i + 1];
       ASSERT_TRUE(last - start <= graph_view.number_of_vertices()) << "Invalid subgraph size.";
-      // this is inefficient if last - start << graph_view.number_of_vertices() but this is for
-      // the test purpose only and the time & memory cost is only linear to
-      // graph_view.number_of_vertices(), so this may not matter.
 
-      auto vertices = cugraph::test::randomly_select(handle, all_vertices, (last - start), true);
+      auto vertices = cugraph::test::randomly_sample_vertices<vertex_t, false>(
+        handle, rng_state, graph_view.vertex_partition_range_lasts(), (last - start), false, false);
       raft::copy(
         d_subgraph_vertices.data() + start, vertices.data(), vertices.size(), handle.get_stream());
     }

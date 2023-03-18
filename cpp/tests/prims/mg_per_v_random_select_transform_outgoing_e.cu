@@ -148,7 +148,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       mg_graph_view.vertex_partition_range_lasts(),
       prims_usecase.num_seeds,
       false,
-      true);
+      false);
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
