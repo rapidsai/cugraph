@@ -522,7 +522,8 @@ rmm::device_uvector<vertex_t> randomly_sample_vertices(
   raft::random::RngState& rng_state,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
   size_t sample_size,
-  bool with_replacement);
+  bool with_replacement,
+  bool sort_samples);
 
 template <typename type_t>
 struct nearly_equal {

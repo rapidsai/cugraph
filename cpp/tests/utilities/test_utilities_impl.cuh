@@ -356,14 +356,14 @@ rmm::device_uvector<value_t> mg_vertex_property_values_to_sg_vertex_property_val
   return sg_values;
 }
 
-// values in the returned vector are sorted.
 template <typename vertex_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> randomly_sample_vertices(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
   size_t sample_size,
-  bool with_replacement)
+  bool with_replacement,
+  bool sort_samples)
 {
   rmm::device_uvector<vertex_t> mg_sample_buffer(0, handle.get_stream());
 
@@ -487,7 +487,9 @@ rmm::device_uvector<vertex_t> randomly_sample_vertices(
       handle, std::move(mg_sample_buffer), vertex_partition_range_lasts);
   }
 
-  thrust::sort(handle.get_thrust_policy(), mg_vertex_buffer.begin(), mg_vertex_buffer.end());
+  if (sort_samples) {
+    thrust::sort(handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end());
+  }
 
   return mg_sample_buffer;
 }

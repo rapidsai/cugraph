@@ -167,14 +167,16 @@ template rmm::device_uvector<int32_t> randomly_sample_vertices<int32_t, false>(
   raft::random::RngState& rng_state,
   std::vector<int32_t> const& vertex_partition_range_lasts,
   size_t sample_size,
-  bool with_replacement);
+  bool with_replacement,
+  bool sort_samples);
 
 template rmm::device_uvector<int64_t> randomly_sample_vertices<int64_t, false>(
   raft::handle_t const& handle,
   raft::random::RngState& rng_state,
   std::vector<int64_t> const& vertex_partition_range_lasts,
   size_t sample_size,
-  bool with_replacement);
+  bool with_replacement,
+  bool sort_samples);
 
 }  // namespace test
 }  // namespace cugraph
