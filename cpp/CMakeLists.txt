@@ -80,7 +80,7 @@ option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cud
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
-option(CUGRAPH_COMPILE_RAFT_DIST_LIBS "Compile the raft library instead of using it header-only" ON)
+option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
 option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
@@ -352,10 +352,10 @@ if (USE_CUGRAPH_OPS)
             rmm::rmm
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -365,10 +365,10 @@ else()
         PUBLIC
             rmm::rmm
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -468,12 +468,12 @@ target_link_libraries(cugraph_c
                 CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
 )
 
 ################################################################################
