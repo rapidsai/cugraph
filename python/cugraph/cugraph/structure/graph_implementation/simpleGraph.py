@@ -210,7 +210,7 @@ class simpleGraphImpl:
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
             # Use renumber_map to figure out if the python renumbering occured
-            self.properties.renumbered = renumber_map.implementation.numbered
+            self.properties.renumbered = renumber_map.is_renumbered
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
@@ -725,9 +725,6 @@ class simpleGraphImpl:
 
         """
         in_degree = self._degree(vertex_subset, direction=Direction.IN)
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        in_degree = in_degree[in_degree["vertex"].isin(self.nodes().to_cupy())]
 
         return in_degree
 
@@ -768,9 +765,6 @@ class simpleGraphImpl:
 
         """
         out_degree = self._degree(vertex_subset, direction=Direction.OUT)
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        out_degree = out_degree[out_degree["vertex"].isin(self.nodes().to_cupy())]
         return out_degree
 
     def degree(self, vertex_subset=None):
@@ -861,16 +855,24 @@ class simpleGraphImpl:
         df["in_degree"] = in_degree_col
         df["out_degree"] = out_degree_col
 
+        if self.properties.renumbered:
+            # Get the internal vertex IDs
+            nodes = self.renumber_map.df_internal_to_external["id"]
+        else:
+            nodes = self.nodes()
         # If the vertex IDs are not contiguous, remove results for the
         # isolated vertices
-        df = df[df["vertex"].isin(self.nodes().to_cupy())]
+        df = df[df["vertex"].isin(nodes.to_cupy())]
 
         if vertex_subset is not None:
-            if isinstance(vertex_subset, cudf.Series):
+            if not isinstance(vertex_subset, cudf.Series):
+                vertex_subset = cudf.Series(vertex_subset)
+                if self.properties.renumbered:
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(vertex_subset)
                 vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
 
-        if self.properties.renumbered is True:
+        if self.properties.renumbered:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
@@ -881,16 +883,24 @@ class simpleGraphImpl:
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
+        if self.properties.renumbered:
+            # Get the internal vertex IDs
+            nodes = self.renumber_map.df_internal_to_external["id"]
+        else:
+            nodes = self.nodes()
         # If the vertex IDs are not contiguous, remove results for the
         # isolated vertices
-        df = df[df["vertex"].isin(self.nodes().to_cupy())]
+        df = df[df["vertex"].isin(nodes.to_cupy())]
 
         if vertex_subset is not None:
-            if isinstance(vertex_subset, cudf.Series):
+            if not isinstance(vertex_subset, cudf.Series):
+                vertex_subset = cudf.Series(vertex_subset)
+                if self.properties.renumbered:
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(vertex_subset)
                 vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
 
-        if self.properties.renumbered is True:
+        if self.properties.renumbered:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
@@ -1095,17 +1105,8 @@ class simpleGraphImpl:
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
             if self.properties.renumbered:
-                # FIXME: This relies on current implementation
-                #        of NumberMap, should not really expose
-                #        this, perhaps add a method to NumberMap
-                df = self.renumber_map.implementation.df
-
-                # Drop the "id" column which is usually added at renumbering
-                # if it exists.
-                # FIXME: Verify if this column still exists after removing cython.cu
-                # renumbering.
-                if "id" in df.columns:
-                    df = self.renumber_map.implementation.df.drop(columns="id")
+                df = self.renumber_map.df_internal_to_external.drop(columns="id")
+    
                 if len(df.columns) > 1:
                     return df
                 else:
