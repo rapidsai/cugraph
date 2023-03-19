@@ -239,15 +239,22 @@ class NumberMap:
             self.ddf = tmp_ddf
             return tmp_ddf
 
-    def __init__(self, renumber_id_type=np.int32, unrenumbered_id_type=np.int32):
+    def __init__(
+            self, renumber_id_type=np.int32, unrenumbered_id_type=np.int32, is_renumbered=False
+    ):
         self.implementation = None
         self.renumber_id_type = renumber_id_type
         self.unrenumbered_id_type = unrenumbered_id_type
+        self.is_renumbered = is_renumbered
         # The default src/dst column names in the resulting renumbered
         # dataframe. These may be updated by the renumbering methods if the
         # input dataframe uses the default names.
         self.renumbered_src_col_name = "renumbered_src"
         self.renumbered_dst_col_name = "renumbered_dst"
+        # This dataframe maps internal to external vertex IDs.
+        # The column name 'id' contains the renumbered vertices and the other column(s)
+        # contain the original vertices
+        self.df_internal_to_external = None
 
     @staticmethod
     def compute_vals_types(df, column_names):
@@ -476,7 +483,6 @@ class NumberMap:
             # renumber the edgelist to 'int32'
             renumber_id_type = np.int32
 
-        # The renumber_type 'legacy' runs the python renumbering.
         if isinstance(src_col_names, list):
             renumbered = True
 
@@ -485,7 +491,7 @@ class NumberMap:
         ):
             renumbered = True
 
-        renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type)
+        renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type, renumbered)
         if not isinstance(src_col_names, list):
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
@@ -514,12 +520,11 @@ class NumberMap:
         else:
             raise TypeError("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
-        renumber_map.implementation.numbered = renumbered
-
         if renumbered:
             renumber_map.implementation.indirection_map(
                 df, src_col_names, dst_col_names
             )
+            renumber_map.df_internal_to_external = renumber_map.implementation.df
             df = renumber_map.add_internal_vertex_id(
                 df,
                 renumber_map.renumbered_src_col_name,
