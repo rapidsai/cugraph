@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/graph_functions.hpp>
@@ -69,10 +69,12 @@ decompress_to_edgelist_impl(
   if (do_expensive_check) { /* currently, nothing to do */
   }
 
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_rank = col_comm.get_rank();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_rank = major_comm.get_rank();
+  auto const major_comm_size = major_comm.get_size();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_rank = minor_comm.get_rank();
+  auto const minor_comm_size = minor_comm.get_size();
 
   std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(), size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
@@ -108,9 +110,12 @@ decompress_to_edgelist_impl(
   }
 
   if (renumber_map) {
-    std::vector<vertex_t> h_thresholds(row_comm_size - 1, vertex_t{0});
-    for (int i = 0; i < row_comm_size - 1; ++i) {
-      h_thresholds[i] = graph_view.vertex_partition_range_last(col_comm_rank * row_comm_size + i);
+    std::vector<vertex_t> h_thresholds(major_comm_size - 1, vertex_t{0});
+    for (int i = 0; i < major_comm_size - 1; ++i) {
+      auto minor_range_vertex_partition_id =
+        detail::compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      h_thresholds[i] = graph_view.vertex_partition_range_last(minor_range_vertex_partition_id);
     }
     rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
     raft::update_device(
@@ -120,7 +125,7 @@ decompress_to_edgelist_impl(
     std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
     auto edgelist_intra_partition_segment_offsets =
       std::make_optional<std::vector<std::vector<size_t>>>(
-        major_ptrs.size(), std::vector<size_t>(row_comm_size + 1, size_t{0}));
+        major_ptrs.size(), std::vector<size_t>(major_comm_size + 1, size_t{0}));
     size_t cur_size{0};
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       major_ptrs[i] = edgelist_majors.data() + cur_size;
