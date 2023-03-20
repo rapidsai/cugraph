@@ -106,7 +106,7 @@ dependencies:
           - matrix:
               arch: aarch64
             packages:
-              - gcc_linux-aarch64=9.*
+              - gcc_linux-aarch64=11.*
       - output_types: [conda]
         matrices:
           - matrix:
