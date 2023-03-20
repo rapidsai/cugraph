@@ -161,7 +161,7 @@ def sssp(
         Maximum edge weight sum considered by the algorithm
     nx_weight_attr : string
         when G is a NetworkX type, allows to specify name of edge weight
-	attribute; uses Nx convention by default
+        attribute; uses Nx convention by default
 
     Returns
     -------
