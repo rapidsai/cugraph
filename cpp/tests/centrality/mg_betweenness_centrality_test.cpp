@@ -133,7 +133,13 @@ class Tests_MGBetweennessCentrality
         *handle_, raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()});
 
       auto [sg_graph, sg_edge_weights, sg_renumber_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_, mg_graph_view, mg_edge_weight_view, mg_renumber_map, false);
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        mg_renumber_map ? std::make_optional<raft::device_span<vertex_t const>>(
+                            (*mg_renumber_map).data(), (*mg_renumber_map).size())
+                        : std::nullopt,
+        false);
 
       auto sg_graph_view = sg_graph.view();
 

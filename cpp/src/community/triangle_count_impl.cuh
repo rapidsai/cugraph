@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <prims/extract_if_e.cuh>
+#include <prims/extract_transform_e.cuh>
 #include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
@@ -56,11 +56,13 @@ struct invalid_or_outside_local_vertex_partition_range_t {
 };
 
 template <typename vertex_t>
-struct is_not_self_loop_t {
-  __device__ bool operator()(
+struct exclude_self_loop_t {
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
     vertex_t src, vertex_t dst, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
   {
-    return src != dst;
+    return src != dst
+             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : thrust::nullopt;
   }
 };
 
@@ -73,27 +75,34 @@ struct is_two_or_greater_t {
 };
 
 template <typename vertex_t>
-struct in_two_core_t {
-  __device__ bool operator()(
-    vertex_t, vertex_t, uint8_t src_in_two_core, uint8_t dst_in_two_core, thrust::nullopt_t) const
+struct extract_two_core_t {
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
+                                                                            vertex_t dst,
+                                                                            uint8_t src_in_two_core,
+                                                                            uint8_t dst_in_two_core,
+                                                                            thrust::nullopt_t) const
   {
-    return (src_in_two_core == uint8_t{1}) && (dst_in_two_core == uint8_t{1});
+    return (src_in_two_core == uint8_t{1}) && (dst_in_two_core == uint8_t{1})
+             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : thrust::nullopt;
   }
 };
 
 template <typename vertex_t, typename edge_t>
-struct low_to_high_degree_t {
-  __device__ bool operator()(vertex_t src,
-                             vertex_t dst,
-                             edge_t src_out_degree,
-                             edge_t dst_out_degree,
-                             thrust::nullopt_t) const
+struct extract_low_to_high_degree_edges_t {
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
+                                                                            vertex_t dst,
+                                                                            edge_t src_out_degree,
+                                                                            edge_t dst_out_degree,
+                                                                            thrust::nullopt_t) const
   {
-    return (src_out_degree < dst_out_degree) ? true
-                                             : (((src_out_degree == dst_out_degree) &&
-                                                 (src < dst) /* tie-breaking using vertex ID */)
-                                                  ? true
-                                                  : false);
+    return (src_out_degree < dst_out_degree)
+             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : (((src_out_degree == dst_out_degree) &&
+                 (src < dst) /* tie-breaking using vertex ID */)
+                  ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src,
+                                                                                           dst)}
+                  : thrust::nullopt);
   }
 };
 
@@ -199,11 +208,12 @@ void triangle_count(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
 
   if (graph_view.count_self_loops(handle) > edge_t{0}) {
-    auto [srcs, dsts] = extract_if_e(handle,
-                                     graph_view,
-                                     edge_src_dummy_property_t{}.view(),
-                                     edge_dst_dummy_property_t{}.view(),
-                                     is_not_self_loop_t<vertex_t>{});
+    auto [srcs, dsts] = extract_transform_e(handle,
+                                            graph_view,
+                                            edge_src_dummy_property_t{}.view(),
+                                            edge_dst_dummy_property_t{}.view(),
+                                            edge_dummy_property_t{}.view(),
+                                            exclude_self_loop_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore) =
@@ -258,11 +268,12 @@ void triangle_count(raft::handle_t const& handle,
       handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores);
     update_edge_dst_property(
       handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores);
-    auto [srcs, dsts] = extract_if_e(handle,
-                                     cur_graph_view,
-                                     edge_src_in_two_cores.view(),
-                                     edge_dst_in_two_cores.view(),
-                                     in_two_core_t<vertex_t>{});
+    auto [srcs, dsts] = extract_transform_e(handle,
+                                            cur_graph_view,
+                                            edge_src_in_two_cores.view(),
+                                            edge_dst_in_two_cores.view(),
+                                            edge_dummy_property_t{}.view(),
+                                            extract_two_core_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore) =
@@ -314,11 +325,12 @@ void triangle_count(raft::handle_t const& handle,
                                                                                cur_graph_view);
     update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
     update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
-    auto [srcs, dsts] = extract_if_e(handle,
-                                     cur_graph_view,
-                                     edge_src_out_degrees.view(),
-                                     edge_dst_out_degrees.view(),
-                                     low_to_high_degree_t<vertex_t, edge_t>{});
+    auto [srcs, dsts] = extract_transform_e(handle,
+                                            cur_graph_view,
+                                            edge_src_out_degrees.view(),
+                                            edge_dst_out_degrees.view(),
+                                            edge_dummy_property_t{}.view(),
+                                            extract_low_to_high_degree_edges_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
       std::tie(srcs, dsts, std::ignore, std::ignore) =

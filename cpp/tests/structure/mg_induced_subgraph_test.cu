@@ -220,7 +220,7 @@ class Tests_MGInducedSubgraph
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         false);
 
       if (my_rank == 0) {
