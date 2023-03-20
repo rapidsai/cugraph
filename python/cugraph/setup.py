@@ -43,9 +43,10 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
+packages = find_packages(include=["cugraph*"])
 setup(
-    packages=find_packages(include=["cugraph", "cugraph.*"]),
-    include_package_data=True,
+    packages=packages,
+    package_data={key: ["*.pxd", "*.yaml"] for key in packages},
     cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )
