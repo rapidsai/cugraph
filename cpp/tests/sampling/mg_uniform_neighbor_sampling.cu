@@ -143,19 +143,21 @@ class Tests_MGUniform_Neighbor_Sampling
 
     rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle_->get_stream());
 
+    auto seed_sizes = cugraph::host_scalar_allgather(
+      handle_->get_comms(), random_sources.size(), handle_->get_stream());
+    size_t num_seeds   = std::reduce(seed_sizes.begin(), seed_sizes.end());
+    size_t num_batches = (num_seeds + uniform_neighbor_sampling_usecase.batch_size - 1) /
+                         uniform_neighbor_sampling_usecase.batch_size;
+
+    std::vector<size_t> seed_offsets(seed_sizes.size());
+    std::exclusive_scan(seed_sizes.begin(), seed_sizes.end(), seed_offsets.begin(), size_t{0});
+
     thrust::tabulate(
       handle_->get_thrust_policy(),
       batch_number.begin(),
       batch_number.end(),
-      [rank       = handle_->get_comms().get_rank(),
-       batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(int32_t index) {
-        return rank + (index / batch_size);
-      });
-
-    size_t num_batches = 1 + handle_->get_comms().get_rank() +
-                         (batch_number.size() / uniform_neighbor_sampling_usecase.batch_size);
-    num_batches = cugraph::host_scalar_allreduce(
-      handle_->get_comms(), num_batches, raft::comms::op_t::MAX, handle_->get_stream());
+      [seed_offset = seed_offsets[handle_->get_comms().get_rank()],
+       num_batches] __device__(int32_t index) { return (seed_offset + index) % num_batches; });
 
     rmm::device_uvector<int32_t> unique_batches(num_batches, handle_->get_stream());
     rmm::device_uvector<int32_t> comm_ranks(num_batches, handle_->get_stream());
