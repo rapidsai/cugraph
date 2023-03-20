@@ -1148,7 +1148,10 @@ def test_add_edge_data_bad_args():
 
 
 @pytest.mark.sg
-def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_vertex_prop_condition_only(
+    dataset1_PropertyGraph, as_pg_first
+):
 
     (pG, data) = dataset1_PropertyGraph
 
@@ -1157,12 +1160,19 @@ def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
         f"({pG.type_col_name}=='users') "
         "& ((user_location<78750) | ((user_location==78757) & (vertical==1)))"
     )
-    G = pG.extract_subgraph(
-        selection=selection,
-        create_using=DiGraph_inst,
-        edge_weight_property="relationship_type",
-        default_edge_weight=99,
-    )
+    if as_pg_first:
+        G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph(
+            create_using=DiGraph_inst,
+            edge_weight_property="relationship_type",
+            default_edge_weight=99,
+        )
+    else:
+        G = pG.extract_subgraph(
+            selection=selection,
+            create_using=DiGraph_inst,
+            edge_weight_property="relationship_type",
+            default_edge_weight=99,
+        )
     # Should result in two edges, one a "relationship", the other a "referral"
     expected_edgelist = cudf.DataFrame(
         {"src": [89216, 78634], "dst": [78634, 89216], "weights": [99, 8]}
@@ -1176,7 +1186,10 @@ def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
 
 
 @pytest.mark.sg
-def test_extract_subgraph_vertex_edge_prop_condition(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_vertex_edge_prop_condition(
+    dataset1_PropertyGraph, as_pg_first
+):
     from cugraph.experimental import PropertyGraph
 
     (pG, data) = dataset1_PropertyGraph
@@ -1184,9 +1197,15 @@ def test_extract_subgraph_vertex_edge_prop_condition(dataset1_PropertyGraph):
 
     selection = pG.select_vertices("(user_location==47906) | " "(user_location==78750)")
     selection += pG.select_edges(f"{tcn}=='referrals'")
-    G = pG.extract_subgraph(
-        selection=selection, create_using=DiGraph_inst, edge_weight_property="stars"
-    )
+    if as_pg_first:
+        G = pG.extract_subgraph(
+            selection=selection,
+            create_using=PropertyGraph,
+        ).extract_subgraph(create_using=DiGraph_inst, edge_weight_property="stars")
+    else:
+        G = pG.extract_subgraph(
+            selection=selection, create_using=DiGraph_inst, edge_weight_property="stars"
+        )
 
     expected_edgelist = cudf.DataFrame({"src": [78634], "dst": [32431], "weights": [4]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
@@ -1197,14 +1216,20 @@ def test_extract_subgraph_vertex_edge_prop_condition(dataset1_PropertyGraph):
 
 
 @pytest.mark.sg
-def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph, as_pg_first):
     from cugraph.experimental import PropertyGraph
 
     (pG, data) = dataset1_PropertyGraph
     tcn = PropertyGraph.type_col_name
 
     selection = pG.select_edges(f"{tcn} =='transactions'")
-    G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
+    if as_pg_first:
+        G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph(
+            create_using=DiGraph_inst
+        )
+    else:
+        G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
 
     # last item is the DataFrame rows
     transactions = dataset1["transactions"][-1]
@@ -1221,7 +1246,8 @@ def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph):
 
 
 @pytest.mark.sg
-def test_extract_subgraph_unweighted(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_unweighted(dataset1_PropertyGraph, as_pg_first):
     """
     Ensure a subgraph is unweighted if the edge_weight_property is None.
     """
@@ -1231,13 +1257,19 @@ def test_extract_subgraph_unweighted(dataset1_PropertyGraph):
     tcn = PropertyGraph.type_col_name
 
     selection = pG.select_edges(f"{tcn} == 'transactions'")
-    G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
+    if as_pg_first:
+        G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph(
+            create_using=DiGraph_inst
+        )
+    else:
+        G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
 
     assert G.is_weighted() is False
 
 
 @pytest.mark.sg
-def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_specific_query(dataset1_PropertyGraph, as_pg_first):
     """
     Graph of only transactions after time 1639085000 for merchant_id 4 (should
     be a graph of 2 vertices, 1 edge)
@@ -1251,9 +1283,16 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
     selection = pG.select_edges(
         f"({tcn}=='transactions') & " "(_DST_==4) & " "(time>1639085000)"
     )
-    G = pG.extract_subgraph(
-        selection=selection, create_using=DiGraph_inst, edge_weight_property="card_num"
-    )
+    if as_pg_first:
+        G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph(
+            create_using=DiGraph_inst, edge_weight_property="card_num"
+        )
+    else:
+        G = pG.extract_subgraph(
+            selection=selection,
+            create_using=DiGraph_inst,
+            edge_weight_property="card_num",
+        )
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [4], "weights": [8832]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
@@ -1264,7 +1303,8 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
 
 
 @pytest.mark.sg
-def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_select_vertices_from_previous_selection(dataset1_PropertyGraph, as_pg_first):
     """
     Ensures that the intersection of vertices of multiple types (only vertices
     that are both type A and type B) can be selected.
@@ -1282,7 +1322,12 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
         from_previous_selection=selection,
     )
     selection += pG.select_edges(f"{tcn} == 'referrals'")
-    G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
+    if as_pg_first:
+        G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph(
+            create_using=DiGraph_inst
+        )
+    else:
+        G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [78634]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
@@ -1293,7 +1338,8 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
 
 
 @pytest.mark.sg
-def test_extract_subgraph_graph_without_vert_props():
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_graph_without_vert_props(as_pg_first):
     """
     Ensure a subgraph can be extracted from a PropertyGraph that does not have
     vertex properties.
@@ -1319,12 +1365,22 @@ def test_extract_subgraph_graph_without_vert_props():
     )
 
     scn = PropertyGraph.src_col_name
-    G = pG.extract_subgraph(
-        selection=pG.select_edges(f"{scn} == 89216"),
-        create_using=DiGraph_inst,
-        edge_weight_property="relationship_type",
-        default_edge_weight=0,
-    )
+    if as_pg_first:
+        G = pG.extract_subgraph(
+            selection=pG.select_edges(f"{scn} == 89216"),
+            create_using=pG,
+        ).extract_subgraph(
+            create_using=DiGraph_inst,
+            edge_weight_property="relationship_type",
+            default_edge_weight=0,
+        )
+    else:
+        G = pG.extract_subgraph(
+            selection=pG.select_edges(f"{scn} == 89216"),
+            create_using=DiGraph_inst,
+            edge_weight_property="relationship_type",
+            default_edge_weight=0,
+        )
 
     expected_edgelist = cudf.DataFrame(
         {"src": [89216, 89216, 89216], "dst": [4, 89021, 32431], "weights": [0, 9, 9]}
@@ -1337,7 +1393,8 @@ def test_extract_subgraph_graph_without_vert_props():
 
 
 @pytest.mark.sg
-def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_no_edges(dataset1_PropertyGraph, as_pg_first):
     """
     Valid query that only matches a single vertex.
     """
@@ -1348,20 +1405,29 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
         selection = pG.select_vertices("(_TYPE_=='merchants') & (merchant_id==86)")
 
     selection = pG.select_vertices("(_TYPE_=='merchants') & (_VERTEX_==86)")
-    G = pG.extract_subgraph(selection=selection)
+    if as_pg_first:
+        G = pG.extract_subgraph(selection=selection, create_using=pG).extract_subgraph()
+    else:
+        G = pG.extract_subgraph(selection=selection)
     assert G.is_directed()
 
     assert len(G.edgelist.edgelist_df) == 0
 
 
 @pytest.mark.sg
-def test_extract_subgraph_no_query(dataset1_PropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_no_query(dataset1_PropertyGraph, as_pg_first):
     """
     Call extract with no args, should result in the entire property graph.
     """
     (pG, data) = dataset1_PropertyGraph
 
-    G = pG.extract_subgraph(create_using=DiGraph_inst, check_multi_edges=False)
+    if as_pg_first:
+        G = pG.extract_subgraph(create_using=pG).extract_subgraph(
+            create_using=DiGraph_inst, check_multi_edges=False
+        )
+    else:
+        G = pG.extract_subgraph(create_using=DiGraph_inst, check_multi_edges=False)
 
     num_edges = (
         len(dataset1["transactions"][-1])
@@ -1395,6 +1461,8 @@ def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
         pG.extract_subgraph(
             selection=selection, create_using=DiGraph_inst, check_multi_edges=True
         )
+    # Okay to return PropertyGraph, b/c check_multi_edges is ignored
+    pG.extract_subgraph(selection=selection, create_using=pG, check_multi_edges=True)
 
 
 @pytest.mark.sg
@@ -2570,6 +2638,7 @@ def bench_add_vector_features(gpubenchmark, n_rows, n_feats):
     gpubenchmark(func)
 
 
+# @pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])
 def bench_get_vector_features_cp_array(benchmark, n_rows, n_feats):
@@ -2592,6 +2661,7 @@ def bench_get_vector_features_cp_array(benchmark, n_rows, n_feats):
     benchmark(pG.get_edge_data, edge_ids=cp.arange(0, 100_000))
 
 
+# @pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [1_000_000])
 @pytest.mark.parametrize("n_feats", [128])
 def bench_get_vector_features_cudf_series(benchmark, n_rows, n_feats):
