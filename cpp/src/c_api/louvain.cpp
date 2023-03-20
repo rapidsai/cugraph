@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/algorithms.h>
+#include <cugraph_c/community_algorithms.h>
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/heirarchical_clustering_result.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
@@ -27,18 +28,6 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <optional>
-
-namespace cugraph {
-namespace c_api {
-
-struct cugraph_heirarchical_clustering_result_t {
-  double modularity{0};
-  cugraph_type_erased_device_array_t* vertices_{nullptr};
-  cugraph_type_erased_device_array_t* clusters_{nullptr};
-};
-
-}  // namespace c_api
-}  // namespace cugraph
 
 namespace {
 
@@ -118,44 +107,6 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
 };
 
 }  // namespace
-
-extern "C" cugraph_type_erased_device_array_view_t*
-cugraph_heirarchical_clustering_result_get_vertices(
-  cugraph_heirarchical_clustering_result_t* result)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_heirarchical_clustering_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->vertices_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t*
-cugraph_heirarchical_clustering_result_get_clusters(
-  cugraph_heirarchical_clustering_result_t* result)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_heirarchical_clustering_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->clusters_->view());
-}
-
-extern "C" double cugraph_heirarchical_clustering_result_get_modularity(
-  cugraph_heirarchical_clustering_result_t* result)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_heirarchical_clustering_result_t*>(result);
-  return internal_pointer->modularity;
-}
-
-extern "C" void cugraph_heirarchical_clustering_result_free(
-  cugraph_heirarchical_clustering_result_t* result)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_heirarchical_clustering_result_t*>(result);
-  delete internal_pointer->vertices_;
-  delete internal_pointer->clusters_;
-  delete internal_pointer;
-}
 
 extern "C" cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
                                                 cugraph_graph_t* graph,

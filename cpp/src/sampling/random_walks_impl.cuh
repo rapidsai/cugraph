@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/per_v_random_select_transform_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
 
@@ -251,6 +251,11 @@ random_walk_impl(raft::handle_t const& handle,
 
   for (size_t level = 0; level < max_length; ++level) {
     if constexpr (multi_gpu) {
+      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+
       // Shuffle vertices to correct GPU to compute random indices
       std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
                             std::ignore) =
@@ -262,10 +267,9 @@ random_walk_impl(raft::handle_t const& handle,
             current_vertices.end(), current_gpu.end(), current_position.end()),
           [key_func =
              cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-               {vertex_partition_range_lasts.begin(),
-                vertex_partition_range_lasts.size()}}] __device__(auto val) {
-            return key_func(thrust::get<0>(val));
-          },
+               {vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.size()},
+               major_comm_size,
+               minor_comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
           handle.get_stream());
     }
 
