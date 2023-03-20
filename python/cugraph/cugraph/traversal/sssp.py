@@ -136,7 +136,7 @@ def sssp(
     overwrite=None,
     indices=None,
     cutoff=None,
-    nx_weight_attr='weight',
+    nx_weight_attr="weight",
 ):
     """
     Compute the distance and predecessors for shortest paths from the specified
