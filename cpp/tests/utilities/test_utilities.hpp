@@ -503,7 +503,7 @@ mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  std::optional<raft::device_span<vertex_t const>> number_map,
   bool renumber);
 
 // Only the rank 0 GPU holds the valid data

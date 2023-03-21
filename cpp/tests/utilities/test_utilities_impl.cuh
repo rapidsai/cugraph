@@ -177,16 +177,11 @@ mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  std::optional<raft::device_span<vertex_t const>> number_map,
   bool renumber)
 {
-  auto [d_src, d_dst, d_wgt] = cugraph::decompress_to_edgelist(
-    handle,
-    graph_view,
-    edge_weight_view,
-    number_map ? std::make_optional<raft::device_span<vertex_t const>>((*number_map).data(),
-                                                                       (*number_map).size())
-               : std::nullopt);
+  auto [d_src, d_dst, d_wgt] =
+    cugraph::decompress_to_edgelist(handle, graph_view, edge_weight_view, number_map);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
@@ -197,10 +192,7 @@ mg_graph_to_sg_graph(
       handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
 
   rmm::device_uvector<vertex_t> vertices(0, handle.get_stream());
-  if (number_map) {
-    vertices = cugraph::test::device_gatherv(
-      handle, raft::device_span<vertex_t const>{(*number_map).data(), (*number_map).size()});
-  }
+  if (number_map) { vertices = cugraph::test::device_gatherv(handle, *number_map); }
 
   graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(handle);
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
