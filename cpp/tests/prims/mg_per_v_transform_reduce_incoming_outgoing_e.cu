@@ -214,9 +214,9 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
+    enum class reduction_type_t { PLUS, ELEMWISE_MIN, ELEMWISE_MAX };
     std::array<reduction_type_t, 3> reduction_types = {
-      reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
+      reduction_type_t::PLUS, reduction_type_t::ELEMWISE_MIN, reduction_type_t::ELEMWISE_MAX};
 
     std::vector<decltype(cugraph::allocate_dataframe_buffer<result_t>(0, rmm::cuda_stream_view{}))>
       in_results{};
@@ -247,7 +247,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                                             cugraph::reduce_op::plus<result_t>{},
                                             cugraph::get_dataframe_buffer_begin(in_results[i]));
           break;
-        case reduction_type_t::MINIMUM:
+        case reduction_type_t::ELEMWISE_MIN:
           per_v_transform_reduce_incoming_e(*handle_,
                                             mg_graph_view,
                                             mg_src_prop.view(),
@@ -255,10 +255,10 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                                             cugraph::edge_dummy_property_t{}.view(),
                                             e_op_t<vertex_t, result_t>{},
                                             property_initial_value,
-                                            cugraph::reduce_op::minimum<result_t>{},
+                                            cugraph::reduce_op::elementwise_minimum<result_t>{},
                                             cugraph::get_dataframe_buffer_begin(in_results[i]));
           break;
-        case reduction_type_t::MAXIMUM:
+        case reduction_type_t::ELEMWISE_MAX:
           per_v_transform_reduce_incoming_e(*handle_,
                                             mg_graph_view,
                                             mg_src_prop.view(),
@@ -266,7 +266,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                                             cugraph::edge_dummy_property_t{}.view(),
                                             e_op_t<vertex_t, result_t>{},
                                             property_initial_value,
-                                            cugraph::reduce_op::maximum<result_t>{},
+                                            cugraph::reduce_op::elementwise_maximum<result_t>{},
                                             cugraph::get_dataframe_buffer_begin(in_results[i]));
           break;
         default: FAIL() << "should not be reached.";
@@ -300,7 +300,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                                             cugraph::reduce_op::plus<result_t>{},
                                             cugraph::get_dataframe_buffer_begin(out_results[i]));
           break;
-        case reduction_type_t::MINIMUM:
+        case reduction_type_t::ELEMWISE_MIN:
           per_v_transform_reduce_outgoing_e(*handle_,
                                             mg_graph_view,
                                             mg_src_prop.view(),
@@ -308,10 +308,10 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                                             cugraph::edge_dummy_property_t{}.view(),
                                             e_op_t<vertex_t, result_t>{},
                                             property_initial_value,
-                                            cugraph::reduce_op::minimum<result_t>{},
+                                            cugraph::reduce_op::elementwise_minimum<result_t>{},
                                             cugraph::get_dataframe_buffer_begin(out_results[i]));
           break;
-        case reduction_type_t::MAXIMUM:
+        case reduction_type_t::ELEMWISE_MAX:
           per_v_transform_reduce_outgoing_e(*handle_,
                                             mg_graph_view,
                                             mg_src_prop.view(),
@@ -319,7 +319,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
                                             cugraph::edge_dummy_property_t{}.view(),
                                             e_op_t<vertex_t, result_t>{},
                                             property_initial_value,
-                                            cugraph::reduce_op::maximum<result_t>{},
+                                            cugraph::reduce_op::elementwise_maximum<result_t>{},
                                             cugraph::get_dataframe_buffer_begin(out_results[i]));
           break;
         default: FAIL() << "should not be reached.";
@@ -371,7 +371,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               cugraph::reduce_op::plus<result_t>{},
               cugraph::get_dataframe_buffer_begin(global_in_result));
             break;
-          case reduction_type_t::MINIMUM:
+          case reduction_type_t::ELEMWISE_MIN:
             per_v_transform_reduce_incoming_e(
               *handle_,
               sg_graph_view,
@@ -380,10 +380,10 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               e_op_t<vertex_t, result_t>{},
               property_initial_value,
-              cugraph::reduce_op::minimum<result_t>{},
+              cugraph::reduce_op::elementwise_minimum<result_t>{},
               cugraph::get_dataframe_buffer_begin(global_in_result));
             break;
-          case reduction_type_t::MAXIMUM:
+          case reduction_type_t::ELEMWISE_MAX:
             per_v_transform_reduce_incoming_e(
               *handle_,
               sg_graph_view,
@@ -392,7 +392,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               e_op_t<vertex_t, result_t>{},
               property_initial_value,
-              cugraph::reduce_op::maximum<result_t>{},
+              cugraph::reduce_op::elementwise_maximum<result_t>{},
               cugraph::get_dataframe_buffer_begin(global_in_result));
             break;
           default: FAIL() << "should not be reached.";
@@ -414,7 +414,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               cugraph::reduce_op::plus<result_t>{},
               cugraph::get_dataframe_buffer_begin(global_out_result));
             break;
-          case reduction_type_t::MINIMUM:
+          case reduction_type_t::ELEMWISE_MIN:
             per_v_transform_reduce_outgoing_e(
               *handle_,
               sg_graph_view,
@@ -423,10 +423,10 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               e_op_t<vertex_t, result_t>{},
               property_initial_value,
-              cugraph::reduce_op::minimum<result_t>{},
+              cugraph::reduce_op::elementwise_minimum<result_t>{},
               cugraph::get_dataframe_buffer_begin(global_out_result));
             break;
-          case reduction_type_t::MAXIMUM:
+          case reduction_type_t::ELEMWISE_MAX:
             per_v_transform_reduce_outgoing_e(
               *handle_,
               sg_graph_view,
@@ -435,7 +435,7 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
               cugraph::edge_dummy_property_t{}.view(),
               e_op_t<vertex_t, result_t>{},
               property_initial_value,
-              cugraph::reduce_op::maximum<result_t>{},
+              cugraph::reduce_op::elementwise_maximum<result_t>{},
               cugraph::get_dataframe_buffer_begin(global_out_result));
             break;
           default: FAIL() << "should not be reached.";

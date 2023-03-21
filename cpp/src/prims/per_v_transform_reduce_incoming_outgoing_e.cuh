@@ -482,7 +482,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                               ReduceOp reduce_op,
                               VertexValueOutputIterator vertex_value_output_first)
 {
-  static_assert(ReduceOp::pure_function || reduce_op::has_compatible_raft_comms_op_v<ReduceOp> ||
+  static_assert(ReduceOp::pure_function && reduce_op::has_compatible_raft_comms_op_v<ReduceOp> &&
                 reduce_op::has_identity_element_v<ReduceOp>);  // current restriction, to support
                                                                // general reduction, we may need to
                                                                // take a less efficient code path
