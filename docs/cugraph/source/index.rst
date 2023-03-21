@@ -1,4 +1,4 @@
-Welcome to cugraph's documentation!
+Welcome to cuGraph's documentation!
 ===================================
 RAPIDS cuGraph is a library of graph algorithms that seamlessly integrates
 into the RAPIDS data science ecosystem and allows the data scientist to
