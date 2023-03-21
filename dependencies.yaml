@@ -93,7 +93,7 @@ dependencies:
           - gtest=1.10.0
           - libcugraphops=23.04.*
           - libraft-headers=23.04.*
-          - libraft-distance=23.04.*
+          - libraft=23.04.*
           - librmm=23.04.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
