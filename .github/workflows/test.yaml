@@ -55,4 +55,4 @@ jobs:
       test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.04"
       # On arm also need to install cupy from the specific webpage.
       test-before-arm64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.04"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -v ./python/cugraph/cugraph/tests --ignore=./python/cugraph/cugraph/tests/mg"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -v -m sg ./python/cugraph/cugraph/tests"

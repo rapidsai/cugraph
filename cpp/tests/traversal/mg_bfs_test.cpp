@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -97,11 +96,10 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     rmm::device_uvector<vertex_t> d_mg_predecessors(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
-    auto const d_mg_source =
-      mg_graph_view.in_local_vertex_partition_range_nocheck(bfs_usecase.source)
-        ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source,
-                                                           handle_->get_stream())
-        : std::nullopt;
+    auto d_mg_source = mg_graph_view.in_local_vertex_partition_range_nocheck(bfs_usecase.source)
+                         ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source,
+                                                                            handle_->get_stream())
+                         : std::nullopt;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -128,7 +126,21 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
     // 3. compare SG & MG results
 
     if (bfs_usecase.check_correctness) {
-      // 3-1. aggregate MG results
+      // 3-1. unrenumber & aggregate MG source & results
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_predecessors.data(),
+        d_mg_predecessors.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t*>(nullptr),
+        d_mg_source ? size_t{1} : size_t{0},
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
@@ -137,15 +149,13 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       auto d_mg_aggregate_predecessors =
         cugraph::test::device_gatherv(*handle_, d_mg_predecessors.data(), d_mg_predecessors.size());
 
-      if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. unrenumbr MG results
+      auto d_sg_source = cugraph::test::device_gatherv(
+        *handle_,
+        d_mg_source ? (*d_mg_source).data() : static_cast<vertex_t const*>(nullptr),
+        d_mg_source ? size_t{1} : size_t{0});
 
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          d_mg_aggregate_predecessors.data(),
-          d_mg_aggregate_predecessors.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 3-2. sort MG results
 
         std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
           *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
@@ -170,22 +180,15 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         rmm::device_uvector<vertex_t> d_sg_predecessors(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
-        vertex_t unrenumbered_source{};
-        raft::update_host(&unrenumbered_source,
-                          d_mg_aggregate_renumber_map_labels.data() + bfs_usecase.source,
-                          size_t{1},
-                          handle_->get_stream());
-        handle_->sync_stream();
-
-        rmm::device_scalar<vertex_t> const d_sg_source(unrenumbered_source, handle_->get_stream());
         cugraph::bfs(*handle_,
                      sg_graph_view,
                      d_sg_distances.data(),
                      d_sg_predecessors.data(),
                      d_sg_source.data(),
-                     size_t{1},
+                     d_sg_source.size(),
                      false,
                      std::numeric_limits<vertex_t>::max());
+
         // 3-5. compare
 
         std::vector<edge_t> h_sg_offsets =
