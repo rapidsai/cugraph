@@ -51,9 +51,10 @@ def exclude_libcxx_symlink(cmake_manifest):
     )
 
 
+packages = find_packages(include=["pylibcugraph*"])
 setup(
-    packages=find_packages(include=["pylibcugraph", "pylibcugraph.*"]),
-    include_package_data=True,
+    packages=packages,
+    package_data={key: ["*.pxd"] for key in packages},
     cmake_process_manifest_hook=exclude_libcxx_symlink,
     cmdclass={"clean": CleanCommand},
     zip_safe=False,
