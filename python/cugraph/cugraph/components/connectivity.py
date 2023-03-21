@@ -144,8 +144,8 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
 
     Returns
     -------
-    Return value type is based on the input type.  If G is a cugraph.Graph,
-    returns:
+    Return value type is based on the input type.
+    If G is a cugraph.Graph, returns:
 
        cudf.DataFrame
            GPU data frame containing two cudf.Series of size V: the vertex
@@ -253,8 +253,8 @@ def strongly_connected_components(
 
     Returns
     -------
-    Return value type is based on the input type.  If G is a cugraph.Graph,
-    returns:
+    Return value type is based on the input type.
+    If G is a cugraph.Graph, returns:
 
        cudf.DataFrame
            GPU data frame containing two cudf.Series of size V: the vertex
@@ -334,7 +334,7 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
             For Graph-type values of G, weak components are only
             supported for undirected graphs.
 
-        [‘weak’|’strong’]. Return either weakly or strongly connected
+        [`weak`|`strong`]. Return either weakly or strongly connected
         components.
 
     return_labels : bool, optional (default=True)
@@ -348,8 +348,8 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
 
     Returns
     -------
-    Return value type is based on the input type.  If G is a cugraph.Graph,
-    returns:
+    Return value type is based on the input type.
+    If G is a cugraph.Graph, returns:
 
        cudf.DataFrame
            GPU data frame containing two cudf.Series of size V: the vertex

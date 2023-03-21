@@ -61,7 +61,7 @@ def parts_to_ranks(client, worker_info, part_futures):
         for idx, wf in enumerate(part_futures)
     ]
 
-    sizes = client.compute(list(map(lambda x: x[1], futures)), sync=True)
+    sizes = client.compute([x[1] for x in futures], sync=True)
     total = reduce(lambda a, b: a + b, sizes)
 
     return [(futures[idx][0], size) for idx, size in enumerate(sizes)], total
@@ -73,7 +73,7 @@ def persist_distributed_data(dask_df, client):
     _keys = dask_df.__dask_keys__()
     worker_dict = {}
     for i, key in enumerate(_keys):
-        worker_dict[str(key)] = tuple([worker_addresses[i]])
+        worker_dict[str(key)] = (worker_addresses[i],)
     persisted = client.persist(dask_df, workers=worker_dict)
     parts = futures_of(persisted)
     return parts
@@ -112,7 +112,7 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
                 else:
                     empty_df = cudf.Series(dtype=dask_obj.dtype)
 
-                for p, w in enumerate(worker_list[dask_obj.npartitions :]):
+                for _p, w in enumerate(worker_list[dask_obj.npartitions :]):
                     empty_ddf = dask_cudf.from_cudf(empty_df, npartitions=1)
                     persisted.append(client.persist(empty_ddf, workers=w))
 
@@ -129,7 +129,7 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
         # not yet backed by futures. Need to investigate this behavior.
         # ref: https://github.com/rapidsai/cuml/issues/2045
         raveled = [d.flatten() for d in dela]
-        parts = client.compute([p for p in zip(*raveled)])
+        parts = client.compute(list(zip(*raveled)))
 
     await wait(parts)
     key_to_part = [(str(part.key), part) for part in parts]

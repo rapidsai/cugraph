@@ -45,9 +45,7 @@ class CleanCommand(Command):
 
 def exclude_libcxx_symlink(cmake_manifest):
     return list(
-        filter(
-            lambda name: not ("include/rapids/libcxx/include" in name), cmake_manifest
-        )
+        filter(lambda name: "include/rapids/libcxx/include" not in name, cmake_manifest)
     )
 
 

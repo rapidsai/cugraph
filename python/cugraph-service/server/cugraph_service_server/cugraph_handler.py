@@ -472,16 +472,14 @@ class CugraphHandler:
         Dictionary items are string:union_objs, where union_objs are Value
         "unions" used for RPC serialization.
         """
-        valid_keys = set(
-            [
-                "num_vertices",
-                "num_vertices_from_vertex_data",
-                "num_edges",
-                "num_vertex_properties",
-                "num_edge_properties",
-                "is_multi_gpu",
-            ]
-        )
+        valid_keys = {
+            "num_vertices",
+            "num_vertices_from_vertex_data",
+            "num_edges",
+            "num_vertex_properties",
+            "num_edge_properties",
+            "is_multi_gpu",
+        }
         if len(keys) == 0:
             keys = valid_keys
         else:
@@ -1279,7 +1277,6 @@ class CugraphHandler:
         await ep.close()
 
     def __get_dataframe_from_csv(self, csv_file_name, delimiter, dtypes, header, names):
-
         """
         Read a CSV into a DataFrame and return it. This will use either a cuDF
         DataFrame or a dask_cudf DataFrame based on if the handler is

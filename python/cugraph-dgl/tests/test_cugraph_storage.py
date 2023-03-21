@@ -28,7 +28,7 @@ th = import_optional("torch")
 dgl = import_optional("dgl")
 
 
-@pytest.fixture()
+@pytest.fixture
 def dgl_graph():
     graph_data = {
         ("nt.a", "connects", "nt.b"): (

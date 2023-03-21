@@ -763,7 +763,7 @@ class EXPERIMENTAL__PropertyGraph:
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
             column_names_to_drop.difference_update(
-                property_columns + [self.vertex_col_name, TCN]
+                [*property_columns, self.vertex_col_name, TCN]
             )
         else:
             column_names_to_drop = {vertex_col_name}
@@ -903,7 +903,7 @@ class EXPERIMENTAL__PropertyGraph:
             if columns is not None:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
-                df = df[[self.type_col_name] + columns]
+                df = df[[self.type_col_name, *columns]]
 
             # Should not drop to ensure vertex ids are returned as a column.
             df_out = df.reset_index(drop=False)
@@ -1183,7 +1183,7 @@ class EXPERIMENTAL__PropertyGraph:
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
             column_names_to_drop.difference_update(
-                property_columns + [self.src_col_name, self.dst_col_name, TCN]
+                [*property_columns, self.src_col_name, self.dst_col_name, TCN]
             )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
@@ -1316,7 +1316,7 @@ class EXPERIMENTAL__PropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[
-                    [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
+                    [self.src_col_name, self.dst_col_name, self.type_col_name, *columns]
                 ]
 
             # Should not drop so the edge ids are returned as a column.
@@ -1421,7 +1421,7 @@ class EXPERIMENTAL__PropertyGraph:
                 previously_selected_rows.index
             ]
 
-            locals = dict([(n, rows_to_eval[n]) for n in rows_to_eval.columns])
+            locals = {n: rows_to_eval[n] for n in rows_to_eval.columns}
             locals[self.vertex_col_name] = rows_to_eval.index
         else:
             locals = self.__vertex_prop_eval_dict

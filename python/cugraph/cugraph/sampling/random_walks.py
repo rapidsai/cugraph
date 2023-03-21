@@ -47,7 +47,7 @@ def random_walks(
     either a padded or a coalesced result. For the padded case, vertices
     with no outgoing edges will be padded with NA
 
-    parameters
+    Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed or undirected.
@@ -159,7 +159,7 @@ def random_walks(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-        drop_vertex = [i for i in range(max_depth, len(vertex_paths), max_depth + 1)]
+        drop_vertex = list(range(max_depth, len(vertex_paths), max_depth + 1))
         drop_edge_wgt = [
             i - 1 for i in range(max_depth, len(edge_wgt_paths), max_depth)
         ]
@@ -213,7 +213,7 @@ def rw_path(num_paths, sizes):
     Retrieve more information on the obtained paths in case use_padding
     is False.
 
-    parameters
+    Parameters
     ----------
     num_paths: int
         Number of paths in the random walk output.

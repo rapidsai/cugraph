@@ -62,6 +62,7 @@ class DGLUniformSampler:
             the result will be undefined. If not specified, sample uniformly.
         replace : bool
             If True, sample with replacement.
+
         Returns
         -------
         [src, dst, eids] or {etype1:[src, dst, eids],...,}

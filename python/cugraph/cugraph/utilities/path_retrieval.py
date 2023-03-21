@@ -46,7 +46,7 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
         Weight should be a floating type.
 
     Returns
-    ---------
+    -------
     df : cudf.DataFrame
         DataFrame containing two columns 'vertex' and 'info'.
         Unreachable vertices will have value the max value of the weight type.

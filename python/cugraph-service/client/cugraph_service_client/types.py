@@ -40,7 +40,7 @@ class UnionWrapper:
     unions to Thrift unions/py objects.
     """
 
-    non_attrs = set(["default_spec", "thrift_spec", "read", "write"])
+    non_attrs = {"default_spec", "thrift_spec", "read", "write"}
 
 
 class ValueWrapper(UnionWrapper):

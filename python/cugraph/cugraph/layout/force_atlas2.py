@@ -32,7 +32,6 @@ def force_atlas2(
     verbose=False,
     callback=None,
 ):
-
     """
     ForceAtlas2 is a continuous graph layout algorithm for handy network
     visualization.

@@ -145,8 +145,9 @@ def compare(ddf1, ddf2, src_col_name, dst_col_name, val_col_name):
 
 
 input_data_path = [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
-] + utils.DATASETS_UNDIRECTED
+    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv",
+    *utils.DATASETS_UNDIRECTED,
+]
 datasets = [pytest.param(d.as_posix()) for d in input_data_path]
 
 fixture_params = gen_fixture_params_product(

@@ -113,4 +113,4 @@ def enforce_rescale(
         time.sleep(wait_time)
         ready = len(cluster.workers) == scale
         attempt += 1
-    assert ready, "Unable to rescale cluster to {}".format(scale)
+    assert ready, f"Unable to rescale cluster to {scale}"

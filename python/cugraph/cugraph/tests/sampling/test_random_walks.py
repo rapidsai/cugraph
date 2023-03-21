@@ -40,7 +40,7 @@ def calc_random_walks(graph_file, directed=False, max_depth=None, use_padding=Fa
     """
     compute random walks for each nodes in 'start_vertices'
 
-    parameters
+    Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed or undirected.
@@ -107,7 +107,7 @@ def check_random_walks(path_data, seeds, df_G=None):
             (df_G["src"] == (src)) & (df_G["dst"] == (dst))
         ].reset_index(drop=True)
 
-        if not (exp_edge["src"].loc[0], exp_edge["dst"].loc[0]) == (src, dst):
+        if (exp_edge["src"].loc[0], exp_edge["dst"].loc[0]) != (src, dst):
             print(
                 "[ERR] Invalid edge: " "There is no edge src {} dst {}".format(src, dst)
             )
@@ -140,8 +140,8 @@ def test_random_walks_coalesced(graph_file, directed):
 
     # Check path query output
     df = cugraph.rw_path(len(seeds), path_data[2])
-    v_offsets = [0] + path_data[2].cumsum()[:-1].to_numpy().tolist()
-    w_offsets = [0] + (path_data[2] - 1).cumsum()[:-1].to_numpy().tolist()
+    v_offsets = [0, *path_data[2].cumsum()[:-1].to_numpy().tolist()]
+    w_offsets = [0, *(path_data[2] - 1).cumsum()[:-1].to_numpy().tolist()]
 
     assert_series_equal(df["weight_sizes"], path_data[2] - 1, check_names=False)
     assert df["vertex_offsets"].to_numpy().tolist() == v_offsets

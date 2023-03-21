@@ -25,7 +25,7 @@ from . import data
 # The fixtures used in these tests are defined here and in conftest.py
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client_with_graph_creation_extension_loaded(client, graph_creation_extension1):
     """
     Loads the extension defined in graph_creation_extension1, unloads upon completion.
@@ -41,7 +41,7 @@ def client_with_graph_creation_extension_loaded(client, graph_creation_extension
         client.unload_extension_module(modname)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client_with_edgelist_csv_loaded(client):
     """
     Loads the karate CSV into the default graph on the server.
@@ -57,7 +57,7 @@ def client_with_edgelist_csv_loaded(client):
     return (client, test_data)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client_with_property_csvs_loaded(client):
     """
     Loads each of the vertex and edge property CSVs into the default graph on
@@ -187,9 +187,12 @@ def test_node2vec(client_with_edgelist_csv_loaded):
         start_vertices, max_depth, extracted_gid
     )
     # FIXME: consider a more thorough test
-    assert isinstance(vertex_paths, list) and len(vertex_paths)
-    assert isinstance(edge_weights, list) and len(edge_weights)
-    assert isinstance(path_sizes, list) and len(path_sizes)
+    assert isinstance(vertex_paths, list)
+    assert len(vertex_paths)
+    assert isinstance(edge_weights, list)
+    assert len(edge_weights)
+    assert isinstance(path_sizes, list)
+    assert len(path_sizes)
 
 
 def test_extract_subgraph(client_with_edgelist_csv_loaded):

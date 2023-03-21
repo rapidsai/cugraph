@@ -549,7 +549,7 @@ def test_to_directed(graph_file):
     assert DiG.number_of_edges() == DiGnx.number_of_edges()
     assert DiG._plc_graph is not None
 
-    for index, row in cu_M.to_pandas().iterrows():
+    for _index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row["0"], row["1"])
         assert G.has_edge(row["1"], row["0"])
 
@@ -574,7 +574,7 @@ def test_to_undirected(graph_file):
         M, source="0", target="1", create_using=nx.DiGraph()
     )
 
-    for index, row in cu_M.to_pandas().iterrows():
+    for _index, row in cu_M.to_pandas().iterrows():
         assert DiG.has_edge(row["0"], row["1"])
         assert not DiG.has_edge(row["1"], row["0"])
 
@@ -586,7 +586,7 @@ def test_to_undirected(graph_file):
     assert G.number_of_edges() == Gnx.number_of_edges()
     assert G._plc_graph is not None
 
-    for index, row in cu_M.to_pandas().iterrows():
+    for _index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row["0"], row["1"])
         assert G.has_edge(row["1"], row["0"])
 
@@ -602,7 +602,7 @@ def test_has_edge(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    for index, row in cu_M.to_pandas().iterrows():
+    for _index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row["0"], row["1"])
         assert G.has_edge(row["1"], row["0"])
 
@@ -674,7 +674,7 @@ def test_neighbors(graph_file):
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     for n in nodes.values_host:
         cu_neighbors = G.neighbors(n).to_arrow().to_pylist()
-        nx_neighbors = [i for i in Gnx.neighbors(n)]
+        nx_neighbors = list(Gnx.neighbors(n))
         cu_neighbors.sort()
         nx_neighbors.sort()
         assert cu_neighbors == nx_neighbors

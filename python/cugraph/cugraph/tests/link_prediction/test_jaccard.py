@@ -35,7 +35,7 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 # =============================================================================
@@ -62,7 +62,7 @@ def compare_jaccard_two_hop(G, Gnx, edgevals=True):
     nx_pairs = list(pairs.to_records(index=False))
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
-    for u, v, p in preds:
+    for _u, _v, p in preds:
         # print(u, " ", v, " ", p)
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)

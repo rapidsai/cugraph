@@ -43,7 +43,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 # Map of cuGraph input types to the expected output type for cuGraph
@@ -247,7 +247,7 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
             if vid != source and cu_paths[pred][0] + 1 != cu_paths[vid][0]:
                 err = err + 1
         else:
-            if vid in nx_paths.keys():
+            if vid in nx_paths:
                 err = err + 1
 
     assert err == 0
@@ -305,7 +305,7 @@ def test_sssp_edgevals(
                 if cu_paths[pred][0] + edge_weight != cu_paths[vid][0]:
                     err = err + 1
         else:
-            if vid in nx_paths.keys():
+            if vid in nx_paths:
                 err = err + 1
 
     assert err == 0
@@ -373,7 +373,7 @@ def test_sssp_data_type_conversion(graph_file, source):
                 if cu_paths[pred][0] + edge_weight != cu_paths[vid][0]:
                     err = err + 1
         else:
-            if vid in nx_paths.keys():
+            if vid in nx_paths:
                 err = err + 1
 
     assert err == 0

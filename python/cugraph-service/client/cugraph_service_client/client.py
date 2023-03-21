@@ -315,7 +315,7 @@ class CugraphServiceClient:
         server_info = self.__client.get_server_info()
         # server_info is a dictionary of Value objects ("union" types returned
         # from the server), so convert them to simple py types.
-        return dict((k, ValueWrapper(server_info[k]).get_py_obj()) for k in server_info)
+        return {k: ValueWrapper(server_info[k]).get_py_obj() for k in server_info}
 
     @__server_connection
     def load_graph_creation_extensions(self, extension_dir_path):
@@ -673,7 +673,7 @@ class CugraphServiceClient:
 
         # graph_info is a dictionary of Value objects ("union" types returned
         # from the graph), so convert them to simple py types.
-        return dict((k, ValueWrapper(graph_info[k]).get_py_obj()) for k in graph_info)
+        return {k: ValueWrapper(graph_info[k]).get_py_obj() for k in graph_info}
 
     @__server_connection
     def load_csv_as_vertex_data(
@@ -688,7 +688,6 @@ class CugraphServiceClient:
         graph_id=defaults.graph_id,
         names=None,
     ):
-
         """
         Reads csv_file_name and applies it as vertex data to the graph
         identified as graph_id (or the default graph if not specified).
@@ -1276,7 +1275,8 @@ class CugraphServiceClient:
         """
         Samples the graph and returns a UniformNeighborSampleResult instance.
 
-        Parameters:
+        Parameters
+        ----------
         start_list : list[int]
 
         fanout_vals : list[int]
@@ -1369,7 +1369,6 @@ class CugraphServiceClient:
 
     @__server_connection
     def _get_graph_type(self, graph_id=defaults.graph_id):
-
         """
         Test/debug API for returning a string repr of the graph_id instance.
         """

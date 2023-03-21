@@ -69,7 +69,7 @@ def random_walks(
     padded result along with the maximum path length. Vertices with no outgoing
     edges will be padded with -1.
 
-    parameters
+    Parameters
     ----------
     input_graph : cuGraph.Graph
         The graph can be either directed or undirected.

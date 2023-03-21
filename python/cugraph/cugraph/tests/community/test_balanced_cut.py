@@ -36,9 +36,9 @@ def random_call(G, partitions):
     num_verts = G.number_of_vertices()
 
     score = 0.0
-    for repeat in range(20):
+    for _repeat in range(20):
         assignment = []
-        for i in range(num_verts):
+        for _i in range(num_verts):
             assignment.append(random.randint(0, partitions - 1))
 
         assign_cu = cudf.DataFrame(assignment, columns=["cluster"])

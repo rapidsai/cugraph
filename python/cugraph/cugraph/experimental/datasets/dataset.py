@@ -71,7 +71,7 @@ class Dataset:
     """
 
     def __init__(self, meta_data_file_name):
-        with open(meta_data_file_name, "r") as file:
+        with open(meta_data_file_name) as file:
             self.metadata = yaml.safe_load(file)
 
         self._dl_path = default_download_dir
@@ -198,6 +198,7 @@ def load_all(force=False):
     provided in each YAML file.
 
     Parameters
+    ----------
     force : Boolean (default=False)
         Overwrite any existing copies of datafiles.
     """
@@ -207,7 +208,7 @@ def load_all(force=False):
     for file in meta_path.iterdir():
         meta = None
         if file.suffix == ".yaml":
-            with open(meta_path / file, "r") as metafile:
+            with open(meta_path / file) as metafile:
                 meta = yaml.safe_load(metafile)
 
             if "url" in meta:
@@ -227,7 +228,7 @@ def set_config(cfgpath):
     cfgfile : String
         Read the custom config file given its path, and override the default
     """
-    with open(Path(cfgpath), "r") as file:
+    with open(Path(cfgpath)) as file:
         cfg = yaml.safe_load(file)
         default_download_dir.path = Path(cfg["download_dir"])
 

@@ -366,7 +366,7 @@ def random_edgelist(
     >>>    #df.to_parquet('files_parquet/df'+str(x), index=False)
     """
     state = np.random.RandomState(seed)
-    columns = dict((k, make[dt](e // ef, e, state)) for k, dt in dtypes.items())
+    columns = {k: make[dt](e // ef, e, state) for k, dt in dtypes.items()}
 
     df = pd.DataFrame(columns)
     if drop_duplicates:

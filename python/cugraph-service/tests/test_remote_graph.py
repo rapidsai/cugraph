@@ -39,7 +39,7 @@ pytest.skip(
 # The fixtures used in these tests are defined here and in conftest.py
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client_with_property_csvs_loaded(client):
     """
     Loads each of the vertex and edge property CSVs into the default graph on
@@ -93,7 +93,7 @@ def client_with_property_csvs_loaded(client):
     return client
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def pG_with_property_csvs_loaded():
     """
     Loads each of the vertex and edge property CSVs into a
@@ -323,13 +323,13 @@ def test_get_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_l
 def test_add_vertex_data(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    raise NotImplementedError()
+    raise NotImplementedError
 
 
 @pytest.mark.skip(reason="not yet implemented")
 def test_add_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
 
-    raise NotImplementedError()
+    raise NotImplementedError
 
 
 def test_get_vertices(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
@@ -345,7 +345,7 @@ def test_get_vertices(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 def test_get_vertices_with_selection(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    raise NotImplementedError()
+    raise NotImplementedError
 
 
 @pytest.mark.parametrize(
@@ -454,7 +454,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
     rpg_vertex_data = rpG.get_vertex_data(backend="pandas")
     pg_vertex_data = pG.get_vertex_data().fillna(0)
     assert isinstance(rpg_vertex_data, pd.DataFrame)
-    assert sorted(list(rpg_vertex_data.columns)) == sorted(list(pg_vertex_data.columns))
+    assert sorted(rpg_vertex_data.columns) == sorted(pg_vertex_data.columns)
     for col in rpg_vertex_data.columns:
         assert rpg_vertex_data[col].tolist() == pg_vertex_data[col].values_host.tolist()
 
@@ -462,7 +462,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
     rpg_edge_data = rpG.get_edge_data(backend="pandas")
     pg_edge_data = pG.get_edge_data().fillna(0)
     assert isinstance(rpg_edge_data, pd.DataFrame)
-    assert sorted(list(rpg_edge_data.columns)) == sorted(list(pg_edge_data.columns))
+    assert sorted(rpg_edge_data.columns) == sorted(pg_edge_data.columns)
     for col in rpg_edge_data.columns:
         assert rpg_edge_data[col].tolist() == pg_edge_data[col].values_host.tolist()
 

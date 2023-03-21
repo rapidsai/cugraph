@@ -35,7 +35,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 # =============================================================================
@@ -88,7 +88,7 @@ def networkx_call(M, benchmark_callable=None):
     else:
         preds = nx.jaccard_coefficient(Gnx, edges)
     coeff = []
-    for u, v, p in preds:
+    for _u, _v, p in preds:
         # FIXME: Use known correct values of WSorensen for few graphs,
         # hardcode it and compare to Cugraph WSorensen
         # to get a more robust test

@@ -42,8 +42,9 @@ RADIUS = [1, 2, 3]
 # Pytest fixtures
 # =============================================================================
 
-datasets = utils.DATASETS_UNDIRECTED + [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+datasets = [
+    *utils.DATASETS_UNDIRECTED,
+    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv",
 ]
 
 fixture_params = gen_fixture_params_product(

@@ -135,7 +135,7 @@ def client_of_mg_server(mg_server):
     client.close()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client_of_mg_server_with_edgelist_csv_loaded(client_of_mg_server):
     """
     Loads the karate CSV into the default graph on the server.
@@ -199,7 +199,7 @@ def client_of_sg_server_on_device_1_with_test_array(
     client._delete_test_array(test_array_id)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client_of_sg_server_on_device_1_large_property_graph_loaded(
     client_of_sg_server_on_device_1,
     graph_creation_extension_large_property_graph,

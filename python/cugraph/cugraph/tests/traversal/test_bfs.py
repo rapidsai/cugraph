@@ -242,7 +242,7 @@ def _compare_bfs(cugraph_df, nx_distances, source):
                 else:
                     # The graph is unweighted thus, predecessors are 1 away
                     if vertex != source and (
-                        (nx_distances[pred] + 1 != cu_distances[vertex])
+                        nx_distances[pred] + 1 != cu_distances[vertex]
                     ):
                         print(
                             "[ERR] Invalid on predecessors: "
@@ -365,7 +365,7 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
     dataset, directed, Gnx = small_dataset_nx_graph
     use_spc = True
 
-    start_vertices = [start_vertex for start_vertex in Gnx]
+    start_vertices = list(Gnx)
 
     all_nx_values = []
     for start_vertex in start_vertices:

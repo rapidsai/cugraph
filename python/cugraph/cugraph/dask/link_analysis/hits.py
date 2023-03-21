@@ -70,7 +70,6 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
 
     Parameters
     ----------
-
     input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm).

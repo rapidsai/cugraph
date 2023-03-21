@@ -43,7 +43,7 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 # Map of cuGraph input types to the expected output type for cuGraph
 # connected_components calls.
@@ -156,7 +156,7 @@ def cugraph_call(
         else:
             assert type(result[1]) is np.ndarray
 
-        unique_labels = set([n.item() for n in result[1]])
+        unique_labels = {n.item() for n in result[1]}
         assert len(unique_labels) == result[0]
 
         # The returned dict used in the tests for checking correctness needs
@@ -202,6 +202,7 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
                                               directed=True,
                                               connection='weak',
                                               return_labels=True)
+
     Parameters
     ----------
         csgraph : array_like or sparse matrix
@@ -213,7 +214,7 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
             the shortest path on an undirected graph: the algorithm can
             progress from point i to j along csgraph[i, j] or csgraph[j, i].
         connection : str, optional
-            [‘weak’|’strong’]. For directed graphs, the type of connection to
+            [`weak`|`strong`]. For directed graphs, the type of connection to
             use. Nodes i and j are strongly connected if a path exists both
             from i to j and from j to i. A directed graph is weakly connected
             if replacing all of its directed edges with undirected edges

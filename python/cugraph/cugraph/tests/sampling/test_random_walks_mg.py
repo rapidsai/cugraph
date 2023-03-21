@@ -41,7 +41,7 @@ IS_DIRECTED = [True, False]
 # Pytest fixtures
 # =============================================================================
 
-datasets = DATASETS_SMALL + [karate_asymmetric]
+datasets = [*DATASETS_SMALL, karate_asymmetric]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
@@ -53,7 +53,7 @@ def calc_random_walks(G):
     """
     compute random walks
 
-    parameters
+    Parameters
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (DiGraph) or undirected (Graph).

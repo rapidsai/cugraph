@@ -120,7 +120,7 @@ def test_get_subgraph(graph, dask_client):
     cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
 
     if len(G.keys()) > 1:
-        for edge_type in G.keys():
+        for edge_type in G:
             # Subgraphing is not implemented yet and should raise an error
             with pytest.raises(ValueError):
                 sg = cugraph_store._subgraph([edge_type])

@@ -35,7 +35,7 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 def cudify(d):

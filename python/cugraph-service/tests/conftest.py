@@ -374,7 +374,7 @@ def extension_adds_graph():
 # function scope fixtures
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client(server):
     """
     Creates a client instance to the running server, closes the client when the

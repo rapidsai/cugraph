@@ -165,8 +165,8 @@ def bfs(
 
     Returns
     -------
-    Return value type is based on the input type.  If G is a cugraph.Graph,
-    returns:
+    Return value type is based on the input type.
+    If G is a cugraph.Graph, returns:
 
        cudf.DataFrame
           df['vertex'] vertex IDs
@@ -214,9 +214,7 @@ def bfs(
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
-    is_dataframe = isinstance(start, cudf.DataFrame) or isinstance(
-        start, dask_cudf.DataFrame
-    )
+    is_dataframe = isinstance(start, (cudf.DataFrame, dask_cudf.DataFrame))
     if G.renumbered is True:
         if is_dataframe:
             start = G.lookup_internal_vertex_id(start, start.columns)
@@ -283,8 +281,8 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 
     Returns
     -------
-    Return value type is based on the input type.  If G is a cugraph.Graph,
-    returns:
+    Return value type is based on the input type.
+    If G is a cugraph.Graph, returns:
 
        cudf.DataFrame
           df['vertex'] vertex IDs

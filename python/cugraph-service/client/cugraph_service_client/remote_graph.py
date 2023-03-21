@@ -379,7 +379,7 @@ class RemoteGraph:
             columns.remove(self.type_col_name)
         if self.vertex_col_name in columns:
             columns.remove(self.vertex_col_name)
-        column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
+        column_names = [self.vertex_col_name, self.type_col_name, *list(columns)]
 
         return _transform_to_backend_dtype(
             vertex_data,
@@ -701,6 +701,7 @@ class RemoteGraph:
             Defaults to cudf if available, otherwise falls back to numpy.
 
         Returns
+        -------
         A DataFrame or dict (depending on backend) with the start and stop IDs for
         each edge type.
         Stop is *inclusive*.

@@ -81,7 +81,7 @@ BARNES_HUT_OPTIMIZE = [False, True]
 
 class TestCallback(GraphBasedDimRedCallback):
     def __init__(self):
-        super(TestCallback, self).__init__()
+        super().__init__()
         self.on_preprocess_end_called_count = 0
         self.on_epoch_end_called_count = 0
         self.on_train_end_called_count = 0
@@ -97,7 +97,7 @@ class TestCallback(GraphBasedDimRedCallback):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file, score", DATASETS)
+@pytest.mark.parametrize(("graph_file", "score"), DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
@@ -150,7 +150,7 @@ def test_force_atlas2(graph_file, score, max_iter, barnes_hut_optimize):
 # need to revisit ASAP
 @pytest.mark.sg
 @pytest.mark.skip(reason="non-deterministric - needs fixing!")
-@pytest.mark.parametrize("graph_file, score", DATASETS[:-1])
+@pytest.mark.parametrize(("graph_file", "score"), DATASETS[:-1])
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("barnes_hut_optimize", BARNES_HUT_OPTIMIZE)
 def test_force_atlas2_multi_column_pos_list(

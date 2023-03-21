@@ -34,7 +34,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = [*DATASETS_UNDIRECTED, email_Eu_core]
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([50], "max_iter"),

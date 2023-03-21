@@ -95,7 +95,7 @@ def getBenchmarks(G, edgelist_gdf, args):
         Benchmark(name="cugraph.graph.degrees", func=G.degrees),
     ]
     # Return a dictionary of Benchmark name to Benchmark obj mappings
-    return dict([(b.name, b) for b in benches])
+    return {b.name: b for b in benches}
 
 
 ########################################
@@ -109,7 +109,7 @@ def loadDataFile(file_name, csv_delimiter=" "):
         edgelist_gdf = read_csv(file_name, csv_delimiter)
     else:
         raise ValueError(
-            "bad file type: '%s', %s " % (file_type, file_name)
+            f"bad file type: '{file_type}', {file_name} "
             + "must have a .csv or .mtx extension"
         )
     return edgelist_gdf
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     # set algosToRun based on the command line args
     allPossibleAlgos = getAllPossibleAlgos()
     if args.algo and ("ALL" not in args.algo):
-        allowedAlgoNames = allPossibleAlgos + ["ALL"]
+        allowedAlgoNames = [*allPossibleAlgos, "ALL"]
         if (set(args.algo) - set(allowedAlgoNames)) != set():
             raise ValueError(
                 "bad algo(s): '%s', must be in set of %s"

@@ -34,7 +34,7 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 # =============================================================================
@@ -61,7 +61,7 @@ def compare_sorensen_two_hop(G, Gnx, edgevals=False):
     nx_pairs = list(pairs.to_records(index=False))
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
-    for u, v, p in preds:
+    for _u, _v, p in preds:
         # FIXME: Use known correct values of Sorensen for few graphs,
         # hardcode it and compare to Cugraph Sorensen to get a more robust test
 

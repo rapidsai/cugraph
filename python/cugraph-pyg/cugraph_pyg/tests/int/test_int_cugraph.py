@@ -62,7 +62,7 @@ def loader_hetero_mag():
         pG.add_vertex_data(blank_df, vertex_col_name="id", type_name=node_type)
 
     # Add the remaining vertex features
-    for i, (node_type, node_features) in enumerate(data[0]["node_feat_dict"].items()):
+    for _i, (node_type, node_features) in enumerate(data[0]["node_feat_dict"].items()):
         vertex_offset = vertex_offsets[node_type]
 
         feature_df = cudf.DataFrame(node_features)
@@ -76,7 +76,7 @@ def loader_hetero_mag():
     pG.fillna(0.0)
 
     # Add the edges
-    for i, (edge_key, eidx) in enumerate(data[0]["edge_index_dict"].items()):
+    for _i, (edge_key, eidx) in enumerate(data[0]["edge_index_dict"].items()):
         node_type_src, edge_type, node_type_dst = edge_key
         print(node_type_src, edge_type, node_type_dst)
         vertex_offset_src = vertex_offsets[node_type_src]
@@ -152,7 +152,7 @@ def loader_hetero_mag_multi_gpu(rmmc):
         pG.add_vertex_data(blank_df, vertex_col_name="id", type_name=node_type)
 
     # Add the remaining vertex features
-    for i, (node_type, node_features) in enumerate(data[0]["node_feat_dict"].items()):
+    for _i, (node_type, node_features) in enumerate(data[0]["node_feat_dict"].items()):
         vertex_offset = vertex_offsets[node_type]
 
         feature_df = cudf.DataFrame(node_features)
@@ -167,7 +167,7 @@ def loader_hetero_mag_multi_gpu(rmmc):
     pG.fillna(0.0)
 
     # Add the edges
-    for i, (edge_key, eidx) in enumerate(data[0]["edge_index_dict"].items()):
+    for _i, (edge_key, eidx) in enumerate(data[0]["edge_index_dict"].items()):
         node_type_src, edge_type, node_type_dst = edge_key
         print(node_type_src, edge_type, node_type_dst)
         vertex_offset_src = vertex_offsets[node_type_src]

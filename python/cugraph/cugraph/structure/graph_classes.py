@@ -493,7 +493,7 @@ class Graph:
             Name of the column containing the external vertex ids
 
         Returns
-        ---------
+        -------
         series : cudf.Series or dask_cudf.Series
             The internal vertex identifiers
         """
@@ -532,7 +532,7 @@ class Graph:
             Preserve the order of the data frame (requires an extra sort)
 
         Returns
-        ---------
+        -------
         df : cudf.DataFrame or dask_cudf.DataFrame
             Original DataFrame with new column containing internal vertex
             id
@@ -732,7 +732,7 @@ class MultiGraph(Graph):
     """
 
     def __init__(self, directed=False):
-        super(MultiGraph, self).__init__(directed=directed)
+        super().__init__(directed=directed)
         self.graph_properties.multi_edge = True
 
     def is_multigraph(self):
@@ -762,13 +762,13 @@ class Tree(Graph):
     """
 
     def __init__(self, directed=False):
-        super(Tree, self).__init__(directed=directed)
+        super().__init__(directed=directed)
         self.graph_properties.tree = True
 
 
 class NPartiteGraph(Graph):
     def __init__(self, bipartite=False, directed=False):
-        super(NPartiteGraph, self).__init__(directed=directed)
+        super().__init__(directed=directed)
         self.graph_properties.bipartite = bipartite
         self.graph_properties.multipartite = True
 
@@ -902,7 +902,6 @@ class NPartiteGraph(Graph):
 
         Parameters
         ----------
-
         nodes : list or cudf.Series
             The nodes of the graph to be stored. If bipartite and multipartite
             arguments are not passed, the nodes are considered to be a list of
@@ -941,7 +940,7 @@ class BiPartiteGraph(NPartiteGraph):
     """
 
     def __init__(self, directed=False):
-        super(BiPartiteGraph, self).__init__(directed=directed, bipartite=True)
+        super().__init__(directed=directed, bipartite=True)
 
     def is_bipartite(self):
         """

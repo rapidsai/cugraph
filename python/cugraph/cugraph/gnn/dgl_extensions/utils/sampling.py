@@ -154,7 +154,7 @@ def _convert_can_etype_s_to_tup(canonical_etype_s):
 
 def create_cp_result_ls(d):
     cupy_result_ls = []
-    for k, df in d.items():
+    for _k, df in d.items():
         if len(df) == 0:
             cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
             cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))

@@ -124,7 +124,7 @@ def gen_fixture_params_product(*args):
         for (p, paramId) in zip(paramCombo, ids):
             # Assume paramId is either a string or a callable
             if isinstance(paramId, str):
-                id_strings.append("%s=%s" % (paramId, p.values[0]))
+                id_strings.append(f"{paramId}={p.values[0]}")
             else:
                 id_strings.append(paramId(p.values[0]))
         comboid = ",".join(id_strings)

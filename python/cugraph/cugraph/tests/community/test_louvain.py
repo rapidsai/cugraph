@@ -43,7 +43,7 @@ except ModuleNotFoundError:
     )
 
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 # =============================================================================

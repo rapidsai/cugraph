@@ -45,7 +45,7 @@ def hypergraph(
     dropna=True,
     direct=False,
     graph_class=Graph,
-    categories=dict(),
+    categories={},
     drop_edge_attrs=False,
     categorical_metadata=True,
     SKIP=None,
@@ -85,7 +85,6 @@ def hypergraph(
 
     Parameters
     ----------
-
     values : cudf.DataFrame
         The input Dataframe to transform into a hypergraph.
 
@@ -177,9 +176,7 @@ def hypergraph(
     """
 
     columns = values.columns if columns is None else columns
-    columns = sorted(
-        list(columns if SKIP is None else [x for x in columns if x not in SKIP])
-    )
+    columns = sorted(columns if SKIP is None else [x for x in columns if x not in SKIP])
 
     events = values.copy(deep=False)
     events.reset_index(drop=True, inplace=True)
@@ -291,7 +288,7 @@ def _create_entity_nodes(
     columns,
     dropna=True,
     categorical_metadata=False,
-    categories=dict(),
+    categories={},
     DELIM="::",
     NODEID="node_id",
     CATEGORY="category",
@@ -346,7 +343,7 @@ def _create_entity_nodes(
 
     nodes = cudf.concat(nodes)
     nodes = nodes.drop_duplicates(subset=[NODEID])
-    nodes = nodes[[NODEID, NODETYPE, CATEGORY] + list(columns)]
+    nodes = nodes[[NODEID, NODETYPE, CATEGORY, *list(columns)]]
     nodes.reset_index(drop=True, inplace=True)
     return nodes
 
@@ -385,7 +382,7 @@ def _create_hyper_edges(
     events,
     columns,
     dropna=True,
-    categories=dict(),
+    categories={},
     drop_edge_attrs=False,
     categorical_metadata=False,
     DELIM="::",
@@ -473,7 +470,7 @@ def _create_direct_edges(
     events,
     columns,
     dropna=True,
-    categories=dict(),
+    categories={},
     edge_shape=None,
     drop_edge_attrs=False,
     categorical_metadata=False,

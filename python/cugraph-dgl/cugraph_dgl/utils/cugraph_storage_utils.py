@@ -35,10 +35,7 @@ def _is_valid_canonical_etype(canonical_etype):
     if len(canonical_etype) != 3:
         return False
 
-    for t in canonical_etype:
-        if not isinstance(t, str):
-            return False
-    return True
+    return all(isinstance(t, str) for t in canonical_etype)
 
 
 def add_edge_ids_to_edges_dict(edge_data_dict, edge_id_offset_d, id_dtype):

@@ -50,7 +50,6 @@ def pagerank(
     weight="weight",
     dangling=None,
 ):
-
     """
     Calls the cugraph pagerank algorithm taking in a networkX object.
     In future releases it will maintain compatibility but will migrate more

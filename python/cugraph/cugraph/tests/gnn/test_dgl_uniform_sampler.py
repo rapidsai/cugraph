@@ -67,7 +67,7 @@ def test_sampling_homogeneous_gs_out_dir():
         4: ([], []),
     }
 
-    for seed in expected_out.keys():
+    for seed in expected_out:
         seed_cap = cudf.Series([seed]).to_dlpack()
         sample_src, sample_dst, sample_eid = sampler.sample_neighbors(
             seed_cap, fanout=9, edge_dir="out"
@@ -112,7 +112,7 @@ def test_sampling_homogeneous_gs_in_dir():
         4: ([1, 2], [4, 4]),
     }
 
-    for seed in expected_in.keys():
+    for seed in expected_in:
         seed_cap = cudf.Series([seed]).to_dlpack()
         sample_src, sample_dst, sample_eid = sampler.sample_neighbors(
             seed_cap, fanout=9, edge_dir="in"
@@ -211,7 +211,7 @@ def test_sampling_gs_heterogeneous_out_dir():
         },
     }
 
-    for seed in expeced_val_d.keys():
+    for seed in expeced_val_d:
         fanout = 4
         sampled_node_p = cudf.Series(seed).astype(np.int32).to_dlpack()
         sampled_g = sampler.sample_neighbors(
@@ -270,7 +270,7 @@ def test_sampling_gs_heterogeneous_in_dir():
         },
     }
 
-    for seed in expeced_val_d.keys():
+    for seed in expeced_val_d:
         fanout = 4
         sampled_node_p = cudf.Series(seed).astype(np.int32).to_dlpack()
         sampled_g = sampler.sample_neighbors(

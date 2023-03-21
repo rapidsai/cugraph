@@ -96,6 +96,7 @@ def calc_betweenness_centrality(
     edgevals: bool
         When True, enable tests with weighted graph, should be ignored
         during computation.
+
     Returns
     -------
     sorted_df : cudf.DataFrame
@@ -128,7 +129,8 @@ def calc_betweenness_centrality(
         create_using=(nx.DiGraph() if directed else nx.Graph()),
     )
 
-    assert G is not None and Gnx is not None
+    assert G is not None
+    assert Gnx is not None
     if multi_gpu_batch:
         G.enable_batch()
 
@@ -362,7 +364,8 @@ def test_betweenness_centrality_k_full(
     edgevals,
 ):
     """Tests full betweenness centrality by using k = G.number_of_vertices()
-    instead of k=None, checks that k scales properly"""
+    instead of k=None, checks that k scales properly
+    """
     sorted_df = calc_betweenness_centrality(
         graph_file,
         directed=directed,

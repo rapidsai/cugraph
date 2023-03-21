@@ -63,7 +63,7 @@ t1 = time.time()
 os.path.splitext(os.path.basename(args.file.name))[0] + ".csv"
 csv_file = open(os.path.splitext(os.path.basename(args.file.name))[0] + ".csv", "w")
 for item in range(M.getnnz()):
-    csv_file.write("{}{}{}\n".format(M.row[item], separator, M.col[item]))
+    csv_file.write(f"{M.row[item]}{separator}{M.col[item]}\n")
 csv_file.close()
 write_time = time.time() - t1
 print("Time (s) : " + str(round(write_time, 3)))

@@ -163,10 +163,7 @@ def is_initialized():
     Returns True if comms was initialized, False otherwise.
     """
     global __instance
-    if __instance is not None:
-        return True
-    else:
-        return False
+    return __instance is not None
 
 
 def get_comms():

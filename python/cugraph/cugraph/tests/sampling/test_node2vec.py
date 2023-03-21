@@ -185,10 +185,10 @@ def test_node2vec(
                     u = vertex_paths[idx + path_idx]
                     v = vertex_paths[idx + path_idx + 1]
                     # Corresponding weight to edge is not correct
-                    expr = "(src == {} and dst == {})".format(u, v)
+                    expr = f"(src == {u} and dst == {v})"
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query didn't find:({},{})".format(u, v))
+                        raise ValueError(f"edge_query didn't find:({u},{v})")
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -206,10 +206,10 @@ def test_node2vec(
                     u = vertex_paths[path_idx * max_depth + idx]
                     v = vertex_paths[path_idx * max_depth + idx + 1]
                     # Corresponding weight to edge is not correct
-                    expr = "(src == {} and dst == {})".format(u, v)
+                    expr = f"(src == {u} and dst == {v})"
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query didn't find:({},{})".format(u, v))
+                        raise ValueError(f"edge_query didn't find:({u},{v})")
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -238,10 +238,10 @@ def test_node2vec(
                 u = vertex_paths[src_idx]
                 v = vertex_paths[dst_idx]
                 # Corresponding weight to edge is not correct
-                expr = "(src == {} and dst == {})".format(u, v)
+                expr = f"(src == {u} and dst == {v})"
                 edge_query = G.edgelist.edgelist_df.query(expr)
                 if edge_query.empty:
-                    raise ValueError("edge_query didn't find:({},{})".format(u, v))
+                    raise ValueError(f"edge_query didn't find:({u},{v})")
                 else:
                     if edge_query["weights"].values[0] != weight:
                         raise ValueError("edge_query weight incorrect")

@@ -30,7 +30,6 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
 
     References
     ----------
-
     A Grover, J Leskovec: node2vec: Scalable Feature Learning for Networks,
     Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge
     Discovery and Data Mining, https://arxiv.org/abs/1607.00653

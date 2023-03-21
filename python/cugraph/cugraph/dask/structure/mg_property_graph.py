@@ -564,7 +564,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
             column_names_to_drop.difference_update(
-                property_columns + [self.vertex_col_name, TCN]
+                [*property_columns, self.vertex_col_name, TCN]
             )
         else:
             column_names_to_drop = {vertex_col_name}
@@ -663,7 +663,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             if columns is not None:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
-                df = df[[self.type_col_name] + columns]
+                df = df[[self.type_col_name, *columns]]
             df_out = df.reset_index()
 
             # Preserve the dtype (vertex id type) to avoid cugraph algorithms
@@ -918,7 +918,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
             column_names_to_drop.difference_update(
-                property_columns + [self.src_col_name, self.dst_col_name, TCN]
+                [*property_columns, self.src_col_name, self.dst_col_name, TCN]
             )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
@@ -972,12 +972,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             self.__edge_prop_dataframe = df
 
         # Update the edge eval dict with the latest column instances
-        latest = dict(
-            [
-                (n, self.__edge_prop_dataframe[n])
-                for n in self.__edge_prop_dataframe.columns
-            ]
-        )
+        latest = {
+            n: self.__edge_prop_dataframe[n] for n in self.__edge_prop_dataframe.columns
+        }
         self.__edge_prop_eval_dict.update(latest)
         self.__edge_prop_eval_dict[
             self.edge_id_col_name
@@ -1020,7 +1017,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
                 df = df[
-                    [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
+                    [self.src_col_name, self.dst_col_name, self.type_col_name, *columns]
                 ]
 
             df_out = df.reset_index()
@@ -1230,7 +1227,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def edge_props_to_graph(
         self,

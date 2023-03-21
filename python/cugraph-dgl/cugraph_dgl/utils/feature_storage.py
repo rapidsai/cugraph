@@ -30,6 +30,7 @@ class dgl_FeatureStorage:
     def fetch(self, indices, device=None, pin_memory=False, **kwargs):
         """Fetch the features of the given node/edge IDs to the
         given device.
+
         Parameters
         ----------
         indices : Tensor

@@ -166,8 +166,8 @@ def sssp(
 
     Returns
     -------
-    Return value type is based on the input type.  If G is a cugraph.Graph,
-    returns:
+    Return value type is based on the input type.
+    If G is a cugraph.Graph, returns:
 
        cudf.DataFrame
           df['vertex']

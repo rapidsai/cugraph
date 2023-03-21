@@ -82,10 +82,7 @@ valid_datasets = [
     Simple_1,
     Simple_2,
 ]
-all_datasets = valid_datasets + [
-    InvalidNumWeights_1,
-    InvalidNumVerts_1,
-]
+all_datasets = [*valid_datasets, InvalidNumWeights_1, InvalidNumVerts_1]
 
 
 # =============================================================================

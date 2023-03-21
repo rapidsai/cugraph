@@ -30,7 +30,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 SEEDS = [0, 5, 13]
 RADIUS = [1, 2, 3]

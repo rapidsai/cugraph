@@ -17,7 +17,6 @@ import gc
 import pytest
 
 import pandas
-import numpy as np
 import dask_cudf
 import dask
 import cudf
@@ -113,7 +112,7 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     gdf["dst_old"] = destinations
     gdf["src"] = sources + translate
     gdf["dst"] = destinations + translate
-    gdf["weight"] = gdf.index.astype(np.float)
+    gdf["weight"] = gdf.index.astype(float)
 
     ddf = dask.dataframe.from_pandas(
         gdf, npartitions=len(dask_client.scheduler_info()["workers"])
@@ -335,7 +334,7 @@ def test_pagerank_string_vertex_ids(dask_client):
 @pytest.mark.parametrize("dtype", ["int32", "int64"])
 def test_mg_renumber_multi_column(dtype, dask_client):
     df = cudf.DataFrame(
-        {"src_a": [i for i in range(0, 10)], "dst_a": [i for i in range(10, 20)]}
+        {"src_a": list(range(0, 10)), "dst_a": list(range(10, 20))}
     ).astype(dtype)
 
     df["src_b"] = df["src_a"] + 10

@@ -54,7 +54,7 @@ def mg_handler():
 
 # Make this a function-level fixture so it cleans up the mg_handler after each
 # test, allowing other tests to use mg_handler without graphs loaded.
-@pytest.fixture(scope="function")
+@pytest.fixture
 def handler_with_karate_edgelist_loaded(mg_handler):
     """
     Loads the karate CSV into the default graph in the handler.

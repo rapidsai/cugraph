@@ -78,7 +78,7 @@ def get_traversed_path(df, id):
         most be the same data types as what is in the dataframe
 
     Returns
-    ---------
+    -------
     df : cudf.DataFrame
         a dataframe containing the path steps
 
@@ -151,7 +151,7 @@ def get_traversed_path_list(df, id):
         The vertex ID
 
     Returns
-    ---------
+    -------
     a : Python array
         a ordered array containing the steps from id to root
 
@@ -254,7 +254,6 @@ def get_device_memory_info():
 # |      Many NetworkX algorithms designed for weighted graphs use
 # |      an edge attribute (by default `weight`) to hold a numerical value.
 def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
-
     """
     Convert the input obj - if possible - to a cuGraph Graph-type obj (Graph,
     etc.) and return a tuple of (cugraph Graph-type obj, original

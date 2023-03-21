@@ -61,13 +61,13 @@ class CuGraphStorage:
 
         Parameters
         ----------
-         data_dict:
+        data_dict:
             The dictionary data for constructing a heterogeneous graph.
             The keys are in the form of string triplets (src_type, edge_type, dst_type),
             specifying the source node, edge, and destination node types.
-            The values are graph data is a dataframe with 2 columns form of (𝑈,𝑉),
-            where (𝑈[𝑖],𝑉[𝑖]) forms the edge with ID 𝑖.
-         num_nodes_dict: dict[str, int]
+            The values are graph data is a dataframe with 2 columns form of (U,V),
+            where (U[i],V[i]) forms the edge with ID i.
+        num_nodes_dict: dict[str, int]
             The number of nodes for some node types, which is a
             dictionary mapping a node type T to the number of T-typed nodes.
         single_gpu: bool
@@ -84,9 +84,9 @@ class CuGraphStorage:
             for PyTorch.
             Defaults to ``torch.int64`` if pytorch is installed
 
-         Examples
-         --------
-         The following example uses `CuGraphStorage` :
+        Examples
+        --------
+        The following example uses `CuGraphStorage` :
             >>> from cugraph_dgl.cugraph_storage import CuGraphStorage
             >>> import cudf
             >>> import torch
@@ -136,7 +136,7 @@ class CuGraphStorage:
         # do this first before cuda work
         # Create cuda context on the right gpu,
         # defaults to gpu-0
-        import numba.cuda as cuda
+        from numba import cuda
 
         cuda.select_device(device_id)
 
@@ -184,6 +184,7 @@ class CuGraphStorage:
             might be "users".
         feat_name : str
             The name of the feature being stored
+
         Returns
         -------
         None
@@ -210,6 +211,7 @@ class CuGraphStorage:
         canonical_etype : Tuple[(str, str, str)]
             The edge type to be added
         feat_name : string
+
         Returns
         -------
         None
@@ -236,6 +238,7 @@ class CuGraphStorage:
         Return a DGLGraph which is a subgraph induced by sampling neighboring
         edges of the given nodes.
         See ``dgl.sampling.sample_neighbors`` for detailed semantics.
+
         Parameters
         ----------
         nodes : Tensor or dict[str, Tensor]
@@ -270,6 +273,7 @@ class CuGraphStorage:
             If True, sample with replacement.
         output_device : Framework-specific device context object, optional
             The output device.  Default is the same as the input graph.
+
         Returns
         -------
         DGLGraph
@@ -350,6 +354,7 @@ class CuGraphStorage:
     def subgraph(self, nodes, relabel_nodes=False, output_device=None):
         """Return a subgraph induced on given nodes.
         This has the same semantics as ``dgl.node_subgraph``.
+
         Parameters
         ----------
         nodes : nodes or dict[str, nodes]
@@ -367,6 +372,7 @@ class CuGraphStorage:
             specified node set and it will relabel the nodes in order.
         output_device : Framework-specific device context object, optional
             The output device.  Default is the same as the input graph.
+
         Returns
         -------
         DGLGraph
@@ -381,6 +387,7 @@ class CuGraphStorage:
         """
         Return a subgraph induced on given edges.
         This has the same semantics as ``dgl.edge_subgraph``.
+
         Parameters
         ----------
         edges : edges or dict[(str, str, str), edges]
@@ -398,6 +405,7 @@ class CuGraphStorage:
             specified node set and it will relabel the nodes in order.
         output_device : Framework-specific device context object, optional
             The output device.  Default is the same as the input graph.
+
         Returns
         -------
         DGLGraph
@@ -492,6 +500,7 @@ class CuGraphStorage:
     def num_nodes(self, ntype: str = None) -> int:
         """
         Return the number of nodes in the graph.
+
         Parameters
         ----------
         ntype : str, optional
@@ -558,6 +567,7 @@ class CuGraphStorage:
     def num_edges(self, etype: Optional[str] = None) -> int:
         """
         Return the number of edges in the graph.
+
         Parameters
         ----------
         etype:
@@ -594,6 +604,7 @@ class CuGraphStorage:
     def device(self):
         """
         Get the device of the graph.
+
         Returns
         -------
         device context

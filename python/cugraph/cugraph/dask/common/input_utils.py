@@ -87,7 +87,6 @@ class DistributedDataHandler:
 
         Parameters
         ----------
-
         data : dask.array, dask.dataframe, or unbounded Sequence of
                dask.array or dask.dataframe.
 
@@ -106,7 +105,7 @@ class DistributedDataHandler:
         gpu_futures = client.sync(
             _extract_partitions, data, client, batch_enabled=batch_enabled
         )
-        workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
+        workers = tuple(OrderedDict.fromkeys(x[0] for x in gpu_futures))
         return DistributedDataHandler(
             gpu_futures=gpu_futures,
             workers=workers,
@@ -120,9 +119,9 @@ class DistributedDataHandler:
     def calculate_worker_and_rank_info(self, comms):
 
         self.worker_info = comms.worker_info(comms.worker_addresses)
-        self.ranks = dict()
+        self.ranks = {}
 
-        for w, futures in self.worker_to_parts.items():
+        for w, _futures in self.worker_to_parts.items():
             self.ranks[w] = self.worker_info[w]["rank"]
 
     def calculate_parts_to_sizes(self, comms=None, ranks=None):
@@ -132,7 +131,7 @@ class DistributedDataHandler:
 
         self.total_rows = 0
 
-        self.parts_to_sizes = dict()
+        self.parts_to_sizes = {}
 
         parts = [
             (
@@ -157,15 +156,12 @@ class DistributedDataHandler:
         if self.worker_info is None and comms is not None:
             self.calculate_worker_and_rank_info(comms)
 
-        local_data = dict(
-            [
-                (
-                    self.worker_info[wf[0]]["rank"],
-                    self.client.submit(_get_local_data, wf[1], by, workers=[wf[0]]),
-                )
-                for idx, wf in enumerate(self.worker_to_parts.items())
-            ]
-        )
+        local_data = {
+            self.worker_info[wf[0]]["rank"]: self.client.submit(
+                _get_local_data, wf[1], by, workers=[wf[0]]
+            )
+            for idx, wf in enumerate(self.worker_to_parts.items())
+        }
 
         _local_data_dict = self.client.compute(local_data, sync=True)
         local_data_dict = {"edges": [], "offsets": [], "verts": []}
@@ -227,7 +223,7 @@ def _get_rows(objs, multiple):
     def get_obj(x):
         return x[0] if multiple else x
 
-    total = list(map(lambda x: get_obj(x).shape[0], objs))
+    total = [get_obj(x).shape[0] for x in objs]
     return total, reduce(lambda a, b: a + b, total)
 
 

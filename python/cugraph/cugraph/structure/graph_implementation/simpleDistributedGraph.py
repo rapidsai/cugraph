@@ -402,6 +402,7 @@ class simpleDistributedGraphImpl:
                 specified).
             df[degree] : dask_cudf.Series
                 The computed in-degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -492,6 +493,7 @@ class simpleDistributedGraphImpl:
                 specified).
             df[degree] : dask_cudf.Series
                 The computed out-degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -570,6 +572,7 @@ class simpleDistributedGraphImpl:
             opt. (default=None)
             a container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
+
         Returns
         -------
         df : dask_cudf.DataFrame
@@ -582,6 +585,7 @@ class simpleDistributedGraphImpl:
                 specified).
             df['degree'] : dask_cudf.Series
                 The computed degree of the corresponding vertex.
+
         Examples
         --------
         >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -809,6 +813,7 @@ class simpleDistributedGraphImpl:
         """
 
         Returns True if the graph contains the node(s) n.
+
         Examples
         --------
         >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',

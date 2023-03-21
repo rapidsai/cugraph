@@ -60,7 +60,7 @@ def EXPERIMENTAL__find_bicliques(
     # must be factor of 10
     PART_SIZE = int(1000)
 
-    x = [col for col in df.columns]
+    x = list(df.columns)
     if "src" not in x:
         raise NameError("src column not found")
     if "dst" not in x:

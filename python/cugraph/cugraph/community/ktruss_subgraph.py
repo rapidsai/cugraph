@@ -46,7 +46,7 @@ def k_truss(G, k):
     NOTE: this function is currently not available on CUDA 11.4 systems.
 
     The k-truss of a graph is a subgraph where each edge is part of at least
-    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
+    (k-2) triangles. K-trusses are used for finding tighlty knit groups of
     vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
     and was define in [1]. Finding cliques is computationally demanding and
     finding the maximal k-clique is known to be NP-Hard.
@@ -97,7 +97,7 @@ def ktruss_subgraph(G, k, use_weights=True):
     NOTE: this function is currently not available on CUDA 11.4 systems.
 
     The k-truss of a graph is a subgraph where each edge is part of at least
-    (k−2) triangles. K-trusses are used for finding tighlty knit groups of
+    (k-2) triangles. K-trusses are used for finding tighlty knit groups of
     vertices in a graph. A k-truss is a relaxation of a k-clique in the graph
     and was define in [1]. Finding cliques is computationally demanding and
     finding the maximal k-clique is known to be NP-Hard.
@@ -114,7 +114,6 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     References
     ----------
-
     [1] Cohen, J.,
     "Trusses: Cohesive subgraphs for social network analysis"
     National security agency technical report, 2008

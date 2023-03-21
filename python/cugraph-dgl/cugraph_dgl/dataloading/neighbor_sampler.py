@@ -19,6 +19,7 @@ class NeighborSampler:
     neighbor sampling for multilayer GNN.
     This sampler will make every node gather messages from a fixed number of neighbors
     per edge type.  The neighbors are picked uniformly.
+
     Parameters
     ----------
     fanouts_per_layer : int

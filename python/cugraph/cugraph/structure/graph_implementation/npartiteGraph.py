@@ -17,7 +17,7 @@ import cudf
 
 class npartiteGraphImpl(simpleGraphImpl):
     def __init__(self, properties):
-        super(npartiteGraphImpl, self).__init__(properties)
+        super().__init__(properties)
         self.properties.bipartite = properties.bipartite
 
     # API may change in future
@@ -46,7 +46,7 @@ class npartiteGraphImpl(simpleGraphImpl):
         graph is not bipartite.
         """
         # TO DO: Call coloring algorithm
-        set_names = [i for i in self._nodes.keys() if i != "all_nodes"]
+        set_names = [i for i in self._nodes if i != "all_nodes"]
         if self.properties.bipartite:
             top = self._nodes[set_names[0]]
             if len(set_names) == 2:
@@ -80,7 +80,7 @@ class npartiteGraphImpl(simpleGraphImpl):
         if bipartite is None and multipartite is None:
             raise Exception("Partition not provided")
         else:
-            set_names = [i for i in self._nodes.keys() if i != "all_nodes"]
+            set_names = [i for i in self._nodes if i != "all_nodes"]
             if multipartite is not None:
                 if self.properties.bipartite:
                     raise Exception(

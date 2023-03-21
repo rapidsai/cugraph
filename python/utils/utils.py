@@ -22,16 +22,14 @@ def getRepoInfo():
 
 
 def getCommandOutput(cmd):
-    result = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
-    )
+    result = subprocess.run(cmd, capture_output=True, shell=True)
     stdout = result.stdout.decode().strip()
     if result.returncode == 0:
         return stdout
 
     stderr = result.stderr.decode().strip()
     raise RuntimeError(
-        "Problem running '%s' (STDOUT: '%s' STDERR: '%s')" % (cmd, stdout, stderr)
+        f"Problem running '{cmd}' (STDOUT: '{stdout}' STDERR: '{stderr}')"
     )
 
 

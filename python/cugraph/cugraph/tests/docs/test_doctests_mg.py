@@ -50,6 +50,7 @@ def _find_doctests_in_docstring(finder, member):
 
 def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
     """Find all doctests in a module or class.
+
     Parameters
     ----------
     finder : doctest.DocTestFinder
@@ -114,14 +115,14 @@ class TestDoctests:
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
-        globs = dict(
-            cudf=cudf,
-            np=np,
-            cugraph=cugraph,
-            datasets_path=self.abs_datasets_path,
-            scipy=scipy,
-            pd=pd,
-        )
+        globs = {
+            "cudf": cudf,
+            "np": np,
+            "cugraph": cugraph,
+            "datasets_path": self.abs_datasets_path,
+            "scipy": scipy,
+            "pd": pd,
+        }
         docstring.globs = globs
 
         # Capture stdout and include failing outputs in the traceback.

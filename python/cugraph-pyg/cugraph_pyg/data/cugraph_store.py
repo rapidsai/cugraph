@@ -140,7 +140,7 @@ class CuGraphTensorAttr:
 
     def is_fully_specified(self):
         r"""Whether the :obj:`TensorAttr` has no unset fields."""
-        return all([self.is_set(key) for key in self.__dataclass_fields__])
+        return all(self.is_set(key) for key in self.__dataclass_fields__)
 
     def fully_specify(self):
         r"""Sets all :obj:`UNSET` fields to :obj:`None`."""
@@ -151,7 +151,8 @@ class CuGraphTensorAttr:
 
     def update(self, attr):
         r"""Updates an :class:`TensorAttr` with set attributes from another
-        :class:`TensorAttr`."""
+        :class:`TensorAttr`.
+        """
         for key in self.__dataclass_fields__:
             if attr.is_set(key):
                 setattr(self, key, getattr(attr, key))
@@ -160,6 +161,7 @@ class CuGraphTensorAttr:
     def cast(cls, *args, **kwargs):
         """
         Casts to a CuGraphTensorAttr from a tuple, list, or dict
+
         Returns
         -------
         CuGraphTensorAttr
@@ -193,6 +195,7 @@ class EXPERIMENTAL__CuGraphStore:
         """
         Constructs a new CuGraphStore from the provided
         arguments.
+
         Parameters
         ----------
         F : cugraph.gnn.FeatureStore (Required)
@@ -226,16 +229,16 @@ class EXPERIMENTAL__CuGraphStore:
             asarray = _torch_as_array
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
-            from torch import searchsorted as searchsorted
-            from torch import concatenate as concatenate
-            from torch import arange as arange
+            from torch import searchsorted
+            from torch import concatenate
+            from torch import arange
         elif backend == "cupy":
             from cupy import asarray
             from cupy import int64 as vertex_dtype
             from cupy import float32 as property_dtype
-            from cupy import searchsorted as searchsorted
-            from cupy import concatenate as concatenate
-            from cupy import arange as arange
+            from cupy import searchsorted
+            from cupy import concatenate
+            from cupy import arange
         else:
             raise ValueError(f"Invalid backend {backend}.")
 
@@ -321,6 +324,7 @@ class EXPERIMENTAL__CuGraphStore:
         multi_gpu: bool (Optional, default=False)
             Whether to construct a single-GPU or multi-GPU cugraph Graph.
             Defaults to a single-GPU graph.
+
         Returns
         -------
         A newly-constructed directed cugraph.MultiGraph object.
@@ -568,11 +572,13 @@ class EXPERIMENTAL__CuGraphStore:
         Args:
             **attr(EdgeAttr): the edge attributes.
 
-        Returns:
+        Returns
+        -------
             EdgeTensorType: an edge_index tensor corresonding to the provided
             attributes, or None if there is no such tensor.
 
-        Raises:
+        Raises
+        ------
             KeyError: if the edge index corresponding to attr was not found.
         """
 

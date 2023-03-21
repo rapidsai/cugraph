@@ -15,7 +15,7 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
-import cugraph.dask.common.mg_utils as mg_utils
+from cugraph.dask.common import mg_utils
 import cupy
 import cudf
 import dask_cudf
@@ -967,10 +967,7 @@ class simpleGraphImpl:
         DiG.adjlist = self.adjlist
         DiG.transposedadjlist = self.transposedadjlist
 
-        if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
-        else:
-            value_col = None
+        value_col = self.edgelist.edgelist_df.get(simpleGraphImpl.edgeWeightCol, None)
 
         DiG._make_plc_graph(value_col, store_transposed)
 
@@ -1003,10 +1000,7 @@ class simpleGraphImpl:
                 value_col = None
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
-        if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
-        else:
-            value_col = None
+        value_col = self.edgelist.edgelist_df.get(simpleGraphImpl.edgeWeightCol, None)
 
         G._make_plc_graph(value_col, store_transposed)
 

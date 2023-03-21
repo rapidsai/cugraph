@@ -241,4 +241,4 @@ def test_fixture_data(input_expected_output, which_import):
     )
     actual = sorted(pr.items())
     expected = sorted(input_expected_output["nx_pr_rankings"].items())
-    assert all([a == pytest.approx(b, abs=1.0e-04) for a, b in zip(actual, expected)])
+    assert all(a == pytest.approx(b, abs=1.0e-04) for a, b in zip(actual, expected))

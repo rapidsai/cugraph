@@ -320,7 +320,7 @@ class NumberMap:
             vertex identifier
 
         Returns
-        ---------
+        -------
         vertex_ids : cudf.Series or dask_cudf.Series
             The vertex identifiers.  Note that to_internal_vertex_id
             does not guarantee order or partitioning (in the case of
@@ -376,7 +376,7 @@ class NumberMap:
             of the input DataFrame.
 
         Returns
-        ---------
+        -------
         df : cudf.DataFrame or dask_cudf.DataFrame
             A DataFrame containing the input data (DataFrame or series)
             with an additional column containing the internal vertex id.
@@ -441,7 +441,7 @@ class NumberMap:
             DataFrame.
 
         Returns
-        ---------
+        -------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  Columns
             are added to the DataFrame to identify the external vertex
@@ -752,7 +752,7 @@ class NumberMap:
             If True, the unrenumbered column names are returned.
 
         Returns
-        ---------
+        -------
         df : cudf.DataFrame or dask_cudf.DataFrame
             The original DataFrame columns exist unmodified.  The external
             vertex identifiers are added to the DataFrame, the internal

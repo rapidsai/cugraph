@@ -299,7 +299,6 @@ def test_load_call_unload_extensions_python_module_path(extension1):
 
 
 def test_load_call_unload_graph_creation_extension_no_args(graph_creation_extension1):
-
     """
     Test graph_creation_extension1 which contains an extension with no args.
     """

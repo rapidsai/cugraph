@@ -114,7 +114,6 @@ def calc_edge_betweenness_centrality(
 
     Returns
     -------
-
     sorted_df : cudf.DataFrame
         Contains 'src', 'dst', 'cu_bc' and 'ref_bc' columns,  where 'cu_bc'
         and 'ref_bc' are the two betweenness centrality scores to compare.
@@ -132,7 +131,8 @@ def calc_edge_betweenness_centrality(
         create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
     )
 
-    assert G is not None and Gnx is not None
+    assert G is not None
+    assert Gnx is not None
     if multi_gpu_batch:
         G.enable_batch()
 
@@ -365,7 +365,8 @@ def test_edge_betweenness_centrality_k_full(
     edgevals,
 ):
     """Tests full edge betweenness centrality by using k = G.number_of_vertices()
-    instead of k=None, checks that k scales properly"""
+    instead of k=None, checks that k scales properly
+    """
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,

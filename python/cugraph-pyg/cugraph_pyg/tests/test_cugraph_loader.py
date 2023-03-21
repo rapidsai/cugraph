@@ -32,7 +32,7 @@ def test_cugraph_loader_basic(karate_gnn):
         replace=False,
     )
 
-    samples = [s for s in loader]
+    samples = list(loader)
 
     assert len(samples) == 3
     for sample in samples:

@@ -61,8 +61,8 @@ class FeatureStore:
         """
         Retrieve the feature data corresponding to the indices, type and feature name
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         indices: np.ndarray or torch.Tensor
             The indices of the values to extract.
         type_name : str
@@ -70,8 +70,8 @@ class FeatureStore:
         feat_name:
             The feature name to retrieve data for
 
-        Returns:
-        --------
+        Returns
+        -------
         np.ndarray or torch.Tensor
             Array object of the backend type
         """

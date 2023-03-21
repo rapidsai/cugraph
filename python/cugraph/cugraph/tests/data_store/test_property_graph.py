@@ -201,7 +201,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def raise_on_pandas_warning():
     """Raise when pandas gives SettingWithCopyWarning warning"""
     # Perhaps we should put this in pytest.ini, pyproject.toml, or conftest.py
@@ -231,7 +231,7 @@ def df_type_id(dataframe_type):
 df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
-@pytest.fixture(scope="function", params=df_types_fixture_params)
+@pytest.fixture(params=df_types_fixture_params)
 def dataset1_PropertyGraph(request):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
@@ -504,8 +504,8 @@ def test_type_names(df_type):
         }
     )
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
-    assert pG.edge_types == set([""])
-    assert pG.vertex_types == set([""])
+    assert pG.edge_types == {""}
+    assert pG.vertex_types == {""}
 
     df = df_type(
         {
@@ -514,8 +514,8 @@ def test_type_names(df_type):
         }
     )
     pG.add_vertex_data(df, type_name="vtype", vertex_col_name="vertex")
-    assert pG.edge_types == set([""])
-    assert pG.vertex_types == set(["", "vtype"])
+    assert pG.edge_types == {""}
+    assert pG.vertex_types == {"", "vtype"}
 
     df = df_type(
         {
@@ -525,8 +525,8 @@ def test_type_names(df_type):
         }
     )
     pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
-    assert pG.edge_types == set(["", "etype"])
-    assert pG.vertex_types == set(["", "vtype"])
+    assert pG.edge_types == {"", "etype"}
+    assert pG.vertex_types == {"", "vtype"}
     assert type_is_categorical(pG)
 
 
@@ -674,7 +674,7 @@ def test_get_vertex_data(dataset1_PropertyGraph):
         vert_ids = vert_ids.values_host
     assert sorted(actual_vertex_ids) == sorted(vert_ids)
 
-    expected_columns = set([pG.vertex_col_name, pG.type_col_name])
+    expected_columns = {pG.vertex_col_name, pG.type_col_name}
     for d in ["merchants", "users"]:
         for name in data[d][0]:
             expected_columns.add(name)
@@ -760,9 +760,12 @@ def test_get_edge_data(dataset1_PropertyGraph):
     assert sorted(actual_edge_ids) == sorted(edge_ids)
 
     # Create a list of expected column names from the three input tables
-    expected_columns = set(
-        [pG.src_col_name, pG.dst_col_name, pG.edge_id_col_name, pG.type_col_name]
-    )
+    expected_columns = {
+        pG.src_col_name,
+        pG.dst_col_name,
+        pG.edge_id_col_name,
+        pG.type_col_name,
+    }
     for d in ["transactions", "relationships", "referrals"]:
         for name in data[d][0]:
             expected_columns.add(name)

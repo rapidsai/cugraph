@@ -69,9 +69,9 @@ def experimental_warning_wrapper(obj):
                 # not have a standard callable __init__ and assigning to self
                 # works instead.
                 if isinstance(obj.__init__, types.FunctionType):
-                    super(WarningWrapperClass, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
                 else:
-                    self = obj(*args, **kwargs)
+                    obj(*args, **kwargs)
 
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name
@@ -135,9 +135,9 @@ def promoted_experimental_warning_wrapper(obj):
                 # not have a standard callable __init__ and assigning to self
                 # works instead.
                 if isinstance(obj.__init__, types.FunctionType):
-                    super(WarningWrapperClass, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
                 else:
-                    self = obj(*args, **kwargs)
+                    obj(*args, **kwargs)
 
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name
@@ -188,9 +188,9 @@ def deprecated_warning_wrapper(obj):
                 # not have a standard callable __init__ and assigning to self
                 # works instead.
                 if isinstance(obj.__init__, types.FunctionType):
-                    super(WarningWrapperClass, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
                 else:
-                    self = obj(*args, **kwargs)
+                    obj(*args, **kwargs)
 
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name

@@ -256,7 +256,7 @@ def dataset1_PropertyGraph(request):
     return (pG, dataset1)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def dataset1_MGPropertyGraph(dask_client):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
@@ -772,9 +772,12 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     assert some_edge_data.dtypes["_TYPE_"] == "category"
 
     # Create a list of expected column names from the three input tables
-    expected_columns = set(
-        [pG.src_col_name, pG.dst_col_name, pG.edge_id_col_name, pG.type_col_name]
-    )
+    expected_columns = {
+        pG.src_col_name,
+        pG.dst_col_name,
+        pG.edge_id_col_name,
+        pG.type_col_name,
+    }
     for d in ["transactions", "relationships", "referrals"]:
         for name in data[d][0]:
             expected_columns.add(name)

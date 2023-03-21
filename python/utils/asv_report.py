@@ -40,21 +40,21 @@ def cugraph_update_asv(
 
     uname = platform.uname()
 
-    prefixDict = dict(
-        maxGpuUtil="gpuutil",
-        maxGpuMemUsed="gpumem",
-        exeTime="time",
-    )
-    unitsDict = dict(
-        maxGpuUtil="percent",
-        maxGpuMemUsed="bytes",
-        exeTime="seconds",
-    )
+    prefixDict = {
+        "maxGpuUtil": "gpuutil",
+        "maxGpuMemUsed": "gpumem",
+        "exeTime": "time",
+    }
+    unitsDict = {
+        "maxGpuUtil": "percent",
+        "maxGpuMemUsed": "bytes",
+        "exeTime": "seconds",
+    }
 
     bInfo = BenchmarkInfo(
         machineName=machineName or uname.machine,
         cudaVer=cudaVer or "unknown",
-        osType=osType or "%s %s" % (uname.system, uname.release),
+        osType=osType or f"{uname.system} {uname.release}",
         pythonVer=pythonVer or platform.python_version(),
         commitHash=commitHash,
         commitTime=commitTime,
@@ -72,7 +72,7 @@ def cugraph_update_asv(
             # run error), skip
             if metricName in validKeys:
                 bResult = BenchmarkResult(
-                    funcName="%s_%s" % (funcName, prefixDict[metricName]),
+                    funcName=f"{funcName}_{prefixDict[metricName]}",
                     argNameValuePairs=[("dataset", datasetName)],
                     result=val,
                 )

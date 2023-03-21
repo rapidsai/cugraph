@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pylibcugraph.utilities.api_tools as api_tools
+from pylibcugraph.utilities import api_tools
 
 experimental_prefix = "EXPERIMENTAL"
 

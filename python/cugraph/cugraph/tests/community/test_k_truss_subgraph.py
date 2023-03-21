@@ -33,7 +33,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
-print("Networkx version : {} ".format(nx.__version__))
+print(f"Networkx version : {nx.__version__} ")
 
 
 # =============================================================================
@@ -105,7 +105,7 @@ def test_unsupported_cuda_version():
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
 )
-@pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
+@pytest.mark.parametrize(("graph_file", "nx_ground_truth"), utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
 
     k = 5
@@ -122,7 +122,7 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
 )
-@pytest.mark.parametrize("graph_file, nx_ground_truth", DATASETS_KTRUSS)
+@pytest.mark.parametrize(("graph_file", "nx_ground_truth"), DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
 
     k = 5

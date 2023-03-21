@@ -51,7 +51,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = [*DATASETS_UNDIRECTED, email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),

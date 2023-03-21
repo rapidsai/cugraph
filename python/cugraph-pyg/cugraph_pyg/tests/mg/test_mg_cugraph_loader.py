@@ -34,7 +34,7 @@ def test_cugraph_loader_basic(dask_client, karate_gnn):
 
     assert isinstance(cugraph_store._subgraph()._plc_graph, dict)
 
-    samples = [s for s in loader]
+    samples = list(loader)
 
     assert len(samples) == 3
     for sample in samples:

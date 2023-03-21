@@ -18,9 +18,9 @@ import cudf
 from cudf.testing import assert_series_equal, assert_frame_equal
 
 import cugraph
-import cugraph.dask.structure.replication as replication
+from cugraph.dask.structure import replication
 from cugraph.dask.common.mg_utils import is_single_gpu
-import cugraph.testing.utils as utils
+from cugraph.testing import utils
 
 DATASETS_OPTIONS = utils.DATASETS_SMALL
 DIRECTED_GRAPH_OPTIONS = [False, True]
@@ -259,4 +259,5 @@ def test_enable_batch_adjlist_replication_no_weights(graph_file, directed, dask_
         (rep_offsets, rep_indices, rep_weights) = G.batch_adjlists[worker]
         assert_series_equal(offsets, rep_offsets.result(), check_names=False)
         assert_series_equal(indices, rep_indices.result(), check_names=False)
-        assert weights is None and rep_weights is None
+        assert weights is None
+        assert rep_weights is None

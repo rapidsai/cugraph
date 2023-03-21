@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Torch Module for graph attention network layer using the aggregation
-primitives in cugraph-ops"""
+primitives in cugraph-ops
+"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 from __future__ import annotations
 from typing import Optional
