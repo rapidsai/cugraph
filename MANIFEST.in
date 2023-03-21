@@ -1,2 +1,0 @@
-include cugraph/experimental/datasets/*.yaml
-include cugraph/experimental/datasets/metadata/*.yaml

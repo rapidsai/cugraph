@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
@@ -23,7 +24,7 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <prims/extract_transform_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 #include <prims/vertex_frontier.cuh>
 
@@ -119,10 +120,10 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MGExtractTransformVFrontierOutgoingE
+class Tests_MGExtractTransformE
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MGExtractTransformVFrontierOutgoingE() {}
+  Tests_MGExtractTransformE() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
@@ -131,7 +132,7 @@ class Tests_MGExtractTransformVFrontierOutgoingE
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of extract_transform_v_frontier_outgoing_e primitive
+  // Compare the results of extract_transform_e primitive
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -155,10 +156,9 @@ class Tests_MGExtractTransformVFrontierOutgoingE
 
     // 1. create MG graph
 
-    constexpr bool is_multi_gpu = true;
-    constexpr bool renumber     = true;  // needs to be true for multi gpu case
-    constexpr bool store_transposed =
-      false;  // needs to be false for using extract_transform_v_frontier_outgoing_e
+    constexpr bool is_multi_gpu     = true;
+    constexpr bool renumber         = true;   // needs to be true for multi gpu case
+    constexpr bool store_transposed = false;  // needs to be false for using extract_transform_e
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -180,7 +180,7 @@ class Tests_MGExtractTransformVFrontierOutgoingE
 
     auto mg_graph_view = mg_graph.view();
 
-    // 2. run MG extract_transform_v_frontier_outgoing_e
+    // 2. run MG extract_transform_e
 
     const int hash_bin_count = 5;
 
@@ -191,49 +191,19 @@ class Tests_MGExtractTransformVFrontierOutgoingE
     auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-    if constexpr (std::is_same_v<tag_t, void>) {
-      thrust::sequence(handle_->get_thrust_policy(),
-                       cugraph::get_dataframe_buffer_begin(mg_key_buffer),
-                       cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       mg_graph_view.local_vertex_partition_range_first());
-    } else {
-      thrust::tabulate(handle_->get_thrust_policy(),
-                       cugraph::get_dataframe_buffer_begin(mg_key_buffer),
-                       cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       [mg_renumber_map_labels = (*d_mg_renumber_map_labels).data(),
-                        local_vertex_partition_range_first =
-                          mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
-                         return thrust::make_tuple(
-                           static_cast<vertex_t>(local_vertex_partition_range_first + i),
-                           static_cast<tag_t>(*(mg_renumber_map_labels + i) % size_t{10}));
-                       });
-    }
-
-    constexpr size_t bucket_idx_cur = 0;
-    constexpr size_t num_buckets    = 1;
-
-    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu, true> mg_vertex_frontier(*handle_,
-                                                                                       num_buckets);
-    mg_vertex_frontier.bucket(bucket_idx_cur)
-      .insert(cugraph::get_dataframe_buffer_begin(mg_key_buffer),
-              cugraph::get_dataframe_buffer_end(mg_key_buffer));
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_timer.start("MG extract_transform_v_frontier_outgoing_e");
+      hr_timer.start("MG extract_transform_e");
     }
 
-    auto mg_extract_transform_output_buffer = cugraph::extract_transform_v_frontier_outgoing_e(
-      *handle_,
-      mg_graph_view,
-      mg_vertex_frontier.bucket(bucket_idx_cur),
-      mg_src_prop.view(),
-      mg_dst_prop.view(),
-      cugraph::edge_dummy_property_t{}.view(),
-      e_op_t<key_t, vertex_t, result_t, output_payload_t>{});
+    auto mg_extract_transform_output_buffer =
+      cugraph::extract_transform_e(*handle_,
+                                   mg_graph_view,
+                                   mg_src_prop.view(),
+                                   mg_dst_prop.view(),
+                                   cugraph::edge_dummy_property_t{}.view(),
+                                   e_op_t<key_t, vertex_t, result_t, output_payload_t>{});
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -301,38 +271,13 @@ class Tests_MGExtractTransformVFrontierOutgoingE
         auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
           *handle_, sg_graph_view, sg_vertex_prop);
 
-        auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
-          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-        if constexpr (std::is_same_v<tag_t, void>) {
-          thrust::sequence(handle_->get_thrust_policy(),
-                           cugraph::get_dataframe_buffer_begin(sg_key_buffer),
-                           cugraph::get_dataframe_buffer_end(sg_key_buffer),
-                           sg_graph_view.local_vertex_partition_range_first());
-        } else {
-          thrust::tabulate(handle_->get_thrust_policy(),
-                           cugraph::get_dataframe_buffer_begin(sg_key_buffer),
-                           cugraph::get_dataframe_buffer_end(sg_key_buffer),
-                           [] __device__(size_t i) {
-                             return thrust::make_tuple(
-                               static_cast<vertex_t>(i),
-                               static_cast<tag_t>(static_cast<vertex_t>(i) % size_t{10}));
-                           });
-        }
-
-        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu, true> sg_vertex_frontier(
-          *handle_, num_buckets);
-        sg_vertex_frontier.bucket(bucket_idx_cur)
-          .insert(cugraph::get_dataframe_buffer_begin(sg_key_buffer),
-                  cugraph::get_dataframe_buffer_end(sg_key_buffer));
-
-        auto sg_extract_transform_output_buffer = cugraph::extract_transform_v_frontier_outgoing_e(
-          *handle_,
-          sg_graph_view,
-          sg_vertex_frontier.bucket(bucket_idx_cur),
-          sg_src_prop.view(),
-          sg_dst_prop.view(),
-          cugraph::edge_dummy_property_t{}.view(),
-          e_op_t<key_t, vertex_t, result_t, output_payload_t>{});
+        auto sg_extract_transform_output_buffer =
+          cugraph::extract_transform_e(*handle_,
+                                       sg_graph_view,
+                                       sg_src_prop.view(),
+                                       sg_dst_prop.view(),
+                                       cugraph::edge_dummy_property_t{}.view(),
+                                       e_op_t<key_t, vertex_t, result_t, output_payload_t>{});
 
         thrust::sort(handle_->get_thrust_policy(),
                      cugraph::get_dataframe_buffer_begin(sg_extract_transform_output_buffer),
@@ -353,21 +298,18 @@ class Tests_MGExtractTransformVFrontierOutgoingE
 };
 
 template <typename input_usecase_t>
-std::unique_ptr<raft::handle_t>
-  Tests_MGExtractTransformVFrontierOutgoingE<input_usecase_t>::handle_ = nullptr;
+std::unique_ptr<raft::handle_t> Tests_MGExtractTransformE<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGExtractTransformVFrontierOutgoingE_File =
-  Tests_MGExtractTransformVFrontierOutgoingE<cugraph::test::File_Usecase>;
-using Tests_MGExtractTransformVFrontierOutgoingE_Rmat =
-  Tests_MGExtractTransformVFrontierOutgoingE<cugraph::test::Rmat_Usecase>;
+using Tests_MGExtractTransformE_File = Tests_MGExtractTransformE<cugraph::test::File_Usecase>;
+using Tests_MGExtractTransformE_Rmat = Tests_MGExtractTransformE<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, int32_t>(
@@ -375,14 +317,14 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVoid
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
+TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
+TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
@@ -390,14 +332,14 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVoid
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, int32_t>(
@@ -405,14 +347,14 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatInt3
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
+TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
+TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, thrust::tuple<float, int32_t>>(
@@ -420,14 +362,14 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatInt3
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt32Int64FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformE_File, CheckInt32Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int64FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt32Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, int32_t, int32_t>(
@@ -435,14 +377,14 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int64FloatInt3
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformE_File, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGExtractTransformE_Rmat, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t, int32_t>(
@@ -452,7 +394,7 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt64Int64FloatInt3
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGExtractTransformVFrontierOutgoingE_File,
+  Tests_MGExtractTransformE_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
@@ -462,7 +404,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MGExtractTransformVFrontierOutgoingE_Rmat,
+  Tests_MGExtractTransformE_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
@@ -473,7 +415,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGExtractTransformVFrontierOutgoingE_Rmat,
+  Tests_MGExtractTransformE_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
