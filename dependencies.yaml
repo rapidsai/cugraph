@@ -64,6 +64,22 @@ files:
       table: project
     includes:
       - python_run_cugraph
+  py_run_cugraph:
+    output: pyproject
+    pyproject_dir: python/cugraph
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph
+  py_test_cugraph:
+    output: pyproject
+    pyproject_dir: python/cugraph
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
+      - test_python_cugraph
   py_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -80,6 +96,15 @@ files:
       table: project
     includes:
       - python_run_pylibcugraph
+  py_test_pylibcugraph:
+    output: pyproject
+    pyproject_dir: python/pylibcugraph
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      - test_python_common
+      - test_python_pylibcugraph
   py_build_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -129,6 +154,18 @@ files:
       table: project
     includes:
       - python_run_cugraph_service_server
+  py_test_cugraph_service_server:
+    output: pyproject
+    pyproject_dir: python/cugraph-service/server
+    extras:
+      table: project.optional-dependencies
+      key: test
+    includes:
+      # TODO: I think that the contents of the server's pyproject.toml
+      # dependencies were just copied from cugraph, so I'm not sure if this
+      # list is really minimal or if it is a superset.
+      - test_python_common
+      - test_python_cugraph
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -348,6 +385,37 @@ dependencies:
         packages:
           - ipython
           - notebook>=0.5.0
+  test_python_common:
+    common:
+      - output_types: [pyproject]
+        packages:
+          - networkx>=2.5.1
+          - *numpy
+          - pandas
+          - pytest
+          - pytest-benchmark
+          - pytest-cov
+          - pytest-xdist
+          - scipy
+  test_python_cugraph:
+    common:
+      - output_types: [pyproject]
+        packages:
+            # cudf will use fsspec but is protocol independent. cugraph tests
+            # specifically require http for the test files it asks cudf to read.
+          - fsspec[http]>=0.6.0
+          - python-louvain
+          - scikit-learn>=0.23.1
+  test_python_pylibcugraph:
+    common:
+      - output_types: [pyproject]
+        packages:
+          - *cudf
+  test_python_cugraph_service_server:
+    common:
+      - output_types: [pyproject]
+        packages:
+          - *cudf
   test_python:
     common:
       - output_types: [conda, requirements]
