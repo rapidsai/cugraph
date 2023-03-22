@@ -8,7 +8,6 @@ files:
     includes:
       - checks
       - common_build
-      - common_python_test
       - cpp_build
       - cudatoolkit
       - docs
@@ -17,7 +16,9 @@ files:
       - python_run_pylibcugraph
       - python_run_cugraph_dgl
       - test_notebook
-      - test_python
+      - test_python_common
+      - test_python_cugraph
+      - test_python_pylibcugraph
   checks:
     output: none
     includes:
@@ -36,17 +37,20 @@ files:
   test_notebooks:
     output: none
     includes:
-      - common_python_test
       - cudatoolkit
       - py_version
       - test_notebook
+      - test_python_common
+      - test_python_cugraph
   test_python:
     output: none
     includes:
       - common_python_test
       - cudatoolkit
       - py_version
-      - test_python
+      - test_python_common
+      - test_python_cugraph
+      - test_python_pylibcugraph
   py_build_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
@@ -364,12 +368,6 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
-  common_python_test:
-    common:
-      - output_types: [conda, requirements]
-        packages:
-          - networkx>=2.5.1
-          - scipy
   test_notebook:
     common:
       - output_types: [conda, requirements]
@@ -378,7 +376,7 @@ dependencies:
           - notebook>=0.5.0
   test_python_common:
     common:
-      - output_types: [pyproject]
+      - output_types: [conda, pyproject]
         packages:
           - networkx>=2.5.1
           - *numpy
@@ -390,7 +388,7 @@ dependencies:
           - scipy
   test_python_cugraph:
     common:
-      - output_types: [pyproject]
+      - output_types: [conda, pyproject]
         packages:
           - aiohttp
             # cudf will use fsspec but is protocol independent. cugraph tests
@@ -401,22 +399,6 @@ dependencies:
           - scikit-learn>=0.23.1
   test_python_pylibcugraph:
     common:
-      - output_types: [pyproject]
+      - output_types: [conda, pyproject]
         packages:
           - *cudf
-  test_python_cugraph_service_server:
-    common:
-      - output_types: [pyproject]
-        packages:
-          - *cudf
-  test_python:
-    common:
-      - output_types: [conda, requirements]
-        packages:
-          - ogb
-          - py
-          - pytest
-          - pytest-cov
-          - python-louvain
-          - rapids-pytest-benchmark
-          - scikit-learn>=0.23.1
