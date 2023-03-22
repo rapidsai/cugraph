@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,45 +26,45 @@ set -o pipefail
 # confusing now that there's dedicated datasets for benchmarks.
 BASE_DATASET_DATA="
 # ~22s download
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/datasets.tgz
+https://data.rapids.ai/cugraph/test/datasets.tgz
 test
 
 # ~14s download
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/pagerank.tgz
+https://data.rapids.ai/cugraph/test/ref/pagerank.tgz
 test/ref
 
 # ~1s download
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/test/ref/sssp.tgz
+https://data.rapids.ai/cugraph/test/ref/sssp.tgz
 test/ref
 
 # ~15s download
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_large.tgz
+https://data.rapids.ai/cugraph/benchmark/hibench/hibench_1_large.tgz
 benchmark
 
 # ~1s download
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_small.tgz
+https://data.rapids.ai/cugraph/benchmark/hibench/hibench_1_small.tgz
 benchmark
 
 # ~0.6s download
-https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/test/tsplib/datasets.tar.gz
+https://data.rapids.ai/cugraph/test/tsplib/datasets.tar.gz
 tsplib
 "
 
 EXTENDED_DATASET_DATA="
 # ~42s download - tests using this dataset are currently not run in test.sh with --quick
-https://s3.us-east-2.amazonaws.com/rapidsai-data/cugraph/benchmark/hibench/hibench_1_huge.tgz
+https://data.rapids.ai/cugraph/benchmark/hibench/hibench_1_huge.tgz
 benchmark
 "
 
 BENCHMARK_DATASET_DATA="
 # ~90s download - these are used for benchmarks runs (code in <cugraph root>/benchmarks)
-https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/benchmark/benchmark_csv_data.tgz
+https://data.rapids.ai/cugraph/benchmark/benchmark_csv_data.tgz
 csv
 "
 
 SELF_LOOPS_DATASET_DATA="
-# ~1s download 
-https://rapidsai-data.s3.us-east-2.amazonaws.com/cugraph/benchmark/benchmark_csv_data_self_loops.tgz
+# ~1s download
+https://data.rapids.ai/cugraph/benchmark/benchmark_csv_data_self_loops.tgz
 self_loops
 "
 ################################################################################
@@ -86,7 +86,7 @@ if hasArg "--benchmark"; then
     DATASET_DATA="${BENCHMARK_DATASET_DATA}"
 elif hasArg "--subset"; then
     DATASET_DATA="${BASE_DATASET_DATA}"
-elif hasArg "--self_loops"; then 
+elif hasArg "--self_loops"; then
     DATASET_DATA="${SELF_LOOPS_DATASET_DATA}"
 # Do not include benchmark datasets by default - too big
 else
