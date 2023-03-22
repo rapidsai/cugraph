@@ -64,13 +64,6 @@ files:
       table: project
     includes:
       - python_run_cugraph
-  py_run_cugraph:
-    output: pyproject
-    pyproject_dir: python/cugraph
-    extras:
-      table: project
-    includes:
-      - python_run_cugraph
   py_test_cugraph:
     output: pyproject
     pyproject_dir: python/cugraph
