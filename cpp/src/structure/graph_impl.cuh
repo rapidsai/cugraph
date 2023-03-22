@@ -159,7 +159,7 @@ bool check_symmetric(raft::handle_t const& handle,
   if constexpr (multi_gpu) {
     std::tie(
       store_transposed ? org_dsts : org_srcs, store_transposed ? org_srcs : org_dsts, std::ignore) =
-      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+      detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
         handle,
         std::move(store_transposed ? org_dsts : org_srcs),
         std::move(store_transposed ? org_srcs : org_dsts),
