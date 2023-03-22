@@ -1982,6 +1982,7 @@ class EXPERIMENTAL__PropertyGraph:
             ].astype(cat_dtype)
 
         index_dtype = self.__vertex_prop_dataframe.index.dtype
+        # Should we avoid `sort_values` if we know there is only one type?
         df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
         df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
@@ -2071,6 +2072,7 @@ class EXPERIMENTAL__PropertyGraph:
 
         df = self.__edge_prop_dataframe
         index_dtype = df.index.dtype
+        # Should we avoid `sort_values` if we know there is only one type?
         if prev_id_column is None:
             df = df.sort_values(by=TCN, ignore_index=True)
         else:

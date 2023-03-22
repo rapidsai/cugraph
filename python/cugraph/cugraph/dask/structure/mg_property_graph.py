@@ -1431,7 +1431,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Include self.vertex_col_name when sorting by values to ensure we can
         # evenly distribute the data across workers.
         df = df.reset_index().persist()
-        df = df.sort_values(by=[TCN, self.vertex_col_name], ignore_index=True).persist()
+        if len(self.vertex_types) > 1:
+            df = df.sort_values(
+                by=[TCN, self.vertex_col_name], ignore_index=True
+            ).persist()
         if self.__edge_prop_dataframe is not None:
             new_name = f"new_{self.vertex_col_name}"
             df[new_name] = 1
@@ -1522,9 +1525,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Include self.edge_id_col_name when sorting by values to ensure we can
         # evenly distribute the data across workers.
         df = df.reset_index().persist()
-        df = df.sort_values(
-            by=[self.type_col_name, self.edge_id_col_name], ignore_index=True
-        ).persist()
+        if len(self.edge_types) > 1:
+            df = df.sort_values(
+                by=[self.type_col_name, self.edge_id_col_name], ignore_index=True
+            ).persist()
         if prev_id_column is not None:
             df[prev_id_column] = df[self.edge_id_col_name]
 
@@ -1540,8 +1544,8 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df = self._edge_type_value_counts
-        assert df.index.dtype == cat_dtype
-        df.index = df.index.astype(str)
+        if df.index.dtype == cat_dtype:
+            df.index = df.index.astype(str)
 
         # self._edge_type_value_counts
         rv = df.sort_index().cumsum().to_frame("stop")
