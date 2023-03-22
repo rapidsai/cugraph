@@ -1,0 +1,32 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --scheduler-file /mnt/cugraph/python/cugraph-pyg/cugraph_pyg/examples/scheduler.json
+                "
+/opt/conda/lib/python3.10/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2023-03-22 15:38:14,749 - distributed.scheduler - INFO - -----------------------------------------------
+2023-03-22 15:38:15,143 - distributed.http.proxy - INFO - To route to workers diagnostics web server please install jupyter-server-proxy: python -m pip install jupyter-server-proxy
+2023-03-22 15:38:15,192 - distributed.scheduler - INFO - State start
+2023-03-22 15:38:15,206 - distributed.scheduler - INFO - -----------------------------------------------
+2023-03-22 15:38:15,207 - distributed.scheduler - INFO -   Scheduler at:  tcp://10.120.104.11:8786
+2023-03-22 15:38:15,207 - distributed.scheduler - INFO -   dashboard at:                     :8787
+2023-03-22 15:38:29,248 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37655', status: init, memory: 0, processing: 0>
+2023-03-22 15:38:29,252 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37655
+2023-03-22 15:38:29,252 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:49250
+2023-03-22 15:38:29,267 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:42619', status: init, memory: 0, processing: 0>
+2023-03-22 15:38:29,267 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:42619
+2023-03-22 15:38:29,267 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:49252
+2023-03-22 15:38:51,861 - distributed.scheduler - INFO - Receive client connection: Client-a576bd4c-c8c7-11ed-9dd6-5cff35c1a711
+2023-03-22 15:38:51,862 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:34538
+2023-03-22 15:38:53,456 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2023-03-22 15:38:55,733 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 3.86s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-03-22 15:38:55,747 - distributed.scheduler - INFO - Receive client connection: Client-a58fd2ac-c8c7-11ed-9dd5-5cff35c1a711
+2023-03-22 15:38:55,748 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:34566
+2023-03-22 15:38:56,287 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2023-03-22 15:40:29,596 - distributed.scheduler - INFO - Remove client Client-a58fd2ac-c8c7-11ed-9dd5-5cff35c1a711
+2023-03-22 15:40:29,597 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:34566; closing.
+2023-03-22 15:40:29,597 - distributed.scheduler - INFO - Remove client Client-a58fd2ac-c8c7-11ed-9dd5-5cff35c1a711
+2023-03-22 15:40:29,598 - distributed.scheduler - INFO - Remove client Client-a576bd4c-c8c7-11ed-9dd6-5cff35c1a711
+2023-03-22 15:40:29,599 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:34538; closing.
+2023-03-22 15:40:29,599 - distributed.scheduler - INFO - Remove client Client-a576bd4c-c8c7-11ed-9dd6-5cff35c1a711
+2023-03-22 15:40:29,599 - distributed.scheduler - INFO - Close client connection: Client-a58fd2ac-c8c7-11ed-9dd5-5cff35c1a711
+2023-03-22 15:40:29,599 - distributed.scheduler - INFO - Close client connection: Client-a576bd4c-c8c7-11ed-9dd6-5cff35c1a711
