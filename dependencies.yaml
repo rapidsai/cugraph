@@ -368,9 +368,7 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
-          - aiohttp
           - networkx>=2.5.1
-          - requests
           - scipy
   test_notebook:
     common:
@@ -394,10 +392,12 @@ dependencies:
     common:
       - output_types: [pyproject]
         packages:
+          - aiohttp
             # cudf will use fsspec but is protocol independent. cugraph tests
             # specifically require http for the test files it asks cudf to read.
           - fsspec[http]>=0.6.0
           - python-louvain
+          - requests
           - scikit-learn>=0.23.1
   test_python_pylibcugraph:
     common:
