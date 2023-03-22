@@ -35,14 +35,17 @@ struct cugraph_graph_t {
   bool store_transposed_;
   bool multi_gpu_;
 
-  void* graph_;            // graph_t<...>*
-  void* number_map_;       // rmm::device_uvector<vertex_t>*
-  void* edge_weights_;     // edge_property_t<
-                           //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                           //    weight_t>*
-  void* edge_properties_;  // edge_property_t<
-                           //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                           //    thrust::tuple<edge_t, edge_type_id_t>>>
+  void* graph_;         // graph_t<...>*
+  void* number_map_;    // rmm::device_uvector<vertex_t>*
+  void* edge_weights_;  // edge_property_t<
+                        //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                        //    weight_t>*
+  void* edge_ids_;      // edge_property_t<
+                        //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                        //    edge_t>*
+  void* edge_types_;    // edge_property_t<
+                        //    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                        //    edge_type_id_t>*
 };
 
 template <typename vertex_t,
@@ -55,7 +58,7 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
                                        cugraph_error_t* error)
 {
   if (store_transposed == graph->store_transposed_) {
-    if (graph->edge_properties_ != nullptr) {
+    if ((graph->edge_ids_ != nullptr) || (graph->edge_types_ != nullptr)) {
       error->error_message_ =
         "transpose failed, transposing a graph with edge ID, type pairs unimplemented.";
       return CUGRAPH_NOT_IMPLEMENTED;

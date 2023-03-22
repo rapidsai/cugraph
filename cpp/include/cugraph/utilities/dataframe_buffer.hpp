@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,15 +63,6 @@ auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<I...>, TupleType& 
 {
   // thrust::make_tuple instead of std::make_tuple as this is fed to thrust::make_zip_iterator.
   return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).cend())...));
-}
-
-template <typename Op, typename BufferType, std::size_t... I>
-void transform_tuple_impl(std::index_sequence<I...>,
-                          const BufferType& input,
-                          BufferType& output,
-                          Op&& op)
-{
-  (std::invoke(op, std::get<I>(input), std::get<I>(output)), ...);
 }
 
 }  // namespace detail
@@ -214,19 +205,6 @@ auto get_dataframe_buffer_cend(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_cend_tuple_impl(
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
-}
-
-template <typename BufferType, typename Op>
-void transform(const BufferType& input, BufferType& output, Op&& op)
-{
-  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
-                is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
-  if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
-    size_t constexpr tuple_size = std::tuple_size<BufferType>::value;
-    detail::transform_tuple_impl(std::make_index_sequence<tuple_size>(), input, output, op);
-  } else {
-    std::invoke(op, input, output);
-  }
 }
 
 }  // namespace cugraph
