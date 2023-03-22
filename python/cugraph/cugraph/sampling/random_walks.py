@@ -102,7 +102,7 @@ def random_walks(
             "supported in the next releases. only padded paths will be "
             "returned instead"
         )
-    warnings.warn(warning_msg, PendingDeprecationWarning)
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
