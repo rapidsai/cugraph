@@ -309,16 +309,18 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
         std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
                  store_transposed ? tmp_src_v : tmp_dst_v,
                  tmp_weights_v,
+                 std::ignore,
                  std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                      vertex_t,
-                                                                                      weight_t,
-                                                                                      int32_t>(
-            handle,
-            store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
-            store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
-            std::move(tmp_weights_v),
-            std::nullopt);
+          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+            vertex_t,
+            vertex_t,
+            weight_t,
+            int32_t>(handle,
+                     store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
+                     store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
+                     std::move(tmp_weights_v),
+                     std::nullopt,
+                     std::nullopt);
       }
 
       src_partitions.push_back(std::move(tmp_src_v));
@@ -635,13 +637,20 @@ construct_graph(raft::handle_t const& handle,
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, renumber_map) = cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t,
+                                        edge_t,
+                                        weight_t,
+                                        edge_t,
+                                        int32_t,
+                                        store_transposed,
+                                        multi_gpu>(
       handle,
       std::move(d_vertices_v),
       std::move(d_src_v),
       std::move(d_dst_v),
       std::move(d_weights_v),
+      std::nullopt,
       std::nullopt,
       cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
       renumber);

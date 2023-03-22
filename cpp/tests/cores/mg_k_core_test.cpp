@@ -158,7 +158,12 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
       }
 
       auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_, mg_graph_view, mg_edge_weight_view, d_mg_renumber_map_labels, false);
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                              (*d_mg_renumber_map_labels).size()),
+        false);
 
       if (handle_->get_comms().get_rank() == 0) {
         std::tie(std::ignore, d_mg_aggregate_core_numbers) = cugraph::test::sort_by_key(
