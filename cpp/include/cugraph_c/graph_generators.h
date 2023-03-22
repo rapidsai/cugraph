@@ -215,7 +215,7 @@ cugraph_error_code_t cugraph_generate_edge_weights(const cugraph_resource_handle
                                                    cugraph_error_t** error);
 
 /**
- * @brief      Add edge ids to an RMAT COO
+ * @brief      Add edge ids to an COO
  *
  * Updates a COO to contain edge ids.  Edges will be numbered from 0 to n-1 where n is the number of
  * edges
@@ -233,7 +233,7 @@ cugraph_error_code_t cugraph_generate_edge_ids(const cugraph_resource_handle_t* 
                                                cugraph_error_t** error);
 
 /**
- * @brief      Generate random edge types, add them to an RMAT COO
+ * @brief      Generate random edge types, add them to an COO
  *
  * Updates a COO to contain edge types.  Edges types will be randomly generated.
  *
