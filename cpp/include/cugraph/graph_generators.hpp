@@ -98,7 +98,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param rng_state RAFT RNG state, updated with each call
- * @param scale Scale factor to set the number of verties in the graph. Vertex IDs have values in
+ * @param scale Scale factor to set the number of vertices in the graph. Vertex IDs have values in
  * [0, V), where V = 1 << @p scale.
  * @param num_edges Number of edges to generate.
  * @param a a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
