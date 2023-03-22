@@ -12,8 +12,8 @@ files:
       - cpp_build
       - cudatoolkit
       - docs
-      - python_build_common
       - python_build_cythonize
+      - python_run_common
       - python_run_cugraph
       - test_notebook
       - test_python
@@ -168,7 +168,7 @@ dependencies:
           - pylibraft=23.04.*
           - rmm=23.04.*
           - scikit-build>=0.13.1
-  python_build_common:
+  python_run_common:
     common:
       - output_types: [conda]
         packages:
