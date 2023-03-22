@@ -13,8 +13,9 @@ files:
       - cudatoolkit
       - docs
       - python_build_cythonize
-      - python_run_common
       - python_run_cugraph
+      - python_run_pylibcugraph
+      - python_run_cugraph_dgl
       - test_notebook
       - test_python
   checks:
@@ -56,6 +57,13 @@ files:
       - python_build_wheel
       - python_build_cythonize
       - python_build_cugraph
+  py_run_cugraph:
+    output: pyproject
+    pyproject_dir: python/cugraph
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph
   py_build_pylibcugraph:
     output: pyproject
     pyproject_dir: python/pylibcugraph
@@ -65,6 +73,13 @@ files:
       - common_build
       - python_build_wheel
       - python_build_cythonize
+  py_run_pylibcugraph:
+    output: pyproject
+    pyproject_dir: python/pylibcugraph
+    extras:
+      table: project
+    includes:
+      - python_run_pylibcugraph
   py_build_cugraph_dgl:
     output: pyproject
     pyproject_dir: python/cugraph-dgl
@@ -72,6 +87,13 @@ files:
       table: build-system
     includes:
       - python_build_wheel
+  py_run_cugraph_dgl:
+    output: pyproject
+    pyproject_dir: python/cugraph-dgl
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph_dgl
   py_build_cugraph_pyg:
     output: pyproject
     pyproject_dir: python/cugraph-pyg
@@ -86,6 +108,13 @@ files:
       table: build-system
     includes:
       - python_build_wheel
+  py_run_cugraph_service_client:
+    output: pyproject
+    pyproject_dir: python/cugraph-service/client
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph_service_client
   py_build_cugraph_service_server:
     output: pyproject
     pyproject_dir: python/cugraph-service/server
@@ -93,6 +122,13 @@ files:
       table: build-system
     includes:
       - python_build_wheel
+  py_run_cugraph_service_server:
+    output: pyproject
+    pyproject_dir: python/cugraph-service/server
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph_service_server
 channels:
   - rapidsai
   - rapidsai-nightly
@@ -212,34 +248,79 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - cython>=0.29,<0.30
-          - pylibraft==23.4.*
-          - rmm==23.4.*
+          - &pylibraft pylibraft==23.4.*
+          - &rmm rmm==23.4.*
           - scikit-build>=0.13.1
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
           - pylibcugraph==23.4.*
-  python_run_common:
-    common:
-      - output_types: [conda]
-        packages:
-          - cudf=23.04.*
-          - dask==2023.1.1
-          - distributed==2023.1.1
-          - dask-cuda=23.04.*
-          - dask-cudf=23.04.*
-          - libcudf=23.04.*
-          - nccl>=2.9.9
-          - pip
-          - raft-dask=23.04.*
-          - ucx-proc=*=gpu
-          - ucx-py=0.31.*
   python_run_cugraph:
     common:
-      - output_types: [conda]
+      - output_types: [conda, pyproject]
         packages:
           - cuda-python>=11.7.1,<12.0
+          - &cudf cudf==23.4.*
+          - &dask dask>=2023.1.1
+          - &distributed distributed>=2023.1.1
+          - &dask_cuda dask-cuda==23.4.*
+          - &dask_cudf dask-cudf==23.4.*
+          - &numba numba>=0.56.2
+          - raft-dask==23.4.*
+          - *rmm
+          - &ucx_py ucx-py==0.31.*
+      - output_types: conda
+        packages:
+          - &cupy cupy>=9.5.0,<12.0.0a0
+          - libcudf=23.04.*
+          - nccl>=2.9.9
+          - ucx-proc=*=gpu
+      - output_types: pyproject
+        packages:
+          - &cupy_pip cupy-cuda11x>=9.5.0,<12.0.0a0
+          - pylibcugraph==23.4.*
+  python_run_pylibcugraph:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - *pylibraft
+          - *rmm
+  python_run_cugraph_dgl:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - *numba
+          - &numpy numpy>=1.21
+      - output_types: [pyproject]
+        packages:
+          - &cugraph cugraph==23.4.*
+  python_run_cugraph_service_client:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - &thrift thriftpy2
+  python_run_cugraph_service_server:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - *cudf
+          - *dask
+          - *dask_cuda
+          - *dask_cudf
+          - *distributed
+          - *numpy
+          - *rmm
+          - *thrift
+          - *ucx_py
+      - output_types: conda
+        packages:
+          - *cupy
+      - output_types: pyproject
+        packages:
+          - *cupy_pip
+          - *cugraph
+          - cugraph-service-client==23.4.*
   doc:
     common:
       - output_types: [conda]
