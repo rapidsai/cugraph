@@ -289,15 +289,23 @@ class EXPERIMENTAL__CuGraphStore:
 
         self.__features = F
         self.__graph = None
+        self.__is_graph_owner = True
 
         if construct_graph:
             if multi_gpu:
                 self.__graph = get_client().get_dataset("cugraph_graph", default=None)
+                self.__is_graph_owner = False
 
             if self.__graph is None:
                 self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
 
         self.__subgraphs = {}
+
+    def __del__(self):
+        if self.__is_graph_owner:
+            if isinstance(self.__graph._plc_graph, dict):
+                get_client().unpublish_dataset("cugraph_graph")
+            del self.__graph
 
     def __make_offsets(self, input_dict):
         offsets = {}
@@ -406,11 +414,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         df = pandas.DataFrame(
             {
-                "src": na_src,
-                "dst": na_dst,
-                "w": np.zeros(len(na_src)),
-                "eid": np.arange(len(na_src)),
-                "etp": na_etp,
+                "src": pandas.Series(na_src),
+                "dst": pandas.Series(na_dst),
+                "w": pandas.Series(np.zeros(len(na_src))),
+                "eid": pandas.Series(np.arange(len(na_src))),
+                "etp": pandas.Series(na_etp),
             }
         )
 
@@ -432,6 +440,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_attr=["w", "eid", "etp"],
                 legacy_renum_only=True,
             )
+            get_client().publish_dataset(cugraph_graph=graph)
         else:
             graph.from_cudf_edgelist(
                 df,
