@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
@@ -19,16 +21,23 @@ import numpy
 import cudf
 import cupy as cp
 
+from typing import Union, Tuple, Sequence, List
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cugraph import Graph
+
 
 def uniform_neighbor_sample(
-    G,
-    start_list,
-    fanout_vals,
-    with_replacement=True,
-    with_edge_properties=False,
-    batch_id_list=None,
-    random_state=None,
-):
+    G: Graph,
+    start_list: Sequence,
+    fanout_vals: List[int],
+    with_replacement: bool = True,
+    with_edge_properties: bool = False,
+    batch_id_list: Sequence = None,
+    random_state: int = None,
+    return_offsets: bool = False,
+) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -63,12 +72,18 @@ def uniform_neighbor_sample(
     random_state: int, optional
         Random seed to use when making sampling calls.
 
+    return_offsets: bool, optional (default=False)
+        Whether to return the sampling results with batch ids
+        included as one dataframe, or to instead return two
+        dataframes, one with sampling results and one with
+        batch ids and their start offsets.
+
     Returns
     -------
-    result : cudf.DataFrame
+    result : cudf.DataFrame or Tuple[cudf.DataFrame, cudf.DataFrame]
         GPU data frame containing multiple cudf.Series
 
-        If with_edge_properties=True:
+        If with_edge_properties=False:
             df['sources']: cudf.Series
                 Contains the source vertices from the sampling result
             df['destinations']: cudf.Series
@@ -77,21 +92,41 @@ def uniform_neighbor_sample(
                 Contains the indices (edge weights) from the sampling result
                 for path reconstruction
 
-        If with_edge_properties=False:
-            df['sources']: cudf.Series
-                Contains the source vertices from the sampling result
-            df['destinations']: cudf.Series
-                Contains the destination vertices from the sampling result
-            df['edge_weight']: cudf.Series
-                Contains the edge weights from the sampling result
-            df['edge_id']: cudf.Series
-                Contains the edge ids from the sampling result
-            df['edge_type']: cudf.Series
-                Contains the edge types from the sampling result
-            df['batch_id']: cudf.Series
-                Contains the batch ids from the sampling result
-            df['hop_id']: cudf.Series
-                Contains the hop ids from the sampling result
+        If with_edge_properties=True:
+            If return_offsets=False:
+                df['sources']: cudf.Series
+                    Contains the source vertices from the sampling result
+                df['destinations']: cudf.Series
+                    Contains the destination vertices from the sampling result
+                df['edge_weight']: cudf.Series
+                    Contains the edge weights from the sampling result
+                df['edge_id']: cudf.Series
+                    Contains the edge ids from the sampling result
+                df['edge_type']: cudf.Series
+                    Contains the edge types from the sampling result
+                df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                df['hop_id']: cudf.Series
+                    Contains the hop ids from the sampling result
+
+            If return_offsets=True:
+                df['sources']: cudf.Series
+                    Contains the source vertices from the sampling result
+                df['destinations']: cudf.Series
+                    Contains the destination vertices from the sampling result
+                df['edge_weight']: cudf.Series
+                    Contains the edge weights from the sampling result
+                df['edge_id']: cudf.Series
+                    Contains the edge ids from the sampling result
+                df['edge_type']: cudf.Series
+                    Contains the edge types from the sampling result
+                df['hop_id']: cudf.Series
+                    Contains the hop ids from the sampling result
+
+                offsets_df['batch_id']: cudf.Series
+                    Contains the batch ids from the sampling result
+                offsets_df['offsets']: cudf.Series
+                    Contains the offsets of each batch in the sampling result
     """
 
     if isinstance(start_list, int):
@@ -145,6 +180,7 @@ def uniform_neighbor_sample(
             edge_ids,
             edge_types,
             batch_ids,
+            offsets,
             hop_ids,
         ) = sampling_result
 
@@ -153,8 +189,23 @@ def uniform_neighbor_sample(
         df["weight"] = weights
         df["edge_id"] = edge_ids
         df["edge_type"] = edge_types
-        df["batch_id"] = batch_ids
         df["hop_id"] = hop_ids
+
+        if return_offsets:
+            offsets_df = cudf.DataFrame(
+                {
+                    "batch_id": batch_ids,
+                    "offsets": offsets[:-1],
+                }
+            )
+
+        else:
+            if len(batch_ids) > 0:
+                batch_ids = cudf.Series(batch_ids).repeat(cp.diff(offsets))
+                batch_ids.reset_index(drop=True, inplace=True)
+
+            df["batch_id"] = batch_ids
+
     else:
         sources, destinations, indices = sampling_result
 
@@ -172,5 +223,8 @@ def uniform_neighbor_sample(
     if G.renumbered:
         df = G.unrenumber(df, "sources", preserve_order=True)
         df = G.unrenumber(df, "destinations", preserve_order=True)
+
+    if return_offsets:
+        return df, offsets_df
 
     return df
