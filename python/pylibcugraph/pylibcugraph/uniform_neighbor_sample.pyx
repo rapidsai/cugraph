@@ -79,6 +79,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             bool_t do_expensive_check,
                             bool_t with_edge_properties=<bool_t>False,
                             batch_id_list=None,
+                            label_list=None,
+                            label_to_output_comm_rank=None,
                             random_state=None):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -137,6 +139,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
 
     assert_CAI_type(start_list, "start_list")
     assert_CAI_type(batch_id_list, "batch_id_list", True)
+    assert_CAI_type(label_list, "label_list", True)
+    assert_CAI_type(label_to_output_comm_rank, "label_to_output_comm_rank", True)
     assert_AI_type(h_fan_out, "h_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
@@ -145,10 +149,21 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
 
     cdef uintptr_t cai_start_ptr = \
         start_list.__cuda_array_interface__["data"][0]
+    
     cdef uintptr_t cai_batch_id_ptr
     if batch_id_list is not None:
         cai_batch_id_ptr = \
             batch_id_list.__cuda_array_interface__['data'][0]
+    
+    cdef uintptr_t cai_label_list_ptr
+    if label_list is not None:
+        cai_label_list_ptr = \
+            label_list.__cuda_array_interface__['data'][0]
+    
+    cdef uintptr_t cai_label_to_output_comm_rank_ptr
+    if label_to_output_comm_rank is not None:
+        cai_label_to_output_comm_rank_ptr = \
+            label_to_output_comm_rank.__cuda_array_interface__['data'][0]
         
     cdef uintptr_t ai_fan_out_ptr = \
         h_fan_out.__array_interface__["data"][0]
@@ -158,6 +173,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             <void*>cai_start_ptr,
             len(start_list),
             get_c_type_from_numpy_type(start_list.dtype))
+
     cdef cugraph_type_erased_device_array_view_t* batch_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if batch_id_list is not None:
         batch_id_ptr = \
@@ -166,6 +182,25 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                 len(batch_id_list),
                 get_c_type_from_numpy_type(batch_id_list.dtype)
             )
+ 
+    cdef cugraph_type_erased_device_array_view_t* label_list_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if label_list is not None:
+        label_list_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_label_list_ptr,
+                len(label_list),
+                get_c_type_from_numpy_type(label_list.dtype)
+            )
+    
+    cdef cugraph_type_erased_device_array_view_t* label_to_output_comm_rank_ptr = <cugraph_type_erased_device_array_view_t*>NULL
+    if label_to_output_comm_rank is not None:
+        label_to_output_comm_rank_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_label_to_output_comm_rank_ptr,
+                len(label_to_output_comm_rank),
+                get_c_type_from_numpy_type(label_to_output_comm_rank.dtype)
+            )
+
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_fan_out_ptr,
@@ -182,9 +217,12 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         c_graph_ptr,
         start_ptr,
         batch_id_ptr,
+        label_list_ptr,
+        label_to_output_comm_rank_ptr,
         fan_out_ptr,
         rng_state_ptr,
         with_replacement,
+        <bool_t>True,  # return_hops
         do_expensive_check,
         &result_ptr,
         &error_ptr)
@@ -210,9 +248,10 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         cupy_edge_ids = result.get_edge_ids()
         cupy_edge_types = result.get_edge_types()
         cupy_batch_ids = result.get_batch_ids()
+        cupy_offsets = result.get_offsets()
         cupy_hop_ids = result.get_hop_ids()
 
-        return (cupy_sources, cupy_destinations, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_hop_ids)
+        return (cupy_sources, cupy_destinations, cupy_edge_weights, cupy_edge_ids, cupy_edge_types, cupy_batch_ids, cupy_offsets, cupy_hop_ids)
 
     else:
         cupy_sources = result.get_sources()
