@@ -116,16 +116,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda activate test_cugraph_pyg
     set -u
 
-    rapids-mamba-retry install \
-      --channel "${CPP_CHANNEL}" \
-      --channel "${PYTHON_CHANNEL}" \
-      libcugraph \
-      pylibcugraph \
-      cugraph \
-      cugraph-pyg
-
-    rapids-print-env
-
     # Install pytorch
     rapids-mamba-retry install \
       --force-reinstall \
@@ -137,6 +127,16 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
 
     # Install the nightly version of pyg
     pip install pyg-nightly
+
+    rapids-print-env
+
+    rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
+      --channel "${PYTHON_CHANNEL}" \
+      libcugraph \
+      pylibcugraph \
+      cugraph \
+      cugraph-pyg
 
     rapids-print-env
 
