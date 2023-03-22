@@ -43,7 +43,7 @@ dependencies:
 - pre-commit
 - py
 - pydata-sphinx-theme
-- pylibraft=23.04.*
+- pylibraft==23.4.*
 - pytest
 - pytest-cov
 - python-louvain
@@ -51,7 +51,7 @@ dependencies:
 - rapids-pytest-benchmark
 - recommonmark
 - requests
-- rmm=23.04.*
+- rmm==23.4.*
 - scikit-build>=0.13.1
 - scikit-learn>=0.23.1
 - scipy
