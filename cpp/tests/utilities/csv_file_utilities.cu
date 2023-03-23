@@ -16,10 +16,9 @@
 
 #include <utilities/test_utilities.hpp>
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/handle.hpp>
@@ -212,16 +211,16 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
                        : std::nullopt);
 
   if (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_size     = comm.get_size();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-      comm_size, row_comm_size, col_comm_size};
+      comm_size, major_comm_size, minor_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
       auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
@@ -295,16 +294,22 @@ read_graph_from_csv_file(raft::handle_t const& handle,
     cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, renumber_map) = cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
-      handle,
-      std::nullopt,
-      std::move(d_edgelist_srcs),
-      std::move(d_edgelist_dsts),
-      std::move(d_edgelist_weights),
-      std::nullopt,
-      cugraph::graph_properties_t{is_symmetric, false},
-      renumber);
+  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t,
+                                        edge_t,
+                                        weight_t,
+                                        edge_t,
+                                        int32_t,
+                                        store_transposed,
+                                        multi_gpu>(handle,
+                                                   std::nullopt,
+                                                   std::move(d_edgelist_srcs),
+                                                   std::move(d_edgelist_dsts),
+                                                   std::move(d_edgelist_weights),
+                                                   std::nullopt,
+                                                   std::nullopt,
+                                                   cugraph::graph_properties_t{is_symmetric, false},
+                                                   renumber);
 
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }

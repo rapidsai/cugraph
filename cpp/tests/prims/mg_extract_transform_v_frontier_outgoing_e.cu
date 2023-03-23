@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
@@ -82,39 +81,35 @@ struct e_op_t {
                                     thrust::nullopt_t) const
   {
     auto output_payload = static_cast<output_payload_t>(1);
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return src_val < dst_val ? thrust::make_optional(
-                                     thrust::make_tuple(optionally_tagged_src, dst, output_payload))
-                                 : thrust::nullopt;
+    if (src_val < dst_val) {
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        if constexpr (std::is_arithmetic_v<output_payload_t>) {
+          return thrust::make_tuple(optionally_tagged_src, dst, output_payload);
+        } else {
+          static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+          return thrust::make_tuple(optionally_tagged_src,
+                                    dst,
+                                    thrust::get<0>(output_payload),
+                                    thrust::get<1>(output_payload));
+        }
       } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(optionally_tagged_src,
-                                                            dst,
-                                                            thrust::get<0>(output_payload),
-                                                            thrust::get<1>(output_payload)))
-                 : thrust::nullopt;
+        static_assert(thrust::tuple_size<key_t>::value == size_t{2});
+        if constexpr (std::is_arithmetic_v<output_payload_t>) {
+          return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
+                                    thrust::get<1>(optionally_tagged_src),
+                                    dst,
+                                    output_payload);
+        } else {
+          static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
+          return thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
+                                    thrust::get<1>(optionally_tagged_src),
+                                    dst,
+                                    thrust::get<0>(output_payload),
+                                    thrust::get<1>(output_payload));
+        }
       }
     } else {
-      static_assert(thrust::tuple_size<key_t>::value == size_t{2});
-      if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                                            thrust::get<1>(optionally_tagged_src),
-                                                            dst,
-                                                            output_payload))
-                 : thrust::nullopt;
-      } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                                            thrust::get<1>(optionally_tagged_src),
-                                                            dst,
-                                                            thrust::get<0>(output_payload),
-                                                            thrust::get<1>(output_payload)))
-                 : thrust::nullopt;
-      }
+      return thrust::nullopt;
     }
   }
 };
@@ -250,9 +245,6 @@ class Tests_MGExtractTransformVFrontierOutgoingE
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-
       auto mg_aggregate_extract_transform_output_buffer = cugraph::allocate_dataframe_buffer<
         typename e_op_t<key_t, vertex_t, result_t, output_payload_t>::return_type::value_type>(
         size_t{0}, handle_->get_stream());
@@ -281,24 +273,29 @@ class Tests_MGExtractTransformVFrontierOutgoingE
                                         std::get<4>(mg_extract_transform_output_buffer).size());
       }
 
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                              (*d_mg_renumber_map_labels).size()),
+        false);
+      auto sg_vertex_prop = cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+        *handle_,
+        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                              (*d_mg_renumber_map_labels).size()),
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
+
       if (handle_->get_comms().get_rank() == int{0}) {
         thrust::sort(
           handle_->get_thrust_policy(),
           cugraph::get_dataframe_buffer_begin(mg_aggregate_extract_transform_output_buffer),
           cugraph::get_dataframe_buffer_end(mg_aggregate_extract_transform_output_buffer));
 
-        cugraph::graph_t<vertex_t, edge_t, store_transposed, !is_multi_gpu> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::
-          construct_graph<vertex_t, edge_t, weight_t, store_transposed, !is_multi_gpu>(
-            *handle_, input_usecase, false, false);
-
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-          *handle_,
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-          hash_bin_count);
         auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
           *handle_, sg_graph_view, sg_vertex_prop);
         auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
@@ -370,7 +367,6 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_File, CheckInt32Int32FloatVoid
   run_current_test<int32_t, int32_t, float, void, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-#if 1
 TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
@@ -453,7 +449,6 @@ TEST_P(Tests_MGExtractTransformVFrontierOutgoingE_Rmat, CheckInt64Int64FloatInt3
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,

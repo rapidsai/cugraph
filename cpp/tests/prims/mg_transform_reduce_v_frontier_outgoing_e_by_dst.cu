@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
@@ -129,8 +128,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
 
     // 1. create MG graph
 
-    constexpr bool is_multi_gpu = true;
-    constexpr bool renumber     = true;  // needs to be true for multi gpu case
+    constexpr bool renumber = true;  // needs to be true for multi gpu case
     constexpr bool store_transposed =
       false;  // needs to be false for using transform_reduce_v_frontier_outgoing_e_by_dst
     if (cugraph::test::g_perf) {
@@ -139,10 +137,10 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       hr_timer.start("MG Construct graph");
     }
 
-    cugraph::graph_t<vertex_t, edge_t, store_transposed, is_multi_gpu> mg_graph(*handle_);
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
     std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
     std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu>(
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
@@ -188,8 +186,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
 
-    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu, true> mg_vertex_frontier(*handle_,
-                                                                                       num_buckets);
+    cugraph::vertex_frontier_t<vertex_t, tag_t, true, true> mg_vertex_frontier(*handle_,
+                                                                               num_buckets);
     mg_vertex_frontier.bucket(bucket_idx_cur)
       .insert(cugraph::get_dataframe_buffer_begin(mg_key_buffer),
               cugraph::get_dataframe_buffer_end(mg_key_buffer));
@@ -238,8 +236,21 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+      if constexpr (std::is_same_v<key_t, vertex_t>) {
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          mg_new_frontier_key_buffer.begin(),
+          mg_new_frontier_key_buffer.size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
+      } else {
+        cugraph::unrenumber_int_vertices<vertex_t, true>(
+          *handle_,
+          std::get<0>(mg_new_frontier_key_buffer).begin(),
+          std::get<0>(mg_new_frontier_key_buffer).size(),
+          (*d_mg_renumber_map_labels).data(),
+          mg_graph_view.vertex_partition_range_lasts());
+      }
 
       auto mg_aggregate_new_frontier_key_buffer =
         cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
@@ -272,22 +283,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       }
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        if constexpr (std::is_same_v<key_t, vertex_t>) {
-          cugraph::unrenumber_int_vertices<vertex_t, !is_multi_gpu>(
-            *handle_,
-            mg_aggregate_new_frontier_key_buffer.begin(),
-            mg_aggregate_new_frontier_key_buffer.size(),
-            mg_aggregate_renumber_map_labels.data(),
-            std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-        } else {
-          cugraph::unrenumber_int_vertices<vertex_t, !is_multi_gpu>(
-            *handle_,
-            std::get<0>(mg_aggregate_new_frontier_key_buffer).begin(),
-            std::get<0>(mg_aggregate_new_frontier_key_buffer).size(),
-            mg_aggregate_renumber_map_labels.data(),
-            std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-        }
-
         if constexpr (std::is_same_v<payload_t, void>) {
           thrust::sort(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_aggregate_new_frontier_key_buffer),
@@ -300,9 +295,9 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             cugraph::get_dataframe_buffer_begin(mg_aggregate_payload_buffer));
         }
 
-        cugraph::graph_t<vertex_t, edge_t, store_transposed, !is_multi_gpu> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::
-          construct_graph<vertex_t, edge_t, weight_t, store_transposed, !is_multi_gpu>(
+        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) =
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             *handle_, input_usecase, false, false);
 
         auto sg_graph_view = sg_graph.view();
@@ -335,8 +330,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
                            });
         }
 
-        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu, true> sg_vertex_frontier(
-          *handle_, num_buckets);
+        cugraph::vertex_frontier_t<vertex_t, tag_t, false, true> sg_vertex_frontier(*handle_,
+                                                                                    num_buckets);
         sg_vertex_frontier.bucket(bucket_idx_cur)
           .insert(cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                   cugraph::get_dataframe_buffer_end(sg_key_buffer));

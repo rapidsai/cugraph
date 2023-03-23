@@ -20,14 +20,15 @@ dependencies:
 - dask==2023.1.1
 - distributed==2023.1.1
 - doxygen
-- gcc_linux-64=9.*
+- gcc_linux-64=11.*
 - gmock=1.10.0
+- graphviz
 - gtest=1.10.0
 - ipython
 - libcudf=23.04.*
 - libcugraphops=23.04.*
-- libraft-distance=23.04.*
 - libraft-headers=23.04.*
+- libraft=23.04.*
 - librmm=23.04.*
 - nbsphinx
 - nccl>=2.9.9
@@ -36,7 +37,6 @@ dependencies:
 - notebook>=0.5.0
 - numpydoc
 - nvcc_linux-64=11.8
-- ogb
 - openmpi
 - pip
 - pre-commit
@@ -54,9 +54,9 @@ dependencies:
 - scikit-build>=0.13.1
 - scikit-learn>=0.23.1
 - scipy
-- sphinx
 - sphinx-copybutton
 - sphinx-markdown-tables
+- sphinx<6
 - sphinxcontrib-websupport
 - ucx-proc=*=gpu
 - ucx-py=0.31.*

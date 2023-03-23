@@ -15,8 +15,6 @@
  */
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/partition_manager.hpp>
-
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
@@ -55,13 +53,12 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
   auto& comm           = handle->get_comms();
   auto const comm_size = comm.get_size();
 
-  auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-  while (comm_size % row_comm_size != 0) {
-    --row_comm_size;
+  auto gpu_row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+  while (comm_size % gpu_row_comm_size != 0) {
+    --gpu_row_comm_size;
   }
 
-  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
-    *handle, row_comm_size);
+  cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
 
   return std::move(handle);
 }

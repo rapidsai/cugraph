@@ -23,7 +23,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <link_prediction/similarity_compare.hpp>
@@ -108,17 +107,18 @@ class Tests_MGSimilarity
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
 
-    std::tie(d_v1, d_v2, std::ignore, std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                  edge_t,
-                                                                                  weight_t,
-                                                                                  int32_t>(
-        *handle_,
-        std::move(d_v1),
-        std::move(d_v2),
-        std::nullopt,
-        std::nullopt,
-        mg_graph_view.vertex_partition_range_lasts());
+    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore) =
+      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+        vertex_t,
+        edge_t,
+        weight_t,
+        int32_t>(*handle_,
+                 std::move(d_v1),
+                 std::move(d_v2),
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 mg_graph_view.vertex_partition_range_lasts());
 
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};

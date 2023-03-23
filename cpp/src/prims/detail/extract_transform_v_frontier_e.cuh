@@ -828,9 +828,9 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto& minor_comm     = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
     local_frontier_sizes = host_scalar_allgather(
-      col_comm,
+      minor_comm,
       static_cast<size_t>(thrust::distance(frontier_key_first, frontier_key_last)),
       handle.get_stream());
   } else {
@@ -849,13 +849,13 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     auto edge_partition_frontier_key_first = frontier_key_first;
     auto edge_partition_frontier_key_last  = frontier_key_last;
     if constexpr (GraphViewType::is_multi_gpu) {
-      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_comm_rank = col_comm.get_rank();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_rank = minor_comm.get_rank();
 
       resize_dataframe_buffer(
         edge_partition_frontier_key_buffer, edge_partition_frontier_size, handle.get_stream());
 
-      device_bcast(col_comm,
+      device_bcast(minor_comm,
                    frontier_key_first,
                    get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
                    edge_partition_frontier_size,

@@ -1065,7 +1065,7 @@ void bfs(raft::handle_t const& handle,
  *
  * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
  *       the paths as a dense matrix in the vector and the maximum path length.
- *       Unused elements in the paths * will be set to invalid_vertex_id (-1 for a signed
+ *       Unused elements in the paths will be set to invalid_vertex_id (-1 for a signed
  *       vertex_t, std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -1419,7 +1419,7 @@ std::
  * @p start_vertices can contain duplicates, in which case different random walks will
  * be generated for each instance.
  *
- * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If the graph is @p
+ * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If @p
  * edge_weight_view.has_value() is false, the returned value will be std::nullopt.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1711,15 +1711,32 @@ k_core(raft::handle_t const& handle,
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * label), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
  * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in, label (optional) identifies which vertex label this edge was derived from.
+ * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
+ * (optional) will be described below and is dependent upon the input parameters.
+ *
+ *
+ * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
+ * label and offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is not specified then
+ * the label output has values.  This will also result in the output being sorted by vertex label.
+ * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
+ * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is specified then the
+ * label output has values.  This will also result in the output being sorted by vertex label.  The
+ * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
+ * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
+ * be shuffled so that all data with a particular label will be on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1727,22 +1744,31 @@ k_core(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_type_view Optional view object holding edge ids and types for @p graph_view.
- * @param starting_vertices Device vector of starting vertex IDs for the sampling.
- * @param starting_labels Optional device vector of starting vertex labels for the sampling.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
+ * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
+ * output rank.  The label span must be sorted in ascending order.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param return_hops boolean flag specifying if the hop information should be returned
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32_t hop,
- * optional int32_t label)
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename label_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -1750,21 +1776,24 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<int32_t>>>
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
 uniform_neighbor_sample(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<
-    edge_property_view_t<edge_t,
-                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_id_type_view,
-  rmm::device_uvector<vertex_t>&& starting_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
-  bool with_replacement = true);
+  bool return_hops,
+  bool with_replacement   = true,
+  bool do_expensive_check = false);
 
 /*
  * @brief Compute triangle counts.

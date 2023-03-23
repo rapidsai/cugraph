@@ -14,15 +14,10 @@
 import os
 import shutil
 
-from setuptools import find_packages, Command
-from skbuild import setup
+from setuptools import Command, setup
 
 from setuputils import get_environment_option
 
-import versioneer
-
-
-INSTALL_REQUIRES = []
 
 CUDA_HOME = get_environment_option("CUDA_HOME")
 
@@ -62,37 +57,8 @@ class CleanCommand(Command):
         os.system("rm -rf dask-worker-space")
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
         os.system("rm -rf *.egg-info")
-        os.system("rm -rf _skbuild")
-
-
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
-# FIXME possibly remove this since there is no Cython code in cugraph_pyg
-PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph_pyg*"])}
 
 
 setup(
-    name="cugraph_pyg",
-    description="cugraph_pyg - PyG support for cuGraph massive-scale,"
-    " ultra-fast GPU graph analytics.",
-    version=versioneer.get_version(),
-    classifiers=[
-        # "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        # "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-    ],
-    # Include the separately-compiled shared library
-    author="NVIDIA Corporation",
-    setup_requires=[],
-    packages=find_packages(include=["cugraph_pyg", "cugraph_pyg.*"]),
-    package_data=PACKAGE_DATA,
-    include_package_data=True,
-    install_requires=INSTALL_REQUIRES,
-    license="Apache",
-    cmdclass=cmdclass,
-    zip_safe=False,
+    cmdclass={"clean": CleanCommand},
 )
