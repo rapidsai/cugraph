@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -212,6 +212,7 @@ inline auto parse_test_options(int argc, char** argv)
       (cmd_opts.count("test_file_name") > 0)                                            \
         ? std::make_optional<std::string>(cmd_opts["test_file_name"].as<std::string>()) \
         : std::nullopt;                                                                 \
+                                                                                        \
     return RUN_ALL_TESTS();                                                             \
   }
 
@@ -242,6 +243,7 @@ inline auto parse_test_options(int argc, char** argv)
       (cmd_opts.count("test_file_name") > 0)                                            \
         ? std::make_optional<std::string>(cmd_opts["test_file_name"].as<std::string>()) \
         : std::nullopt;                                                                 \
+                                                                                        \
     auto ret = RUN_ALL_TESTS();                                                         \
     cugraph::test::finalize_mpi();                                                      \
     return ret;                                                                         \
