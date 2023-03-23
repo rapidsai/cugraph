@@ -86,7 +86,7 @@ class Tests_MGLouvain
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
       false);  // crate an SG graph with MG graph vertex IDs
 
     weight_t sg_modularity{-1.0};

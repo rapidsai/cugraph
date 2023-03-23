@@ -93,7 +93,7 @@ dependencies:
           - gtest=1.10.0
           - libcugraphops=23.04.*
           - libraft-headers=23.04.*
-          - libraft-distance=23.04.*
+          - libraft=23.04.*
           - librmm=23.04.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
@@ -106,7 +106,7 @@ dependencies:
           - matrix:
               arch: aarch64
             packages:
-              - gcc_linux-aarch64=9.*
+              - gcc_linux-aarch64=11.*
       - output_types: [conda]
         matrices:
           - matrix:
@@ -203,7 +203,6 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
-          - ogb
           - py
           - pytest
           - pytest-cov
