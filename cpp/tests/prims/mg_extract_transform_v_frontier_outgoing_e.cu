@@ -281,12 +281,16 @@ class Tests_MGExtractTransformVFrontierOutgoingE
         std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
                                                               (*d_mg_renumber_map_labels).size()),
         false);
-      auto sg_vertex_prop = cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
-        *handle_,
-        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                              (*d_mg_renumber_map_labels).size()),
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
+      rmm::device_uvector<result_t> sg_vertex_prop(0, handle_->get_stream());
+      std::tie(std::ignore, sg_vertex_prop) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                                (*d_mg_renumber_map_labels).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
 
       if (handle_->get_comms().get_rank() == int{0}) {
         thrust::sort(
