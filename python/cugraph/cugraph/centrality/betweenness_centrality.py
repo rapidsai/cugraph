@@ -97,7 +97,7 @@ def betweenness_centrality(
 
         This parameter is here for backwards-compatibility and identical
         to 'random_state'.
-    
+
     random_state : int, optional (default=None)
         if k is specified and k is an integer, use random_state to initialize
         the random number generator.
