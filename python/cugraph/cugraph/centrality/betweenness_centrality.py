@@ -95,7 +95,7 @@ def betweenness_centrality(
         Using None defaults to a hash of process id, time, and hostname
         If k is either None or list: seed parameter is ignored.
 
-        This parameter is here for NetworkX compatibility and identical
+        This parameter is here for backwards-compatibility and identical
         to 'random_state'.
     
     random_state : int, optional (default=None)
