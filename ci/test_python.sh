@@ -106,7 +106,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
       --channel pytorch-nightly \
-      --channel dglteam/label/cu117 \
+      --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
       pylibcugraph \
