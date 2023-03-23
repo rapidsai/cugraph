@@ -303,7 +303,8 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 
 @pytest.mark.sg
 @pytest.mark.cugraph_ops
-def test_uniform_neighbor_sample_edge_properties():
+@pytest.mark.parametrize("return_offsets", [True, False])
+def test_uniform_neighbor_sample_edge_properties(return_offsets):
     edgelist_df = cudf.DataFrame(
         {
             "src": cudf.Series([0, 1, 2, 3, 4, 3, 4, 2, 0, 1, 0, 2], dtype="int32"),
@@ -337,7 +338,10 @@ def test_uniform_neighbor_sample_edge_properties():
         with_replacement=False,
         with_edge_properties=True,
         batch_id_list=start_df["batch"],
+        return_offsets=return_offsets,
     )
+    if return_offsets:
+        sampling_results, sampling_offsets = sampling_results
 
     edgelist_df.set_index("eid")
     assert (
@@ -357,10 +361,13 @@ def test_uniform_neighbor_sample_edge_properties():
         == sampling_results["destinations"].values_host.tolist()
     )
 
-    assert sampling_results["hop_id"].values_host.tolist() == [0] * (2 * 2) + [1] * (
-        2 * 2 * 2
-    )
-    # FIXME test the batch id values once that is fixed in C++
+    assert sampling_results["hop_id"].values_host.tolist() == ([0, 0, 1, 1, 1, 1] * 2)
+
+    if return_offsets:
+        assert sampling_offsets["batch_id"].values_host.tolist() == [0, 1]
+        assert sampling_offsets["offsets"].values_host.tolist() == [0, 6]
+    else:
+        assert sampling_results["batch_id"].values_host.tolist() == ([0] * 6 + [1] * 6)
 
 
 @pytest.mark.sg
