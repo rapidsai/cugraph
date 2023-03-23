@@ -26,10 +26,6 @@ from cugraph_dgl.dataloading import (
 from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
     create_cugraph_graph_from_edges_dict,
 )
-from cugraph.utilities.utils import import_optional
-
-dgl = import_optional("dgl")
-torch = import_optional("torch")
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")

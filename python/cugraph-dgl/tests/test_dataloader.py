@@ -120,3 +120,34 @@ def test_same_homogeneousgraph_results():
         dgl_output[0]["blocks"][0].num_edges()
         == cugraph_output[0]["blocks"][0].num_edges()
     )
+
+
+def test_heterograph_multi_block_results():
+    data_dict = {
+        ("B", "BA", "A"): ([1, 2, 3, 4, 5, 6, 7, 8], [0, 0, 0, 0, 1, 1, 1, 1]),
+        ("C", "CA", "A"): ([1, 2, 3, 4, 5, 6, 7, 8], [0, 0, 0, 0, 1, 1, 1, 1]),
+        ("A", "AA", "A"): ([1], [0]),
+    }
+    dgl_g = dgl.heterograph(data_dict)
+    cugraph_g = cugraph_dgl.cugraph_storage_from_heterograph(dgl_g, single_gpu=True)
+    train_nid = {"A": th.tensor([0])}
+    cugraph_dgl_output = sample_cugraph_dgl_graphs(cugraph_g, train_nid, [10, 10])
+    assert (
+        cugraph_dgl_output[0]["blocks"][0].num_dst_nodes()
+        == cugraph_dgl_output[0]["blocks"][1].num_src_nodes()
+    )
+
+
+def test_homogenousgraph_multi_block_results():
+    dgl_g = dgl.graph(data=([1, 2, 2, 3, 4, 5], [0, 0, 1, 2, 2, 3]))
+    cugraph_g = cugraph_dgl.cugraph_storage_from_heterograph(dgl_g, single_gpu=True)
+    train_nid = th.tensor([0])
+    cugraph_dgl_output = sample_cugraph_dgl_graphs(cugraph_g, train_nid, [2, 2, 2])
+    assert (
+        cugraph_dgl_output[0]["blocks"][0].num_dst_nodes()
+        == cugraph_dgl_output[0]["blocks"][1].num_src_nodes()
+    )
+    assert (
+        cugraph_dgl_output[0]["blocks"][1].num_dst_nodes()
+        == cugraph_dgl_output[0]["blocks"][2].num_src_nodes()
+    )
