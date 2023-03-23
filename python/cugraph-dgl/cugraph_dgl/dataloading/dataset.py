@@ -21,8 +21,6 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
     create_heterogeneous_sampled_graphs_from_dataframe,
 )
 
-from cugraph.utilities.utils import import_optional
-
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
