@@ -289,15 +289,15 @@ class EXPERIMENTAL__CuGraphStore:
 
         self.__features = F
         self.__graph = None
-        self.__is_graph_owner = True
+        self.__is_graph_owner = False
 
         if construct_graph:
             if multi_gpu:
                 self.__graph = get_client().get_dataset("cugraph_graph", default=None)
-                self.__is_graph_owner = False
 
             if self.__graph is None:
                 self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+                self.__is_graph_owner = True
 
         self.__subgraphs = {}
 
