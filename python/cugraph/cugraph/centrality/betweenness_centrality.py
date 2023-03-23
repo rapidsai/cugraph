@@ -84,19 +84,28 @@ def betweenness_centrality(
         edges and weights.
 
         (Not Supported): if weights are provided at the Graph creation,
-        they will not be used
+        they will not be used.
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
 
-    seed/random_state : int, optional (default=None)
-        if k is specified and k is an integer, use seed/random_state to initialize
+    seed : int, optional (default=None)
+        if k is specified and k is an integer, use seed to initialize
         the random number generator.
         Using None defaults to a hash of process id, time, and hostname
-        If k is either None or list: seed/random_state parameter is ignored
+        If k is either None or list: seed parameter is ignored.
+
+        This parameter is here for NetworkX compatibility and identical
+        to 'random_state'.
+    
+    random_state : int, optional (default=None)
+        if k is specified and k is an integer, use random_state to initialize
+        the random number generator.
+        Using None defaults to a hash of process id, time, and hostname
+        If k is either None or list: random_state parameter is ignored.
 
     result_dtype : np.float32 or np.float64, optional, default=np.float64
-        Indicate the data type of the betweenness centrality scores
+        Indicate the data type of the betweenness centrality scores.
 
     Returns
     -------
