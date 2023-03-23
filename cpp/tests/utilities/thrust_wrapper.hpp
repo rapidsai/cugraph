@@ -25,6 +25,9 @@
 namespace cugraph {
 namespace test {
 
+template <typename value_buffer_type>
+value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values);
+
 template <typename key_buffer_type, typename value_buffer_type>
 std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
                                                            key_buffer_type const& keys,
