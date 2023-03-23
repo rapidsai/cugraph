@@ -21,8 +21,7 @@ from cugraph.utilities.utils import import_optional
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
-ops = import_optional("pylibcugraphops")
-ops_autograd = import_optional("pylibcugraphops.torch.autograd")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(nn.Module):
@@ -80,6 +79,7 @@ class GATConv(nn.Module):
             [ 1.6477, -1.9986],
             [ 1.1138, -1.9302]]], device='cuda:0', grad_fn=<ViewBackward0>)
     """
+    MAX_IN_DEGREE_MFG = 500
 
     def __init__(
         self,
@@ -150,23 +150,32 @@ class GATConv(nn.Module):
         if g.is_block:
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
-            _graph = ops.make_mfg_csr(
-                g.dstnodes(), offsets, indices, max_in_degree, g.num_src_nodes()
-            )
+
+            if max_in_degree < self.MAX_IN_DEGREE_MFG:
+                _graph = ops_torch.SampledCSC(
+                    offsets, indices, max_in_degree, g.num_src_nodes()
+                )
+            else:
+                offsets_fg = torch.empty(
+                    g.num_src_nodes() + 1, dtype=offsets.dtype, device=offsets.device
+                )
+                offsets_fg[: offsets.numel()] = offsets
+                offsets_fg[offsets.numel() :] = offsets[-1]
+
+                _graph = ops_torch.StaticCSC(offsets_fg, indices)
         else:
-            _graph = ops.make_fg_csr(offsets, indices)
+            _graph = ops_torch.StaticCSC(offsets, indices)
 
         feat_transformed = self.fc(feat)
-        out = ops_autograd.mha_gat_n2n(
+        out = ops_torch.operators.mha_gat_n2n(
             feat_transformed,
             self.attn_weights,
             _graph,
             self.num_heads,
             "LeakyReLU",
             self.negative_slope,
-            add_own_node=False,
             concat_heads=True,
-        ).view(-1, self.num_heads, self.out_feats)
+        ).view(-1, self.num_heads, self.out_feats)[: g.num_dst_nodes()]
 
         if self.bias is not None:
             out = out + self.bias
