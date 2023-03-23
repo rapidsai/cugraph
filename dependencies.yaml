@@ -45,7 +45,6 @@ files:
   test_python:
     output: none
     includes:
-      - common_python_test
       - cudatoolkit
       - py_version
       - test_python_common
