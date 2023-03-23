@@ -119,16 +119,12 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     # Install pytorch
     rapids-mamba-retry install \
       --force-reinstall \
+      --channel pyg \
       --channel pytorch \
-      --channel pytorch-nightly \
       --channel nvidia \
+      'pyg=2.3' \
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
-
-    # Install the nightly version of pyg
-    pip install pyg-nightly
-
-    rapids-print-env
 
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
