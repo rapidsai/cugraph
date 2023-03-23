@@ -27,6 +27,7 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -142,13 +143,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
 
     raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
-    auto mg_vertex_buffer = cugraph::test::randomly_sample_vertices<vertex_t, true>(
-      *handle_,
-      rng_state,
-      mg_graph_view.vertex_partition_range_lasts(),
-      prims_usecase.num_seeds,
-      false,
-      false);
+    auto mg_vertex_buffer = cugraph::select_random_vertices(
+      *handle_, mg_graph_view, rng_state, prims_usecase.num_seeds, false);
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;

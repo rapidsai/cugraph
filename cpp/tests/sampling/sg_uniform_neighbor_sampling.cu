@@ -16,6 +16,8 @@
 
 #include "detail/nbr_sampling_utils.cuh"
 
+#include <cugraph/graph_functions.hpp>
+
 #include <gtest/gtest.h>
 
 #include <thrust/distance.h>
@@ -80,13 +82,12 @@ class Tests_Uniform_Neighbor_Sampling
 
     raft::random::RngState rng_state(seed);
 
-    auto random_sources = cugraph::test::randomly_sample_vertices<vertex_t, false>(
+    auto random_sources = cugraph::select_random_vertices(
       handle,
+      graph_view,
       rng_state,
-      graph_view.vertex_partition_range_lasts(),
       std::max(static_cast<size_t>(graph_view.number_of_vertices() * select_probability),
                std::min(static_cast<size_t>(graph_view.number_of_vertices()), size_t{1})),
-      false,
       false);
 
     //

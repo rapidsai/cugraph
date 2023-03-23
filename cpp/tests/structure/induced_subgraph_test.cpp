@@ -146,8 +146,8 @@ class Tests_InducedSubgraph
       auto last  = h_subgraph_offsets[i + 1];
       ASSERT_TRUE(last - start <= graph_view.number_of_vertices()) << "Invalid subgraph size.";
 
-      auto vertices = cugraph::test::randomly_sample_vertices<vertex_t, false>(
-        handle, rng_state, graph_view.vertex_partition_range_lasts(), (last - start), false, false);
+      auto vertices =
+        cugraph::select_random_vertices(handle, graph_view, rng_state, (last - start), false);
       raft::copy(
         d_subgraph_vertices.data() + start, vertices.data(), vertices.size(), handle.get_stream());
     }

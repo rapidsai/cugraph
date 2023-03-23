@@ -18,6 +18,8 @@
 
 #include <utilities/mg_utilities.hpp>
 
+#include <cugraph/graph_functions.hpp>
+
 #include <thrust/distance.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
@@ -89,13 +91,12 @@ class Tests_MGUniform_Neighbor_Sampling
 
     raft::random::RngState rng_state(handle_->get_comms().get_rank());
 
-    auto random_sources = cugraph::test::randomly_sample_vertices<vertex_t, true>(
+    auto random_sources = cugraph::select_random_vertices(
       *handle_,
+      mg_graph_view,
       rng_state,
-      mg_graph_view.vertex_partition_range_lasts(),
       std::max(static_cast<size_t>(mg_graph_view.number_of_vertices() * select_probability),
                std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()), size_t{1})),
-      false,
       false);
 
     //

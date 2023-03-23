@@ -85,13 +85,9 @@ class Tests_EdgeBetweennessCentrality
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     raft::random::RngState rng_state(0);
-    auto d_seeds = cugraph::test::randomly_sample_vertices<vertex_t, false>(
-      handle,
-      rng_state,
-      graph_view.vertex_partition_range_lasts(),
-      betweenness_usecase.num_seeds,
-      false,
-      true);
+    auto d_seeds = cugraph::select_random_vertices(
+      handle, graph_view, rng_state, betweenness_usecase.num_seeds, false);
+    d_seeds = cugraph::test::sort(handle, d_seeds);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

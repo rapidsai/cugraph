@@ -180,17 +180,16 @@ class Tests_PageRank
     if (pagerank_usecase.personalization_ratio > 0.0) {
       raft::random::RngState rng_state(0);
 
-      d_personalization_vertices = cugraph::test::randomly_sample_vertices<vertex_t, false>(
+      d_personalization_vertices = cugraph::select_random_vertices(
         handle,
+        graph_view,
         rng_state,
-        graph_view.vertex_partition_range_lasts(),
         std::max(
           static_cast<size_t>(graph_view.number_of_vertices() *
                               pagerank_usecase.personalization_ratio),
           std::min(
             static_cast<size_t>(graph_view.number_of_vertices()),
             size_t{1})),  // there should be at least one vertex unless the graph is an empty graph
-        false,
         false);
       d_personalization_values =
         rmm::device_uvector<result_t>((*d_personalization_vertices).size(), handle.get_stream());
