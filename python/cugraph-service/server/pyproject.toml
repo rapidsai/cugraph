@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cugraph-service-server"
-version = "23.04.00"
+version = "23.06.00"
 description = "cuGraph Service server"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [

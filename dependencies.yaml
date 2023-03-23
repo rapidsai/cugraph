@@ -91,10 +91,10 @@ dependencies:
           - cxx-compiler
           - gmock=1.10.0
           - gtest=1.10.0
-          - libcugraphops=23.04.*
-          - libraft-headers=23.04.*
+          - libcugraphops=23.06.*
+          - libraft-headers=23.06.*
           - libraft=23.04.*
-          - librmm=23.04.*
+          - librmm=23.06.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -158,20 +158,20 @@ dependencies:
       - output_types: [conda]
         packages:
           - cuda-python>=11.7.1,<12.0
-          - cudf=23.04.*
+          - cudf=23.06.*
           - cython>=0.29,<0.30
           - dask==2023.1.1
           - distributed==2023.1.1
-          - dask-cuda=23.04.*
-          - dask-cudf=23.04.*
-          - libcudf=23.04.*
+          - dask-cuda=23.06.*
+          - dask-cudf=23.06.*
+          - libcudf=23.06.*
           - nccl>=2.9.9
-          - pylibraft=23.04.*
-          - raft-dask=23.04.*
-          - rmm=23.04.*
+          - pylibraft=23.06.*
+          - raft-dask=23.06.*
+          - rmm=23.06.*
           - scikit-build>=0.13.1
           - ucx-proc=*=gpu
-          - ucx-py=0.31.*
+          - ucx-py=0.32.*
   doc:
     common:
       - output_types: [conda]
