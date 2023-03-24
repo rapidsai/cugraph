@@ -21,6 +21,11 @@ torch = import_optional("torch")
 
 
 def cast_to_tensor(ser: cudf.Series):
+    if len(ser) == 0:
+        # Empty series can not be converted to pytorch cuda tensor
+        t = torch.from_numpy(ser.values.get())
+        return t.to("cuda")
+
     return torch.as_tensor(ser.values, device="cuda")
 
 
