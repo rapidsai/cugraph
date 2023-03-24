@@ -190,6 +190,7 @@ class Tests_PageRank
           std::min(
             static_cast<size_t>(graph_view.number_of_vertices()),
             size_t{1})),  // there should be at least one vertex unless the graph is an empty graph
+        false,
         false);
       d_personalization_values =
         rmm::device_uvector<result_t>((*d_personalization_vertices).size(), handle.get_stream());

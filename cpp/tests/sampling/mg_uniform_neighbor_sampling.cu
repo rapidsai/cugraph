@@ -97,6 +97,7 @@ class Tests_MGUniform_Neighbor_Sampling
       rng_state,
       std::max(static_cast<size_t>(mg_graph_view.number_of_vertices() * select_probability),
                std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()), size_t{1})),
+      false,
       false);
 
     //

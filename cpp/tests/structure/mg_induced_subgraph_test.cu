@@ -99,8 +99,12 @@ class Tests_MGInducedSubgraph
       ASSERT_TRUE(induced_subgraph_usecase.subgraph_sizes[i] <= mg_graph_view.number_of_vertices())
         << "Invalid subgraph size.";
 
-      auto vertices = cugraph::select_random_vertices(
-        *handle_, mg_graph_view, rng_state, induced_subgraph_usecase.subgraph_sizes[i], false);
+      auto vertices             = cugraph::select_random_vertices(*handle_,
+                                                      mg_graph_view,
+                                                      rng_state,
+                                                      induced_subgraph_usecase.subgraph_sizes[i],
+                                                      false,
+                                                      false);
       h_subgraph_offsets[i + 1] = h_subgraph_offsets[i] + vertices.size();
       d_subgraph_vertices.resize(h_subgraph_offsets[i + 1], handle_->get_stream());
       raft::copy(d_subgraph_vertices.data() + h_subgraph_offsets[i],

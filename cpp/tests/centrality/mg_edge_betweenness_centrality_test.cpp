@@ -87,8 +87,7 @@ class Tests_MGEdgeBetweennessCentrality
 
     raft::random::RngState rng_state(handle_->get_comms().get_rank());
     auto d_seeds = cugraph::select_random_vertices(
-      *handle_, mg_graph_view, rng_state, betweenness_usecase.num_seeds, false);
-    d_seeds = cugraph::test::sort(handle, d_seeds);
+      *handle_, mg_graph_view, rng_state, betweenness_usecase.num_seeds, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
