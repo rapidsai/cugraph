@@ -52,22 +52,26 @@ extract_induced_subgraph_reference(std::vector<edge_t> const& offsets,
   std::vector<size_t> subgraph_edge_offsets({0});
 
   for (size_t i = 0; i < (subgraph_offsets.size() - 1); ++i) {
-    std::for_each(subgraph_vertices.data() + subgraph_offsets[i],
-                  subgraph_vertices.data() + subgraph_offsets[i + 1],
+    std::vector<vertex_t> sorted_this_subgraph_vertices(subgraph_offsets[i + 1] -
+                                                        subgraph_offsets[i]);
+    std::copy(subgraph_vertices.begin() + subgraph_offsets[i],
+              subgraph_vertices.begin() + subgraph_offsets[i + 1],
+              sorted_this_subgraph_vertices.begin());
+    std::sort(sorted_this_subgraph_vertices.begin(), sorted_this_subgraph_vertices.end());
+    std::for_each(sorted_this_subgraph_vertices.begin(),
+                  sorted_this_subgraph_vertices.end(),
                   [offsets,
                    indices,
                    weights,
-                   subgraph_vertices,
-                   subgraph_offsets,
+                   sorted_this_subgraph_vertices,
                    &edgelist_majors,
                    &edgelist_minors,
-                   &edgelist_weights,
-                   i](auto v) {
+                   &edgelist_weights](auto v) {
                     auto first = offsets[v];
                     auto last  = offsets[v + 1];
                     for (auto j = first; j < last; ++j) {
-                      if (std::binary_search(subgraph_vertices.data() + subgraph_offsets[i],
-                                             subgraph_vertices.data() + subgraph_offsets[i + 1],
+                      if (std::binary_search(sorted_this_subgraph_vertices.begin(),
+                                             sorted_this_subgraph_vertices.end(),
                                              indices[j])) {
                         edgelist_majors.push_back(v);
                         edgelist_minors.push_back(indices[j]);
