@@ -400,6 +400,7 @@ add_library(cugraph_c
         src/c_api/legacy_spectral.cpp
         src/c_api/legacy_ecg.cpp
         src/c_api/graph_helper.cu
+        src/c_api/graph_generators.cpp
         src/c_api/induced_subgraph_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
