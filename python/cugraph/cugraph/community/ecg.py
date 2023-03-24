@@ -11,11 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import ecg_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
+import cudf
+
+from pylibcugraph import louvain as pylibcugraph_ecg
+from pylibcugraph import ResourceHandle
+
 
 
 def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
@@ -68,29 +72,24 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
 
     """
 
-    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph, weight)
+    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
-    # Renumber the vertices so that they are contiguous (required)
-    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
-    if not input_graph.renumbered:
-        edgelist = input_graph.edgelist.edgelist_df
-        renumbered_edgelist_df, renumber_map = input_graph.renumber_map.renumber(
-            edgelist, ["src"], ["dst"]
-        )
-        renumbered_src_col_name = renumber_map.renumbered_src_col_name
-        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
-        input_graph.edgelist.edgelist_df = renumbered_edgelist_df.rename(
-            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
-        )
-        input_graph.properties.renumbered = True
-        input_graph.renumber_map = renumber_map
+    vertex, partition = pylibcugraph_ecg(
+        resource_handle=ResourceHandle(),
+        graph=input_graph._plc_graph,
+        min_weight=min_weight,
+        ensemble_size=ensemble_size,
+        do_expensive_check=False,
+    )
 
-    parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["partition"] = partition
 
     if input_graph.renumbered:
-        parts = input_graph.unrenumber(parts, "vertex")
+        df = input_graph.unrenumber(df, "vertex")
 
     if isNx is True:
-        return df_score_to_dictionary(parts, "partition")
-    else:
-        return parts
+        df = df_score_to_dictionary(df, "partition")
+    
+    return df
