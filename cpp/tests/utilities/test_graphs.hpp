@@ -174,7 +174,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                double a,
                double b,
                double c,
-               uint64_t seed,
+               uint64_t base_seed,
                bool undirected,
                bool scramble_vertex_ids,
                size_t base_vertex_id  = 0,
@@ -185,7 +185,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       a_(a),
       b_(b),
       c_(c),
-      seed_(seed),
+      base_seed_(base_seed),
       undirected_(undirected),
       scramble_vertex_ids_(scramble_vertex_ids),
       multi_gpu_usecase_(multi_gpu_usecase)
@@ -263,7 +263,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     // 2. generate edges
-    raft::random::RngState rng_state{seed_};
+
+    raft::random::RngState rng_state{
+      base_seed_ + static_cast<uint64_t>(multi_gpu ? handle.get_comms().get_rank() : 0)};
 
     std::vector<rmm::device_uvector<vertex_t>> src_partitions{};
     std::vector<rmm::device_uvector<vertex_t>> dst_partitions{};
@@ -385,7 +387,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   double a_{};
   double b_{};
   double c_{};
-  uint64_t seed_{};
+  uint64_t base_seed_{};
   bool undirected_{};
   bool scramble_vertex_ids_{};
   bool multi_gpu_usecase_{};
