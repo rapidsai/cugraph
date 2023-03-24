@@ -14,31 +14,32 @@
 # Example modified from: 
 # https://github.com/dmlc/dgl/blob/master/examples/pytorch/graphsage/node_classification.py
 
-# Create cugraph_context first
-# because of cleanup issue
-# https://github.com/rapidsai/cugraph/issues/2718
-import cugraph
-import cugraph_dgl
-
-# Timing Imports
-import time
 # Ignore Warning
 import warnings
-warnings.filterwarnings('ignore')
-
+import time
+import cugraph_dgl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchmetrics.functional as MF
+import dgl
 import dgl.nn as dglnn
 from dgl.data import AsNodePredDataset
 from dgl.dataloading import DataLoader, NeighborSampler, MultiLayerFullNeighborSampler
 from ogb.nodeproppred import DglNodePropPredDataset
 import tqdm
 import argparse
+warnings.filterwarnings('ignore')
 
-# force creating cugraph context
-cugraph.Graph()
+def set_allocators():
+    import cudf
+    import cupy
+    import rmm
+    mr = rmm.mr.CudaAsyncMemoryResource()
+    rmm.mr.set_current_device_resource(mr)
+    torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
+    cupy.cuda.set_allocator(rmm.allocators.cupy.rmm_cupy_allocator)
+    cudf.set_option("spill", True)
 
 
 class SAGE(nn.Module):
@@ -109,8 +110,13 @@ def evaluate(model, graph, dataloader):
     y_hats = []
     for it, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
         with torch.no_grad():
-            x = blocks[0].srcdata["feat"]
-            ys.append(blocks[-1].dstdata["label"])
+            if isinstance(graph.ndata['feat'], dict):
+                x = graph.ndata["feat"]['_N'][input_nodes]
+                label = graph.ndata["label"]['_N'][output_nodes]
+            else:
+                x = graph.ndata["feat"][input_nodes]
+                label = graph.ndata["label"][output_nodes]
+            ys.append(label)
             y_hats.append(model(blocks, x))
     num_classes = y_hats[0].shape[1]
     return MF.accuracy(torch.cat(y_hats), torch.cat(ys), task='multiclass', num_classes=num_classes)
@@ -121,8 +127,10 @@ def layerwise_infer(device, graph, nid, model, batch_size):
     with torch.no_grad():
         pred = model.inference(graph, device, batch_size)  # pred in buffer_device
         pred = pred[nid]
-
-        label = graph.ndata['label']['_N'][nid].to(device).to(pred.device)
+        label = graph.ndata['label']
+        if isinstance(label, dict):
+            label = label['_N']
+        label = label[nid].to(device).to(pred.device)
         num_classes = pred.shape[1]
         return MF.accuracy(pred, label, task='multiclass', num_classes=num_classes)
 
@@ -131,13 +139,11 @@ def train(args, device, g, dataset, model):
     # create sampler & dataloader
     train_idx = dataset.train_idx.to(device)
     val_idx = dataset.val_idx.to(device)
-    sampler = NeighborSampler(
-        [10, 10, 10],  # fanout for [layer-0, layer-1, layer-2]
-        prefetch_node_feats=["feat"],
-        prefetch_labels=["label"],
-    )
+
     use_uva = args.mode == "mixed"
-    batch_size = 1024 * 20
+    batch_size = 1024
+    fanouts = [5, 10, 15]
+    sampler = NeighborSampler(fanouts)
     train_dataloader = DataLoader(
         g,
         train_idx,
@@ -149,7 +155,6 @@ def train(args, device, g, dataset, model):
         num_workers=0,
         use_uva=use_uva,
     )
-
     val_dataloader = DataLoader(
         g,
         val_idx,
@@ -169,9 +174,12 @@ def train(args, device, g, dataset, model):
         total_loss = 0
         st = time.time()
         for it, (input_nodes, output_nodes, blocks) in enumerate(train_dataloader):
-
-            x = blocks[0].srcdata["feat"]
-            y = blocks[-1].dstdata["label"]
+            if isinstance(g.ndata["feat"], dict):
+                x = g.ndata["feat"]['_N'][input_nodes]
+                y = g.ndata["label"]['_N'][output_nodes]
+            else:
+                x = g.ndata["feat"][input_nodes]
+                y = g.ndata["label"][output_nodes]
             y_hat = model(blocks, x)
             loss = F.cross_entropy(y_hat, y)
             opt.zero_grad()
@@ -194,53 +202,32 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
-        default="cugraph_storage",
-        choices=["cpu", "mixed", "puregpu", "cugraph_storage"],
+        default="gpu_cugraph_dgl",
+        choices=["cpu", "mixed", "gpu_dgl", "gpu_cugraph_dgl"],
         help="Training mode."
         " 'cpu' for CPU training,"
         " 'mixed' for CPU-GPU mixed training, "
-        " 'puregpu' for CPU-GPU mixed training, "
-        " 'cugraph_storage' for pure-GPU training.",
-    )
-
-    parser.add_argument(
-        "--use_rmm",
-        action="store_true",
-        help="Enable the RMM memory pool used by RAPIDS libraries "
-        "to enable faster memory allocation. "
-        "This allocator is not shared with PyTorch,"
-        "which has its own caching allocator. ",
+        " 'gpu_dgl' for pure-GPU training, "
+        " 'gpu_cugraph_dgl' for pure-GPU training.",
     )
     args = parser.parse_args()
     if not torch.cuda.is_available():
         args.mode = "cpu"
+    if args.mode == "gpu_cugraph_dgl":
+        set_allocators()
     print(f"Training in {args.mode} mode.")
 
     # load and preprocess dataset
     print("Loading data")
     dataset = AsNodePredDataset(DglNodePropPredDataset("ogbn-products"))
     g = dataset[0]
-    if args.mode == "cugraph_storage":
-        if args.use_rmm:
-            import rmm
-            rmm.reinitialize(pool_allocator=True, initial_pool_size=5e9)
-            torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
-
-        # Work around for DLFW container issues
-        # where dlpack conversion of boolean fails 
-        # on the first run
-        # Similar to issue https://github.com/dmlc/dgl/issues/3591
-        if 'train_mask' in g.ndata:
-            g.ndata['train_mask'] = g.ndata['train_mask'].int()
-        if 'train_mask' in g.ndata:
-            g.ndata['test_mask'] = g.ndata['test_mask'].int()
-        if 'val_mask' in g.ndata: 
-            g.ndata['val_mask'] = g.ndata['val_mask'].int()
+    g = dgl.add_self_loop(g)
+    if args.mode == "gpu_cugraph_dgl":
         g = cugraph_dgl.cugraph_storage_from_heterograph(g.to("cuda"))
         del dataset.g
 
     else:
-        g = g.to("cuda" if args.mode == "puregpu" else "cpu")
+        g = g.to("cuda" if args.mode == "gpu_dgl" else "cpu")
     device = torch.device("cpu" if args.mode == "cpu" else "cuda")
 
     # create GraphSAGE model
