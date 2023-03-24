@@ -22,6 +22,7 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -86,50 +87,31 @@ class Tests_MGPageRank
 
     // 2. generate personalization vertex/value pairs
 
-    std::optional<std::vector<vertex_t>> h_mg_personalization_vertices{std::nullopt};
-    std::optional<std::vector<result_t>> h_mg_personalization_values{std::nullopt};
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_personalization_vertices{std::nullopt};
+    std::optional<rmm::device_uvector<result_t>> d_mg_personalization_values{std::nullopt};
     if (pagerank_usecase.personalization_ratio > 0.0) {
-      std::default_random_engine generator{
-        static_cast<long unsigned int>(handle_->get_comms().get_rank()) /* seed */};
-      std::uniform_real_distribution<double> distribution{0.0, 1.0};
-      h_mg_personalization_vertices =
-        std::vector<vertex_t>(mg_graph_view.local_vertex_partition_range_size());
-      std::iota((*h_mg_personalization_vertices).begin(),
-                (*h_mg_personalization_vertices).end(),
-                mg_graph_view.local_vertex_partition_range_first());
-      (*h_mg_personalization_vertices)
-        .erase(std::remove_if((*h_mg_personalization_vertices).begin(),
-                              (*h_mg_personalization_vertices).end(),
-                              [&generator, &distribution, pagerank_usecase](auto v) {
-                                return distribution(generator) >=
-                                       pagerank_usecase.personalization_ratio;
-                              }),
-               (*h_mg_personalization_vertices).end());
-      h_mg_personalization_values = std::vector<result_t>((*h_mg_personalization_vertices).size());
-      std::for_each((*h_mg_personalization_values).begin(),
-                    (*h_mg_personalization_values).end(),
-                    [&distribution, &generator](auto& val) { val = distribution(generator); });
-    }
+      raft::random::RngState rng_state(handle_->get_comms().get_rank());
 
-    auto d_mg_personalization_vertices =
-      h_mg_personalization_vertices
-        ? std::make_optional<rmm::device_uvector<vertex_t>>((*h_mg_personalization_vertices).size(),
-                                                            handle_->get_stream())
-        : std::nullopt;
-    auto d_mg_personalization_values =
-      h_mg_personalization_values
-        ? std::make_optional<rmm::device_uvector<result_t>>((*d_mg_personalization_vertices).size(),
-                                                            handle_->get_stream())
-        : std::nullopt;
-    if (d_mg_personalization_vertices) {
-      raft::update_device((*d_mg_personalization_vertices).data(),
-                          (*h_mg_personalization_vertices).data(),
-                          (*h_mg_personalization_vertices).size(),
-                          handle_->get_stream());
-      raft::update_device((*d_mg_personalization_values).data(),
-                          (*h_mg_personalization_values).data(),
-                          (*h_mg_personalization_values).size(),
-                          handle_->get_stream());
+      d_mg_personalization_vertices = cugraph::select_random_vertices(
+        *handle_,
+        mg_graph_view,
+        rng_state,
+        std::max(
+          static_cast<size_t>(mg_graph_view.number_of_vertices() *
+                              pagerank_usecase.personalization_ratio),
+          std::min(
+            static_cast<size_t>(mg_graph_view.number_of_vertices()),
+            size_t{1})),  // there should be at least one vertex unless the graph is an empty graph
+        false,
+        false);
+      d_mg_personalization_values = rmm::device_uvector<result_t>(
+        (*d_mg_personalization_vertices).size(), handle_->get_stream());
+      cugraph::detail::uniform_random_fill(handle_->get_stream(),
+                                           (*d_mg_personalization_values).data(),
+                                           (*d_mg_personalization_values).size(),
+                                           result_t{0.0},
+                                           result_t{1.0},
+                                           rng_state);
     }
 
     // 3. run MG PageRank
