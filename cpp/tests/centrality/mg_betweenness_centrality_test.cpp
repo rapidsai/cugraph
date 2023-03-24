@@ -97,7 +97,7 @@ class Tests_MGBetweennessCentrality
       mg_graph_view,
       mg_edge_weight_view,
       std::make_optional<raft::device_span<vertex_t const>>(
-        raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
+        raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()}),
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints);
 
@@ -118,21 +118,21 @@ class Tests_MGBetweennessCentrality
                                                mg_graph_view.local_vertex_partition_range_last());
       }
 
-      d_mg_aggregate_seeds = cugraph::test::device_gatherv(
+      auto d_mg_aggregate_seeds = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()});
 
-      rmm::device_uvector<result_t> d_mg_aggregate_centralities(0, handle_->get_stream());
-      std::tie(std::ignore, d_mg_aggregate_pageranks) =
+      rmm::device_uvector<weight_t> d_mg_aggregate_centralities(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_centralities) =
         cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
-                                                                (*d_mg_renumber_map).size()),
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
           mg_graph_view.local_vertex_partition_range(),
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
           std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-          raft::device_span<result_t const>(d_mg_centralities.data(), d_mg_centralities.size()));
+          raft::device_span<weight_t const>(d_mg_centralities.data(), d_mg_centralities.size()));
 
-      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
       std::optional<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
         sg_edge_weights{std::nullopt};
@@ -151,17 +151,13 @@ class Tests_MGBetweennessCentrality
           *handle_,
           sg_graph_view,
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
-          std::make_optional<raft::device_span<vertex_t const>>(
-            raft::device_span<vertex_t const>{d_mg_aggregate_seeds.data(), d_mg_aggregate_seeds.size()}),
+          std::make_optional<raft::device_span<vertex_t const>>(raft::device_span<vertex_t const>{
+            d_mg_aggregate_seeds.data(), d_mg_aggregate_seeds.size()}),
           betweenness_usecase.normalized,
           betweenness_usecase.include_endpoints);
 
-        cugraph::test::betweenness_centrality_validate<vertex_t, weight_t>(
-          *handle_,
-          mg_renumber_map,
-          d_mg_aggregate_centralities,
-          sg_renumber_map,
-          d_sg_centralities);
+        cugraph::test::betweenness_centrality_validate(
+          *handle_, d_mg_aggregate_centralities, d_sg_centralities);
       }
     }
   }
@@ -224,8 +220,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(BetweennessCentrality_Usecase{50, false, false, false, false},
                       BetweennessCentrality_Usecase{50, false, false, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -238,7 +233,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(BetweennessCentrality_Usecase{500, false, false, false, false},
                       BetweennessCentrality_Usecase{500, false, false, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
