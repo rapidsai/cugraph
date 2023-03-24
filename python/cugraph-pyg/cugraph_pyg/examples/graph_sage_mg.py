@@ -20,6 +20,7 @@ import argparse
 import gc
 
 import torch
+import numpy as np
 
 from torch_geometric.nn import CuGraphSAGEConv
 
@@ -72,8 +73,8 @@ def init_pytorch_worker(rank, devices, manager_ip, manager_port) -> None:
         pool_allocator=False,
     )
 
-    torch.cuda.change_current_allocator(rmm.rmm_torch_allocator)
-    cupy.cuda.set_allocator(rmm.rmm_cupy_allocator)
+    # torch.cuda.change_current_allocator(rmm.rmm_torch_allocator)
+    # cupy.cuda.set_allocator(rmm.rmm_cupy_allocator)
 
     cupy.cuda.Device(device_id).use()
     torch.cuda.set_device(device_id)
@@ -96,13 +97,18 @@ def start_cugraph_dask_client(rank, dask_scheduler_file):
         "Connecting to dask... "
         "(warning: this may take a while depending on your configuration)"
     )
+    start_time_connect_dask = time.perf_counter_ns()
     from distributed import Client
     from cugraph.dask.comms import comms as Comms
 
     client = Client(scheduler_file=dask_scheduler_file)
     Comms.initialize(p2p=True)
 
-    print(f"Successfully connected to dask on rank {rank}")
+    end_time_connect_dask = time.perf_counter_ns()
+    print(
+        f"Successfully connected to dask on rank {rank}, took "
+        f"{(end_time_connect_dask - start_time_connect_dask) / 1e9:3.4f} s"
+    )
     return client
 
 
@@ -134,6 +140,8 @@ def train(
         Whether to store a replica of features on each worker's GPU.  If False,
         all features will be stored on the CPU.
     """
+
+    start_time_preprocess = time.perf_counter_ns()
 
     world_size = len(torch_devices)
     device_id = torch_devices[rank]
@@ -169,8 +177,13 @@ def train(
             data = dataset[0]
             print(f"Rank {rank} loaded dataset successfully")
 
-    G = data[0]["edge_index_dict"]
-    N = data[0]["num_nodes_dict"]
+    ei = data[0]["edge_index_dict"][("paper", "cites", "paper")]
+    G = {
+        ("paper", "cites", "paper"): np.stack(
+            [np.concatenate([ei[0], ei[1]]), np.concatenate([ei[1], ei[0]])]
+        )
+    }
+    N = {"paper": data[0]["num_nodes_dict"]["paper"]}
 
     fs = cugraph.gnn.FeatureStore(backend="torch")
 
@@ -199,7 +212,14 @@ def train(
     if rank == 0:
         print("Rank 0 creating its cugraph store and initializing distributed graph")
         # Rank 0 will initialize the distributed cugraph graph.
+        cugraph_store_create_start = time.perf_counter_ns()
+        print("G:", G[("paper", "cites", "paper")].shape)
         cugraph_store = CuGraphStore(fs, G, N, multi_gpu=True)
+        cugraph_store_create_end = time.perf_counter_ns()
+        print(
+            "cuGraph Store created on rank 0 in "
+            f"{(cugraph_store_create_end - cugraph_store_create_start) / 1e9:3.4f} s"
+        )
         client.publish_dataset(train_nodes=all_train_nodes)
         event.set()
         print("Rank 0 done with cugraph store creation")
@@ -218,10 +238,23 @@ def train(
             fs.add_data(train_mask, "paper", "train")
 
             # Will automatically use the stored distributed cugraph graph on rank 0.
+            cugraph_store_create_start = time.perf_counter_ns()
             cugraph_store = CuGraphStore(fs, G, N, multi_gpu=True)
+            cugraph_store_create_end = time.perf_counter_ns()
+            print(
+                f"Rank {rank} created cugraph store in "
+                f"{(cugraph_store_create_end - cugraph_store_create_start) / 1e9:3.4f}"
+                " s"
+            )
             print(f"Rank {rank} done with cugraph store creation")
 
-    print(f"rank {rank}: train {train_nodes.shape}")
+    end_time_preprocess = time.perf_counter_ns()
+    print(f"rank {rank}: train {train_nodes.shape}", flush=True)
+    print(
+        f"rank {rank}: all preprocessing took"
+        f" {(end_time_preprocess - start_time_preprocess) / 1e9:3.4f}",
+        flush=True,
+    )
     td.barrier()
     model = (
         CuGraphSAGE(in_channels=128, hidden_channels=64, out_channels=349, num_layers=3)
@@ -237,63 +270,98 @@ def train(
         start_time_train = time.perf_counter_ns()
         model.train()
 
+        start_time_loader = time.perf_counter_ns()
         cugraph_bulk_loader = CuGraphNeighborLoader(
             cugraph_store,
             train_nodes,
             batch_size=500,
-            num_neighbors=[10, 25],
-            seeds_per_call=10_000,
-            batches_per_partition=20,
+            num_neighbors=[30, 30, 30],
+            seeds_per_call=1000,
+            batches_per_partition=2,
+            replace=False,
+            directory="/tmp/ramdisk/samples",
         )
+        end_time_loader = time.perf_counter_ns()
+        total_time_loader = (end_time_loader - start_time_loader) / 1e9
 
         total_loss = 0
         num_batches = 0
 
-        for epoch in range(num_epochs):
-            print(f"rank {rank} starting epoch {epoch}")
-            with td.algorithms.join.Join([model]):
-                for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
-                    num_batches += 1
-                    if iter_i % 20 == 0:
-                        print(f"iteration {iter_i}")
+        print(f"rank {rank} starting epoch {epoch}")
+        with td.algorithms.join.Join([model]):
+            total_time_sample = 0
+            total_time_forward = 0
+            total_time_backward = 0
 
-                    # train
-                    train_mask = hetero_data.train_dict["paper"]
-                    y_true = hetero_data.y_dict["paper"]
-
-                    y_pred = model(
-                        hetero_data.x_dict["paper"].to(device_id).to(torch.float32),
-                        hetero_data.edge_index_dict[("paper", "cites", "paper")].to(
-                            device_id
-                        ),
-                        (len(y_true), len(y_true)),
-                    )
-
-                    y_true = F.one_hot(
-                        y_true[train_mask].to(torch.int64), num_classes=349
-                    ).to(torch.float32)
-
-                    y_pred = y_pred[train_mask]
-
-                    loss = F.cross_entropy(y_pred, y_true)
-
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                    total_loss += loss.item()
-
-                    del y_true
-                    del y_pred
-                    del loss
-                    del hetero_data
-                    gc.collect()
-
-                end_time_train = time.perf_counter_ns()
+            start_time_sample = time.perf_counter_ns()
+            for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
+                end_time_sample = time.perf_counter_ns()
+                total_time_sample += (end_time_sample - start_time_sample) / 1e9
                 print(
-                    f"epoch {epoch} "
-                    f"time: {(end_time_train - start_time_train) / 1e9:3.4f} s"
+                    f"time between loops: "
+                    f"{(end_time_sample - start_time_sample) / 1e9} s"
                 )
-                print(f"loss after epoch {epoch}: {total_loss / num_batches}")
+                num_batches += 1
+                if iter_i % 20 == 0:
+                    print(f"iteration {iter_i}")
+
+                # train
+                train_mask = hetero_data.train_dict["paper"]
+                y_true = hetero_data.y_dict["paper"]
+
+                print(
+                    hetero_data.x_dict["paper"].shape,
+                    hetero_data.edge_index_dict[("paper", "cites", "paper")].shape,
+                )
+
+                start_time_forward = time.perf_counter_ns()
+                y_pred = model(
+                    hetero_data.x_dict["paper"].to(device_id).to(torch.float32),
+                    hetero_data.edge_index_dict[("paper", "cites", "paper")].to(
+                        device_id
+                    ),
+                    (len(y_true), len(y_true)),
+                )
+                end_time_forward = time.perf_counter_ns()
+                total_time_forward += (end_time_forward - start_time_forward) / 1e9
+
+                y_true = F.one_hot(
+                    y_true[train_mask].to(torch.int64), num_classes=349
+                ).to(torch.float32)
+
+                y_pred = y_pred[train_mask]
+
+                loss = F.cross_entropy(y_pred, y_true)
+
+                start_time_backward = time.perf_counter_ns()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                end_time_backward = time.perf_counter_ns()
+                total_time_backward += (end_time_backward - start_time_backward) / 1e9
+
+                total_loss += loss.item()
+
+                del y_true
+                del y_pred
+                del loss
+                del hetero_data
+                gc.collect()
+
+                start_time_sample = time.perf_counter_ns()
+
+            end_time_train = time.perf_counter_ns()
+            print(
+                f"epoch {epoch} "
+                f"total time: {(end_time_train - start_time_train) / 1e9:3.4f} s"
+                f"\nloader create time per batch: {total_time_loader / num_batches} s"
+                f"\nsampling/load time per batch: {total_time_sample / num_batches} s"
+                f"\nload time per batch: {cugraph_bulk_loader.timer / num_batches} s"
+                f"\nforward time per batch: {total_time_forward / num_batches} s"
+                f"\nbackward time per batch: {total_time_backward / num_batches} s"
+                f"\nnum batches: {num_batches}"
+            )
+            print(f"loss after epoch {epoch}: {total_loss / num_batches}")
 
     td.barrier()
     if rank == 0:

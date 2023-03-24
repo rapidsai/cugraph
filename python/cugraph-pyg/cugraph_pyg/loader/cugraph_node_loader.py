@@ -107,6 +107,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__end_exclusive = starting_batch_id
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
+        self.timer = 0
 
         if isinstance(all_indices, int):
             # Will be loading from disk
@@ -201,9 +202,14 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
+        import time
+
+        start_time_from_sr = time.perf_counter_ns()
         sampler_output = _sampler_output_from_sampling_results(
             self.__data[f], self.__graph_store
         )
+        end_time_from_sr = time.perf_counter_ns()
+        print(f"convert time: {(end_time_from_sr - start_time_from_sr) / 1e9} s")
 
         # Get ready for next iteration
         # If there is no next iteration, make sure results are deleted
@@ -224,7 +230,10 @@ class EXPERIMENTAL__BulkSampleLoader:
                 edge_dict,
             )
         else:
-            return torch_geometric.loader.utils.filter_custom_store(
+            import time
+
+            start = time.perf_counter_ns()
+            out = torch_geometric.loader.utils.filter_custom_store(
                 self.__feature_store,
                 self.__graph_store,
                 sampler_output.node,
@@ -232,6 +241,10 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.col,
                 sampler_output.edge,
             )
+            end = time.perf_counter_ns()
+
+            self.timer += (end - start) / 1e9
+            return out
 
     def __iter__(self):
         return self
@@ -278,10 +291,16 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         self.inner_loader_args = kwargs
 
     def __iter__(self):
-        return EXPERIMENTAL__BulkSampleLoader(
+        self.current_loader = EXPERIMENTAL__BulkSampleLoader(
             self.__feature_store,
             self.__graph_store,
             self.__input_nodes,
             self.__batch_size,
             **self.inner_loader_args,
         )
+
+        return self.current_loader
+
+    @property
+    def timer(self):
+        return self.current_loader.timer
