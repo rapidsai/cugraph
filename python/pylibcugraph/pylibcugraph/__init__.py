@@ -61,4 +61,6 @@ from pylibcugraph.random import CuGraphRandomState
 
 from pylibcugraph.induced_subgraph import induced_subgraph
 
+from pylibcugraph.ecg import ecg
+
 __version__ = "23.04.00"

@@ -68,26 +68,26 @@ cdef extern from "cugraph_c/community_algorithms.h":
 
     ###########################################################################
     # louvain
-    ctypedef struct cugraph_heirarchical_clustering_result_t:
+    ctypedef struct cugraph_hierarchical_clustering_result_t:
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_vertices(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_get_vertices(
+            cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_clusters(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_get_clusters(
+            cugraph_hierarchical_clustering_result_t* result
         )
     
-    cdef double cugraph_heirarchical_clustering_result_get_modularity(
-        cugraph_heirarchical_clustering_result_t* result
+    cdef double cugraph_hierarchical_clustering_result_get_modularity(
+        cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef void \
-        cugraph_heirarchical_clustering_result_free(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_free(
+            cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef cugraph_error_code_t \
@@ -97,7 +97,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             size_t max_level,
             double resolution,
             bool_t do_expensive_check,
-            cugraph_heirarchical_clustering_result_t** result,
+            cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error
         )
     
@@ -112,3 +112,19 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_induced_subgraph_result_t** result,
             cugraph_error_t** error
         )
+    
+    ###########################################################################
+    # ECG
+    cdef cugraph_error_code_t \
+        cugraph_ecg(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            double min_weight,
+            size_t ensemble_size,
+            bool_t do_expensive_check,
+            cugraph_hierarchical_clustering_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    ###########################################################################
+
