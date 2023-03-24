@@ -189,7 +189,7 @@ class Tests_MGEgonet
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         false);
 
       d_ego_sources = cugraph::test::device_gatherv(

@@ -534,9 +534,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
-    # - MG PRIMS EXTRACT_IF_E tests ---------------------------------------------------------------
-    ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
-    target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
+    # - MG PRIMS EXTRACT_TRANSFORM_E tests --------------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_TRANSFORM_E_TEST prims/mg_extract_transform_e.cu)
+    target_link_libraries(MG_EXTRACT_TRANSFORM_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
     # - MG PRIMS EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E tests ------------------------------------
@@ -576,6 +576,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------
     ConfigureCTestMG(MG_CAPI_CREATE_GRAPH_TEST c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_GENERATE_RMAT_TEST c_api/mg_generate_rmat_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_PAGERANK_TEST c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_BFS_TEST c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_SSSP_TEST c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
@@ -627,6 +628,7 @@ target_link_libraries(cugraph_c_testutil
 
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
+ConfigureCTest(CAPI_GENERATE_RMAT_TEST c_api/generate_rmat_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
 ConfigureCTest(CAPI_KATZ_TEST c_api/katz_test.c)
 ConfigureCTest(CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/eigenvector_centrality_test.c)
@@ -643,6 +645,8 @@ ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT_TEST c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN_TEST c_api/louvain_test.c)
 ConfigureCTest(CAPI_LEIDEN_TEST c_api/leiden_test.c)
+ConfigureCTest(CAPI_LEGACY_SPECTRAL_TEST c_api/legacy_spectral_test.c)
+ConfigureCTest(CAPI_LEGACY_ECG_TEST c_api/legacy_ecg_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER_TEST c_api/core_number_test.c)
 ConfigureCTest(CAPI_SIMILARITY_TEST c_api/similarity_test.c)
 ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)

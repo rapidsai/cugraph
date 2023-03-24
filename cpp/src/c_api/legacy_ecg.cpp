@@ -63,57 +63,57 @@ struct ecg_functor : public cugraph::c_api::abstract_functor {
   {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
+    } else if constexpr (multi_gpu) {
+      unsupported();
+    } else if constexpr (!std::is_same_v<edge_t, int32_t>) {
+      unsupported();
     } else {
       // ecg expects store_transposed == false
       if constexpr (store_transposed) {
-        error_code_ = cugraph::c_api::
-          transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+        error_code_ =
+          cugraph::c_api::transpose_storage<vertex_t, edge_t, weight_t, store_transposed, false>(
             handle_, graph_, error_.get());
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }
 
-      if constexpr (multi_gpu) {
-        unsupported();
-      } else {
-        auto graph =
-          reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, false>*>(graph_->graph_);
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, false>*>(graph_->graph_);
 
-        auto edge_weights = reinterpret_cast<
-          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                   weight_t>*>(graph_->edge_weights_);
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>*>(
+        graph_->edge_weights_);
 
-        auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-        auto graph_view = graph->view();
+      auto graph_view = graph->view();
 
-        auto edge_partition_view = graph_view.local_edge_partition_view();
+      auto edge_partition_view = graph_view.local_edge_partition_view();
 
-        cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
-          const_cast<edge_t*>(edge_partition_view.offsets().data()),
-          const_cast<vertex_t*>(edge_partition_view.indices().data()),
-          const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
-          edge_partition_view.offsets().size() - 1,
-          edge_partition_view.indices().size());
+      cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
+        const_cast<edge_t*>(edge_partition_view.offsets().data()),
+        const_cast<vertex_t*>(edge_partition_view.indices().data()),
+        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        edge_partition_view.offsets().size() - 1,
+        edge_partition_view.indices().size());
 
-        rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
-                                               handle_.get_stream());
+      rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
+                                             handle_.get_stream());
 
-        // FIXME:  Need modularity..., although currently not used
-        cugraph::ecg(handle_,
-                     legacy_graph_view,
-                     static_cast<weight_t>(min_weight_),
-                     static_cast<vertex_t>(ensemble_size_),
-                     clusters.data());
+      // FIXME:  Need modularity..., although currently not used
+      cugraph::ecg(handle_,
+                   legacy_graph_view,
+                   static_cast<weight_t>(min_weight_),
+                   static_cast<vertex_t>(ensemble_size_),
+                   clusters.data());
 
-        rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
-                                               handle_.get_stream());
-        raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
+      rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
+                                             handle_.get_stream());
+      raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
-        result_ = new cugraph::c_api::cugraph_hierarchical_clustering_result_t{
-          weight_t{0},
-          new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
-          new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
-      }
+      result_ = new cugraph::c_api::cugraph_hierarchical_clustering_result_t{
+        weight_t{0},
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
     }
   }
 };

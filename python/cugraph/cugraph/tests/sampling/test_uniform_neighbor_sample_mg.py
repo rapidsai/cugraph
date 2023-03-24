@@ -321,7 +321,8 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
-def test_uniform_neighbor_sample_edge_properties():
+@pytest.mark.parametrize("return_offsets", [True, False])
+def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     edgelist_df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
@@ -337,16 +338,6 @@ def test_uniform_neighbor_sample_edge_properties():
         npartitions=2,
     )
 
-    start_df = dask_cudf.from_cudf(
-        cudf.DataFrame(
-            {
-                "seed": cudf.Series([0, 4], dtype="int64"),
-                "batch": cudf.Series([0, 1], dtype="int32"),
-            }
-        ),
-        npartitions=2,
-    )
-
     G = cugraph.MultiGraph(directed=True)
     G.from_dask_cudf_edgelist(
         edgelist_df,
@@ -356,42 +347,73 @@ def test_uniform_neighbor_sample_edge_properties():
         legacy_renum_only=True,
     )
 
-    sampling_results = uniform_neighbor_sample(
-        G,
-        start_list=start_df["seed"],
-        fanout_vals=[2, 2],
-        with_replacement=False,
-        with_edge_properties=True,
-        batch_id_list=start_df["batch"],
-    ).compute()
-
+    dest_rank = [0, 1]
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=start_df["seed"].compute(),
-        fanout_vals=[2, 2],
+        start_list=cudf.Series([0, 4], dtype="int64"),
+        fanout_vals=[-1, -1],
         with_replacement=False,
         with_edge_properties=True,
-        batch_id_list=start_df["batch"].compute(),
-    ).compute()
+        batch_id_list=cudf.Series([0, 1], dtype="int32"),
+        label_list=cudf.Series([0, 1], dtype="int32") if return_offsets else None,
+        label_to_output_comm_rank=cudf.Series(dest_rank, dtype="int32")
+        if return_offsets
+        else None,
+        return_offsets=return_offsets,
+    )
 
-    print("original edgelist:")
-    print(edgelist_df.compute())
+    if return_offsets:
+        sampling_results, sampling_offsets = sampling_results
 
-    print("sampling result:")
-    print(sampling_results)
+        df_p0 = sampling_results.get_partition(0).compute()
+        assert sorted(df_p0.sources.values_host.tolist()) == (
+            [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
+        )
+        assert sorted(df_p0.destinations.values_host.tolist()) == (
+            [1, 1, 1, 2, 2, 3, 3, 4, 4, 4]
+        )
+
+        df_p1 = sampling_results.get_partition(1).compute()
+        assert sorted(df_p1.sources.values_host.tolist()) == ([1, 1, 3, 3, 4, 4])
+        assert sorted(df_p1.destinations.values_host.tolist()) == ([1, 2, 2, 3, 3, 4])
+
+        offsets_p0 = sampling_offsets.get_partition(0).compute()
+        assert offsets_p0.batch_id.values_host.tolist() == [0]
+        assert offsets_p0.offsets.values_host.tolist() == [0]
+
+        offsets_p1 = sampling_offsets.get_partition(1).compute()
+        assert offsets_p1.batch_id.values_host.tolist() == [1]
+        assert offsets_p1.offsets.values_host.tolist() == [0]
 
     mdf = cudf.merge(
-        sampling_results, edgelist_df.compute(), left_on="edge_id", right_on="eid"
+        sampling_results.compute(),
+        edgelist_df.compute(),
+        left_on="edge_id",
+        right_on="eid",
     )
     assert (mdf.w == mdf.weight).all()
     assert (mdf.etp == mdf.edge_type).all()
     assert (mdf.src == mdf.sources).all()
     assert (mdf.dst == mdf.destinations).all()
 
-    assert sorted(sampling_results["hop_id"].values_host.tolist()) == [0] * (2 * 2) + [
-        1
-    ] * (2 * 2 * 2)
-    # FIXME test the batch id values once that is fixed in C++
+    assert sorted(sampling_results.compute()["hop_id"].values_host.tolist()) == [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+    ]
 
 
 @pytest.mark.mg
