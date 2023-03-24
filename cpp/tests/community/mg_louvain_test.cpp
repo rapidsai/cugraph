@@ -265,7 +265,7 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLouvain_Rmat,
                          ::testing::Combine(::testing::Values(Louvain_Usecase{100, 1}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -289,7 +289,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{100, 1, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
