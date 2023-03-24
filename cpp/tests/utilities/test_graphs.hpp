@@ -177,8 +177,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                uint64_t base_seed,
                bool undirected,
                bool scramble_vertex_ids,
-               size_t base_vertex_id  = 0,
-               bool multi_gpu_usecase = false)
+               size_t base_vertex_id = 0)
     : detail::TranslateGraph_Usecase(base_vertex_id),
       scale_(scale),
       edge_factor_(edge_factor),
@@ -187,8 +186,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       c_(c),
       base_seed_(base_seed),
       undirected_(undirected),
-      scramble_vertex_ids_(scramble_vertex_ids),
-      multi_gpu_usecase_(multi_gpu_usecase)
+      scramble_vertex_ids_(scramble_vertex_ids)
   {
   }
 
@@ -214,38 +212,24 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
     size_t constexpr num_partitions_per_gpu = 2;
+    size_t num_partitions =
+      num_partitions_per_gpu * static_cast<size_t>(multi_gpu ? handle.get_comms().get_size() : 1);
 
-    // 1. calculate # partitions, # edges to generate in each partition, and partition vertex ranges
-
-    std::vector<size_t> partition_ids{};
-    size_t num_partitions{};
-
-    if (multi_gpu_usecase_) {
-      auto& comm           = handle.get_comms();
-      num_partitions       = comm.get_size() * num_partitions_per_gpu;
-      auto const comm_rank = comm.get_rank();
-
-      partition_ids.resize(multi_gpu ? num_partitions_per_gpu : num_partitions);
-
-      std::iota(partition_ids.begin(),
-                partition_ids.end(),
-                multi_gpu ? static_cast<size_t>(comm_rank) * num_partitions_per_gpu : size_t{0});
-    } else {
-      num_partitions = num_partitions_per_gpu;
-      partition_ids.resize(num_partitions);
-      std::iota(partition_ids.begin(), partition_ids.end(), size_t{0});
-    }
+    // 1. calculate # edges to generate in each partition, and partition vertex ranges
 
     vertex_t number_of_vertices = static_cast<vertex_t>(size_t{1} << scale_);
     size_t number_of_edges =
       static_cast<size_t>(static_cast<size_t>(number_of_vertices) * edge_factor_);
 
-    std::vector<size_t> partition_edge_counts(partition_ids.size());
-    std::vector<vertex_t> partition_vertex_firsts(partition_ids.size());
-    std::vector<vertex_t> partition_vertex_lasts(partition_ids.size());
+    std::array<size_t, num_partitions_per_gpu> partition_edge_counts{};
+    std::array<vertex_t, num_partitions_per_gpu> partition_vertex_firsts{};
+    std::array<vertex_t, num_partitions_per_gpu> partition_vertex_lasts{};
 
-    for (size_t i = 0; i < partition_ids.size(); ++i) {
-      auto id = partition_ids[i];
+    for (size_t i = 0; i < num_partitions_per_gpu; ++i) {
+      auto id =
+        (multi_gpu ? num_partitions_per_gpu * static_cast<size_t>(handle.get_comms().get_rank())
+                   : size_t{0}) +
+        i;
 
       partition_edge_counts[i] = number_of_edges / num_partitions +
                                  (id < number_of_edges % num_partitions ? size_t{1} : size_t{0});
@@ -272,12 +256,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     auto weight_partitions = test_weighted
                                ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>()
                                : std::nullopt;
-    src_partitions.reserve(partition_ids.size());
-    dst_partitions.reserve(partition_ids.size());
-    if (weight_partitions) { (*weight_partitions).reserve(partition_ids.size()); }
-    for (size_t i = 0; i < partition_ids.size(); ++i) {
-      auto id = partition_ids[i];
-
+    src_partitions.reserve(num_partitions_per_gpu);
+    dst_partitions.reserve(num_partitions_per_gpu);
+    if (weight_partitions) { (*weight_partitions).reserve(num_partitions_per_gpu); }
+    for (size_t i = 0; i < num_partitions_per_gpu; ++i) {
       auto [tmp_src_v, tmp_dst_v] =
         cugraph::generate_rmat_edgelist<vertex_t>(handle,
                                                   rng_state,
