@@ -516,15 +516,6 @@ rmm::device_uvector<value_t> mg_vertex_property_values_to_sg_vertex_property_val
     sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
   raft::device_span<value_t const> mg_values);
 
-template <typename vertex_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> randomly_sample_vertices(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  std::vector<vertex_t> const& vertex_partition_range_lasts,
-  size_t sample_size,
-  bool with_replacement,
-  bool sort_samples);
-
 template <typename type_t>
 struct nearly_equal {
   const type_t threshold_ratio;
