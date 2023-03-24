@@ -15,6 +15,7 @@
  */
 
 #include <c_api/c_test_utils.h>
+#include <c_api/mg_test_utils.h>
 #include <c_api/resource_handle.hpp>
 
 #include <cugraph/partition_manager.hpp>
@@ -75,21 +76,43 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   return ret_val;
 }
 
-extern "C" void* create_raft_handle(int prows)
+extern "C" void* create_mg_raft_handle(int argc, char** argv)
 {
+  int comm_rank;
+  int comm_size;
+  int num_gpus_per_node;
+  cudaError_t status;
+  int mpi_status;
+
+  C_MPI_TRY(MPI_Init(&argc, &argv));
+  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
+  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
+  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
+  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+
   raft::handle_t* handle = new raft::handle_t{};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
-  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
-    *handle, prows);
+#if 1
+  int gpu_row_comm_size = 1;
+#else
+  // TODO:  Need something a bit more sophisticated for bigger systems
+  gpu_row_comm_size = (int)sqrt((double)comm_size);
+  while (comm_size % gpu_row_comm_size != 0) {
+    --gpu_row_comm_size;
+  }
+#endif
+  cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
 
   return handle;
 }
 
-extern "C" void free_raft_handle(void* raft_handle)
+extern "C" void free_mg_raft_handle(void* raft_handle)
 {
   raft::handle_t* handle = reinterpret_cast<raft::handle_t*>(raft_handle);
   delete handle;
+
+  C_MPI_TRY(MPI_Finalize());
 }
 
 /*
@@ -323,7 +346,6 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
   cugraph_type_erased_device_array_view_t* src_view;
   cugraph_type_erased_device_array_view_t* dst_view;
   cugraph_type_erased_device_array_view_t* idx_view;
-  cugraph_type_erased_device_array_view_t* wgt_view;
 
   int rank = 0;
 
@@ -370,15 +392,12 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     handle, idx_view, (byte_t*)h_idx, ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
 
-  ret_code = cugraph_type_erased_device_array_view_as_type(idx, weight_tid, &wgt_view, ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt cast from idx failed.");
-
   ret_code = cugraph_mg_graph_create(handle,
                                      &properties,
                                      src_view,
                                      dst_view,
-                                     wgt_view,
                                      NULL,
+                                     idx_view,
                                      NULL,
                                      store_transposed,
                                      num_edges,
@@ -387,7 +406,6 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
                                      ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
-  cugraph_type_erased_device_array_view_free(wgt_view);
   cugraph_type_erased_device_array_view_free(idx_view);
   cugraph_type_erased_device_array_view_free(dst_view);
   cugraph_type_erased_device_array_view_free(src_view);

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/detail/nbr_intersection.cuh>
 #include <prims/property_op_utils.cuh>
 #include <utilities/collect_comm.cuh>
@@ -243,13 +243,16 @@ void per_v_pair_transform_dst_nbr_intersection(
                                               (*unique_vertices).end())),
               handle.get_stream());
 
-    property_buffer_for_unique_vertices =
-      collect_values_for_sorted_unique_int_vertices(handle.get_comms(),
-                                                    (*unique_vertices).begin(),
-                                                    (*unique_vertices).end(),
-                                                    vertex_value_input_first,
-                                                    graph_view.vertex_partition_range_lasts(),
-                                                    handle.get_stream());
+    std::tie(unique_vertices, property_buffer_for_unique_vertices) =
+      collect_values_for_unique_int_vertices(handle,
+                                             std::move(*unique_vertices),
+                                             vertex_value_input_first,
+                                             graph_view.vertex_partition_range_lasts());
+    thrust::sort_by_key(
+      handle.get_thrust_policy(),
+      (*unique_vertices).begin(),
+      (*unique_vertices).end(),
+      (*property_buffer_for_unique_vertices).begin());  // necessary for binary search
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());

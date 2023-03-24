@@ -239,7 +239,7 @@ int test_create_sg_graph_csr()
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
 
   ret_code = cugraph_uniform_neighbor_sample_with_edge_properties(
-                                             handle, graph, d_start_view, NULL, h_fan_out_view, rng_state, FALSE, FALSE, &result, &ret_error);
+                                                                  handle, graph, d_start_view, NULL, NULL, NULL, h_fan_out_view, rng_state, FALSE, FALSE, FALSE, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");

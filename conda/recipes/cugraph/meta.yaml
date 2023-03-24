@@ -20,6 +20,7 @@ build:
   script_env:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
+    - AWS_SESSION_TOKEN
     - CMAKE_C_COMPILER_LAUNCHER
     - CMAKE_CUDA_COMPILER_LAUNCHER
     - CMAKE_CXX_COMPILER_LAUNCHER
@@ -30,6 +31,7 @@ build:
     - SCCACHE_REGION
     - SCCACHE_S3_KEY_PREFIX=cugraph-aarch64 # [aarch64]
     - SCCACHE_S3_KEY_PREFIX=cugraph-linux64 # [linux64]
+    - SCCACHE_S3_USE_SSL
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
 
@@ -54,7 +56,7 @@ requirements:
     - libcusolver-dev {{ libcusolver_host_version }}
     - libcusparse {{ libcusparse_host_version }}
     - libcusparse-dev {{ libcusparse_host_version }}
-    - libraft-distance ={{ minor_version }}
+    - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - pylibraft ={{ minor_version}}
     - python x.x
@@ -73,7 +75,7 @@ requirements:
     - dask >=2023.1.1
     - distributed >=2023.1.1
     - libcugraph ={{ version }}
-    - libraft-distance ={{ minor_version }}
+    - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - pylibcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
