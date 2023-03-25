@@ -155,10 +155,6 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_clustering_result_t** clustering,
             cugraph_error_t** error
         )
-    
-    cdef void cugraph_clustering_free(
-        cugraph_clustering_result_t* clustering
-        )
 
     # Balanced cut clustering
     cdef cugraph_error_code_t \

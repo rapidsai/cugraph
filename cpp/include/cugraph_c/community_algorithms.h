@@ -401,13 +401,6 @@ cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_clusters(
   cugraph_clustering_result_t* result);
 
 /**
- * @brief     Free clustering
- *
- * @param [in] clustering     The result from a sampling algorithm
- */
-void cugraph_clustering_free(cugraph_clustering_result_t* clustering);
-
-/**
  * @brief     Free a clustering result
  *
  * @param [in] result     The result from a sampling algorithm

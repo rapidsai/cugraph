@@ -534,16 +534,6 @@ extern "C" cugraph_error_code_t cugraph_create_clustering(
   return cugraph::c_api::run_algorithm(graph, functor, clustering, error);
 }
 
-extern "C" void cugraph_clustering_free(cugraph_clustering_result_t* clustering)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_clustering_result_t*>(clustering);
-  delete internal_pointer->vertices_;
-  delete internal_pointer->clusters_;
-  delete internal_pointer;
-}
-
-
-
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_vertices(
   cugraph_clustering_result_t* result)
 {

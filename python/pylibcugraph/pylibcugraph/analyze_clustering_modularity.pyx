@@ -32,9 +32,6 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_clustering_result_t,
     cugraph_analyze_clustering_modularity,
-    cugraph_clustering_free,
-    cugraph_clustering_result_get_vertices,
-    cugraph_clustering_result_get_clusters,
     cugraph_create_clustering,
     cugraph_clustering_result_free,
 )
@@ -172,7 +169,6 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
     cupy_clusters = copy_to_cupy_array(c_resource_handle_ptr, clusters_ptr)
     """
 
-    # cugraph_clustering_result_free(result_ptr)
-    cugraph_clustering_free(clustering_ptr)
+    cugraph_clustering_result_free(clustering_ptr)
 
     return score
