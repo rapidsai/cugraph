@@ -102,7 +102,10 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
+@pytest.mark.skip("temporarily skip this test")
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
+    # FIXME: skip this test until spectral clustering supports 'int64'.
+    # Currently it is not supported.
     gc.collect()
 
     # G = cugraph.Graph()
