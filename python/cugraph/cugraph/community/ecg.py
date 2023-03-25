@@ -17,7 +17,7 @@ from cugraph.utilities import (
 )
 import cudf
 
-from pylibcugraph import louvain as pylibcugraph_ecg
+from pylibcugraph import ecg as pylibcugraph_ecg
 from pylibcugraph import ResourceHandle
 
 
