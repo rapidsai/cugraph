@@ -63,4 +63,10 @@ from pylibcugraph.induced_subgraph import induced_subgraph
 
 from pylibcugraph.ecg import ecg
 
+from pylibcugraph.balanced_cut_clustering import balanced_cut_clustering
+
+from pylibcugraph.spectral_modularity_maximization import spectral_modularity_maximization
+
+from pylibcugraph.analyze_clustering_modularity import analyze_clustering_modularity
+
 __version__ = "23.04.00"
