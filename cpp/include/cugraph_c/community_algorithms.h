@@ -224,6 +224,29 @@ typedef struct {
   int32_t align_;
 } cugraph_clustering_result_t;
 
+
+/**
+ * @brief       Create clustering
+ *
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Graph to operate on
+ * @param [in]  vertex       Type erased array of vertex ids
+ * @param [in]  cluster      Corresponding type erased array of the vertex ids
+ * @param [out] clustering   Opaque pointer to clustering
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_create_clustering(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* vertex,
+  const cugraph_type_erased_device_array_view_t* cluster,
+  cugraph_clustering_result_t** clustering,
+  cugraph_error_t** error);
+
+
 /**
  * @brief   Balanced cut clustering
  *
@@ -376,6 +399,13 @@ cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_vertices(
  */
 cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_clusters(
   cugraph_clustering_result_t* result);
+
+/**
+ * @brief     Free clustering
+ *
+ * @param [in] clustering     The result from a sampling algorithm
+ */
+void cugraph_clustering_free(cugraph_clustering_result_t* clustering);
 
 /**
  * @brief     Free a clustering result

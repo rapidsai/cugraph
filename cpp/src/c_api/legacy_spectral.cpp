@@ -40,6 +40,57 @@ struct cugraph_clustering_result_t {
 
 namespace {
 
+struct create_clustering_functor : public cugraph::c_api::abstract_functor {
+  raft::handle_t const& handle_;
+  cugraph::c_api::cugraph_graph_t* graph_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_;
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* cluster_;
+  cugraph::c_api::cugraph_clustering_result_t* result_{};
+
+  create_clustering_functor(::cugraph_resource_handle_t const* handle,
+                            ::cugraph_graph_t* graph,
+                            ::cugraph_type_erased_device_array_view_t const* vertex,
+                            ::cugraph_type_erased_device_array_view_t const* cluster)
+    : abstract_functor(),
+      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      vertex_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertex)),
+      cluster_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(cluster))
+  {
+  }
+
+  template <typename vertex_t,
+            typename edge_t,
+            typename weight_t,
+            typename edge_type_type_t,
+            bool store_transposed,
+            bool multi_gpu>
+  void operator()()
+  {
+    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
+      unsupported();
+    } else {
+      rmm::device_uvector<vertex_t> vertex_copy(vertex_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> cluster_copy(cluster_->size_, handle_.get_stream());
+
+      raft::copy(
+        vertex_copy.data(), vertex_->as_type<vertex_t>(), vertex_->size_, handle_.get_stream());
+      raft::copy(
+        cluster_copy.data(), cluster_->as_type<vertex_t>(), cluster_->size_, handle_.get_stream());
+
+      if constexpr (multi_gpu) {
+        unsupported();
+      }
+
+      result_ = new cugraph::c_api::cugraph_clustering_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_copy, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(cluster_copy, graph_->vertex_type_)};
+    }
+  }
+};
+
 struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_;
@@ -452,6 +503,46 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
 };
 
 }  // namespace
+
+extern "C" cugraph_error_code_t cugraph_create_clustering(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* vertex,
+  const cugraph_type_erased_device_array_view_t* cluster,
+  cugraph_clustering_result_t** clustering,
+  cugraph_error_t** error)
+{
+
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertex)
+        ->type_,
+    CUGRAPH_INVALID_INPUT,
+    "vertex type of graph and vertex must match",
+    *error);
+  // FIXME: This might nor be necessary
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(cluster)
+        ->type_,
+    CUGRAPH_INVALID_INPUT,
+    "vertex type of graph and cluster must match",
+    *error);
+
+  create_clustering_functor functor(handle, graph, vertex, cluster);
+
+  return cugraph::c_api::run_algorithm(graph, functor, clustering, error);
+}
+
+extern "C" void cugraph_clustering_free(cugraph_clustering_result_t* clustering)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_clustering_result_t*>(clustering);
+  delete internal_pointer->vertices_;
+  delete internal_pointer->clusters_;
+  delete internal_pointer;
+}
+
+
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_vertices(
   cugraph_clustering_result_t* result)
