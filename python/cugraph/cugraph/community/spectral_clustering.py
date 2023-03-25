@@ -16,6 +16,13 @@ from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
+from pylibcugraph import (
+    balanced_cut_clustering as pylibcugraph_balanced_cut_clustering,
+    spectral_modularity_maximization as pylibcugraph_spectral_modularity_maximization,
+    analyze_clustering_modularity as pylibcugraph_analyze_clustering_modularity,
+)
+from pylibcugraph import ResourceHandle
+import cudf
 
 
 def spectralBalancedCutClustering(
@@ -82,32 +89,21 @@ def spectralBalancedCutClustering(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # Renumber the vertices so that they are contiguous (required)
-    # FIXME: renumber needs to be set to 'True' at the graph creation
-    # but there is nway to track that.
-    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
-    if not G.renumbered:
-        edgelist = G.edgelist.edgelist_df
-        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
-            edgelist, ["src"], ["dst"]
-        )
-        renumbered_src_col_name = renumber_map.renumbered_src_col_name
-        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
-        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
-            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
-        )
-        G.properties.renumbered = True
-        G.renumber_map = renumber_map
-
-    df = spectral_clustering_wrapper.spectralBalancedCutClustering(
-        G,
+    vertex, partition = pylibcugraph_balanced_cut_clustering(
+        ResourceHandle(),
+        G._plc_graph,
         num_clusters,
         num_eigen_vects,
         evs_tolerance,
         evs_max_iter,
         kmean_tolerance,
         kmean_max_iter,
+        do_expensive_check=False,
     )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["cluster"] = partition
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -178,35 +174,23 @@ def spectralModularityMaximizationClustering(
 
     """
 
-    # Error checking in C++ code
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # Renumber the vertices so that they are contiguous (required)
-    # FIXME: renumber needs to be set to 'True' at the graph creation
-    # but there is nway to track that.
-    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
-    if not G.renumbered:
-        edgelist = G.edgelist.edgelist_df
-        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
-            edgelist, ["src"], ["dst"]
-        )
-        renumbered_src_col_name = renumber_map.renumbered_src_col_name
-        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
-        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
-            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
-        )
-        G.properties.renumbered = True
-        G.renumber_map = renumber_map
-
-    df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
-        G,
+    vertex, partition = pylibcugraph_spectral_modularity_maximization(
+        ResourceHandle(),
+        G._plc_graph,
         num_clusters,
         num_eigen_vects,
         evs_tolerance,
         evs_max_iter,
         kmean_tolerance,
         kmean_max_iter,
+        do_expensive_check=False,
     )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["cluster"] = partition
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -273,6 +257,7 @@ def analyzeClustering_modularity(
     # FIXME: renumber needs to be set to 'True' at the graph creation
     # but there is nway to track that.
     # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
+    """
     if not G.renumbered:
         edgelist = G.edgelist.edgelist_df
         renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
@@ -290,12 +275,30 @@ def analyzeClustering_modularity(
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
+    """
 
+
+    score = 0.0
+
+    if G.renumbered:
+        clustering = G.add_internal_vertex_id(
+            clustering, "vertex", vertex_col_name, drop=True
+        )
     clustering = clustering.sort_values("vertex")
-
+    score = pylibcugraph_analyze_clustering_modularity(
+        ResourceHandle(),
+        G._plc_graph,
+        n_clusters,
+        clustering["vertex"],
+        clustering["cluster"],
+        score,
+    )
+    """
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
         G, n_clusters, clustering[cluster_col_name]
     )
+    """
+    
 
     return score
 
