@@ -548,8 +548,6 @@ refine_clustering(
         handle.get_comms(), nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
     }
 
-    std::cout << "#+ve : " << nr_valid_tuples << std::endl;
-
     if (nr_valid_tuples == 0) { break; }
 
     //

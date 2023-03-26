@@ -101,25 +101,17 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
 // FIXME: delete, temporary code for debugging
 #if 1
-  std::cout << "#V: " << current_graph_view.local_vertex_partition_range_size() << std::endl;
-  std::cout << "#E: " << graph_view.local_edge_partition_view(0).number_of_edges() << std::endl;
+  std::cout << "#V: " << current_graph_view.number_of_vertices() << std::endl;
+  std::cout << "#E: " << current_graph_view.number_of_edges() << std::endl;
 
-  if (graph_view_t::is_multi_gpu) {
-    std::cout << "Multi GPU graph" << std::endl;
-  } else {
-    std::cout << "Singple GPU graph" << std::endl;
-  }
+  std::cout << (graph_view_t::is_multi_gpu ? "MG Graph" : "SG Graph") << std::endl;
 
-  if (multi_gpu) {
-    std::cout << "multi_gpu = true" << std::endl;
-  } else {
-    std::cout << "multi_gpu = false" << std::endl;
-  }
 #endif
 
   bool first_iteration = true;
   while (dendrogram->num_levels() < max_level) {
     // if (current_graph_view.number_of_vertices() == prev_nr_of_vertices) { break; }
+
     //
     //  Initialize every cluster to reference each vertex to itself
     //
@@ -136,18 +128,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     if (debug) {
       CUDA_TRY(cudaDeviceSynchronize());
-
-      std::cout << "---- Graph -----: " << max_level << std::endl;
+      std::cout << "---- Graph -----" << std::endl;
       raft::print_device_vector("offsets: ", offsets.data(), offsets.size(), std::cout);
       raft::print_device_vector("indices: ", indices.data(), indices.size(), std::cout);
       raft::print_device_vector("edges  : ",
                                 (*edge_weight_view).value_firsts()[0],
                                 (*edge_weight_view).edge_counts()[0],
                                 std::cout);
-
-      CUDA_TRY(cudaDeviceSynchronize());
-      std::cout << "---------------- outer loop -------------------: " << max_level << std::endl;
-      std::cout << "dendrogram->num_levels(): " << dendrogram->num_levels() << std::endl;
     }
 #endif
 
@@ -458,9 +445,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         handle.get_comms(), nr_unique_clusters, raft::comms::op_t::SUM, handle.get_stream());
     }
 
-    std::cout << "nr_unique_clusters: " << nr_unique_clusters
-              << ", current_graph_view.number_of_vertices(): "
-              << current_graph_view.number_of_vertices() << std::endl;
+    std::cout << "#clusters: " << nr_unique_clusters
+              << ", #vertices(): " << current_graph_view.number_of_vertices() << std::endl;
 
     if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
 #endif
