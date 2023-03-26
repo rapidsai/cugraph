@@ -104,6 +104,9 @@ rmm::device_uvector<vertex_t> compute_mis(
       if (out_degrees[v_offset] == 0) { ranks[v_offset] = std::numeric_limits<vertex_t>::lowest(); }
     });
 
+  out_degrees.resize(0, handle.get_stream());
+  out_degrees.shrink_to_fit(handle.get_stream());
+
   size_t loop_counter = 0;
   while (true) {
     loop_counter++;
@@ -278,6 +281,7 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), last),
                               handle.get_stream());
+    remaining_vertices.shrink_to_fit(handle.get_stream());
 
     vertex_t nr_remaining_vertices_to_check = remaining_vertices.size();
     if (multi_gpu) {
@@ -307,6 +311,8 @@ rmm::device_uvector<vertex_t> compute_mis(
     mis.begin(),
     [] __device__(auto v_rank) { return v_rank >= std::numeric_limits<vertex_t>::max(); });
 
+  ranks.resize(0, handle.get_stream());
+  ranks.shrink_to_fit(handle.get_stream());
   return mis;
 }
 }  // namespace detail

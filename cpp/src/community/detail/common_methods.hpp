@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
@@ -70,14 +70,6 @@ void timer_display_and_clear(raft::handle_t const& handle,
   }
 }
 #endif
-
-template <typename map_key_t, typename map_value_t, bool multi_gpu>
-rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
-  raft::handle_t const& handle,
-
-  rmm::device_uvector<map_key_t>& map_keys,
-  rmm::device_uvector<map_value_t>& map_values,
-  rmm::device_uvector<map_key_t>& keys_to_lookup);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 weight_t compute_modularity(

@@ -85,9 +85,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());     // #C
   rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());  // #C
 
-  rmm::device_uvector<vertex_t> tmp_cluster_keys(0, handle.get_stream());     // #C
-  rmm::device_uvector<weight_t> tmp_cluster_weights(0, handle.get_stream());  // #C
-
   //
   // Bookkeeping per vertex
   //
@@ -96,7 +93,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   rmm::device_uvector<vertex_t> louvain_of_refined_partition(0, handle.get_stream());     // #V
 
   //
-  // Edge source cache
+  // Edge source/destination cache
   //
   edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
   edge_src_property_t<graph_view_t, vertex_t> src_louvain_assignment_cache(handle);
@@ -122,7 +119,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   bool first_iteration = true;
   while (dendrogram->num_levels() < max_level) {
-    if (current_graph_view.number_of_vertices() == prev_nr_of_vertices) { break; }
+    // if (current_graph_view.number_of_vertices() == prev_nr_of_vertices) { break; }
     //
     //  Initialize every cluster to reference each vertex to itself
     //
@@ -190,13 +187,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
       first_iteration = false;
     } else {
-      tmp_cluster_weights.resize(vertex_weights.size(), handle.get_stream());
+      rmm::device_uvector<weight_t> tmp_weights_buffer(vertex_weights.size(),
+                                                       handle.get_stream());  // #C
+
       raft::copy(dendrogram->current_level_begin(),
                  louvain_of_refined_partition.begin(),
                  louvain_of_refined_partition.size(),
                  handle.get_stream());
 
-      raft::copy(tmp_cluster_weights.begin(),
+      raft::copy(tmp_weights_buffer.begin(),
                  vertex_weights.begin(),
                  vertex_weights.size(),
                  handle.get_stream());
@@ -204,14 +203,20 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       thrust::sort_by_key(handle.get_thrust_policy(),
                           louvain_of_refined_partition.begin(),
                           louvain_of_refined_partition.end(),
-                          tmp_cluster_weights.begin());
+                          tmp_weights_buffer.begin());
 
       auto pair_of_iterators_end = thrust::reduce_by_key(handle.get_thrust_policy(),
                                                          louvain_of_refined_partition.begin(),
                                                          louvain_of_refined_partition.end(),
-                                                         tmp_cluster_weights.begin(),
+                                                         tmp_weights_buffer.begin(),
                                                          cluster_keys.begin(),
                                                          cluster_weights.begin());
+
+      louvain_of_refined_partition.resize(0, handle.get_stream());
+      louvain_of_refined_partition.shrink_to_fit(handle.get_stream());
+
+      tmp_weights_buffer.resize(0, handle.get_stream());
+      tmp_weights_buffer.shrink_to_fit(handle.get_stream());
 
       cluster_keys.resize(
         static_cast<size_t>(thrust::distance(cluster_keys.begin(), pair_of_iterators_end.first)),
@@ -219,26 +224,36 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       cluster_weights.resize(static_cast<size_t>(thrust::distance(cluster_weights.begin(),
                                                                   pair_of_iterators_end.second)),
                              handle.get_stream());
-      tmp_cluster_weights.resize(0, handle.get_stream());
+
+      cluster_keys.shrink_to_fit(handle.get_stream());
+      cluster_weights.shrink_to_fit(handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
-        std::tie(tmp_cluster_keys, tmp_cluster_weights) =
+        rmm::device_uvector<vertex_t> tmp_keys_buffer(0, handle.get_stream());  // #C
+
+        std::tie(tmp_keys_buffer, tmp_weights_buffer) =
           shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
             handle, std::move(cluster_keys), std::move(cluster_weights));
 
-        cluster_keys.resize(tmp_cluster_keys.size(), handle.get_stream());
-        cluster_weights.resize(tmp_cluster_weights.size(), handle.get_stream());
-
         thrust::sort_by_key(handle.get_thrust_policy(),
-                            tmp_cluster_keys.begin(),
-                            tmp_cluster_keys.end(),
-                            tmp_cluster_weights.begin());
+                            tmp_keys_buffer.begin(),
+                            tmp_keys_buffer.end(),
+                            tmp_weights_buffer.begin());
+
+        cluster_keys.resize(tmp_keys_buffer.size(), handle.get_stream());
+        cluster_weights.resize(tmp_weights_buffer.size(), handle.get_stream());
+
         pair_of_iterators_end = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                      tmp_cluster_keys.begin(),
-                                                      tmp_cluster_keys.end(),
-                                                      tmp_cluster_weights.begin(),
+                                                      tmp_keys_buffer.begin(),
+                                                      tmp_keys_buffer.end(),
+                                                      tmp_weights_buffer.begin(),
                                                       cluster_keys.begin(),
                                                       cluster_weights.begin());
+
+        tmp_keys_buffer.resize(0, handle.get_stream());
+        tmp_keys_buffer.shrink_to_fit(handle.get_stream());
+        tmp_weights_buffer.resize(0, handle.get_stream());
+        tmp_weights_buffer.shrink_to_fit(handle.get_stream());
 
         cluster_keys.resize(
           static_cast<size_t>(thrust::distance(cluster_keys.begin(), pair_of_iterators_end.first)),
@@ -246,6 +261,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         cluster_weights.resize(static_cast<size_t>(thrust::distance(cluster_weights.begin(),
                                                                     pair_of_iterators_end.second)),
                                handle.get_stream());
+
+        cluster_keys.shrink_to_fit(handle.get_stream());
+        cluster_weights.shrink_to_fit(handle.get_stream());
       }
     }
 
@@ -289,7 +307,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                louvain_assignment_for_vertices.begin(),
                                dst_louvain_assignment_cache);
 
-      // Couldn't we clear louvain_assignment_for_vertices here?
+      louvain_assignment_for_vertices.resize(0, handle.get_stream());
+      louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
@@ -391,6 +410,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     if (cur_Q <= best_modularity) { break; }
     best_modularity = cur_Q;
 
+#if 1
     //
     // Count number of unique clusters (aka partitions) and check if it's same as
     // number of vertices in the current graph
@@ -414,6 +434,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                             copied_louvain_partition.end())));
 
     copied_louvain_partition.resize(nr_unique_clusters, handle.get_stream());
+    copied_louvain_partition.shrink_to_fit(handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
       copied_louvain_partition =
@@ -430,19 +451,19 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                               copied_louvain_partition.begin(),
                                                               copied_louvain_partition.end())));
 
+      copied_louvain_partition.resize(0, handle.get_stream());
+      copied_louvain_partition.shrink_to_fit(handle.get_stream());
+
       nr_unique_clusters = host_scalar_allreduce(
         handle.get_comms(), nr_unique_clusters, raft::comms::op_t::SUM, handle.get_stream());
     }
 
-// FIXME: delete, temporary code for debugging
-#if 1
-
     std::cout << "nr_unique_clusters: " << nr_unique_clusters
               << ", current_graph_view.number_of_vertices(): "
               << current_graph_view.number_of_vertices() << std::endl;
-#endif
 
     if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
+#endif
 
     //
     // Refine the current partition
@@ -508,6 +529,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
       (*coarsen_graph_edge_property).view());
 
+    // After call to relabel, cluster_assignment contains louvain partition of the aggregated graph
     relabel<vertex_t, multi_gpu>(
       handle,
       std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
@@ -517,7 +539,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       (*cluster_assignment).size(),
       false);
 
-    // After call to relabel, cluster_assignment contains louvain partition of the aggregated graph
     louvain_of_refined_partition.resize(current_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
 
@@ -525,6 +546,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                (*cluster_assignment).begin(),
                (*cluster_assignment).size(),
                handle.get_stream());
+
+    if (cluster_assignment) {
+      (*cluster_assignment).resize(0, handle.get_stream());
+      (*cluster_assignment).shrink_to_fit(handle.get_stream());
+    }
 
 #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);

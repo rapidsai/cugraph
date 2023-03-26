@@ -327,13 +327,9 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-// /raid/charlesh/datasets/test/datasets/europe_osm.mtx
-// /raid/charlesh/datasets/test/datasets/hollywood.mtx
-// /raid/charlesh/datasets/test/datasets/ljournal-2008.mtx
-// /raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx
+
 // /raid/charlesh/datasets/test/datasets/as-Skitter.mtx
 // /raid/charlesh/datasets/test/datasets/cit-Patents.mtx
-// /raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx
 // /raid/charlesh/datasets/test/datasets/coPapersCiteseer.mtx
 // /raid/charlesh/datasets/test/datasets/smallworld.mtx
 // /raid/charlesh/datasets/test/datasets/webbase-1M.mtx
@@ -352,6 +348,20 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_DBLP, /* note that the test filename can be overridden in benchmarking
+                          (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking

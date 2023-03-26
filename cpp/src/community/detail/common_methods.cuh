@@ -188,61 +188,64 @@ weight_t compute_modularity(
   return Q;
 }
 
-template <typename map_key_t, typename map_value_t, bool multi_gpu>
-rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
-  raft::handle_t const& handle,
-  rmm::device_uvector<map_key_t>& map_keys,
-  rmm::device_uvector<map_value_t>& map_values,
-  rmm::device_uvector<map_key_t>& keys_to_lookup)
-{
-  // static_assert(std::is_integral<map_key_t>::value);
-  static_assert(std::is_same<map_key_t, std::int32_t>::value ||
-                std::is_same<map_key_t, std::int64_t>::value);
+// template <typename map_key_t, typename map_value_t, bool multi_gpu>
+// rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
+//   raft::handle_t const& handle,
+//   rmm::device_uvector<map_key_t>& map_keys,
+//   rmm::device_uvector<map_value_t>& map_values,
+//   rmm::device_uvector<map_key_t>& keys_to_lookup)
+// {
+//   static_assert(
+//     std::is_same<map_key_t, std::uint8_t>::value || std::is_same<map_key_t, std::uint16_t>::value
+//     || std::is_same<map_key_t, std::uint32_t>::value || std::is_same<map_key_t,
+//     std::uint64_t>::value || std::is_same<map_key_t, std::int8_t>::value ||
+//     std::is_same<map_key_t, std::int16_t>::value || std::is_same<map_key_t, std::int32_t>::value
+//     || std::is_same<map_key_t, std::int64_t>::value);
 
-  static_assert(std::is_arithmetic<map_value_t>::value);
+//   static_assert(std::is_arithmetic<map_value_t>::value);
 
-  rmm::device_uvector<map_value_t> values_for_sought_keys(0, handle.get_stream());
+//   rmm::device_uvector<map_value_t> values_for_sought_keys(0, handle.get_stream());
 
-  if constexpr (multi_gpu) {
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<map_key_t> vertex_to_gpu_id_op{
-      handle.get_comms().get_size()};
+//   if constexpr (multi_gpu) {
+//     cugraph::detail::compute_gpu_id_from_ext_vertex_t<map_key_t> vertex_to_gpu_id_op{
+//       handle.get_comms().get_size()};
 
-    kv_store_t<map_key_t, map_value_t, false> cluster_key_weight_map(
-      map_keys.begin(),
-      map_keys.end(),
-      map_values.data(),
-      invalid_vertex_id<map_key_t>::value,
-      // std::is_floating_point<map_value_t>::value
-      std::is_floating_point_v<map_value_t> ? std::numeric_limits<map_value_t>::max()
-                                            : invalid_vertex_id<map_key_t>::value,
-      handle.get_stream());
-    values_for_sought_keys = cugraph::collect_values_for_keys(handle,
-                                                              cluster_key_weight_map.view(),
-                                                              keys_to_lookup.begin(),
-                                                              keys_to_lookup.end(),
-                                                              vertex_to_gpu_id_op);
-  } else {
-    // sort so we can use lower_bound in the transform function
-    thrust::sort_by_key(
-      handle.get_thrust_policy(), map_keys.begin(), map_keys.end(), map_values.begin());
+//     kv_store_t<map_key_t, map_value_t, false> cluster_key_weight_map(
+//       map_keys.begin(),
+//       map_keys.end(),
+//       map_values.data(),
+//       invalid_vertex_id<map_key_t>::value,
+//       // std::is_floating_point<map_value_t>::value
+//       std::is_floating_point_v<map_value_t> ? std::numeric_limits<map_value_t>::max()
+//                                             : invalid_vertex_id<map_key_t>::value,
+//       handle.get_stream());
+//     values_for_sought_keys = cugraph::collect_values_for_keys(handle,
+//                                                               cluster_key_weight_map.view(),
+//                                                               keys_to_lookup.begin(),
+//                                                               keys_to_lookup.end(),
+//                                                               vertex_to_gpu_id_op);
+//   } else {
+//     // sort so we can use lower_bound in the transform function
+//     thrust::sort_by_key(
+//       handle.get_thrust_policy(), map_keys.begin(), map_keys.end(), map_values.begin());
 
-    // for each vertex, look up the vertex weight of the current cluster it is assigned to
-    values_for_sought_keys.resize(keys_to_lookup.size(), handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      keys_to_lookup.begin(),
-                      keys_to_lookup.end(),
-                      values_for_sought_keys.begin(),
-                      [d_cluster_weights = map_values.data(),
-                       d_cluster_keys    = map_keys.data(),
-                       num_clusters      = map_keys.size()] __device__(map_key_t cluster) {
-                        auto pos = thrust::lower_bound(
-                          thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
-                        return d_cluster_weights[pos - d_cluster_keys];
-                      });
-  }
+//     // for each vertex, look up the vertex weight of the current cluster it is assigned to
+//     values_for_sought_keys.resize(keys_to_lookup.size(), handle.get_stream());
+//     thrust::transform(handle.get_thrust_policy(),
+//                       keys_to_lookup.begin(),
+//                       keys_to_lookup.end(),
+//                       values_for_sought_keys.begin(),
+//                       [d_cluster_weights = map_values.data(),
+//                        d_cluster_keys    = map_keys.data(),
+//                        num_clusters      = map_keys.size()] __device__(map_key_t cluster) {
+//                         auto pos = thrust::lower_bound(
+//                           thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
+//                         return d_cluster_weights[pos - d_cluster_keys];
+//                       });
+//   }
 
-  return values_for_sought_keys;
-}
+//   return values_for_sought_keys;
+// }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<
@@ -273,6 +276,10 @@ graph_contraction(raft::handle_t const& handle,
     labels.data(),
     labels.size(),
     false);
+  
+  numbering_indices.resize(0, handle.get_stream());
+  numbering_indices.shrink_to_fit(handle.get_stream());
+
   return std::make_tuple(
     std::move(new_graph), std::move(new_edge_weights), std::move(numbering_map));
 }
@@ -298,10 +305,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
 {
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
-  rmm::device_uvector<weight_t> vertex_cluster_weights_v =
-    lookup_primitive_values_for_keys<vertex_t, weight_t, multi_gpu>(
-      handle, cluster_keys_v, cluster_weights_v, next_clusters_v);
-
+  rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
     src_cluster_weights(handle);
 
@@ -336,6 +340,26 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights);
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
+  } else {
+    // sort so we can use lower_bound in the transform function
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        cluster_keys_v.begin(),
+                        cluster_keys_v.end(),
+                        cluster_weights_v.begin());
+
+    // for each vertex, look up the vertex weight of the current cluster it is assigned to
+    vertex_cluster_weights_v.resize(next_clusters_v.size(), handle.get_stream());
+    thrust::transform(handle.get_thrust_policy(),
+                      next_clusters_v.begin(),
+                      next_clusters_v.end(),
+                      vertex_cluster_weights_v.begin(),
+                      [d_cluster_weights = cluster_weights_v.data(),
+                       d_cluster_keys    = cluster_keys_v.data(),
+                       num_clusters      = cluster_keys_v.size()] __device__(vertex_t cluster) {
+                        auto pos = thrust::lower_bound(
+                          thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
+                        return d_cluster_weights[pos - d_cluster_keys];
+                      });
   }
 
   rmm::device_uvector<weight_t> old_cluster_sum_v(graph_view.local_vertex_partition_range_size(),
@@ -415,7 +439,6 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     invalid_vertex_id<vertex_t>::value,
     std::numeric_limits<weight_t>::max(),
     handle.get_stream());
-
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     handle,
     graph_view,

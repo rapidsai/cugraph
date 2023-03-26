@@ -160,10 +160,8 @@ refine_clustering(
                                                                std::numeric_limits<weight_t>::max(),
                                                                handle.get_stream());
 
-  //===>
   cluster_keys_v.resize(0, handle.get_stream());
   cluster_weights_v.resize(0, handle.get_stream());
-  //<==
 
   cluster_keys_v.shrink_to_fit(handle.get_stream());
   cluster_weights_v.shrink_to_fit(handle.get_stream());
@@ -701,10 +699,9 @@ refine_clustering(
   src_louvain_cluster_weight_cache.clear(handle);
   src_wdeg_and_cut_to_Louvain_cache.clear(handle);
 
-  //===>
   louvain_assignment.resize(0, handle.get_stream());
   louvain_assignment.shrink_to_fit(handle.get_stream());
-  //<====
+
   singleton_and_connected_flags.resize(0, handle.get_stream());
   singleton_and_connected_flags.shrink_to_fit(handle.get_stream());
   vertex_cluster_weights_v.resize(0, handle.get_stream());
