@@ -69,6 +69,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     input_edge_weight_view);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_property(handle);
 
+  vertex_t prev_nr_of_vertices{0};
+
 #ifdef TIMING
   HighResTimer hr_timer{};
 #endif
@@ -120,6 +122,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   bool first_iteration = true;
   while (dendrogram->num_levels() < max_level) {
+    if (current_graph_view.number_of_vertices() == prev_nr_of_vertices) { break; }
     //
     //  Initialize every cluster to reference each vertex to itself
     //
@@ -385,6 +388,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 #endif
 
     if (no_movement) { break; }
+    if (cur_Q <= best_modularity) { break; }
     best_modularity = cur_Q;
 
     //
@@ -470,10 +474,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                 dst_louvain_assignment_cache,
                                 up_down);
 
-// Clear buffer and contract the graph
-#ifdef TIMING
-    detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
-#endif
+    // Clear buffer and contract the graph
 
     cluster_keys.resize(0, handle.get_stream());
     cluster_weights.resize(0, handle.get_stream());
@@ -487,10 +488,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     src_louvain_assignment_cache.clear(handle);
     dst_louvain_assignment_cache.clear(handle);
 
+#ifdef TIMING
+    detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
+#endif
     // Create aggregate graph based on refined (leiden) partition
 
     std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
 
+    prev_nr_of_vertices = current_graph_view.number_of_vertices();
     std::tie(current_graph, coarsen_graph_edge_property, cluster_assignment) =
       cugraph::detail::graph_contraction(
         handle,
