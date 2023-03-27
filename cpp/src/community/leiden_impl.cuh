@@ -69,7 +69,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     input_edge_weight_view);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_property(handle);
 
-  vertex_t prev_nr_of_vertices{0};
+  // vertex_t prev_nr_of_vertices{0};
 
 #ifdef TIMING
   HighResTimer hr_timer{};
@@ -312,9 +312,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     // To avoid the potential of having two vertices swap cluster_keys
     // we will only allow vertices to move up (true) or down (false)
     // during each iteration of the loop
-    bool up_down             = true;
-    bool no_movement         = true;
-    int32_t inner_loop_count = 0;
+    bool up_down     = true;
+    bool no_movement = true;
     while (new_Q > (cur_Q + 1e-4)) {
       cur_Q = new_Q;
 
@@ -446,7 +445,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     }
 
     std::cout << "#clusters: " << nr_unique_clusters
-              << ", #vertices(): " << current_graph_view.number_of_vertices() << std::endl;
+              << ", #vertices: " << current_graph_view.number_of_vertices() << std::endl;
 
     if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
 #endif
@@ -502,7 +501,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
 
-    prev_nr_of_vertices = current_graph_view.number_of_vertices();
+    // prev_nr_of_vertices = current_graph_view.number_of_vertices();
     std::tie(current_graph, coarsen_graph_edge_property, cluster_assignment) =
       cugraph::detail::graph_contraction(
         handle,
