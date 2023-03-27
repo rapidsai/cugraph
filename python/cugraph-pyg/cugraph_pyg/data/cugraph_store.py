@@ -229,10 +229,7 @@ class EXPERIMENTAL__CuGraphStore:
                 num_nodes_dict : dict (Required)
                     A dictionary mapping each node type to the count of nodes
                     of that type in the graph.
-        <<<<<<< HEAD
 
-        =======
-        >>>>>>> update-pyg-recipe
                 backend : ('torch', 'cupy') (Optional, default = 'torch')
                     The backend that manages tensors (default = 'torch')
                     Should usually be 'torch' ('torch', 'cupy' supported).
