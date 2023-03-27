@@ -16,6 +16,7 @@ primitives in cugraph-ops"""
 from __future__ import annotations
 from typing import Optional
 
+from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -24,7 +25,7 @@ nn = import_optional("torch.nn")
 ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
-class GATConv(nn.Module):
+class GATConv(BaseConv):
     r"""Graph attention layer from `Graph Attention Network
     <https://arxiv.org/pdf/1710.10903.pdf>`__, with the sparse aggregation
     accelerated by cugraph-ops.
@@ -79,7 +80,7 @@ class GATConv(nn.Module):
             [ 1.6477, -1.9986],
             [ 1.1138, -1.9302]]], device='cuda:0', grad_fn=<ViewBackward0>)
     """
-    MAX_IN_DEGREE_MFG = 500
+    MAX_IN_DEGREE_MFG = 200
 
     def __init__(
         self,
@@ -144,7 +145,6 @@ class GATConv(nn.Module):
             :math:`H` is the number of heads, and :math:`D_{out}` is size of
             output feature.
         """
-
         offsets, indices, _ = g.adj_sparse("csc")
 
         if g.is_block:
@@ -156,12 +156,7 @@ class GATConv(nn.Module):
                     offsets, indices, max_in_degree, g.num_src_nodes()
                 )
             else:
-                offsets_fg = torch.empty(
-                    g.num_src_nodes() + 1, dtype=offsets.dtype, device=offsets.device
-                )
-                offsets_fg[: offsets.numel()] = offsets
-                offsets_fg[offsets.numel() :] = offsets[-1]
-
+                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
                 _graph = ops_torch.StaticCSC(offsets_fg, indices)
         else:
             _graph = ops_torch.StaticCSC(offsets, indices)

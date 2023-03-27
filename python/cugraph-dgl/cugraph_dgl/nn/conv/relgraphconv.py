@@ -17,6 +17,7 @@ from __future__ import annotations
 import math
 from typing import Optional
 
+from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -25,7 +26,7 @@ nn = import_optional("torch.nn")
 ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
-class RelGraphConv(nn.Module):
+class RelGraphConv(BaseConv):
     r"""An accelerated relational graph convolution layer from `Modeling
     Relational Data with Graph Convolutional Networks
     <https://arxiv.org/abs/1703.06103>`__ that leverages the highly-optimized
@@ -178,11 +179,9 @@ class RelGraphConv(nn.Module):
         torch.Tensor
             New node features. Shape: :math:`(|V|, D_{out})`.
         """
-        # Create csc-representation and cast etypes to int32.
         offsets, indices, edge_ids = g.adj_sparse("csc")
         edge_types_perm = etypes[edge_ids.long()].int()
 
-        # Create cugraph-ops graph.
         if g.is_block:
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
@@ -197,12 +196,7 @@ class RelGraphConv(nn.Module):
                     self.num_rels,
                 )
             else:
-                offsets_fg = torch.empty(
-                    g.num_src_nodes() + 1, dtype=offsets.dtype, device=offsets.device
-                )
-                offsets_fg[: offsets.numel()] = offsets
-                offsets_fg[offsets.numel() :] = offsets[-1]
-
+                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
                 _graph = ops_torch.StaticHeteroCSC(
                     offsets_fg,
                     indices,

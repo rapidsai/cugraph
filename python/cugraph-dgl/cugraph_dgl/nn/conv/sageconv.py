@@ -16,6 +16,7 @@ cugraph-ops"""
 from __future__ import annotations
 from typing import Optional
 
+from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
@@ -24,7 +25,7 @@ nn = import_optional("torch.nn")
 ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
-class SAGEConv(nn.Module):
+class SAGEConv(BaseConv):
     r"""An accelerated GraphSAGE layer from `Inductive Representation Learning
     on Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__ that leverages the
     highly-optimized aggregation primitives in cugraph-ops.
@@ -132,12 +133,7 @@ class SAGEConv(nn.Module):
                     offsets, indices, max_in_degree, g.num_src_nodes()
                 )
             else:
-                offsets_fg = torch.empty(
-                    g.num_src_nodes() + 1, dtype=offsets.dtype, device=offsets.device
-                )
-                offsets_fg[: offsets.numel()] = offsets
-                offsets_fg[offsets.numel() :] = offsets[-1]
-
+                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
                 _graph = ops_torch.StaticCSC(offsets_fg, indices)
         else:
             _graph = ops_torch.StaticCSC(offsets, indices)
