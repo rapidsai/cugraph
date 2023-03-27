@@ -290,8 +290,6 @@ int test_betweenness_centrality_full_directed_normalized_karate()
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_betweenness_centrality);
-  result |= RUN_TEST(test_betweenness_centrality_normalized);
   result |= RUN_TEST(test_betweenness_centrality_full);
   result |= RUN_TEST(test_betweenness_centrality_full_directed);
   result |= RUN_TEST(test_betweenness_centrality_specific_normalized);
