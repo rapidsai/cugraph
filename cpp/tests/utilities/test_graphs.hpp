@@ -21,8 +21,12 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/legacy/functions.hpp>  // legacy coo_to_csr
 
+#include <raft/random/rng_state.hpp>
+
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
+
+#include <memory>
 
 namespace cugraph {
 namespace test {
@@ -259,6 +263,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     // 2. generate edges
+    raft::random::RngState rng_state{seed_};
 
     std::vector<rmm::device_uvector<vertex_t>> src_partitions{};
     std::vector<rmm::device_uvector<vertex_t>> dst_partitions{};
@@ -273,21 +278,18 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
       auto [tmp_src_v, tmp_dst_v] =
         cugraph::generate_rmat_edgelist<vertex_t>(handle,
+                                                  rng_state,
                                                   scale_,
                                                   partition_edge_counts[i],
                                                   a_,
                                                   b_,
                                                   c_,
-                                                  seed_ + id,
                                                   undirected_ ? true : false);
 
       std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
       if (weight_partitions) {
         tmp_weights_v =
           std::make_optional<rmm::device_uvector<weight_t>>(tmp_src_v.size(), handle.get_stream());
-
-        // FIXME: This should be refactored to create a single RngState and reuse it
-        raft::random::RngState rng_state{seed_ + num_partitions + id};
 
         cugraph::detail::uniform_random_fill(handle.get_stream(),
                                              tmp_weights_v->data(),
