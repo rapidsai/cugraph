@@ -21,9 +21,6 @@ set -u
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
-PY_VER=${RAPIDS_PY_VERSION//./}
-LIBRAFT_CHANNEL=$(rapids-get-artifact ci/raft/pull-request/1333/c60c0cb/raft_conda_cpp_cuda11_$(arch).tar.gz)
-RAFT_CHANNEL=$(rapids-get-artifact ci/raft/pull-request/1333/c60c0cb/raft_conda_python_cuda11_${PY_VER}_$(arch).tar.gz)
 
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}
 RAPIDS_COVERAGE_DIR=${RAPIDS_COVERAGE_DIR:-"${PWD}/coverage-results"}
@@ -34,8 +31,6 @@ rapids-print-env
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
   --channel "${PYTHON_CHANNEL}" \
-  --channel "${LIBRAFT_CHANNEL}" \
-  --channel "${RAFT_CHANNEL}" \
   libcugraph \
   pylibcugraph \
   cugraph \
@@ -109,12 +104,69 @@ popd
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+<<<<<<< HEAD
+=======
+    # we are only testing in a single cuda version
+    # because of pytorch and rapids compatibilty problems
+    rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
+
+    # activate test_cugraph_dgl environment for dgl
+    set +u
+    conda activate test_cugraph_dgl
+    set -u
+    rapids-mamba-retry install \
+      --channel "${CPP_CHANNEL}" \
+      --channel "${PYTHON_CHANNEL}" \
+      --channel pytorch \
+      --channel pytorch-nightly \
+      --channel dglteam/label/cu117 \
+      --channel nvidia \
+      libcugraph \
+      pylibcugraph \
+      cugraph \
+      cugraph-dgl \
+      'dgl>=1.0' \
+      'pytorch>=2.0' \
+      'pytorch-cuda>=11.8'
+
+    rapids-print-env
+
+    rapids-logger "pytest cugraph_dgl (single GPU)"
+    pushd python/cugraph-dgl/tests
+    pytest \
+      --cache-clear \
+      --ignore=mg \
+      --ignore=nn \
+      --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
+      --cov-config=../../.coveragerc \
+      --cov=cugraph_dgl \
+      --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-dgl-coverage.xml" \
+      --cov-report=term \
+      .
+    popd
+
+    # Reactivate the test environment back
+    set +u
+    conda deactivate
+    conda activate test
+    set -u
+  else
+    rapids-logger "skipping cugraph_dgl pytest on ARM64"
+  fi
+else
+  rapids-logger "skipping cugraph_dgl pytest on CUDA!=11.8"
+fi
+
+if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
+  if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
+>>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
     rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
 
     # Temporarily allow unbound variables for conda activation.
     set +u
     conda activate test_cugraph_pyg
     set -u
+<<<<<<< HEAD
     
     # Install pytorch
     rapids-mamba-retry install \
@@ -130,6 +182,19 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
 
     rapids-print-env
 
+=======
+
+    # Install pytorch
+    rapids-mamba-retry install \
+      --force-reinstall \
+      --channel pyg \
+      --channel pytorch \
+      --channel nvidia \
+      'pyg=2.3' \
+      'pytorch>=2.0' \
+      'pytorch-cuda>=11.8'
+
+>>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
@@ -138,6 +203,11 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph \
       cugraph-pyg
 
+<<<<<<< HEAD
+=======
+    rapids-print-env
+
+>>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
     rapids-logger "pytest cugraph_pyg (single GPU)"
     pushd python/cugraph-pyg/cugraph_pyg
     # rmat is not tested because of multi-GPU testing
@@ -152,6 +222,16 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov-report=term \
       .
     popd
+<<<<<<< HEAD
+=======
+    
+    # Reactivate the test environment back
+    set +u
+    conda deactivate
+    conda activate test
+    set -u
+    
+>>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi
