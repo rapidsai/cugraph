@@ -271,12 +271,16 @@ class EXPERIMENTAL__CuGraphStore:
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
 
-        # Infer number of edges from the edge index dict
         construct_graph = True
         if isinstance(next(iter(G.values())), int):
-            num_edges_dict = G
+            # User has passed in the number of edges 
+            # (not the actual edge index), so the number of edges
+            # does not need to be counted.
+            num_edges_dict = dict(G) # make sure the cugraph store owns this dict
             construct_graph = False
         else:
+            # User has passed in the actual edge index, so the
+            # number of edges needs to be counted.
             num_edges_dict = {
                 pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G.items()
             }
