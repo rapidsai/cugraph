@@ -104,8 +104,6 @@ popd
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-<<<<<<< HEAD
-=======
     # we are only testing in a single cuda version
     # because of pytorch and rapids compatibilty problems
     rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_dgl
@@ -159,30 +157,12 @@ fi
 
 if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
   if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
->>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
     rapids-mamba-retry env create --force -f env.yaml -n test_cugraph_pyg
 
     # Temporarily allow unbound variables for conda activation.
     set +u
     conda activate test_cugraph_pyg
     set -u
-<<<<<<< HEAD
-    
-    # Install pytorch
-    rapids-mamba-retry install \
-      --force-reinstall \
-      --channel pytorch \
-      --channel pytorch-nightly \
-      --channel nvidia \
-      'pytorch>=2.0' \
-      'pytorch-cuda>=11.8'
-
-    # Install the nightly version of pyg
-    pip install pyg-nightly
-
-    rapids-print-env
-
-=======
 
     # Install pytorch
     rapids-mamba-retry install \
@@ -194,7 +174,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
->>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
     rapids-mamba-retry install \
       --channel "${CPP_CHANNEL}" \
       --channel "${PYTHON_CHANNEL}" \
@@ -203,11 +182,8 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       cugraph \
       cugraph-pyg
 
-<<<<<<< HEAD
-=======
     rapids-print-env
 
->>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
     rapids-logger "pytest cugraph_pyg (single GPU)"
     pushd python/cugraph-pyg/cugraph_pyg
     # rmat is not tested because of multi-GPU testing
@@ -222,8 +198,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov-report=term \
       .
     popd
-<<<<<<< HEAD
-=======
     
     # Reactivate the test environment back
     set +u
@@ -231,7 +205,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     conda activate test
     set -u
     
->>>>>>> 6f1bf0e5c73c15be6d70a9597147dfa466db6578
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi
