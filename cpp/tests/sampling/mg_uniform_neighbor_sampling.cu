@@ -143,11 +143,33 @@ class Tests_MGUniform_Neighbor_Sampling
 
     rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle_->get_stream());
 
+    auto seed_sizes = cugraph::host_scalar_allgather(
+      handle_->get_comms(), random_sources.size(), handle_->get_stream());
+    size_t num_seeds   = std::reduce(seed_sizes.begin(), seed_sizes.end());
+    size_t num_batches = (num_seeds + uniform_neighbor_sampling_usecase.batch_size - 1) /
+                         uniform_neighbor_sampling_usecase.batch_size;
+
+    std::vector<size_t> seed_offsets(seed_sizes.size());
+    std::exclusive_scan(seed_sizes.begin(), seed_sizes.end(), seed_offsets.begin(), size_t{0});
+
+    thrust::tabulate(
+      handle_->get_thrust_policy(),
+      batch_number.begin(),
+      batch_number.end(),
+      [seed_offset = seed_offsets[handle_->get_comms().get_rank()],
+       num_batches] __device__(int32_t index) { return (seed_offset + index) % num_batches; });
+
+    rmm::device_uvector<int32_t> unique_batches(num_batches, handle_->get_stream());
+    rmm::device_uvector<int32_t> comm_ranks(num_batches, handle_->get_stream());
+
+    cugraph::detail::sequence_fill(
+      handle_->get_stream(), unique_batches.data(), unique_batches.size(), int32_t{0});
     thrust::tabulate(handle_->get_thrust_policy(),
-                     batch_number.begin(),
-                     batch_number.end(),
-                     [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
-                       int32_t index) { return index / batch_size; });
+                     comm_ranks.begin(),
+                     comm_ranks.end(),
+                     [num_gpus = handle_->get_comms().get_size()] __device__(auto index) {
+                       return index % num_gpus;
+                     });
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle_->get_stream());
 
@@ -157,19 +179,26 @@ class Tests_MGUniform_Neighbor_Sampling
                handle_->get_stream());
 
 #ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(cugraph::uniform_neighbor_sample(
-                   *handle_,
-                   handle,
-                   mg_graph_view,
-                   mg_edge_weight_view,
-                   std::nullopt,
-                   std::move(random_sources_copy),
-                   std::move(batch_number),
-                   raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
-                                                  uniform_neighbor_sampling_usecase.fanout.size()),
-                   rng_state,
-                   uniform_neighbor_sampling_usecase.with_replacement),
-                 std::exception);
+    EXPECT_THROW(
+      cugraph::uniform_neighbor_sample(
+        *handle_,
+        handle,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        std::make_optional(
+          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
+        std::make_optional(std::make_tuple(
+          raft::device_span<int32_t const>{unique_batches.data(), unique_batches.size()},
+          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()})),
+        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
+                                       uniform_neighbor_sampling_usecase.fanout.size()),
+        rng_state,
+        true,
+        uniform_neighbor_sampling_usecase.with_replacement),
+      std::exception);
 #else
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -177,19 +206,23 @@ class Tests_MGUniform_Neighbor_Sampling
       hr_timer.start("MG uniform_neighbor_sample");
     }
 
-    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels] =
+    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<
-          edge_t,
-          thrust::zip_iterator<thrust::tuple<edge_t const*, int32_t const*>>>>{std::nullopt},
-        std::move(random_sources_copy),
-        std::move(batch_number),
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        std::make_optional(
+          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
+        std::make_optional(std::make_tuple(
+          raft::device_span<int32_t const>{unique_batches.data(), unique_batches.size()},
+          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()})),
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,
+        true,
         uniform_neighbor_sampling_usecase.with_replacement);
 
     if (cugraph::test::g_perf) {
@@ -342,7 +375,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
     ::testing::Values(
-      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+      // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+      cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

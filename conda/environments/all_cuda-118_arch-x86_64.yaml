@@ -27,8 +27,8 @@ dependencies:
 - ipython
 - libcudf=23.04.*
 - libcugraphops=23.04.*
-- libraft-distance=23.04.*
 - libraft-headers=23.04.*
+- libraft=23.04.*
 - librmm=23.04.*
 - nbsphinx
 - nccl>=2.9.9
@@ -37,7 +37,6 @@ dependencies:
 - notebook>=0.5.0
 - numpydoc
 - nvcc_linux-64=11.8
-- ogb
 - openmpi
 - pip
 - pre-commit
