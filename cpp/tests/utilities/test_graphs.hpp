@@ -122,7 +122,6 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     } else {
       graph_file_full_path_ = graph_file_path;
     }
-    std::cout << "graph_file_full_path_: "<<graph_file_full_path_ <<std::endl;
   }
 
   template <typename vertex_t, typename weight_t>

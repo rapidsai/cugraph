@@ -5,7 +5,6 @@
 
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace detail {

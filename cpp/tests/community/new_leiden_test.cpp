@@ -96,19 +96,20 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
       EXPECT_THROW(leiden(graph_view,
                           edge_weight_view,
                           graph_view.local_vertex_partition_range_size(),
+                          leiden_usecase.max_level_,
+                          leiden_usecase.resolution_,
                           leiden_usecase.check_correctness_,
                           leiden_usecase.expected_level_,
-                          leiden_usecase.resolution_,
-                          leiden_usecase.expected_modularity_
-                          ),
+                          leiden_usecase.expected_modularity_),
                    cugraph::logic_error);
     } else {
       leiden(graph_view,
              edge_weight_view,
              graph_view.local_vertex_partition_range_size(),
+             leiden_usecase.max_level_,
+             leiden_usecase.resolution_,
              leiden_usecase.check_correctness_,
              leiden_usecase.expected_level_,
-             leiden_usecase.resolution_,
              leiden_usecase.expected_modularity_);
     }
 
@@ -124,9 +125,10 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     vertex_t num_vertices,
+    size_t max_level,
+    float resolution,
     bool check_correctness,
     int expected_level,
-    float resolution,
     float expected_modularity)
   {
     raft::handle_t handle{};
@@ -136,7 +138,7 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     weight_t modularity;
 
     std::tie(level, modularity) = cugraph::leiden(
-      handle, graph_view, edge_weight_view, clustering_v.data(), size_t{100}, resolution);
+      handle, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
     std::cout << "modularity: " << modularity << std::endl;
@@ -181,12 +183,6 @@ TEST_P(Tests_Leiden_File64, CheckInt64Int64FloatFloat)
   run_current_test<int64_t, int64_t, float, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
-
-// TEST_P(Tests_Leiden_Rmat, CheckInt32Int32FloatFloatLegacy)
-// {
-//   run_legacy_test<int32_t, int32_t, float, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
-// }
 
 TEST_P(Tests_Leiden_Rmat, CheckInt32Int32FloatFloat)
 {
@@ -327,14 +323,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-
-// /raid/charlesh/datasets/test/datasets/as-Skitter.mtx
-// /raid/charlesh/datasets/test/datasets/cit-Patents.mtx
-// /raid/charlesh/datasets/test/datasets/coPapersCiteseer.mtx
-// /raid/charlesh/datasets/test/datasets/smallworld.mtx
-// /raid/charlesh/datasets/test/datasets/webbase-1M.mtx
-// /raid/charlesh/datasets/test/datasets/wiki-Talk.mtx
-
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
                           (with
@@ -362,6 +350,20 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test_coPapersCiteseer, /* note that the test filename can be overridden in
+                          benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Leiden_File64,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{}),
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersCiteseer.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking

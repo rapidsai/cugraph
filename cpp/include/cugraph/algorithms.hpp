@@ -715,7 +715,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
                                    legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
                                    vertex_t* clustering,
-                                   size_t max_iter     = 100,
+                                   size_t max_level    = 100,
                                    weight_t resolution = weight_t{1});
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

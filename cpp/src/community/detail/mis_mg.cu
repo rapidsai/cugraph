@@ -1,4 +1,3 @@
-#pragma once
 #include <community/detail/mis_impl.cuh>
 
 namespace cugraph {

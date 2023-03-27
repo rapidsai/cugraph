@@ -401,7 +401,7 @@ refine_clustering(
     // ||v||
     // E(v, louvain(v))
     // ||louvain(v)||
-    // is_singleton(v)
+    // is_singleton_and_connected(v)
     // leiden(v)
     // louvain(v)
 
@@ -520,6 +520,17 @@ refine_clustering(
                                                   return (gain > POSITIVE_GAIN) && (dst >= 0);
                                                 });
 
+    if (GraphViewType::is_multi_gpu) {
+      nr_valid_tuples = host_scalar_allreduce(
+        handle.get_comms(), nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    if (nr_valid_tuples == 0) {
+      cugraph::resize_dataframe_buffer(dst_and_gain_output_pairs, 0, handle.get_stream());
+      cugraph::shrink_to_fit_dataframe_buffer(dst_and_gain_output_pairs, handle.get_stream());
+      break;
+    }
+
     rmm::device_uvector<vertex_t> d_srcs(nr_valid_tuples, handle.get_stream());
     rmm::device_uvector<vertex_t> d_dsts(nr_valid_tuples, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_weights =
@@ -539,16 +550,6 @@ refine_clustering(
 
                       return (gain > POSITIVE_GAIN) && (dst >= 0);
                     });
-
-    // cugraph::resize_dataframe_buffer(dst_and_gain_output_pairs, 0, handle.get_stream());
-    // cugraph::shrink_to_fit_dataframe_buffer(dst_and_gain_output_pairs, handle.get_stream());
-
-    if (GraphViewType::is_multi_gpu) {
-      nr_valid_tuples = host_scalar_allreduce(
-        handle.get_comms(), nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
-    }
-
-    if (nr_valid_tuples == 0) { break; }
 
     //
     // Create decision graph from edgelist
@@ -616,12 +617,9 @@ refine_clustering(
     (*renumber_map).shrink_to_fit(handle.get_stream());
 
     //
-    // Move chosen leiden communities to their targets
+    // Mark the chosen vertices as non-singleton and update their leiden cluster to dst
     //
 
-    // Flags to indicate vertices that are in MIS
-
-    // vertices that are moving become non-singleton
     thrust::for_each(
       handle.get_thrust_policy(),
       vertices_in_mis.begin(),
@@ -636,16 +634,16 @@ refine_clustering(
         leiden_assignment[v_offset]             = dst;
       });
 
-    // Gather all dest comms
-
-    // FIXME: Find communities that are targets
-    rmm::device_uvector<vertex_t> target_comms(vertices_in_mis.size(), handle.get_stream());
+    //
+    // Find the set of dest vertices
+    //
+    rmm::device_uvector<vertex_t> dst_vertices(vertices_in_mis.size(), handle.get_stream());
 
     thrust::transform(
       handle.get_thrust_policy(),
       vertices_in_mis.begin(),
       vertices_in_mis.end(),
-      target_comms.begin(),
+      dst_vertices.begin(),
       [dst_first = thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
        v_first   = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
         auto dst = *(dst_first + v - v_first);
@@ -658,40 +656,41 @@ refine_clustering(
     vertices_in_mis.resize(0, handle.get_stream());
     vertices_in_mis.shrink_to_fit(handle.get_stream());
 
-    thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
+    thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
 
-    target_comms.resize(
+    dst_vertices.resize(
       static_cast<size_t>(thrust::distance(
-        target_comms.begin(),
-        thrust::unique(handle.get_thrust_policy(), target_comms.begin(), target_comms.end()))),
+        dst_vertices.begin(),
+        thrust::unique(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end()))),
       handle.get_stream());
 
     if constexpr (GraphViewType::is_multi_gpu) {
-      target_comms =
-        shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle, std::move(target_comms));
+      dst_vertices =
+        shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(handle, std::move(dst_vertices));
 
-      thrust::sort(handle.get_thrust_policy(), target_comms.begin(), target_comms.end());
+      thrust::sort(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end());
 
-      target_comms.resize(
+      dst_vertices.resize(
         static_cast<size_t>(thrust::distance(
-          target_comms.begin(),
-          thrust::unique(handle.get_thrust_policy(), target_comms.begin(), target_comms.end()))),
+          dst_vertices.begin(),
+          thrust::unique(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end()))),
         handle.get_stream());
     }
 
-    // Makr all the dest comms as non-sigleton
-
+    //
+    // Makr all the dest vertices as non-sigleton
+    //
     thrust::for_each(
       handle.get_thrust_policy(),
-      target_comms.begin(),
-      target_comms.end(),
+      dst_vertices.begin(),
+      dst_vertices.end(),
       [singleton_and_connected_flags = singleton_and_connected_flags.data(),
        v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
         singleton_and_connected_flags[v - v_first] = false;
       });
 
-    target_comms.resize(0, handle.get_stream());
-    target_comms.shrink_to_fit(handle.get_stream());
+    dst_vertices.resize(0, handle.get_stream());
+    dst_vertices.shrink_to_fit(handle.get_stream());
   }
 
   src_louvain_cluster_weight_cache.clear(handle);
