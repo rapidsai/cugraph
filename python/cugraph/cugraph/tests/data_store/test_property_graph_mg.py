@@ -595,7 +595,10 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
 
 
 @pytest.mark.mg
-def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_simple_MGPropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_nonrenumbered_noedgedata(
+    dataset2_simple_MGPropertyGraph, as_pg_first
+):
     """
     Ensure a subgraph can be extracted that contains no edge_data.  Also ensure
     renumber cannot be False since that is currently not allowed for MG.
@@ -610,7 +613,12 @@ def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_simple_MGPropertyGra
             create_using=Graph(directed=True), renumber_graph=False, add_edge_data=False
         )
 
-    G = pG.extract_subgraph(create_using=Graph(directed=True), add_edge_data=False)
+    if as_pg_first:
+        G = pG.extract_subgraph(create_using=pG).extract_subgraph(
+            create_using=Graph(directed=True), add_edge_data=False
+        )
+    else:
+        G = pG.extract_subgraph(create_using=Graph(directed=True), add_edge_data=False)
 
     actual_edgelist = G.edgelist.edgelist_df.compute()
 
