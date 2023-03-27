@@ -73,7 +73,7 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
         The input graph.
 
     num_clusters : size_t
-        Specifies the number of clusters to find, must be greater than 1
+        Specifies the number of clusters to find, must be greater than 1.
 
     num_eigen_vects : size_t
         Specifies the number of eigenvectors to use. Must be lower or equal to
@@ -114,7 +114,7 @@ def balanced_cut_clustering(ResourceHandle resource_handle,
     >>> (vertices, clusters) = pylibcugraph.balanced_cut_clustering(
     ...     resource_handle, G, num_clusters=5, num_eigen_vects=2, evs_tolerance=0.00001
     ...     evs_max_iter=100, kmean_tolerance=0.00001, kmean_max_iter=100)
-    # FIXME: Fix dockstring result.
+    # FIXME: Fix docstring results.
     >>> vertices
     ############
     >>> clusters
