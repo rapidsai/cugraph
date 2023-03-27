@@ -24,7 +24,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -243,7 +242,7 @@ class Tests_MGInducedSubgraph
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         false);
 
       if (my_rank == 0) {

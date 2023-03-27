@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #include "randomly_select_destinations.cuh"
 
 #include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -25,7 +26,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -159,80 +159,78 @@ class Tests_MGExtractBFSPaths
     }
 
     if (extract_bfs_paths_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-      std::optional<rmm::device_uvector<vertex_t>> d_sg_renumber_map_labels{std::nullopt};
-      std::tie(sg_graph, std::ignore, d_sg_renumber_map_labels) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-          *handle_, input_usecase, true, false);
+      // unrenumber & aggregate MG destination vertices to extract paths, & results
+      // collect MG BFS results instead of re-running SG BFS as BFS is non-deterministic
 
-      auto sg_graph_view = sg_graph.view();
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_predecessors.data(),
+        d_mg_predecessors.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
-      rmm::device_uvector<vertex_t> d_sg_destinations(d_mg_destinations.size(),
-                                                      handle_->get_stream());
-      raft::copy(d_sg_destinations.data(),
-                 d_mg_destinations.data(),
-                 d_mg_destinations.size(),
-                 handle_->get_stream());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_destinations.data(),
+        d_mg_destinations.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
-      rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.number_of_vertices(),
-                                                   handle_->get_stream());
-      rmm::device_uvector<vertex_t> d_sg_predecessors(sg_graph_view.number_of_vertices(),
-                                                      handle_->get_stream());
-      rmm::device_uvector<vertex_t> d_sg_paths(0, handle_->get_stream());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_paths.data(),
+        d_mg_paths.size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
-      //
-      // I think I can do this with allgatherv... think about this.
-      // allgather distances and predecessors
-      //
-      {
-        std::vector<size_t> rx_counts(handle_->get_comms().get_size(), size_t{0});
-        std::vector<size_t> displacements(handle_->get_comms().get_size(), size_t{0});
-        for (int i = 0; i < handle_->get_comms().get_size(); ++i) {
-          rx_counts[i]     = mg_graph_view.vertex_partition_range_size(i);
-          displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
-        }
-        handle_->get_comms().allgatherv(d_mg_distances.data(),
-                                        d_sg_distances.data(),
-                                        rx_counts.data(),
-                                        displacements.data(),
-                                        handle_->get_stream());
+      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+      auto d_mg_aggregate_distances =
+        cugraph::test::device_gatherv(*handle_, d_mg_distances.data(), d_mg_distances.size());
+      auto d_mg_aggregate_predecessors =
+        cugraph::test::device_gatherv(*handle_, d_mg_predecessors.data(), d_mg_predecessors.size());
+      auto d_mg_aggregate_destinations =
+        cugraph::test::device_gatherv(*handle_, d_mg_destinations.data(), d_mg_destinations.size());
+      auto d_mg_aggregate_paths =
+        cugraph::test::device_gatherv(*handle_, d_mg_paths.data(), d_mg_paths.size());
 
-        handle_->get_comms().allgatherv(d_mg_predecessors.data(),
-                                        d_sg_predecessors.data(),
-                                        rx_counts.data(),
-                                        displacements.data(),
-                                        handle_->get_stream());
-      }
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // sort MG results
 
-      vertex_t sg_max_path_length;
+        std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
+        std::tie(std::ignore, d_mg_aggregate_predecessors) = cugraph::test::sort_by_key(
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_predecessors);
 
-      std::tie(d_sg_paths, sg_max_path_length) = extract_bfs_paths(*handle_,
-                                                                   sg_graph_view,
-                                                                   d_sg_distances.data(),
-                                                                   d_sg_predecessors.data(),
-                                                                   d_sg_destinations.data(),
-                                                                   d_sg_destinations.size());
+        // create SG graph
 
-      std::vector<vertex_t> h_mg_paths = cugraph::test::to_host(*handle_, d_mg_paths);
-      std::vector<vertex_t> h_sg_paths = cugraph::test::to_host(*handle_, d_sg_paths);
+        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) =
+          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+            *handle_, input_usecase, true, false);
 
-      ASSERT_EQ(d_mg_paths.size(), mg_max_path_length * d_mg_destinations.size());
-      ASSERT_EQ(d_sg_paths.size(), sg_max_path_length * d_sg_destinations.size());
+        auto sg_graph_view = sg_graph.view();
 
-      for (size_t dest_id = 0; dest_id < d_mg_destinations.size(); ++dest_id) {
-        for (vertex_t offset = 0; offset < std::min(sg_max_path_length, mg_max_path_length);
-             ++offset) {
-          ASSERT_EQ(h_mg_paths[dest_id * mg_max_path_length + offset],
-                    h_sg_paths[dest_id * sg_max_path_length + offset]);
-        }
+        // run SG extract_bfs_paths
 
-        for (vertex_t offset = sg_max_path_length; offset < mg_max_path_length; ++offset) {
-          ASSERT_EQ(h_mg_paths[dest_id * mg_max_path_length + offset], invalid_vertex);
-        }
+        auto [d_sg_paths, sg_max_path_length] =
+          extract_bfs_paths(*handle_,
+                            sg_graph_view,
+                            d_mg_aggregate_distances.data(),
+                            d_mg_aggregate_predecessors.data(),
+                            d_mg_aggregate_destinations.data(),
+                            d_mg_aggregate_destinations.size());
 
-        for (vertex_t offset = mg_max_path_length; offset < sg_max_path_length; ++offset) {
-          ASSERT_EQ(h_sg_paths[dest_id * sg_max_path_length + offset], invalid_vertex);
-        }
+        // compare
+
+        ASSERT_EQ(mg_max_path_length, sg_max_path_length);
+        ASSERT_EQ(d_mg_aggregate_paths.size(), d_sg_paths.size());
+
+        auto h_mg_aggregate_paths = cugraph::test::to_host(*handle_, d_mg_aggregate_paths);
+        auto h_sg_paths           = cugraph::test::to_host(*handle_, d_sg_paths);
+
+        ASSERT_TRUE(
+          std::equal(h_mg_aggregate_paths.begin(), h_mg_aggregate_paths.end(), h_sg_paths.begin()));
       }
     }
   }

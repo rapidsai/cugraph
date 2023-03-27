@@ -1,6 +1,0 @@
-FIXME: The contents of this directory should be used from RAFT directly, rather than
-being duplicated here.
-
-pylibcugraph should be able to remove the copy of raft code added here once the connected components
-API is updated to use the new cugraph C API. The only reason RAFT is being pulled in is because the
-legacy connected components in pylibcugraph is using it.

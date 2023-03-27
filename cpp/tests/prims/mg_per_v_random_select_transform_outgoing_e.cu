@@ -90,16 +90,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
  public:
   Tests_MGPerVRandomSelectTransformOutgoingE() {}
 
-  static void SetUpTestCase()
-  {
-    handle_ = cugraph::test::initialize_mg_handle();
-#if 1  // FIXME: for benchmarking, delete once benchmarking is finished.
-    cugraph::test::enforce_p2p_initialization(handle_->get_comms(), handle_->get_stream());
-    cugraph::test::enforce_p2p_initialization(
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()),
-      handle_->get_stream());
-#endif
-  }
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
   static void TearDownTestCase() { handle_.reset(); }
 
@@ -189,7 +180,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       auto new_sizes    = std::vector<size_t>(comm_size, min_buffer_size);
       auto num_deficits = num_seeds - min_buffer_size * comm_size;
       for (int i = 0; i < comm_size; ++i) {
-        auto delta = std::min(num_deficits, mg_vertex_buffer.size() - new_sizes[i]);
+        auto delta = std::min(num_deficits, buffer_sizes[i] - min_buffer_size);
         new_sizes[i] += delta;
         num_deficits -= delta;
       }
@@ -253,8 +244,18 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     // 3. validate MG results
 
     if (prims_usecase.check_correctness) {
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_allgatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        std::get<0>(sample_e_op_results).data(),
+        std::get<0>(sample_e_op_results).size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        std::get<1>(sample_e_op_results).data(),
+        std::get<1>(sample_e_op_results).size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
       auto out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
       cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
@@ -280,18 +281,18 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         handle_->get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
         thrust::make_counting_iterator(mg_vertex_frontier.bucket(bucket_idx_cur).size()),
-        [frontier_vertex_first         = mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
-         v_first                       = mg_graph_view.local_vertex_partition_range_first(),
-         sample_offsets                = sample_offsets
-                                           ? thrust::make_optional<size_t const*>((*sample_offsets).data())
-                                           : thrust::nullopt,
-         sample_e_op_results           = cugraph::get_dataframe_buffer_begin(sample_e_op_results),
-         out_degrees                   = out_degrees.begin(),
-         aggregate_renumber_map_labels = d_mg_aggregate_renumber_map_labels.begin(),
-         unrenumbered_offsets          = unrenumbered_offsets.begin(),
-         unrenumbered_indices          = unrenumbered_indices.begin(),
-         K                             = prims_usecase.K,
-         with_replacement              = prims_usecase.with_replacement,
+        [frontier_vertex_first  = mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
+         v_first                = mg_graph_view.local_vertex_partition_range_first(),
+         sample_offsets         = sample_offsets
+                                    ? thrust::make_optional<size_t const*>((*sample_offsets).data())
+                                    : thrust::nullopt,
+         sample_e_op_results    = cugraph::get_dataframe_buffer_begin(sample_e_op_results),
+         out_degrees            = out_degrees.begin(),
+         mg_renumber_map_labels = (*d_mg_renumber_map_labels).begin(),
+         unrenumbered_offsets   = unrenumbered_offsets.begin(),
+         unrenumbered_indices   = unrenumbered_indices.begin(),
+         K                      = prims_usecase.K,
+         with_replacement       = prims_usecase.with_replacement,
          invalid_value =
            invalid_value ? thrust::make_optional<result_t>(*invalid_value) : thrust::nullopt,
          property_transform = cugraph::test::detail::property_transform<vertex_t, property_t>{
@@ -328,19 +329,17 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
           // check sample_e_op_results
 
           for (size_t j = offset_first; j < offset_last; ++j) {
-            auto e_op_result = *(sample_e_op_results + j);
-            auto src         = thrust::get<0>(e_op_result);
-            auto dst         = thrust::get<1>(e_op_result);
-            if (src != v) { return true; }
-            auto unrenumbered_src = *(aggregate_renumber_map_labels + src);
-            auto unrenumbered_dst = *(aggregate_renumber_map_labels + dst);
-            auto unrenumbered_dst_first =
+            auto e_op_result      = *(sample_e_op_results + j);
+            auto unrenumbered_src = thrust::get<0>(e_op_result);
+            auto unrenumbered_dst = thrust::get<1>(e_op_result);
+            if (unrenumbered_src != *(mg_renumber_map_labels + v_offset)) { return true; }
+            auto unrenumbered_nbr_first =
               unrenumbered_indices + *(unrenumbered_offsets + unrenumbered_src);
-            auto unrenumbered_dst_last =
+            auto unrenumbered_nbr_last =
               unrenumbered_indices + *(unrenumbered_offsets + (unrenumbered_src + vertex_t{1}));
             if (!thrust::binary_search(thrust::seq,
-                                       unrenumbered_dst_first,
-                                       unrenumbered_dst_last,
+                                       unrenumbered_nbr_first,
+                                       unrenumbered_nbr_last,
                                        unrenumbered_dst)) {  // assumed neighbor lists are sorted
               return true;
             }
@@ -359,24 +358,24 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
             if (dst_val != property_transform(unrenumbered_dst)) { return true; }
 
             if (!with_replacement) {
-              auto dst_first =
+              auto unrenumbered_dst_first =
                 thrust::get<1>(sample_e_op_results.get_iterator_tuple()) + offset_first;
-              auto dst_last =
+              auto unrenumbered_dst_last =
                 thrust::get<1>(sample_e_op_results.get_iterator_tuple()) + offset_last;
-              auto dst_count =
-                thrust::count(thrust::seq,
-                              dst_first,
-                              dst_last,
-                              dst);  // this could be inefficient for high-degree vertices, if we
-                                     // sort [dst_first, dst_last) we can use binary search but we
-                                     // may better not modify the sampling output and allow
-                                     // inefficiency as this is just for testing
+              auto dst_count = thrust::count(
+                thrust::seq,
+                unrenumbered_dst_first,
+                unrenumbered_dst_last,
+                unrenumbered_dst);  // this could be inefficient for high-degree vertices, if we
+                                    // sort [unrenumbered_dst_first, unrenumbered_dst_last) we can
+                                    // use binary search but we may better not modify the sampling
+                                    // output and allow inefficiency as this is just for testing
               auto multiplicity = thrust::distance(
                 thrust::lower_bound(
-                  thrust::seq, unrenumbered_dst_first, unrenumbered_dst_last, unrenumbered_dst),
+                  thrust::seq, unrenumbered_nbr_first, unrenumbered_nbr_last, unrenumbered_dst),
                 thrust::upper_bound(thrust::seq,
-                                    unrenumbered_dst_first,
-                                    unrenumbered_dst_last,
+                                    unrenumbered_nbr_first,
+                                    unrenumbered_nbr_last,
                                     unrenumbered_dst));  // this assumes neighbor lists are sorted
               if (dst_count > multiplicity) { return true; }
             }

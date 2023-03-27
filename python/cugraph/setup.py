@@ -16,39 +16,6 @@ import os
 from setuptools import find_packages, Command
 from skbuild import setup
 
-import versioneer
-
-
-cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
-
-INSTALL_REQUIRES = [
-    "numba",
-    "dask-cuda",
-    f"rmm{cuda_suffix}",
-    f"cudf{cuda_suffix}",
-    f"raft-dask{cuda_suffix}",
-    f"dask-cudf{cuda_suffix}",
-    f"pylibcugraph{cuda_suffix}",
-    "cupy-cuda11x",
-]
-
-extras_require = {
-    "test": [
-        "pytest",
-        "pytest-xdist",
-        "pytest-benchmark",
-        "scipy",
-        "numpy",
-        "pandas",
-        "networkx>=2.5.1",
-        "scikit-learn>=0.23.1",
-        "python-louvain",
-        # cudf will use fsspec but is protocol independent. cugraph tests
-        # specifically require http for the test files it asks cudf to read.
-        "fsspec[http]>=0.6.0",
-    ]
-}
-
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -76,54 +43,10 @@ class CleanCommand(Command):
         os.system("rm -rf _skbuild")
 
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
-
-PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
-
-PACKAGE_DATA["cugraph.experimental.datasets"].extend(
-    [
-        "cugraph/experimental/datasets/metadata/*.yaml",
-        "cugraph/experimental/datasets/*.yaml",
-    ]
-)
-
-
-# Ensure that wheel version patching works for nightlies.
-if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
-    orig_get_versions = versioneer.get_versions
-
-    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
-
-    def get_versions():
-        data = orig_get_versions()
-        data["version"] = version_override
-        return data
-
-    versioneer.get_versions = get_versions
-
-
+packages = find_packages(include=["cugraph*"])
 setup(
-    name=f"cugraph{cuda_suffix}",
-    description="cuGraph - RAPIDS GPU Graph Analytics",
-    version=versioneer.get_version(),
-    classifiers=[
-        # "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        # "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-    ],
-    # Include the separately-compiled shared library
-    author="NVIDIA Corporation",
-    packages=find_packages(include=["cugraph", "cugraph.*"]),
-    package_data=PACKAGE_DATA,
-    include_package_data=True,
-    install_requires=INSTALL_REQUIRES,
-    license="Apache 2.0",
-    cmdclass=cmdclass,
+    packages=packages,
+    package_data={key: ["*.pxd", "*.yaml"] for key in packages},
+    cmdclass={"clean": CleanCommand},
     zip_safe=False,
-    extras_require=extras_require,
 )

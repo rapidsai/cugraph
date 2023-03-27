@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -65,6 +65,7 @@ if (NOT cugraph_FOUND)
     # Statically link dependencies if building wheels
     set(CUDA_STATIC_RUNTIME ON)
     set(USE_RAFT_STATIC ON)
+    set(CUGRAPH_COMPILE_RAFT_DIST_LIBS OFF)
     set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
     set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
     set(ALLOW_CLONE_CUGRAPH_OPS ON)

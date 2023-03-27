@@ -11,45 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
-import versioneer
-
-cmdclass = versioneer.get_cmdclass()
-
-install_requires = [
-    "cudf",
-    "cugraph",
-    "cugraph-service-client",
-    "cupy-cuda11x",
-    "dask-cuda",
-    "dask-cudf",
-    "distributed >=2022.12.0",
-    "numpy",
-    "rmm",
-    "thriftpy2",
-    "ucx-py",
-]
+from setuptools import setup
 
 setup(
-    name="cugraph-service-server",
-    description="cuGraph Service server",
-    version=versioneer.get_version(),
-    classifiers=[
-        "Intended Audience :: Developers",
-        "Programming Language :: Python",
-    ],
-    author="NVIDIA Corporation",
-    url="https://github.com/rapidsai/cugraph",
-    packages=find_packages(
-        include=["cugraph_service_server", "cugraph_service_server.*"]
-    ),
     entry_points={
         "console_scripts": [
             "cugraph-service-server=cugraph_service_server.__main__:main"
         ],
     },
-    install_requires=install_requires,
-    license="Apache",
-    cmdclass=cmdclass,
-    zip_safe=True,
 )

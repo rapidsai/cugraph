@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,28 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
-import versioneer
+from setuptools import setup
 
-cmdclass = versioneer.get_cmdclass()
-
-install_requires = [
-    "thriftpy2",
-]
-
-setup(
-    name="cugraph-service-client",
-    description="cuGraph Service client",
-    version=versioneer.get_version(),
-    classifiers=[
-        "Intended Audience :: Developers",
-        "Programming Language :: Python",
-    ],
-    author="NVIDIA Corporation",
-    url="https://github.com/rapidsai/cugraph",
-    packages=find_packages(include=["cugraph_service_client"]),
-    install_requires=install_requires,
-    license="Apache",
-    cmdclass=cmdclass,
-    zip_safe=True,
-)
+setup()

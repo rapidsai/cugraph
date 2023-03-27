@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
 #include <thrust/sequence.h>
+#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
@@ -39,26 +40,44 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          size_t size,
                          value_t min_value,
                          value_t max_value,
-                         uint64_t seed)
+                         raft::random::RngState& rng_state)
 {
-  raft::random::RngState rng_state(seed);
-  raft::random::uniform<value_t, size_t>(
-    rng_state, d_value, size, min_value, max_value, stream_view.value());
+  if constexpr (std::is_integral<value_t>::value) {
+    raft::random::uniformInt<value_t, size_t>(
+      rng_state, d_value, size, min_value, max_value, stream_view.value());
+  } else {
+    raft::random::uniform<value_t, size_t>(
+      rng_state, d_value, size, min_value, max_value, stream_view.value());
+  }
 }
+
+template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+                                  int32_t* d_value,
+                                  size_t size,
+                                  int32_t min_value,
+                                  int32_t max_value,
+                                  raft::random::RngState& rng_state);
+
+template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
+                                  int64_t* d_value,
+                                  size_t size,
+                                  int64_t min_value,
+                                  int64_t max_value,
+                                  raft::random::RngState& rng_state);
 
 template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                                   float* d_value,
                                   size_t size,
                                   float min_value,
                                   float max_value,
-                                  uint64_t seed);
+                                  raft::random::RngState& rng_state);
 
 template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                                   double* d_value,
                                   size_t size,
                                   double min_value,
                                   double max_value,
-                                  uint64_t seed);
+                                  raft::random::RngState& rng_state);
 
 template <typename value_t>
 void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value)
@@ -175,6 +194,17 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 filter_degree_0_vertices(raft::handle_t const& handle,
                          rmm::device_uvector<int64_t>&& d_vertices,
                          rmm::device_uvector<int64_t>&& d_out_degs);
+
+template <typename data_t>
+bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span)
+{
+  return thrust::is_sorted(handle.get_thrust_policy(), span.begin(), span.end());
+}
+
+template bool is_sorted(raft::handle_t const& handle, raft::device_span<int32_t> span);
+template bool is_sorted(raft::handle_t const& handle, raft::device_span<int32_t const> span);
+template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t> span);
+template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t const> span);
 
 }  // namespace detail
 }  // namespace cugraph

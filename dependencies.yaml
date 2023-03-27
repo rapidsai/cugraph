@@ -11,7 +11,7 @@ files:
       - common_python_test
       - cpp_build
       - cudatoolkit
-      - doc
+      - docs
       - python_build
       - test_notebook
       - test_python
@@ -19,6 +19,12 @@ files:
     output: none
     includes:
       - checks
+      - py_version
+  docs:
+    output: none
+    includes:
+      - cudatoolkit
+      - docs
       - py_version
   test_cpp:
     output: none
@@ -87,7 +93,7 @@ dependencies:
           - gtest=1.10.0
           - libcugraphops=23.04.*
           - libraft-headers=23.04.*
-          - libraft-distance=23.02.*
+          - libraft=23.04.*
           - librmm=23.04.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
@@ -96,11 +102,11 @@ dependencies:
           - matrix:
               arch: x86_64
             packages:
-              - gcc_linux-64=9.*
+              - gcc_linux-64=11.*
           - matrix:
               arch: aarch64
             packages:
-              - gcc_linux-aarch64=9.*
+              - gcc_linux-aarch64=11.*
       - output_types: [conda]
         matrices:
           - matrix:
@@ -113,6 +119,21 @@ dependencies:
               cuda: "11.8"
             packages:
               - nvcc_linux-aarch64=11.8
+  docs:
+    common:
+      - output_types: [conda]
+        packages:
+          - doxygen
+          - graphviz
+          - ipython
+          - nbsphinx
+          - numpydoc
+          - pydata-sphinx-theme
+          - recommonmark
+          - sphinx-copybutton
+          - sphinx-markdown-tables
+          - sphinx<6
+          - sphinxcontrib-websupport
   py_version:
     specific:
       - output_types: [conda]
@@ -139,10 +160,10 @@ dependencies:
           - cuda-python>=11.7.1,<12.0
           - cudf=23.04.*
           - cython>=0.29,<0.30
-          - dask>=2022.12.0
+          - dask==2023.1.1
+          - distributed==2023.1.1
           - dask-cuda=23.04.*
           - dask-cudf=23.04.*
-          - distributed>=2022.12.0
           - libcudf=23.04.*
           - nccl>=2.9.9
           - pylibraft=23.04.*
@@ -182,7 +203,6 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
-          - ogb
           - py
           - pytest
           - pytest-cov

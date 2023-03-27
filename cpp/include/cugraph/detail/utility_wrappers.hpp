@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,10 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sequence.h>
@@ -36,7 +39,7 @@ namespace detail {
  * @param[in]   size         number of elements in array
  * @param[in]   min_value    minimum value
  * @param[in]   max_value    maximum value
- * @param[in]   seed         seed for initializing random number generator
+ * @param[in]   rng_state    The RngState instance holding pseudo-random number generator state.
  *
  */
 template <typename value_t>
@@ -45,7 +48,7 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          size_t size,
                          value_t min_value,
                          value_t max_value,
-                         uint64_t seed);
+                         raft::random::RngState& rng_state);
 
 /**
  * @brief    Fill a buffer with a constant value
@@ -142,6 +145,18 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<edge_t>&& d_out_degs);
+
+/**
+ * @brief Check if device span is sorted
+ *
+ * @tparam data_t type of data in span
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param span The span of data to check
+ * @return true if sorted, false if not sorted
+ */
+template <typename data_t>
+bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
 
 }  // namespace detail
 }  // namespace cugraph

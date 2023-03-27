@@ -84,8 +84,12 @@ class Tests_Uniform_Neighbor_Sampling
     rmm::device_uvector<vertex_t> random_sources(graph_view.local_vertex_partition_range_size(),
                                                  handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(
-      handle.get_stream(), random_numbers.data(), random_numbers.size(), float{0}, float{1}, seed);
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         random_numbers.data(),
+                                         random_numbers.size(),
+                                         float{0},
+                                         float{1},
+                                         rng_state);
 
     auto random_sources_end = thrust::copy_if(
       handle.get_thrust_policy(),
@@ -106,8 +110,12 @@ class Tests_Uniform_Neighbor_Sampling
     //
     //  Now we'll assign the vertices to batches
     //
-    cugraph::detail::uniform_random_fill(
-      handle.get_stream(), random_numbers.data(), random_numbers.size(), float{0}, float{1}, seed);
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         random_numbers.data(),
+                                         random_numbers.size(),
+                                         float{0},
+                                         float{1},
+                                         rng_state);
 
     thrust::sort_by_key(handle.get_thrust_policy(),
                         random_numbers.begin(),
@@ -117,11 +125,12 @@ class Tests_Uniform_Neighbor_Sampling
     random_numbers.resize(0, handle.get_stream());
     random_numbers.shrink_to_fit(handle.get_stream());
 
-    rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle.get_stream());
+    auto batch_number =
+      std::make_optional<rmm::device_uvector<int32_t>>(random_sources.size(), handle.get_stream());
 
     thrust::tabulate(handle.get_thrust_policy(),
-                     batch_number.begin(),
-                     batch_number.end(),
+                     batch_number->begin(),
+                     batch_number->end(),
                      [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
                        int32_t index) { return index / batch_size; });
 
@@ -138,27 +147,35 @@ class Tests_Uniform_Neighbor_Sampling
                    graph_view,
                    edge_weight_view,
                    std::nullopt,
+                   std::nullopt,
                    std::move(random_sources_copy),
                    std::move(batch_number),
                    raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                                   uniform_neighbor_sampling_usecase.fanout.size()),
                    rng_state,
+                   true,
                    uniform_neighbor_sampling_usecase.flag_replacement),
                  std::exception);
 #else
-    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels] =
+    std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
+      label_to_output_comm_rank_mapping{std::nullopt};
+
+    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         handle,
         graph_view,
         edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<
-          edge_t,
-          thrust::zip_iterator<thrust::tuple<edge_t const*, int32_t const*>>>>{std::nullopt},
-        std::move(random_sources_copy),
-        std::move(batch_number),
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                           batch_number->size()})
+                     : std::nullopt,
+        label_to_output_comm_rank_mapping,
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,
+        true,
         uniform_neighbor_sampling_usecase.flag_replacement);
 
     if (uniform_neighbor_sampling_usecase.check_correctness) {

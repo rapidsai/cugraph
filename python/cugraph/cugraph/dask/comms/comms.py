@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +28,7 @@ except ImportError as err:
         raise
 from pylibraft.common.handle import Handle
 from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
-from dask.distributed import default_client
+from dask.distributed import default_client, get_worker
 from cugraph.dask.common import read_utils
 import math
 
@@ -234,7 +234,7 @@ def get_handle(sID):
     """
     Returns the handle from within the worker using the sessionstate.
     """
-    sessionstate = get_raft_comm_state(sID)
+    sessionstate = get_raft_comm_state(sID, get_worker())
     return sessionstate["handle"]
 
 
@@ -242,7 +242,7 @@ def get_worker_id(sID):
     """
     Returns the worker's sessionId from within the worker.
     """
-    sessionstate = get_raft_comm_state(sID)
+    sessionstate = get_raft_comm_state(sID, get_worker())
     return sessionstate["wid"]
 
 
@@ -257,5 +257,5 @@ def get_n_workers(sID=None):
     if sID is None:
         return read_utils.get_n_workers()
     else:
-        sessionstate = get_raft_comm_state(sID)
+        sessionstate = get_raft_comm_state(sID, get_worker())
         return sessionstate["nworkers"]
