@@ -19,10 +19,11 @@ from cugraph.utilities import (
 from pylibcugraph import (
     balanced_cut_clustering as pylibcugraph_balanced_cut_clustering,
     spectral_modularity_maximization as pylibcugraph_spectral_modularity_maximization,
-    analyze_clustering_modularity as pylibcugraph_analyze_clustering_modularity,
+    # analyze_clustering_modularity as pylibcugraph_analyze_clustering_modularity,
 )
 from pylibcugraph import ResourceHandle
 import cudf
+import numpy as np
 
 
 def spectralBalancedCutClustering(
@@ -88,6 +89,11 @@ def spectralBalancedCutClustering(
     # Error checking in C++ code
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+    # Check if vertex type is "int32"
+    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
+        raise ValueError (
+            "'spectralBalancedCutClustering' requires the input graph's vertex to be "
+            "of type 'int32'")
 
     vertex, partition = pylibcugraph_balanced_cut_clustering(
         ResourceHandle(),
@@ -175,6 +181,10 @@ def spectralModularityMaximizationClustering(
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
+        raise ValueError (
+            "'spectralModularityMaximizationClustering' requires the input graph's vertex to be "
+            "of type 'int32'")
 
     vertex, partition = pylibcugraph_spectral_modularity_maximization(
         ResourceHandle(),
@@ -253,52 +263,26 @@ def analyzeClustering_modularity(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # Renumber the vertices so that they are contiguous (required)
-    # FIXME: renumber needs to be set to 'True' at the graph creation
-    # but there is nway to track that.
-    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
-    """
-    if not G.renumbered:
-        edgelist = G.edgelist.edgelist_df
-        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
-            edgelist, ["src"], ["dst"]
-        )
-        renumbered_src_col_name = renumber_map.renumbered_src_col_name
-        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
-        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
-            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
-        )
-        G.properties.renumbered = True
-        G.renumber_map = renumber_map
+    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
+        raise ValueError (
+            "'analyzeClustering_modularity' requires the input graph's vertex to be "
+            "of type 'int32'")
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
-    """
+    
+    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+        raise ValueError (
+            "'analyzeClustering_modularity' requires both the clustering 'vertex' and 'cluster' to be "
+            "of type 'int32'")
 
-
-    score = 0.0
-
-    if G.renumbered:
-        clustering = G.add_internal_vertex_id(
-            clustering, "vertex", vertex_col_name, drop=True
-        )
     clustering = clustering.sort_values("vertex")
-    score = pylibcugraph_analyze_clustering_modularity(
-        ResourceHandle(),
-        G._plc_graph,
-        n_clusters,
-        clustering["vertex"],
-        clustering["cluster"],
-        score,
-    )
-    """
+
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
         G, n_clusters, clustering[cluster_col_name]
     )
-    """
-    
 
     return score
 
@@ -355,6 +339,12 @@ def analyzeClustering_edge_cut(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
+        raise ValueError (
+            "'analyzeClustering_edge_cut' requires the input graph's vertex to be "
+            "of type 'int32'")
+
+    """
     # Renumber the vertices so that they are contiguous (required)
     # FIXME: renumber needs to be set to 'True' at the graph creation
     # but there is nway to track that.
@@ -371,11 +361,16 @@ def analyzeClustering_edge_cut(
         )
         G.properties.renumbered = True
         G.renumber_map = renumber_map
-
+    """
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
+    
+    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+        raise ValueError (
+            "'analyzeClustering_edge_cut' requires both the clustering 'vertex' and 'cluster' to be "
+            "of type 'int32'")
 
     clustering = clustering.sort_values("vertex").reset_index(drop=True)
 
@@ -434,10 +429,20 @@ def analyzeClustering_ratio_cut(
     if type(cluster_col_name) is not str:
         raise Exception("cluster_col_name must be a string")
 
+    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
+        raise ValueError (
+            "'analyzeClustering_ratio_cut' requires the input graph's vertex to be "
+            "of type 'int32'")
+
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
+    
+    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+        raise ValueError (
+            "'analyzeClustering_ratio_cut' requires both the clustering 'vertex' and 'cluster' to be "
+            "of type 'int32'")
 
     clustering = clustering.sort_values("vertex")
 
