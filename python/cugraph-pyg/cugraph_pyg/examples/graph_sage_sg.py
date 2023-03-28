@@ -11,9 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a multi-GPU benchmark that assumes the data has already been
-# processed using the BulkSampler.  This workflow WILL ONLY WORK when
-# reading already-processed sampling results from disk.
 
 import time
 import argparse

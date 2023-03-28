@@ -11,9 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a multi-GPU benchmark that assumes the data has already been
-# processed using the BulkSampler.  This workflow WILL ONLY WORK when
-# reading already-processed sampling results from disk.
 
 from ogb.nodeproppred import NodePropPredDataset
 
@@ -159,7 +156,6 @@ def train(
     download_event = Dask_Event("dataset_download_event")
 
     td.barrier()
-    print("reached barrier 160")
 
     import cugraph
     from cugraph_pyg.data import CuGraphStore
@@ -298,22 +294,14 @@ def train(
             for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
                 end_time_sample = time.perf_counter_ns()
                 total_time_sample += (end_time_sample - start_time_sample) / 1e9
-                print(
-                    f"time between loops: "
-                    f"{(end_time_sample - start_time_sample) / 1e9} s"
-                )
                 num_batches += 1
+
                 if iter_i % 20 == 0:
                     print(f"iteration {iter_i}")
 
                 # train
                 train_mask = hetero_data.train_dict["paper"]
                 y_true = hetero_data.y_dict["paper"]
-
-                print(
-                    hetero_data.x_dict["paper"].shape,
-                    hetero_data.edge_index_dict[("paper", "cites", "paper")].shape,
-                )
 
                 start_time_forward = time.perf_counter_ns()
                 y_pred = model(
