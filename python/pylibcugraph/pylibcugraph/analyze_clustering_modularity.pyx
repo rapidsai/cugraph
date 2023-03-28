@@ -25,6 +25,7 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -32,7 +33,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_clustering_result_t,
     cugraph_analyze_clustering_modularity,
-    cugraph_create_clustering,
+    cugraph_spectral_modularity_maximization,
     cugraph_clustering_result_free,
 )
 
@@ -125,9 +126,14 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef cugraph_clustering_result_t* clustering_ptr
+    #cdef cugraph_clustering_result_t* clustering_ptr
 
-    #cdef double* score_ptr
+    # FIXME: Need to ensure the types are int32
+    vertex = vertex.astype('int32')
+    cluster = cluster.astype('int32')
+
+    print("vertex type is \n", vertex.dtype)
+    print("cluster type is \n", cluster.dtype)
 
     # 'first' is a required parameter
     cdef cugraph_type_erased_device_array_view_t* \
@@ -141,18 +147,35 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 cluster)
 
-    error_code = cugraph_create_clustering(c_resource_handle_ptr,
-                                             c_graph_ptr,
-                                             vertex_view_ptr,
-                                             cluster_view_ptr,
-                                             &clustering_ptr,
-                                             &error_ptr)
-    assert_success(error_code, error_ptr, "clustering")
+    """
+    num_eigen_vects = 2
+    evs_tolerance = 0.001
+    evs_max_iter=100
+    kmean_tolerance=0.001
+    kmean_max_iter=100
+    #bool_t do_expensive_check=False
+
+    error_code = cugraph_spectral_modularity_maximization(c_resource_handle_ptr,
+                                                 c_graph_ptr,
+                                                 num_clusters,
+                                                 num_eigen_vects,
+                                                 evs_tolerance,
+                                                 evs_max_iter,
+                                                 kmean_tolerance,
+                                                 kmean_max_iter,
+                                                 do_expensive_check,
+                                                 &clustering_ptr,
+                                                 &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_spectral_modularity_maximization")
+    """
+
+
 
     error_code = cugraph_analyze_clustering_modularity(c_resource_handle_ptr,
                                                        c_graph_ptr,
                                                        num_clusters,
-                                                       clustering_ptr,
+                                                       vertex_view_ptr,
+                                                       cluster_view_ptr,
                                                        &score,
                                                        &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_analyze_clustering_modularity")
@@ -169,6 +192,11 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
     cupy_clusters = copy_to_cupy_array(c_resource_handle_ptr, clusters_ptr)
     """
 
-    cugraph_clustering_result_free(clustering_ptr)
+    #cugraph_clustering_result_free(clustering_ptr)
+    
+    if vertex is not None:
+        cugraph_type_erased_device_array_view_free(vertex_view_ptr)
+    if cluster is not None:
+        cugraph_type_erased_device_array_view_free(cluster_view_ptr)
 
     return score

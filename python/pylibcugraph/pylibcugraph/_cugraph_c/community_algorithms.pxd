@@ -145,16 +145,6 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_clustering_result_free(
             cugraph_clustering_result_t* result
         )
-    
-    cdef cugraph_error_code_t \
-        cugraph_create_clustering(
-            const cugraph_resource_handle_t* handle,
-            cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* vertex,
-            const cugraph_type_erased_device_array_view_t* cluster,
-            cugraph_clustering_result_t** clustering,
-            cugraph_error_t** error
-        )
 
     # Balanced cut clustering
     cdef cugraph_error_code_t \
@@ -194,7 +184,8 @@ cdef extern from "cugraph_c/community_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             size_t n_clusters,
-            const cugraph_clustering_result_t* clustering,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* clusters,
             double* score,
             cugraph_error_t** error
         )
@@ -205,8 +196,9 @@ cdef extern from "cugraph_c/community_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             size_t n_clusters,
-            const cugraph_clustering_result_t* clustering,
-            double** score,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* clusters,
+            double* score,
             cugraph_error_t** error
         )
     
@@ -216,8 +208,9 @@ cdef extern from "cugraph_c/community_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             size_t n_clusters,
-            const cugraph_clustering_result_t* clustering,
-            double** score,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* clusters,
+            double* score,
             cugraph_error_t** error
         )
 
