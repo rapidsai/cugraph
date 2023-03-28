@@ -31,6 +31,11 @@ shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
                                rmm::device_uvector<vertex_t>&& vertices,
                                raft::device_span<size_t const> offsets);
 
+template <typename key_t, typename value_t>
+void sort_by_key(raft::handle_t const& handle,
+                 raft::device_span<key_t> keys,
+                 raft::device_span<value_t> values);
+
 }  // namespace detail
 }  // namespace c_api
 }  // namespace cugraph
