@@ -240,11 +240,13 @@ def get_handle(sID, dask_worker=None):
     return sessionstate["handle"]
 
 
-def get_worker_id(sID):
+def get_worker_id(sID, dask_worker=None):
     """
     Returns the worker's sessionId from within the worker.
     """
-    sessionstate = get_raft_comm_state(sID, get_worker())
+    if dask_worker is None:
+        dask_worker = get_worker()
+    sessionstate = get_raft_comm_state(sID, dask_worker)
     return sessionstate["wid"]
 
 
@@ -255,9 +257,11 @@ def get_worker_id(sID):
 #   * len(numba.cuda.gpus)
 # Consider consolidating these or emphasizing why different
 # functions/techniques are needed.
-def get_n_workers(sID=None):
+def get_n_workers(sID=None, dask_worker=None):
     if sID is None:
         return read_utils.get_n_workers()
     else:
-        sessionstate = get_raft_comm_state(sID, get_worker())
+        if dask_worker is None:
+            dask_worker = get_worker()
+        sessionstate = get_raft_comm_state(sID, dask_worker)
         return sessionstate["nworkers"]
