@@ -29,6 +29,7 @@ import cupy
 
 # MG
 import cugraph.dask as dcg
+from cugraph.dask.common.mg_utils import is_single_gpu
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 import dask_cudf
@@ -384,6 +385,7 @@ def test_view_edge_list_for_Graph(graph_file):
 @pytest.mark.sg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 def test_consolidation(graph_file):
     cluster = LocalCUDACluster()
     client = Client(cluster)

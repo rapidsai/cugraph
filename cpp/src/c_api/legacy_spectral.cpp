@@ -17,6 +17,7 @@
 #include <cugraph_c/algorithms.h>
 
 #include <c_api/abstract_functor.hpp>
+#include <c_api/capi_helper.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
@@ -39,57 +40,6 @@ struct cugraph_clustering_result_t {
 }  // namespace cugraph
 
 namespace {
-
-struct create_clustering_functor : public cugraph::c_api::abstract_functor {
-  raft::handle_t const& handle_;
-  cugraph::c_api::cugraph_graph_t* graph_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertex_;
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* cluster_;
-  cugraph::c_api::cugraph_clustering_result_t* result_{};
-
-  create_clustering_functor(::cugraph_resource_handle_t const* handle,
-                            ::cugraph_graph_t* graph,
-                            ::cugraph_type_erased_device_array_view_t const* vertex,
-                            ::cugraph_type_erased_device_array_view_t const* cluster)
-    : abstract_functor(),
-      handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
-      graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      vertex_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertex)),
-      cluster_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(cluster))
-  {
-  }
-
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            typename edge_type_type_t,
-            bool store_transposed,
-            bool multi_gpu>
-  void operator()()
-  {
-    if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
-      unsupported();
-    } else {
-      rmm::device_uvector<vertex_t> vertex_copy(vertex_->size_, handle_.get_stream());
-      rmm::device_uvector<vertex_t> cluster_copy(cluster_->size_, handle_.get_stream());
-
-      raft::copy(
-        vertex_copy.data(), vertex_->as_type<vertex_t>(), vertex_->size_, handle_.get_stream());
-      raft::copy(
-        cluster_copy.data(), cluster_->as_type<vertex_t>(), cluster_->size_, handle_.get_stream());
-
-      if constexpr (multi_gpu) {
-        unsupported();
-      }
-
-      result_ = new cugraph::c_api::cugraph_clustering_result_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_copy, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(cluster_copy, graph_->vertex_type_)};
-    }
-  }
-};
 
 struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
@@ -293,18 +243,23 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   size_t n_clusters_{};
-  cugraph::c_api::cugraph_clustering_result_t const* clustering_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertices_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* clusters_{};
   double result_{};
 
   analyze_clustering_ratio_cut_functor(::cugraph_resource_handle_t const* handle,
                                        ::cugraph_graph_t* graph,
                                        size_t n_clusters,
-                                       ::cugraph_clustering_result_t const* clustering)
+                                       ::cugraph_type_erased_device_array_view_t const* vertices,
+                                       ::cugraph_type_erased_device_array_view_t const* clusters)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       n_clusters_(n_clusters),
-      clustering_(reinterpret_cast<cugraph::c_api::cugraph_clustering_result_t const*>(clustering))
+      vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertices)),
+      clusters_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(clusters))
   {
   }
 
@@ -352,8 +307,28 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
 
       weight_t score;
 
-      cugraph::ext_raft::analyzeClustering_ratio_cut(
-        legacy_graph_view, n_clusters_, clustering_->clusters_->as_type<vertex_t>(), &score);
+      if (cugraph::detail::is_sorted(handle_,
+                                     raft::device_span<vertex_t const>{
+                                       vertices_->as_type<vertex_t const>(), vertices_->size_})) {
+        cugraph::ext_raft::analyzeClustering_ratio_cut(
+          legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
+      } else {
+        rmm::device_uvector<vertex_t> tmp_v(vertices_->size_, handle_.get_stream());
+        rmm::device_uvector<vertex_t> tmp_c(clusters_->size_, handle_.get_stream());
+
+        raft::copy(
+          tmp_v.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
+        raft::copy(
+          tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{tmp_v.data(), tmp_v.size()},
+          raft::device_span<vertex_t>{tmp_c.data(), tmp_c.size()});
+
+        cugraph::ext_raft::analyzeClustering_ratio_cut(
+          legacy_graph_view, n_clusters_, tmp_c.data(), &score);
+      }
 
       result_ = static_cast<double>(score);
     }
@@ -364,18 +339,23 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   size_t n_clusters_{};
-  cugraph::c_api::cugraph_clustering_result_t const* clustering_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertices_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* clusters_{};
   double result_{};
 
   analyze_clustering_edge_cut_functor(::cugraph_resource_handle_t const* handle,
                                       ::cugraph_graph_t* graph,
                                       size_t n_clusters,
-                                      ::cugraph_clustering_result_t const* clustering)
+                                      ::cugraph_type_erased_device_array_view_t const* vertices,
+                                      ::cugraph_type_erased_device_array_view_t const* clusters)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       n_clusters_(n_clusters),
-      clustering_(reinterpret_cast<cugraph::c_api::cugraph_clustering_result_t const*>(clustering))
+      vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertices)),
+      clusters_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(clusters))
   {
   }
 
@@ -423,8 +403,28 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
 
       weight_t score;
 
-      cugraph::ext_raft::analyzeClustering_edge_cut(
-        legacy_graph_view, n_clusters_, clustering_->clusters_->as_type<vertex_t>(), &score);
+      if (cugraph::detail::is_sorted(handle_,
+                                     raft::device_span<vertex_t const>{
+                                       vertices_->as_type<vertex_t const>(), vertices_->size_})) {
+        cugraph::ext_raft::analyzeClustering_edge_cut(
+          legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
+      } else {
+        rmm::device_uvector<vertex_t> tmp_v(vertices_->size_, handle_.get_stream());
+        rmm::device_uvector<vertex_t> tmp_c(clusters_->size_, handle_.get_stream());
+
+        raft::copy(
+          tmp_v.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
+        raft::copy(
+          tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{tmp_v.data(), tmp_v.size()},
+          raft::device_span<vertex_t>{tmp_c.data(), tmp_c.size()});
+
+        cugraph::ext_raft::analyzeClustering_edge_cut(
+          legacy_graph_view, n_clusters_, tmp_c.data(), &score);
+      }
 
       result_ = static_cast<double>(score);
     }
@@ -435,18 +435,23 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   size_t n_clusters_{};
-  cugraph::c_api::cugraph_clustering_result_t const* clustering_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* vertices_{};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* clusters_{};
   double result_{};
 
   analyze_clustering_modularity_functor(::cugraph_resource_handle_t const* handle,
                                         ::cugraph_graph_t* graph,
                                         size_t n_clusters,
-                                        ::cugraph_clustering_result_t const* clustering)
+                                        ::cugraph_type_erased_device_array_view_t const* vertices,
+                                        ::cugraph_type_erased_device_array_view_t const* clusters)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       n_clusters_(n_clusters),
-      clustering_(reinterpret_cast<cugraph::c_api::cugraph_clustering_result_t const*>(clustering))
+      vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertices)),
+      clusters_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(clusters))
   {
   }
 
@@ -494,8 +499,28 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
 
       weight_t score;
 
-      cugraph::ext_raft::analyzeClustering_modularity(
-        legacy_graph_view, n_clusters_, clustering_->clusters_->as_type<vertex_t>(), &score);
+      if (cugraph::detail::is_sorted(handle_,
+                                     raft::device_span<vertex_t const>{
+                                       vertices_->as_type<vertex_t const>(), vertices_->size_})) {
+        cugraph::ext_raft::analyzeClustering_modularity(
+          legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
+      } else {
+        rmm::device_uvector<vertex_t> tmp_v(vertices_->size_, handle_.get_stream());
+        rmm::device_uvector<vertex_t> tmp_c(clusters_->size_, handle_.get_stream());
+
+        raft::copy(
+          tmp_v.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
+        raft::copy(
+          tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
+
+        cugraph::c_api::detail::sort_by_key(
+          handle_,
+          raft::device_span<vertex_t>{tmp_v.data(), tmp_v.size()},
+          raft::device_span<vertex_t>{tmp_c.data(), tmp_c.size()});
+
+        cugraph::ext_raft::analyzeClustering_modularity(
+          legacy_graph_view, n_clusters_, tmp_c.data(), &score);
+      }
 
       result_ = static_cast<double>(score);
     }
@@ -503,36 +528,6 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
 };
 
 }  // namespace
-
-extern "C" cugraph_error_code_t cugraph_create_clustering(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertex,
-  const cugraph_type_erased_device_array_view_t* cluster,
-  cugraph_clustering_result_t** clustering,
-  cugraph_error_t** error)
-{
-
-  CAPI_EXPECTS(
-    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(vertex)
-        ->type_,
-    CUGRAPH_INVALID_INPUT,
-    "vertex type of graph and vertex must match",
-    *error);
-  // FIXME: This might nor be necessary
-  CAPI_EXPECTS(
-    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(cluster)
-        ->type_,
-    CUGRAPH_INVALID_INPUT,
-    "vertex type of graph and cluster must match",
-    *error);
-
-  create_clustering_functor functor(handle, graph, vertex, cluster);
-
-  return cugraph::c_api::run_algorithm(graph, functor, clustering, error);
-}
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_clustering_result_get_vertices(
   cugraph_clustering_result_t* result)
@@ -613,11 +608,12 @@ extern "C" cugraph_error_code_t cugraph_analyze_clustering_modularity(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t n_clusters,
-  const cugraph_clustering_result_t* clustering,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* clusters,
   double* score,
   cugraph_error_t** error)
 {
-  analyze_clustering_modularity_functor functor(handle, graph, n_clusters, clustering);
+  analyze_clustering_modularity_functor functor(handle, graph, n_clusters, vertices, clusters);
 
   return cugraph::c_api::run_algorithm(graph, functor, score, error);
 }
@@ -626,11 +622,12 @@ extern "C" cugraph_error_code_t cugraph_analyze_clustering_edge_cut(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t n_clusters,
-  const cugraph_clustering_result_t* clustering,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* clusters,
   double* score,
   cugraph_error_t** error)
 {
-  analyze_clustering_edge_cut_functor functor(handle, graph, n_clusters, clustering);
+  analyze_clustering_edge_cut_functor functor(handle, graph, n_clusters, vertices, clusters);
 
   return cugraph::c_api::run_algorithm(graph, functor, score, error);
 }
@@ -639,11 +636,12 @@ extern "C" cugraph_error_code_t cugraph_analyze_clustering_ratio_cut(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t n_clusters,
-  const cugraph_clustering_result_t* clustering,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* clusters,
   double* score,
   cugraph_error_t** error)
 {
-  analyze_clustering_ratio_cut_functor functor(handle, graph, n_clusters, clustering);
+  analyze_clustering_ratio_cut_functor functor(handle, graph, n_clusters, vertices, clusters);
 
   return cugraph::c_api::run_algorithm(graph, functor, score, error);
 }

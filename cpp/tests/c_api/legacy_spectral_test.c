@@ -78,7 +78,7 @@ int generic_spectral_test(vertex_t* h_src,
     vertices = cugraph_clustering_result_get_vertices(result);
     clusters = cugraph_clustering_result_get_clusters(result);
 
-    ret_code = cugraph_analyze_clustering_modularity(handle, graph, num_clusters, result, &modularity, &ret_error);
+    ret_code = cugraph_analyze_clustering_modularity(handle, graph, num_clusters, vertices, clusters, &modularity, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     vertex_t h_vertices[num_vertices];
@@ -172,13 +172,13 @@ int generic_balanced_cut_test(vertex_t* h_src,
     vertices = cugraph_clustering_result_get_vertices(result);
     clusters = cugraph_clustering_result_get_clusters(result);
 
-    ret_code = cugraph_analyze_clustering_modularity(handle, graph, num_clusters, result, &modularity, &ret_error);
+    ret_code = cugraph_analyze_clustering_modularity(handle, graph, num_clusters, vertices, clusters, &modularity, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-    ret_code = cugraph_analyze_clustering_edge_cut(handle, graph, num_clusters, result, &edge_cut, &ret_error);
+    ret_code = cugraph_analyze_clustering_edge_cut(handle, graph, num_clusters, vertices, clusters, &edge_cut, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-    ret_code = cugraph_analyze_clustering_ratio_cut(handle, graph, num_clusters, result, &ratio_cut, &ret_error);
+    ret_code = cugraph_analyze_clustering_ratio_cut(handle, graph, num_clusters, vertices, clusters, &ratio_cut, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
     vertex_t h_vertices[num_vertices];

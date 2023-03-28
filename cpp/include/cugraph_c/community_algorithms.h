@@ -224,29 +224,6 @@ typedef struct {
   int32_t align_;
 } cugraph_clustering_result_t;
 
-
-/**
- * @brief       Create clustering
- *
- *
- * @param [in]  handle       Handle for accessing resources
- * @param [in]  graph        Graph to operate on
- * @param [in]  vertex       Type erased array of vertex ids
- * @param [in]  cluster      Corresponding type erased array of the vertex ids
- * @param [out] clustering   Opaque pointer to clustering
- * @param [out] error        Pointer to an error object storing details of any error.  Will
- *                           be populated if error code is not CUGRAPH_SUCCESS
- * @return error code
- */
-cugraph_error_code_t cugraph_create_clustering(
-  const cugraph_resource_handle_t* handle,
-  cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* vertex,
-  const cugraph_type_erased_device_array_view_t* cluster,
-  cugraph_clustering_result_t** clustering,
-  cugraph_error_t** error);
-
-
 /**
  * @brief   Balanced cut clustering
  *
@@ -326,7 +303,8 @@ cugraph_error_code_t cugraph_spectral_modularity_maximization(
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  n_clusters      The desired number of clusters
- * @param [in]  clustering      Opaque object containing the clustering result
+ * @param [in]  vertices        Vertex ids from the clustering result
+ * @param [in]  clusters        Cluster ids from the clustering result
  * @param [out] score           The modularity score for this clustering
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
@@ -336,7 +314,8 @@ cugraph_error_code_t cugraph_analyze_clustering_modularity(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t n_clusters,
-  const cugraph_clustering_result_t* clustering,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* clusters,
   double* score,
   cugraph_error_t** error);
 
@@ -350,7 +329,8 @@ cugraph_error_code_t cugraph_analyze_clustering_modularity(
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  n_clusters      The desired number of clusters
- * @param [in]  clustering      Opaque object containing the clustering result
+ * @param [in]  vertices        Vertex ids from the clustering result
+ * @param [in]  clusters        Cluster ids from the clustering result
  * @param [out] score           The edge cut score for this clustering
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
@@ -360,7 +340,8 @@ cugraph_error_code_t cugraph_analyze_clustering_edge_cut(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t n_clusters,
-  const cugraph_clustering_result_t* clustering,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* clusters,
   double* score,
   cugraph_error_t** error);
 
@@ -374,7 +355,8 @@ cugraph_error_code_t cugraph_analyze_clustering_edge_cut(
  * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
  *                              needs to be transposed
  * @param [in]  n_clusters      The desired number of clusters
- * @param [in]  clustering      Opaque object containing the clustering result
+ * @param [in]  vertices        Vertex ids from the clustering result
+ * @param [in]  clusters        Cluster ids from the clustering result
  * @param [out] score           The ratio cut score for this clustering
  * @param [out] error           Pointer to an error object storing details of any error.  Will
  *                              be populated if error code is not CUGRAPH_SUCCESS
@@ -384,7 +366,8 @@ cugraph_error_code_t cugraph_analyze_clustering_ratio_cut(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   size_t n_clusters,
-  const cugraph_clustering_result_t* clustering,
+  const cugraph_type_erased_device_array_view_t* vertices,
+  const cugraph_type_erased_device_array_view_t* clusters,
   double* score,
   cugraph_error_t** error);
 
