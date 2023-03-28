@@ -558,7 +558,7 @@ refine_clustering(
     std::optional<edge_property_t<DecisionGraphViewType, weight_t>> coarse_edge_weights{
       std::nullopt};
 
-    std::tie(decision_graph, coarse_edge_weights, std::ignore, renumber_map) =
+    std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
       create_graph_from_edgelist<vertex_t,
                                  edge_t,
                                  weight_t,
