@@ -22,15 +22,17 @@ from cugraph_pyg.data import CuGraphStore
 import cudf
 import cupy
 import numpy as np
+from random import randint
+
+from cugraph.utilities.utils import import_optional, MissingModule
 
 import pytest
 
-from random import randint
+
+torch = import_optional("torch")
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_tensor_attr():
     ta = CuGraphTensorAttr("group0", "property1")
     assert not ta.is_fully_specified()
@@ -60,9 +62,7 @@ def test_tensor_attr():
     assert casted_ta3.index == [1, 2, 3]
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_edge_attr():
     ea = CuGraphEdgeAttr("type0", EdgeLayout.COO, False, 10)
     assert ea.edge_type == "type0"
@@ -80,9 +80,6 @@ def test_edge_attr():
     assert ea.size == 10
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
 @pytest.fixture(
     params=[
         "basic_graph_1",
@@ -94,17 +91,12 @@ def graph(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
 @pytest.fixture(params=["basic_graph_1", "multi_edge_graph_1"])
 def single_vertex_graph(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_edge_index(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -118,9 +110,7 @@ def test_get_edge_index(graph):
         assert G[pyg_can_edge_type][1].tolist() == dst.get().tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_edge_types(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -133,9 +123,7 @@ def test_edge_types(graph):
         assert attr_name == attr_repr.edge_type
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_subgraph(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -153,9 +141,7 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_basic(single_vertex_graph):
     F, G, N = single_vertex_graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -166,9 +152,7 @@ def test_renumber_vertices_basic(single_vertex_graph):
     assert index["vt1"].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -186,9 +170,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph
         assert index["brown"].get().tolist() == sorted(brown_nodes.values_host.tolist())
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_edges(graph):
     """
     FIXME this test is not very good and should be replaced,
@@ -245,8 +227,8 @@ def test_renumber_edges(graph):
     for pyg_can_edge_type in G:
         df = cudf.DataFrame(
             {
-                "src": G[pyg_can_edge_type][0],
-                "dst": G[pyg_can_edge_type][1],
+                "src": cupy.asarray(G[pyg_can_edge_type][0]),
+                "dst": cupy.asarray(G[pyg_can_edge_type][1]),
             }
         )
 
@@ -269,9 +251,7 @@ def test_renumber_edges(graph):
             assert len(df) == 1
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -296,9 +276,7 @@ def test_get_tensor(graph):
             assert tsr == base_series
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_multi_get_tensor(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -325,9 +303,7 @@ def test_multi_get_tensor(graph):
         assert np.stack(tsr).get().tolist() == base_series.tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_all_tensor_attrs(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -367,9 +343,7 @@ def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1):
     raise NotImplementedError("not implemented")
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_from_tensor_attrs(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -383,9 +357,7 @@ def test_get_tensor_from_tensor_attrs(graph):
         assert cugraph_store.get_tensor(tensor_attr).tolist() == data.tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_size(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, backend="cupy")
@@ -396,3 +368,11 @@ def test_get_tensor_size(graph):
 
         tensor_attr.index = np.arange(sz)
         assert cugraph_store.get_tensor_size(tensor_attr) == sz
+
+
+def test_serialize(multi_edge_multi_vertex_no_graph_1):
+    import pickle
+
+    F, G, N = multi_edge_multi_vertex_no_graph_1
+    cugraph_store = CuGraphStore(F, G, N)
+    pickle.dumps(cugraph_store)
