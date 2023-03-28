@@ -81,7 +81,7 @@ def subcomm_init(prows, pcols, partition_type):
     __subcomm = (prows, pcols, partition_type)
 
 
-def _subcomm_init(sID, partition_row_size, dask_worker):
+def _subcomm_init(sID, partition_row_size, dask_worker=None):
     handle = get_handle(sID, dask_worker)
     c_init_subcomms(handle, partition_row_size)
 
