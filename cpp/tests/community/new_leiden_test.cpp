@@ -139,8 +139,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
 
     std::tie(level, modularity) = cugraph::leiden(
       handle, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
     std::cout << "modularity: " << modularity << std::endl;
     std::cout << "level:" << level << std::endl;
 

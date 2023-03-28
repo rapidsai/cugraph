@@ -16,9 +16,10 @@
 #pragma once
 
 #include <community/detail/common_methods.hpp>
-
 #include <community/detail/mis.hpp>
-
+#include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <detail/graph_partition_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
@@ -28,12 +29,6 @@
 #include <prims/update_edge_src_dst_property.cuh>
 #include <utilities/collect_comm.cuh>
 
-#include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/graph_functions.hpp>
-
-#include <algorithm>
-#include <cmath>
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -48,6 +43,9 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 
+#include <algorithm>
+#include <cmath>
+
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
 
@@ -59,9 +57,6 @@ template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
   using type                          = thrust::tuple<vertex_t, weight_t>;
   static constexpr bool pure_function = true;  // this can be called from any process
-  // inline static type const identity_element =
-  //   thrust::make_tuple(std::numeric_limits<weight_t>::lowest(),
-  //   invalid_vertex_id<vertex_t>::value);
 
   __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
                              thrust::tuple<vertex_t, weight_t> p1) const
@@ -235,7 +230,7 @@ refine_clustering(
 
   edge_src_property_t<GraphViewType, weight_t> src_louvain_cluster_weight_cache(handle);
   edge_src_property_t<GraphViewType, thrust::tuple<weight_t, weight_t>>
-    src_wdeg_and_cut_to_Louvain_cache(handle);
+    src_wdeg_and_cut_to_louvain_cache(handle);
 
   if (GraphViewType::is_multi_gpu) {
     src_louvain_cluster_weight_cache =
@@ -243,14 +238,14 @@ refine_clustering(
     update_edge_src_property(
       handle, graph_view, vertex_cluster_weights_v.begin(), src_louvain_cluster_weight_cache);
 
-    src_wdeg_and_cut_to_Louvain_cache =
+    src_wdeg_and_cut_to_louvain_cache =
       edge_src_property_t<GraphViewType, thrust::tuple<weight_t, weight_t>>(handle, graph_view);
     update_edge_src_property(
       handle,
       graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(weighted_degree_of_vertices.begin(),
                                                    weighted_cut_of_vertices_to_louvain.begin())),
-      src_wdeg_and_cut_to_Louvain_cache);
+      src_wdeg_and_cut_to_louvain_cache);
 
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
@@ -286,10 +281,6 @@ refine_clustering(
                                                               invalid_vertex_id<vertex_t>::value,
                                                               handle.get_stream());
 
-  auto vertex_begin =
-    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
-  auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
-
   while (true) {
     vertex_t nr_remaining_active_vertices =
       thrust::count_if(handle.get_thrust_policy(),
@@ -315,9 +306,7 @@ refine_clustering(
       dst_leiden_assignment_cache =
         edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
       src_active_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
-    }
 
-    if constexpr (GraphViewType::is_multi_gpu) {
       update_edge_src_property(
         handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache);
 
@@ -353,7 +342,7 @@ refine_clustering(
     // (i.e.sum of weighted degree of all vertices inside it, ||Cr||) and
     // and cut between itself and its Louvain community (E(Cr, S-Cr))
     //
-    // TODO: Can we update ||Cr|| and E(Cr, S-Cr) instead of recomputing?
+    // FIXME: Can we update ||Cr|| and E(Cr, S-Cr) instead of recomputing?
 
     std::forward_as_tuple(leiden_keys_used_in_edge_reduction,
                           std::tie(refined_community_volumes, refined_community_cuts)) =
@@ -407,7 +396,7 @@ refine_clustering(
 
     auto zipped_src_device_view =
       GraphViewType::is_multi_gpu
-        ? view_concat(src_wdeg_and_cut_to_Louvain_cache.view(),
+        ? view_concat(src_wdeg_and_cut_to_louvain_cache.view(),
                       src_louvain_cluster_weight_cache.view(),
                       src_active_flag_cache.view(),
                       src_leiden_assignment_cache.view(),
@@ -497,6 +486,11 @@ refine_clustering(
     auto dst_and_gain_first = cugraph::get_dataframe_buffer_cbegin(dst_and_gain_output_pairs);
     auto dst_and_gain_last  = cugraph::get_dataframe_buffer_cend(dst_and_gain_output_pairs);
 
+    auto vertex_begin =
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
+    auto vertex_end =
+      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
+
     // edge (src, dst, gain)
     auto edge_begin = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_begin,
@@ -576,6 +570,7 @@ refine_clustering(
                                             std::move(d_dsts),
                                             std::move(d_weights),
                                             std::nullopt,
+                                            std::nullopt,
                                             cugraph::graph_properties_t{false, false},
                                             true);
 
@@ -595,8 +590,6 @@ refine_clustering(
                           numbering_indices.data(),
                           numbering_indices.size(),
                           decision_graph_view.local_vertex_partition_range_first());
-
-    std::cout << "Found MIS of size " << vertices_in_mis.size() << std::endl;
 
     //
     // Apply Renumber map to get original vertex ids
@@ -694,7 +687,7 @@ refine_clustering(
   }
 
   src_louvain_cluster_weight_cache.clear(handle);
-  src_wdeg_and_cut_to_Louvain_cache.clear(handle);
+  src_wdeg_and_cut_to_louvain_cache.clear(handle);
 
   louvain_assignment.resize(0, handle.get_stream());
   louvain_assignment.shrink_to_fit(handle.get_stream());

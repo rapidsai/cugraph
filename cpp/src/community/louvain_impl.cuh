@@ -248,8 +248,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       handle,
       current_graph_view,
       current_edge_weight_view,
-      raft::device_span<vertex_t>{dendrogram->current_level_begin(),
-                                  dendrogram->current_level_size()});
+      raft::device_span<vertex_t const>{dendrogram->current_level_begin(),
+                                        dendrogram->current_level_size()});
     current_graph_view       = current_graph.view();
     current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
       (*current_edge_weights).view());

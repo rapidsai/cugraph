@@ -196,7 +196,7 @@ std::tuple<
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
-                  raft::device_span<vertex_t> labels)
+                  raft::device_span<vertex_t const> labels)
 {
   auto [new_graph, new_edge_weights, numbering_map] =
     coarsen_graph(handle, graph_view, edge_weights, labels.data(), true);
@@ -208,18 +208,6 @@ graph_contraction(raft::handle_t const& handle,
                         numbering_indices.data(),
                         numbering_indices.size(),
                         new_graph_view.local_vertex_partition_range_first());
-
-  relabel<vertex_t, multi_gpu>(
-    handle,
-    std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                    static_cast<vertex_t const*>(numbering_indices.begin())),
-    new_graph_view.local_vertex_partition_range_size(),
-    labels.data(),
-    labels.size(),
-    false);
-
-  numbering_indices.resize(0, handle.get_stream());
-  numbering_indices.shrink_to_fit(handle.get_stream());
 
   return std::make_tuple(
     std::move(new_graph), std::move(new_edge_weights), std::move(numbering_map));

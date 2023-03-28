@@ -25,24 +25,20 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <cub/cub.cuh>
 #include <thrust/count.h>
 #include <thrust/distance.h>
-#include <thrust/remove.h>
-
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
-
 #include <thrust/optional.h>
+#include <thrust/remove.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/transform.h>
@@ -64,7 +60,6 @@ rmm::device_uvector<vertex_t> compute_mis(
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
-  using FlagType      = vertex_t;
 
   vertex_t local_vtx_partitoin_size = graph_view.local_vertex_partition_range_size();
 
@@ -217,32 +212,6 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     max_incoming_ranks.resize(0, handle.get_stream());
     max_incoming_ranks.shrink_to_fit(handle.get_stream());
-
-    //
-    // Count number of candidates to be removed
-    //
-    vertex_t nr_candidates_to_remove = thrust::count_if(
-      handle.get_thrust_policy(),
-      remaining_vertices.end() - nr_candidates,
-      remaining_vertices.end(),
-      [max_rank_neighbor_first = max_outgoing_ranks.begin(),
-       ranks                   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-       v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-        auto v_offset          = v - v_first;
-        auto max_neighbor_rank = *(max_rank_neighbor_first + v_offset);
-        auto rank_of_v         = ranks[v_offset];
-
-        if (max_neighbor_rank >= std::numeric_limits<vertex_t>::max()) {
-          // Maximum rank neighbor is alreay in MIS, discard v
-          return true;
-        }
-
-        if (rank_of_v >= max_neighbor_rank) {
-          // Include v into MIS
-          return true;
-        }
-        return false;
-      });
 
     //
     // If the max neighbor of a vertex is already in MIS (i.e. has rank
