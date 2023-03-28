@@ -78,9 +78,7 @@ class SAGE(nn.Module):
             all_node_ids, device=device
         )
 
-        sampler = MultiLayerFullNeighborSampler(
-            1, prefetch_node_feats=["feat"]
-        )
+        sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
         dataloader = DataLoader(
             g,
             torch.arange(g.num_nodes()).to(g.device),
@@ -97,9 +95,7 @@ class SAGE(nn.Module):
         for l_id, layer in enumerate(self.layers):
             y = torch.empty(
                 g.num_nodes(),
-                self.hid_size
-                if l_id != len(self.layers) - 1
-                else self.out_size,
+                self.hid_size if l_id != len(self.layers) - 1 else self.out_size,
                 device=buffer_device,
                 pin_memory=pin_memory,
             )
@@ -142,18 +138,14 @@ def evaluate(model, graph, dataloader):
 def layerwise_infer(device, graph, nid, model, batch_size):
     model.eval()
     with torch.no_grad():
-        pred = model.inference(
-            graph, device, batch_size
-        )  # pred in buffer_device
+        pred = model.inference(graph, device, batch_size)  # pred in buffer_device
         pred = pred[nid]
         label = graph.ndata["label"]
         if isinstance(label, dict):
             label = label["_N"]
         label = label[nid].to(device).to(pred.device)
         num_classes = pred.shape[1]
-        return MF.accuracy(
-            pred, label, task="multiclass", num_classes=num_classes
-        )
+        return MF.accuracy(pred, label, task="multiclass", num_classes=num_classes)
 
 
 def train(args, device, g, dataset, model):
@@ -194,9 +186,7 @@ def train(args, device, g, dataset, model):
         model.train()
         total_loss = 0
         st = time.time()
-        for it, (input_nodes, output_nodes, blocks) in enumerate(
-            train_dataloader
-        ):
+        for it, (input_nodes, output_nodes, blocks) in enumerate(train_dataloader):
             if isinstance(g.ndata["feat"], dict):
                 x = g.ndata["feat"]["_N"][input_nodes]
                 y = g.ndata["label"]["_N"][output_nodes]
@@ -212,9 +202,7 @@ def train(args, device, g, dataset, model):
 
         et = time.time()
 
-        print(
-            f"Time taken for epoch {epoch} with batch_size {batch_size} = {et-st} s"
-        )
+        print(f"Time taken for epoch {epoch} with batch_size {batch_size} = {et-st} s")
         acc = evaluate(model, g, val_dataloader)
         print(
             "Epoch {:05d} | Loss {:.4f} | Accuracy {:.4f} ".format(
