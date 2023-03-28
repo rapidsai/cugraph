@@ -68,7 +68,7 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
 
       if (!multi_gpu || (handle_.get_comms().get_rank() == 0)) {
         local_vertices = cugraph::select_random_vertices(
-          handle_, graph_view, rng_state_->rng_state_, static_cast<vertex_t>(num_vertices_), false);
+          handle_, graph_view, rng_state_->rng_state_, num_vertices_, false, false);
       }
 
       if constexpr (multi_gpu) {
