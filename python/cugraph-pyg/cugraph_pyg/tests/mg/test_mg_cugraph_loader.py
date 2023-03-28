@@ -24,7 +24,7 @@ torch = import_optional("torch")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_basic(dask_client, karate_gnn):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, backend="torch", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
     loader = CuGraphNeighborLoader(
         (cugraph_store, cugraph_store),
         torch.arange(N["type0"] + N["type1"], dtype=torch.int64),
@@ -40,7 +40,10 @@ def test_cugraph_loader_basic(dask_client, karate_gnn):
 
     assert len(samples) == 3
     for sample in samples:
-        for prop in sample["type0"]["prop0"].tolist():
-            assert prop % 31 == 0
-        for prop in sample["type1"]["prop0"].tolist():
-            assert prop % 41 == 0
+        if "type0" in sample:
+            for prop in sample["type0"]["prop0"].tolist():
+                assert prop % 31 == 0
+
+        if "type1" in sample:
+            for prop in sample["type1"]["prop0"].tolist():
+                assert prop % 41 == 0
