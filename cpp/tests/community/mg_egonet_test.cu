@@ -24,6 +24,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
@@ -70,7 +71,7 @@ class Tests_MGEgonet
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, egonet_usecase.test_weighted_, true);
 
@@ -85,8 +86,6 @@ class Tests_MGEgonet
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    int my_rank = handle_->get_comms().get_rank();
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
@@ -95,7 +94,7 @@ class Tests_MGEgonet
 
     rmm::device_uvector<vertex_t> d_ego_sources(0, handle_->get_stream());
 
-    if (my_rank == 0) {
+    if (handle_->get_comms().get_rank() == 0) {
       d_ego_sources.resize(egonet_usecase.ego_sources_.size(), handle_->get_stream());
 
       if constexpr (std::is_same<int32_t, vertex_t>::value) {
@@ -114,18 +113,18 @@ class Tests_MGEgonet
       }
     }
 
+    d_ego_sources = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_ego_sources));
+
     cugraph::renumber_ext_vertices<vertex_t, true>(
       *handle_,
       d_ego_sources.data(),
       d_ego_sources.size(),
-      d_renumber_map_labels->data(),
+      mg_renumber_map->data(),
       mg_graph_view.local_vertex_partition_range_first(),
       mg_graph_view.local_vertex_partition_range_last());
 
-    d_ego_sources = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(d_ego_sources), mg_graph_view.vertex_partition_range_lasts());
-
-    auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_wgt, d_ego_edgelist_offsets] =
+    auto [d_mg_edgelist_src, d_mg_edgelist_dst, d_mg_edgelist_wgt, d_mg_edgelist_offsets] =
       cugraph::extract_ego(
         *handle_,
         mg_graph_view,
@@ -141,49 +140,41 @@ class Tests_MGEgonet
     }
 
     if (egonet_usecase.check_correctness_) {
-      d_ego_edgelist_src = cugraph::test::device_gatherv(
+      auto d_mg_aggregate_edgelist_src = cugraph::test::device_gatherv(
         *handle_,
-        raft::device_span<vertex_t const>(d_ego_edgelist_src.data(), d_ego_edgelist_src.size()));
-      d_ego_edgelist_dst = cugraph::test::device_gatherv(
+        raft::device_span<vertex_t const>(d_mg_edgelist_src.data(), d_mg_edgelist_src.size()));
+      auto d_mg_aggregate_edgelist_dst = cugraph::test::device_gatherv(
         *handle_,
-        raft::device_span<vertex_t const>(d_ego_edgelist_dst.data(), d_ego_edgelist_dst.size()));
+        raft::device_span<vertex_t const>(d_mg_edgelist_dst.data(), d_mg_edgelist_dst.size()));
 
-      if (d_ego_edgelist_wgt) {
-        *d_ego_edgelist_wgt =
-          cugraph::test::device_gatherv(*handle_,
-                                        raft::device_span<weight_t const>(
-                                          d_ego_edgelist_wgt->data(), d_ego_edgelist_wgt->size()));
+      std::optional<rmm::device_uvector<weight_t>> d_mg_aggregate_edgelist_wgt{std::nullopt};
+      if (d_mg_edgelist_wgt) {
+        *d_mg_aggregate_edgelist_wgt = cugraph::test::device_gatherv(
+          *handle_,
+          raft::device_span<weight_t const>(d_mg_edgelist_wgt->data(), d_mg_edgelist_wgt->size()));
       }
 
-      size_t offsets_size = d_ego_edgelist_offsets.size();
-
       auto graph_ids_v = cugraph::detail::expand_sparse_offsets(
-        raft::device_span<size_t const>(d_ego_edgelist_offsets.data(),
-                                        d_ego_edgelist_offsets.size()),
+        raft::device_span<size_t const>(d_mg_edgelist_offsets.data(), d_mg_edgelist_offsets.size()),
         vertex_t{0},
         handle_->get_stream());
 
       graph_ids_v = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
-      if (d_ego_edgelist_wgt) {
-        thrust::sort_by_key(
-          handle_->get_thrust_policy(),
-          thrust::make_zip_iterator(
-            graph_ids_v.begin(), d_ego_edgelist_src.begin(), d_ego_edgelist_dst.begin()),
-          thrust::make_zip_iterator(
-            graph_ids_v.end(), d_ego_edgelist_src.end(), d_ego_edgelist_dst.end()),
-          d_ego_edgelist_wgt->begin());
+      auto triplet_first = thrust::make_zip_iterator(graph_ids_v.begin(),
+                                                     d_mg_aggregate_edgelist_src.begin(),
+                                                     d_mg_aggregate_edgelist_dst.begin());
+      if (d_mg_aggregate_edgelist_wgt) {
+        thrust::sort_by_key(handle_->get_thrust_policy(),
+                            triplet_first,
+                            triplet_first + d_mg_aggregate_edgelist_src.size(),
+                            d_mg_aggregate_edgelist_wgt->begin());
       } else {
         thrust::sort(handle_->get_thrust_policy(),
-                     thrust::make_zip_iterator(
-                       graph_ids_v.begin(), d_ego_edgelist_src.begin(), d_ego_edgelist_dst.begin()),
-                     thrust::make_zip_iterator(
-                       graph_ids_v.end(), d_ego_edgelist_src.end(), d_ego_edgelist_dst.end()));
+                     triplet_first,
+                     triplet_first + d_mg_aggregate_edgelist_src.size());
       }
-
-      d_ego_edgelist_offsets = cugraph::detail::compute_sparse_offsets<size_t>(
-        graph_ids_v.begin(), graph_ids_v.end(), size_t{0}, offsets_size - 1, handle_->get_stream());
 
       auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
@@ -195,7 +186,14 @@ class Tests_MGEgonet
       d_ego_sources = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_ego_sources.data(), d_ego_sources.size()));
 
-      if (my_rank == 0) {
+      if (handle_->get_comms().get_rank() == 0) {
+        auto d_mg_aggregate_edgelist_offsets =
+          cugraph::detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+                                                          graph_ids_v.end(),
+                                                          size_t{0},
+                                                          d_mg_edgelist_offsets.size() - 1,
+                                                          handle_->get_stream());
+
         auto [d_reference_src, d_reference_dst, d_reference_wgt, d_reference_offsets] =
           cugraph::extract_ego(
             *handle_,
@@ -205,10 +203,10 @@ class Tests_MGEgonet
             static_cast<vertex_t>(egonet_usecase.radius_));
 
         cugraph::test::egonet_validate(*handle_,
-                                       d_ego_edgelist_src,
-                                       d_ego_edgelist_dst,
-                                       d_ego_edgelist_wgt,
-                                       d_ego_edgelist_offsets,
+                                       d_mg_aggregate_edgelist_src,
+                                       d_mg_aggregate_edgelist_dst,
+                                       d_mg_aggregate_edgelist_wgt,
+                                       d_mg_aggregate_edgelist_offsets,
                                        d_reference_src,
                                        d_reference_dst,
                                        d_reference_wgt,
@@ -279,8 +277,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Egonet_Usecase{std::vector<int32_t>{0}, 1, false, true},
                       Egonet_Usecase{std::vector<int32_t>{0}, 2, false, true},
                       Egonet_Usecase{std::vector<int32_t>{0}, 3, false, true}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -304,7 +301,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
