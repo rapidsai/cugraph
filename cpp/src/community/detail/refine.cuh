@@ -562,6 +562,7 @@ refine_clustering(
       create_graph_from_edgelist<vertex_t,
                                  edge_t,
                                  weight_t,
+                                 edge_t,
                                  int32_t,
                                  storage_transposed,
                                  multi_gpu>(handle,
