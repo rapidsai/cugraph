@@ -150,7 +150,9 @@ def test_digraph_rejected():
     df["val"] = cudf.Series(range(10))
 
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="val")
+    G.from_cudf_edgelist(
+        df, source="src", destination="dst", edge_attr="val", renumber=False
+    )
 
     with pytest.raises(ValueError):
         cugraph_call(G, 2)
