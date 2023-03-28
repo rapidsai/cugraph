@@ -27,7 +27,9 @@ def dask_client():
         dask_client = Client(scheduler_file=dask_scheduler_file)
         dask_cluster = None
     else:
-        dask_client, dask_cluster = start_dask_client(dask_worker_devices="0")
+        dask_client, dask_cluster = start_dask_client(
+            dask_worker_devices="0", protocol="tcp"
+        )
 
     if not Comms.is_initialized():
         Comms.initialize(p2p=True)
