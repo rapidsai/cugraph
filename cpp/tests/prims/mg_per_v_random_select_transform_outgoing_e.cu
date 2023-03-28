@@ -27,6 +27,7 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -140,58 +141,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     auto mg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    // FIXME: better refactor this random seed generation code for reuse
-#if 1
-    auto mg_vertex_buffer = rmm::device_uvector<vertex_t>(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-    thrust::sequence(handle_->get_thrust_policy(),
-                     mg_vertex_buffer.begin(),
-                     mg_vertex_buffer.end(),
-                     mg_graph_view.local_vertex_partition_range_first());
+    raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
-    thrust::shuffle(handle_->get_thrust_policy(),
-                    mg_vertex_buffer.begin(),
-                    mg_vertex_buffer.end(),
-                    thrust::default_random_engine());
-
-    std::vector<size_t> tx_value_counts(comm_size);
-    for (int i = 0; i < comm_size; ++i) {
-      tx_value_counts[i] =
-        mg_vertex_buffer.size() / comm_size +
-        (static_cast<size_t>(i) < static_cast<size_t>(mg_vertex_buffer.size() % comm_size) ? 1 : 0);
-    }
-    std::tie(mg_vertex_buffer, std::ignore) = cugraph::shuffle_values(
-      handle_->get_comms(), mg_vertex_buffer.begin(), tx_value_counts, handle_->get_stream());
-    thrust::shuffle(handle_->get_thrust_policy(),
-                    mg_vertex_buffer.begin(),
-                    mg_vertex_buffer.end(),
-                    thrust::default_random_engine());
-
-    auto num_seeds =
-      std::min(prims_usecase.num_seeds, static_cast<size_t>(mg_graph_view.number_of_vertices()));
-    auto num_seeds_this_gpu =
-      num_seeds / comm_size +
-      (static_cast<size_t>(comm_rank) < static_cast<size_t>(num_seeds % comm_size ? 1 : 0));
-
-    auto buffer_sizes = cugraph::host_scalar_allgather(
-      handle_->get_comms(), mg_vertex_buffer.size(), handle_->get_stream());
-    auto min_buffer_size = *std::min_element(buffer_sizes.begin(), buffer_sizes.end());
-    if (min_buffer_size <= num_seeds / comm_size) {
-      auto new_sizes    = std::vector<size_t>(comm_size, min_buffer_size);
-      auto num_deficits = num_seeds - min_buffer_size * comm_size;
-      for (int i = 0; i < comm_size; ++i) {
-        auto delta = std::min(num_deficits, buffer_sizes[i] - min_buffer_size);
-        new_sizes[i] += delta;
-        num_deficits -= delta;
-      }
-      num_seeds_this_gpu = new_sizes[comm_rank];
-    }
-    mg_vertex_buffer.resize(num_seeds_this_gpu, handle_->get_stream());
-    mg_vertex_buffer.shrink_to_fit(handle_->get_stream());
-
-    mg_vertex_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(mg_vertex_buffer), mg_graph_view.vertex_partition_range_lasts());
-#endif
+    auto mg_vertex_buffer = cugraph::select_random_vertices(
+      *handle_, mg_graph_view, rng_state, prims_usecase.num_seeds, false, false);
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
@@ -201,8 +154,6 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     mg_vertex_frontier.bucket(bucket_idx_cur)
       .insert(cugraph::get_dataframe_buffer_begin(mg_vertex_buffer),
               cugraph::get_dataframe_buffer_end(mg_vertex_buffer));
-
-    raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
     using result_t = decltype(cugraph::thrust_tuple_cat(thrust::tuple<vertex_t, vertex_t>{},
                                                         cugraph::to_thrust_tuple(property_t{}),
