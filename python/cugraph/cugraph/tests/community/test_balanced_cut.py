@@ -43,6 +43,7 @@ def random_call(G, partitions):
 
         assign_cu = cudf.DataFrame(assignment, columns=["cluster"])
         assign_cu["vertex"] = assign_cu.index
+        assign_cu = assign_cu.astype("int32")
 
         score += cugraph.analyzeClustering_edge_cut(G, partitions, assign_cu)
 
@@ -100,12 +101,9 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", [DATASETS[2]])
 @pytest.mark.parametrize("partitions", PARTITIONS)
-@pytest.mark.skip("temporarily skip this test")
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
-    # FIXME: skip this test until spectral clustering supports 'int64'.
-    # Currently it is not supported.
     gc.collect()
 
     # G = cugraph.Graph()
@@ -127,6 +125,9 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     pdf = pd.DataFrame.from_dict(df, orient="index").reset_index()
     pdf.columns = ["vertex", "cluster"]
     gdf = cudf.from_pandas(pdf)
+
+    gdf = gdf.astype("int32")
+
 
     cu_score = cugraph.analyzeClustering_edge_cut(
         G, partitions, gdf, "vertex", "cluster"
