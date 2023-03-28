@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,19 +28,19 @@ from cudf import from_pandas
 nx = import_optional("networkx")
 
 
-def convert_unweighted_to_gdf(NX_G):
+def convert_unweighted_to_gdf(NX_G, vertex_type="int32"):
     _edges = NX_G.edges(data=False)
     src = [s for s, _ in _edges]
     dst = [d for _, d in _edges]
 
     _gdf = cudf.DataFrame()
-    _gdf["src"] = src
-    _gdf["dst"] = dst
+    _gdf["src"] = cudf.Series(src, dtype=vertex_type)
+    _gdf["dst"] = cudf.Series(dst, dtype=vertex_type)
 
     return _gdf
 
 
-def convert_weighted_named_to_gdf(NX_G, weight):
+def convert_weighted_named_to_gdf(NX_G, weight, vertex_type="int32"):
     _edges = NX_G.edges(data=weight)
 
     src = [s for s, _, _ in _edges]
@@ -48,8 +48,8 @@ def convert_weighted_named_to_gdf(NX_G, weight):
     wt = [w for _, _, w in _edges]
 
     _gdf = cudf.DataFrame()
-    _gdf["src"] = src
-    _gdf["dst"] = dst
+    _gdf["src"] = cudf.Series(src, dtype=vertex_type)
+    _gdf["dst"] = cudf.Series(dst, dtype=vertex_type)
     _gdf["weight"] = wt
 
     # FIXME: The weight dtype is hardcoded.
@@ -72,7 +72,7 @@ def convert_weighted_unnamed_to_gdf(NX_G):
     return _gdf
 
 
-def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
+def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False, vertex_type="int32"):
     """
     Convert a NetworkX Graph into a cuGraph Graph.
     This might not be the most effecient way since the
@@ -92,7 +92,10 @@ def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
 
     store_transposed : boolean, defaukt is False
         should the cuGraph Graph store the transpose of the graph
-
+    
+    vertex_type : str, default is "int32"
+        Vertex type
+    
     Returns
     -------
     G : cuGraph Graph
@@ -111,7 +114,7 @@ def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
     is_weighted = nx.is_weighted(nxG)
 
     if is_weighted is False:
-        _gdf = convert_unweighted_to_gdf(nxG)
+        _gdf = convert_unweighted_to_gdf(nxG, vertex_type)
         G.from_cudf_edgelist(
             _gdf,
             source="src",
@@ -132,7 +135,7 @@ def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
                 store_transposed=store_transposed,
             )
         else:
-            _gdf = convert_weighted_named_to_gdf(nxG, weight)
+            _gdf = convert_weighted_named_to_gdf(nxG, weight, vertex_type)
             G.from_cudf_edgelist(
                 _gdf,
                 source="src",

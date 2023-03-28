@@ -320,7 +320,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
 # Nx graphs may be needed.  From the Nx docs:
 # |      Many NetworkX algorithms designed for weighted graphs use
 # |      an edge attribute (by default `weight`) to hold a numerical value.
-def ensure_cugraph_obj_for_nx(obj, nx_weight_attr="weight", store_transposed=False):
+def ensure_cugraph_obj_for_nx(obj, nx_weight_attr="weight", store_transposed=False, vertex_type="int32"):
     """
     Ensures a cuGraph Graph-type obj is returned for either cuGraph or Nx
     Graph-type objs. If obj is a Nx type,
@@ -332,7 +332,7 @@ def ensure_cugraph_obj_for_nx(obj, nx_weight_attr="weight", store_transposed=Fal
     if is_nx_graph_type(input_type):
         return (
             convert_from_nx(
-                obj, weight=nx_weight_attr, store_transposed=store_transposed
+                obj, weight=nx_weight_attr, store_transposed=store_transposed, vertex_type=vertex_type
             ),
             True,
         )
