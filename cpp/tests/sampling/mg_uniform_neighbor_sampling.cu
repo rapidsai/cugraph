@@ -18,6 +18,8 @@
 
 #include <utilities/mg_utilities.hpp>
 
+#include <cugraph/graph_functions.hpp>
+
 #include <thrust/distance.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
@@ -84,48 +86,26 @@ class Tests_MGUniform_Neighbor_Sampling
     // Test is designed like GNN sampling.  We'll select 5% of vertices to be included in sampling
     // batches
     //
+
     constexpr float select_probability{0.05};
 
-    // FIXME:  Update the tests to initialize RngState and use it instead
-    //         of seed...
-    uint64_t seed{static_cast<uint64_t>(handle_->get_comms().get_rank())};
+    raft::random::RngState rng_state(handle_->get_comms().get_rank());
 
-    raft::random::RngState rng_state(seed);
-
-    rmm::device_uvector<float> random_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                              handle_->get_stream());
-    rmm::device_uvector<vertex_t> random_sources(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle_->get_stream());
-
-    cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                         random_numbers.data(),
-                                         random_numbers.size(),
-                                         float{0},
-                                         float{1},
-                                         rng_state);
-
-    auto random_sources_end = thrust::copy_if(
-      handle_->get_thrust_policy(),
-      thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_last()),
-      random_sources.begin(),
-      [vertex_first = mg_graph_view.local_vertex_partition_range_first(),
-       random_numbers =
-         raft::device_span<float const>(random_numbers.data(), random_numbers.size()),
-       select_probability] __device__(vertex_t v) {
-        return random_numbers[v - vertex_first] < select_probability;
-      });
-
-    random_sources.resize(thrust::distance(random_sources.begin(), random_sources_end),
-                          handle_->get_stream());
-    random_sources.shrink_to_fit(handle_->get_stream());
-
-    random_numbers.resize(random_sources.size(), handle_->get_stream());
-    random_numbers.shrink_to_fit(handle_->get_stream());
+    auto random_sources = cugraph::select_random_vertices(
+      *handle_,
+      mg_graph_view,
+      rng_state,
+      std::max(static_cast<size_t>(mg_graph_view.number_of_vertices() * select_probability),
+               std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()), size_t{1})),
+      false,
+      false);
 
     //
     //  Now we'll assign the vertices to batches
     //
+
+    rmm::device_uvector<float> random_numbers(random_sources.size(), handle_->get_stream());
+
     cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                          random_numbers.data(),
                                          random_numbers.size(),

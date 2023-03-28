@@ -20,12 +20,16 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/device_span.hpp>
+
+#include <thrust/sort.h>
 
 #include <numeric>
 #include <variant>
