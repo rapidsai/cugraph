@@ -22,5 +22,5 @@ How to run
 Train w/ mini-batch sampling with cugraph_storage backend for node classification on "ogbn-products"
 
 ```bash
-python3 node_classification.py --mode=cugraph_storage
+python3 node_classification.py --mode=gpu_cugraph_dgl
 ```
