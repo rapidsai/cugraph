@@ -576,6 +576,7 @@ refine_clustering(
                                             std::move(d_dsts),
                                             std::move(d_weights),
                                             std::nullopt,
+                                            std::nullopt,
                                             cugraph::graph_properties_t{false, false},
                                             true);
 
