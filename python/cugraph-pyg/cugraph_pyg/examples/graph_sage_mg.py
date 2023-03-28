@@ -15,6 +15,8 @@
 # processed using the BulkSampler.  This workflow WILL ONLY WORK when
 # reading already-processed sampling results from disk.
 
+from ogb.nodeproppred import NodePropPredDataset
+
 import time
 import argparse
 import gc
@@ -157,12 +159,11 @@ def train(
     download_event = Dask_Event("dataset_download_event")
 
     td.barrier()
+    print("reached barrier 160")
 
     import cugraph
     from cugraph_pyg.data import CuGraphStore
     from cugraph_pyg.loader import CuGraphNeighborLoader
-
-    from ogb.nodeproppred import NodePropPredDataset
 
     if rank == 0:
         print("Rank 0 downloading dataset")
@@ -274,8 +275,8 @@ def train(
         cugraph_bulk_loader = CuGraphNeighborLoader(
             cugraph_store,
             train_nodes,
-            batch_size=500,
-            num_neighbors=[30, 30, 30],
+            batch_size=250,
+            num_neighbors=[10, 10, 10],
             seeds_per_call=1000,
             batches_per_partition=2,
             replace=False,

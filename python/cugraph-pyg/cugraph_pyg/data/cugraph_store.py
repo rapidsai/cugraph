@@ -756,15 +756,28 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            sources = self.asarray(sampling_results.sources)
-            src_id_table = noi_index[src_type]
-            src = self.searchsorted(src_id_table, sources)
-            row_dict[t_pyg_type] = src
+            import time
 
-            destinations = self.asarray(sampling_results.destinations)
+            start_time_sources = time.perf_counter_ns()
+            sources = torch.as_tensor(sampling_results.sources, device="cuda")
+            src_id_table = noi_index[src_type]
+            src = torch.searchsorted(src_id_table, sources)
+            row_dict[t_pyg_type] = src
+            end_time_sources = time.perf_counter_ns()
+            print(
+                f"source time: {(end_time_sources - start_time_sources) / 1e9:3.4f} s"
+            )
+
+            start_time_destinations = time.perf_counter_ns()
+            destinations = torch.as_tensor(sampling_results.destinations, device="cuda")
             dst_id_table = noi_index[dst_type]
-            dst = self.searchsorted(dst_id_table, destinations)
+            dst = torch.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
+            end_time_destinations = time.perf_counter_ns()
+            print(
+                f"destination time: "
+                f"{(end_time_destinations - start_time_destinations) / 1e9:3.4f} s"
+            )
         else:
             # This will retrieve the single string representation.
             # It needs to be converted to a tuple in the for loop below.

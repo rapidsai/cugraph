@@ -37,3 +37,4 @@ BUILD_LOG_FILE=${BUILD_LOG_FILE:-${RESULTS_DIR}/build_log.txt}
 SCHEDULER_FILE=${SCHEDULER_FILE:-${WORKSPACE}/dask-scheduler.json}
 DATE=${DATE:-$(date --utc "+%Y-%m-%d_%H:%M:%S")_UTC}
 ENV_EXPORT_FILE=${ENV_EXPORT_FILE:-${WORKSPACE}/$(basename ${CONDA_ENV})-${DATE}.txt}
+LD_LIBRARY_PATH=/opt/conda/envs/rapids/lib
