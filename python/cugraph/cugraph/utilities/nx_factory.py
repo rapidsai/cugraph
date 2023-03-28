@@ -58,7 +58,7 @@ def convert_weighted_named_to_gdf(NX_G, weight, vertex_type="int32"):
     return _gdf
 
 
-def convert_weighted_unnamed_to_gdf(NX_G):
+def convert_weighted_unnamed_to_gdf(NX_G, vertex_type="int32"):
     _pdf = nx.to_pandas_edgelist(NX_G)
     nx_col = ["source", "target"]
     wt_col = [col for col in _pdf.columns if col not in nx_col]
@@ -69,6 +69,9 @@ def convert_weighted_unnamed_to_gdf(NX_G):
         _pdf.rename(columns={wt_col[0]: "weight"})
 
     _gdf = from_pandas(_pdf)
+
+    _gdf = _gdf.astype({"source": vertex_type, "target": vertex_type})
+
     return _gdf
 
 
@@ -125,7 +128,7 @@ def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False, 
         )
     else:
         if weight is None:
-            _gdf = convert_weighted_unnamed_to_gdf(nxG)
+            _gdf = convert_weighted_unnamed_to_gdf(nxG, vertex_type)
             G.from_cudf_edgelist(
                 _gdf,
                 source="source",
