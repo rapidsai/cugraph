@@ -29,7 +29,7 @@ torch = import_optional("torch")
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample(basic_graph_1, dask_client):
     F, G, N = basic_graph_1
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     sampler = CuGraphSampler(
         (cugraph_store, cugraph_store),
@@ -41,8 +41,8 @@ def test_neighbor_sample(basic_graph_1, dask_client):
 
     out_dict = sampler.sample_from_nodes(
         (
-            cupy.arange(6, dtype="int64"),
-            cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+            torch.arange(6, dtype=torch.int64),
+            torch.tensor([0, 1, 2, 3, 4], dtype=torch.int64),
             None,
         )
     )
@@ -56,12 +56,12 @@ def test_neighbor_sample(basic_graph_1, dask_client):
         col_dict = out_dict.col
         metadata = out_dict.metadata
 
-    assert metadata.get().tolist() == list(range(6))
+    assert metadata.tolist() == list(range(6))
 
     for node_type, node_ids in noi_groups.items():
-        actual_vertex_ids = cupy.arange(N[node_type])
+        actual_vertex_ids = torch.arange(N[node_type])
 
-        assert list(node_ids) == list(actual_vertex_ids)
+        assert node_ids.tolist() == actual_vertex_ids.tolist()
 
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
@@ -88,14 +88,11 @@ def test_neighbor_sample(basic_graph_1, dask_client):
         )
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_client):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     sampler = CuGraphSampler(
         (cugraph_store, cugraph_store),
@@ -107,8 +104,8 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_clie
 
     out_dict = sampler.sample_from_nodes(
         (
-            cupy.arange(6, dtype="int64"),
-            cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+            torch.arange(6, dtype=torch.int64),
+            torch.tensor([0, 1, 2, 3, 4], dtype=torch.int64),
             None,
         )
     )
@@ -122,12 +119,12 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_clie
         col_dict = out_dict.col
         metadata = out_dict.metadata
 
-    assert metadata.get().tolist() == list(range(6))
+    assert metadata.tolist() == list(range(6))
 
     for node_type, node_ids in noi_groups.items():
-        actual_vertex_ids = cupy.arange(N[node_type])
+        actual_vertex_ids = torch.arange(N[node_type])
 
-        assert list(node_ids) == list(actual_vertex_ids)
+        assert node_ids.tolist() == actual_vertex_ids.tolist()
 
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
