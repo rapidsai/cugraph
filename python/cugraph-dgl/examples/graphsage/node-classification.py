@@ -12,7 +12,7 @@
 # limitations under the License.
 
 
-# Example modified from: 
+# Example modified from:
 # https://github.com/dmlc/dgl/blob/master/examples/pytorch/graphsage/node_classification.py
 
 # Ignore Warning
@@ -26,16 +26,23 @@ import torchmetrics.functional as MF
 import dgl
 import dgl.nn as dglnn
 from dgl.data import AsNodePredDataset
-from dgl.dataloading import DataLoader, NeighborSampler, MultiLayerFullNeighborSampler
+from dgl.dataloading import (
+    DataLoader,
+    NeighborSampler,
+    MultiLayerFullNeighborSampler,
+)
 from ogb.nodeproppred import DglNodePropPredDataset
 import tqdm
 import argparse
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
+
 
 def set_allocators():
     import cudf
     import cupy
     import rmm
+
     mr = rmm.mr.CudaAsyncMemoryResource()
     rmm.mr.set_current_device_resource(mr)
     torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
@@ -71,7 +78,9 @@ class SAGE(nn.Module):
             all_node_ids, device=device
         )
 
-        sampler = MultiLayerFullNeighborSampler(1, prefetch_node_feats=["feat"])
+        sampler = MultiLayerFullNeighborSampler(
+            1, prefetch_node_feats=["feat"]
+        )
         dataloader = DataLoader(
             g,
             torch.arange(g.num_nodes()).to(g.device),
@@ -88,7 +97,9 @@ class SAGE(nn.Module):
         for l_id, layer in enumerate(self.layers):
             y = torch.empty(
                 g.num_nodes(),
-                self.hid_size if l_id != len(self.layers) - 1 else self.out_size,
+                self.hid_size
+                if l_id != len(self.layers) - 1
+                else self.out_size,
                 device=buffer_device,
                 pin_memory=pin_memory,
             )
@@ -111,29 +122,38 @@ def evaluate(model, graph, dataloader):
     y_hats = []
     for it, (input_nodes, output_nodes, blocks) in enumerate(dataloader):
         with torch.no_grad():
-            if isinstance(graph.ndata['feat'], dict):
-                x = graph.ndata["feat"]['_N'][input_nodes]
-                label = graph.ndata["label"]['_N'][output_nodes]
+            if isinstance(graph.ndata["feat"], dict):
+                x = graph.ndata["feat"]["_N"][input_nodes]
+                label = graph.ndata["label"]["_N"][output_nodes]
             else:
                 x = graph.ndata["feat"][input_nodes]
                 label = graph.ndata["label"][output_nodes]
             ys.append(label)
             y_hats.append(model(blocks, x))
     num_classes = y_hats[0].shape[1]
-    return MF.accuracy(torch.cat(y_hats), torch.cat(ys), task='multiclass', num_classes=num_classes)
+    return MF.accuracy(
+        torch.cat(y_hats),
+        torch.cat(ys),
+        task="multiclass",
+        num_classes=num_classes,
+    )
 
 
 def layerwise_infer(device, graph, nid, model, batch_size):
     model.eval()
     with torch.no_grad():
-        pred = model.inference(graph, device, batch_size)  # pred in buffer_device
+        pred = model.inference(
+            graph, device, batch_size
+        )  # pred in buffer_device
         pred = pred[nid]
-        label = graph.ndata['label']
+        label = graph.ndata["label"]
         if isinstance(label, dict):
-            label = label['_N']
+            label = label["_N"]
         label = label[nid].to(device).to(pred.device)
         num_classes = pred.shape[1]
-        return MF.accuracy(pred, label, task='multiclass', num_classes=num_classes)
+        return MF.accuracy(
+            pred, label, task="multiclass", num_classes=num_classes
+        )
 
 
 def train(args, device, g, dataset, model):
@@ -174,10 +194,12 @@ def train(args, device, g, dataset, model):
         model.train()
         total_loss = 0
         st = time.time()
-        for it, (input_nodes, output_nodes, blocks) in enumerate(train_dataloader):
+        for it, (input_nodes, output_nodes, blocks) in enumerate(
+            train_dataloader
+        ):
             if isinstance(g.ndata["feat"], dict):
-                x = g.ndata["feat"]['_N'][input_nodes]
-                y = g.ndata["label"]['_N'][output_nodes]
+                x = g.ndata["feat"]["_N"][input_nodes]
+                y = g.ndata["label"]["_N"][output_nodes]
             else:
                 x = g.ndata["feat"][input_nodes]
                 y = g.ndata["label"][output_nodes]
@@ -190,7 +212,9 @@ def train(args, device, g, dataset, model):
 
         et = time.time()
 
-        print(f"Time taken for epoch {epoch} with batch_size {batch_size} = {et-st} s")
+        print(
+            f"Time taken for epoch {epoch} with batch_size {batch_size} = {et-st} s"
+        )
         acc = evaluate(model, g, val_dataloader)
         print(
             "Epoch {:05d} | Loss {:.4f} | Accuracy {:.4f} ".format(
