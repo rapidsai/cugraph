@@ -47,7 +47,7 @@ TEST_F(StreamTest, basic_test)
                           v.begin(),
                           v.begin(),
                           2 * thrust::placeholders::_1 + thrust::placeholders::_2);
-        CUDA_TRY(cudaStreamSynchronize(handle.get_next_usable_stream(i)));
+        RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_next_usable_stream(i)));
       },
       i);
   }
