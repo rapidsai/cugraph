@@ -23,10 +23,10 @@ namespace c_api {
 template <typename functor_t, typename result_t>
 cugraph_error_code_t run_algorithm(::cugraph_graph_t const* graph,
                                    functor_t& functor,
-                                   result_t** result,
+                                   result_t* result,
                                    ::cugraph_error_t** error)
 {
-  *result = nullptr;
+  *result = result_t{};
   *error  = nullptr;
 
   try {
@@ -45,7 +45,11 @@ cugraph_error_code_t run_algorithm(::cugraph_graph_t const* graph,
       return functor.error_code_;
     }
 
-    *result = reinterpret_cast<result_t*>(functor.result_);
+    if constexpr (std::is_same_v<result_t, decltype(functor.result_)>) {
+      *result = functor.result_;
+    } else {
+      *result = reinterpret_cast<result_t>(functor.result_);
+    }
   } catch (std::exception const& ex) {
     *error = reinterpret_cast<::cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
     return CUGRAPH_UNKNOWN_ERROR;
