@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,5 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[tool:pytest]
-testpaths = pylibcugraph/tests
+import cudf
+import cupy as cp
+import torch
+
+from cugraph_dgl.dataloading.utils.sampling_helpers import cast_to_tensor
+
+
+def test_casting_empty_array():
+    ar = cp.zeros(shape=0, dtype=cp.int32)
+    ser = cudf.Series(ar)
+    output_tensor = cast_to_tensor(ser)
+    assert output_tensor.dtype == torch.int32

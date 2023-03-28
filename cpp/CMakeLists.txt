@@ -80,7 +80,7 @@ option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cud
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 option(USE_RAFT_STATIC "Build raft as a static library" OFF)
-option(CUGRAPH_COMPILE_RAFT_DIST_LIBS "Compile the raft library instead of using it header-only" ON)
+option(CUGRAPH_COMPILE_RAFT_LIB "Compile the raft library instead of using it header-only" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
 option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
@@ -253,8 +253,8 @@ set(CUGRAPH_SOURCES
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
     src/structure/induced_subgraph_mg.cu
-    src/structure/select_random_vertices_sg.cpp
-    src/structure/select_random_vertices_mg.cpp
+    src/structure/select_random_vertices_sg.cu
+    src/structure/select_random_vertices_mg.cu
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
@@ -352,10 +352,10 @@ if (USE_CUGRAPH_OPS)
             rmm::rmm
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -365,10 +365,10 @@ else()
         PUBLIC
             rmm::rmm
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -394,9 +394,11 @@ add_library(cugraph_c
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
+	src/c_api/heirarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
         src/c_api/induced_subgraph_helper.cu
         src/c_api/graph_helper.cu
+        src/c_api/graph_generators.cpp
         src/c_api/induced_subgraph_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
@@ -405,6 +407,7 @@ add_library(cugraph_c
         src/c_api/random_walks.cpp
         src/c_api/random.cpp
         src/c_api/similarity.cpp
+        src/c_api/leiden.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
@@ -466,12 +469,12 @@ target_link_libraries(cugraph_c
                 CUDA::cusparse${_ctk_static_suffix}
                 rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::compiled>
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
-                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::compiled>
 )
 
 ################################################################################

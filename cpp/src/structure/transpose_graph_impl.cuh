@@ -87,12 +87,17 @@ transpose_graph_impl(
   std::tie(store_transposed ? edgelist_srcs : edgelist_dsts,
            store_transposed ? edgelist_dsts : edgelist_srcs,
            edgelist_weights,
-           std::ignore) = detail::
-    shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t, edge_t, weight_t, int32_t>(
+           std::ignore,
+           std::ignore) =
+    detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                   edge_t,
+                                                                                   weight_t,
+                                                                                   int32_t>(
       handle,
       std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
       std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
       std::move(edgelist_weights),
+      std::nullopt,
       std::nullopt);
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
@@ -100,16 +105,22 @@ transpose_graph_impl(
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     transposed_edge_weights{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(transposed_graph, transposed_edge_weights, std::ignore, new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(renumber_map),
-      std::move(edgelist_dsts),
-      std::move(edgelist_srcs),
-      std::move(edgelist_weights),
-      std::nullopt,
-      graph_properties_t{false, is_multigraph},
-      true);
+  std::tie(transposed_graph, transposed_edge_weights, std::ignore, std::ignore, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t,
+                               edge_t,
+                               weight_t,
+                               edge_t,
+                               int32_t,
+                               store_transposed,
+                               multi_gpu>(handle,
+                                          std::move(renumber_map),
+                                          std::move(edgelist_dsts),
+                                          std::move(edgelist_srcs),
+                                          std::move(edgelist_weights),
+                                          std::nullopt,
+                                          std::nullopt,
+                                          graph_properties_t{false, is_multigraph},
+                                          true);
 
   return std::make_tuple(
     std::move(transposed_graph), std::move(transposed_edge_weights), std::move(new_renumber_map));
@@ -177,16 +188,22 @@ transpose_graph_impl(
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     transposed_edge_weights{};
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
-  std::tie(transposed_graph, transposed_edge_weights, std::ignore, new_renumber_map) =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
-      handle,
-      std::move(vertices),
-      std::move(edgelist_dsts),
-      std::move(edgelist_srcs),
-      std::move(edgelist_weights),
-      std::nullopt,
-      graph_properties_t{false, is_multigraph},
-      renumber);
+  std::tie(transposed_graph, transposed_edge_weights, std::ignore, std::ignore, new_renumber_map) =
+    create_graph_from_edgelist<vertex_t,
+                               edge_t,
+                               weight_t,
+                               edge_t,
+                               int32_t,
+                               store_transposed,
+                               multi_gpu>(handle,
+                                          std::move(vertices),
+                                          std::move(edgelist_dsts),
+                                          std::move(edgelist_srcs),
+                                          std::move(edgelist_weights),
+                                          std::nullopt,
+                                          std::nullopt,
+                                          graph_properties_t{false, is_multigraph},
+                                          renumber);
 
   return std::make_tuple(
     std::move(transposed_graph), std::move(transposed_edge_weights), std::move(new_renumber_map));
@@ -213,6 +230,7 @@ transpose_graph(
   bool do_expensive_check)
 {
   return transpose_graph_impl(
+
     handle, std::move(graph), std::move(edge_weights), std::move(renumber_map), do_expensive_check);
 }
 

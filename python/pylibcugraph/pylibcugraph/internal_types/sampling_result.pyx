@@ -27,6 +27,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_edge_type,
     cugraph_sample_result_get_hop,
     cugraph_sample_result_get_start_labels,
+    cugraph_sample_result_get_offsets,
     cugraph_sample_result_free,
 )
 from pylibcugraph.utils cimport (
@@ -119,7 +120,17 @@ cdef class SamplingResult:
         )
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
-                                
+
+    def get_offsets(self):
+        if self.c_sample_result_ptr is NULL:
+            raise ValueError("pointer not set, must call set_ptr() with a "
+                             "non-NULL value first.")
+        cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
+            cugraph_sample_result_get_offsets(self.c_sample_result_ptr)
+        )
+        return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
+                                                     self)
+
     def get_hop_ids(self):
         if self.c_sample_result_ptr is NULL:
             raise ValueError("pointer not set, must call set_ptr() with a "

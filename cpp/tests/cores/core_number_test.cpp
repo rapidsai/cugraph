@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -270,7 +270,7 @@ class Tests_CoreNumber
       if (renumber) {
         std::tie(unrenumbered_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, true, false, true, true);
+            handle, input_usecase, false, false, true, true);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 

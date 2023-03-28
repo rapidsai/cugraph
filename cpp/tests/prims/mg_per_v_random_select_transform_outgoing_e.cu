@@ -27,6 +27,7 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
@@ -90,16 +91,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
  public:
   Tests_MGPerVRandomSelectTransformOutgoingE() {}
 
-  static void SetUpTestCase()
-  {
-    handle_ = cugraph::test::initialize_mg_handle();
-#if 1  // FIXME: for benchmarking, delete once benchmarking is finished.
-    cugraph::test::enforce_p2p_initialization(handle_->get_comms(), handle_->get_stream());
-    cugraph::test::enforce_p2p_initialization(
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()),
-      handle_->get_stream());
-#endif
-  }
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
 
   static void TearDownTestCase() { handle_.reset(); }
 
@@ -149,58 +141,10 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     auto mg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
       *handle_, mg_graph_view, mg_vertex_prop);
 
-    // FIXME: better refactor this random seed generation code for reuse
-#if 1
-    auto mg_vertex_buffer = rmm::device_uvector<vertex_t>(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-    thrust::sequence(handle_->get_thrust_policy(),
-                     mg_vertex_buffer.begin(),
-                     mg_vertex_buffer.end(),
-                     mg_graph_view.local_vertex_partition_range_first());
+    raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
-    thrust::shuffle(handle_->get_thrust_policy(),
-                    mg_vertex_buffer.begin(),
-                    mg_vertex_buffer.end(),
-                    thrust::default_random_engine());
-
-    std::vector<size_t> tx_value_counts(comm_size);
-    for (int i = 0; i < comm_size; ++i) {
-      tx_value_counts[i] =
-        mg_vertex_buffer.size() / comm_size +
-        (static_cast<size_t>(i) < static_cast<size_t>(mg_vertex_buffer.size() % comm_size) ? 1 : 0);
-    }
-    std::tie(mg_vertex_buffer, std::ignore) = cugraph::shuffle_values(
-      handle_->get_comms(), mg_vertex_buffer.begin(), tx_value_counts, handle_->get_stream());
-    thrust::shuffle(handle_->get_thrust_policy(),
-                    mg_vertex_buffer.begin(),
-                    mg_vertex_buffer.end(),
-                    thrust::default_random_engine());
-
-    auto num_seeds =
-      std::min(prims_usecase.num_seeds, static_cast<size_t>(mg_graph_view.number_of_vertices()));
-    auto num_seeds_this_gpu =
-      num_seeds / comm_size +
-      (static_cast<size_t>(comm_rank) < static_cast<size_t>(num_seeds % comm_size ? 1 : 0));
-
-    auto buffer_sizes = cugraph::host_scalar_allgather(
-      handle_->get_comms(), mg_vertex_buffer.size(), handle_->get_stream());
-    auto min_buffer_size = *std::min_element(buffer_sizes.begin(), buffer_sizes.end());
-    if (min_buffer_size <= num_seeds / comm_size) {
-      auto new_sizes    = std::vector<size_t>(comm_size, min_buffer_size);
-      auto num_deficits = num_seeds - min_buffer_size * comm_size;
-      for (int i = 0; i < comm_size; ++i) {
-        auto delta = std::min(num_deficits, buffer_sizes[i] - min_buffer_size);
-        new_sizes[i] += delta;
-        num_deficits -= delta;
-      }
-      num_seeds_this_gpu = new_sizes[comm_rank];
-    }
-    mg_vertex_buffer.resize(num_seeds_this_gpu, handle_->get_stream());
-    mg_vertex_buffer.shrink_to_fit(handle_->get_stream());
-
-    mg_vertex_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(mg_vertex_buffer), mg_graph_view.vertex_partition_range_lasts());
-#endif
+    auto mg_vertex_buffer = cugraph::select_random_vertices(
+      *handle_, mg_graph_view, rng_state, prims_usecase.num_seeds, false, false);
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
@@ -210,8 +154,6 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     mg_vertex_frontier.bucket(bucket_idx_cur)
       .insert(cugraph::get_dataframe_buffer_begin(mg_vertex_buffer),
               cugraph::get_dataframe_buffer_end(mg_vertex_buffer));
-
-    raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
     using result_t = decltype(cugraph::thrust_tuple_cat(thrust::tuple<vertex_t, vertex_t>{},
                                                         cugraph::to_thrust_tuple(property_t{}),
@@ -253,8 +195,18 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     // 3. validate MG results
 
     if (prims_usecase.check_correctness) {
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_allgatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        std::get<0>(sample_e_op_results).data(),
+        std::get<0>(sample_e_op_results).size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        std::get<1>(sample_e_op_results).data(),
+        std::get<1>(sample_e_op_results).size(),
+        (*d_mg_renumber_map_labels).data(),
+        mg_graph_view.vertex_partition_range_lasts());
       auto out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
       cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
@@ -280,18 +232,18 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         handle_->get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
         thrust::make_counting_iterator(mg_vertex_frontier.bucket(bucket_idx_cur).size()),
-        [frontier_vertex_first         = mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
-         v_first                       = mg_graph_view.local_vertex_partition_range_first(),
-         sample_offsets                = sample_offsets
-                                           ? thrust::make_optional<size_t const*>((*sample_offsets).data())
-                                           : thrust::nullopt,
-         sample_e_op_results           = cugraph::get_dataframe_buffer_begin(sample_e_op_results),
-         out_degrees                   = out_degrees.begin(),
-         aggregate_renumber_map_labels = d_mg_aggregate_renumber_map_labels.begin(),
-         unrenumbered_offsets          = unrenumbered_offsets.begin(),
-         unrenumbered_indices          = unrenumbered_indices.begin(),
-         K                             = prims_usecase.K,
-         with_replacement              = prims_usecase.with_replacement,
+        [frontier_vertex_first  = mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
+         v_first                = mg_graph_view.local_vertex_partition_range_first(),
+         sample_offsets         = sample_offsets
+                                    ? thrust::make_optional<size_t const*>((*sample_offsets).data())
+                                    : thrust::nullopt,
+         sample_e_op_results    = cugraph::get_dataframe_buffer_begin(sample_e_op_results),
+         out_degrees            = out_degrees.begin(),
+         mg_renumber_map_labels = (*d_mg_renumber_map_labels).begin(),
+         unrenumbered_offsets   = unrenumbered_offsets.begin(),
+         unrenumbered_indices   = unrenumbered_indices.begin(),
+         K                      = prims_usecase.K,
+         with_replacement       = prims_usecase.with_replacement,
          invalid_value =
            invalid_value ? thrust::make_optional<result_t>(*invalid_value) : thrust::nullopt,
          property_transform = cugraph::test::detail::property_transform<vertex_t, property_t>{
@@ -328,19 +280,17 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
           // check sample_e_op_results
 
           for (size_t j = offset_first; j < offset_last; ++j) {
-            auto e_op_result = *(sample_e_op_results + j);
-            auto src         = thrust::get<0>(e_op_result);
-            auto dst         = thrust::get<1>(e_op_result);
-            if (src != v) { return true; }
-            auto unrenumbered_src = *(aggregate_renumber_map_labels + src);
-            auto unrenumbered_dst = *(aggregate_renumber_map_labels + dst);
-            auto unrenumbered_dst_first =
+            auto e_op_result      = *(sample_e_op_results + j);
+            auto unrenumbered_src = thrust::get<0>(e_op_result);
+            auto unrenumbered_dst = thrust::get<1>(e_op_result);
+            if (unrenumbered_src != *(mg_renumber_map_labels + v_offset)) { return true; }
+            auto unrenumbered_nbr_first =
               unrenumbered_indices + *(unrenumbered_offsets + unrenumbered_src);
-            auto unrenumbered_dst_last =
+            auto unrenumbered_nbr_last =
               unrenumbered_indices + *(unrenumbered_offsets + (unrenumbered_src + vertex_t{1}));
             if (!thrust::binary_search(thrust::seq,
-                                       unrenumbered_dst_first,
-                                       unrenumbered_dst_last,
+                                       unrenumbered_nbr_first,
+                                       unrenumbered_nbr_last,
                                        unrenumbered_dst)) {  // assumed neighbor lists are sorted
               return true;
             }
@@ -359,24 +309,24 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
             if (dst_val != property_transform(unrenumbered_dst)) { return true; }
 
             if (!with_replacement) {
-              auto dst_first =
+              auto unrenumbered_dst_first =
                 thrust::get<1>(sample_e_op_results.get_iterator_tuple()) + offset_first;
-              auto dst_last =
+              auto unrenumbered_dst_last =
                 thrust::get<1>(sample_e_op_results.get_iterator_tuple()) + offset_last;
-              auto dst_count =
-                thrust::count(thrust::seq,
-                              dst_first,
-                              dst_last,
-                              dst);  // this could be inefficient for high-degree vertices, if we
-                                     // sort [dst_first, dst_last) we can use binary search but we
-                                     // may better not modify the sampling output and allow
-                                     // inefficiency as this is just for testing
+              auto dst_count = thrust::count(
+                thrust::seq,
+                unrenumbered_dst_first,
+                unrenumbered_dst_last,
+                unrenumbered_dst);  // this could be inefficient for high-degree vertices, if we
+                                    // sort [unrenumbered_dst_first, unrenumbered_dst_last) we can
+                                    // use binary search but we may better not modify the sampling
+                                    // output and allow inefficiency as this is just for testing
               auto multiplicity = thrust::distance(
                 thrust::lower_bound(
-                  thrust::seq, unrenumbered_dst_first, unrenumbered_dst_last, unrenumbered_dst),
+                  thrust::seq, unrenumbered_nbr_first, unrenumbered_nbr_last, unrenumbered_dst),
                 thrust::upper_bound(thrust::seq,
-                                    unrenumbered_dst_first,
-                                    unrenumbered_dst_last,
+                                    unrenumbered_nbr_first,
+                                    unrenumbered_nbr_last,
                                     unrenumbered_dst));  // this assumes neighbor lists are sorted
               if (dst_count > multiplicity) { return true; }
             }
