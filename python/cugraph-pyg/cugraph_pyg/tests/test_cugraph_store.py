@@ -389,4 +389,4 @@ def test_serialize(multi_edge_multi_vertex_no_graph_1):
 
     F, G, N = multi_edge_multi_vertex_no_graph_1
     cugraph_store = CuGraphStore(F, G, N)
-    pickle.dumps(cugraph_store)
+    assert pickle.loads(pickle.dumps(cugraph_store)) == cugraph_store
