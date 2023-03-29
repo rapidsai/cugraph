@@ -42,7 +42,7 @@ int generic_louvain_test(const cugraph_resource_handle_t* p_handle,
   cugraph_error_t* ret_error;
 
   cugraph_graph_t* p_graph                           = NULL;
-  cugraph_heirarchical_clustering_result_t* p_result = NULL;
+  cugraph_hierarchical_clustering_result_t* p_result = NULL;
 
   ret_code = create_mg_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
@@ -60,8 +60,8 @@ int generic_louvain_test(const cugraph_resource_handle_t* p_handle,
     cugraph_type_erased_device_array_view_t* vertices;
     cugraph_type_erased_device_array_view_t* clusters;
 
-    vertices = cugraph_heirarchical_clustering_result_get_vertices(p_result);
-    clusters = cugraph_heirarchical_clustering_result_get_clusters(p_result);
+    vertices = cugraph_hierarchical_clustering_result_get_vertices(p_result);
+    clusters = cugraph_hierarchical_clustering_result_get_clusters(p_result);
 
     vertex_t h_vertices[num_vertices];
     edge_t h_clusters[num_vertices];
@@ -92,7 +92,7 @@ int generic_louvain_test(const cugraph_resource_handle_t* p_handle,
                   "cluster results don't match");
     }
 
-    cugraph_heirarchical_clustering_result_free(p_result);
+    cugraph_hierarchical_clustering_result_free(p_result);
   }
 
   cugraph_mg_graph_free(p_graph);
