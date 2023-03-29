@@ -179,11 +179,19 @@ class EXPERIMENTAL__BulkSampler:
             else cugraph.dask.uniform_neighbor_sample
         )
 
+        start_list = (
+            self.__batches[self.start_col_name][batch_id_filter]
+        ).reset_index(drop=True)
+        
+        batch_id_list = (
+            self.__batches[self.batch_col_name][batch_id_filter]
+        ).reset_index(drop=True)
+
         samples = sample_fn(
             self.__graph,
             **self.__sample_call_args,
-            start_list=self.__batches[self.start_col_name][batch_id_filter],
-            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
+            start_list=start_list,
+            batch_id_list=batch_id_list,
             with_edge_properties=True,
         )
 
