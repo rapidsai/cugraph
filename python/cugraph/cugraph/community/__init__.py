@@ -14,8 +14,6 @@
 from cugraph.community.louvain import louvain
 from cugraph.community.leiden import leiden
 
-# FIXME: Drop the legacy implementation and rename plc_leiden to leiden
-from cugraph.community.plc_leiden import plc_leiden
 from cugraph.community.ecg import ecg
 from cugraph.community.spectral_clustering import (
     spectralBalancedCutClustering,
