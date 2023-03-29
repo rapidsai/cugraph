@@ -158,6 +158,7 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
+        self.__batches.reset_index(drop=True)
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
@@ -179,13 +180,9 @@ class EXPERIMENTAL__BulkSampler:
             else cugraph.dask.uniform_neighbor_sample
         )
 
-        start_list = (
-            self.__batches[self.start_col_name][batch_id_filter]
-        ).reset_index(drop=True)
+        start_list = self.__batches[self.start_col_name][batch_id_filter]
         
-        batch_id_list = (
-            self.__batches[self.batch_col_name][batch_id_filter]
-        ).reset_index(drop=True)
+        batch_id_list = self.__batches[self.batch_col_name][batch_id_filter]
 
         samples = sample_fn(
             self.__graph,
