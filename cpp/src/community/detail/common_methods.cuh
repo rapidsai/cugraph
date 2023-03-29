@@ -29,6 +29,7 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <algorithm>
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
@@ -145,6 +146,9 @@ weight_t compute_modularity(
 {
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
+  //
+  // Sum(Sigma_tot_c^2), over all clusters c
+  //
   weight_t sum_degree_squared = thrust::transform_reduce(
     handle.get_thrust_policy(),
     cluster_weights.begin(),
@@ -158,6 +162,7 @@ weight_t compute_modularity(
       handle.get_comms(), sum_degree_squared, raft::comms::op_t::SUM, handle.get_stream());
   }
 
+  // Sum(Sigma_in_c), over all clusters c
   weight_t sum_internal = transform_reduce_e(
     handle,
     graph_view,
@@ -178,7 +183,7 @@ weight_t compute_modularity(
     weight_t{0});
 
   weight_t Q = sum_internal / total_edge_weight -
-               (resolution * sum_degree_squared) / (total_edge_weight * total_edge_weight);
+               (sum_degree_squared) / (total_edge_weight * total_edge_weight);
 
   return Q;
 }
@@ -186,11 +191,12 @@ weight_t compute_modularity(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<
   cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
-                  raft::device_span<vertex_t> labels)
+                  raft::device_span<vertex_t const> labels)
 {
   auto [new_graph, new_edge_weights, numbering_map] =
     coarsen_graph(handle, graph_view, edge_weights, labels.data(), true);
@@ -203,16 +209,8 @@ graph_contraction(raft::handle_t const& handle,
                         numbering_indices.size(),
                         new_graph_view.local_vertex_partition_range_first());
 
-  relabel<vertex_t, multi_gpu>(
-    handle,
-    std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
-                    static_cast<vertex_t const*>(numbering_indices.begin())),
-    new_graph_view.local_vertex_partition_range_size(),
-    labels.data(),
-    labels.size(),
-    false);
-
-  return std::make_tuple(std::move(new_graph), std::move(new_edge_weights));
+  return std::make_tuple(
+    std::move(new_graph), std::move(new_edge_weights), std::move(numbering_map));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

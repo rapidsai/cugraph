@@ -16,14 +16,12 @@
 
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
-
-// FIXME:  Only outstanding items preventing this becoming a .hpp file
 #include <prims/update_edge_src_dst_property.cuh>
-
+// FIXME: Only outstanding items preventing this becoming a .hpp file
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
@@ -246,12 +244,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     src_clusters_cache.clear(handle);
     dst_clusters_cache.clear(handle);
 
-    std::tie(current_graph, current_edge_weights) = cugraph::detail::graph_contraction(
+    std::tie(current_graph, current_edge_weights, std::ignore) = cugraph::detail::graph_contraction(
       handle,
       current_graph_view,
       current_edge_weight_view,
-      raft::device_span<vertex_t>{dendrogram->current_level_begin(),
-                                  dendrogram->current_level_size()});
+      raft::device_span<vertex_t const>{dendrogram->current_level_begin(),
+                                        dendrogram->current_level_size()});
     current_graph_view       = current_graph.view();
     current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
       (*current_edge_weights).view());

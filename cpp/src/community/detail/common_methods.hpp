@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
@@ -88,11 +88,12 @@ weight_t compute_modularity(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<
   graph_t<vertex_t, edge_t, false, multi_gpu>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
 graph_contraction(raft::handle_t const& handle,
                   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
-                  raft::device_span<vertex_t> labels);
+                  raft::device_span<vertex_t const> labels);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(

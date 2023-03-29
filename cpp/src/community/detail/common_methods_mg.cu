@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,51 +98,57 @@ template double compute_modularity(
 
 template std::tuple<
   cugraph::graph_t<int32_t, int32_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, true>, float>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, true>, float>>,
+  std::optional<rmm::device_uvector<int32_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, float const*>> edge_weights,
-                  raft::device_span<int32_t> labels);
+                  raft::device_span<int32_t const> labels);
 
 template std::tuple<
   cugraph::graph_t<int32_t, int64_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, true>, float>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, true>, float>>,
+  std::optional<rmm::device_uvector<int32_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int64_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, float const*>> edge_weights,
-                  raft::device_span<int32_t> labels);
+                  raft::device_span<int32_t const> labels);
 
 template std::tuple<
   cugraph::graph_t<int64_t, int64_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, true>, float>>>
+  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, true>, float>>,
+  std::optional<rmm::device_uvector<int64_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, float const*>> edge_weights,
-                  raft::device_span<int64_t> labels);
+                  raft::device_span<int64_t const> labels);
 
 template std::tuple<
   cugraph::graph_t<int32_t, int32_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, true>, double>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, true>, double>>,
+  std::optional<rmm::device_uvector<int32_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, double const*>> edge_weights,
-                  raft::device_span<int32_t> labels);
+                  raft::device_span<int32_t const> labels);
 
 template std::tuple<
   cugraph::graph_t<int32_t, int64_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, true>, double>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, true>, double>>,
+  std::optional<rmm::device_uvector<int32_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int64_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, double const*>> edge_weights,
-                  raft::device_span<int32_t> labels);
+                  raft::device_span<int32_t const> labels);
 
 template std::tuple<
   cugraph::graph_t<int64_t, int64_t, false, true>,
-  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, true>, double>>>
+  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, true>, double>>,
+  std::optional<rmm::device_uvector<int64_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, false, true> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, double const*>> edge_weights,
-                  raft::device_span<int64_t> labels);
+                  raft::device_span<int64_t const> labels);
 
 template rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
