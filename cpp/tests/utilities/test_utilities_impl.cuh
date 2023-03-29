@@ -264,7 +264,8 @@ mg_vertex_property_values_to_sg_vertex_property_values(
                                              (*mg_renumber_map).data(),
                                              std::get<0>(mg_local_vertex_partition_range),
                                              std::get<1>(mg_local_vertex_partition_range));
-      mg_aggregate_vertices = cugraph::test::device_gatherv(handle, *mg_vertices);
+      mg_aggregate_vertices = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>(local_vertices.data(), local_vertices.size()));
     } else {
       mg_aggregate_vertices = cugraph::test::device_gatherv(handle, *mg_renumber_map);
     }

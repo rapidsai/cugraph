@@ -79,7 +79,24 @@ class Tests_MGSymmetrize
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 2. run MG symmetrize
+    // 2. create SG graph from MG graph before symmetrizing (for correctness check)
+
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                               weight_t>>
+      sg_edge_weights{std::nullopt};
+    if (symmetrize_usecase.check_correctness) {
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph.view(),
+        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+    }
+
+    // 3. run MG symmetrize
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -102,10 +119,10 @@ class Tests_MGSymmetrize
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 3. copmare SG & MG results
+    // 4. copmare SG & MG results
 
     if (symmetrize_usecase.check_correctness) {
-      // 3-1. decompress MG results
+      // 4-1. decompress MG results
 
       auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
         *handle_,
@@ -115,7 +132,7 @@ class Tests_MGSymmetrize
                             (*mg_renumber_map).data(), (*mg_renumber_map).size())
                         : std::nullopt);
 
-      // 3-2. aggregate MG results
+      // 4-2. aggregate MG results
 
       auto d_mg_aggregate_srcs =
         cugraph::test::device_gatherv(*handle_, d_mg_srcs.data(), d_mg_srcs.size());
@@ -127,20 +144,8 @@ class Tests_MGSymmetrize
           cugraph::test::device_gatherv(*handle_, (*d_mg_weights).data(), (*d_mg_weights).size());
       }
 
-      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                                 weight_t>>
-        sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph.view(),
-        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-3. run SG symmetrize
+        // 4-3. run SG symmetrize
 
         std::optional<rmm::device_uvector<vertex_t>> d_sg_renumber_map_labels{};
         std::tie(sg_graph, sg_edge_weights, d_sg_renumber_map_labels) =
@@ -151,7 +156,7 @@ class Tests_MGSymmetrize
                                     symmetrize_usecase.reciprocal);
         ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
 
-        // 3-4. decompress SG results
+        // 4-4. decompress SG results
 
         auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
           *handle_,
@@ -159,7 +164,7 @@ class Tests_MGSymmetrize
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
-        // 3-5. compare
+        // 4-5. compare
 
         ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
         ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());

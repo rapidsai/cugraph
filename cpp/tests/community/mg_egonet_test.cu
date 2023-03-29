@@ -92,34 +92,34 @@ class Tests_MGEgonet
       hr_timer.start("MG Egonet");
     }
 
-    rmm::device_uvector<vertex_t> d_ego_sources(0, handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_mg_sources(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      d_ego_sources.resize(egonet_usecase.ego_sources_.size(), handle_->get_stream());
+      d_mg_sources.resize(egonet_usecase.ego_sources_.size(), handle_->get_stream());
 
       if constexpr (std::is_same<int32_t, vertex_t>::value) {
-        raft::update_device(d_ego_sources.data(),
+        raft::update_device(d_mg_sources.data(),
                             egonet_usecase.ego_sources_.data(),
                             egonet_usecase.ego_sources_.size(),
                             handle_->get_stream());
       } else {
-        std::vector<vertex_t> h_ego_sources(d_ego_sources.size());
+        std::vector<vertex_t> h_ego_sources(d_mg_sources.size());
         std::transform(egonet_usecase.ego_sources_.begin(),
                        egonet_usecase.ego_sources_.end(),
                        h_ego_sources.begin(),
                        [](auto v) { return static_cast<vertex_t>(v); });
         raft::update_device(
-          d_ego_sources.data(), h_ego_sources.data(), h_ego_sources.size(), handle_->get_stream());
+          d_mg_sources.data(), h_ego_sources.data(), h_ego_sources.size(), handle_->get_stream());
       }
     }
 
-    d_ego_sources = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-      *handle_, std::move(d_ego_sources));
+    d_mg_sources = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_mg_sources));
 
     cugraph::renumber_ext_vertices<vertex_t, true>(
       *handle_,
-      d_ego_sources.data(),
-      d_ego_sources.size(),
+      d_mg_sources.data(),
+      d_mg_sources.size(),
       mg_renumber_map->data(),
       mg_graph_view.local_vertex_partition_range_first(),
       mg_graph_view.local_vertex_partition_range_last());
@@ -129,7 +129,7 @@ class Tests_MGEgonet
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        raft::device_span<vertex_t const>{d_ego_sources.data(), d_ego_sources.size()},
+        raft::device_span<vertex_t const>{d_mg_sources.data(), d_mg_sources.size()},
         static_cast<vertex_t>(egonet_usecase.radius_));
 
     if (cugraph::test::g_perf) {
@@ -140,6 +140,27 @@ class Tests_MGEgonet
     }
 
     if (egonet_usecase.check_correctness_) {
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_edgelist_src.data(),
+        d_mg_edgelist_src.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_edgelist_dst.data(),
+        d_mg_edgelist_dst.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_sources.data(),
+        d_mg_sources.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
       auto d_mg_aggregate_edgelist_src = cugraph::test::device_gatherv(
         *handle_,
         raft::device_span<vertex_t const>(d_mg_edgelist_src.data(), d_mg_edgelist_src.size()));
@@ -149,10 +170,13 @@ class Tests_MGEgonet
 
       std::optional<rmm::device_uvector<weight_t>> d_mg_aggregate_edgelist_wgt{std::nullopt};
       if (d_mg_edgelist_wgt) {
-        *d_mg_aggregate_edgelist_wgt = cugraph::test::device_gatherv(
+        d_mg_aggregate_edgelist_wgt = cugraph::test::device_gatherv(
           *handle_,
           raft::device_span<weight_t const>(d_mg_edgelist_wgt->data(), d_mg_edgelist_wgt->size()));
       }
+
+      auto d_mg_aggregate_sources = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>(d_mg_sources.data(), d_mg_sources.size()));
 
       auto graph_ids_v = cugraph::detail::expand_sparse_offsets(
         raft::device_span<size_t const>(d_mg_edgelist_offsets.data(), d_mg_edgelist_offsets.size()),
@@ -176,15 +200,13 @@ class Tests_MGEgonet
                      triplet_first + d_mg_aggregate_edgelist_src.size());
       }
 
-      auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        false);
-
-      d_ego_sources = cugraph::test::device_gatherv(
-        *handle_, raft::device_span<vertex_t const>(d_ego_sources.data(), d_ego_sources.size()));
+      auto [sg_graph, sg_edge_weights, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(*handle_,
+                                            mg_graph_view,
+                                            mg_edge_weight_view,
+                                            std::make_optional<raft::device_span<vertex_t const>>(
+                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
+                                            false);
 
       if (handle_->get_comms().get_rank() == 0) {
         auto d_mg_aggregate_edgelist_offsets =
@@ -199,7 +221,8 @@ class Tests_MGEgonet
             *handle_,
             sg_graph.view(),
             sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
-            raft::device_span<vertex_t const>{d_ego_sources.data(), d_ego_sources.size()},
+            raft::device_span<vertex_t const>{d_mg_aggregate_sources.data(),
+                                              d_mg_aggregate_sources.size()},
             static_cast<vertex_t>(egonet_usecase.radius_));
 
         cugraph::test::egonet_validate(*handle_,

@@ -159,16 +159,19 @@ class Tests_MGCountIfE
       auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
         *handle_, sg_graph_view, sg_vertex_prop);
 
-      auto expected_result = count_if_e(
-        *handle_,
-        sg_graph_view,
-        sg_src_prop.view(),
-        sg_dst_prop.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto row, auto col, auto src_property, auto dst_property, thrust::nullopt_t) {
-          return src_property < dst_property;
-        });
-      ASSERT_TRUE(expected_result == result);
+      if (handle_->get_comms().get_rank() == 0) {
+        auto expected_result = count_if_e(
+          *handle_,
+          sg_graph_view,
+          sg_src_prop.view(),
+          sg_dst_prop.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          [] __device__(
+            auto row, auto col, auto src_property, auto dst_property, thrust::nullopt_t) {
+            return src_property < dst_property;
+          });
+        ASSERT_TRUE(expected_result == result);
+      }
     }
   }
 

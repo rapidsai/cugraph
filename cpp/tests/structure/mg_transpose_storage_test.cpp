@@ -78,6 +78,23 @@ class Tests_MGTransposeStorage
       hr_timer.display_and_clear(std::cout);
     }
 
+    // 2. create SG graph from MG graph before releasing memory (for correctness check)
+
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                               weight_t>>
+      sg_edge_weights{std::nullopt};
+    if (transpose_storage_usecase.check_correctness) {
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph.view(),
+        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+    }
+
     // 2. run MG transpose storage
 
     auto mg_graph_number_of_vertices = mg_graph.number_of_vertices();
@@ -137,18 +154,6 @@ class Tests_MGTransposeStorage
           cugraph::test::device_gatherv(*handle_, (*d_mg_weights).data(), (*d_mg_weights).size());
       }
 
-      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::optional<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                                 weight_t>>
-        sg_edge_weights{std::nullopt};
-      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph.view(),
-        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
-        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
-                                                              (*mg_renumber_map).size()),
-        false);
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. decompress SG results
 

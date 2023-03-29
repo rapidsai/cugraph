@@ -129,13 +129,16 @@ class Tests_MGCountIfV
         std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
                                                               (*mg_renumber_map).size()),
         false);
-      auto sg_graph_view         = sg_graph.view();
-      auto expected_vertex_count = count_if_v(
-        *handle_,
-        sg_graph_view,
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        test_predicate<vertex_t>(hash_bin_count));
-      ASSERT_TRUE(expected_vertex_count == vertex_count);
+
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view         = sg_graph.view();
+        auto expected_vertex_count = count_if_v(
+          *handle_,
+          sg_graph_view,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          test_predicate<vertex_t>(hash_bin_count));
+        ASSERT_TRUE(expected_vertex_count == vertex_count);
+      }
     }
   }
 
