@@ -6,15 +6,6 @@
 VERSION=${1}
 CUDA_SUFFIX=${2}
 
-# __init__.py updates
-sed -i "s/__version__ = .*/__version__ = \"${VERSION}\"/g" \
-  python/cugraph/cugraph/__init__.py \
-  python/cugraph-dgl/cugraph_dgl/__init__.py \
-  python/cugraph-pyg/cugraph_pyg/__init__.py \
-  python/cugraph-service/client/cugraph_service_client/__init__.py \
-  python/cugraph-service/server/cugraph_service_server/__init__.py \
-  python/pylibcugraph/pylibcugraph/__init__.py
-
 # setup.py updates
 sed -i "s/^version = .*/version = \"${VERSION}\"/g" \
   python/cugraph/pyproject.toml \
