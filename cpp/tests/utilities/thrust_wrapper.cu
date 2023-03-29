@@ -36,6 +36,31 @@
 namespace cugraph {
 namespace test {
 
+template <typename value_buffer_type>
+value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values)
+{
+  auto sorted_values =
+    cugraph::allocate_dataframe_buffer<cugraph::dataframe_element_t<value_buffer_type>>(
+      values.size(), handle.get_stream());
+
+  thrust::copy(handle.get_thrust_policy(),
+               cugraph::get_dataframe_buffer_begin(values),
+               cugraph::get_dataframe_buffer_end(values),
+               cugraph::get_dataframe_buffer_begin(sorted_values));
+
+  thrust::sort(handle.get_thrust_policy(),
+               cugraph::get_dataframe_buffer_begin(sorted_values),
+               cugraph::get_dataframe_buffer_end(sorted_values));
+
+  return sorted_values;
+}
+
+template rmm::device_uvector<int32_t> sort(raft::handle_t const& handle,
+                                           rmm::device_uvector<int32_t> const& values);
+
+template rmm::device_uvector<int64_t> sort(raft::handle_t const& handle,
+                                           rmm::device_uvector<int64_t> const& values);
+
 template <typename key_buffer_type, typename value_buffer_type>
 std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
                                                            key_buffer_type const& keys,

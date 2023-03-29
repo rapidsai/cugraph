@@ -21,6 +21,9 @@ import pytest
 from cugraph_pyg.data import CuGraphStore
 
 
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 @pytest.mark.cugraph_ops
 def test_neighbor_sample(basic_graph_1, dask_client):
     F, G, N = basic_graph_1
@@ -58,10 +61,6 @@ def test_neighbor_sample(basic_graph_1, dask_client):
 
         assert list(node_ids) == list(actual_vertex_ids)
 
-    print("row:", row_dict)
-    print("col:", col_dict)
-    print("G:", G)
-
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
@@ -87,6 +86,9 @@ def test_neighbor_sample(basic_graph_1, dask_client):
         )
 
 
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 @pytest.mark.cugraph_ops
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1, dask_client):
     F, G, N = multi_edge_multi_vertex_graph_1

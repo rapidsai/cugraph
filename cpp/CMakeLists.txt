@@ -253,8 +253,8 @@ set(CUGRAPH_SOURCES
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
     src/structure/induced_subgraph_mg.cu
-    src/structure/select_random_vertices_sg.cpp
-    src/structure/select_random_vertices_mg.cpp
+    src/structure/select_random_vertices_sg.cu
+    src/structure/select_random_vertices_mg.cu
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
@@ -394,10 +394,13 @@ add_library(cugraph_c
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
-	src/c_api/heirarchical_clustering_result.cpp
+	src/c_api/hierarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
-        src/c_api/induced_subgraph_helper.cu
+        src/c_api/capi_helper.cu
+        src/c_api/legacy_spectral.cpp
+        src/c_api/legacy_ecg.cpp
         src/c_api/graph_helper.cu
+        src/c_api/graph_generators.cpp
         src/c_api/induced_subgraph_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
