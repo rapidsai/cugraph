@@ -429,7 +429,7 @@ update_local_sorted_unique_edge_majors_minors(
     if (max_minor_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
       auto const chunk_size =
-        std::min(static_cast<size_t>(1.0 / max_minor_properties_fill_ratio), size_t{1024});
+        static_cast<size_t>(std::min(1.0 / max_minor_properties_fill_ratio, 1024.0));
 
       rmm::device_uvector<vertex_t> unique_edge_minors(num_local_unique_edge_minors,
                                                        handle.get_stream());
@@ -541,7 +541,7 @@ update_local_sorted_unique_edge_majors_minors(
   if (max_major_properties_fill_ratio <
       detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     auto const chunk_size =
-      std::min(static_cast<size_t>(1.0 / max_major_properties_fill_ratio), size_t{1024});
+      static_cast<size_t>(std::min(1.0 / max_major_properties_fill_ratio, 1024.0));
 
     local_sorted_unique_edge_majors = std::vector<rmm::device_uvector<vertex_t>>{};
     local_sorted_unique_edge_major_chunk_start_offsets =
