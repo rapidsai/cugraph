@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from collections import defaultdict
 import cudf
 from cugraph.utilities.utils import import_optional
@@ -82,28 +82,19 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
         raise ValueError("Outwards edges not supported yet")
     graph_per_hop_ls = []
     output_nodes = None
-    # TODO: Refactor to only use 1 variable
-    src_ids = None
-    dst_ids = None
-    edge_ids = None
-    for c_src_ids, c_dst_ids, c_edge_ids in tensors_perhop_ls:
-        if src_ids is not None:
-            src_ids = torch.cat([src_ids, c_src_ids])
-            dst_ids = torch.cat([dst_ids, c_dst_ids])
-            edge_ids = torch.cat([edge_ids, c_edge_ids])
-        else:
-            src_ids = c_src_ids
-            dst_ids = c_dst_ids
-            edge_ids = c_edge_ids
-
+    seed_nodes = None
+    for src_ids, dst_ids, edge_ids in tensors_perhop_ls:
+        # print("Creating block", flush=True)
         block = create_homogeneous_dgl_block_from_tensors_ls(
-            src_ids, dst_ids, edge_ids, total_number_of_nodes
+            src_ids=src_ids,
+            dst_ids=dst_ids,
+            edge_ids=edge_ids,
+            seed_nodes=seed_nodes,
+            total_number_of_nodes=total_number_of_nodes,
         )
-        if output_nodes is None:
-            # here output_nodes are seeds because of reversed directions
-            output_nodes = dst_ids.unique()
-
         seed_nodes = block.srcdata[dgl.NID]
+        if output_nodes is None:
+            output_nodes = block.dstdata[dgl.NID]
         graph_per_hop_ls.append(block)
 
     # default DGL behavior
@@ -116,6 +107,7 @@ def create_homogeneous_dgl_block_from_tensors_ls(
     src_ids: torch.Tensor,
     dst_ids: torch.Tensor,
     edge_ids: torch.Tensor,
+    seed_nodes: Optional[torch.Tensor],
     total_number_of_nodes: int,
 ):
     sampled_graph = dgl.graph(
@@ -124,8 +116,14 @@ def create_homogeneous_dgl_block_from_tensors_ls(
     )
     sampled_graph.edata[dgl.EID] = edge_ids
     # TODO: Check if unique is needed
+    if seed_nodes is None:
+        seed_nodes = dst_ids.unique()
+
     block = dgl.to_block(
-        sampled_graph, dst_nodes=dst_ids.unique(), src_nodes=src_ids.unique()
+        sampled_graph,
+        dst_nodes=seed_nodes,
+        src_nodes=src_ids.unique(),
+        include_dst_in_src=True,
     )
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
@@ -206,32 +204,14 @@ def _create_heterogenous_sampled_graphs_from_tensors_perhop(
     graph_per_hop_ls = []
     output_nodes = None
 
-    edges_dict = {}
+    seed_nodes = None
     for hop_edges_dict in tensors_perhop_ls:
-        for etype, (c_src_ids, c_dst_ids, c_edge_ids) in hop_edges_dict.items():
-            if etype in edges_dict:
-                edges_dict[etype] = (
-                    torch.cat([edges_dict[etype][0], c_src_ids]),
-                    torch.cat([edges_dict[etype][1], c_dst_ids]),
-                    torch.cat([edges_dict[etype][2], c_edge_ids]),
-                )
-            else:
-                edges_dict[etype] = c_src_ids, c_dst_ids, c_edge_ids
-
         block = create_heterogenous_dgl_block_from_tensors_dict(
-            edges_dict, num_nodes_dict
+            hop_edges_dict, num_nodes_dict, seed_nodes
         )
-        if output_nodes is None:
-            # here output_nodes are seeds because of reversed directions
-            output_nodes = defaultdict(list)
-            for (_, _, d), (_, dst_id, _) in edges_dict.items():
-                output_nodes[d].append(dst_id)
-            # TODO: Check if unique is needed
-            output_nodes = {
-                k: torch.cat(v).unique() for k, v in output_nodes.items() if len(v) > 0
-            }
-
         seed_nodes = block.srcdata[dgl.NID]
+        if output_nodes is None:
+            output_nodes = block.dstdata[dgl.NID]
         graph_per_hop_ls.append(block)
 
     # default DGL behavior
@@ -243,6 +223,7 @@ def _create_heterogenous_sampled_graphs_from_tensors_perhop(
 def create_heterogenous_dgl_block_from_tensors_dict(
     edges_dict: Dict[Tuple(str, str, str), (torch.Tensor, torch.Tensor, torch.Tensor)],
     num_nodes_dict: Dict[str, torch.Tensor],
+    seed_nodes: Optional[Dict[str, torch.Tensor]],
 ):
     data_dict = {k: (s, d) for k, (s, d, _) in edges_dict.items()}
     edge_ids_dict = {k: eid for k, (_, _, eid) in edges_dict.items()}
@@ -261,8 +242,9 @@ def create_heterogenous_dgl_block_from_tensors_dict(
         dst_d[d].append(dst_id)
 
     src_d = {k: torch.cat(v).unique() for k, v in src_d.items() if len(v) > 0}
-    dst_d = {k: torch.cat(v).unique() for k, v in dst_d.items() if len(v) > 0}
+    if seed_nodes is None:
+        seed_nodes = {k: torch.cat(v).unique() for k, v in dst_d.items() if len(v) > 0}
 
-    block = dgl.to_block(sampled_graph, dst_nodes=dst_d, src_nodes=src_d)
+    block = dgl.to_block(sampled_graph, dst_nodes=seed_nodes, src_nodes=src_d)
     block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
