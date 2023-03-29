@@ -15,7 +15,6 @@
 set(cython_sources
     ecg_wrapper.pyx
     ktruss_subgraph_wrapper.pyx
-    leiden_wrapper.pyx
     spectral_clustering_wrapper.pyx
     subgraph_extraction_wrapper.pyx
 )
