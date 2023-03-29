@@ -855,6 +855,8 @@ class EXPERIMENTAL__CuGraphStore:
             # allow indexing through cupy arrays
             if isinstance(idx, cupy.ndarray):
                 idx = idx.get()
+            elif isinstance(idx, torch.Tensor):
+                idx = np.asarray(idx.cpu())
 
         if cols is None:
             t = self.__features.get_data(idx, attr.group_name, attr.attr_name)
