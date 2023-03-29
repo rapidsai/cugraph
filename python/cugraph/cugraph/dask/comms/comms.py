@@ -81,8 +81,8 @@ def subcomm_init(prows, pcols, partition_type):
     __subcomm = (prows, pcols, partition_type)
 
 
-def _subcomm_init(sID, partition_row_size):
-    handle = get_handle(sID)
+def _subcomm_init(sID, partition_row_size, dask_worker=None):
+    handle = get_handle(sID, dask_worker)
     c_init_subcomms(handle, partition_row_size)
 
 
@@ -230,19 +230,23 @@ def get_default_handle():
 # Functions to be called from within workers
 
 
-def get_handle(sID):
+def get_handle(sID, dask_worker=None):
     """
     Returns the handle from within the worker using the sessionstate.
     """
-    sessionstate = get_raft_comm_state(sID, get_worker())
+    if dask_worker is None:
+        dask_worker = get_worker()
+    sessionstate = get_raft_comm_state(sID, dask_worker)
     return sessionstate["handle"]
 
 
-def get_worker_id(sID):
+def get_worker_id(sID, dask_worker=None):
     """
     Returns the worker's sessionId from within the worker.
     """
-    sessionstate = get_raft_comm_state(sID, get_worker())
+    if dask_worker is None:
+        dask_worker = get_worker()
+    sessionstate = get_raft_comm_state(sID, dask_worker)
     return sessionstate["wid"]
 
 
@@ -253,9 +257,11 @@ def get_worker_id(sID):
 #   * len(numba.cuda.gpus)
 # Consider consolidating these or emphasizing why different
 # functions/techniques are needed.
-def get_n_workers(sID=None):
+def get_n_workers(sID=None, dask_worker=None):
     if sID is None:
         return read_utils.get_n_workers()
     else:
-        sessionstate = get_raft_comm_state(sID, get_worker())
+        if dask_worker is None:
+            dask_worker = get_worker()
+        sessionstate = get_raft_comm_state(sID, dask_worker)
         return sessionstate["nworkers"]

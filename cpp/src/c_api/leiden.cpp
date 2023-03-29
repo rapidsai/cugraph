@@ -18,7 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
-#include <c_api/heirarchical_clustering_result.hpp>
+#include <c_api/hierarchical_clustering_result.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
@@ -37,7 +37,7 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   size_t max_level_;
   double resolution_;
   bool do_expensive_check_;
-  cugraph::c_api::cugraph_heirarchical_clustering_result_t* result_{};
+  cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
 
   leiden_functor(::cugraph_resource_handle_t const* handle,
                  ::cugraph_graph_t* graph,
@@ -99,7 +99,7 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
                                              handle_.get_stream());
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
-      result_ = new cugraph::c_api::cugraph_heirarchical_clustering_result_t{
+      result_ = new cugraph::c_api::cugraph_hierarchical_clustering_result_t{
         modularity,
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
@@ -117,7 +117,7 @@ extern "C" cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* 
                                                size_t max_level,
                                                double resolution,
                                                bool_t do_expensive_check,
-                                               cugraph_heirarchical_clustering_result_t** result,
+                                               cugraph_hierarchical_clustering_result_t** result,
                                                cugraph_error_t** error)
 {
   leiden_functor functor(handle, graph, max_level, resolution, do_expensive_check);
