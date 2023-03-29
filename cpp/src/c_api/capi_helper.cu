@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <c_api/induced_subgraph_helper.hpp>
+#include <c_api/capi_helper.hpp>
 #include <structure/detail/structure_utils.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -57,6 +57,21 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<size_t>>
 shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
                                rmm::device_uvector<int64_t>&& vertices,
                                raft::device_span<size_t const> offsets);
+
+template <typename key_t, typename value_t>
+void sort_by_key(raft::handle_t const& handle,
+                 raft::device_span<key_t> keys,
+                 raft::device_span<value_t> values)
+{
+  thrust::sort_by_key(handle.get_thrust_policy(), keys.begin(), keys.end(), values.begin());
+}
+
+template void sort_by_key(raft::handle_t const& handle,
+                          raft::device_span<int32_t> keys,
+                          raft::device_span<int32_t> values);
+template void sort_by_key(raft::handle_t const& handle,
+                          raft::device_span<int64_t> keys,
+                          raft::device_span<int64_t> values);
 
 }  // namespace detail
 }  // namespace c_api

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>>
 shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
                                rmm::device_uvector<vertex_t>&& vertices,
                                raft::device_span<size_t const> offsets);
+
+template <typename key_t, typename value_t>
+void sort_by_key(raft::handle_t const& handle,
+                 raft::device_span<key_t> keys,
+                 raft::device_span<value_t> values);
 
 }  // namespace detail
 }  // namespace c_api

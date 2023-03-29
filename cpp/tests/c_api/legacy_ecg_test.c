@@ -25,16 +25,15 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_leiden_test(vertex_t* h_src,
-                        vertex_t* h_dst,
-                        weight_t* h_wgt,
-                        vertex_t* h_result,
-                        weight_t expected_modularity,
-                        size_t num_vertices,
-                        size_t num_edges,
-                        size_t max_level,
-                        double resolution,
-                        bool_t store_transposed)
+int generic_ecg_test(vertex_t* h_src,
+                     vertex_t* h_dst,
+                     weight_t* h_wgt,
+                     vertex_t* h_result,
+                     size_t num_vertices,
+                     size_t num_edges,
+                     double minimum_weight,
+                     size_t ensemble_size,
+                     bool_t store_transposed)
 {
   int test_ret_value = 0;
 
@@ -54,13 +53,11 @@ int generic_leiden_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_leiden(p_handle, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
+  ret_code =
+    cugraph_ecg(p_handle, p_graph, minimum_weight, ensemble_size, FALSE, &p_result, &ret_error);
 
-#if 1
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_leiden should have failed");
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_leiden failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_ecg failed.");
 
   if (test_ret_value == 0) {
     cugraph_type_erased_device_array_view_t* vertices;
@@ -68,7 +65,6 @@ int generic_leiden_test(vertex_t* h_src,
 
     vertices          = cugraph_hierarchical_clustering_result_get_vertices(p_result);
     clusters          = cugraph_hierarchical_clustering_result_get_clusters(p_result);
-    double modularity = cugraph_hierarchical_clustering_result_get_modularity(p_result);
 
     vertex_t h_vertices[num_vertices];
     edge_t h_clusters[num_vertices];
@@ -86,13 +82,8 @@ int generic_leiden_test(vertex_t* h_src,
         test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
     }
 
-    TEST_ASSERT(test_ret_value,
-                nearlyEqual(modularity, expected_modularity, 0.001),
-                "modularity doesn't match");
-
     cugraph_hierarchical_clustering_result_free(p_result);
   }
-#endif
 
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
@@ -101,31 +92,29 @@ int generic_leiden_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-int test_leiden()
+int test_ecg()
 {
-  size_t num_edges    = 8;
-  size_t num_vertices = 6;
-  size_t max_level    = 10;
-  weight_t resolution = 1.0;
+  size_t num_edges     = 8;
+  size_t num_vertices  = 6;
+  weight_t min_weight  = 0.05;
+  size_t ensemble_size = 16;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_result[]          = {0, 1, 0, 1, 1, 1};
-  weight_t expected_modularity = 0.218166;
 
   // Louvain wants store_transposed = FALSE
-  return generic_leiden_test(h_src,
-                             h_dst,
-                             h_wgt,
-                             h_result,
-                             expected_modularity,
-                             num_vertices,
-                             num_edges,
-                             max_level,
-                             resolution,
-                             FALSE);
+  return generic_ecg_test(h_src,
+                          h_dst,
+                          h_wgt,
+                          h_result,
+                          num_vertices,
+                          num_edges,
+                          min_weight,
+                          ensemble_size,
+                          FALSE);
 }
 
 /******************************************************************************/
@@ -133,6 +122,6 @@ int test_leiden()
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_leiden);
+  result |= RUN_TEST(test_ecg);
   return result;
 }

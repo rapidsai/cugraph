@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <cugraph_c/community_algorithms.h>
+#include <cugraph_c/algorithms.h>
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
@@ -31,24 +31,24 @@
 
 namespace {
 
-struct louvain_functor : public cugraph::c_api::abstract_functor {
+struct ecg_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_;
-  size_t max_level_;
-  double resolution_;
+  double min_weight_;
+  size_t ensemble_size_;
   bool do_expensive_check_;
   cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
 
-  louvain_functor(::cugraph_resource_handle_t const* handle,
-                  ::cugraph_graph_t* graph,
-                  size_t max_level,
-                  double resolution,
-                  bool do_expensive_check)
+  ecg_functor(::cugraph_resource_handle_t const* handle,
+              ::cugraph_graph_t* graph,
+              double min_weight,
+              size_t ensemble_size,
+              bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      max_level_(max_level),
-      resolution_(resolution),
+      min_weight_(min_weight),
+      ensemble_size_(ensemble_size),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -63,43 +63,55 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
   {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
+    } else if constexpr (multi_gpu) {
+      unsupported();
+    } else if constexpr (!std::is_same_v<edge_t, int32_t>) {
+      unsupported();
     } else {
-      // louvain expects store_transposed == false
+      // ecg expects store_transposed == false
       if constexpr (store_transposed) {
-        error_code_ = cugraph::c_api::
-          transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+        error_code_ =
+          cugraph::c_api::transpose_storage<vertex_t, edge_t, weight_t, store_transposed, false>(
             handle_, graph_, error_.get());
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, false>*>(graph_->graph_);
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>*>(
+        graph_->edge_weights_);
+
+      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto graph_view = graph->view();
 
-      auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 weight_t>*>(graph_->edge_weights_);
+      auto edge_partition_view = graph_view.local_edge_partition_view();
 
-      auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
+      cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
+        const_cast<edge_t*>(edge_partition_view.offsets().data()),
+        const_cast<vertex_t*>(edge_partition_view.indices().data()),
+        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        edge_partition_view.offsets().size() - 1,
+        edge_partition_view.indices().size());
 
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      auto [level, modularity] = cugraph::louvain(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        clusters.data(),
-        max_level_,
-        static_cast<weight_t>(resolution_));
+      // FIXME:  Need modularity..., although currently not used
+      cugraph::ecg(handle_,
+                   legacy_graph_view,
+                   static_cast<weight_t>(min_weight_),
+                   static_cast<vertex_t>(ensemble_size_),
+                   clusters.data());
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
       result_ = new cugraph::c_api::cugraph_hierarchical_clustering_result_t{
-        modularity,
+        weight_t{0},
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
     }
@@ -108,15 +120,15 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
-                                                cugraph_graph_t* graph,
-                                                size_t max_level,
-                                                double resolution,
-                                                bool_t do_expensive_check,
-                                                cugraph_hierarchical_clustering_result_t** result,
-                                                cugraph_error_t** error)
+extern "C" cugraph_error_code_t cugraph_ecg(const cugraph_resource_handle_t* handle,
+                                            cugraph_graph_t* graph,
+                                            double min_weight,
+                                            size_t ensemble_size,
+                                            bool_t do_expensive_check,
+                                            cugraph_hierarchical_clustering_result_t** result,
+                                            cugraph_error_t** error)
 {
-  louvain_functor functor(handle, graph, max_level, resolution, do_expensive_check);
+  ecg_functor functor(handle, graph, min_weight, ensemble_size, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

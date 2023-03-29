@@ -16,6 +16,7 @@ import shutil
 import cugraph_dgl
 import cupy as cp
 import cudf
+from cugraph.utilities.utils import import_optional
 from cugraph.experimental import BulkSampler
 from dask.distributed import default_client, Event
 from cugraph_dgl.dataloading import (
@@ -25,7 +26,6 @@ from cugraph_dgl.dataloading import (
 from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
     create_cugraph_graph_from_edges_dict,
 )
-from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
@@ -46,8 +46,8 @@ class DataLoader(torch.utils.data.DataLoader):
         indices: torch.Tensor,
         graph_sampler: cugraph_dgl.dataloading.NeighborSampler,
         sampling_output_dir: str,
-        batches_per_partition: int = 150,
-        seeds_per_call: int = 500_000,
+        batches_per_partition: int = 50,
+        seeds_per_call: int = 400_000,
         device: torch.device = None,
         use_ddp: bool = False,
         ddp_seed: int = 0,
@@ -153,7 +153,6 @@ class DataLoader(torch.utils.data.DataLoader):
 
         if len(graph.ntypes) <= 1:
             self.cugraph_dgl_dataset = HomogenousBulkSamplerDataset(
-                num_batches=len(self.tensorized_indices_ds),
                 total_number_of_nodes=graph.total_number_of_nodes,
                 edge_dir=self.graph_sampler.edge_dir,
             )
@@ -161,7 +160,6 @@ class DataLoader(torch.utils.data.DataLoader):
             etype_id_to_etype_str_dict = {v: k for k, v in graph._etype_id_dict.items()}
 
             self.cugraph_dgl_dataset = HetrogenousBulkSamplerDataset(
-                num_batches=len(self.tensorized_indices_ds),
                 num_nodes_dict=graph.num_nodes_dict,
                 etype_id_dict=etype_id_to_etype_str_dict,
                 etype_offset_dict=graph._etype_offset_d,
@@ -231,7 +229,7 @@ class DataLoader(torch.utils.data.DataLoader):
         bs.add_batches(batch_df, start_col_name="start", batch_col_name="batch_id")
         bs.flush()
         output_dir = output_dir + f"/rank={rank}/"
-        self.cugraph_dgl_dataset.set_input_directory(output_dir)
+        self.cugraph_dgl_dataset.set_input_files(input_directory=output_dir)
         self.epoch_number = self.epoch_number + 1
         return super().__iter__()
 
@@ -263,7 +261,7 @@ def create_batch_df(dataset: torch.Tensor):
         indices_ls.append(b_indices)
 
     batch_id_ar = cp.concatenate(batch_id_ls)
-    indices_ar = cp.asarray(torch.concatenate(indices_ls))
+    indices_ar = cp.asarray(torch.concat(indices_ls))
     batches_df = cudf.DataFrame(
         {
             "start": indices_ar,
