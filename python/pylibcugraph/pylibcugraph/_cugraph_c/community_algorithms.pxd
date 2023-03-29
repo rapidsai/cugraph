@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,26 +68,26 @@ cdef extern from "cugraph_c/community_algorithms.h":
 
     ###########################################################################
     # louvain
-    ctypedef struct cugraph_heirarchical_clustering_result_t:
+    ctypedef struct cugraph_hierarchical_clustering_result_t:
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_vertices(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_get_vertices(
+            cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_clusters(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_get_clusters(
+            cugraph_hierarchical_clustering_result_t* result
         )
     
-    cdef double cugraph_heirarchical_clustering_result_get_modularity(
-        cugraph_heirarchical_clustering_result_t* result
+    cdef double cugraph_hierarchical_clustering_result_get_modularity(
+        cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef void \
-        cugraph_heirarchical_clustering_result_free(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_free(
+            cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef cugraph_error_code_t \
@@ -97,7 +97,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             size_t max_level,
             double resolution,
             bool_t do_expensive_check,
-            cugraph_heirarchical_clustering_result_t** result,
+            cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error
         )
     
