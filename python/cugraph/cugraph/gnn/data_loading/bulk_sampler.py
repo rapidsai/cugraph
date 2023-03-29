@@ -181,7 +181,7 @@ class EXPERIMENTAL__BulkSampler:
         )
 
         start_list = self.__batches[self.start_col_name][batch_id_filter]
-        
+
         batch_id_list = self.__batches[self.batch_col_name][batch_id_filter]
 
         samples = sample_fn(
