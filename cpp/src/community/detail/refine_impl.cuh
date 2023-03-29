@@ -52,25 +52,8 @@ CUCO_DECLARE_BITWISE_COMPARABLE(double)
 namespace cugraph {
 namespace detail {
 
-// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t, typename weight_t>
-struct reduce_op_t {
-  using type                          = thrust::tuple<vertex_t, weight_t>;
-  static constexpr bool pure_function = true;  // this can be called from any process
-
-  __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
-                             thrust::tuple<vertex_t, weight_t> p1) const
-  {
-    auto id0 = thrust::get<0>(p0);
-    auto id1 = thrust::get<0>(p1);
-    auto wt0 = thrust::get<1>(p0);
-    auto wt1 = thrust::get<1>(p1);
-
-    return (wt0 < wt1) ? p1 : ((wt0 > wt1) ? p0 : ((id0 < id1) ? p0 : p1));
-  }
-};
-
-// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+// FIXME: check if this is still the case
+//  a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t, typename cluster_value_t>
 struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
@@ -115,7 +98,7 @@ struct leiden_key_aggregated_edge_op_t {
       }
     }
 
-    return thrust::make_tuple(neighboring_leiden_cluster, theta);
+    return thrust::make_tuple(theta, neighboring_leiden_cluster);
   }
 };
 
@@ -457,7 +440,7 @@ refine_clustering(
     // Decide best/positive move for each vertex
     //
 
-    auto dst_and_gain_output_pairs = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
+    auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
     per_v_transform_reduce_dst_key_aggregated_outgoing_e(
@@ -471,9 +454,9 @@ refine_clustering(
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{total_edge_weight,
                                                                            resolution},
-      thrust::make_tuple(vertex_t{-1}, weight_t{0}),
-      detail::reduce_op_t<vertex_t, weight_t>{},
-      cugraph::get_dataframe_buffer_begin(dst_and_gain_output_pairs));
+      thrust::make_tuple(weight_t{0}, vertex_t{-1}),
+      reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
+      cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
 
     src_leiden_assignment_cache.clear(handle);
     dst_leiden_assignment_cache.clear(handle);
@@ -493,8 +476,8 @@ refine_clustering(
     //
 
     vertex_t num_vertices   = graph_view.local_vertex_partition_range_size();
-    auto dst_and_gain_first = cugraph::get_dataframe_buffer_cbegin(dst_and_gain_output_pairs);
-    auto dst_and_gain_last  = cugraph::get_dataframe_buffer_cend(dst_and_gain_output_pairs);
+    auto gain_and_dst_first = cugraph::get_dataframe_buffer_cbegin(gain_and_dst_output_pairs);
+    auto gain_and_dst_last  = cugraph::get_dataframe_buffer_cend(gain_and_dst_output_pairs);
 
     auto vertex_begin =
       thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
@@ -504,23 +487,23 @@ refine_clustering(
     // edge (src, dst, gain)
     auto edge_begin = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_begin,
-                         thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
-                         thrust::get<1>(dst_and_gain_first.get_iterator_tuple())));
+                         thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
+                         thrust::get<0>(gain_and_dst_first.get_iterator_tuple())));
     auto edge_end = thrust::make_zip_iterator(
       thrust::make_tuple(vertex_end,
-                         thrust::get<0>(dst_and_gain_last.get_iterator_tuple()),
-                         thrust::get<1>(dst_and_gain_last.get_iterator_tuple())));
+                         thrust::get<1>(gain_and_dst_last.get_iterator_tuple()),
+                         thrust::get<0>(gain_and_dst_last.get_iterator_tuple())));
 
     //
     // Filter out moves with -ve gains
     //
 
     vertex_t nr_valid_tuples = thrust::count_if(handle.get_thrust_policy(),
-                                                dst_and_gain_first,
-                                                dst_and_gain_last,
-                                                [] __device__(auto dst_gain_pair) {
-                                                  vertex_t dst  = thrust::get<0>(dst_gain_pair);
-                                                  weight_t gain = thrust::get<1>(dst_gain_pair);
+                                                gain_and_dst_first,
+                                                gain_and_dst_last,
+                                                [] __device__(auto gain_dst_pair) {
+                                                  weight_t gain = thrust::get<0>(gain_dst_pair);
+                                                  vertex_t dst  = thrust::get<1>(gain_dst_pair);
                                                   return (gain > POSITIVE_GAIN) && (dst >= 0);
                                                 });
 
@@ -530,8 +513,8 @@ refine_clustering(
     }
 
     if (nr_valid_tuples == 0) {
-      cugraph::resize_dataframe_buffer(dst_and_gain_output_pairs, 0, handle.get_stream());
-      cugraph::shrink_to_fit_dataframe_buffer(dst_and_gain_output_pairs, handle.get_stream());
+      cugraph::resize_dataframe_buffer(gain_and_dst_output_pairs, 0, handle.get_stream());
+      cugraph::shrink_to_fit_dataframe_buffer(gain_and_dst_output_pairs, handle.get_stream());
       break;
     }
 
@@ -628,7 +611,7 @@ refine_clustering(
       handle.get_thrust_policy(),
       vertices_in_mis.begin(),
       vertices_in_mis.end(),
-      [dst_first                     = thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
+      [dst_first                     = thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
        leiden_assignment             = leiden_assignment.data(),
        singleton_and_connected_flags = singleton_and_connected_flags.data(),
        v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
@@ -648,14 +631,14 @@ refine_clustering(
       vertices_in_mis.begin(),
       vertices_in_mis.end(),
       dst_vertices.begin(),
-      [dst_first = thrust::get<0>(dst_and_gain_first.get_iterator_tuple()),
+      [dst_first = thrust::get<1>(gain_and_dst_first.get_iterator_tuple()),
        v_first   = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
         auto dst = *(dst_first + v - v_first);
         return dst;
       });
 
-    cugraph::resize_dataframe_buffer(dst_and_gain_output_pairs, 0, handle.get_stream());
-    cugraph::shrink_to_fit_dataframe_buffer(dst_and_gain_output_pairs, handle.get_stream());
+    cugraph::resize_dataframe_buffer(gain_and_dst_output_pairs, 0, handle.get_stream());
+    cugraph::shrink_to_fit_dataframe_buffer(gain_and_dst_output_pairs, handle.get_stream());
 
     vertices_in_mis.resize(0, handle.get_stream());
     vertices_in_mis.shrink_to_fit(handle.get_stream());
