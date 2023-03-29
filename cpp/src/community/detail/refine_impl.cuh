@@ -130,11 +130,11 @@ refine_clustering(
     edge_weight_view,
   weight_t total_edge_weight,
   weight_t resolution,
-  rmm::device_uvector<weight_t> const& vertex_weights_v,  // ?
-  rmm::device_uvector<typename GraphViewType::vertex_type>&& cluster_keys_v,
-  rmm::device_uvector<weight_t>&& cluster_weights_v,
-  rmm::device_uvector<typename GraphViewType::vertex_type>&& louvain_assignment,
-  edge_src_property_t<GraphViewType, weight_t> const& src_vertex_weights_cache,  //?
+  rmm::device_uvector<weight_t> const& weighted_degree_of_vertices,
+  rmm::device_uvector<typename GraphViewType::vertex_type>&& louvain_cluster_keys,
+  rmm::device_uvector<weight_t>&& louvain_cluster_weights,
+  rmm::device_uvector<typename GraphViewType::vertex_type>&& louvain_assignment_of_vertices,
+  edge_src_property_t<GraphViewType, weight_t> const& src_vertex_weights_cache,
   edge_src_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
     src_louvain_assignment_cache,
   edge_dst_property_t<GraphViewType, typename GraphViewType::vertex_type> const&
@@ -145,34 +145,51 @@ refine_clustering(
   using vertex_t               = typename GraphViewType::vertex_type;
   using edge_t                 = typename GraphViewType::edge_type;
 
-  rmm::device_uvector<weight_t> vertex_cluster_weights_v(louvain_assignment.size(),
-                                                         handle.get_stream());
+  rmm::device_uvector<weight_t> vertex_louvain_cluster_weights(0, handle.get_stream());
 
-  kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(cluster_keys_v.begin(),
-                                                               cluster_keys_v.end(),
-                                                               cluster_weights_v.data(),
+  kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(louvain_cluster_keys.begin(),
+                                                               louvain_cluster_keys.end(),
+                                                               louvain_cluster_weights.data(),
                                                                invalid_vertex_id<vertex_t>::value,
                                                                std::numeric_limits<weight_t>::max(),
                                                                handle.get_stream());
+  louvain_cluster_keys.resize(0, handle.get_stream());
+  louvain_cluster_keys.shrink_to_fit(handle.get_stream());
 
-  cluster_keys_v.resize(0, handle.get_stream());
-  cluster_weights_v.resize(0, handle.get_stream());
+  louvain_cluster_weights.resize(0, handle.get_stream());
+  louvain_cluster_weights.shrink_to_fit(handle.get_stream());
 
-  cluster_keys_v.shrink_to_fit(handle.get_stream());
-  cluster_weights_v.shrink_to_fit(handle.get_stream());
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
-  cluster_key_weight_map.view().find(louvain_assignment.begin(),
-                                     louvain_assignment.end(),
-                                     vertex_cluster_weights_v.begin(),
-                                     handle.get_stream());
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      comm_size, major_comm_size, minor_comm_size};
 
+    vertex_louvain_cluster_weights =
+      cugraph::collect_values_for_keys(handle,
+                                       cluster_key_weight_map.view(),
+                                       louvain_assignment_of_vertices.begin(),
+                                       louvain_assignment_of_vertices.end(),
+                                       vertex_to_gpu_id_op);
+
+  } else {
+    vertex_louvain_cluster_weights.resize(louvain_assignment_of_vertices.size(),
+                                          handle.get_stream());
+
+    cluster_key_weight_map.view().find(louvain_assignment_of_vertices.begin(),
+                                       louvain_assignment_of_vertices.end(),
+                                       vertex_louvain_cluster_weights.begin(),
+                                       handle.get_stream());
+  }
   //
   // For each vertex, compute its weighted degree (||v||)
   // and cut between itself and its Louvain community (E(v, S-v))
   //
-
-  rmm::device_uvector<weight_t> weighted_degree_of_vertices(
-    graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
   rmm::device_uvector<weight_t> weighted_cut_of_vertices_to_louvain(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -180,15 +197,14 @@ refine_clustering(
   per_v_transform_reduce_outgoing_e(
     handle,
     graph_view,
-    GraphViewType::is_multi_gpu
-      ? src_louvain_assignment_cache.view()
-      : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(louvain_assignment.data()),
+    GraphViewType::is_multi_gpu ? src_louvain_assignment_cache.view()
+                                : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
+                                    louvain_assignment_of_vertices.data()),
     GraphViewType::is_multi_gpu ? dst_louvain_assignment_cache.view()
                                 : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                                    louvain_assignment.data(), vertex_t{0}),
+                                    louvain_assignment_of_vertices.data(), vertex_t{0}),
     *edge_weight_view,
     [] __device__(auto src, auto dst, auto src_cluster, auto dst_cluster, auto wt) {
-      weight_t weighted_deg_contribution{wt};
       weight_t weighted_cut_contribution{0};
 
       if (src == dst)  // self loop
@@ -196,12 +212,11 @@ refine_clustering(
       else if (src_cluster == dst_cluster)
         weighted_cut_contribution = wt;
 
-      return thrust::make_tuple(weighted_deg_contribution, weighted_cut_contribution);
+      return weighted_cut_contribution;
     },
-    thrust::make_tuple(weight_t{0}, weight_t{0}),
-    cugraph::reduce_op::plus<thrust::tuple<weight_t, weight_t>>{},
-    thrust::make_zip_iterator(thrust::make_tuple(weighted_degree_of_vertices.begin(),
-                                                 weighted_cut_of_vertices_to_louvain.begin())));
+    weight_t{0},
+    cugraph::reduce_op::plus<weight_t>{},
+    weighted_cut_of_vertices_to_louvain.begin());
 
   rmm::device_uvector<uint8_t> singleton_and_connected_flags(
     graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -209,11 +224,11 @@ refine_clustering(
   auto wcut_deg_and_cluster_vol_triple_begin =
     thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.begin(),
                                                  weighted_degree_of_vertices.begin(),
-                                                 vertex_cluster_weights_v.begin()));
+                                                 vertex_louvain_cluster_weights.begin()));
   auto wcut_deg_and_cluster_vol_triple_end =
     thrust::make_zip_iterator(thrust::make_tuple(weighted_cut_of_vertices_to_louvain.end(),
                                                  weighted_degree_of_vertices.end(),
-                                                 vertex_cluster_weights_v.end()));
+                                                 vertex_louvain_cluster_weights.end()));
 
   thrust::transform(handle.get_thrust_policy(),
                     wcut_deg_and_cluster_vol_triple_begin,
@@ -226,32 +241,22 @@ refine_clustering(
                       return wcut > (gamma * wdeg * (louvain_volume - wdeg));
                     });
 
-  // Update cluster weight, weighted degree and cut for edge sources
-
   edge_src_property_t<GraphViewType, weight_t> src_louvain_cluster_weight_cache(handle);
-  edge_src_property_t<GraphViewType, thrust::tuple<weight_t, weight_t>>
-    src_wdeg_and_cut_to_louvain_cache(handle);
+  edge_src_property_t<GraphViewType, weight_t> src_cut_to_louvain_cache(handle);
 
   if (GraphViewType::is_multi_gpu) {
+    // Update cluster weight, weighted degree and cut for edge sources
     src_louvain_cluster_weight_cache =
       edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
     update_edge_src_property(
-      handle, graph_view, vertex_cluster_weights_v.begin(), src_louvain_cluster_weight_cache);
+      handle, graph_view, vertex_louvain_cluster_weights.begin(), src_louvain_cluster_weight_cache);
 
-    src_wdeg_and_cut_to_louvain_cache =
-      edge_src_property_t<GraphViewType, thrust::tuple<weight_t, weight_t>>(handle, graph_view);
+    src_cut_to_louvain_cache = edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
     update_edge_src_property(
-      handle,
-      graph_view,
-      thrust::make_zip_iterator(thrust::make_tuple(weighted_degree_of_vertices.begin(),
-                                                   weighted_cut_of_vertices_to_louvain.begin())),
-      src_wdeg_and_cut_to_louvain_cache);
+      handle, graph_view, weighted_cut_of_vertices_to_louvain.begin(), src_cut_to_louvain_cache);
 
-    vertex_cluster_weights_v.resize(0, handle.get_stream());
-    vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
-
-    weighted_degree_of_vertices.resize(0, handle.get_stream());
-    weighted_degree_of_vertices.shrink_to_fit(handle.get_stream());
+    vertex_louvain_cluster_weights.resize(0, handle.get_stream());
+    vertex_louvain_cluster_weights.shrink_to_fit(handle.get_stream());
 
     weighted_cut_of_vertices_to_louvain.resize(0, handle.get_stream());
     weighted_cut_of_vertices_to_louvain.shrink_to_fit(handle.get_stream());
@@ -272,14 +277,15 @@ refine_clustering(
 
   edge_src_property_t<GraphViewType, vertex_t> src_leiden_assignment_cache(handle);
   edge_dst_property_t<GraphViewType, vertex_t> dst_leiden_assignment_cache(handle);
-  edge_src_property_t<GraphViewType, uint8_t> src_active_flag_cache(handle);
+  edge_src_property_t<GraphViewType, uint8_t> src_singleton_and_connected_flag_cache(handle);
 
-  kv_store_t<vertex_t, vertex_t, false> leiden_to_louvain_map(leiden_assignment.begin(),
-                                                              leiden_assignment.end(),
-                                                              louvain_assignment.begin(),
-                                                              invalid_vertex_id<vertex_t>::value,
-                                                              invalid_vertex_id<vertex_t>::value,
-                                                              handle.get_stream());
+  kv_store_t<vertex_t, vertex_t, false> leiden_to_louvain_map(
+    leiden_assignment.begin(),
+    leiden_assignment.end(),
+    louvain_assignment_of_vertices.begin(),
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value,
+    handle.get_stream());
 
   while (true) {
     vertex_t nr_remaining_active_vertices =
@@ -305,7 +311,8 @@ refine_clustering(
         edge_src_property_t<GraphViewType, vertex_t>(handle, graph_view);
       dst_leiden_assignment_cache =
         edge_dst_property_t<GraphViewType, vertex_t>(handle, graph_view);
-      src_active_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
+      src_singleton_and_connected_flag_cache =
+        edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
 
       update_edge_src_property(
         handle, graph_view, leiden_assignment.begin(), src_leiden_assignment_cache);
@@ -313,15 +320,17 @@ refine_clustering(
       update_edge_dst_property(
         handle, graph_view, leiden_assignment.begin(), dst_leiden_assignment_cache);
 
-      update_edge_src_property(
-        handle, graph_view, singleton_and_connected_flags.begin(), src_active_flag_cache);
+      update_edge_src_property(handle,
+                               graph_view,
+                               singleton_and_connected_flags.begin(),
+                               src_singleton_and_connected_flag_cache);
     }
 
     auto src_input_property_values =
       GraphViewType::is_multi_gpu
         ? view_concat(src_louvain_assignment_cache.view(), src_leiden_assignment_cache.view())
         : view_concat(detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
-                        louvain_assignment.data()),
+                        louvain_assignment_of_vertices.data()),
                       detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
                         leiden_assignment.data()));
 
@@ -329,7 +338,7 @@ refine_clustering(
       GraphViewType::is_multi_gpu
         ? view_concat(dst_louvain_assignment_cache.view(), dst_leiden_assignment_cache.view())
         : view_concat(detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                        louvain_assignment.data(), vertex_t{0}),
+                        louvain_assignment_of_vertices.data(), vertex_t{0}),
                       detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
                         leiden_assignment.data(), vertex_t{0}));
 
@@ -396,9 +405,10 @@ refine_clustering(
 
     auto zipped_src_device_view =
       GraphViewType::is_multi_gpu
-        ? view_concat(src_wdeg_and_cut_to_louvain_cache.view(),
+        ? view_concat(src_vertex_weights_cache.view(),
+                      src_cut_to_louvain_cache.view(),
                       src_louvain_cluster_weight_cache.view(),
-                      src_active_flag_cache.view(),
+                      src_singleton_and_connected_flag_cache.view(),
                       src_leiden_assignment_cache.view(),
                       src_louvain_assignment_cache.view())
         : view_concat(
@@ -407,12 +417,12 @@ refine_clustering(
             detail::edge_major_property_view_t<vertex_t, weight_t const*>(
               weighted_cut_of_vertices_to_louvain.data()),
             detail::edge_major_property_view_t<vertex_t, weight_t const*>(
-              vertex_cluster_weights_v.data()),
+              vertex_louvain_cluster_weights.data()),
             detail::edge_major_property_view_t<vertex_t, uint8_t const*>(
               singleton_and_connected_flags.data()),
             detail::edge_major_property_view_t<vertex_t, vertex_t const*>(leiden_assignment.data()),
             detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
-              louvain_assignment.data()));
+              louvain_assignment_of_vertices.data()));
 
     rmm::device_uvector<vertex_t> louvain_of_leiden_keys_used_in_edge_reduction(
       leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
@@ -467,7 +477,7 @@ refine_clustering(
 
     src_leiden_assignment_cache.clear(handle);
     dst_leiden_assignment_cache.clear(handle);
-    src_active_flag_cache.clear(handle);
+    src_singleton_and_connected_flag_cache.clear(handle);
 
     louvain_of_leiden_keys_used_in_edge_reduction.resize(0, handle.get_stream());
     louvain_of_leiden_keys_used_in_edge_reduction.shrink_to_fit(handle.get_stream());
@@ -688,17 +698,15 @@ refine_clustering(
   }
 
   src_louvain_cluster_weight_cache.clear(handle);
-  src_wdeg_and_cut_to_louvain_cache.clear(handle);
+  src_cut_to_louvain_cache.clear(handle);
 
-  louvain_assignment.resize(0, handle.get_stream());
-  louvain_assignment.shrink_to_fit(handle.get_stream());
+  louvain_assignment_of_vertices.resize(0, handle.get_stream());
+  louvain_assignment_of_vertices.shrink_to_fit(handle.get_stream());
 
   singleton_and_connected_flags.resize(0, handle.get_stream());
   singleton_and_connected_flags.shrink_to_fit(handle.get_stream());
-  vertex_cluster_weights_v.resize(0, handle.get_stream());
-  vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
-  weighted_degree_of_vertices.resize(0, handle.get_stream());
-  weighted_degree_of_vertices.shrink_to_fit(handle.get_stream());
+  vertex_louvain_cluster_weights.resize(0, handle.get_stream());
+  vertex_louvain_cluster_weights.shrink_to_fit(handle.get_stream());
   weighted_cut_of_vertices_to_louvain.resize(0, handle.get_stream());
   weighted_cut_of_vertices_to_louvain.shrink_to_fit(handle.get_stream());
 

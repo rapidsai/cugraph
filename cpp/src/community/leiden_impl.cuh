@@ -54,7 +54,7 @@ template <typename vertex_t,
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> input_edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution)
 {
@@ -67,7 +67,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t current_graph_view(graph_view);
 
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
-    input_edge_weight_view);
+    edge_weight_view);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_weight(handle);
 
 #ifdef TIMING
@@ -99,10 +99,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     rmm::device_uvector<weight_t> vertex_weights =
       compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view);
-    rmm::device_uvector<vertex_t> cluster_keys(vertex_weights.size(), handle.get_stream());
-    rmm::device_uvector<weight_t> cluster_weights(vertex_weights.size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());
+    rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());
 
     if (dendrogram->num_levels() == 1) {
+      cluster_keys.resize(vertex_weights.size(), handle.get_stream());
+      cluster_weights.resize(vertex_weights.size(), handle.get_stream());
+
       detail::sequence_fill(handle.get_stream(),
                             dendrogram->current_level_begin(),
                             dendrogram->current_level_size(),
@@ -143,28 +146,27 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                           louvain_of_refined_partition.end(),
                           tmp_weights_buffer.begin());
 
-      auto pair_of_iterators_end = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                         louvain_of_refined_partition.begin(),
-                                                         louvain_of_refined_partition.end(),
-                                                         tmp_weights_buffer.begin(),
-                                                         cluster_keys.begin(),
-                                                         cluster_weights.begin());
+      auto num_unique_louvain_clusters_in_refined_partition =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(louvain_of_refined_partition.size()),
+                         is_first_in_run_t<vertex_t const*>{louvain_of_refined_partition.data()});
+
+      cluster_keys.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+      cluster_weights.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            louvain_of_refined_partition.begin(),
+                            louvain_of_refined_partition.end(),
+                            tmp_weights_buffer.begin(),
+                            cluster_keys.begin(),
+                            cluster_weights.begin());
 
       louvain_of_refined_partition.resize(0, handle.get_stream());
       louvain_of_refined_partition.shrink_to_fit(handle.get_stream());
 
       tmp_weights_buffer.resize(0, handle.get_stream());
       tmp_weights_buffer.shrink_to_fit(handle.get_stream());
-
-      cluster_keys.resize(
-        static_cast<size_t>(thrust::distance(cluster_keys.begin(), pair_of_iterators_end.first)),
-        handle.get_stream());
-      cluster_weights.resize(static_cast<size_t>(thrust::distance(cluster_weights.begin(),
-                                                                  pair_of_iterators_end.second)),
-                             handle.get_stream());
-
-      cluster_keys.shrink_to_fit(handle.get_stream());
-      cluster_weights.shrink_to_fit(handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
         rmm::device_uvector<vertex_t> tmp_keys_buffer(0, handle.get_stream());  // #C
@@ -178,30 +180,27 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                             tmp_keys_buffer.end(),
                             tmp_weights_buffer.begin());
 
-        cluster_keys.resize(tmp_keys_buffer.size(), handle.get_stream());
-        cluster_weights.resize(tmp_weights_buffer.size(), handle.get_stream());
+        num_unique_louvain_clusters_in_refined_partition =
+          thrust::count_if(handle.get_thrust_policy(),
+                           thrust::make_counting_iterator(size_t{0}),
+                           thrust::make_counting_iterator(tmp_keys_buffer.size()),
+                           is_first_in_run_t<vertex_t const*>{tmp_keys_buffer.data()});
 
-        pair_of_iterators_end = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                      tmp_keys_buffer.begin(),
-                                                      tmp_keys_buffer.end(),
-                                                      tmp_weights_buffer.begin(),
-                                                      cluster_keys.begin(),
-                                                      cluster_weights.begin());
+        cluster_keys.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+        cluster_weights.resize(num_unique_louvain_clusters_in_refined_partition,
+                               handle.get_stream());
+
+        thrust::reduce_by_key(handle.get_thrust_policy(),
+                              tmp_keys_buffer.begin(),
+                              tmp_keys_buffer.end(),
+                              tmp_weights_buffer.begin(),
+                              cluster_keys.begin(),
+                              cluster_weights.begin());
 
         tmp_keys_buffer.resize(0, handle.get_stream());
         tmp_keys_buffer.shrink_to_fit(handle.get_stream());
         tmp_weights_buffer.resize(0, handle.get_stream());
         tmp_weights_buffer.shrink_to_fit(handle.get_stream());
-
-        cluster_keys.resize(
-          static_cast<size_t>(thrust::distance(cluster_keys.begin(), pair_of_iterators_end.first)),
-          handle.get_stream());
-        cluster_weights.resize(static_cast<size_t>(thrust::distance(cluster_weights.begin(),
-                                                                    pair_of_iterators_end.second)),
-                               handle.get_stream());
-
-        cluster_keys.shrink_to_fit(handle.get_stream());
-        cluster_weights.shrink_to_fit(handle.get_stream());
       }
     }
 
