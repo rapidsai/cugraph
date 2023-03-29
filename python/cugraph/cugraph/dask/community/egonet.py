@@ -80,7 +80,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     Parameters
     ----------
-    input_graph : cugraph.Graph, networkx.Graph
+    input_graph : cugraph.Graph
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
