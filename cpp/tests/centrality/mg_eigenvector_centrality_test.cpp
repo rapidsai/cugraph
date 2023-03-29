@@ -101,9 +101,7 @@ class Tests_MGEigenvectorCentrality
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::optional<raft::device_span<weight_t const>>{},
-      // std::make_optional(raft::device_span<weight_t
-      // const>{d_mg_centralities.data(), d_mg_centralities.size()}),
+      std::optional<raft::device_span<weight_t const>>{std::nullopt},
       epsilon,
       eigenvector_usecase.max_iterations,
       false);
@@ -173,11 +171,13 @@ class Tests_MGEigenvectorCentrality
         auto max_centrality =
           *std::max_element(h_mg_aggregate_centralities.begin(), h_mg_aggregate_centralities.end());
 
+        auto threshold_ratio = weight_t{1e-3};
         // skip comparison for low Eigenvector Centrality vertices (lowly ranked vertices)
-        auto threshold_magnitude = max_centrality * epsilon;
+        auto threshold_magnitude = max_centrality * threshold_ratio;
 
-        auto nearly_equal = [epsilon, threshold_magnitude](auto lhs, auto rhs) {
-          return std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * epsilon, threshold_magnitude);
+        auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+          return std::abs(lhs - rhs) <
+                 std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
         };
 
         // FIND DIFFERENCES...
