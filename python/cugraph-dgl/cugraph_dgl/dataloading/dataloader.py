@@ -196,8 +196,6 @@ class DataLoader(torch.utils.data.DataLoader):
             )
             self._rank = 0
         self._cugraph_graph = G
-        # TODO: Remove
-        torch.distributed.barrier()
 
         super().__init__(
             self.cugraph_dgl_dataset,
@@ -234,11 +232,13 @@ class DataLoader(torch.utils.data.DataLoader):
         return super().__iter__()
 
     def __del__(self):
-        torch.distributed.barrier()
+        if self.use_ddp:
+            torch.distributed.barrier()
         if self._rank == 0:
-            client = default_client()
-            client.unpublish_dataset("cugraph_dgl_mg_graph_ds")
-            self._graph_creation_event.clear()
+            if self.use_ddp:
+                client = default_client()
+                client.unpublish_dataset("cugraph_dgl_mg_graph_ds")
+                self._graph_creation_event.clear()
             _clean_directory(self._sampling_output_dir)
 
 

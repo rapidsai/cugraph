@@ -15,6 +15,7 @@ import dgl
 import torch
 import time
 from distributed import Client, Event as Dask_Event
+import tempfile
 
 
 def enable_spilling():
@@ -64,7 +65,6 @@ def initalize_pytorch_worker(dev_id):
         devices=[dev_id],
     )
 
-    # TODO: Ask ASHWIN
     if dev_id == 0:
         torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
 
@@ -77,8 +77,7 @@ def initalize_pytorch_worker(dev_id):
 def load_dgl_dataset(dataset_name="ogbn-products"):
     from ogb.nodeproppred import DglNodePropPredDataset
 
-    dataset_root = "/raid/vjawa/gnn/"
-    dataset = DglNodePropPredDataset(name=dataset_name, root=dataset_root)
+    dataset = DglNodePropPredDataset(name=dataset_name)
     split_idx = dataset.get_idx_split()
     train_idx, valid_idx, test_idx = (
         split_idx["train"],
@@ -112,23 +111,21 @@ def create_cugraph_graphstore_from_dgl_dataset(
     return cugraph_gs, train_idx, valid_idx, test_idx
 
 
-def create_dataloader(gs, train_idx, sampling_output_dir, device):
+def create_dataloader(gs, train_idx, device):
     import cugraph_dgl
 
+    temp_dir = tempfile.TemporaryDirectory()
     sampler = cugraph_dgl.dataloading.NeighborSampler([10, 20])
-    # Their new dataloader will automatically call our graphsage.
-    # no need to change this part
-
     dataloader = cugraph_dgl.dataloading.DataLoader(
         gs,
         train_idx,
         sampler,
-        sampling_output_dir=sampling_output_dir,
-        batches_per_partition=150,
+        sampling_output_dir=temp_dir.name,
+        batches_per_partition=10,
         device=device,  # Put the sampled MFGs on CPU or GPU
         use_ddp=True,  # Make it work with distributed data parallel
         batch_size=1024,
-        shuffle=True,  # Whether to shuffle the nodes for every epoch
+        shuffle=False,  # Whether to shuffle the nodes for every epoch
         drop_last=False,
         num_workers=0,
     )
@@ -136,7 +133,6 @@ def create_dataloader(gs, train_idx, sampling_output_dir, device):
 
 
 def run_workflow(rank, devices, scheduler_address):
-
     # Below sets gpu_num
     dev_id = devices[rank]
     initalize_pytorch_worker(dev_id)
@@ -156,7 +152,6 @@ def run_workflow(rank, devices, scheduler_address):
         rank=rank,
     )
 
-    # TODO: Remove
     print(f"rank {rank}.", flush=True)
     print("Initalized across GPUs.")
 
@@ -184,16 +179,11 @@ def run_workflow(rank, devices, scheduler_address):
         else:
             raise RuntimeError(f"Fetch cugraph_gs to worker_id {rank} failed")
 
-    # TODO: Remove
     torch.distributed.barrier()
-
     print(f"Loading cugraph_store to worker {rank} is complete", flush=True)
-    sampling_output_dir = "/raid/vjawa/multi_gpu_POC/"
-    dataloader = create_dataloader(gs, train_idx, sampling_output_dir, device)
+    dataloader = create_dataloader(gs, train_idx, device)
     print("Data Loading Complete", flush=True)
-
     del gs  # Clean up gs reference
-
     # Comment below
     st = time.time()
     for step, (input_nodes, seeds, blocks) in enumerate(dataloader):
@@ -232,8 +222,8 @@ def run_workflow(rank, devices, scheduler_address):
 if __name__ == "__main__":
     dask_worker_devices = [5]
     scheduler_address = setup_cluster(dask_worker_devices)
-    # trainer_devices = [0]
-    trainer_devices = [0, 1]
+
+    trainer_devices = [0]
     # trainer_devices = [0, 1, 2, 3]
     import torch.multiprocessing as mp
 
