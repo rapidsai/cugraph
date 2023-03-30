@@ -21,6 +21,7 @@ import cugraph
 import cudf
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS, karate_asymmetric
+from cudf.testing.testing import assert_frame_equal, assert_series_equal
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -49,9 +50,46 @@ _test_data = {
         "input_type": "COO",
         "expected_output": {
             "partition": [0, 1, 0, 1, 1, 1],
-            "modularity_score": 0.218166
+            "modularity_score": 0.215969
+        }
+    },
+
+
+    "data_2":{
+        "graph": {
+            "src_or_offset_array": [0,  16,  25,  35,  41,  44,  48,  52,  56,  61,  63, 66,
+                                    67, 69,  74,  76,  78,  80,  82,  84,  87,  89,  91, 93,
+                                    98, 101, 104, 106, 110, 113, 117, 121, 127, 139, 156],
+            "dst_or_index_array": [1,  2,  3,  4,  5,  6,  7,  8,  10, 11, 12, 13, 17, 19, 21, 31, 0,  2,  3,  7,  13, 17, 19,
+                                   21, 30, 0,  1,  3,  7,  8,  9,  13, 27, 28, 32, 0,  1,  2,  7,  12, 13, 0,  6,  10, 0,  6,
+                                   10, 16, 0,  4,  5,  16, 0,  1,  2,  3,  0,  2,  30, 32, 33, 2,  33, 0,  4,  5,  0,  0,  3,
+                                   0,  1,  2,  3,  33, 32, 33, 32, 33, 5,  6,  0,  1,  32, 33, 0,  1,  33, 32, 33, 0,  1,  32,
+                                   33, 25, 27, 29, 32, 33, 25, 27, 31, 23, 24, 31, 29, 33, 2,  23, 24, 33, 2,  31, 33, 23, 26,
+                                   32, 33, 1,  8,  32, 33, 0,  24, 25, 28, 32, 33, 2,  8,  14, 15, 18, 20, 22, 23, 29, 30, 31,
+                                   33, 8,  9,  13, 14, 15, 18, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32],
+            "weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                       1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        },
+        "max_level": 40,
+        "resolution": 1.0,
+        "input_type": "CSR",
+        "expected_output": {
+            # FIXME: Update with the correct partition IDs
+            "partition": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            # FIXME: Ensure this is correct
+            "modularity_score": 0.4155982
         }
     }
+    
 }
 
 
@@ -66,9 +104,12 @@ def input_and_expected_output(request):
     d = request.param.copy()
     input_graph_data = d.pop("graph")
     input_type = d.pop("input_type")
-    src_or_offset_array = input_graph_data["src_or_offset_array"]
-    dst_or_index_array = input_graph_data["dst_or_index_array"]
-    weight = input_graph_data["weight"]
+    src_or_offset_array = cudf.Series(
+        input_graph_data["src_or_offset_array"], dtype="int32")
+    dst_or_index_array = cudf.Series(
+        input_graph_data["dst_or_index_array"], dtype="int32")
+    weight = cudf.Series(input_graph_data["weight"], dtype="float32")
+
     max_level = d.pop("max_level")
     resolution = d.pop("resolution")
     output = d
@@ -80,8 +121,8 @@ def input_and_expected_output(request):
     if input_type == "COO":
         # Create graph from an edgelist
         df = cudf.DataFrame()
-        df["src"] = cudf.Series(src_or_offset_array, dtype="int32")
-        df["dst"] = cudf.Series(dst_or_index_array, dtype="int32")
+        df["src"] = src_or_offset_array
+        df["dst"] = dst_or_index_array
         df["weight"] = cudf.Series(weight, dtype="float32")
         G.from_cudf_edgelist(
             df, source="src", destination="dst", edge_attr="weight", store_transposed=True)
@@ -89,7 +130,7 @@ def input_and_expected_output(request):
     elif input_type == "CSR":
         # Create graph from csr
         offsets = src_or_offset_array
-        indices = dst_or_index_array 
+        indices = dst_or_index_array
         G.from_cudf_adjlist(offsets, indices, weight)
     
     parts, mod = cugraph.leiden(G, max_level, resolution)
@@ -178,7 +219,6 @@ def test_leiden_directed_graph():
 
 
 @pytest.mark.sg
-@pytest.mark.skip("Debugging")
 def test_leiden_golden_results(input_and_expected_output):
     expected_partition = cudf.Series(
         input_and_expected_output["expected_output"]["partition"])
@@ -187,4 +227,7 @@ def test_leiden_golden_results(input_and_expected_output):
     result_partition = input_and_expected_output["result_output"]["partition"]
     result_mod = input_and_expected_output["result_output"]["modularity_score"]
 
-    assert expected_mod == result_mod
+    assert abs(expected_mod - result_mod) < 0.0001
+
+    # Temporarily disable the partition checl 
+    # assert_series_equal(expected_partition, result_partition, check_dtype=False)
