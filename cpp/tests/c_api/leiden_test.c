@@ -99,7 +99,7 @@ int generic_leiden_test(vertex_t* h_src,
 
 int test_leiden()
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
   size_t max_level    = 10;
   weight_t resolution = 1.0;
@@ -108,8 +108,8 @@ int test_leiden()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_result[]          = {0, 1, 0, 1, 1, 1};
-  weight_t expected_modularity = 0.218166;
+  vertex_t h_result[]          = {0, 0, 0, 1, 1, 1};
+  weight_t expected_modularity = 0.215969;
 
   // Louvain wants store_transposed = FALSE
   return generic_leiden_test(h_src,
