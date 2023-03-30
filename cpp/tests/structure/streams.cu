@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ TEST_F(StreamTest, basic_test)
                           v.begin(),
                           v.begin(),
                           2 * thrust::placeholders::_1 + thrust::placeholders::_2);
-        CUDA_TRY(cudaStreamSynchronize(handle.get_next_usable_stream(i)));
+        RAFT_CUDA_TRY(cudaStreamSynchronize(handle.get_next_usable_stream(i)));
       },
       i);
   }
