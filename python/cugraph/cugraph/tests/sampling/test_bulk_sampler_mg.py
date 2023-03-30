@@ -130,7 +130,6 @@ def test_bulk_sampler_remainder(dask_client):
     ).all()
 
 
-
 @pytest.mark.mg
 def test_bulk_sampler_mg_graph_sg_input(dask_client):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
