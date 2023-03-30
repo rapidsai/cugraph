@@ -84,6 +84,9 @@ def induced_subgraph(input_graph, vertices, offsets=None):
     edges that are incident on vertices that are both contained in the vertices
     list.
 
+    If no subgraph can be extracted from the vertices provided, a 'None' value
+    will be returned.
+
     Parameters
     ----------
     input_graph : cugraph.Graph
@@ -169,6 +172,9 @@ def induced_subgraph(input_graph, vertices, offsets=None):
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
+    if len(ddf) == 0:
+        return None, None
+
     wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     ddf = ddf.sort_values("labels")
@@ -185,5 +191,10 @@ def induced_subgraph(input_graph, vertices, offsets=None):
     )
 
     ddf = ddf.drop(columns="labels")
+
+    if input_graph.renumbered:
+        ddf = input_graph.unrenumber(ddf, "src")
+        ddf = input_graph.unrenumber(ddf, "dst")
+    
 
     return ddf, offsets
