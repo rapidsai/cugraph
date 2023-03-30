@@ -176,4 +176,8 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     ddf = ddf.drop(columns="labels")
 
+    if input_graph.renumbered:
+        ddf = input_graph.unrenumber(ddf, "src")
+        ddf = input_graph.unrenumber(ddf, "dst")
+
     return ddf, offsets
