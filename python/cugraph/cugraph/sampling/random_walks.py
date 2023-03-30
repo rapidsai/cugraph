@@ -1,5 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
-#
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -102,7 +101,7 @@ def random_walks(
             "supported in the next releases. only padded paths will be "
             "returned instead"
         )
-    warnings.warn(warning_msg, PendingDeprecationWarning)
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")

@@ -43,7 +43,7 @@ int generic_leiden_test(vertex_t* h_src,
 
   cugraph_resource_handle_t* p_handle                = NULL;
   cugraph_graph_t* p_graph                           = NULL;
-  cugraph_heirarchical_clustering_result_t* p_result = NULL;
+  cugraph_hierarchical_clustering_result_t* p_result = NULL;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
@@ -66,9 +66,9 @@ int generic_leiden_test(vertex_t* h_src,
     cugraph_type_erased_device_array_view_t* vertices;
     cugraph_type_erased_device_array_view_t* clusters;
 
-    vertices          = cugraph_heirarchical_clustering_result_get_vertices(p_result);
-    clusters          = cugraph_heirarchical_clustering_result_get_clusters(p_result);
-    double modularity = cugraph_heirarchical_clustering_result_get_modularity(p_result);
+    vertices          = cugraph_hierarchical_clustering_result_get_vertices(p_result);
+    clusters          = cugraph_hierarchical_clustering_result_get_clusters(p_result);
+    double modularity = cugraph_hierarchical_clustering_result_get_modularity(p_result);
 
     vertex_t h_vertices[num_vertices];
     edge_t h_clusters[num_vertices];
@@ -90,7 +90,7 @@ int generic_leiden_test(vertex_t* h_src,
                 nearlyEqual(modularity, expected_modularity, 0.001),
                 "modularity doesn't match");
 
-    cugraph_heirarchical_clustering_result_free(p_result);
+    cugraph_hierarchical_clustering_result_free(p_result);
   }
 #endif
 
