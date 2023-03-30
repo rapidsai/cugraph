@@ -158,6 +158,7 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
+        self.__batches.reset_index(drop=True)
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
@@ -194,7 +195,6 @@ class EXPERIMENTAL__BulkSampler:
                 with_edge_properties=True,
                 _multiple_clients=True,
             )
-
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)
 
