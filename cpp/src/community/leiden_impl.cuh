@@ -449,17 +449,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
 
-    // std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) = coarsen_graph(
-    //   handle, current_graph_view, current_edge_weight_view, refined_leiden_partition.data(),
-    //   true);
-
-    std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) =
-      cugraph::detail::graph_contraction(
-        handle,
-        current_graph_view,
-        current_edge_weight_view,
-        raft::device_span<vertex_t>{refined_leiden_partition.data(),
-                                    refined_leiden_partition.size()});
+    std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) = coarsen_graph(
+      handle, current_graph_view, current_edge_weight_view, refined_leiden_partition.data(), true);
     current_graph_view = current_graph.view();
 
     current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(

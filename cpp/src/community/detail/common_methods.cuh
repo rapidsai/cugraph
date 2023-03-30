@@ -195,11 +195,11 @@ std::tuple<
   std::optional<rmm::device_uvector<vertex_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights_view,
                   raft::device_span<vertex_t> labels)
 {
   auto [new_graph, new_edge_weights, numbering_map] =
-    coarsen_graph(handle, graph_view, edge_weights, labels.data(), true);
+    coarsen_graph(handle, graph_view, edge_weights_view, labels.data(), true);
 
   auto new_graph_view = new_graph.view();
 
