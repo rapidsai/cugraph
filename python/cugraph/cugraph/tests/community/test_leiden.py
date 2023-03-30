@@ -21,7 +21,7 @@ import cugraph
 import cudf
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS, karate_asymmetric
-from cudf.testing.testing import assert_frame_equal, assert_series_equal
+# from cudf.testing.testing import assert_series_equal
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -220,11 +220,11 @@ def test_leiden_directed_graph():
 
 @pytest.mark.sg
 def test_leiden_golden_results(input_and_expected_output):
-    expected_partition = cudf.Series(
+    _ = cudf.Series(
         input_and_expected_output["expected_output"]["partition"])
     expected_mod = input_and_expected_output["expected_output"]["modularity_score"]
 
-    result_partition = input_and_expected_output["result_output"]["partition"]
+    _ = input_and_expected_output["result_output"]["partition"]
     result_mod = input_and_expected_output["result_output"]["modularity_score"]
 
     assert abs(expected_mod - result_mod) < 0.0001
