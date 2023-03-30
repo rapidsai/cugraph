@@ -96,6 +96,8 @@ def leiden(
 
     if G.renumbered:
         parts = G.unrenumber(df, "vertex")
+    else:
+        parts = df
 
     if isNx is True:
         parts = df_score_to_dictionary(df, "partition")
