@@ -20,7 +20,10 @@ import dask_cudf
 import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
 
-from pylibcugraph import ResourceHandle, induced_subgraph as pylibcugraph_induced_subgraph
+from pylibcugraph import (
+    ResourceHandle,
+    induced_subgraph as pylibcugraph_induced_subgraph,
+)
 
 
 def _call_induced_subgraph(
@@ -91,7 +94,7 @@ def induced_subgraph(input_graph, vertices, offsets=None):
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
         vertices, vertices should be provided as a cudf.DataFrame
-    
+
     offsets : cupy array
         Specifies the  subgraph offsets into subgraph vertices.
 
@@ -132,7 +135,9 @@ def induced_subgraph(input_graph, vertices, offsets=None):
         vertices_type = input_graph.input_df.dtypes[0]
 
     if isinstance(vertices, (cudf.Series, cudf.DataFrame)):
-        vertices = dask_cudf.from_cudf(vertices, npartitions=min(input_graph._npartitions, len(vertices)))
+        vertices = dask_cudf.from_cudf(
+            vertices, npartitions=min(input_graph._npartitions, len(vertices))
+        )
     vertices = vertices.astype(vertices_type)
 
     vertices = get_distributed_data(vertices)
@@ -172,7 +177,9 @@ def induced_subgraph(input_graph, vertices, offsets=None):
     offsets = ddf["labels"].value_counts().compute().sort_index()
     offsets = cudf.concat([cudf.Series(0), offsets])
     offsets = (
-        dask_cudf.from_cudf(offsets, npartitions=min(input_graph._npartitions, len(vertices)))
+        dask_cudf.from_cudf(
+            offsets, npartitions=min(input_graph._npartitions, len(vertices))
+        )
         .cumsum()
         .astype(vertices_type)
     )
