@@ -92,8 +92,8 @@ def induced_subgraph(ResourceHandle resource_handle,
     >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=numpy.int32)
     >>> weights = cupy.asarray(
     ...     [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=numpy.float32)
+    >>> subgraph_vertices = cupy.asarray([0, 1, 2, 3], dtype=numpy.int32)
     >>> subgraph_offsets = cupy.asarray([0, 4], dtype=numpy.int32)
-    >>> subgraph_vertuces = cupy.asarray([0, 1, 2, 3], dtype=numpy.int32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
@@ -102,8 +102,7 @@ def induced_subgraph(ResourceHandle resource_handle,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (sources, destinations, edge_weights, subgraph_offsets) =
     ...     pylibcugraph.induced_subgraph(
-    ...         resource_handle, G, subgraph_offsets, subgraph_vertices, False)
-    # FIXME: update results
+    ...         resource_handle, G, subgraph_vertices, subgraph_offsets, False)
     >>> sources
     [0, 1, 2, 2, 2]
     >>> destinations
@@ -133,12 +132,12 @@ def induced_subgraph(ResourceHandle resource_handle,
                 subgraph_vertices)
 
     error_code = cugraph_extract_induced_subgraph(c_resource_handle_ptr,
-                                     c_graph_ptr,
-                                     subgraph_offsets_view_ptr,
-                                     subgraph_vertices_view_ptr,
-                                     do_expensive_check,
-                                     &result_ptr,
-                                     &error_ptr)
+                                                  c_graph_ptr,
+                                                  subgraph_offsets_view_ptr,
+                                                  subgraph_vertices_view_ptr,
+                                                  do_expensive_check,
+                                                  &result_ptr,
+                                                  &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_extract_induced_subgraph")
 
     # Extract individual device array pointers from result and copy to cupy
