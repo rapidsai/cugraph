@@ -15,7 +15,7 @@ import gc
 import pytest
 
 import dask_cudf
-from cudf.testing.testing import assert_frame_equal, assert_series_equal
+from cudf.testing.testing import assert_frame_equal
 from pylibcugraph.testing import gen_fixture_params_product
 
 import cugraph
@@ -39,7 +39,7 @@ NUM_SEEDS = [2, 5, 10, 20]
 
 # FIXME: This parameter will be tested in the next release when updating the
 # SG implementation
-OFFSETS= [None]
+OFFSETS = [None]
 
 
 # =============================================================================
@@ -64,7 +64,9 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file", "directed", "seeds", "offsets"), request.param))
+    parameters = dict(
+        zip(("graph_file", "directed", "seeds", "offsets"), request.param)
+    )
 
     return parameters
 
@@ -89,7 +91,7 @@ def input_expected_output(input_combo):
     srcs = G.view_edge_list()["src"]
     dsts = G.view_edge_list()["dst"]
     vertices = cudf.concat([srcs, dsts]).drop_duplicates()
-    vertices= vertices.sample(num_seeds).astype("int32")
+    vertices = vertices.sample(num_seeds).astype("int32")
 
     # print randomly sample n seeds from the graph
     print("\nvertices: \n", vertices)
@@ -149,10 +151,9 @@ def test_dask_induced_subgraph(dask_client, benchmark, input_expected_output):
 
     mg_df, mg_offsets = result_induced_subgraph
 
-    
     # mg_offsets = mg_offsets.compute().reset_index(drop=True)
 
-    sg= input_expected_output["sg_cugraph_results"]
+    sg = input_expected_output["sg_cugraph_results"]
 
     if mg_df is not None and sg is not None:
         if sg.renumbered:
@@ -164,9 +165,13 @@ def test_dask_induced_subgraph(dask_client, benchmark, input_expected_output):
             sg_result = sg.unrenumber(sg_result, "dst")
 
         sg_df = sg_result.sort_values(["src", "dst"]).reset_index(drop=True)
-        mg_df = mg_df.compute().sort_values(["src", "dst"]).reset_index(
-            drop=True).drop(["weight"], axis=1)
-        
+        mg_df = (
+            mg_df.compute()
+            .sort_values(["src", "dst"])
+            .reset_index(drop=True)
+            .drop(["weight"], axis=1)
+        )
+
         assert_frame_equal(sg_df, mg_df, check_dtype=False, check_like=True)
     else:
         # There is no edges between the vertices provided

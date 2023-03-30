@@ -195,6 +195,5 @@ def induced_subgraph(input_graph, vertices, offsets=None):
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
-    
 
     return ddf, offsets
