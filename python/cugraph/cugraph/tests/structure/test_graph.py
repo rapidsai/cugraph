@@ -794,3 +794,33 @@ def test_density(graph_file):
     M_G = cugraph.MultiGraph()
     with pytest.raises(TypeError):
         M_G.density()
+
+
+# Test
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("random_state", [42, None])
+@pytest.mark.parametrize("num_vertices", [5, None])
+def test_select_random_vertices(graph_file, random_state, num_vertices):
+    cu_M = utils.read_csv_file(graph_file)
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+
+    if num_vertices is None:
+        # Select all vertices
+        num_vertices = G.number_of_nodes()
+
+    sampled_vertices = G.select_random_vertices(random_state, num_vertices)
+
+    original_vertices_df = cudf.DataFrame()
+    sampled_vertices_df = cudf.DataFrame()
+
+    sampled_vertices_df["sampled_vertices"] = sampled_vertices
+    original_vertices_df["original_vertices"] = G.nodes()
+
+    join = sampled_vertices_df.merge(
+        original_vertices_df, left_on="sampled_vertices", right_on="original_vertices"
+    )
+
+    assert len(join) == len(sampled_vertices)
