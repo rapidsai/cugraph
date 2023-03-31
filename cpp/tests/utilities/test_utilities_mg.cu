@@ -294,52 +294,76 @@ mg_graph_to_sg_graph(
   std::optional<raft::device_span<int64_t const>> number_map,
   bool renumber);
 
-template rmm::device_uvector<int32_t> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<int32_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<int32_t const> mg_values);
 
-template rmm::device_uvector<int64_t> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<int64_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<int64_t const> mg_values);
 
-template rmm::device_uvector<float> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<float>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<float const> mg_values);
 
-template rmm::device_uvector<double> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int32_t>>, rmm::device_uvector<double>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int32_t const>> mg_renumber_map,
+  std::tuple<int32_t, int32_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int32_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int32_t const>> mg_vertices,
   raft::device_span<double const> mg_values);
 
-template rmm::device_uvector<int32_t> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<int32_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<int32_t const> mg_values);
 
-template rmm::device_uvector<int64_t> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<int64_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<int64_t const> mg_values);
 
-template rmm::device_uvector<float> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<float>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<float const> mg_values);
 
-template rmm::device_uvector<double> mg_vertex_property_values_to_sg_vertex_property_values(
+template std::tuple<std::optional<rmm::device_uvector<int64_t>>, rmm::device_uvector<double>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
   std::optional<raft::device_span<int64_t const>> mg_renumber_map,
+  std::tuple<int64_t, int64_t> mg_local_vertex_partition_range,
   std::optional<raft::device_span<int64_t const>> sg_renumber_map,
+  std::optional<raft::device_span<int64_t const>> mg_vertices,
   raft::device_span<double const> mg_values);
 
 }  // namespace test

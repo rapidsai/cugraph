@@ -94,11 +94,22 @@ class Tests_MGLouvain
     std::for_each(
       thrust::make_counting_iterator<size_t>(0),
       thrust::make_counting_iterator<size_t>(mg_dendrogram.num_levels()),
-      [&mg_dendrogram, &sg_graph, &sg_edge_weights, &sg_modularity, &handle, resolution, comm_rank](
-        size_t i) {
-        auto d_mg_aggregate_cluster_v =
+      [&mg_graph_view,
+       &mg_dendrogram,
+       &sg_graph,
+       &sg_edge_weights,
+       &sg_modularity,
+       &handle,
+       resolution,
+       comm_rank](size_t i) {
+        rmm::device_uvector<vertex_t> d_mg_aggregate_cluster_v(0, handle.get_stream());
+        std::tie(std::ignore, d_mg_aggregate_cluster_v) =
           cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
             handle,
+            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+            std::make_tuple(mg_dendrogram.get_level_first_index_nocheck(i),
+                            static_cast<vertex_t>(mg_dendrogram.get_level_first_index_nocheck(i) +
+                                                  mg_dendrogram.get_level_size_nocheck(i))),
             std::optional<raft::device_span<vertex_t const>>{std::nullopt},
             std::optional<raft::device_span<vertex_t const>>{std::nullopt},
             raft::device_span<vertex_t const>(mg_dendrogram.get_level_ptr_nocheck(i),
@@ -254,7 +265,7 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLouvain_Rmat,
                          ::testing::Combine(::testing::Values(Louvain_Usecase{100, 1}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -278,7 +289,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{100, 1, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
