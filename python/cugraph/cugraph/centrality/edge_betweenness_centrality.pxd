@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,16 +20,6 @@ from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
-
-    cdef void betweenness_centrality[VT, ET, WT, result_t](
-        const handle_t &handle,
-        const GraphCSRView[VT, ET, WT] &graph,
-        result_t *result,
-        bool normalized,
-        bool endpoints,
-        const WT *weight,
-        VT k,
-        const VT *vertices) except +
 
     cdef void edge_betweenness_centrality[VT, ET, WT, result_t](
         const handle_t &handle,

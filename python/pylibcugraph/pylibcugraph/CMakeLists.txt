@@ -17,6 +17,7 @@ add_subdirectory(internal_types)
 add_subdirectory(testing)
 
 set(cython_sources
+    betweenness_centrality.pyx
     bfs.pyx
     core_number.pyx
     egonet.pyx
@@ -35,6 +36,7 @@ set(cython_sources
     personalized_pagerank.pyx
     random.pyx
     resource_handle.pyx
+    select_random_vertices.pyx
     sssp.pyx
     triangle_count.pyx
     two_hop_neighbors.pyx

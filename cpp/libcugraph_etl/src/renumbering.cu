@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -801,7 +801,7 @@ struct renumber_functor {
     float load_factor = 0.7;
 
     rmm::device_uvector<accum_type> atomic_agg(32, exec_strm);  // just padded to 32
-    CHECK_CUDA(cudaMemsetAsync(atomic_agg.data(), 0, sizeof(accum_type), exec_strm));
+    RAFT_CHECK_CUDA(cudaMemsetAsync(atomic_agg.data(), 0, sizeof(accum_type), exec_strm));
 
     auto cuda_map_obj = cudf_map_type::create(
                           std::max(static_cast<size_t>(static_cast<double>(num_rows) / load_factor),
@@ -839,9 +839,9 @@ struct renumber_functor {
                                                                          *cuda_map_obj,
                                                                          atomic_agg.data());
 
-    CHECK_CUDA(cudaMemcpy(
+    RAFT_CHECK_CUDA(cudaMemcpy(
       hist_insert_counter, atomic_agg.data(), sizeof(accum_type), cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
 
     accum_type key_value_count = hist_insert_counter[0];
     // {row, count} pairs, sortDesecending on count w/ custom comparator
@@ -931,7 +931,7 @@ struct renumber_functor {
                                                      key_value_count,
                                                      hist_insert_counter);
 
-    CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
     // allocate output columns buffers
     rmm::device_buffer unrenumber_col1_chars(hist_insert_counter[0], exec_strm);
     rmm::device_buffer unrenumber_col2_chars(hist_insert_counter[1], exec_strm);
@@ -955,7 +955,7 @@ struct renumber_functor {
       reinterpret_cast<char_type*>(unrenumber_col2_chars.data()),
       out_col1_offsets.data(),
       out_col2_offsets.data());
-    CHECK_CUDA(cudaStreamSynchronize(exec_strm));  // do we need sync here??
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));  // do we need sync here??
 
     std::vector<std::unique_ptr<cudf::column>> renumber_table_vectors;
 
@@ -1005,7 +1005,7 @@ struct renumber_functor {
     grid.x = (key_value_count - 1) / block.x + 1;
     create_mapping_histogram<<<grid, block, 0, exec_strm>>>(
       sort_value.data(), sort_key.data(), *cuda_map_obj_mapping, key_value_count);
-    CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
 
     rmm::device_buffer src_buffer(sizeof(Dtype) * num_rows, exec_strm);
     rmm::device_buffer dst_buffer(sizeof(Dtype) * num_rows, exec_strm);
@@ -1021,7 +1021,7 @@ struct renumber_functor {
       num_rows,
       *cuda_map_obj_mapping,
       reinterpret_cast<Dtype*>(src_buffer.data()));
-    CHECK_CUDA(cudaStreamSynchronize(exec_strm));
+    RAFT_CHECK_CUDA(cudaStreamSynchronize(exec_strm));
     set_dst_vertex_idx<<<grid, block, smem_size, exec_strm>>>(
       dst_vertex_chars_ptrs[0],
       dst_vertex_offset_ptrs[0],
@@ -1042,7 +1042,7 @@ struct renumber_functor {
     cols_vector.push_back(std::unique_ptr<cudf::column>(
       new cudf::column(cudf::data_type(cudf::type_id::INT32), num_rows, std::move(dst_buffer))));
 
-    CHECK_CUDA(cudaDeviceSynchronize());
+    RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
     mr.deallocate(hist_insert_counter, hist_size);
 
