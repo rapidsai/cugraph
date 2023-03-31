@@ -137,7 +137,7 @@ def input_expected_output(input_combo):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-def test_dask_induced_subgraph(dask_client, benchmark, input_expected_output):
+def test_mg_induced_subgraph(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     vertices = input_expected_output["vertices"]
