@@ -18,7 +18,9 @@ from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import cupy as cp
 from cugraph.dask.common.input_utils import get_distributed_data
+from typing import Union
 
 from pylibcugraph import (
     ResourceHandle,
@@ -27,12 +29,12 @@ from pylibcugraph import (
 
 
 def _call_induced_subgraph(
-    sID,
+    sID: bytes,
     mg_graph_x,
-    vertices,
-    offsets,
-    do_expensive_check,
-):
+    vertices: cudf.Series,
+    offsets: cudf.Series,
+    do_expensive_check: bool,
+) -> tuple:
     return pylibcugraph_induced_subgraph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -42,7 +44,10 @@ def _call_induced_subgraph(
     )
 
 
-def consolidate_results(df, offsets):
+def consolidate_results(
+    df: cudf.DataFrame,
+    offsets: cudf.Series
+) -> cudf.DataFrame:
     """
     Each rank returns its induced_subgraph dataframe with its corresponding
     offsets array. This is ideal if the user operates on distributed memory
@@ -63,7 +68,7 @@ def consolidate_results(df, offsets):
     return df_consolidate
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
     cp_src, cp_dst, cp_weight, cp_offsets = cp_arrays
 
     df = cudf.DataFrame()
@@ -76,7 +81,11 @@ def convert_to_cudf(cp_arrays):
     return consolidate_results(df, offsets)
 
 
-def induced_subgraph(input_graph, vertices, offsets=None):
+def induced_subgraph(
+    input_graph,
+    vertices: Union[cudf.Series, cudf.DataFrame],
+    offsets: Union[list,cudf.Series] = None
+) -> tuple[dask_cudf.DataFrame, dask_cudf.Series]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
@@ -127,9 +136,17 @@ def induced_subgraph(input_graph, vertices, offsets=None):
             f"cudf or dask_cudf Series or DataFrame, got: {type(vertices)}"
         )
 
+    if isinstance(offsets, list):
+        offsets = cudf.Series(offsets)
+
     if offsets is None:
-        # FIXME: Do we distribute the offsets? I will say no since it won't make sense
         offsets = cudf.Series([0, len(vertices)])
+    
+    if not isinstance(offsets, [list, cudf.Series]):
+        raise TypeError(
+            f"'offsets' must be either 'None', a list or a "
+            f"cudf Series, got: {type(vertices)}"
+        )
 
     # vertices uses "external" vertex IDs, but since the graph has been
     # renumbered, the node ID must also be renumbered.
