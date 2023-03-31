@@ -20,12 +20,34 @@ import numpy
 
 import cudf
 import cupy as cp
+import warnings
 
 from typing import Union, Tuple, Sequence, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cugraph import Graph
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, start_list):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    if isinstance(start_list, cudf.Series):
+        start_list_dtypes = start_list.dtype
+    else:
+        start_list_dtypes = start_list.dtypes[0]
+
+    if start_list_dtypes != vertex_dtype:
+        warning_msg = (
+            "Uniform neighbor sample requires 'start_list' to match the graph's 'vertex' "
+            f"type. input graph's vertex type is: {vertex_dtype} and got "
+            f"'start_list' of type: {start_list_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        start_list = start_list.astype(vertex_dtype)
+
+    return start_list
 
 
 def uniform_neighbor_sample(
