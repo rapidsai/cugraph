@@ -42,11 +42,8 @@ set(cython_sources
     personalized_pagerank.pyx
     random.pyx
     resource_handle.pyx
-<<<<<<< HEAD
     spectral_modularity_maximization.pyx
-=======
     select_random_vertices.pyx
->>>>>>> upstream/branch-23.04
     sssp.pyx
     triangle_count.pyx
     two_hop_neighbors.pyx
