@@ -17,7 +17,9 @@ add_subdirectory(internal_types)
 add_subdirectory(testing)
 
 set(cython_sources
+    analyze_clustering_edge_cut.pyx
     analyze_clustering_modularity.pyx
+    analyze_clustering_ratio_cut.pyx
     balanced_cut_clustering.pyx
     bfs.pyx
     core_number.pyx

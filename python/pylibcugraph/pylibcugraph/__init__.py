@@ -69,4 +69,7 @@ from pylibcugraph.spectral_modularity_maximization import spectral_modularity_ma
 
 from pylibcugraph.analyze_clustering_modularity import analyze_clustering_modularity
 
+from pylibcugraph.analyze_clustering_edge_cut import analyze_clustering_edge_cut
+
+from pylibcugraph.analyze_clustering_ratio_cut import analyze_clustering_ratio_cut
 __version__ = "23.04.00"

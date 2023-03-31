@@ -30,8 +30,7 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.community_algorithms cimport (
-    cugraph_clustering_result_t,
-    cugraph_analyze_clustering_modularity,
+    cugraph_analyze_clustering_edge_cut,
 )
 
 from pylibcugraph.resource_handle cimport (
@@ -46,14 +45,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def analyze_clustering_modularity(ResourceHandle resource_handle,
-                                  _GPUGraph graph,
-                                  size_t num_clusters,
-                                  vertex,
-                                  cluster,
-                                  ):
+def analyze_clustering_edge_cut(ResourceHandle resource_handle,
+                                _GPUGraph graph,
+                                size_t num_clusters,
+                                vertex,
+                                cluster,
+                                ):
     """
-    Compute modularity score of the specified clustering.
+    Compute edge cut score of the specified clustering.
 
     Parameters
     ----------
@@ -75,7 +74,7 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
 
     Returns
     -------
-    The modularity score of the specified clustering.
+    The edge cut score of the specified clustering.
 
     Examples
     --------
@@ -97,11 +96,10 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
     ############
     >>> clusters
     ############
-    >>> score = pylibcugraph.analyze_clustering_modularity(
+    >>> score = pylibcugraph.analyze_clustering_edge_cut(
     ...     resource_handle, G, num_clusters=5, vertex=vertex, cluster=cluster)
     >>> score
     ############
-
 
     """
 
@@ -110,7 +108,6 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    cdef cugraph_clustering_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
@@ -124,16 +121,15 @@ def analyze_clustering_modularity(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 cluster)
 
+    error_code = cugraph_analyze_clustering_edge_cut(c_resource_handle_ptr,
+                                                     c_graph_ptr,
+                                                     num_clusters,
+                                                     vertex_view_ptr,
+                                                     cluster_view_ptr,
+                                                     &score,
+                                                     &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_analyze_clustering_edge_cut")
 
-    error_code = cugraph_analyze_clustering_modularity(c_resource_handle_ptr,
-                                                       c_graph_ptr,
-                                                       num_clusters,
-                                                       vertex_view_ptr,
-                                                       cluster_view_ptr,
-                                                       &score,
-                                                       &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_analyze_clustering_modularity")
-    
     if vertex is not None:
         cugraph_type_erased_device_array_view_free(vertex_view_ptr)
     if cluster is not None:
