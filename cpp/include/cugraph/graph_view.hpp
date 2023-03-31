@@ -403,6 +403,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return partition_.vertex_partition_range_lasts();
   }
 
+  std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
+  {
+    return partition_.local_vertex_partition_range();
+  }
+
   vertex_t local_vertex_partition_range_size() const
   {
     return partition_.local_vertex_partition_range_size();
@@ -803,6 +808,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   std::vector<vertex_t> vertex_partition_range_lasts() const
   {
     return std::vector<vertex_t>{local_vertex_partition_range_last()};
+  }
+
+  std::tuple<vertex_t, vertex_t> local_vertex_partition_range() const
+  {
+    return std::make_tuple(vertex_t{0}, this->number_of_vertices());
   }
 
   vertex_t local_vertex_partition_range_size() const { return this->number_of_vertices(); }
