@@ -22,7 +22,7 @@
 namespace cugraph {
 namespace c_api {
 
-struct cugraph_heirarchical_clustering_result_t {
+struct cugraph_hierarchical_clustering_result_t {
   double modularity{0};
   cugraph_type_erased_device_array_t* vertices_{nullptr};
   cugraph_type_erased_device_array_t* clusters_{nullptr};

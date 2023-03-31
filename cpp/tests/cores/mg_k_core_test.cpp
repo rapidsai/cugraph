@@ -71,7 +71,7 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, renumber, true, true);
 
@@ -122,24 +122,15 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
         *handle_,
         mg_subgraph_srcs.data(),
         mg_subgraph_srcs.size(),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         mg_subgraph_dsts.data(),
         mg_subgraph_dsts.size(),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
-
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_,
-        raft::device_span<vertex_t const>((*d_mg_renumber_map_labels).data(),
-                                          (*d_mg_renumber_map_labels).size()));
-
-      auto d_mg_aggregate_core_numbers = cugraph::test::device_gatherv(
-        *handle_,
-        raft::device_span<edge_t const>(d_mg_core_numbers.data(), d_mg_core_numbers.size()));
 
       auto d_mg_aggregate_subgraph_srcs = cugraph::test::device_gatherv(
         *handle_,
@@ -157,18 +148,26 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
                                             (*mg_subgraph_weights).size()));
       }
 
-      auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_,
-        mg_graph_view,
-        mg_edge_weight_view,
-        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                              (*d_mg_renumber_map_labels).size()),
-        false);
+      rmm::device_uvector<edge_t> d_mg_aggregate_core_numbers(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_core_numbers) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<edge_t const>(d_mg_core_numbers.data(), d_mg_core_numbers.size()));
+
+      auto [sg_graph, sg_edge_weights, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(*handle_,
+                                            mg_graph_view,
+                                            mg_edge_weight_view,
+                                            std::make_optional<raft::device_span<vertex_t const>>(
+                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
+                                            false);
 
       if (handle_->get_comms().get_rank() == 0) {
-        std::tie(std::ignore, d_mg_aggregate_core_numbers) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_core_numbers);
-
         auto sg_graph_view = sg_graph.view();
         auto sg_edge_weight_view =
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
@@ -228,15 +227,15 @@ INSTANTIATE_TEST_SUITE_P(
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGKCore_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
-                                           KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT},
-                                           KCore_Usecase{3, cugraph::k_core_degree_type_t::INOUT}),
-                           testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGKCore_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
+                    KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT},
+                    KCore_Usecase{3, cugraph::k_core_degree_type_t::INOUT}),
+    testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -248,7 +247,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT, false}),
-    testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
