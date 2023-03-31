@@ -40,8 +40,8 @@ def ensure_valid_dtype(input_graph, start_list):
 
     if start_list_dtypes != vertex_dtype:
         warning_msg = (
-            "Uniform neighbor sample requires 'start_list' to match the graph's 'vertex' "
-            f"type. input graph's vertex type is: {vertex_dtype} and got "
+            "Uniform neighbor sample requires 'start_list' to match the graph's "
+            f"'vertex' type. input graph's vertex type is: {vertex_dtype} and got "
             f"'start_list' of type: {start_list_dtypes}."
         )
         warnings.warn(warning_msg, UserWarning)
