@@ -269,9 +269,9 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -280,8 +280,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

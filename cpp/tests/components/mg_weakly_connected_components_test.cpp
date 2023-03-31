@@ -72,8 +72,8 @@ class Tests_MGWeaklyConnectedComponents
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
 
@@ -111,36 +111,39 @@ class Tests_MGWeaklyConnectedComponents
     if (weakly_connected_components_usecase.check_correctness) {
       // 3-1. aggregate MG results
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_components =
-        cugraph::test::device_gatherv(*handle_, d_mg_components.data(), d_mg_components.size());
+      rmm::device_uvector<vertex_t> d_mg_aggregate_components(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_components) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<vertex_t const>(d_mg_components.data(), d_mg_components.size()));
+
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. unrenumbr MG results
-
-        std::tie(std::ignore, d_mg_aggregate_components) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_components);
-
-        // 3-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            *handle_, input_usecase, false, false);
+        // 3-2. run SG weakly connected components
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
-
-        // 3-4. run SG weakly connected components
 
         rmm::device_uvector<vertex_t> d_sg_components(sg_graph_view.number_of_vertices(),
                                                       handle_->get_stream());
 
         cugraph::weakly_connected_components(*handle_, sg_graph_view, d_sg_components.data());
 
-        // 3-5. compare
+        // 3-3. compare
 
         auto h_mg_aggregate_components =
           cugraph::test::to_host(*handle_, d_mg_aggregate_components);
@@ -212,13 +215,13 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/polbooks.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGWeaklyConnectedComponents_Rmat,
-                         ::testing::Values(
-                           // enable correctness checks
-                           std::make_tuple(WeaklyConnectedComponents_Usecase{},
-                                           cugraph::test::Rmat_Usecase(
-                                             10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGWeaklyConnectedComponents_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(WeaklyConnectedComponents_Usecase{},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -229,8 +232,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGWeaklyConnectedComponents_Rmat,
   ::testing::Values(
     // disable correctness checks
-    std::make_tuple(
-      WeaklyConnectedComponents_Usecase{false},
-      cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    std::make_tuple(WeaklyConnectedComponents_Usecase{false},
+                    cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

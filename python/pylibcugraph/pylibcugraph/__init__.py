@@ -57,7 +57,7 @@ from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
 
-from pylibcugraph.random import CuGraphRandomState
+from pylibcugraph.betweenness_centrality import betweenness_centrality
 
 from pylibcugraph.induced_subgraph import induced_subgraph
 
@@ -75,4 +75,6 @@ from pylibcugraph.analyze_clustering_edge_cut import analyze_clustering_edge_cut
 
 from pylibcugraph.analyze_clustering_ratio_cut import analyze_clustering_ratio_cut
 
-__version__ = "23.04.00"
+from pylibcugraph.random import CuGraphRandomState
+
+from pylibcugraph.select_random_vertices import select_random_vertices
