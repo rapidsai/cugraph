@@ -67,7 +67,7 @@ class Tests_MGKatzCentrality
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
         *handle_, input_usecase, katz_usecase.test_weighted, true);
 
@@ -124,34 +124,38 @@ class Tests_MGKatzCentrality
     if (katz_usecase.check_correctness) {
       // 4-1. aggregate MG results
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_katz_centralities = cugraph::test::device_gatherv(
-        *handle_, d_mg_katz_centralities.data(), d_mg_katz_centralities.size());
+      rmm::device_uvector<result_t> d_mg_aggregate_katz_centralities(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_katz_centralities) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<result_t const>(d_mg_katz_centralities.data(),
+                                            d_mg_katz_centralities.size()));
+
+      cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(*handle_,
+                                            mg_graph_view,
+                                            mg_edge_weight_view,
+                                            std::make_optional<raft::device_span<vertex_t const>>(
+                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
+                                            false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 4-2. unrenumbr MG results
-
-        std::tie(std::ignore, d_mg_aggregate_katz_centralities) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_katz_centralities);
-
-        // 4-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
-        std::optional<
-          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
-          sg_edge_weights{std::nullopt};
-        std::tie(sg_graph, sg_edge_weights, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            *handle_, input_usecase, katz_usecase.test_weighted, false);
+        // 4-2. run SG Katz Centrality
 
         auto sg_graph_view = sg_graph.view();
         auto sg_edge_weight_view =
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
-
-        // 4-4. run SG Katz Centrality
 
         rmm::device_uvector<result_t> d_sg_katz_centralities(sg_graph_view.number_of_vertices(),
                                                              handle_->get_stream());
@@ -167,7 +171,7 @@ class Tests_MGKatzCentrality
                                  std::numeric_limits<size_t>::max(),  // max_iterations
                                  false);
 
-        // 4-5. compare
+        // 4-3. compare
 
         auto h_mg_aggregate_katz_centralities =
           cugraph::test::to_host(*handle_, d_mg_aggregate_katz_centralities);
@@ -237,14 +241,13 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGKatzCentrality_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           ::testing::Values(KatzCentrality_Usecase{false},
-                                             KatzCentrality_Usecase{true}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGKatzCentrality_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(KatzCentrality_Usecase{false}, KatzCentrality_Usecase{true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -256,7 +259,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(KatzCentrality_Usecase{false, false}, KatzCentrality_Usecase{true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

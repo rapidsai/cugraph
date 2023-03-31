@@ -80,8 +80,8 @@ class Tests_MGExtractBFSPaths
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, renumber);
 
@@ -166,52 +166,63 @@ class Tests_MGExtractBFSPaths
         *handle_,
         d_mg_predecessors.data(),
         d_mg_predecessors.size(),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         d_mg_destinations.data(),
         d_mg_destinations.size(),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         d_mg_paths.data(),
         d_mg_paths.size(),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_distances =
-        cugraph::test::device_gatherv(*handle_, d_mg_distances.data(), d_mg_distances.size());
-      auto d_mg_aggregate_predecessors =
-        cugraph::test::device_gatherv(*handle_, d_mg_predecessors.data(), d_mg_predecessors.size());
+      rmm::device_uvector<vertex_t> d_mg_aggregate_distances(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_distances) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<vertex_t const>(d_mg_distances.data(), d_mg_distances.size()));
+
+      rmm::device_uvector<vertex_t> d_mg_aggregate_predecessors(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_predecessors) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<vertex_t const>(d_mg_predecessors.data(), d_mg_predecessors.size()));
+
       auto d_mg_aggregate_destinations =
         cugraph::test::device_gatherv(*handle_, d_mg_destinations.data(), d_mg_destinations.size());
       auto d_mg_aggregate_paths =
         cugraph::test::device_gatherv(*handle_, d_mg_paths.data(), d_mg_paths.size());
 
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+
       if (handle_->get_comms().get_rank() == int{0}) {
-        // sort MG results
-
-        std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
-        std::tie(std::ignore, d_mg_aggregate_predecessors) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_predecessors);
-
-        // create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            *handle_, input_usecase, true, false);
+        // run SG extract_bfs_paths
 
         auto sg_graph_view = sg_graph.view();
-
-        // run SG extract_bfs_paths
 
         auto [d_sg_paths, sg_max_path_length] =
           extract_bfs_paths(*handle_,
@@ -291,13 +302,13 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(ExtractBFSPaths_Usecase{1000, 20000},
                     cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGExtractBFSPaths_Rmat,
-                         ::testing::Values(
-                           // enable correctness checks
-                           std::make_tuple(ExtractBFSPaths_Usecase{0, 20},
-                                           cugraph::test::Rmat_Usecase(
-                                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGExtractBFSPaths_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(ExtractBFSPaths_Usecase{0, 20},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -308,8 +319,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGExtractBFSPaths_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_pair(
-      ExtractBFSPaths_Usecase{0, 1000, false},
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    std::make_pair(ExtractBFSPaths_Usecase{0, 1000, false},
+                   cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
