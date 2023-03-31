@@ -159,7 +159,7 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 
-
+@pytest.mark.mg
 def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]

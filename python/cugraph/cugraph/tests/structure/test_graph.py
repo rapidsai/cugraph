@@ -797,6 +797,7 @@ def test_density(graph_file):
 
 
 # Test
+@pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 @pytest.mark.parametrize("random_state", [42, None])
 @pytest.mark.parametrize("num_vertices", [5, None])

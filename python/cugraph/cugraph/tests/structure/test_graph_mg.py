@@ -280,6 +280,7 @@ def test_mg_graph_copy():
     assert type(G) == type(G_c)
 
 
+@pytest.mark.sg
 @pytest.mark.parametrize("random_state", [42, None])
 @pytest.mark.parametrize("num_vertices", [5, None])
 def test_mg_select_random_vertices(
