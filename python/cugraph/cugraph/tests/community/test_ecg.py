@@ -78,10 +78,8 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
-@pytest.mark.skip("temporarily skip this test")
 def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
-    # FIXME: skip this test until ecg supports 'int64'. Currently it is not
-    # supported.
+
     gc.collect()
     dataset_path = graph_file.get_path()
     # Read in the graph and get a NetworkX graph
