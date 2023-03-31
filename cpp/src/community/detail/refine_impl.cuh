@@ -128,8 +128,6 @@ refine_clustering(
   using vertex_t               = typename GraphViewType::vertex_type;
   using edge_t                 = typename GraphViewType::edge_type;
 
-  rmm::device_uvector<weight_t> vertex_louvain_cluster_weights(0, handle.get_stream());
-
   kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(louvain_cluster_keys.begin(),
                                                                louvain_cluster_keys.end(),
                                                                louvain_cluster_weights.data(),
@@ -142,6 +140,7 @@ refine_clustering(
   louvain_cluster_weights.resize(0, handle.get_stream());
   louvain_cluster_weights.shrink_to_fit(handle.get_stream());
 
+  rmm::device_uvector<weight_t> vertex_louvain_cluster_weights(0, handle.get_stream());
   if (GraphViewType::is_multi_gpu) {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
@@ -714,6 +713,8 @@ refine_clustering(
                                                         leiden_keys_to_read_louvain.begin(),
                                                         leiden_keys_to_read_louvain.end())));
 
+  leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
+
   if constexpr (GraphViewType::is_multi_gpu) {
     leiden_keys_to_read_louvain =
       cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
@@ -728,18 +729,36 @@ refine_clustering(
                                            thrust::unique(handle.get_thrust_policy(),
                                                           leiden_keys_to_read_louvain.begin(),
                                                           leiden_keys_to_read_louvain.end())));
+    leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
   }
 
-  leiden_keys_to_read_louvain.resize(nr_unique_leiden_clusters, handle.get_stream());
+  rmm::device_uvector<vertex_t> lovain_of_leiden_cluster_keys(0, handle.get_stream());
 
-  rmm::device_uvector<vertex_t> lovain_of_leiden_cluster_keys(leiden_keys_to_read_louvain.size(),
-                                                              handle.get_stream());
+  if (GraphViewType::is_multi_gpu) {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
-  leiden_to_louvain_map.view().find(leiden_keys_to_read_louvain.begin(),
-                                    leiden_keys_to_read_louvain.end(),
-                                    lovain_of_leiden_cluster_keys.begin(),
-                                    handle.get_stream());
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      comm_size, major_comm_size, minor_comm_size};
 
+    lovain_of_leiden_cluster_keys =
+      cugraph::collect_values_for_keys(handle,
+                                       leiden_to_louvain_map.view(),
+                                       leiden_keys_to_read_louvain.begin(),
+                                       leiden_keys_to_read_louvain.end(),
+                                       vertex_to_gpu_id_op);
+  } else {
+    lovain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());
+
+    leiden_to_louvain_map.view().find(leiden_keys_to_read_louvain.begin(),
+                                      leiden_keys_to_read_louvain.end(),
+                                      lovain_of_leiden_cluster_keys.begin(),
+                                      handle.get_stream());
+  }
   return std::make_tuple(std::move(leiden_assignment),
                          std::make_pair(std::move(leiden_keys_to_read_louvain),
                                         std::move(lovain_of_leiden_cluster_keys)));

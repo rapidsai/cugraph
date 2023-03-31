@@ -802,7 +802,7 @@ std::pair<size_t, weight_t> leiden(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  vertex_t* clustering,
+  vertex_t* clustering,  // FIXME: Use (device_)span instead
   size_t max_level    = 100,
   weight_t resolution = weight_t{1});
 
