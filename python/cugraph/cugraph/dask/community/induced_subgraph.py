@@ -44,10 +44,7 @@ def _call_induced_subgraph(
     )
 
 
-def consolidate_results(
-    df: cudf.DataFrame,
-    offsets: cudf.Series
-) -> cudf.DataFrame:
+def consolidate_results(df: cudf.DataFrame, offsets: cudf.Series) -> cudf.DataFrame:
     """
     Each rank returns its induced_subgraph dataframe with its corresponding
     offsets array. This is ideal if the user operates on distributed memory
@@ -84,7 +81,7 @@ def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
 def induced_subgraph(
     input_graph,
     vertices: Union[cudf.Series, cudf.DataFrame],
-    offsets: Union[list,cudf.Series] = None
+    offsets: Union[list, cudf.Series] = None,
 ) -> tuple[dask_cudf.DataFrame, dask_cudf.Series]:
     """
     Compute a subgraph of the existing graph including only the specified
@@ -141,7 +138,7 @@ def induced_subgraph(
 
     if offsets is None:
         offsets = cudf.Series([0, len(vertices)])
-    
+
     if not isinstance(offsets, [list, cudf.Series]):
         raise TypeError(
             f"'offsets' must be either 'None', a list or a "
