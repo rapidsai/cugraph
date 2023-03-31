@@ -75,7 +75,9 @@ def convert_weighted_unnamed_to_gdf(NX_G, vertex_type="int32"):
     return _gdf
 
 
-def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False, vertex_type="int32"):
+def convert_from_nx(
+    nxG, weight=None, do_renumber=True, store_transposed=False, vertex_type="int32"
+):
     """
     Convert a NetworkX Graph into a cuGraph Graph.
     This might not be the most effecient way since the
@@ -95,10 +97,10 @@ def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False, 
 
     store_transposed : boolean, defaukt is False
         should the cuGraph Graph store the transpose of the graph
-    
+
     vertex_type : str, default is "int32"
         Vertex type
-    
+
     Returns
     -------
     G : cuGraph Graph

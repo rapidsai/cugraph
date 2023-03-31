@@ -868,7 +868,9 @@ class simpleGraphImpl:
             if not isinstance(vertex_subset, cudf.Series):
                 vertex_subset = cudf.Series(vertex_subset)
                 if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(vertex_subset)
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(
+                        vertex_subset
+                    )
                 vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
 
@@ -896,7 +898,9 @@ class simpleGraphImpl:
             if not isinstance(vertex_subset, cudf.Series):
                 vertex_subset = cudf.Series(vertex_subset)
                 if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(vertex_subset)
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(
+                        vertex_subset
+                    )
                 vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
 
@@ -1106,7 +1110,7 @@ class simpleGraphImpl:
             df = self.edgelist.edgelist_df
             if self.properties.renumbered:
                 df = self.renumber_map.df_internal_to_external.drop(columns="id")
-    
+
                 if len(df.columns) > 1:
                     return df
                 else:

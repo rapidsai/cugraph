@@ -128,7 +128,6 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
 
     gdf = gdf.astype("int32")
 
-
     cu_score = cugraph.analyzeClustering_edge_cut(
         G, partitions, gdf, "vertex", "cluster"
     )

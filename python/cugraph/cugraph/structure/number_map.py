@@ -240,7 +240,10 @@ class NumberMap:
             return tmp_ddf
 
     def __init__(
-            self, renumber_id_type=np.int32, unrenumbered_id_type=np.int32, is_renumbered=False
+        self,
+        renumber_id_type=np.int32,
+        unrenumbered_id_type=np.int32,
+        is_renumbered=False,
     ):
         self.implementation = None
         self.renumber_id_type = renumber_id_type

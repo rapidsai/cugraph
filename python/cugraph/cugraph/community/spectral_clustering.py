@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import spectral_clustering_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
@@ -92,10 +91,14 @@ def spectralBalancedCutClustering(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     # Check if vertex type is "int32"
-    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
-        raise ValueError (
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
             "'spectralBalancedCutClustering' requires the input graph's vertex to be "
-            "of type 'int32'")
+            "of type 'int32'"
+        )
     vertex, partition = pylibcugraph_balanced_cut_clustering(
         ResourceHandle(),
         G._plc_graph,
@@ -182,10 +185,14 @@ def spectralModularityMaximizationClustering(
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
-    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
-        raise ValueError (
-            "'spectralModularityMaximizationClustering' requires the input graph's vertex to be "
-            "of type 'int32'")
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
+            "'spectralModularityMaximizationClustering' requires the input graph's "
+            "vertex to be of type 'int32'"
+        )
 
     vertex, partition = pylibcugraph_spectral_modularity_maximization(
         ResourceHandle(),
@@ -263,24 +270,26 @@ def analyzeClustering_modularity(
         raise Exception("cluster_col_name must be a string")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
-    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
-        raise ValueError (
-            "'analyzeClustering_modularity' requires the input graph's vertex to be "
-            "of type 'int32'")
-
-    score = 0.0
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
+            "'analyzeClustering_modularity' requires the input graph's "
+            "vertex to be of type 'int32'"
+        )
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
-    
+
     if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
-        raise ValueError (
-            "'analyzeClustering_modularity' requires both the clustering 'vertex' and 'cluster' to be "
-            "of type 'int32'")
-    
-    #clustering = clustering.sort_values("vertex")
+        raise ValueError(
+            "'analyzeClustering_modularity' requires both the clustering 'vertex' "
+            "and 'cluster' to be of type 'int32'"
+        )
+
     score = pylibcugraph_analyze_clustering_modularity(
         ResourceHandle(),
         G._plc_graph,
@@ -344,28 +353,26 @@ def analyzeClustering_edge_cut(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if G.edgelist.edgelist_df.dtypes[0] != np.int32 or G.edgelist.edgelist_df.dtypes[1] != np.int32:
-        raise ValueError (
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
             "'analyzeClustering_edge_cut' requires the input graph's vertex to be "
-            "of type 'int32'")
+            "of type 'int32'"
+        )
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
-    
+
     if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
-        raise ValueError (
-            "'analyzeClustering_edge_cut' requires both the clustering 'vertex' and 'cluster' to be "
-            "of type 'int32'")
+        raise ValueError(
+            "'analyzeClustering_edge_cut' requires both the clustering 'vertex' "
+            "and 'cluster' to be of type 'int32'"
+        )
 
-    # clustering = clustering.sort_values("vertex").reset_index(drop=True)
-
-    """
-    score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
-        G, n_clusters, clustering[cluster_col_name]
-    )
-    """
     score = pylibcugraph_analyze_clustering_edge_cut(
         ResourceHandle(),
         G._plc_graph,
@@ -429,19 +436,13 @@ def analyzeClustering_ratio_cut(
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
-    
+
     if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
-        raise ValueError (
-            "'analyzeClustering_ratio_cut' requires both the clustering 'vertex' and 'cluster' to be "
-            "of type 'int32'")
+        raise ValueError(
+            "'analyzeClustering_ratio_cut' requires both the clustering 'vertex' "
+            "and 'cluster' to be of type 'int32'"
+        )
 
-    # clustering = clustering.sort_values("vertex")
-
-    """
-    score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
-        G, n_clusters, clustering[cluster_col_name]
-    )
-    """
     score = pylibcugraph_analyze_clustering_ratio_cut(
         ResourceHandle(),
         G._plc_graph,

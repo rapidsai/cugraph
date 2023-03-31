@@ -21,7 +21,6 @@ from pylibcugraph import ecg as pylibcugraph_ecg
 from pylibcugraph import ResourceHandle
 
 
-
 def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
     """
     Compute the Ensemble Clustering for Graphs (ECG) partition of the input
@@ -91,5 +90,5 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
 
     if isNx is True:
         df = df_score_to_dictionary(df, "partition")
-    
+
     return df
