@@ -125,8 +125,8 @@ class Tests_BetweennessCentrality
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
 
-      cugraph::test::betweenness_centrality_validate<vertex_t, weight_t>(
-        handle, std::nullopt, d_centralities, std::nullopt, d_reference_centralities);
+      cugraph::test::betweenness_centrality_validate(
+        handle, d_centralities, d_reference_centralities);
     }
   }
 };
