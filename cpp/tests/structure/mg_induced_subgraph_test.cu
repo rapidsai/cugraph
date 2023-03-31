@@ -189,23 +189,17 @@ class Tests_MGInducedSubgraph
       graph_ids_v = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
+      auto triplet_first = thrust::make_zip_iterator(graph_ids_v.begin(),
+                                                     d_subgraph_edgelist_majors.begin(),
+                                                     d_subgraph_edgelist_minors.begin());
       if (d_subgraph_edgelist_weights) {
-        thrust::sort_by_key(
-          handle_->get_thrust_policy(),
-          thrust::make_zip_iterator(graph_ids_v.begin(),
-                                    d_subgraph_edgelist_majors.begin(),
-                                    d_subgraph_edgelist_minors.begin()),
-          thrust::make_zip_iterator(
-            graph_ids_v.end(), d_subgraph_edgelist_majors.end(), d_subgraph_edgelist_minors.end()),
-          d_subgraph_edgelist_weights->begin());
+        thrust::sort_by_key(handle_->get_thrust_policy(),
+                            triplet_first,
+                            triplet_first + graph_ids_v.size(),
+                            d_subgraph_edgelist_weights->begin());
       } else {
         thrust::sort(
-          handle_->get_thrust_policy(),
-          thrust::make_zip_iterator(graph_ids_v.begin(),
-                                    d_subgraph_edgelist_majors.begin(),
-                                    d_subgraph_edgelist_minors.begin()),
-          thrust::make_zip_iterator(
-            graph_ids_v.end(), d_subgraph_edgelist_majors.end(), d_subgraph_edgelist_minors.end()));
+          handle_->get_thrust_policy(), triplet_first, triplet_first + graph_ids_v.size());
       }
 
       auto d_subgraph_edgelist_offsets =
