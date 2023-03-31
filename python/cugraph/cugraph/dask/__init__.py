@@ -27,6 +27,7 @@ from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
 from .sampling.random_walks import random_walks
 from .centrality.eigenvector_centrality import eigenvector_centrality
 from .cores.core_number import core_number
+from .centrality.betweenness_centrality import betweenness_centrality
 from .cores.k_core import k_core
 from .link_prediction.jaccard import jaccard
 from .link_prediction.sorensen import sorensen
