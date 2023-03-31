@@ -27,7 +27,7 @@ cuGraph Conda packages
  * cugraph-service-client
  * cugraph-service-server
  * cugraph-dgl
- * cugraph_pyg
+ * cugraph-pyg
 
 Replace the package name in the example below to the one you want to install.
 
