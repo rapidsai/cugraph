@@ -34,7 +34,7 @@ def _call_induced_subgraph(
     vertices: cudf.Series,
     offsets: cudf.Series,
     do_expensive_check: bool,
-) -> tuple:
+) -> tuple[cp.arrays, cp.arrays, cp.arrays, cp.arrays]:
     return pylibcugraph_induced_subgraph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
