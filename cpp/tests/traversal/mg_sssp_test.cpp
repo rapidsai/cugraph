@@ -68,7 +68,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, true);
 
@@ -124,7 +124,7 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         *handle_,
         d_mg_predecessors.data(),
         d_mg_predecessors.size(),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
       rmm::device_scalar<vertex_t> d_sg_source(static_cast<vertex_t>(sssp_usecase.source),
@@ -134,41 +134,53 @@ class Tests_MGSSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, in
         *handle_,
         d_sg_source.data(),
         size_t{1},
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         mg_graph_view.vertex_partition_range_lasts());
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_distances =
-        cugraph::test::device_gatherv(*handle_, d_mg_distances.data(), d_mg_distances.size());
-      auto d_mg_aggregate_predecessors =
-        cugraph::test::device_gatherv(*handle_, d_mg_predecessors.data(), d_mg_predecessors.size());
+      // 3-2. aggregate MG results
+
+      rmm::device_uvector<weight_t> d_mg_aggregate_distances(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_distances) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<weight_t const>(d_mg_distances.data(), d_mg_distances.size()));
+
+      rmm::device_uvector<vertex_t> d_mg_aggregate_predecessors(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_predecessors) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<vertex_t const>(d_mg_predecessors.data(), d_mg_predecessors.size()));
+
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(*handle_,
+                                            mg_graph_view,
+                                            mg_edge_weight_view,
+                                            std::make_optional<raft::device_span<vertex_t const>>(
+                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
+                                            false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. sort MG results
-
-        std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
-        std::tie(std::ignore, d_mg_aggregate_predecessors) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_predecessors);
-
-        // 3-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-        std::optional<
-          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
-          sg_edge_weights{std::nullopt};
-        std::tie(sg_graph, sg_edge_weights, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            *handle_, input_usecase, true, false);
+        // 3-3. run SG SSSP
 
         auto sg_graph_view = sg_graph.view();
         auto sg_edge_weight_view =
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
-
-        // 3-4. run SG SSSP
 
         rmm::device_uvector<weight_t> d_sg_distances(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -284,13 +296,13 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(SSSP_Usecase{1000},
                     cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGSSSP_Rmat,
-                         ::testing::Values(
-                           // enable correctness checks
-                           std::make_tuple(SSSP_Usecase{0},
-                                           cugraph::test::Rmat_Usecase(
-                                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGSSSP_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(SSSP_Usecase{0},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -301,8 +313,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSSSP_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(
-      SSSP_Usecase{0, false},
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    std::make_tuple(SSSP_Usecase{0, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
