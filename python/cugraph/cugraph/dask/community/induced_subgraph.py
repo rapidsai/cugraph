@@ -139,10 +139,10 @@ def induced_subgraph(
     if offsets is None:
         offsets = cudf.Series([0, len(vertices)])
 
-    if not isinstance(offsets, [list, cudf.Series]):
+    if not isinstance(offsets, cudf.Series):
         raise TypeError(
             f"'offsets' must be either 'None', a list or a "
-            f"cudf Series, got: {type(vertices)}"
+            f"cudf Series, got: {type(offsets)}"
         )
 
     # vertices uses "external" vertex IDs, but since the graph has been
