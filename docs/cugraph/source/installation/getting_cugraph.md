@@ -24,7 +24,7 @@ cuGraph Conda packages
  * cugraph - this will also import:
    * pylibcugraph
    * libcugraph
- * cugraph_service_client
+ * cugraph-service-client
  * cugraph_service_server
  * cugraph_dgl
  * cugraph_pyg
