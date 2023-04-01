@@ -20,7 +20,7 @@ import dask_cudf
 import cudf
 import cupy as cp
 from cugraph.dask.common.input_utils import get_distributed_data
-from typing import Union
+from typing import Union, Tuple
 
 from pylibcugraph import (
     ResourceHandle,
@@ -34,7 +34,7 @@ def _call_induced_subgraph(
     vertices: cudf.Series,
     offsets: cudf.Series,
     do_expensive_check: bool,
-) -> tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray]:
+) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray]:
     return pylibcugraph_induced_subgraph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -82,7 +82,7 @@ def induced_subgraph(
     input_graph,
     vertices: Union[cudf.Series, cudf.DataFrame],
     offsets: Union[list, cudf.Series] = None,
-) -> tuple[dask_cudf.DataFrame, dask_cudf.Series]:
+) -> Tuple[dask_cudf.DataFrame, dask_cudf.Series]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
