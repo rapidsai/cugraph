@@ -175,6 +175,7 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
+        self.__batches.reset_index(drop=True)
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
