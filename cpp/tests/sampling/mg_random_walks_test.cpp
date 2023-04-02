@@ -323,46 +323,46 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_UniformRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
-                                       UniformRandomWalks_Usecase{true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                      UniformRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_UniformRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_BiasedRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
-                                       BiasedRandomWalks_Usecase{true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
+                      BiasedRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_BiasedRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(BiasedRandomWalks_Usecase{true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Node2VecRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{8, 4, false, 0, true},
-                                       Node2VecRandomWalks_Usecase{8, 4, true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Node2VecRandomWalks_Usecase{8, 4, false, 0, true},
+                      Node2VecRandomWalks_Usecase{8, 4, true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_Node2VecRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{8, 4, true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Node2VecRandomWalks_Usecase{8, 4, true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
