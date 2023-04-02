@@ -87,8 +87,8 @@ def create_empty_df_with_edge_props(indices_t, weight_t, return_offsets=False):
                 weight_n: numpy.empty(shape=0, dtype=weight_t),
                 edge_id_n: numpy.empty(shape=0, dtype=indices_t),
                 edge_type_n: numpy.empty(shape=0, dtype="int32"),
-                batch_id_n: numpy.empty(shape=0, dtype="int32"),
                 hop_id_n: numpy.empty(shape=0, dtype="int32"),
+                batch_id_n: numpy.empty(shape=0, dtype="int32"),
             }
         )
         return df
