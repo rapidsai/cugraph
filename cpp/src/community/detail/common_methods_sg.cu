@@ -98,8 +98,7 @@ template double compute_modularity(
 
 template std::tuple<
   cugraph::graph_t<int32_t, int32_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, float>>,
-  std::optional<rmm::device_uvector<int32_t>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, float>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, float const*>> edge_weights,
@@ -107,8 +106,7 @@ graph_contraction(raft::handle_t const& handle,
 
 template std::tuple<
   cugraph::graph_t<int32_t, int64_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, false>, float>>,
-  std::optional<rmm::device_uvector<int32_t>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, false>, float>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, float const*>> edge_weights,
@@ -116,8 +114,7 @@ graph_contraction(raft::handle_t const& handle,
 
 template std::tuple<
   cugraph::graph_t<int64_t, int64_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, false>, float>>,
-  std::optional<rmm::device_uvector<int64_t>>>
+  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, false>, float>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, float const*>> edge_weights,
@@ -125,8 +122,7 @@ graph_contraction(raft::handle_t const& handle,
 
 template std::tuple<
   cugraph::graph_t<int32_t, int32_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, double>>,
-  std::optional<rmm::device_uvector<int32_t>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int32_t, false, false>, double>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int32_t, double const*>> edge_weights,
@@ -134,8 +130,7 @@ graph_contraction(raft::handle_t const& handle,
 
 template std::tuple<
   cugraph::graph_t<int32_t, int64_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, false>, double>>,
-  std::optional<rmm::device_uvector<int32_t>>>
+  std::optional<edge_property_t<graph_view_t<int32_t, int64_t, false, false>, double>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, double const*>> edge_weights,
@@ -143,8 +138,7 @@ graph_contraction(raft::handle_t const& handle,
 
 template std::tuple<
   cugraph::graph_t<int64_t, int64_t, false, false>,
-  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, false>, double>>,
-  std::optional<rmm::device_uvector<int64_t>>>
+  std::optional<edge_property_t<graph_view_t<int64_t, int64_t, false, false>, double>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
                   std::optional<edge_property_view_t<int64_t, double const*>> edge_weights,
