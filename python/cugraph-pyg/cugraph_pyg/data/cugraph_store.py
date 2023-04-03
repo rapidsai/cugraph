@@ -650,7 +650,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         """
         if not is_sorted:
-            nodes_of_interest, _ = torch.sorted(nodes_of_interest)
+            nodes_of_interest, _ = torch.sort(nodes_of_interest)
 
         noi_index = {}
 
