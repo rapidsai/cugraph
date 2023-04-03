@@ -12,7 +12,7 @@
 # the License.
 # =============================================================================
 
-set(cython_sources graph_primtypes_wrapper.pyx graph_primtypes.pyx renumber_wrapper.pyx utils_wrapper.pyx)
+set(cython_sources graph_primtypes_wrapper.pyx graph_primtypes.pyx)
 set(linked_libraries cugraph::cugraph)
 rapids_cython_create_modules(
   CXX

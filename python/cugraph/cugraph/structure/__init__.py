@@ -39,4 +39,3 @@ from cugraph.structure.convert_matrix import (
     from_adjlist,
 )
 from cugraph.structure.hypergraph import hypergraph
-from cugraph.structure.shuffle import shuffle
