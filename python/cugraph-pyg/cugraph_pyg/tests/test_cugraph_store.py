@@ -389,6 +389,7 @@ def test_serialize(multi_edge_multi_vertex_no_graph_1):
 
     F, G, N = multi_edge_multi_vertex_no_graph_1
     cugraph_store = CuGraphStore(F, G, N)
+
     cugraph_store_copy = pickle.loads(pickle.dumps(cugraph_store))
 
     for tensor_attr in cugraph_store.get_all_tensor_attrs():

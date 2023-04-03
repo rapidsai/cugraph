@@ -41,14 +41,6 @@ DaskCudfSeries = None if isinstance(dask_cudf, MissingModule) else dask_cudf.Ser
 TensorType = Union[Tensor, NdArray, cudf.Series, DaskCudfSeries]
 
 
-def _torch_as_array(a):
-    if isinstance(a, cudf.Series):
-        a = a.to_cupy()
-    if len(a) == 0:
-        return torch.as_tensor(a.get()).to("cuda")
-    return torch.as_tensor(a, device="cuda")
-
-
 class EdgeLayout(Enum):
     COO = "coo"
     CSC = "csc"
@@ -196,7 +188,6 @@ class EXPERIMENTAL__CuGraphStore:
         F: cugraph.gnn.FeatureStore,
         G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
         num_nodes_dict: Dict[str, int],
-        backend: str = "torch",
         multi_gpu: bool = False,
     ):
         """
@@ -233,10 +224,6 @@ class EXPERIMENTAL__CuGraphStore:
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
 
-        backend : ('torch', 'cupy') (Optional, default = 'torch')
-            The backend that manages tensors (default = 'torch')
-            Should usually be 'torch' ('torch', 'cupy' supported).
-
         multi_gpu : bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
@@ -245,31 +232,7 @@ class EXPERIMENTAL__CuGraphStore:
         if None in G:
             raise ValueError("Unspecified edge types not allowed in PyG")
 
-        # FIXME drop the cupy backend and remove these checks (#2995)
-        if backend == "torch":
-            asarray = _torch_as_array
-            from torch import int64 as vertex_dtype
-            from torch import float32 as property_dtype
-            from torch import searchsorted as searchsorted
-            from torch import concatenate as concatenate
-            from torch import arange as arange
-        elif backend == "cupy":
-            from cupy import asarray
-            from cupy import int64 as vertex_dtype
-            from cupy import float32 as property_dtype
-            from cupy import searchsorted as searchsorted
-            from cupy import concatenate as concatenate
-            from cupy import arange as arange
-        else:
-            raise ValueError(f"Invalid backend {backend}.")
-
-        self.__backend = backend
-        self.asarray = asarray
-        self.vertex_dtype = vertex_dtype
-        self.property_dtype = property_dtype
-        self.searchsorted = searchsorted
-        self.concatenate = concatenate
-        self.arange = arange
+        self.__vertex_dtype = torch.int64
 
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
@@ -304,12 +267,9 @@ class EXPERIMENTAL__CuGraphStore:
     def __make_offsets(self, input_dict):
         offsets = {}
         offsets["stop"] = [input_dict[v] for v in sorted(input_dict.keys())]
-        if self.__backend == "cupy":
-            offsets["stop"] = cupy.array(offsets["stop"])
-        else:
-            offsets["stop"] = torch.tensor(offsets["stop"])
-            if torch.has_cuda:
-                offsets["stop"] = offsets["stop"].cuda()
+        offsets["stop"] = torch.tensor(offsets["stop"])
+        if torch.has_cuda:
+            offsets["stop"] = offsets["stop"].cuda()
 
         cumsum = offsets["stop"].cumsum(0)
         offsets["start"] = cumsum - offsets["stop"]
@@ -466,10 +426,6 @@ class EXPERIMENTAL__CuGraphStore:
     def _edge_types_to_attrs(self) -> dict:
         return dict(self.__edge_types_to_attrs)
 
-    @property
-    def backend(self) -> str:
-        return self.__backend
-
     @cached_property
     def _is_delayed(self):
         if self.__graph is None:
@@ -480,19 +436,20 @@ class EXPERIMENTAL__CuGraphStore:
         if isinstance(vtypes, str):
             vtypes = [vtypes]
 
-        # FIXME always use torch, drop cupy (#2995)
-        if self.__backend == "torch":
-            ix = torch.tensor([], dtype=torch.int64)
-        else:
-            ix = cupy.array([], dtype="int64")
+        ix = torch.tensor([], dtype=torch.int64)
 
         if isinstance(self.__vertex_type_offsets, dict):
             vtypes = np.searchsorted(self.__vertex_type_offsets["type"], vtypes)
         for vtype in vtypes:
             start = int(self.__vertex_type_offsets["start"][vtype])
             stop = int(self.__vertex_type_offsets["stop"][vtype])
-            ix = self.concatenate(
-                [ix, self.arange(start, stop + 1, 1, dtype=self.vertex_dtype)]
+            ix = torch.concatenate(
+                [
+                    ix,
+                    torch.arange(
+                        start, stop + 1, 1, dtype=self.__vertex_dtype, device="cuda"
+                    ),
+                ]
             )
 
         return ix
@@ -594,25 +551,11 @@ class EXPERIMENTAL__CuGraphStore:
         if self._is_delayed:
             df = df.compute()
 
-        src = self.asarray(df[src_col_name]) - src_offset
-        dst = self.asarray(df[dst_col_name]) - dst_offset
+        src = torch.as_tensor(df[src_col_name], device="cuda") - src_offset
+        dst = torch.as_tensor(df[dst_col_name], device="cuda") - dst_offset
 
-        if self.__backend == "torch":
-            src = src.to(self.vertex_dtype)
-            dst = dst.to(self.vertex_dtype)
-        elif self.__backend == "cupy":
-            src = src.astype(self.vertex_dtype)
-            dst = dst.astype(self.vertex_dtype)
-        else:
-            raise TypeError(f"Invalid backend type {self.__backend}")
-
-        if self.__backend == "torch":
-            src = src.to(self.vertex_dtype)
-            dst = dst.to(self.vertex_dtype)
-        else:
-            # self.__backend == 'cupy'
-            src = src.astype(self.vertex_dtype)
-            dst = dst.astype(self.vertex_dtype)
+        src = src.to(self.__vertex_dtype)
+        dst = dst.to(self.__vertex_dtype)
 
         if src.shape[0] != dst.shape[0]:
             raise IndexError("src and dst shape do not match!")
@@ -689,7 +632,9 @@ class EXPERIMENTAL__CuGraphStore:
 
         """
 
-        nodes_of_interest = self.asarray(nodes_of_interest.sort_values())
+        nodes_of_interest = torch.as_tensor(
+            nodes_of_interest.sort_values(), device="cuda"
+        )
 
         noi_index = {}
 
@@ -697,8 +642,8 @@ class EXPERIMENTAL__CuGraphStore:
         if len(vtypes) == 1:
             noi_index[vtypes[0]] = nodes_of_interest
         else:
-            noi_type_indices = self.searchsorted(
-                self.asarray(self.__vertex_type_offsets["stop"]),
+            noi_type_indices = torch.searchsorted(
+                torch.as_tensor(self.__vertex_type_offsets["stop"], device="cuda"),
                 nodes_of_interest,
             )
 
@@ -712,7 +657,7 @@ class EXPERIMENTAL__CuGraphStore:
             for type_name, ix in noi_types.items():
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
-                ix = self.asarray(ix)
+                ix = torch.as_tensor(ix, device="cuda")
                 # subtract off the offsets
                 noi_index[type_name] = nodes_of_interest[ix] - noi_starts[ix]
 
@@ -764,14 +709,14 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            sources = self.asarray(sampling_results.sources)
+            sources = torch.as_tensor(sampling_results.sources, device="cuda")
             src_id_table = noi_index[src_type]
-            src = self.searchsorted(src_id_table, sources)
+            src = torch.searchsorted(src_id_table, sources)
             row_dict[t_pyg_type] = src
 
-            destinations = self.asarray(sampling_results.destinations)
+            destinations = torch.as_tensor(sampling_results.destinations, device="cuda")
             dst_id_table = noi_index[dst_type]
-            dst = self.searchsorted(dst_id_table, destinations)
+            dst = torch.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
         else:
             # This will retrieve the single string representation.
@@ -789,27 +734,31 @@ class EXPERIMENTAL__CuGraphStore:
                 src_type, _, dst_type = pyg_can_edge_type
 
                 # Get the de-offsetted sources
-                sources = self.asarray(sampling_results.sources.iloc[ix])
-                sources_ix = self.searchsorted(
+                sources = torch.as_tensor(
+                    sampling_results.sources.iloc[ix], device="cuda"
+                )
+                sources_ix = torch.searchsorted(
                     self.__vertex_type_offsets["stop"], sources
                 )
                 sources -= self.__vertex_type_offsets["start"][sources_ix]
 
                 # Create the row entry for this type
                 src_id_table = noi_index[src_type]
-                src = self.searchsorted(src_id_table, sources)
+                src = torch.searchsorted(src_id_table, sources)
                 row_dict[pyg_can_edge_type] = src
 
                 # Get the de-offsetted destinations
-                destinations = self.asarray(sampling_results.destinations.iloc[ix])
-                destinations_ix = self.searchsorted(
+                destinations = torch.as_tensor(
+                    sampling_results.destinations.iloc[ix], device="cuda"
+                )
+                destinations_ix = torch.searchsorted(
                     self.__vertex_type_offsets["stop"], destinations
                 )
                 destinations -= self.__vertex_type_offsets["start"][destinations_ix]
 
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
-                dst = self.searchsorted(dst_id_table, destinations)
+                dst = torch.searchsorted(dst_id_table, destinations)
                 col_dict[pyg_can_edge_type] = dst
 
         return row_dict, col_dict
@@ -834,8 +783,7 @@ class EXPERIMENTAL__CuGraphStore:
         vertex_type : str
             The vertex type associated with this new tensor property.
         dtype : numpy/cupy dtype (i.e. 'int32') or torch dtype (i.e. torch.float)
-            The datatype of the tensor.  Should be a dtype appropriate
-            for this store's backend.  Usually float32/float64.
+            The datatype of the tensor.  Usually float32/float64.
         """
         self._tensor_attr_dict[vertex_type].append(
             CuGraphTensorAttr(
@@ -895,39 +843,28 @@ class EXPERIMENTAL__CuGraphStore:
         if cols is None:
             t = self.__features.get_data(idx, attr.group_name, attr.attr_name)
 
-            if self.backend == "torch":
-                if isinstance(t, np.ndarray):
-                    t = torch.as_tensor(t, device="cuda")
-                else:
-                    t = t.cuda()
+            if isinstance(t, np.ndarray):
+                t = torch.as_tensor(t, device="cuda")
             else:
-                t = cupy.array(t)
+                t = t.cuda()
+
             return t
 
         else:
             t = self.__features.get_data(idx, attr.group_name, cols[0])
 
             if len(t.shape) == 1:
-                if self.backend == "torch":
-                    t = torch.tensor([t])
-                else:
-                    t = cupy.array([t])
+                t = torch.tensor([t])
 
             for col in cols[1:]:
                 u = self.__features.get_data(idx, attr.group_name, col)
 
                 if len(u.shape) == 1:
-                    if self.backend == "torch":
-                        u = torch.tensor([u])
-                    else:
-                        u = cupy.array([u])
+                    u = torch.tensor([u])
 
                 t = torch.concatenate([t, u])
 
-            if self.backend == "torch":
-                t = t.cuda()
-            else:
-                t = cupy.array(t)
+            t = t.cuda()
             return t
 
     def _multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:
@@ -1016,10 +953,7 @@ class EXPERIMENTAL__CuGraphStore:
         return tensor
 
     def _get_tensor_size(self, attr: CuGraphTensorAttr) -> Union[List, int]:
-        if self.__backend == "cupy":
-            return self._get_tensor(attr).size
-        else:
-            return self._get_tensor(attr).size()
+        return self._get_tensor(attr).size()
 
     def get_tensor_size(self, *args, **kwargs) -> Union[List, int]:
         r"""
