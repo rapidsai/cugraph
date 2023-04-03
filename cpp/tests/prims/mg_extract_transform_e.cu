@@ -251,12 +251,16 @@ class Tests_MGExtractTransformE
         std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
                                                               (*d_mg_renumber_map_labels).size()),
         false);
-      auto sg_vertex_prop = cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
-        *handle_,
-        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
-                                                              (*d_mg_renumber_map_labels).size()),
-        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-        raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
+      rmm::device_uvector<result_t> sg_vertex_prop(0, handle_->get_stream());
+      std::tie(std::ignore, sg_vertex_prop) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map_labels).data(),
+                                                                (*d_mg_renumber_map_labels).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<result_t const>(mg_vertex_prop.data(), mg_vertex_prop.size()));
 
       if (handle_->get_comms().get_rank() == int{0}) {
         thrust::sort(
@@ -402,12 +406,11 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGExtractTransformE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGExtractTransformE_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -416,8 +419,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGExtractTransformE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

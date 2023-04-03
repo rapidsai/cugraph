@@ -158,6 +158,7 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
+        self.__batches.reset_index(drop=True)
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
@@ -173,20 +174,27 @@ class EXPERIMENTAL__BulkSampler:
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
 
-        sample_fn = (
-            cugraph.uniform_neighbor_sample
-            if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
-            else cugraph.dask.uniform_neighbor_sample
-        )
+        single_gpu = isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
+        start_list = self.__batches[self.start_col_name][batch_id_filter]
+        batch_id_list = self.__batches[self.batch_col_name][batch_id_filter]
 
-        samples = sample_fn(
-            self.__graph,
-            **self.__sample_call_args,
-            start_list=self.__batches[self.start_col_name][batch_id_filter],
-            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
-            with_edge_properties=True,
-        )
-
+        if single_gpu:
+            samples = cugraph.uniform_neighbor_sample(
+                self.__graph,
+                **self.__sample_call_args,
+                start_list=start_list,
+                batch_id_list=batch_id_list,
+                with_edge_properties=True,
+            )
+        else:
+            samples = cugraph.dask.uniform_neighbor_sample(
+                self.__graph,
+                **self.__sample_call_args,
+                start_list=start_list,
+                batch_id_list=batch_id_list,
+                with_edge_properties=True,
+                _multiple_clients=True,
+            )
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)
 

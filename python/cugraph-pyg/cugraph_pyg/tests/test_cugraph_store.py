@@ -389,4 +389,20 @@ def test_serialize(multi_edge_multi_vertex_no_graph_1):
 
     F, G, N = multi_edge_multi_vertex_no_graph_1
     cugraph_store = CuGraphStore(F, G, N)
-    pickle.dumps(cugraph_store)
+
+    cugraph_store_copy = pickle.loads(pickle.dumps(cugraph_store))
+
+    for tensor_attr in cugraph_store.get_all_tensor_attrs():
+        sz = cugraph_store.get_tensor_size(tensor_attr)[0]
+        tensor_attr.index = np.arange(sz)
+        assert cugraph_store.get_tensor(tensor_attr) == cugraph_store_copy.get_tensor(
+            tensor_attr
+        )
+
+    # Currently does not store edgelist properly for SG
+    """
+    for edge_attr in cugraph_store.get_all_edge_attrs():
+        assert cugraph_store.get_edge_index(edge_attr) \
+            == cugraph_store_copy.get_edge_index(edge_attr)
+    """
+
