@@ -28,3 +28,4 @@ sed -i "s/cudf/cudf${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
 sed -i "s/raft-dask/raft-dask${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
 sed -i "s/pylibcugraph/pylibcugraph${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
 sed -i "s/pylibraft/pylibraft${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
+sed -i "s/ucx-py/ucx-py${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
