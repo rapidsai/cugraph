@@ -466,10 +466,9 @@ class NumberMap:
     ):
         """
         Given an input dataframe with its column names, this function returns the
-        renumbered dataframe(if renumbering occured) along with a mapping from internal to
-        external vertex IDs. the parameter 'preserve_order' ensures that the order of
-        the edges is preserved during renumbering.
-        
+        renumbered dataframe(if renumbering occured) along with a mapping from internal
+        to external vertex IDs. the parameter 'preserve_order' ensures that the order
+        of the edges is preserved during renumbering.
         """
         if legacy_renum_only:
             warning_msg = (

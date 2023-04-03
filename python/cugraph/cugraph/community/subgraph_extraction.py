@@ -18,6 +18,7 @@ from cugraph.structure import Graph
 from typing import Union
 import networkx as nx
 
+
 def subgraph(
     G,
     vertices: Union[cudf.Series, cudf.DataFrame],
@@ -56,8 +57,10 @@ def subgraph(
 
     """
 
-    warning_msg = ("This call is deprecated and will be refactored "
-                   "in the next release. Please call 'cugraph.induced_subgraph()' instead")
+    warning_msg = (
+        "This call is deprecated and will be refactored "
+        "in the next release. Please call 'cugraph.induced_subgraph()' instead"
+    )
     warnings.warn(warning_msg, PendingDeprecationWarning)
 
     result_graph, _ = cugraph.induced_subgraph(G, vertices)
