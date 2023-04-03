@@ -195,6 +195,7 @@ class EXPERIMENTAL__BulkSampler:
                 with_edge_properties=True,
                 _multiple_clients=True,
             )
+
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)
 
