@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,28 +11,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
-import numpy as np
-import cudf
-from cugraph.centrality import betweenness_centrality_wrapper
+from pylibcugraph import (
+    betweenness_centrality as pylibcugraph_betweenness_centrality,
+    ResourceHandle,
+)
 from cugraph.centrality import edge_betweenness_centrality_wrapper
+
 from cugraph.utilities import (
     df_edge_score_to_dictionary,
-    df_score_to_dictionary,
     ensure_cugraph_obj_for_nx,
+    df_score_to_dictionary,
 )
+import cudf
+import warnings
+import numpy as np
+import random
+from typing import Union
 
 
-# NOTE: result_type=float could be an intuitive way to indicate the result type
 def betweenness_centrality(
     G,
-    k=None,
-    normalized=True,
-    weight=None,
-    endpoints=False,
-    seed=None,
-    result_dtype=np.float64,
-):
+    k: Union[int, list, cudf.Series, cudf.DataFrame] = None,
+    normalized: bool = True,
+    weight: cudf.DataFrame = None,
+    endpoints: bool = False,
+    seed: int = None,
+    random_state: int = None,
+    result_dtype: Union[np.float32, np.float64] = np.float64,
+) -> Union[cudf.DataFrame, dict]:
     """
     Compute the betweenness centrality for all vertices of the graph G.
     Betweenness centrality is a measure of the number of shortest paths that
@@ -50,18 +56,18 @@ def betweenness_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses
-        BFS traversals. Use weight parameter if weights need to be considered
-        (currently not supported)
+        Weights in the graph are ignored, the current implementation uses a parallel
+        variation of the Brandes Algorithm (2001) to compute exact or approximate
+        betweenness. If weights are provided in the edgelist, they will not be
+        used.
 
-    k : int or list or None, optional (default=None)
+    k : int, list or cudf object or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation.  If k is a list, use the content
-        of the list for estimation: the list should contain vertex
-        identifiers. If k is None (the default), all the vertices are used
-        to estimate betweenness.  Vertices obtained through sampling or
-        defined as a list will be used assources for traversals inside the
-        algorithm.
+        values give better approximation.  If k is either a list or a cudf, use its
+        content for estimation: it contain vertex identifiers. If k is None
+        (the default), all the vertices are used to estimate betweenness.  Vertices
+        obtained through sampling or defined as a list will be used as sources for
+        traversals inside the algorithm.
 
     normalized : bool, optional (default=True)
         If true, the betweenness values are normalized by
@@ -76,21 +82,30 @@ def betweenness_centrality(
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
-        (Not Supported)
+
+        (Not Supported): if weights are provided at the Graph creation,
+        they will not be used.
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
-        (Not Supported)
 
-    seed : optional (default=None)
-        if k is specified and k is an integer, use seed to initialize the
-        random number generator.
-        Using None as seed relies on random.seed() behavior: using current
-        system time
-        If k is either None or list: seed parameter is ignored
+    seed : int, optional (default=None)
+        if k is specified and k is an integer, use seed to initialize
+        the random number generator.
+        Using None defaults to a hash of process id, time, and hostname
+        If k is either None or list: seed parameter is ignored.
+
+        This parameter is here for backwards-compatibility and identical
+        to 'random_state'.
+
+    random_state : int, optional (default=None)
+        if k is specified and k is an integer, use random_state to initialize
+        the random number generator.
+        Using None defaults to a hash of process id, time, and hostname
+        If k is either None or list: random_state parameter is ignored.
 
     result_dtype : np.float32 or np.float64, optional, default=np.float64
-        Indicate the data type of the betweenness centrality scores
+        Indicate the data type of the betweenness centrality scores.
 
     Returns
     -------
@@ -112,31 +127,71 @@ def betweenness_centrality(
     >>> bc = cugraph.betweenness_centrality(G)
 
     """
-    # vertices is intended to be a cuDF series that contains a sampling of
-    # k vertices out of the graph.
-    #
-    # NOTE: cuDF doesn't currently support sampling, but there is a python
-    # workaround.
 
+    if seed is not None:
+        warning_msg = (
+            "This parameter is deprecated and will be remove "
+            "in the next release. Use 'random_state' instead."
+        )
+        warnings.warn(warning_msg, UserWarning)
+
+    G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    # FIXME: Should we raise an error if the graph created is weighted?
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
             "centrality not currently supported"
         )
 
+    if G.store_transposed is True:
+        warning_msg = (
+            "Betweenness centrality expects the 'store_transposed' flag "
+            "to be set to 'False' for optimal performance during "
+            "the graph creation"
+        )
+        warnings.warn(warning_msg, UserWarning)
+
+    # FIXME: Should we now remove this paramter?
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
+    else:
+        warning_msg = (
+            "This parameter is deprecated and will be remove " "in the next release."
+        )
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    if not isinstance(k, (cudf.DataFrame, cudf.Series)):
+        if isinstance(k, list):
+            vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+            k = cudf.Series(k, dtype=vertex_dtype)
 
-    vertices = _initialize_vertices(G, k, seed)
+    if isinstance(k, (cudf.DataFrame, cudf.Series)):
+        if G.renumbered:
+            k = G.lookup_internal_vertex_id(k)
 
-    df = betweenness_centrality_wrapper.betweenness_centrality(
-        G, normalized, endpoints, weight, vertices, result_dtype
+    vertices, values = pylibcugraph_betweenness_centrality(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        k=k,
+        random_state=random_state,
+        normalized=normalized,
+        include_endpoints=endpoints,
+        do_expensive_check=False,
     )
+
+    vertices = cudf.Series(vertices)
+    values = cudf.Series(values)
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertices
+    df["betweenness_centrality"] = values
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+
+    if df["betweenness_centrality"].dtype != result_dtype:
+        df["betweenness_centrality"] = df["betweenness_centrality"].astype(result_dtype)
 
     if isNx is True:
         dict = df_score_to_dictionary(df, "betweenness_centrality")
@@ -146,8 +201,13 @@ def betweenness_centrality(
 
 
 def edge_betweenness_centrality(
-    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
-):
+    G,
+    k: Union[int, list, cudf.Series, cudf.DataFrame] = None,
+    normalized: bool = True,
+    weight: cudf.DataFrame = None,
+    seed: int = None,
+    result_dtype: Union[np.float32, np.float64] = np.float64,
+) -> Union[cudf.DataFrame, dict]:
     """
     Compute the edge betweenness centrality for all edges of the graph G.
     Betweenness centrality is a measure of the number of shortest paths
@@ -279,7 +339,7 @@ def edge_betweenness_centrality(
 #  int: Generate an random sample with k elements
 # list: k become the length of the list and vertices become the content
 # None: All the vertices are considered
-def _initialize_vertices(G, k, seed):
+def _initialize_vertices(G, k: Union[int, list], seed: int) -> np.ndarray:
     vertices = None
     numpy_vertices = None
     if k is not None:
@@ -301,13 +361,13 @@ def _initialize_vertices(G, k, seed):
 # - vertices '0' '1' '3' '4' exist
 # - There is a vertex at index 2 (there is not guarantee that it is
 #   vertice '3' )
-def _initialize_vertices_from_indices_sampling(G, k, seed):
+def _initialize_vertices_from_indices_sampling(G, k: int, seed: int) -> list:
     random.seed(seed)
     vertices = random.sample(range(G.number_of_vertices()), k)
     return vertices
 
 
-def _initialize_vertices_from_identifiers_list(G, identifiers):
+def _initialize_vertices_from_identifiers_list(G, identifiers: list) -> np.ndarray:
     vertices = identifiers
     if G.renumbered:
         vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()

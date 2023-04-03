@@ -13,7 +13,7 @@
 
 from typing import Optional, Tuple, Any, Union, List, Dict
 
-from enum import Enum
+from enum import Enum, auto
 
 from dataclasses import dataclass
 from collections import defaultdict
@@ -28,19 +28,22 @@ import cugraph
 
 from cugraph.utilities.utils import import_optional, MissingModule
 
-import dask.dataframe as dd
-from dask.distributed import get_client
-
+dd = import_optional("dask.dataframe")
+distributed = import_optional("dask.distributed")
+dask_cudf = import_optional("dask_cudf")
 
 torch = import_optional("torch")
 
 Tensor = None if isinstance(torch, MissingModule) else torch.Tensor
 NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
+DaskCudfSeries = None if isinstance(dask_cudf, MissingModule) else dask_cudf.Series
 
-TensorType = Union[Tensor, NdArray]
+TensorType = Union[Tensor, NdArray, cudf.Series, DaskCudfSeries]
 
 
 def _torch_as_array(a):
+    if isinstance(a, cudf.Series):
+        a = a.to_cupy()
     if len(a) == 0:
         return torch.as_tensor(a.get()).to("cuda")
     return torch.as_tensor(a, device="cuda")
@@ -98,7 +101,8 @@ class CuGraphEdgeAttr:
         return cls(*args, **kwargs)
 
 
-_field_status = Enum("FieldStatus", "UNSET")
+class _field_status(Enum):
+    UNSET = auto()
 
 
 @dataclass
@@ -188,7 +192,12 @@ class EXPERIMENTAL__CuGraphStore:
     # TODO add an "expensive check" argument that ensures the graph store
     # and feature store are valid and compatible with PyG.
     def __init__(
-        self, F, G, num_nodes_dict, backend: str = "torch", multi_gpu: bool = False
+        self,
+        F: cugraph.gnn.FeatureStore,
+        G: Union[Dict[str, Tuple[TensorType]], Dict[str, int]],
+        num_nodes_dict: Dict[str, int],
+        backend: str = "torch",
+        multi_gpu: bool = False,
     ):
         """
         Constructs a new CuGraphStore from the provided
@@ -199,20 +208,35 @@ class EXPERIMENTAL__CuGraphStore:
             The feature store containing this graph's features.
             Typed lexicographic-ordered numbering convention
             should match that of the graph.
-        G : dict[tuple[tensor]] (Required)
+
+        G : dict[str, tuple[TensorType]] or dict[str, int] (Required)
             Dictionary of edge indices.
-            i.e. {
-                ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
-                ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
-            }
+            Option 1 (graph in memory):
+                Pass the edge indices
+                i.e. {
+                    ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                    ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+                }
+            Option 2 (graph not in memory):
+                Pass the number of edges
+                i.e. {
+                    ('author', 'writes', 'paper'): 2,
+                    ('author', 'affiliated', 'institution'): 2
+                }
+                If the graph is not in memory, manipulating the edge indices
+                or calling sampling is not possible.  This is for cases where
+                sampling has already been done and samples were written to disk.
             Note: the internal cugraph representation will use
             offsetted vertex and edge ids.
+
         num_nodes_dict : dict (Required)
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
+
         backend : ('torch', 'cupy') (Optional, default = 'torch')
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
+
         multi_gpu : bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
@@ -250,10 +274,19 @@ class EXPERIMENTAL__CuGraphStore:
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
 
-        # Infer number of edges from the edge index dict
-        num_edges_dict = {
-            pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G.items()
-        }
+        construct_graph = True
+        if isinstance(next(iter(G.values())), int):
+            # User has passed in the number of edges
+            # (not the actual edge index), so the number of edges
+            # does not need to be counted.
+            num_edges_dict = dict(G)  # make sure the cugraph store owns this dict
+            construct_graph = False
+        else:
+            # User has passed in the actual edge index, so the
+            # number of edges needs to be counted.
+            num_edges_dict = {
+                pyg_can_edge_type: len(ei[0]) for pyg_can_edge_type, ei in G.items()
+            }
 
         self.__infer_offsets(num_nodes_dict, num_edges_dict)
         self.__infer_existing_tensors(F)
@@ -262,7 +295,10 @@ class EXPERIMENTAL__CuGraphStore:
         self._edge_attr_cls = CuGraphEdgeAttr
 
         self.__features = F
-        self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+        if construct_graph:
+            self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+        else:
+            self.__graph = None
         self.__subgraphs = {}
 
     def __make_offsets(self, input_dict):
@@ -304,7 +340,9 @@ class EXPERIMENTAL__CuGraphStore:
         )
 
     def __construct_graph(
-        self, edge_info: Dict[Tuple[str, str, str], List], multi_gpu: bool = False
+        self,
+        edge_info: Dict[Tuple[str, str, str], List[TensorType]],
+        multi_gpu: bool = False,
     ) -> cugraph.MultiGraph:
         """
         This function takes edge information and uses it to construct
@@ -314,7 +352,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         Parameters
         ----------
-        edge_info: Dict[Tuple[str, str, str]] (Required)
+        edge_info: Dict[Tuple[str, str, str], List[TensorType]] (Required)
             Input edge info dictionary, where keys are the canonical
             edge type and values are the edge index (src/dst).
 
@@ -332,15 +370,30 @@ class EXPERIMENTAL__CuGraphStore:
         # numerical types correspond to the lexicographic order
         # of the keys, which is critical to converting the numeric
         # keys back to canonical edge types later.
+        # FIXME don't always convert to host arrays (#3383)
         for pyg_can_edge_type in sorted(edge_info.keys()):
             src_type, _, dst_type = pyg_can_edge_type
             srcs, dsts = edge_info[pyg_can_edge_type]
 
             src_offset = np.searchsorted(self.__vertex_type_offsets["type"], src_type)
             srcs_t = srcs + int(self.__vertex_type_offsets["start"][src_offset])
+            if isinstance(srcs_t, torch.Tensor):
+                srcs_t = srcs_t.cpu()
+            else:
+                if isinstance(srcs_t, dask_cudf.Series):
+                    srcs_t = srcs_t.compute()
+                if isinstance(srcs_t, cudf.Series):
+                    srcs_t = srcs_t.values_host
 
             dst_offset = np.searchsorted(self.__vertex_type_offsets["type"], dst_type)
             dsts_t = dsts + int(self.__vertex_type_offsets["start"][dst_offset])
+            if isinstance(dsts_t, torch.Tensor):
+                dsts_t = dsts_t.cpu()
+            else:
+                if isinstance(dsts_t, dask_cudf.Series):
+                    dsts_t = dsts_t.compute()
+                if isinstance(dsts_t, cudf.Series):
+                    dsts_t = dsts_t.values_host
 
             edge_info_cg[pyg_can_edge_type] = (srcs_t, dsts_t)
 
@@ -381,7 +434,7 @@ class EXPERIMENTAL__CuGraphStore:
         )
 
         if multi_gpu:
-            nworkers = len(get_client().scheduler_info()["workers"])
+            nworkers = len(distributed.get_client().scheduler_info()["workers"])
             df = dd.from_pandas(df, npartitions=nworkers).persist()
             df = df.map_partitions(cudf.DataFrame.from_pandas)
         else:
@@ -419,6 +472,8 @@ class EXPERIMENTAL__CuGraphStore:
 
     @cached_property
     def _is_delayed(self):
+        if self.__graph is None:
+            return False
         return self.__graph.is_multi_gpu()
 
     def get_vertex_index(self, vtypes) -> TensorType:
@@ -481,6 +536,9 @@ class EXPERIMENTAL__CuGraphStore:
             Tuple of the requested edge index in COO form.
             Currently, only COO form is supported.
         """
+
+        if self.__graph is None:
+            raise ValueError("Graph is not in memory, cannot access edge index!")
 
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
@@ -605,6 +663,9 @@ class EXPERIMENTAL__CuGraphStore:
         if it has not already been extracted.
 
         """
+        if self.__graph is None:
+            raise ValueError("Graph is not in memory, cannot get subgraph")
+
         if edge_types is not None and set(edge_types) != set(
             self.__edge_types_to_attrs.keys()
         ):
@@ -641,7 +702,9 @@ class EXPERIMENTAL__CuGraphStore:
                 nodes_of_interest,
             )
 
-            noi_types = vtypes.iloc[noi_type_indices].reset_index(drop=True)
+            noi_types = vtypes.iloc[cupy.asarray(noi_type_indices)].reset_index(
+                drop=True
+            )
             noi_starts = self.__vertex_type_offsets["start"][noi_type_indices]
 
             noi_types = cudf.Series(noi_types, name="t").groupby("t").groups
@@ -833,7 +896,10 @@ class EXPERIMENTAL__CuGraphStore:
             t = self.__features.get_data(idx, attr.group_name, attr.attr_name)
 
             if self.backend == "torch":
-                t = t.cuda()
+                if isinstance(t, np.ndarray):
+                    t = torch.as_tensor(t, device="cuda")
+                else:
+                    t = t.cuda()
             else:
                 t = cupy.array(t)
             return t
@@ -950,7 +1016,10 @@ class EXPERIMENTAL__CuGraphStore:
         return tensor
 
     def _get_tensor_size(self, attr: CuGraphTensorAttr) -> Union[List, int]:
-        return self._get_tensor(attr).size
+        if self.__backend == "cupy":
+            return self._get_tensor(attr).size
+        else:
+            return self._get_tensor(attr).size()
 
     def get_tensor_size(self, *args, **kwargs) -> Union[List, int]:
         r"""

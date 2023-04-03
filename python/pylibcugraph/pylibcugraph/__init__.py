@@ -57,7 +57,8 @@ from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks
 
+from pylibcugraph.betweenness_centrality import betweenness_centrality
+
 from pylibcugraph.random import CuGraphRandomState
 
-
-__version__ = "23.04.00"
+from pylibcugraph.select_random_vertices import select_random_vertices
