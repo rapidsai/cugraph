@@ -182,7 +182,7 @@ weight_t compute_modularity(
     weight_t{0});
 
   weight_t Q = sum_internal / total_edge_weight -
-               (sum_degree_squared) / (total_edge_weight * total_edge_weight);
+               (resolution * sum_degree_squared) / (total_edge_weight * total_edge_weight);
 
   return Q;
 }

@@ -31,7 +31,7 @@
 
 struct Leiden_Usecase {
   size_t max_level_{100};
-  double resolution_{0.05};
+  double resolution_{1.0};
   bool check_correctness_{false};
   int expected_level_{0};
   float expected_modularity_{0};
