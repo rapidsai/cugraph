@@ -177,8 +177,7 @@ class simpleGraphImpl:
                         "legacy_renum_only=True."
                     )
 
-        # Original, unmodified input dataframe.
-        self.input_df = input_df[df_columns]
+        input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
         # device before gathering all the edge lists
 
@@ -200,6 +199,8 @@ class simpleGraphImpl:
                 "input should be a cudf.DataFrame or " "a dask_cudf dataFrame"
             )
 
+        # Original, unmodified input dataframe.
+        self.input_df = elist
         # Renumbering
         self.renumber_map = None
         self.store_transposed = store_transposed
