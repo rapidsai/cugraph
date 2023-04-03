@@ -177,7 +177,8 @@ class simpleGraphImpl:
                         "legacy_renum_only=True."
                     )
 
-        input_df = input_df[df_columns]
+        # Original, unmodified input dataframe.
+        self.input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
         # device before gathering all the edge lists
 
@@ -378,15 +379,7 @@ class simpleGraphImpl:
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
-        edgelist_df = self.edgelist.edgelist_df
-
-        if self.properties.renumbered:
-            edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.srcCol
-            )
-            edgelist_df = self.renumber_map.unrenumber(
-                edgelist_df, simpleGraphImpl.dstCol
-            )
+        edgelist_df = self.input_df
 
         # FIXME: revisit this approach
         if not self.properties.directed:
