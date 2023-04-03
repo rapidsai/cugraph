@@ -64,3 +64,5 @@ from pylibcugraph.induced_subgraph import induced_subgraph
 from pylibcugraph.random import CuGraphRandomState
 
 from pylibcugraph.select_random_vertices import select_random_vertices
+
+__version__ = "23.04.00"
