@@ -398,9 +398,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     terminate =
       terminate || (nr_unique_louvain_clusters == current_graph_view.number_of_vertices());
 
+    rmm::device_uvector<vertex_t> refined_leiden_partition(0, handle.get_stream());
+    std::pair<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> leiden_to_louvain_map{
+      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+      rmm::device_uvector<vertex_t>(0, handle.get_stream())};
+
     if (!terminate) {
       // Refine the current partition
-
       thrust::copy(handle.get_thrust_policy(),
                    dendrogram->current_level_begin(),
                    dendrogram->current_level_begin() + dendrogram->current_level_size(),
@@ -417,7 +421,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                  dst_louvain_assignment_cache);
       }
 
-      auto [refined_leiden_partition, leiden_to_louvain_map] =
+      std::tie(refined_leiden_partition, leiden_to_louvain_map) =
         detail::refine_clustering(handle,
                                   current_graph_view,
                                   current_edge_weight_view,
@@ -431,33 +435,31 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                   src_louvain_assignment_cache,
                                   dst_louvain_assignment_cache,
                                   up_down);
+    }
+    // Clear buffer and contract the graph
 
-      // Clear buffer and contract the graph
+    cluster_keys.resize(0, handle.get_stream());
+    cluster_weights.resize(0, handle.get_stream());
+    vertex_weights.resize(0, handle.get_stream());
+    louvain_assignment_for_vertices.resize(0, handle.get_stream());
+    cluster_keys.shrink_to_fit(handle.get_stream());
+    cluster_weights.shrink_to_fit(handle.get_stream());
+    vertex_weights.shrink_to_fit(handle.get_stream());
+    louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
+    src_vertex_weights_cache.clear(handle);
+    src_louvain_assignment_cache.clear(handle);
+    dst_louvain_assignment_cache.clear(handle);
 
-      cluster_keys.resize(0, handle.get_stream());
-      cluster_weights.resize(0, handle.get_stream());
-      vertex_weights.resize(0, handle.get_stream());
-      louvain_assignment_for_vertices.resize(0, handle.get_stream());
-      cluster_keys.shrink_to_fit(handle.get_stream());
-      cluster_weights.shrink_to_fit(handle.get_stream());
-      vertex_weights.shrink_to_fit(handle.get_stream());
-      louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
-      src_vertex_weights_cache.clear(handle);
-      src_louvain_assignment_cache.clear(handle);
-      dst_louvain_assignment_cache.clear(handle);
-
-      // Create aggregate graph based on refined (leiden) partition
-
+    if (!terminate) {
       auto nr_unique_leiden = static_cast<vertex_t>(leiden_to_louvain_map.first.size());
       if (graph_view_t::is_multi_gpu) {
         nr_unique_leiden = host_scalar_allreduce(
           handle.get_comms(), nr_unique_leiden, raft::comms::op_t::SUM, handle.get_stream());
       }
-
       terminate = terminate || (nr_unique_leiden == current_graph_view.number_of_vertices());
 
       if (nr_unique_leiden < current_graph_view.number_of_vertices()) {
-        cudaDeviceSynchronize();
+        // Create aggregate graph based on refined (leiden) partition
         std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
         std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) =
           coarsen_graph(handle,
