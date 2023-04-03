@@ -649,6 +649,7 @@ class EXPERIMENTAL__CuGraphStore:
         Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
 
         """
+
         if not is_sorted:
             nodes_of_interest, _ = torch.sorted(nodes_of_interest)
 
