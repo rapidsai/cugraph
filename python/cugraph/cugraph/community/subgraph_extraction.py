@@ -11,35 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-from cugraph.structure import Graph
-from pylibcugraph import ResourceHandle
-from pylibcugraph import induced_subgraph as pylibcugraph_induced_subgraph
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    cugraph_to_nx,
-)
+import cugraph
 import warnings
-
-
-# FIXME: Move this function to the utility module so that it can be
-# shared by other algos
-def ensure_valid_dtype(input_graph, input, input_name):
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
-    input_dtype = input.dtype
-    if input_dtype != vertex_dtype:
-        warning_msg = (
-            f"Subgraph requires '{input_name}' "
-            "to match the graph's 'vertex' type. "
-            f"input graph's vertex type is: {vertex_dtype} and got "
-            f"'{input_name}' of type: "
-            f"{input_dtype}."
-        )
-        warnings.warn(warning_msg, UserWarning)
-        input = input.astype(vertex_dtype)
-
-    return input
-
 
 def subgraph(G, vertices):
     """
@@ -51,8 +24,7 @@ def subgraph(G, vertices):
 
     Parameters
     ----------
-    G : cugraph.Graph
-        cuGraph graph descriptor
+    G : cugraph.Graph or networkx.Graph
         The current implementation only supports weighted graphs.
 
     vertices : cudf.Series or cudf.DataFrame
@@ -61,7 +33,7 @@ def subgraph(G, vertices):
 
     Returns
     -------
-    Sg : cugraph.Graph
+    Sg : cugraph.Graph or networkx.Graph
         A graph object containing the subgraph induced by the given vertex set.
 
     Examples
@@ -77,61 +49,10 @@ def subgraph(G, vertices):
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
-    directed = G.is_directed()
+    warning_msg = ("This call is deprecated and will be refactored "
+                   "in the next release. Please call 'cugraph.induced_subgraph()' instead")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    # FIXME: Hardcoded for now
-    offsets = None
+    result_graph, _ = cugraph.induced_subgraph(G, vertices)
 
-    if G.renumbered:
-        if isinstance(vertices, cudf.DataFrame):
-            vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
-        else:
-            vertices = G.lookup_internal_vertex_id(vertices)
-
-    vertices = ensure_valid_dtype(G, vertices, "subgraph_vertices")
-
-    if not isinstance(offsets, cudf.Series):
-        if isinstance(offsets, list):
-            offsets = cudf.Series(offsets)
-        elif offsets is None:
-            # FIXME: Does the offsets always start from zero?
-            offsets = cudf.Series([0, len(vertices)])
-
-    result_graph = Graph(directed=directed)
-
-    do_expensive_check = False
-    source, destination, weight, offsets = pylibcugraph_induced_subgraph(
-        resource_handle=ResourceHandle(),
-        graph=G._plc_graph,
-        subgraph_vertices=vertices,
-        subgraph_offsets=offsets,
-        do_expensive_check=do_expensive_check,
-    )
-    df = cudf.DataFrame()
-    df["src"] = source
-    df["dst"] = destination
-    df["weight"] = weight
-
-    if G.renumbered:
-        df, src_names = G.unrenumber(df, "src", get_column_names=True)
-        df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
-    else:
-        # FIXME: THe original 'src' and 'dst' are not stored in 'simpleGraph'
-        src_names = "src"
-        dst_names = "dst"
-
-    if G.edgelist.weights:
-        result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names, edge_attr="weight"
-        )
-    else:
-        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
-
-    if isNx is True:
-        result_graph = cugraph_to_nx(result_graph)
-
-    # FIXME: An extra output 'offsets' is not used when returning a graph.
-    # Should we also return a dataframe with ["src", "dst", "weight"] along with an
-    # offsets array?
     return result_graph
