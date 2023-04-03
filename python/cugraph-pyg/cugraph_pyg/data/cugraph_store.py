@@ -649,8 +649,14 @@ class EXPERIMENTAL__CuGraphStore:
         Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
 
         """
+<<<<<<< HEAD
         if not is_sorted:
             nodes_of_interest, _ = torch.sort(nodes_of_interest)
+=======
+
+        if not is_sorted:
+            nodes_of_interest, _ = torch.sorted(nodes_of_interest)
+>>>>>>> 5ae93ad210ec45a9b170b67bd882a40c9d94a309
 
         noi_index = {}
 
