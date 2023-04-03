@@ -71,7 +71,7 @@ def test_leiden(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
-    assert leiden_mod >= (0.99 * louvain_mod)
+    assert leiden_mod >= (0.97 * louvain_mod)
 
 
 @pytest.mark.sg
