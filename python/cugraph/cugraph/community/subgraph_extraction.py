@@ -28,6 +28,9 @@ def subgraph(G, vertices):
     edges that are incident on vertices that are both contained in the vertices
     list.
 
+    If no subgraph can be extracted from the vertices provided, a 'None' value
+    will be returned.
+
     Parameters
     ----------
     G : cugraph.Graph
@@ -70,6 +73,9 @@ def subgraph(G, vertices):
     df = subgraph_extraction_wrapper.subgraph(G, vertices)
     src_names = "src"
     dst_names = "dst"
+
+    if len(df) == 0:
+        return None
 
     if G.renumbered:
         df, src_names = G.unrenumber(df, src_names, get_column_names=True)
