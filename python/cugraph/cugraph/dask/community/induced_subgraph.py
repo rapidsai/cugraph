@@ -18,37 +18,42 @@ from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import cupy as cp
 from cugraph.dask.common.input_utils import get_distributed_data
+from typing import Union, Tuple
 
-from pylibcugraph import ResourceHandle, ego_graph as pylibcugraph_ego_graph
+from pylibcugraph import (
+    ResourceHandle,
+    induced_subgraph as pylibcugraph_induced_subgraph,
+)
 
 
-def _call_ego_graph(
-    sID,
+def _call_induced_subgraph(
+    sID: bytes,
     mg_graph_x,
-    n,
-    radius,
-    do_expensive_check,
-):
-    return pylibcugraph_ego_graph(
+    vertices: cudf.Series,
+    offsets: cudf.Series,
+    do_expensive_check: bool,
+) -> Tuple[cp.ndarray, cp.ndarray, cp.ndarray, cp.ndarray]:
+    return pylibcugraph_induced_subgraph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
-        source_vertices=n,
-        radius=radius,
+        subgraph_vertices=vertices,
+        subgraph_offsets=offsets,
         do_expensive_check=do_expensive_check,
     )
 
 
-def consolidate_results(df, offsets):
+def consolidate_results(df: cudf.DataFrame, offsets: cudf.Series) -> cudf.DataFrame:
     """
-    Each rank returns its ego_graph dataframe with its corresponding
+    Each rank returns its induced_subgraph dataframe with its corresponding
     offsets array. This is ideal if the user operates on distributed memory
     but when attempting to bring the result into a single machine,
-    the ego_graph dataframes generated from each seed cannot be extracted
+    the induced_subgraph dataframes generated from each seed cannot be extracted
     using the offsets array. This function consolidate the final result by
     performing segmented copies.
 
-    Returns: consolidated ego_graph dataframe
+    Returns: consolidated induced_subgraph dataframe
     """
     for i in range(len(offsets) - 1):
         df_tmp = df[offsets[i] : offsets[i + 1]]
@@ -60,7 +65,7 @@ def consolidate_results(df, offsets):
     return df_consolidate
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.DataFrame:
     cp_src, cp_dst, cp_weight, cp_offsets = cp_arrays
 
     df = cudf.DataFrame()
@@ -73,10 +78,20 @@ def convert_to_cudf(cp_arrays):
     return consolidate_results(df, offsets)
 
 
-def ego_graph(input_graph, n, radius=1, center=True):
+def induced_subgraph(
+    input_graph,
+    vertices: Union[cudf.Series, cudf.DataFrame],
+    offsets: Union[list, cudf.Series] = None,
+) -> Tuple[dask_cudf.DataFrame, dask_cudf.Series]:
     """
-    Compute the induced subgraph of neighbors centered at node n,
-    within a given radius.
+    Compute a subgraph of the existing graph including only the specified
+    vertices.  This algorithm works with both directed and undirected graphs
+    and does not actually traverse the edges, but instead simply pulls out any
+    edges that are incident on vertices that are both contained in the vertices
+    list.
+
+    If no subgraph can be extracted from the vertices provided, a 'None' value
+    will be returned.
 
     Parameters
     ----------
@@ -85,16 +100,14 @@ def ego_graph(input_graph, n, radius=1, center=True):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    n : int, list or cudf Series or Dataframe, dask_cudf Series or DataFrame
-        A node or a list or cudf.Series of nodes or a cudf.DataFrame if nodes
-        are represented with multiple columns. If a cudf.DataFrame is provided,
-        only the first row is taken as the node input.
+    vertices : cudf.Series or cudf.DataFrame
+        Specifies the vertices of the induced subgraph. For multi-column
+        vertices, vertices should be provided as a cudf.DataFrame
 
-    radius: integer, optional (default=1)
-        Include all neighbors of distance<=radius from n.
-
-    center: bool, optional
-        Defaults to True. False is not supported
+    offsets : list or cudf.Series, optional
+        Specifies the subgraph offsets into the subgraph vertices.
+        If no offsets array is provided, a default array [0, len(vertices)]
+        will be used.
 
     Returns
     -------
@@ -110,42 +123,56 @@ def ego_graph(input_graph, n, radius=1, center=True):
     # Initialize dask client
     client = default_client()
 
-    if isinstance(n, (int, list)):
-        n = cudf.Series(n)
+    if isinstance(vertices, (int, list)):
+        vertices = cudf.Series(vertices)
     elif not isinstance(
-        n, (cudf.Series, dask_cudf.Series, cudf.DataFrame, dask_cudf.DataFrame)
+        vertices, (cudf.Series, dask_cudf.Series, cudf.DataFrame, dask_cudf.DataFrame)
     ):
         raise TypeError(
-            f"'n' must be either an integer or a list or a "
-            f"cudf or dask_cudf Series or DataFrame, got: {type(n)}"
+            f"'vertices' must be either an integer or a list or a "
+            f"cudf or dask_cudf Series or DataFrame, got: {type(vertices)}"
         )
 
-    # n uses "external" vertex IDs, but since the graph has been
+    if isinstance(offsets, list):
+        offsets = cudf.Series(offsets)
+
+    if offsets is None:
+        offsets = cudf.Series([0, len(vertices)])
+
+    if not isinstance(offsets, cudf.Series):
+        raise TypeError(
+            f"'offsets' must be either 'None', a list or a "
+            f"cudf Series, got: {type(offsets)}"
+        )
+
+    # vertices uses "external" vertex IDs, but since the graph has been
     # renumbered, the node ID must also be renumbered.
     if input_graph.renumbered:
-        n = input_graph.lookup_internal_vertex_id(n)
-        n_type = input_graph.edgelist.edgelist_df.dtypes[0]
+        vertices = input_graph.lookup_internal_vertex_id(vertices)
+        vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
     else:
-        n_type = input_graph.input_df.dtypes[0]
+        vertices_type = input_graph.input_df.dtypes[0]
 
-    if isinstance(n, (cudf.Series, cudf.DataFrame)):
-        n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
-    n = n.astype(n_type)
+    if isinstance(vertices, (cudf.Series, cudf.DataFrame)):
+        vertices = dask_cudf.from_cudf(
+            vertices, npartitions=min(input_graph._npartitions, len(vertices))
+        )
+    vertices = vertices.astype(vertices_type)
 
-    n = get_distributed_data(n)
-    wait(n)
+    vertices = get_distributed_data(vertices)
+    wait(vertices)
 
-    n = n.worker_to_parts
+    vertices = vertices.worker_to_parts
 
     do_expensive_check = False
 
     result = [
         client.submit(
-            _call_ego_graph,
+            _call_induced_subgraph,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            n[w][0],
-            radius,
+            vertices[w][0],
+            offsets,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
@@ -161,17 +188,22 @@ def ego_graph(input_graph, n, radius=1, center=True):
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
+    if len(ddf) == 0:
+        return None, None
+
     wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     ddf = ddf.sort_values("labels")
 
-    # extract offsets from segmented ego_graph dataframes
+    # extract offsets from segmented induced_subgraph dataframes
     offsets = ddf["labels"].value_counts().compute().sort_index()
     offsets = cudf.concat([cudf.Series(0), offsets])
     offsets = (
-        dask_cudf.from_cudf(offsets, npartitions=min(input_graph._npartitions, len(n)))
+        dask_cudf.from_cudf(
+            offsets, npartitions=min(input_graph._npartitions, len(vertices))
+        )
         .cumsum()
-        .astype(n_type)
+        .astype(vertices_type)
     )
 
     ddf = ddf.drop(columns="labels")
