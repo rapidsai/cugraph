@@ -78,3 +78,5 @@ from pylibcugraph.analyze_clustering_ratio_cut import analyze_clustering_ratio_c
 from pylibcugraph.random import CuGraphRandomState
 
 from pylibcugraph.select_random_vertices import select_random_vertices
+
+__version__ = "23.04.00"
