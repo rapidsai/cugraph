@@ -64,7 +64,6 @@ def test_bulk_sampler_simple():
 
 
 @pytest.mark.sg
-@pytest.mark.skip("work in progress")
 def test_bulk_sampler_remainder():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -117,11 +116,11 @@ def test_bulk_sampler_remainder():
         subdir = f"{x}-{x+1}"
         df = cudf.read_parquet(os.path.join(tld, f"batch={subdir}.parquet"))
 
-        assert x in df.batch_id.values_host.tolist()
-        assert (x + 1) in df.batch_id.values_host.tolist()
+        assert ((df.batch_id == x) | (df.batch_id == (x + 1))).all()
+        assert ((df.hop_id == 0) | (df.hop_id == 1)).all()
 
     assert (
-        cudf.read_parquet(os.path.join(tld, "batch=6-7.parquet")).batch_id == 6
+        cudf.read_parquet(os.path.join(tld, "batch=6-6.parquet")).batch_id == 6
     ).all()
 
 
