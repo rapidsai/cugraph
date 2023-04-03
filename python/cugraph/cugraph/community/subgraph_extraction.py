@@ -30,6 +30,9 @@ def subgraph(
     edges that are incident on vertices that are both contained in the vertices
     list.
 
+    If no subgraph can be extracted from the vertices provided, a 'None' value
+    will be returned.
+
     Parameters
     ----------
     G : cugraph.Graph or networkx.Graph
