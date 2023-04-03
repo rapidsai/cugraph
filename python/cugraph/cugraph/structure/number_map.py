@@ -464,6 +464,13 @@ class NumberMap:
         store_transposed=False,
         legacy_renum_only=False,
     ):
+        """
+        Given an input dataframe with its column names, this function returns the
+        renumbered dataframe(if renumbering occured) along with a mapping from internal to
+        external vertex IDs. the parameter 'preserve_order' ensures that the order of
+        the edges is preserved during renumbering.
+        
+        """
         if legacy_renum_only:
             warning_msg = (
                 "The parameter 'legacy_renum_only' is deprecated and will be removed."
@@ -486,9 +493,11 @@ class NumberMap:
             # renumber the edgelist to 'int32'
             renumber_id_type = np.int32
 
+        # Renumbering occurs only if:
+        # 1) The column names are lists (multi-column vertices)
         if isinstance(src_col_names, list):
             renumbered = True
-
+        # 2) There are non-integer vertices
         elif not (
             df[src_col_names].dtype == np.int32 or df[src_col_names].dtype == np.int64
         ):
