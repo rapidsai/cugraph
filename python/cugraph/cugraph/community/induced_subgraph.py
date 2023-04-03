@@ -63,7 +63,7 @@ def induced_subgraph(
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
         vertices, vertices should be provided as a cudf.DataFrame
-
+    
     offsets : list or cudf.Series, optional
         Specifies the subgraph offsets into the subgraph vertices.
         If no offsets array is provided, a default array [0, len(vertices)]
@@ -124,7 +124,7 @@ def induced_subgraph(
     df = cudf.DataFrame()
     df["src"] = source
     df["dst"] = destination
-    df["weights"] = weight
+    df["weight"] = weight
 
     seeds_offsets = cudf.Series(offsets)
 
