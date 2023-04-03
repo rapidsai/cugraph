@@ -535,7 +535,11 @@ class NumberMap:
             renumber_map.implementation.indirection_map(
                 df, src_col_names, dst_col_names
             )
-            renumber_map.df_internal_to_external = renumber_map.implementation.df
+            if isinstance(df, dask_cudf.DataFrame):
+                renumber_map.df_internal_to_external = renumber_map.implementation.ddf
+            else:
+                renumber_map.df_internal_to_external = renumber_map.implementation.df
+    
             df = renumber_map.add_internal_vertex_id(
                 df,
                 renumber_map.renumbered_src_col_name,
