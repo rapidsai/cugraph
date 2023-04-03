@@ -255,7 +255,6 @@ def test_create_graph_with_edge_ids_check_renumbering(dask_client, graph_file):
     assert G.renumbered is True
 
     renumbered_df = G.edgelist.edgelist_df
-    print("rneumbered df is \n", renumbered_df.head())
     unrenumbered_df = G.unrenumber(renumbered_df, "renumbered_src")
     unrenumbered_df = G.unrenumber(unrenumbered_df, "renumbered_dst")
 
@@ -263,8 +262,11 @@ def test_create_graph_with_edge_ids_check_renumbering(dask_client, graph_file):
 
     assert_frame_equal(
         el.compute().sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
-        unrenumbered_df.compute().sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
-        check_dtype=False, check_like=True
+        unrenumbered_df.compute()
+        .sort_values(by=["0_src", "0_dst"])
+        .reset_index(drop=True),
+        check_dtype=False,
+        check_like=True,
     )
 
 

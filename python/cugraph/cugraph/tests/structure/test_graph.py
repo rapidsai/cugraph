@@ -812,7 +812,8 @@ def test_create_graph_with_edge_ids_check_renumbering(graph_file):
     assert_frame_equal(
         el.sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
         unrenumbered_df.sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
-        check_dtype=False, check_like=True
+        check_dtype=False,
+        check_like=True,
     )
 
 
