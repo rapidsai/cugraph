@@ -20,11 +20,13 @@ from cugraph.utilities import (
     cugraph_to_nx,
 )
 import warnings
+from typing import Union, Tuple
+import networkx as nx
 
 
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
-def ensure_valid_dtype(input_graph, input, input_name):
+def ensure_valid_dtype(input_graph: Graph, input: cudf.Series, input_name: str):
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
     input_dtype = input.dtype
     if input_dtype != vertex_dtype:
@@ -41,7 +43,11 @@ def ensure_valid_dtype(input_graph, input, input_name):
     return input
 
 
-def induced_subgraph(G, vertices, offsets=None):
+def induced_subgraph(
+    G: Graph,
+    vertices: Union[cudf.Series, cudf.DataFrame],
+    offsets: Union[list, cudf.Series] = None,
+) -> Tuple[Union[Graph, nx.Graph], cudf.Series]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs

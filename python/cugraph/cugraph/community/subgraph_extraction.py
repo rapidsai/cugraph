@@ -13,8 +13,15 @@
 
 import cugraph
 import warnings
+import cudf
+from cugraph.structure import Graph
+from typing import Union
+import networkx as nx
 
-def subgraph(G, vertices):
+def subgraph(
+    G,
+    vertices: Union[cudf.Series, cudf.DataFrame],
+) -> Union[Graph, nx.Graph]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
