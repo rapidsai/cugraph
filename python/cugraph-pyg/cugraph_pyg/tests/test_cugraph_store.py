@@ -405,4 +405,3 @@ def test_serialize(multi_edge_multi_vertex_no_graph_1):
         assert cugraph_store.get_edge_index(edge_attr) \
             == cugraph_store_copy.get_edge_index(edge_attr)
     """
-
