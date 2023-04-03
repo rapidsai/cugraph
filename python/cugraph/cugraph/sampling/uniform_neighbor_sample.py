@@ -64,9 +64,6 @@ def uniform_neighbor_sample(
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
 
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
-
     Parameters
     ----------
     G : cugraph.Graph
