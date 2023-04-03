@@ -781,6 +781,41 @@ def test_create_graph_with_edge_ids(graph_file):
     assert not H.is_directed()
 
 
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids_check_renumbering(graph_file):
+    el = utils.read_csv_file(graph_file)
+    el = el.rename(columns={"0": "0_src", "1": "0_dst", "2": "weights"})
+    el["1_src"] = el["0_src"] + 1000
+    el["1_dst"] = el["0_dst"] + 1000
+
+    el["edge_id"] = cupy.random.permutation(len(el))
+    el["edge_id"] = el["edge_id"].astype(el["1_dst"].dtype)
+    el["edge_type"] = cupy.random.random_integers(4, size=len(el))
+    el["edge_type"] = el["edge_type"].astype("int32")
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        el,
+        source=["0_src", "1_src"],
+        destination=["0_dst", "1_dst"],
+        edge_attr=["weights", "edge_id", "edge_type"],
+        legacy_renum_only=True,
+    )
+    assert G.renumbered is True
+
+    renumbered_df = G.edgelist.edgelist_df
+
+    unrenumbered_df = G.unrenumber(renumbered_df, "src")
+    unrenumbered_df = G.unrenumber(unrenumbered_df, "dst")
+
+    assert_frame_equal(
+        el.sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        unrenumbered_df.sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        check_dtype=False, check_like=True
+    )
+
+
 # Test
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)

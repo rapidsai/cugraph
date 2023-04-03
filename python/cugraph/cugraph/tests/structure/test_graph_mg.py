@@ -21,6 +21,7 @@ import dask_cudf
 from pylibcugraph import bfs as pylibcugraph_bfs
 from pylibcugraph import ResourceHandle
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cudf.testing.testing import assert_frame_equal
 
 import cugraph
 import cugraph.dask as dcg
@@ -224,6 +225,46 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
         destination="1",
         edge_attr=["2", "id", "etype"],
         legacy_renum_only=True,
+    )
+
+
+@pytest.mark.mg
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids_check_renumbering(dask_client, graph_file):
+    el = utils.read_csv_file(graph_file)
+    el = el.rename(columns={"0": "0_src", "1": "0_dst", "2": "value"})
+    el["1_src"] = el["0_src"] + 1000
+    el["1_dst"] = el["0_dst"] + 1000
+
+    el["edge_id"] = cupy.random.permutation(len(el))
+    el["edge_id"] = el["edge_id"].astype(el["1_dst"].dtype)
+    el["edge_type"] = cupy.random.random_integers(4, size=len(el))
+    el["edge_type"] = el["edge_type"].astype("int32")
+
+    num_workers = len(Comms.get_workers())
+    el = dask_cudf.from_cudf(el, npartitions=num_workers)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        el,
+        source=["0_src", "1_src"],
+        destination=["0_dst", "1_dst"],
+        edge_attr=["value", "edge_id", "edge_type"],
+        legacy_renum_only=True,
+    )
+    assert G.renumbered is True
+
+    renumbered_df = G.edgelist.edgelist_df
+    print("rneumbered df is \n", renumbered_df.head())
+    unrenumbered_df = G.unrenumber(renumbered_df, "renumbered_src")
+    unrenumbered_df = G.unrenumber(unrenumbered_df, "renumbered_dst")
+
+    unrenumbered_df.columns = unrenumbered_df.columns.str.replace(r"renumbered_", "")
+
+    assert_frame_equal(
+        el.compute().sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        unrenumbered_df.compute().sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        check_dtype=False, check_like=True
     )
 
 
