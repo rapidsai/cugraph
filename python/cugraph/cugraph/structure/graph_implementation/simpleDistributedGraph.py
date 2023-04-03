@@ -836,9 +836,9 @@ class simpleDistributedGraphImpl:
             return ddf
 
         ddf = _mg_call_plc_select_random_vertices(
+            self,
             _client,
             Comms.get_session_id(),
-            self,
             random_state,
             num_vertices,
         )
