@@ -71,6 +71,9 @@ def test_leiden(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
+    # FIXME: If the datasets is not renumbered, the leiden parts will
+    # also include isolated vertices which will be reflected in the modularity
+    # score.
     assert leiden_mod >= (0.97 * louvain_mod)
 
 
@@ -88,7 +91,9 @@ def test_leiden_nx(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
-    # FIXME: investigate low modularity score for unrenumbered datasets.
+    # FIXME: If the datasets is not renumbered, the leiden parts will
+    # also include isolated vertices which will be reflected in the modularity
+    # score.
     assert leiden_mod >= (0.97 * louvain_mod)
 
 
