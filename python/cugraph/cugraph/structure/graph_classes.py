@@ -153,6 +153,8 @@ class Graph:
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
 
+            This parameter is deprecated and will be removed.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
