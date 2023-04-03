@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-cugraph-dgl API Refrerence
+cugraph-dgl API Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 cugraph-dgl
