@@ -30,8 +30,6 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 
-#include <algorithm>
-
 namespace cugraph {
 
 namespace detail {
