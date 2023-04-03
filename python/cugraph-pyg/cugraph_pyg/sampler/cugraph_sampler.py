@@ -168,14 +168,6 @@ class EXPERIMENTAL__CuGraphSampler:
         metadata=None,
         **kwargs,
     ) -> Union[dict, HeteroSamplerOutput]:
-        backend = self.__graph_store.backend
-        if backend != self.__feature_store.backend:
-            raise ValueError(
-                f"Graph store backend {backend}"
-                f"does not match feature store "
-                f"backend {self.__feature_store.backend}"
-            )
-
         if not directed:
             raise ValueError("Undirected sampling not currently supported")
 
@@ -188,7 +180,7 @@ class EXPERIMENTAL__CuGraphSampler:
             # FIXME support variable num neighbors per edge type
             num_neighbors = list(num_neighbors.values())[0]
 
-        if backend == "torch" and not index.is_cuda:
+        if not index.is_cuda:
             index = index.cuda()
 
         G = self.__graph_store._subgraph(edge_types)
