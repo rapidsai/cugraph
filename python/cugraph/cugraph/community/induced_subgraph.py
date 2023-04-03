@@ -138,7 +138,7 @@ def induced_subgraph(
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names, edge_attr="weights"
+            df, source=src_names, destination=dst_names, edge_attr="weight"
         )
     else:
         result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)

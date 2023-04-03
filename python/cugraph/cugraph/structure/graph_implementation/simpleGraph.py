@@ -379,7 +379,15 @@ class simpleGraphImpl:
             src, dst, weights = graph_primtypes_wrapper.view_edge_list(self)
             self.edgelist = self.EdgeList(src, dst, weights)
 
-        edgelist_df = self.input_df
+        edgelist_df = self.edgelist.edgelist_df
+
+        if self.properties.renumbered:
+            edgelist_df = self.renumber_map.unrenumber(
+                edgelist_df, simpleGraphImpl.srcCol
+            )
+            edgelist_df = self.renumber_map.unrenumber(
+                edgelist_df, simpleGraphImpl.dstCol
+            )
 
         # FIXME: revisit this approach
         if not self.properties.directed:
