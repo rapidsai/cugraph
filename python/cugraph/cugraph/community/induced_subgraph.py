@@ -129,7 +129,7 @@ def induced_subgraph(
     df["src"] = source
     df["dst"] = destination
     df["weight"] = weight
-    
+
     if len(df) == 0:
         return None, None
 
