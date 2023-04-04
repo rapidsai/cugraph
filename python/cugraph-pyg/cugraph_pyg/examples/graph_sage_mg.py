@@ -276,7 +276,6 @@ def train(
             seeds_per_call=1000,
             batches_per_partition=2,
             replace=False,
-            directory="/tmp/ramdisk/samples",
         )
         end_time_loader = time.perf_counter_ns()
         total_time_loader = (end_time_loader - start_time_loader) / 1e9
