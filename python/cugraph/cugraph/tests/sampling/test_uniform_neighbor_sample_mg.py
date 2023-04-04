@@ -485,7 +485,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
 @pytest.mark.skipif(
     int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
 )
-def test_uniform_neighbor_edge_properties_sample_small_start_list(dsak_client, with_replacement):
+def test_uniform_neighbor_edge_properties_sample_small_start_list(dask_client, with_replacement):
     df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
@@ -578,7 +578,6 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
 @pytest.mark.parametrize('dataset', datasets)
 @pytest.mark.parametrize('input_df', [cudf.DataFrame, dask_cudf.DataFrame])
 @pytest.mark.parametrize('max_batches', [2, 8, 16, 32])
-@pytest.mark.tags('runme')
 def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_batches):
     num_workers = len(dask_client.scheduler_info()['workers'])
 
