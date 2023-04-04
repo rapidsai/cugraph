@@ -164,10 +164,13 @@ def test_renumber_vertices_basic(single_vertex_graph):
     F, G, N = single_vertex_graph
     cugraph_store = CuGraphStore(F, G, N)
 
-    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3))
+    nodes_of_interest = torch.as_tensor(
+        cupy.random.randint(0, sum(N.values()), 3),
+        device='cuda'
+    )
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
-    assert index["vt1"].tolist() == sorted(nodes_of_interest.values_host.tolist())
+    assert index["vt1"].tolist() == sorted(nodes_of_interest.tolist())
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
@@ -175,7 +178,10 @@ def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 
-    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3)).unique()
+    nodes_of_interest = torch.as_tensor(
+        cupy.random.randint(0, sum(N.values()), 3),
+        device='cuda'
+    ).unique()
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
@@ -183,9 +189,9 @@ def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph
     brown_nodes = nodes_of_interest[nodes_of_interest > 1] - 2
 
     if len(black_nodes) > 0:
-        assert index["black"].tolist() == sorted(black_nodes.values_host.tolist())
+        assert index["black"].tolist() == sorted(black_nodes.tolist())
     if len(brown_nodes) > 0:
-        assert index["brown"].tolist() == sorted(brown_nodes.values_host.tolist())
+        assert index["brown"].tolist() == sorted(brown_nodes.tolist())
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
@@ -199,7 +205,7 @@ def test_renumber_edges(graph):
     cugraph_store = CuGraphStore(F, G, N)
 
     v_offsets = [N[v] for v in sorted(N.keys())]
-    v_offsets = cupy.array(v_offsets)
+    v_offsets = np.array(v_offsets)
 
     cumsum = v_offsets.cumsum(0)
     v_offsets = cumsum - v_offsets
@@ -209,25 +215,27 @@ def test_renumber_edges(graph):
         pyg_can_edge_type: i for i, pyg_can_edge_type in enumerate(sorted(G.keys()))
     }
 
-    eoi_src = cupy.array([], dtype="int64")
-    eoi_dst = cupy.array([], dtype="int64")
-    eoi_type = cupy.array([], dtype="int32")
+    eoi_src = np.array([], dtype="int64")
+    eoi_dst = np.array([], dtype="int64")
+    eoi_type = np.array([], dtype="int32")
     for pyg_can_edge_type, ei in G.items():
         src_type, _, dst_type = pyg_can_edge_type
 
         c = randint(0, len(ei[0]))  # number to select
         sel = np.random.randint(0, len(ei[0]), c)
 
-        src_i = cupy.array(ei[0][sel]) + v_offsets[src_type]
-        dst_i = cupy.array(ei[1][sel]) + v_offsets[dst_type]
-        eoi_src = cupy.concatenate([eoi_src, src_i])
-        eoi_dst = cupy.concatenate([eoi_dst, dst_i])
-        eoi_type = cupy.concatenate(
-            [eoi_type, cupy.array([e_num[pyg_can_edge_type]] * c)]
+        src_i = np.array(ei[0][sel]) + v_offsets[src_type]
+        dst_i = np.array(ei[1][sel]) + v_offsets[dst_type]
+        eoi_src = np.concatenate([eoi_src, src_i])
+        eoi_dst = np.concatenate([eoi_dst, dst_i])
+        eoi_type = np.concatenate(
+            [eoi_type, np.array([e_num[pyg_can_edge_type]] * c)]
         )
 
-    nodes_of_interest = (
-        cudf.Series(cupy.concatenate([eoi_src, eoi_dst])).unique().sort_values()
+    nodes_of_interest, _ = torch.sort(
+        torch.as_tensor(
+            np.unique(np.concatenate([eoi_src, eoi_dst])),
+        ).cuda()
     )
 
     noi_index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
