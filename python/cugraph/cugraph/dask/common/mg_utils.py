@@ -72,7 +72,7 @@ def get_visible_devices():
     _visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
     if _visible_devices is None:
         # FIXME: We assume that if the variable is unset there is only one GPU
-        visible_devices = ["1"]
+        visible_devices = ["0"]
     else:
         visible_devices = _visible_devices.strip().split(",")
     return visible_devices
