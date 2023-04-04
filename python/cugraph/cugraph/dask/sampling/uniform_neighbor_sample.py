@@ -272,10 +272,10 @@ def uniform_neighbor_sample(
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_list : list or cudf.Series (int32)
+    start_list : int, list, cudf.Series, or dask_cudf.Series (int32 or int64)
         a list of starting vertices for sampling
 
-    fanout_vals : list (int32)
+    fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
 
@@ -286,15 +286,15 @@ def uniform_neighbor_sample(
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
 
-    batch_id_list: list (int32), optional (default=None)
+    batch_id_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
         List of batch ids that will be returned with the sampled edges if
         with_edge_properties is set to True.
 
-    label_list: list (int32), optional (default=None)
+    label_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
         List of unique batch id labels.  Used along with
         label_to_output_comm_rank to assign batch ids to GPUs.
 
-    label_to_out_comm_rank (int32), optional (default=None)
+    label_to_out_comm_rank: cudf.Series or dask_cudf.Series (int32), optional (default=None)
         List of output GPUs (by rank) corresponding to batch
         id labels in the label list.  Used to assign each batch
         id to a GPU.
