@@ -2074,8 +2074,11 @@ class EXPERIMENTAL__PropertyGraph:
             ].astype(cat_dtype)
 
         index_dtype = self.__vertex_prop_dataframe.index.dtype
-        # Should we avoid `sort_values` if we know there is only one type?
-        df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
+        df = self.__vertex_prop_dataframe.reset_index()
+        if len(df.dtypes[TCN].categories) > 1 and len(self.vertex_types) > 1:
+            # Avoid `sort_values` if we know there is only one type
+            # `self.vertex_types` is currently not cheap, b/c it looks at edge df
+            df = df.sort_values(by=TCN, ignore_index=True)
         df.index = df.index.astype(index_dtype)
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
@@ -2164,11 +2167,16 @@ class EXPERIMENTAL__PropertyGraph:
 
         df = self.__edge_prop_dataframe
         index_dtype = df.index.dtype
-        # Should we avoid `sort_values` if we know there is only one type?
         if prev_id_column is None:
-            df = df.sort_values(by=TCN, ignore_index=True)
+            if len(df.dtypes[TCN].categories) > 1 and len(self.edge_types) > 1:
+                # Avoid `sort_values` if we know there is only one type
+                df = df.sort_values(by=TCN, ignore_index=True)
+            else:
+                df.reset_index(drop=True, inplace=True)
         else:
-            df = df.sort_values(by=TCN)
+            if len(df.dtypes[TCN].categories) > 1 and len(self.edge_types) > 1:
+                # Avoid `sort_values` if we know there is only one type
+                df = df.sort_values(by=TCN)
             df.index.name = prev_id_column
             df.reset_index(inplace=True)
         df.index = df.index.astype(index_dtype)

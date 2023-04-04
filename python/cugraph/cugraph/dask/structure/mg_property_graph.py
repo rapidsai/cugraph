@@ -1530,7 +1530,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Include self.vertex_col_name when sorting by values to ensure we can
         # evenly distribute the data across workers.
         df = df.reset_index().persist()
-        if len(self.vertex_types) > 1:
+        if len(cat_dtype.categories) > 1 and len(self.vertex_types) > 1:
+            # `self.vertex_types` is currently not cheap, b/c it looks at edge df
             df = df.sort_values(
                 by=[TCN, self.vertex_col_name], ignore_index=True
             ).persist()
@@ -1624,7 +1625,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Include self.edge_id_col_name when sorting by values to ensure we can
         # evenly distribute the data across workers.
         df = df.reset_index().persist()
-        if len(self.edge_types) > 1:
+        if len(cat_dtype.categories) > 1 and len(self.edge_types) > 1:
             df = df.sort_values(
                 by=[self.type_col_name, self.edge_id_col_name], ignore_index=True
             ).persist()
