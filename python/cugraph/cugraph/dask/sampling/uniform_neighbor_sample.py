@@ -294,7 +294,7 @@ def uniform_neighbor_sample(
         List of unique batch id labels.  Used along with
         label_to_output_comm_rank to assign batch ids to GPUs.
 
-    label_to_out_comm_rank: cudf.Series or dask_cudf.Series (int32), 
+    label_to_out_comm_rank: cudf.Series or dask_cudf.Series (int32),
     optional (default=None)
         List of output GPUs (by rank) corresponding to batch
         id labels in the label list.  Used to assign each batch
