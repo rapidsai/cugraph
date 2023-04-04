@@ -224,7 +224,6 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
         source="0",
         destination="1",
         edge_attr=["2", "id", "etype"],
-        legacy_renum_only=True,
     )
 
 
@@ -250,7 +249,6 @@ def test_create_graph_with_edge_ids_check_renumbering(dask_client, graph_file):
         source=["0_src", "1_src"],
         destination=["0_dst", "1_dst"],
         edge_attr=["value", "edge_id", "edge_type"],
-        legacy_renum_only=True,
     )
     assert G.renumbered is True
 

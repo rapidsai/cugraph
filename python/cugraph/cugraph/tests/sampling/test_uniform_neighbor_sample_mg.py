@@ -344,7 +344,6 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     dest_rank = [0, 1]
@@ -437,7 +436,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
@@ -499,7 +497,6 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(with_replaceme
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     cugraph.dask.uniform_neighbor_sample(
@@ -533,7 +530,6 @@ def test_uniform_neighbor_sample_without_dask_inputs():
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(

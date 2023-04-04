@@ -51,8 +51,6 @@ def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=Fal
         destination=dst_n,
         edge_attr=eid_n,
         renumber=renumber,
-        # FIXME: renumber=False is not supported for MNMG algos
-        legacy_renum_only=True,
     )
     if hasattr(subgraph, "input_df"):
         subgraph.input_df = None

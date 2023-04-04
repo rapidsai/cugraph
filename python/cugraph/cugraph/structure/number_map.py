@@ -539,7 +539,7 @@ class NumberMap:
                 renumber_map.df_internal_to_external = renumber_map.implementation.ddf
             else:
                 renumber_map.df_internal_to_external = renumber_map.implementation.df
-
+    
             df = renumber_map.add_internal_vertex_id(
                 df,
                 renumber_map.renumbered_src_col_name,
