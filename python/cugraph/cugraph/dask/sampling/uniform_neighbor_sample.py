@@ -396,23 +396,34 @@ def uniform_neighbor_sample(
     else:
         indices_t = numpy.int32
 
-    if input_graph.renumbered:
-        start_list = input_graph.lookup_internal_vertex_id(start_list)
-
-    start_list = start_list.rename(start_col_name).to_frame()
+    start_list = start_list.rename(start_col_name)
     if batch_id_list is not None:
-        ddf = start_list.join(batch_id_list.rename(batch_col_name))
+        batch_id_list = batch_id_list.rename(batch_col_name)
+        if isinstance(start_list, cudf.Series):
+            concat_fn = cudf.concat
+        else:
+            concat_fn = dask_cudf.concat
+        ddf = concat_fn([
+            start_list,
+            batch_id_list   
+        ], axis=1, names=[start_col_name, batch_col_name])
     else:
-        ddf = start_list
+        ddf = start_list.to_frame()
+    
+    if input_graph.renumbered:
+        ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
 
     if isinstance(ddf, cudf.DataFrame):
-        splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
-        ddf = {w: [ddf.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
+        ddf = dask_cudf.from_cudf(
+            ddf,
+            npartitions=len(Comms.get_workers())
+        )
+    
+    print(ddf.columns)
 
-    else:
-        ddf = get_distributed_data(ddf)
-        wait(ddf)
-        ddf = ddf.worker_to_parts
+    ddf = get_distributed_data(ddf)
+    wait(ddf)
+    ddf = ddf.worker_to_parts
 
     client = get_client()
     session_id = Comms.get_session_id()
