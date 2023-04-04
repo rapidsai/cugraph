@@ -396,15 +396,25 @@ def uniform_neighbor_sample(
     else:
         indices_t = numpy.int32
 
-    start_list = start_list.rename(start_col_name).to_frame()
+    start_list = start_list.rename(start_col_name)
     if batch_id_list is not None:
-        batch_id_list = batch_id_list.rename(batch_col_name).to_frame()
-        ddf = start_list.merge(
-            batch_id_list,
-            how='left',
-            left_index=True,
-            right_index=True,
-        )
+        batch_id_list = batch_id_list.rename(batch_col_name)
+        if hasattr(start_list, 'compute'):
+            # mg input
+            start_list = start_list.to_frame()
+            batch_id_list = batch_id_list.to_frame()
+            ddf = start_list.merge(
+                batch_id_list,
+                how='left',
+                left_index=True,
+                right_index=True,
+            )
+        else:
+            # sg input
+            ddf = cudf.concat([
+                start_list,
+                batch_id_list,
+            ], axis=1)
     else:
         ddf = start_list.to_frame()
     
@@ -416,8 +426,6 @@ def uniform_neighbor_sample(
             ddf,
             npartitions=len(Comms.get_workers())
         )
-    
-    print(ddf.columns)
 
     ddf = get_distributed_data(ddf)
     wait(ddf)
