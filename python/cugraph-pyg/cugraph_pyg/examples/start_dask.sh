@@ -14,7 +14,7 @@
 # limitations under the License.
 
 WORKER_RMM_POOL_SIZE=14G \
-CUDA_VISIBLE_DEVICES=1,2 \
+CUDA_VISIBLE_DEVICES=0,1 \
 SCHEDULER_FILE=$(pwd)/scheduler.json \
 ../../../../mg_utils/run-dask-process.sh \
     scheduler workers \
