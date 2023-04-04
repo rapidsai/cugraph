@@ -290,7 +290,7 @@ class Graph:
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
-        
+
         legacy_renum_only : bool, optional (default=False)
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms

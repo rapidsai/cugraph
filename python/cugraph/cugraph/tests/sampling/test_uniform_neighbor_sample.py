@@ -71,9 +71,7 @@ def input_combo(request):
     )
 
     G = cugraph.Graph(directed=directed)
-    G.from_cudf_edgelist(
-        df, source="src", destination="dst", edge_attr="value"
-    )
+    G.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="value")
 
     parameters["Graph"] = G
 
