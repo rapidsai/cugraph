@@ -1566,8 +1566,6 @@ def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts, "weights": weights})
     expected_edgelist = expected_edgelist.sort_values(by="src", ignore_index=True)
 
-    print("renumbered is ", G.renumbered)
-
     if G.renumbered:
         actual_edgelist = G.unrenumber(
             G.edgelist.edgelist_df, "src", preserve_order=True
