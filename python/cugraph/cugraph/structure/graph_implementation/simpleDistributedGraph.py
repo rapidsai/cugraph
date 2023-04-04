@@ -22,6 +22,7 @@ import dask_cudf
 import cupy as cp
 import dask
 from typing import Union
+import numpy as np
 
 from pylibcugraph import (
     MGGraph,
@@ -131,6 +132,14 @@ class simpleDistributedGraphImpl:
 
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
+        
+        if renumber is False:
+            if type(source) is list and type(destination) is list:
+                raise ValueError("set renumber to True for multi column ids")
+            elif input_ddf[source].dtype not in [np.int32, np.int64] or input_ddf[
+                destination
+            ].dtype not in [np.int32, np.int64]:
+                raise ValueError("set renumber to True for non integer columns ids")
 
         s_col = source
         d_col = destination
@@ -245,13 +254,25 @@ class simpleDistributedGraphImpl:
             transposed=store_transposed, legacy_renum_only=legacy_renum_only
         )
 
-        self.properties.renumbered = self.renumber_map.implementation.numbered
+
+        if renumber is False:
+            self.properties.renumbered = False
+            src_col_name = self.source_columns
+            dst_col_name = self.destination_columns 
+            
+        else:
+            # If 'renumber' is set to 'True', an extra renumbering (python)
+            # occurs if there are non-integer or multi-columns vertices
+            self.properties.renumbered = self.renumber_map.is_renumbered
+
+            src_col_name = self.renumber_map.renumbered_src_col_name
+            dst_col_name = self.renumber_map.renumbered_dst_col_name
+        
         ddf = self.edgelist.edgelist_df
 
         num_edges = len(ddf)
         edge_data = get_distributed_data(ddf)
-        src_col_name = self.renumber_map.renumbered_src_col_name
-        dst_col_name = self.renumber_map.renumbered_dst_col_name
+    
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
