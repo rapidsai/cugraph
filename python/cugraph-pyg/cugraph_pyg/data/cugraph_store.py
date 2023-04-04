@@ -258,11 +258,26 @@ class EXPERIMENTAL__CuGraphStore:
         self._edge_attr_cls = CuGraphEdgeAttr
 
         self.__features = F
+        self.__graph = None
+        self.__is_graph_owner = False
+
         if construct_graph:
-            self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
-        else:
-            self.__graph = None
+            if multi_gpu:
+                self.__graph = distributed.get_client().get_dataset(
+                    "cugraph_graph", default=None
+                )
+
+            if self.__graph is None:
+                self.__graph = self.__construct_graph(G, multi_gpu=multi_gpu)
+                self.__is_graph_owner = True
+
         self.__subgraphs = {}
+
+    def __del__(self):
+        if self.__is_graph_owner:
+            if isinstance(self.__graph._plc_graph, dict):
+                distributed.get_client().unpublish_dataset("cugraph_graph")
+            del self.__graph
 
     def __make_offsets(self, input_dict):
         offsets = {}
@@ -385,11 +400,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         df = pandas.DataFrame(
             {
-                "src": na_src,
-                "dst": na_dst,
-                "w": np.zeros(len(na_src)),
-                "eid": np.arange(len(na_src)),
-                "etp": na_etp,
+                "src": pandas.Series(na_src),
+                "dst": pandas.Series(na_dst),
+                "w": pandas.Series(np.zeros(len(na_src))),
+                "eid": pandas.Series(np.arange(len(na_src))),
+                "etp": pandas.Series(na_etp),
             }
         )
 
@@ -411,6 +426,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_attr=["w", "eid", "etp"],
                 legacy_renum_only=True,
             )
+            distributed.get_client().publish_dataset(cugraph_graph=graph)
         else:
             graph.from_cudf_edgelist(
                 df,
@@ -620,7 +636,9 @@ class EXPERIMENTAL__CuGraphStore:
 
         return self.__graph
 
-    def _get_vertex_groups_from_sample(self, nodes_of_interest: cudf.Series) -> dict:
+    def _get_vertex_groups_from_sample(
+        self, nodes_of_interest: TensorType, is_sorted: bool = False
+    ) -> dict:
         """
         Given a cudf (NOT dask_cudf) Series of nodes of interest, this
         method a single dictionary, noi_index.
@@ -631,10 +649,8 @@ class EXPERIMENTAL__CuGraphStore:
         Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
 
         """
-
-        nodes_of_interest = torch.as_tensor(
-            nodes_of_interest.sort_values(), device="cuda"
-        )
+        if not is_sorted:
+            nodes_of_interest, _ = torch.sort(nodes_of_interest)
 
         noi_index = {}
 
@@ -839,6 +855,8 @@ class EXPERIMENTAL__CuGraphStore:
             # allow indexing through cupy arrays
             if isinstance(idx, cupy.ndarray):
                 idx = idx.get()
+            elif isinstance(idx, torch.Tensor):
+                idx = np.asarray(idx.cpu())
 
         if cols is None:
             t = self.__features.get_data(idx, attr.group_name, attr.attr_name)

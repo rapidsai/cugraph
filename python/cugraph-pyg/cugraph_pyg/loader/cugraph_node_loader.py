@@ -201,6 +201,7 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
+
         sampler_output = _sampler_output_from_sampling_results(
             self.__data[f], self.__graph_store
         )
@@ -224,7 +225,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                 edge_dict,
             )
         else:
-            return torch_geometric.loader.utils.filter_custom_store(
+            out = torch_geometric.loader.utils.filter_custom_store(
                 self.__feature_store,
                 self.__graph_store,
                 sampler_output.node,
@@ -232,6 +233,8 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.col,
                 sampler_output.edge,
             )
+
+            return out
 
     def __iter__(self):
         return self
@@ -278,10 +281,12 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         self.inner_loader_args = kwargs
 
     def __iter__(self):
-        return EXPERIMENTAL__BulkSampleLoader(
+        self.current_loader = EXPERIMENTAL__BulkSampleLoader(
             self.__feature_store,
             self.__graph_store,
             self.__input_nodes,
             self.__batch_size,
             **self.inner_loader_args,
         )
+
+        return self.current_loader
