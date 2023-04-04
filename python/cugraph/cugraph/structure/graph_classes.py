@@ -290,6 +290,13 @@ class Graph:
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
+        
+        legacy_renum_only : bool, optional (default=False)
+            If True, skips the C++ renumbering step.  Must be true for
+            pylibcugraph algorithms.  Must be false for algorithms
+            not yet converted to the pylibcugraph C API.
+
+            This parameter is deprecated and will be removed.
 
         """
 
@@ -822,6 +829,8 @@ class NPartiteGraph(Graph):
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
 
+            This parameter is deprecated and will be removed.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -890,6 +899,8 @@ class NPartiteGraph(Graph):
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
+
+            This parameter is deprecated and will be removed.
         """
         raise TypeError("Distributed N-partite graph not supported")
 

@@ -128,6 +128,7 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
+
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
 
@@ -186,13 +187,6 @@ class simpleDistributedGraphImpl:
                         "User-provided edge ids and edge "
                         "types are not permitted for an "
                         "undirected graph."
-                    )
-                if not legacy_renum_only:
-                    raise ValueError(
-                        "User-provided edge ids and edge "
-                        "types are only permitted when "
-                        "from_edgelist is called with "
-                        "legacy_renum_only=True."
                     )
 
             source_col, dest_col, value_col = symmetrize(
@@ -1039,6 +1033,8 @@ class simpleDistributedGraphImpl:
             if True, The C++ renumbering will not be triggered.
             This parameter is added for new algos following the
             C/Pylibcugraph path
+
+            This parameter is deprecated and will be removed.
         """
 
         if legacy_renum_only:
