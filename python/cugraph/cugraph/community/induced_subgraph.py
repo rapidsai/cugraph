@@ -55,6 +55,9 @@ def induced_subgraph(
     edges that are incident on vertices that are both contained in the vertices
     list.
 
+    If no subgraph can be extracted from the vertices provided, a 'None' value
+    will be returned.
+
     Parameters
     ----------
     G : cugraph.Graph or networkx.Graph
@@ -121,10 +124,14 @@ def induced_subgraph(
         subgraph_offsets=offsets,
         do_expensive_check=do_expensive_check,
     )
+
     df = cudf.DataFrame()
     df["src"] = source
     df["dst"] = destination
     df["weight"] = weight
+    
+    if len(df) == 0:
+        return None, None
 
     seeds_offsets = cudf.Series(offsets)
 
