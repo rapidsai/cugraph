@@ -61,10 +61,9 @@ def subgraph(
     """
 
     warning_msg = (
-        "This call is deprecated and will be refactored "
-        "in the next release. Please call 'cugraph.induced_subgraph()' instead"
+        "This call is deprecated. Please call 'cugraph.induced_subgraph()' instead."
     )
-    warnings.warn(warning_msg, PendingDeprecationWarning)
+    warnings.warn(warning_msg, DeprecationWarning)
 
     result_graph, _ = cugraph.induced_subgraph(G, vertices)
 
