@@ -399,33 +399,33 @@ def uniform_neighbor_sample(
     start_list = start_list.rename(start_col_name)
     if batch_id_list is not None:
         batch_id_list = batch_id_list.rename(batch_col_name)
-        if hasattr(start_list, 'compute'):
+        if hasattr(start_list, "compute"):
             # mg input
             start_list = start_list.to_frame()
             batch_id_list = batch_id_list.to_frame()
             ddf = start_list.merge(
                 batch_id_list,
-                how='left',
+                how="left",
                 left_index=True,
                 right_index=True,
             )
         else:
             # sg input
-            ddf = cudf.concat([
-                start_list,
-                batch_id_list,
-            ], axis=1)
+            ddf = cudf.concat(
+                [
+                    start_list,
+                    batch_id_list,
+                ],
+                axis=1,
+            )
     else:
         ddf = start_list.to_frame()
-    
+
     if input_graph.renumbered:
         ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
 
     if isinstance(ddf, cudf.DataFrame):
-        ddf = dask_cudf.from_cudf(
-            ddf,
-            npartitions=len(Comms.get_workers())
-        )
+        ddf = dask_cudf.from_cudf(ddf, npartitions=len(Comms.get_workers()))
 
     ddf = get_distributed_data(ddf)
     wait(ddf)
