@@ -20,12 +20,16 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/core/device_span.hpp>
+
+#include <thrust/sort.h>
 
 #include <numeric>
 #include <variant>
@@ -237,118 +241,74 @@ mg_graph_to_sg_graph(
 }
 
 template <typename vertex_t, typename value_t>
-rmm::device_uvector<value_t> mg_vertex_property_values_to_sg_vertex_property_values(
+std::tuple<std::optional<rmm::device_uvector<vertex_t>>, rmm::device_uvector<value_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
   raft::handle_t const& handle,
-  std::optional<raft::device_span<vertex_t const>>
-    mg_renumber_map,  // std::nullopt if the MG graph is not renumbered.
-  std::optional<raft::device_span<vertex_t const>>
-    sg_renumber_map,  // std::nullopt if the SG graph is not renumbered.
+  std::optional<raft::device_span<vertex_t const>> mg_renumber_map,
+  std::tuple<vertex_t, vertex_t> mg_local_vertex_partition_range,
+  std::optional<raft::device_span<vertex_t const>> sg_renumber_map,
+  std::optional<raft::device_span<vertex_t const>> mg_vertices,
   raft::device_span<value_t const> mg_values)
 {
-  auto& comm           = handle.get_comms();
-  auto const comm_rank = comm.get_rank();
-
-  std::variant<std::tuple<std::vector<size_t>, std::vector<int>>, rmm::device_uvector<vertex_t>>
-    mg_aux_info{};  // (vertex_partition_sizes, vertex_partition_ids) pair or aggregated
-                    // mg_renumber_map
+  rmm::device_uvector<vertex_t> mg_aggregate_vertices(0, handle.get_stream());
   if (mg_renumber_map) {
-    mg_aux_info = cugraph::test::device_gatherv(handle, *mg_renumber_map);
+    if (mg_vertices) {
+      rmm::device_uvector<vertex_t> local_vertices((*mg_vertices).size(), handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   (*mg_vertices).begin(),
+                   (*mg_vertices).end(),
+                   local_vertices.begin());
+      cugraph::unrenumber_local_int_vertices(handle,
+                                             local_vertices.data(),
+                                             local_vertices.size(),
+                                             (*mg_renumber_map).data(),
+                                             std::get<0>(mg_local_vertex_partition_range),
+                                             std::get<1>(mg_local_vertex_partition_range));
+      mg_aggregate_vertices = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>(local_vertices.data(), local_vertices.size()));
+    } else {
+      mg_aggregate_vertices = cugraph::test::device_gatherv(handle, *mg_renumber_map);
+    }
   } else {
-    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-    auto const major_comm_rank = major_comm.get_rank();
-    auto const major_comm_size = major_comm.get_size();
-    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-    auto const minor_comm_rank = minor_comm.get_rank();
-    auto const minor_comm_size = minor_comm.get_size();
-
-    auto vertex_partition_id =
-      cugraph::partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
-        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
-
-    auto mg_vertex_partition_sizes =
-      cugraph::host_scalar_gather(comm, mg_values.size(), int{0}, handle.get_stream());
-    auto mg_vertex_partition_ids =
-      cugraph::host_scalar_gather(comm, vertex_partition_id, int{0}, handle.get_stream());
-    mg_aux_info =
-      std::make_tuple(std::move(mg_vertex_partition_sizes), std::move(mg_vertex_partition_ids));
+    if (mg_vertices) {
+      mg_aggregate_vertices = cugraph::test::device_gatherv(handle, *mg_vertices);
+    } else {
+      rmm::device_uvector<vertex_t> local_vertices(
+        std::get<1>(mg_local_vertex_partition_range) - std::get<0>(mg_local_vertex_partition_range),
+        handle.get_stream());
+      thrust::sequence(handle.get_thrust_policy(),
+                       local_vertices.begin(),
+                       local_vertices.end(),
+                       std::get<0>(mg_local_vertex_partition_range));
+      mg_aggregate_vertices = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>(local_vertices.data(), local_vertices.size()));
+    }
   }
   auto mg_aggregate_values = cugraph::test::device_gatherv(handle, mg_values);
 
-  rmm::device_uvector<value_t> sg_values(0, handle.get_stream());
-  if (comm_rank == 0) {
-    if (mg_renumber_map) {
-      auto& mg_aggregate_renumber_map = std::get<1>(mg_aux_info);
-      std::tie(mg_aggregate_renumber_map, mg_aggregate_values) =
-        cugraph::test::sort_by_key(handle, mg_aggregate_renumber_map, mg_aggregate_values);
-    } else {
-      auto& [mg_vertex_partition_sizes, mg_vertex_partition_ids] = std::get<0>(mg_aux_info);
-      std::vector<size_t> mg_dst_vertex_partition_sizes(mg_vertex_partition_sizes.size());
-      for (size_t i = 0; i < mg_vertex_partition_sizes.size(); ++i) {
-        mg_dst_vertex_partition_sizes[mg_vertex_partition_ids[i]] = mg_vertex_partition_sizes[i];
-      }
-      std::vector<size_t> mg_dst_vertex_partition_displs(mg_dst_vertex_partition_sizes.size());
-      std::exclusive_scan(mg_dst_vertex_partition_sizes.begin(),
-                          mg_dst_vertex_partition_sizes.end(),
-                          mg_dst_vertex_partition_displs.begin(),
-                          size_t{0});
-
-      std::vector<size_t> mg_vertex_partition_displs(mg_vertex_partition_ids.size());
-      std::exclusive_scan(mg_vertex_partition_sizes.begin(),
-                          mg_vertex_partition_sizes.end(),
-                          mg_vertex_partition_displs.begin(),
-                          size_t{0});
-
-      rmm::device_uvector<value_t> tmp_mg_aggregate_values(mg_aggregate_values.size(),
-                                                           handle.get_stream());
-      for (size_t i = 0; i < mg_vertex_partition_ids.size(); ++i) {
-        thrust::copy(handle.get_thrust_policy(),
-                     mg_aggregate_values.begin() + mg_vertex_partition_displs[i],
-                     mg_aggregate_values.begin() + mg_vertex_partition_displs[i] +
-                       mg_vertex_partition_sizes[i],
-                     tmp_mg_aggregate_values.begin() +
-                       mg_dst_vertex_partition_displs[mg_vertex_partition_ids[i]]);
-      }
-
-      mg_aggregate_values = std::move(tmp_mg_aggregate_values);
-    }
-
+  if (handle.get_comms().get_rank() == 0) {
+    auto sg_vertices = std::move(mg_aggregate_vertices);
+    auto sg_values   = std::move(mg_aggregate_values);
     if (sg_renumber_map) {
-      std::optional<raft::device_span<vertex_t const>> mg_map{std::nullopt};
-      if (mg_renumber_map) {
-        auto& mg_aggregate_renumber_map = std::get<1>(mg_aux_info);
-        mg_map = raft::device_span<vertex_t const>(mg_aggregate_renumber_map.data(),
-                                                   mg_aggregate_renumber_map.size());
-      }
-
-      sg_values.resize(mg_aggregate_values.size(), handle.get_stream());
-      thrust::transform(
-        handle.get_thrust_policy(),
-        (*sg_renumber_map).begin(),
-        (*sg_renumber_map).end(),
-        sg_values.begin(),
-        [mg_aggregate_renumber_map = mg_map ? thrust::make_optional(*mg_map) : thrust::nullopt,
-         mg_aggregate_values       = raft::device_span<value_t const>(
-           mg_aggregate_values.data(), mg_aggregate_values.size())] __device__(auto sg_v) {
-          size_t offset{0};
-          if (mg_aggregate_renumber_map) {
-            auto it = thrust::lower_bound(thrust::seq,
-                                          (*mg_aggregate_renumber_map).begin(),
-                                          (*mg_aggregate_renumber_map).end(),
-                                          sg_v);
-            assert(*it == sg_v);
-            offset =
-              static_cast<size_t>(thrust::distance((*mg_aggregate_renumber_map).begin(), it));
-          } else {
-            offset = static_cast<size_t>(sg_v);
-          }
-          return mg_aggregate_values[offset];
-        });
-    } else {
-      sg_values = std::move(mg_aggregate_values);
+      cugraph::renumber_ext_vertices<vertex_t, false>(
+        handle,
+        sg_vertices.data(),
+        sg_vertices.size(),
+        (*sg_renumber_map).data(),
+        vertex_t{0},
+        static_cast<vertex_t>((*sg_renumber_map).size()));
     }
-  }
 
-  return sg_values;
+    std::tie(sg_vertices, sg_values) = cugraph::test::sort_by_key(handle, sg_vertices, sg_values);
+
+    if (mg_vertices) {
+      return std::make_tuple(std::move(sg_vertices), std::move(sg_values));
+    } else {
+      return std::make_tuple(std::nullopt, std::move(sg_values));
+    }
+  } else {
+    return std::make_tuple(std::nullopt, rmm::device_uvector<value_t>(0, handle.get_stream()));
+  }
 }
 
 }  // namespace test

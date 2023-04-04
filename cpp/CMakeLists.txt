@@ -186,6 +186,10 @@ set(CUGRAPH_SOURCES
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
+    src/community/detail/refine_sg.cu
+    src/community/detail/refine_mg.cu
+    src/community/detail/mis_sg.cu
+    src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/utilities/cython.cu
@@ -207,6 +211,7 @@ set(CUGRAPH_SOURCES
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
+    src/community/leiden_mg.cu
     src/community/legacy/louvain.cu
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
@@ -253,8 +258,8 @@ set(CUGRAPH_SOURCES
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
     src/structure/induced_subgraph_mg.cu
-    src/structure/select_random_vertices_sg.cpp
-    src/structure/select_random_vertices_mg.cpp
+    src/structure/select_random_vertices_sg.cu
+    src/structure/select_random_vertices_mg.cu
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
@@ -394,9 +399,11 @@ add_library(cugraph_c
         src/c_api/core_result.cpp
         src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
-	src/c_api/heirarchical_clustering_result.cpp
+	src/c_api/hierarchical_clustering_result.cpp
         src/c_api/induced_subgraph.cpp
-        src/c_api/induced_subgraph_helper.cu
+        src/c_api/capi_helper.cu
+        src/c_api/legacy_spectral.cpp
+        src/c_api/legacy_ecg.cpp
         src/c_api/graph_helper.cu
         src/c_api/graph_generators.cpp
         src/c_api/induced_subgraph_result.cpp

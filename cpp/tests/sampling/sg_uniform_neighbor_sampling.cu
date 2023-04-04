@@ -16,6 +16,8 @@
 
 #include "detail/nbr_sampling_utils.cuh"
 
+#include <cugraph/graph_functions.hpp>
+
 #include <gtest/gtest.h>
 
 #include <thrust/distance.h>
@@ -79,37 +81,21 @@ class Tests_Uniform_Neighbor_Sampling
     constexpr uint64_t seed{0};
 
     raft::random::RngState rng_state(seed);
-    rmm::device_uvector<float> random_numbers(graph_view.local_vertex_partition_range_size(),
-                                              handle.get_stream());
-    rmm::device_uvector<vertex_t> random_sources(graph_view.local_vertex_partition_range_size(),
-                                                 handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         random_numbers.data(),
-                                         random_numbers.size(),
-                                         float{0},
-                                         float{1},
-                                         rng_state);
-
-    auto random_sources_end = thrust::copy_if(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_size()),
-      random_sources.begin(),
-      [d_random_number = random_numbers.data(), select_probability] __device__(vertex_t offset) {
-        return d_random_number[offset] < select_probability;
-      });
-
-    random_sources.resize(thrust::distance(random_sources.begin(), random_sources_end),
-                          handle.get_stream());
-    random_sources.shrink_to_fit(handle.get_stream());
-
-    random_numbers.resize(random_sources.size(), handle.get_stream());
-    random_numbers.shrink_to_fit(handle.get_stream());
+    auto random_sources = cugraph::select_random_vertices(
+      handle,
+      graph_view,
+      rng_state,
+      std::max(static_cast<size_t>(graph_view.number_of_vertices() * select_probability),
+               std::min(static_cast<size_t>(graph_view.number_of_vertices()), size_t{1})),
+      false,
+      false);
 
     //
     //  Now we'll assign the vertices to batches
     //
+    rmm::device_uvector<float> random_numbers(random_sources.size(), handle.get_stream());
+
     cugraph::detail::uniform_random_fill(handle.get_stream(),
                                          random_numbers.data(),
                                          random_numbers.size(),
@@ -283,9 +269,9 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -294,8 +280,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

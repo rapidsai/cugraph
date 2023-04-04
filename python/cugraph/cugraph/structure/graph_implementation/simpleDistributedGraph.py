@@ -18,6 +18,9 @@ from cugraph.structure.symmetrize import symmetrize
 import cupy
 import cudf
 import dask_cudf
+import cupy as cp
+import dask
+from typing import Union
 
 from pylibcugraph import (
     MGGraph,
@@ -27,7 +30,10 @@ from pylibcugraph import (
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
+from pylibcugraph import (
+    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
+    select_random_vertices as pylibcugraph_select_random_vertices,
+)
 import cugraph.dask.comms.comms as Comms
 
 
@@ -760,6 +766,92 @@ class simpleDistributedGraphImpl:
             ddf = self.renumber_map.unrenumber(ddf, "second")
 
         return ddf
+
+    def select_random_vertices(
+        self, random_state: int = None, num_vertices: int = None
+    ) -> Union[dask_cudf.Series, dask_cudf.DataFrame]:
+        """
+        Select random vertices from the graph
+
+        Parameters
+        ----------
+        random_state : int , optional(default=None)
+            Random state to use when generating samples.  Optional argument,
+            defaults to a hash of process id, time, and hostname.
+
+        num_vertices : int, optional(default=None)
+            Number of vertices to sample. If None, all vertices will be selected
+
+        Returns
+        -------
+        return random vertices from the graph as a dask object
+        """
+
+        _client = default_client()
+
+        def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.Series:
+            """
+            Creates a cudf Series from cupy arrays
+            """
+            vertices = cudf.Series(cp_arrays)
+
+            return vertices
+
+        def _call_plc_select_random_vertices(
+            mg_graph_x, sID: bytes, random_state: int, num_vertices: int
+        ) -> cudf.Series:
+
+            cp_arrays = pylibcugraph_select_random_vertices(
+                graph=mg_graph_x,
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                random_state=random_state,
+                num_vertices=num_vertices,
+            )
+            return convert_to_cudf(cp_arrays)
+
+        def _mg_call_plc_select_random_vertices(
+            input_graph,
+            client: dask.distributed.client.Client,
+            sID: bytes,
+            random_state: int,
+            num_vertices: int,
+        ) -> dask_cudf.Series:
+
+            result = [
+                client.submit(
+                    _call_plc_select_random_vertices,
+                    input_graph._plc_graph[w],
+                    sID,
+                    hash((random_state, i)),
+                    num_vertices,
+                    workers=[w],
+                    allow_other_workers=False,
+                    pure=False,
+                )
+                for i, w in enumerate(Comms.get_workers())
+            ]
+            ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
+            wait(ddf)
+            wait([r.release() for r in result])
+            return ddf
+
+        ddf = _mg_call_plc_select_random_vertices(
+            _client,
+            Comms.get_session_id(),
+            self,
+            random_state,
+            num_vertices,
+        )
+
+        if self.properties.renumbered:
+            vertices = ddf.rename("vertex").to_frame()
+            vertices = self.renumber_map.unrenumber(vertices, "vertex")
+            if len(vertices.columns) == 1:
+                vertices = vertices["vertex"]
+        else:
+            vertices = ddf
+
+        return vertices
 
     def to_directed(self, G):
         """
