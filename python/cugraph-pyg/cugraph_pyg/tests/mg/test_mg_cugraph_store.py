@@ -180,8 +180,7 @@ def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     nodes_of_interest = torch.as_tensor(
-        cupy.random.randint(0, sum(N.values()), 3),
-        device='cuda'
+        cupy.random.randint(0, sum(N.values()), 3), device="cuda"
     )
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
@@ -196,8 +195,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     nodes_of_interest = torch.as_tensor(
-        cupy.random.randint(0, sum(N.values()), 3),
-        device='cuda'
+        cupy.random.randint(0, sum(N.values()), 3), device="cuda"
     ).unique()
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
@@ -245,9 +243,7 @@ def test_renumber_edges(graph, dask_client):
         dst_i = np.array(ei[1][sel]) + v_offsets[dst_type]
         eoi_src = np.concatenate([eoi_src, src_i])
         eoi_dst = np.concatenate([eoi_dst, dst_i])
-        eoi_type = np.concatenate(
-            [eoi_type, np.array([e_num[pyg_can_edge_type]] * c)]
-        )
+        eoi_type = np.concatenate([eoi_type, np.array([e_num[pyg_can_edge_type]] * c)])
 
     nodes_of_interest, _ = torch.sort(
         torch.as_tensor(
