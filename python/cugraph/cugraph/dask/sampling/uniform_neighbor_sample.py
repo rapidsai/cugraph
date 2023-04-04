@@ -424,12 +424,13 @@ def uniform_neighbor_sample(
     if input_graph.renumbered:
         ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
 
-    if isinstance(ddf, cudf.DataFrame):
-        ddf = dask_cudf.from_cudf(ddf, npartitions=len(Comms.get_workers()))
-
-    ddf = get_distributed_data(ddf)
-    wait(ddf)
-    ddf = ddf.worker_to_parts
+    if hasattr(ddf, 'compute'):
+        ddf = get_distributed_data(ddf)
+        wait(ddf)
+        ddf = ddf.worker_to_parts
+    else:
+        splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
+        ddf = {w: [ddf.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
 
     client = get_client()
     session_id = Comms.get_session_id()
