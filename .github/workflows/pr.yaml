@@ -121,9 +121,9 @@ jobs:
       build_type: pull-request
       package-name: cugraph
       # Always want to test against latest dask/distributed.
-      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.04"
+      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
       # Skip dataset downloads on arm to save CI time -- arm only runs smoke tests.
       # On arm also need to install cupy from the specific site.
-      test-before-arm64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.04"
+      test-before-arm64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -v -m sg ./python/cugraph/cugraph/tests"
       test-smoketest: "python ci/wheel_smoke_test_cugraph.py"
