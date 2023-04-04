@@ -8,7 +8,7 @@ Community
 EgoNet
 ------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.batched_ego_graphs
    cugraph.ego_graph
@@ -16,7 +16,7 @@ EgoNet
 Ensemble clustering for graphs (ECG)
 ------------------------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.ecg
 
@@ -24,7 +24,7 @@ Ensemble clustering for graphs (ECG)
 K-Truss
 -------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.k_truss
    cugraph.ktruss_subgraph
@@ -32,7 +32,7 @@ K-Truss
 Leiden
 ------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.leiden
 
@@ -40,7 +40,7 @@ Leiden
 Louvain
 -------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.louvain
 
@@ -48,14 +48,14 @@ Louvain
 Louvain (MG)
 ------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.dask.community.louvain.louvain
 
 Spectral Clustering
 -------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.analyzeClustering_edge_cut
    cugraph.analyzeClustering_modularity
@@ -67,7 +67,7 @@ Spectral Clustering
 Subgraph Extraction
 -------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.subgraph
 
@@ -75,6 +75,6 @@ Subgraph Extraction
 Triangle Counting
 -----------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.triangle_count

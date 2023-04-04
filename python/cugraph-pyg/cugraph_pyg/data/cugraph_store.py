@@ -156,6 +156,7 @@ class CuGraphTensorAttr:
     def cast(cls, *args, **kwargs):
         """
         Casts to a CuGraphTensorAttr from a tuple, list, or dict
+
         Returns
         -------
         CuGraphTensorAttr
@@ -195,12 +196,12 @@ class EXPERIMENTAL__CuGraphStore:
         arguments.
         Parameters
         ----------
-        F : cugraph.gnn.FeatureStore (Required)
+        F: cugraph.gnn.FeatureStore (Required)
             The feature store containing this graph's features.
             Typed lexicographic-ordered numbering convention
             should match that of the graph.
 
-        G : dict[str, tuple[TensorType]] or dict[str, int] (Required)
+        G: dict[str, tuple[TensorType]] or dict[str, int] (Required)
             Dictionary of edge indices.
             Option 1 (graph in memory):
                 Pass the edge indices
@@ -220,11 +221,11 @@ class EXPERIMENTAL__CuGraphStore:
             Note: the internal cugraph representation will use
             offsetted vertex and edge ids.
 
-        num_nodes_dict : dict (Required)
+        num_nodes_dict: dict (Required)
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
 
-        multi_gpu : bool (Optional, default = False)
+        multi_gpu: bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
         """

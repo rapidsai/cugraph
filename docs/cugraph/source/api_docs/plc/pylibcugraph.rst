@@ -9,7 +9,7 @@ pylibcugraph
 Methods
 -------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/plc/
 
    pylibcugraph.eigenvector_centrality
    pylibcugraph.katz_centrality

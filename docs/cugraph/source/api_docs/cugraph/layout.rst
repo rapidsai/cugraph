@@ -8,7 +8,7 @@ Layout
 Force Atlas 2
 -------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.force_atlas2
 

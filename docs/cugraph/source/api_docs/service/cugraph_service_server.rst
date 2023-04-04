@@ -7,7 +7,7 @@ cugraph-service
 .. currentmodule:: cugraph-service
 
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/service/
 
    cugraph_service_server.cugraph_handler.call_algo
    cugraph_service_server.cugraph_handler.ExtensionServerFacade

@@ -8,14 +8,14 @@ Link Analysis
 HITS
 ----
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.hits
 
 HITS (MG)
 ---------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.dask.link_analysis.hits.hits
 
@@ -23,14 +23,14 @@ HITS (MG)
 Pagerank
 --------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.pagerank
 
 Pagerank (MG)
 -------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.dask.link_analysis.pagerank.pagerank
 

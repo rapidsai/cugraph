@@ -8,7 +8,7 @@ Components
 Connected Components
 --------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.connected_components
    cugraph.strongly_connected_components
@@ -18,7 +18,7 @@ Connected Components
 Connected Components (MG)
 -------------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.dask.components.connectivity.weakly_connected_components
 

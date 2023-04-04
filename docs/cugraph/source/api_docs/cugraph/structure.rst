@@ -6,7 +6,7 @@ Graph Classes
 Constructors
 ------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    Graph
    MultiGraph
@@ -17,7 +17,7 @@ Constructors
 Adding Data
 -----------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
 
    Graph.from_cudf_adjlist
@@ -35,7 +35,7 @@ Adding Data
 Checks
 ------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    Graph.has_isolated_vertices
    Graph.is_bipartite
@@ -52,7 +52,7 @@ Checks
 Symmetrize
 ----------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.symmetrize
    cugraph.symmetrize_ddf
@@ -62,7 +62,7 @@ Symmetrize
 Conversion from Other Formats
 -----------------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.from_adjlist
    cugraph.from_cudf_edgelist
@@ -79,7 +79,7 @@ Conversion from Other Formats
 NumberMap
 -----------------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.structure.NumberMap
    cugraph.structure.NumberMap.MultiGPU
@@ -99,7 +99,7 @@ NumberMap
 Other
 -----------------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.hypergraph
    cugraph.structure.shuffle

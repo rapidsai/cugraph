@@ -8,7 +8,7 @@ DASK MG Helper functions
 Methods
 -------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.dask.comms.comms.initialize
    cugraph.dask.comms.comms.destroy
