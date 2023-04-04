@@ -344,7 +344,6 @@ def train(
                 f"total time: {(end_time_train - start_time_train) / 1e9:3.4f} s"
                 f"\nloader create time per batch: {total_time_loader / num_batches} s"
                 f"\nsampling/load time per batch: {total_time_sample / num_batches} s"
-                f"\nload time per batch: {cugraph_bulk_loader.timer / num_batches} s"
                 f"\nforward time per batch: {total_time_forward / num_batches} s"
                 f"\nbackward time per batch: {total_time_backward / num_batches} s"
                 f"\nnum batches: {num_batches}"
