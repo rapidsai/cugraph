@@ -114,7 +114,7 @@ def spectral_modularity_maximization(ResourceHandle resource_handle,
     >>> (vertices, clusters) = pylibcugraph.spectral_modularity_maximization(
     ...     resource_handle, G, num_clusters=5, num_eigen_vects=2, evs_tolerance=0.00001
     ...     evs_max_iter=100, kmean_tolerance=0.00001, kmean_max_iter=100)
-    # FIXME: Fix dockstring result.
+    # FIXME: Fix docstring result.
     >>> vertices
     ############
     >>> clusters
