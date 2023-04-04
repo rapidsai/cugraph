@@ -132,7 +132,7 @@ class simpleDistributedGraphImpl:
 
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
-        
+
         if renumber is False:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
@@ -254,12 +254,11 @@ class simpleDistributedGraphImpl:
             transposed=store_transposed, legacy_renum_only=legacy_renum_only
         )
 
-
         if renumber is False:
             self.properties.renumbered = False
             src_col_name = self.source_columns
-            dst_col_name = self.destination_columns 
-            
+            dst_col_name = self.destination_columns
+
         else:
             # If 'renumber' is set to 'True', an extra renumbering (python)
             # occurs if there are non-integer or multi-columns vertices
@@ -267,12 +266,12 @@ class simpleDistributedGraphImpl:
 
             src_col_name = self.renumber_map.renumbered_src_col_name
             dst_col_name = self.renumber_map.renumbered_dst_col_name
-        
+
         ddf = self.edgelist.edgelist_df
 
         num_edges = len(ddf)
         edge_data = get_distributed_data(ddf)
-    
+
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
