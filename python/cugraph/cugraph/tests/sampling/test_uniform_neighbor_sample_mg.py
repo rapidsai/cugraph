@@ -628,10 +628,9 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
             .sources.nunique()
             .compute()
         )
-        print(output_starts_per_batch)
 
         input_starts_per_batch = len(input_batch[input_batch == batch_id])
-        print(input_starts_per_batch)
+
         # Should be <= to account for starts without outgoing edges
         assert output_starts_per_batch <= input_starts_per_batch
 
