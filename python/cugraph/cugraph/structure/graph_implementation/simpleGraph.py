@@ -169,13 +169,6 @@ class simpleGraphImpl:
                         "types are not permitted for an "
                         "undirected graph."
                     )
-                if not legacy_renum_only:
-                    raise ValueError(
-                        "User-provided edge ids and edge "
-                        "types are only permitted when "
-                        "from_edgelist is called with "
-                        "legacy_renum_only=True."
-                    )
 
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the

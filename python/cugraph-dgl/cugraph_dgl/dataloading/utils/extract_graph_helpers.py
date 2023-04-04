@@ -44,7 +44,6 @@ def create_cugraph_graph_from_edges_dict(
             source="_SRC_",
             destination="_DST_",
             edge_attr=["wgt", "_EDGE_ID_", "etp"],
-            legacy_renum_only=True,
             renumber=True,
         )
     else:
@@ -53,7 +52,6 @@ def create_cugraph_graph_from_edges_dict(
             source="_SRC_",
             destination="_DST_",
             edge_attr=["wgt", "_EDGE_ID_", "etp"],
-            legacy_renum_only=True,
             renumber=True,
         )
     return G
