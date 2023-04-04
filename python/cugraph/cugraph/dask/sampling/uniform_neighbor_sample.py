@@ -424,7 +424,7 @@ def uniform_neighbor_sample(
     if input_graph.renumbered:
         ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
 
-    if hasattr(ddf, 'compute'):
+    if hasattr(ddf, "compute"):
         ddf = get_distributed_data(ddf)
         wait(ddf)
         ddf = ddf.worker_to_parts
