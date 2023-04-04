@@ -396,17 +396,15 @@ def uniform_neighbor_sample(
     else:
         indices_t = numpy.int32
 
-    start_list = start_list.rename(start_col_name)
+    start_list = start_list.rename(start_col_name).to_frame()
     if batch_id_list is not None:
-        batch_id_list = batch_id_list.rename(batch_col_name)
-        if isinstance(start_list, cudf.Series):
-            concat_fn = cudf.concat
-        else:
-            concat_fn = dask_cudf.concat
-        ddf = concat_fn([
-            start_list,
-            batch_id_list   
-        ], axis=1, names=[start_col_name, batch_col_name])
+        batch_id_list = batch_id_list.rename(batch_col_name).to_frame()
+        ddf = start_list.merge(
+            batch_id_list,
+            how='left',
+            left_index=True,
+            right_index=True,
+        )
     else:
         ddf = start_list.to_frame()
     
