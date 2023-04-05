@@ -11,17 +11,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+from typing import Union, Tuple
+
 import cudf
-from cugraph.structure import Graph
 from pylibcugraph import ResourceHandle
 from pylibcugraph import induced_subgraph as pylibcugraph_induced_subgraph
+
+from cugraph.structure import Graph
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
 )
-import warnings
-from typing import Union, Tuple
-import networkx as nx
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# induced_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -47,7 +56,7 @@ def induced_subgraph(
     G: Graph,
     vertices: Union[cudf.Series, cudf.DataFrame],
     offsets: Union[list, cudf.Series] = None,
-) -> Tuple[Union[Graph, nx.Graph], cudf.Series]:
+) -> Tuple[Union[Graph, "networkx.Graph"], cudf.Series]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
