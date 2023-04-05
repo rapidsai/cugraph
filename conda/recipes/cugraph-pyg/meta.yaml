@@ -26,7 +26,7 @@ requirements:
     - python x.x
     - scikit-build >=0.13.1
   run:
-    - distributed >=2023.1.1
+    - distributed ==2023.3.2.1
     - numba >=0.56.2
     - numpy
     - pytorch >=2.0

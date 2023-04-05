@@ -18,8 +18,8 @@ dependencies:
 - cython>=0.29,<0.30
 - dask-cuda==23.4.*
 - dask-cudf==23.4.*
-- dask>=2023.1.1
-- distributed>=2023.1.1
+- dask==2023.3.2
+- distributed==2023.3.2.1
 - doxygen
 - fsspec[http]>=0.6.0
 - gcc_linux-64=11.*
