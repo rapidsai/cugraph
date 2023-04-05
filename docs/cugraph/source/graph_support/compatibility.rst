@@ -5,4 +5,4 @@ Compatibility
 .. toctree::
    :maxdepth: 3
 
-   Compatibility
+Compatibility document coming soon

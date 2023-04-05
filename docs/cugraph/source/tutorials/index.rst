@@ -8,5 +8,4 @@ Tutorials
 
    how_to_guides.md
    cugraph_blogs.rst
-   cugraph_notebooks.md
    community_resources.md

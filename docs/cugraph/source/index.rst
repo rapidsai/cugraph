@@ -9,6 +9,7 @@ NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
    :maxdepth: 2
    :caption: Contents:
 
+   basics/index
    installation/index
    tutorials/index
    graph_support/index

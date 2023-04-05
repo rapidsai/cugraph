@@ -8,7 +8,7 @@ Linear Assignment
 Hungarian
 ---------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.hungarian
    cugraph.dense_hungarian
