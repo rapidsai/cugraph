@@ -26,6 +26,7 @@ torch = import_optional("torch")
 dgl = import_optional("dgl")
 
 options = {
+    "bias": [False, True],
     "idtype_int": [False, True],
     "max_in_degree": [None, 8],
     "to_block": [False, True],
@@ -33,14 +34,13 @@ options = {
 
 
 @pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
-def test_SAGEConv_equality(idtype_int, max_in_degree, to_block):
+def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block):
     SAGEConv = dgl.nn.SAGEConv
     CuGraphSAGEConv = cugraph_dgl.nn.SAGEConv
     device = "cuda"
 
     in_feat, out_feat = 5, 2
-    # TODO(tingyu66): re-enable bias after upgrading DGL to 1.0 in conda env
-    kwargs = {"aggregator_type": "mean", "bias": False}
+    kwargs = {"aggregator_type": "mean", "bias": bias}
     g = create_graph1().to(device)
     if idtype_int:
         g = g.int()
@@ -57,7 +57,8 @@ def test_SAGEConv_equality(idtype_int, max_in_degree, to_block):
     with torch.no_grad():
         conv2.linear.weight.data[:, :in_feat] = conv1.fc_neigh.weight.data
         conv2.linear.weight.data[:, in_feat:] = conv1.fc_self.weight.data
-        # conv2.linear.bias.data[:] = conv1.fc_self.bias.data
+        if bias:
+            conv2.linear.bias.data[:] = conv1.fc_self.bias.data
 
     out1 = conv1(g, feat)
     out2 = conv2(g, feat, max_in_degree=max_in_degree)
@@ -76,4 +77,7 @@ def test_SAGEConv_equality(idtype_int, max_in_degree, to_block):
         conv2.linear.weight.grad[:, in_feat:],
         atol=1e-6,
     )
-    # assert torch.allclose(conv1.fc_self.bias.grad, conv2.linear.bias.grad, atol=1e-6)
+    if bias:
+        assert torch.allclose(
+            conv1.fc_self.bias.grad, conv2.linear.bias.grad, atol=1e-6
+        )
