@@ -11,18 +11,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
-import warnings
-import cudf
-from cugraph.structure import Graph
 from typing import Union
-import networkx as nx
+import warnings
+
+import cudf
+
+import cugraph
+from cugraph.structure import Graph
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for subgraph() is
+# specified using a string literal to avoid depending on and importing
+# networkx. Instead, networkx is imported optionally, which may cause a problem
+# for a type checker if run in an environment where networkx is not installed.
+networkx = import_optional("networkx")
 
 
 def subgraph(
     G,
     vertices: Union[cudf.Series, cudf.DataFrame],
-) -> Union[Graph, nx.Graph]:
+) -> Union[Graph, "networkx.Graph"]:
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
