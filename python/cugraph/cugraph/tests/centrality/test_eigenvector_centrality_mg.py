@@ -50,9 +50,7 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
         dtype=["int32", "int32", "float32"],
     )
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
     mg_res = dcg.eigenvector_centrality(dg, tol=1e-6)
     mg_res = mg_res.compute()
     import networkx as nx
@@ -101,9 +99,7 @@ def test_dask_eigenvector_centrality_transposed_false(dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
 
     warning_msg = (
         "Eigenvector centrality expects the 'store_transposed' "

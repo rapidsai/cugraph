@@ -17,9 +17,14 @@ add_subdirectory(internal_types)
 add_subdirectory(testing)
 
 set(cython_sources
+    analyze_clustering_edge_cut.pyx
+    analyze_clustering_modularity.pyx
+    analyze_clustering_ratio_cut.pyx
+    balanced_cut_clustering.pyx
     betweenness_centrality.pyx
     bfs.pyx
     core_number.pyx
+    ecg.pyx
     egonet.pyx
     eigenvector_centrality.pyx
     graph_properties.pyx
@@ -37,6 +42,7 @@ set(cython_sources
     personalized_pagerank.pyx
     random.pyx
     resource_handle.pyx
+    spectral_modularity_maximization.pyx
     select_random_vertices.pyx
     sssp.pyx
     triangle_count.pyx

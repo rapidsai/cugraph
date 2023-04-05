@@ -13,6 +13,7 @@
 
 from cugraph.community import (
     ecg,
+    induced_subgraph,
     ktruss_subgraph,
     k_truss,
     louvain,

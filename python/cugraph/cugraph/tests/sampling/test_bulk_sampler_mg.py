@@ -35,7 +35,6 @@ def test_bulk_sampler_simple(dask_client):
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     tempdir_object = tempfile.TemporaryDirectory()
@@ -78,7 +77,6 @@ def test_bulk_sampler_remainder(dask_client):
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     tempdir_object = tempfile.TemporaryDirectory()
@@ -142,7 +140,6 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client):
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     tempdir_object = tempfile.TemporaryDirectory()

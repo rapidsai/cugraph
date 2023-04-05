@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -133,7 +133,6 @@ class BenchmarkRun:
         # Algos with transposed=True : PageRank, Katz.
         # Algos with transposed=False: BFS, SSSP, Louvain, HITS,
         # Neighborhood_sampling.
-        # Algos supporting the legacy_renum_only: HITS, Neighborhood_sampling
         #
         for i in range(len(self.algos)):
             # set transpose=True when renumbering
@@ -151,7 +150,7 @@ class BenchmarkRun:
                         self.algos[i][1]["alpha"] = katz_alpha
                     if hasattr(G, "compute_renumber_edge_list"):
                         G.compute_renumber_edge_list(
-                            transposed=True, legacy_renum_only=True)
+                            transposed=True)
                 else:
                     # FIXME: Pagerank still follows the old path. Update this once it
                     # follows the pylibcugraph/C path
@@ -166,7 +165,7 @@ class BenchmarkRun:
                         G.compute_renumber_edge_list(transposed=False)
                     else:
                         G.compute_renumber_edge_list(
-                            transposed=False, legacy_renum_only=True)
+                            transposed=False)
                 self.__log("done.")
         # FIXME: need to handle individual algo args
         for ((algo, params), validator) in zip(self.algos, self.validators):

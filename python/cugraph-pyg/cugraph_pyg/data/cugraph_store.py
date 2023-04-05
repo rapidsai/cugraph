@@ -424,7 +424,6 @@ class EXPERIMENTAL__CuGraphStore:
                 source="src",
                 destination="dst",
                 edge_attr=["w", "eid", "etp"],
-                legacy_renum_only=True,
             )
             distributed.get_client().publish_dataset(cugraph_graph=graph)
         else:
@@ -433,7 +432,6 @@ class EXPERIMENTAL__CuGraphStore:
                 source="src",
                 destination="dst",
                 edge_attr=["w", "eid", "etp"],
-                legacy_renum_only=True,
             )
 
         return graph
@@ -516,9 +514,8 @@ class EXPERIMENTAL__CuGraphStore:
         if attr.layout != EdgeLayout.COO:
             raise TypeError("Only COO direct access is supported!")
 
-        # Currently, graph creation enforces that legacy_renum_only=True
-        # is always called, and the input vertex ids are always of integer
-        # type.  Therefore, it is currently safe to assume that for MG
+        # Currently, graph creation enforces that input vertex ids are always of
+        # integer type.  Therefore, it is currently safe to assume that for MG
         # graphs, the src/dst col names are renumbered_src/dst
         # and for SG graphs, the src/dst col names are src/dst.
         # This may change in the future if/when renumbering or the graph

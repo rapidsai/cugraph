@@ -35,7 +35,6 @@ def test_bulk_sampler_simple():
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     tempdir_object = tempfile.TemporaryDirectory()
@@ -75,7 +74,6 @@ def test_bulk_sampler_remainder():
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     tempdir_object = tempfile.TemporaryDirectory()
@@ -137,7 +135,6 @@ def test_bulk_sampler_large_batch_size():
         source="src",
         destination="dst",
         edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     tempdir_object = tempfile.TemporaryDirectory()
