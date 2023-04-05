@@ -121,6 +121,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel nvidia \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-dgl \
       'dgl>=1.0' \
