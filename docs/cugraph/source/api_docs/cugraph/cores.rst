@@ -8,7 +8,7 @@ Cores
 Core Number
 -----------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.core_number
 
@@ -16,6 +16,6 @@ Core Number
 K-Core
 ------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.k_core

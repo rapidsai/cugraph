@@ -7,7 +7,7 @@ cugraph-service
 .. currentmodule:: cugraph-service
 
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/service/
 
    cugraph_service_client.client.RunAsyncioThread
    cugraph_service_client.client.run_async
@@ -18,6 +18,3 @@ cugraph-service
    cugraph_service_client.types.UnionWrapper
    cugraph_service_client.types.ValueWrapper
    cugraph_service_client.types.GraphVertexEdgeIDWrapper
-
-
-

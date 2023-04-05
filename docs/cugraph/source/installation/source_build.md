@@ -16,9 +16,7 @@ __CUDA:__
 * NVIDIA driver 450.80.02+
 * Pascal architecture or better
 
-
 You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
-
 
 
 ## Building cuGraph
@@ -267,7 +265,7 @@ unset LD_LIBRARY_PATH
 
 ## Creating documentation
 
-Python API documentation can be generated from [docs](docs) directory.
+Python API documentation can be generated from _./docs/cugraph directory_. Or through using "./build.sh docs"
 
 ## Attribution
 Portions adopted from https://github.com/pytorch/pytorch/blob/master/CONTRIBUTING.md

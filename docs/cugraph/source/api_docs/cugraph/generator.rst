@@ -8,7 +8,7 @@ Generator
 RMAT
 ----
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.generators.rmat
 

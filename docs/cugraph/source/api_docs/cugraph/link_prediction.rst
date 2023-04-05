@@ -8,7 +8,7 @@ Link Prediction
 Jaccard Coefficient
 -------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.jaccard
    cugraph.jaccard_coefficient
@@ -18,7 +18,7 @@ Jaccard Coefficient
 Overlap Coefficient
 -------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.overlap
    cugraph.overlap_coefficient
@@ -28,7 +28,7 @@ Overlap Coefficient
 Sorensen Coefficient
 --------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.sorensen
    cugraph.sorensen_coefficient

@@ -9,7 +9,7 @@ cugraph-dgl
 Methods
 -------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph-dgl/
 
-   cugraph_dgl.cugraph_storage_from_heterograph
-   cugraph_dgl.cugraph_storage.CuGraphStorage
+   convert.cugraph_storage_from_heterograph
+   cugraph_storage.CuGraphStorage

@@ -49,7 +49,9 @@ class EdgeLayout(Enum):
 
 @dataclass
 class CuGraphEdgeAttr:
-    r"""Defines the attributes of an :obj:`GraphStore` edge."""
+    """
+    Defines the attributes of an :obj:`GraphStore` edge.
+    """
 
     # The type of the edge
     edge_type: Optional[Any]
@@ -99,7 +101,8 @@ class _field_status(Enum):
 
 @dataclass
 class CuGraphTensorAttr:
-    r"""Defines the attributes of a class:`FeatureStore` tensor; in particular,
+    """
+    Defines the attributes of a class:`FeatureStore` tensor; in particular,
     all the parameters necessary to uniquely identify a tensor from the feature
     store.
 
@@ -128,26 +131,34 @@ class CuGraphTensorAttr:
     # Convenience methods
 
     def is_set(self, key):
-        r"""Whether an attribute is set in :obj:`TensorAttr`."""
+        """
+        Whether an attribute is set in :obj:`TensorAttr`.
+        """
         if key not in self.__dataclass_fields__:
             raise KeyError(key)
         attr = getattr(self, key)
         return type(attr) != _field_status or attr != _field_status.UNSET
 
     def is_fully_specified(self):
-        r"""Whether the :obj:`TensorAttr` has no unset fields."""
+        """
+        Whether the :obj:`TensorAttr` has no unset fields.
+        """
         return all([self.is_set(key) for key in self.__dataclass_fields__])
 
     def fully_specify(self):
-        r"""Sets all :obj:`UNSET` fields to :obj:`None`."""
+        """
+        Sets all :obj:`UNSET` fields to :obj:`None`.
+        """
         for key in self.__dataclass_fields__:
             if not self.is_set(key):
                 setattr(self, key, None)
         return self
 
     def update(self, attr):
-        r"""Updates an :class:`TensorAttr` with set attributes from another
-        :class:`TensorAttr`."""
+        """
+        Updates an :class:`TensorAttr` with set attributes from another
+        :class:`TensorAttr`.
+        """
         for key in self.__dataclass_fields__:
             if attr.is_set(key):
                 setattr(self, key, getattr(attr, key))
@@ -156,6 +167,7 @@ class CuGraphTensorAttr:
     def cast(cls, *args, **kwargs):
         """
         Casts to a CuGraphTensorAttr from a tuple, list, or dict
+
         Returns
         -------
         CuGraphTensorAttr
@@ -193,14 +205,15 @@ class EXPERIMENTAL__CuGraphStore:
         """
         Constructs a new CuGraphStore from the provided
         arguments.
+
         Parameters
         ----------
-        F : cugraph.gnn.FeatureStore (Required)
+        F: cugraph.gnn.FeatureStore (Required)
             The feature store containing this graph's features.
             Typed lexicographic-ordered numbering convention
             should match that of the graph.
 
-        G : dict[str, tuple[TensorType]] or dict[str, int] (Required)
+        G: dict[str, tuple[TensorType]] or dict[str, int] (Required)
             Dictionary of edge indices.
             Option 1 (graph in memory):
                 Pass the edge indices
@@ -220,11 +233,11 @@ class EXPERIMENTAL__CuGraphStore:
             Note: the internal cugraph representation will use
             offsetted vertex and edge ids.
 
-        num_nodes_dict : dict (Required)
+        num_nodes_dict: dict (Required)
             A dictionary mapping each node type to the count of nodes
             of that type in the graph.
 
-        multi_gpu : bool (Optional, default = False)
+        multi_gpu: bool (Optional, default = False)
             Whether the store should be backed by a multi-GPU graph.
             Requires dask to have been set up.
         """
@@ -576,7 +589,8 @@ class EXPERIMENTAL__CuGraphStore:
         return (src, dst)
 
     def get_edge_index(self, *args, **kwargs) -> Tuple[TensorType, TensorType]:
-        r"""Synchronously gets an edge_index tensor from the materialized
+        """
+        Synchronously gets an edge_index tensor from the materialized
         graph.
 
         Args:
@@ -831,7 +845,9 @@ class EXPERIMENTAL__CuGraphStore:
                 )
 
     def get_all_tensor_attrs(self) -> List[CuGraphTensorAttr]:
-        r"""Obtains all tensor attributes stored in this feature store."""
+        """
+        Obtains all tensor attributes stored in this feature store.
+        """
         # unpack and return the list of lists
         it = chain.from_iterable(self._tensor_attr_dict.values())
         return [CuGraphTensorAttr.cast(c) for c in it]
@@ -886,7 +902,7 @@ class EXPERIMENTAL__CuGraphStore:
         return [self._get_tensor(attr) for attr in attrs]
 
     def multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:
-        r"""
+        """
         Synchronously obtains a :class:`FeatureTensorType` object from the
         feature store for each tensor associated with the attributes in
         `attrs`.
@@ -929,7 +945,8 @@ class EXPERIMENTAL__CuGraphStore:
         return [tensor for attr, tensor in zip(attrs, tensors)]
 
     def get_tensor(self, *args, **kwargs) -> TensorType:
-        r"""Synchronously obtains a :class:`FeatureTensorType` object from the
+        """
+        Synchronously obtains a :class:`FeatureTensorType` object from the
         feature store. Feature store implementors guarantee that the call
         :obj:`get_tensor(put_tensor(tensor, attr), attr) = tensor` holds.
 
@@ -971,7 +988,7 @@ class EXPERIMENTAL__CuGraphStore:
         return self._get_tensor(attr).size()
 
     def get_tensor_size(self, *args, **kwargs) -> Union[List, int]:
-        r"""
+        """
         Obtains the size of a tensor given its attributes, or :obj:`None`
         if the tensor does not exist.
         """

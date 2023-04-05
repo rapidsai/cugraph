@@ -7,7 +7,7 @@ Graph Implementation
 Graph Implementation
 --------------------
 .. autosummary::
-    :toctree: api/
+    :toctree: ../api/cugraph/
 
     view_edge_list
     delete_edge_list

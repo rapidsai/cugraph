@@ -8,7 +8,7 @@ Sampling
 Random Walks
 ------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.random_walks
    cugraph.ego_graph
@@ -17,6 +17,6 @@ Random Walks
 Node2Vec
 ---------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.node2vec

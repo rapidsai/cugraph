@@ -8,7 +8,7 @@ Tree
 Minimum Spanning Tree
 ---------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.tree.minimum_spanning_tree.minimum_spanning_tree
 
@@ -16,7 +16,7 @@ Minimum Spanning Tree
 Maximum Spanning Tree
 ---------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    cugraph.tree.minimum_spanning_tree.maximum_spanning_tree
 

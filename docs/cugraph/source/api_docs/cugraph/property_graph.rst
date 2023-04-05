@@ -7,7 +7,7 @@ Property Graph
 Property Graph
 -------------------------
 .. autosummary::
-   :toctree: api/
+   :toctree: ../api/cugraph/
 
    PropertySelection
    PropertyGraph
