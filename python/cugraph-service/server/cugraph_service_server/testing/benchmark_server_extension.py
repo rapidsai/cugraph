@@ -95,7 +95,6 @@ def create_graph_from_rmat_generator(
             source="src",
             destination="dst",
             edge_attr="weight",
-            legacy_renum_only=True,
         )
     else:
         G.from_cudf_edgelist(
@@ -103,7 +102,6 @@ def create_graph_from_rmat_generator(
             source="src",
             destination="dst",
             edge_attr="weight",
-            legacy_renum_only=True,
         )
 
     return G

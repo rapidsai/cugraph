@@ -1,4 +1,6 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+#!/bin/bash
+
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,19 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
-# cython: language_level = 3
-
-from cugraph.structure.graph_primtypes cimport *
-
-
-cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
-
-    cdef void ecg[VT,ET,WT](
-        const handle_t &handle,
-        const GraphCSRView[VT,ET,WT] &graph,
-        WT min_weight,
-        VT ensemble_size,
-        VT* ecg_parts) except +
+WORKER_RMM_POOL_SIZE=14G \
+CUDA_VISIBLE_DEVICES=0,1 \
+SCHEDULER_FILE=$(pwd)/scheduler.json \
+../../../../mg_utils/run-dask-process.sh \
+    scheduler workers \
+    --tcp

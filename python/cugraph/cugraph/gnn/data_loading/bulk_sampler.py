@@ -57,6 +57,19 @@ class EXPERIMENTAL__BulkSampler:
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
+
+        max_batches_per_partition = seeds_per_call // batch_size
+        if batches_per_partition > max_batches_per_partition:
+            import warnings
+
+            warnings.warn(
+                f"batches_per_partition ({batches_per_partition}) is >"
+                f" seeds_per_call / batch size ({max_batches_per_partition})"
+                "; automatically setting batches_per_partition to "
+                "{max_batches_per_partition}"
+            )
+            batches_per_partition = max_batches_per_partition
+
         self.__batch_size = batch_size
         self.__output_path = output_path
         self.__graph = graph
@@ -142,7 +155,11 @@ class EXPERIMENTAL__BulkSampler:
             self.__batches = df
         else:
             if isinstance(df, type(self.__batches)):
-                self.__batches = self.__batches.append(df)
+                if isinstance(df, dask_cudf.DataFrame):
+                    concat_fn = dask_cudf.concat
+                else:
+                    concat_fn = cudf.concat
+                self.__batches = concat_fn([self.__batches, df])
             else:
                 raise TypeError(
                     "Provided batches must match the dataframe"
@@ -174,27 +191,20 @@ class EXPERIMENTAL__BulkSampler:
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
 
-        single_gpu = isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
-        start_list = self.__batches[self.start_col_name][batch_id_filter]
-        batch_id_list = self.__batches[self.batch_col_name][batch_id_filter]
-
-        if single_gpu:
-            samples = cugraph.uniform_neighbor_sample(
-                self.__graph,
-                **self.__sample_call_args,
-                start_list=start_list,
-                batch_id_list=batch_id_list,
-                with_edge_properties=True,
-            )
+        if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph):
+            sample_fn = cugraph.uniform_neighbor_sample
         else:
-            samples = cugraph.dask.uniform_neighbor_sample(
-                self.__graph,
-                **self.__sample_call_args,
-                start_list=start_list,
-                batch_id_list=batch_id_list,
-                with_edge_properties=True,
-                _multiple_clients=True,
-            )
+            sample_fn = cugraph.dask.uniform_neighbor_sample
+            self.__sample_call_args["_multiple_clients"] = True
+
+        samples = sample_fn(
+            self.__graph,
+            **self.__sample_call_args,
+            start_list=self.__batches[self.start_col_name][batch_id_filter],
+            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
+            with_edge_properties=True,
+        )
+
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, min_batch_id, npartitions)
 

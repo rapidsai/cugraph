@@ -65,7 +65,7 @@ def create_graph(graph_data):
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
         G.from_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renum_only=True
+            edgelist_df, source="src", destination="dst", edge_attr="wgt"
         )
         num_verts = G.number_of_vertices()
 
@@ -94,7 +94,6 @@ def create_graph(graph_data):
             source="src",
             destination="dst",
             edge_attr="weight",
-            legacy_renum_only=True,
         )
 
     else:
@@ -135,7 +134,7 @@ def create_mg_graph(graph_data):
         # for G.from_cudf_edgelist()
         edgelist_df = dask_cudf.from_cudf(edgelist_df)
         G.from_dask_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt", legacy_renum_only=True
+            edgelist_df, source="src", destination="dst", edge_attr="wgt"
         )
         num_verts = G.number_of_vertices()
 
@@ -164,7 +163,6 @@ def create_mg_graph(graph_data):
             source="src",
             destination="dst",
             edge_attr="weight",
-            legacy_renum_only=True,
         )
 
     else:

@@ -96,7 +96,6 @@ def input_expected_output(input_combo):
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
         store_transposed=True,
     )
 
@@ -172,9 +171,7 @@ def test_dask_hits_transposed_false(dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
 
     warning_msg = (
         "HITS expects the 'store_transposed' "

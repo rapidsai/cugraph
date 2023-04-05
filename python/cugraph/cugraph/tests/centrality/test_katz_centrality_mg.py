@@ -52,9 +52,7 @@ def test_dask_katz_centrality(dask_client, directed):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
 
     degree_max = dg.degree()["degree"].max().compute()
     katz_alpha = 1 / (degree_max)
@@ -111,9 +109,7 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=True)
 
     mg_res = dcg.katz_centrality(dg, max_iter=50, tol=1e-6)
     mg_res = mg_res.compute()
@@ -158,9 +154,7 @@ def test_dask_katz_centrality_transposed_false(dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
 
     warning_msg = (
         "Katz centrality expects the 'store_transposed' "

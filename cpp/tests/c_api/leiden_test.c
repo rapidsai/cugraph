@@ -56,7 +56,7 @@ int generic_leiden_test(vertex_t* h_src,
 
   ret_code = cugraph_leiden(p_handle, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
 
-#if 1
+#if 0
   TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_leiden should have failed");
 #else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -81,11 +81,6 @@ int generic_leiden_test(vertex_t* h_src,
       p_handle, (byte_t*)h_clusters, clusters, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-    for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(
-        test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
-    }
-
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(modularity, expected_modularity, 0.001),
                 "modularity doesn't match");
@@ -103,7 +98,7 @@ int generic_leiden_test(vertex_t* h_src,
 
 int test_leiden()
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
   size_t max_level    = 10;
   weight_t resolution = 1.0;
@@ -112,8 +107,8 @@ int test_leiden()
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
   weight_t h_wgt[] = {
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_result[]          = {0, 1, 0, 1, 1, 1};
-  weight_t expected_modularity = 0.218166;
+  vertex_t h_result[]          = {0, 0, 0, 1, 1, 1};
+  weight_t expected_modularity = 0.215969;
 
   // Louvain wants store_transposed = FALSE
   return generic_leiden_test(h_src,

@@ -145,6 +145,9 @@ weight_t compute_modularity(
 {
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
+  //
+  // Sum(Sigma_tot_c^2), over all clusters c
+  //
   weight_t sum_degree_squared = thrust::transform_reduce(
     handle.get_thrust_policy(),
     cluster_weights.begin(),
@@ -158,6 +161,7 @@ weight_t compute_modularity(
       handle.get_comms(), sum_degree_squared, raft::comms::op_t::SUM, handle.get_stream());
   }
 
+  // Sum(Sigma_in_c), over all clusters c
   weight_t sum_internal = transform_reduce_e(
     handle,
     graph_view,
@@ -189,11 +193,11 @@ std::tuple<
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
 graph_contraction(raft::handle_t const& handle,
                   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights_view,
                   raft::device_span<vertex_t> labels)
 {
   auto [new_graph, new_edge_weights, numbering_map] =
-    coarsen_graph(handle, graph_view, edge_weights, labels.data(), true);
+    coarsen_graph(handle, graph_view, edge_weights_view, labels.data(), true);
 
   auto new_graph_view = new_graph.view();
 
