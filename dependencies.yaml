@@ -340,6 +340,7 @@ dependencies:
         packages:
           - *cudf
           - *dask
+          - *dask-core
           - *dask_cuda
           - *dask_cudf
           - *distributed
