@@ -322,32 +322,40 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
   }
 }
 
+// check the mapping between v0 & v1 is invertible (one to one and onto)
 template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const& handle,
-                             std::vector<vertex_t> const& v1,
-                             std::vector<vertex_t> const& v2)
+bool check_invertible(raft::host_span<vertex_t const> v0, raft::host_span<vertex_t const> v1)
 {
-  if (v1.size() != v2.size()) return false;
+  if (v0.size() != v1.size()) return false;
 
-  std::map<vertex_t, vertex_t> map;
+  std::map<vertex_t, vertex_t> map{};
 
-  auto iter = thrust::make_zip_iterator(thrust::make_tuple(v1.begin(), v2.begin()));
+  for (size_t i = 0; i < v0.size(); ++i) {
+    auto find_it = map.find(v0[i]);
+    if (find_it == map.end()) {
+      map[v0[i]] = v1[i];
+    } else if (find_it->second != v1[i])
+      return false;  // one value in v0 is mapped to multiple distinct values in v1, so v0 to v1 is
+                     // not a function
+  }
 
-  std::for_each(iter, iter + v1.size(), [&map](auto pair) {
-    vertex_t e1 = thrust::get<0>(pair);
-    vertex_t e2 = thrust::get<1>(pair);
+  std::map<vertex_t, vertex_t> inv_map{};
+  for (auto it = map.begin(); it != map.end(); ++it) {
+    auto find_it = inv_map.find(it->second);
+    if (find_it == inv_map.end()) {
+      inv_map[it->second] = it->first;
+    } else
+      return false;  // multiple distinct values in v0 are mapped to one value in v1
+  }
 
-    map[e1] = e2;
-  });
+  std::vector<vertex_t> inv_v1(v1.size());
+  for (size_t i = 0; i < v1.size(); ++i) {
+    auto find_it = inv_map.find(v1[i]);
+    if (find_it == inv_map.end()) return false;  // elements in v0 are mapped to only a subset of v1
+    inv_v1[i] = find_it->second;
+  }
 
-  auto error_count = std::count_if(iter, iter + v1.size(), [&map](auto pair) {
-    vertex_t e1 = thrust::get<0>(pair);
-    vertex_t e2 = thrust::get<1>(pair);
-
-    return (map[e1] != e2);
-  });
-
-  return (error_count == 0);
+  return std::equal(v0.begin(), v0.end(), inv_v1.begin());
 }
 
 template <typename T>
@@ -439,13 +447,15 @@ std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
 }
 
 template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t> const& v1,
-                             rmm::device_uvector<vertex_t> const& v2)
+bool check_invertible(raft::handle_t const& handle,
+                      raft::device_span<vertex_t const> v0,
+                      raft::device_span<vertex_t const> v1)
 {
-  if (v1.size() != v2.size()) return false;
+  auto v0_copy = to_host(handle, v0);
+  auto v1_copy = to_host(handle, v1);
 
-  return renumbered_vectors_same(handle, to_host(handle, v1), to_host(handle, v2));
+  return check_invertible(raft::host_span<vertex_t const>(v0_copy.data(), v0_copy.size()),
+                          raft::host_span<vertex_t const>(v1_copy.data(), v1_copy.size()));
 }
 
 template <typename T, typename L>
@@ -493,8 +503,22 @@ mg_graph_to_sg_graph(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  std::optional<raft::device_span<vertex_t const>> number_map,
   bool renumber);
+
+// Only the rank 0 GPU holds the valid data
+template <typename vertex_t, typename value_t>
+std::tuple<std::optional<rmm::device_uvector<vertex_t>>, rmm::device_uvector<value_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<vertex_t const>>
+    mg_renumber_map,  // std::nullopt if the MG graph is not renumbered
+  std::tuple<vertex_t, vertex_t> mg_vertex_partition_range,
+  std::optional<raft::device_span<vertex_t const>>
+    sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
+  std::optional<raft::device_span<vertex_t const>>
+    mg_vertices,  // std::nullopt if the entire local vertex partition range is assumed
+  raft::device_span<value_t const> mg_values);
 
 template <typename type_t>
 struct nearly_equal {

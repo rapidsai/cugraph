@@ -51,42 +51,11 @@ def exclude_libcxx_symlink(cmake_manifest):
     )
 
 
+packages = find_packages(include=["pylibcugraph*"])
 setup(
-    name="pylibcugraph",
-    description="pylibcuGraph - RAPIDS GPU Graph Analytics",
-    version="23.04.00",
-    classifiers=[
-        # "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        # "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-    ],
-    # Include the separately-compiled shared library
-    author="NVIDIA Corporation",
-    packages=find_packages(include=["pylibcugraph", "pylibcugraph.*"]),
-    package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
-    include_package_data=True,
-    install_requires=[
-        "pylibraft==23.4.*",
-        "rmm==23.4.*",
-    ],
-    extras_require={
-        "test": [
-            "pytest",
-            "pytest-xdist",
-            "pytest-benchmark",
-            "scipy",
-            "pandas",
-            "numpy",
-            "networkx>=2.5.1",
-            "cudf==23.4.*",
-        ]
-    },
+    packages=packages,
+    package_data={key: ["*.pxd"] for key in packages},
     cmake_process_manifest_hook=exclude_libcxx_symlink,
-    license="Apache 2.0",
     cmdclass={"clean": CleanCommand},
     zip_safe=False,
 )

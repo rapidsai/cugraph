@@ -20,11 +20,16 @@ import pytest
 
 from cugraph_pyg.data import CuGraphStore
 
+from cugraph.utilities.utils import import_optional, MissingModule
+
+torch = import_optional("torch")
+
 
 @pytest.mark.cugraph_ops
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
+    cugraph_store = CuGraphStore(F, G, N)
 
     sampler = CuGraphSampler(
         (cugraph_store, cugraph_store),
@@ -36,8 +41,8 @@ def test_neighbor_sample(basic_graph_1):
 
     out_dict = sampler.sample_from_nodes(
         (
-            cupy.arange(6, dtype="int64"),
-            cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+            torch.arange(6, dtype=torch.int64),
+            torch.tensor([0, 1, 2, 3, 4], dtype=torch.int64),
             None,
         )
     )
@@ -51,29 +56,25 @@ def test_neighbor_sample(basic_graph_1):
         col_dict = out_dict.col
         metadata = out_dict.metadata
 
-    assert metadata.get().tolist() == list(range(6))
+    assert metadata.tolist() == list(range(6))
 
     for node_type, node_ids in noi_groups.items():
-        actual_vertex_ids = cupy.arange(N[node_type])
+        actual_vertex_ids = torch.arange(N[node_type])
 
-        assert list(node_ids) == list(actual_vertex_ids)
-
-    print("row:", row_dict)
-    print("col:", col_dict)
-    print("G:", G)
+        assert node_ids.tolist() == actual_vertex_ids.tolist()
 
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
-                "src": ei[0],
-                "dst": ei[1],
+                "src": cupy.asarray(ei[0]),
+                "dst": cupy.asarray(ei[1]),
             }
         )
 
         results_df = cudf.DataFrame(
             {
-                "src": row_dict[edge_type],
-                "dst": col_dict[edge_type],
+                "src": cupy.asarray(row_dict[edge_type]),
+                "dst": cupy.asarray(col_dict[edge_type]),
             }
         )
 
@@ -88,9 +89,10 @@ def test_neighbor_sample(basic_graph_1):
 
 
 @pytest.mark.cugraph_ops
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy")
+    cugraph_store = CuGraphStore(F, G, N)
 
     sampler = CuGraphSampler(
         (cugraph_store, cugraph_store),
@@ -102,8 +104,8 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 
     out_dict = sampler.sample_from_nodes(
         (
-            cupy.arange(6, dtype="int64"),
-            cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+            torch.arange(6, dtype=torch.int64),
+            torch.tensor([0, 1, 2, 3, 4], dtype=torch.int64),
             None,
         )
     )
@@ -117,29 +119,25 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         col_dict = out_dict.col
         metadata = out_dict.metadata
 
-    assert metadata.get().tolist() == list(range(6))
+    assert metadata.tolist() == list(range(6))
 
     for node_type, node_ids in noi_groups.items():
-        actual_vertex_ids = cupy.arange(N[node_type])
+        actual_vertex_ids = torch.arange(N[node_type])
 
-        assert list(node_ids) == list(actual_vertex_ids)
-
-    print("row:", row_dict)
-    print("col:", col_dict)
-    print("G:", G)
+        assert node_ids.tolist() == actual_vertex_ids.tolist()
 
     for edge_type, ei in G.items():
         expected_df = cudf.DataFrame(
             {
-                "src": ei[0],
-                "dst": ei[1],
+                "src": cupy.asarray(ei[0]),
+                "dst": cupy.asarray(ei[1]),
             }
         )
 
         results_df = cudf.DataFrame(
             {
-                "src": row_dict[edge_type],
-                "dst": col_dict[edge_type],
+                "src": cupy.asarray(row_dict[edge_type]),
+                "dst": cupy.asarray(col_dict[edge_type]),
             }
         )
 

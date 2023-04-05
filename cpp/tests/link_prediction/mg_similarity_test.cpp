@@ -23,7 +23,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <link_prediction/similarity_compare.hpp>
@@ -108,17 +107,18 @@ class Tests_MGSimilarity
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
 
-    std::tie(d_v1, d_v2, std::ignore, std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                  edge_t,
-                                                                                  weight_t,
-                                                                                  int32_t>(
-        *handle_,
-        std::move(d_v1),
-        std::move(d_v2),
-        std::nullopt,
-        std::nullopt,
-        mg_graph_view.vertex_partition_range_lasts());
+    std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore) =
+      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+        vertex_t,
+        edge_t,
+        weight_t,
+        int32_t>(*handle_,
+                 std::move(d_v1),
+                 std::move(d_v2),
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 mg_graph_view.vertex_partition_range_lasts());
 
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
@@ -261,16 +261,16 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGSimilarity_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           // Disable weighted computation testing in 22.10
-                           //::testing::Values(Similarity_Usecase{true, true, 20},
-                           // Similarity_Usecase{false, true, 20}),
-                           ::testing::Values(Similarity_Usecase{false, true, 20}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGSimilarity_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{true, true, 20},
+    // Similarity_Usecase{false, true, 20}),
+    ::testing::Values(Similarity_Usecase{false, true, 20}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -282,7 +282,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Similarity_Usecase{false, false, 20}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

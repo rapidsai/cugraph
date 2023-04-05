@@ -28,7 +28,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
@@ -130,8 +129,8 @@ class Tests_MGReduceV
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, true, true);
 
@@ -153,7 +152,7 @@ class Tests_MGReduceV
       cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
 
     auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, (*d_mg_renumber_map_labels), hash_bin_count);
+      *handle_, (*mg_renumber_map), hash_bin_count);
     auto property_iter = cugraph::get_dataframe_buffer_begin(mg_vertex_prop);
 
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
@@ -206,46 +205,53 @@ class Tests_MGReduceV
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          *handle_, input_usecase, true, false);
-      auto sg_graph_view = sg_graph.view();
-
-      auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count);
-      auto sg_property_iter = cugraph::get_dataframe_buffer_begin(sg_vertex_prop);
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
-      for (auto reduction_type : reduction_types) {
-        result_t expected_result{};
-        switch (reduction_type) {
-          case reduction_type_t::PLUS:
-            expected_result = reduce_v(*handle_,
-                                       sg_graph_view,
-                                       sg_property_iter,
-                                       property_initial_value,
-                                       cugraph::reduce_op::plus<result_t>{});
-            break;
-          case reduction_type_t::MINIMUM:
-            expected_result = reduce_v(*handle_,
-                                       sg_graph_view,
-                                       sg_property_iter,
-                                       property_initial_value,
-                                       cugraph::reduce_op::minimum<result_t>{});
-            break;
-          case reduction_type_t::MAXIMUM:
-            expected_result = reduce_v(*handle_,
-                                       sg_graph_view,
-                                       sg_property_iter,
-                                       property_initial_value,
-                                       cugraph::reduce_op::maximum<result_t>{});
-            break;
-          default: FAIL() << "should not be reached.";
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
+
+        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+          *handle_,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+          hash_bin_count);
+        auto sg_property_iter = cugraph::get_dataframe_buffer_begin(sg_vertex_prop);
+
+        for (auto reduction_type : reduction_types) {
+          result_t expected_result{};
+          switch (reduction_type) {
+            case reduction_type_t::PLUS:
+              expected_result = reduce_v(*handle_,
+                                         sg_graph_view,
+                                         sg_property_iter,
+                                         property_initial_value,
+                                         cugraph::reduce_op::plus<result_t>{});
+              break;
+            case reduction_type_t::MINIMUM:
+              expected_result = reduce_v(*handle_,
+                                         sg_graph_view,
+                                         sg_property_iter,
+                                         property_initial_value,
+                                         cugraph::reduce_op::minimum<result_t>{});
+              break;
+            case reduction_type_t::MAXIMUM:
+              expected_result = reduce_v(*handle_,
+                                         sg_graph_view,
+                                         sg_property_iter,
+                                         property_initial_value,
+                                         cugraph::reduce_op::maximum<result_t>{});
+              break;
+            default: FAIL() << "should not be reached.";
+          }
+          result_compare<result_t> compare{};
+          ASSERT_TRUE(compare(expected_result, results[reduction_type]));
         }
-        result_compare<result_t> compare{};
-        ASSERT_TRUE(compare(expected_result, results[reduction_type]));
       }
     }
   }
@@ -353,12 +359,11 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGReduceV_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGReduceV_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -367,8 +372,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGReduceV_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
