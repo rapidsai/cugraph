@@ -73,6 +73,7 @@ requirements:
     - dask-cuda ={{ minor_version }}
     - dask-cudf ={{ minor_version }}
     - dask ==2023.3.2
+    - dask-core ==2023.3.2
     - distributed ==2023.3.2.1
     - libcugraph ={{ version }}
     - libraft ={{ minor_version }}
