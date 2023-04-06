@@ -30,7 +30,7 @@ dependencies:
 - libcudf=23.06.*
 - libcugraphops=23.06.*
 - libraft-headers=23.06.*
-- libraft=23.04.*
+- libraft=23.06.*
 - librmm=23.06.*
 - nbsphinx
 - nccl>=2.9.9
