@@ -138,12 +138,18 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
 
     raft::random::RngState rng_state(static_cast<uint64_t>(handle_->get_comms().get_rank()));
 
-    auto select_count     = prims_usecase.with_replacement
-                              ? prims_usecase.num_seeds
-                              : std::min(prims_usecase.num_seeds,
+    auto select_count = prims_usecase.with_replacement
+                          ? prims_usecase.num_seeds
+                          : std::min(prims_usecase.num_seeds,
                                      static_cast<size_t>(mg_graph_view.number_of_vertices()));
-    auto mg_vertex_buffer = cugraph::select_random_vertices(
-      *handle_, mg_graph_view, rng_state, select_count, prims_usecase.with_replacement, false);
+    auto mg_vertex_buffer =
+      cugraph::select_random_vertices(*handle_,
+                                      mg_graph_view,
+                                      std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+                                      rng_state,
+                                      select_count,
+                                      prims_usecase.with_replacement,
+                                      false);
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
