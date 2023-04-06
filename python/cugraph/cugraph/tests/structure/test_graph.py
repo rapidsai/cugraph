@@ -23,6 +23,7 @@ import cudf
 from cudf.testing.testing import assert_frame_equal
 import cugraph
 from cugraph.testing import utils
+from cudf.testing import assert_series_equal
 
 import cupy
 
@@ -456,59 +457,64 @@ def test_degree_functionality(graph_file):
 
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
 
-    df_in_degree = G.in_degree()
-    df_out_degree = G.out_degree()
-    df_degree = G.degree()
+    cu_in_degree = G.in_degree().sort_values(by="vertex", ignore_index=True)
+    cu_out_degree = G.out_degree().sort_values(by="vertex", ignore_index=True)
+    cu_degree = G.degree().sort_values(by="vertex", ignore_index=True)
 
-    nx_in_degree = Gnx.in_degree()
-    nx_out_degree = Gnx.out_degree()
-    nx_degree = Gnx.degree()
+    cu_results = cu_degree
+    cu_results["in_degree"] = cu_in_degree["degree"]
+    cu_results["out_degree"] = cu_out_degree["degree"]
 
-    err_in_degree = 0
-    err_out_degree = 0
-    err_degree = 0
-    for i in range(len(df_degree)):
-        in_deg = df_in_degree["degree"][i]
-        out_deg = df_out_degree["degree"][i]
-        if in_deg != nx_in_degree[df_in_degree["vertex"][i]]:
-            err_in_degree = err_in_degree + 1
-        if out_deg != nx_out_degree[df_out_degree["vertex"][i]]:
-            err_out_degree = err_out_degree + 1
-        if df_degree["degree"][i] != nx_degree[df_degree["vertex"][i]]:
-            err_degree = err_degree + 1
-    assert err_in_degree == 0
-    assert err_out_degree == 0
-    assert err_degree == 0
+    nx_in_degree = list(Gnx.in_degree())
+    nx_out_degree = list(Gnx.out_degree())
+    nx_degree = list(Gnx.degree())
 
+    nx_in_degree.sort(key=lambda v: v[0])
+    nx_out_degree.sort(key=lambda v: v[0])
+    nx_degree.sort(key=lambda v: v[0])
 
-# Test
-@pytest.mark.sg
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_degrees_functionality(graph_file):
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    nx_results = cudf.DataFrame()
+    nx_results["vertex"] = dict(nx_degree).keys()
+    nx_results["degree"] = dict(nx_degree).values()
+    nx_results["in_degree"] = dict(nx_in_degree).values()
+    nx_results["out_degree"] = dict(nx_out_degree).values()
 
-    G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    assert_series_equal(
+        cu_results["in_degree"],
+        nx_results["in_degree"],
+        check_names=False,
+        check_dtype=False,
+    )
 
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
+    assert_series_equal(
+        cu_results["out_degree"],
+        nx_results["out_degree"],
+        check_names=False,
+        check_dtype=False,
+    )
 
-    df = G.degrees()
+    assert_series_equal(
+        cu_results["degree"],
+        nx_results["degree"],
+        check_names=False,
+        check_dtype=False,
+    )
 
-    nx_in_degree = Gnx.in_degree()
-    nx_out_degree = Gnx.out_degree()
+    # testing degrees functionality
+    df = G.degrees().sort_values(by="vertex", ignore_index=True)
+    assert_series_equal(
+        df["in_degree"],
+        nx_results["in_degree"],
+        check_names=False,
+        check_dtype=False,
+    )
 
-    err_in_degree = 0
-    err_out_degree = 0
-
-    for i in range(len(df)):
-        if df["in_degree"][i] != nx_in_degree[df["vertex"][i]]:
-            err_in_degree = err_in_degree + 1
-        if df["out_degree"][i] != nx_out_degree[df["vertex"][i]]:
-            err_out_degree = err_out_degree + 1
-
-    assert err_in_degree == 0
-    assert err_out_degree == 0
+    assert_series_equal(
+        df["out_degree"],
+        nx_results["out_degree"],
+        check_names=False,
+        check_dtype=False,
+    )
 
 
 # Test
@@ -719,7 +725,7 @@ def test_graph_init_with_multigraph():
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_sg_graph(graph_file):
     el = utils.read_csv_file(graph_file)
-    G = cugraph.from_cudf_edgelist(el, source="0", destination="1", edge_attr="2")
+    G = cugraph.from_cudf_edgelist(el, source=["0"], destination=["1"], edge_attr="2")
 
     # ensure graph exists
     assert G._plc_graph is not None
@@ -758,7 +764,6 @@ def test_create_graph_with_edge_ids(graph_file):
             source="0",
             destination="1",
             edge_attr=["2", "id", "etype"],
-            legacy_renum_only=True,
         )
 
     G = cugraph.Graph(directed=True)
@@ -767,12 +772,46 @@ def test_create_graph_with_edge_ids(graph_file):
         source="0",
         destination="1",
         edge_attr=["2", "id", "etype"],
-        legacy_renum_only=True,
     )
 
     H = G.to_undirected()
     assert G.is_directed()
     assert not H.is_directed()
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids_check_renumbering(graph_file):
+    el = utils.read_csv_file(graph_file)
+    el = el.rename(columns={"0": "0_src", "1": "0_dst", "2": "weights"})
+    el["1_src"] = el["0_src"] + 1000
+    el["1_dst"] = el["0_dst"] + 1000
+
+    el["edge_id"] = cupy.random.permutation(len(el))
+    el["edge_id"] = el["edge_id"].astype(el["1_dst"].dtype)
+    el["edge_type"] = cupy.random.random_integers(4, size=len(el))
+    el["edge_type"] = el["edge_type"].astype("int32")
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        el,
+        source=["0_src", "1_src"],
+        destination=["0_dst", "1_dst"],
+        edge_attr=["weights", "edge_id", "edge_type"],
+    )
+    assert G.renumbered is True
+
+    renumbered_df = G.edgelist.edgelist_df
+
+    unrenumbered_df = G.unrenumber(renumbered_df, "src")
+    unrenumbered_df = G.unrenumber(unrenumbered_df, "dst")
+
+    assert_frame_equal(
+        el.sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        unrenumbered_df.sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        check_dtype=False,
+        check_like=True,
+    )
 
 
 # Test

@@ -17,10 +17,12 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 import cupy
 import cudf
+import warnings
 import dask_cudf
 import cupy as cp
 import dask
 from typing import Union
+import numpy as np
 
 from pylibcugraph import (
     MGGraph,
@@ -70,7 +72,6 @@ class simpleDistributedGraphImpl:
         # Structure
         self.edgelist = None
         self.renumber_map = None
-        self.aggregate_segment_offsets = None
         self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
@@ -128,8 +129,17 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
+
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
+
+        if renumber is False:
+            if type(source) is list and type(destination) is list:
+                raise ValueError("set renumber to True for multi column ids")
+            elif input_ddf[source].dtype not in [np.int32, np.int64] or input_ddf[
+                destination
+            ].dtype not in [np.int32, np.int64]:
+                raise ValueError("set renumber to True for non integer columns ids")
 
         s_col = source
         d_col = destination
@@ -186,13 +196,6 @@ class simpleDistributedGraphImpl:
                         "User-provided edge ids and edge "
                         "types are not permitted for an "
                         "undirected graph."
-                    )
-                if not legacy_renum_only:
-                    raise ValueError(
-                        "User-provided edge ids and edge "
-                        "types are only permitted when "
-                        "from_edgelist is called with "
-                        "legacy_renum_only=True."
                     )
 
             source_col, dest_col, value_col = symmetrize(
@@ -251,13 +254,24 @@ class simpleDistributedGraphImpl:
             transposed=store_transposed, legacy_renum_only=legacy_renum_only
         )
 
-        self.properties.renumbered = self.renumber_map.implementation.numbered
+        if renumber is False:
+            self.properties.renumbered = False
+            src_col_name = self.source_columns
+            dst_col_name = self.destination_columns
+
+        else:
+            # If 'renumber' is set to 'True', an extra renumbering (python)
+            # occurs if there are non-integer or multi-columns vertices
+            self.properties.renumbered = self.renumber_map.is_renumbered
+
+            src_col_name = self.renumber_map.renumbered_src_col_name
+            dst_col_name = self.renumber_map.renumbered_dst_col_name
+
         ddf = self.edgelist.edgelist_df
 
         num_edges = len(ddf)
         edge_data = get_distributed_data(ddf)
-        src_col_name = self.renumber_map.renumbered_src_col_name
-        dst_col_name = self.renumber_map.renumbered_dst_col_name
+
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
@@ -836,9 +850,9 @@ class simpleDistributedGraphImpl:
             return ddf
 
         ddf = _mg_call_plc_select_random_vertices(
+            self,
             _client,
             Comms.get_session_id(),
-            self,
             random_state,
             num_vertices,
         )
@@ -1039,7 +1053,15 @@ class simpleDistributedGraphImpl:
             if True, The C++ renumbering will not be triggered.
             This parameter is added for new algos following the
             C/Pylibcugraph path
+
+            This parameter is deprecated and will be removed.
         """
+
+        if legacy_renum_only:
+            warning_msg = (
+                "The parameter 'legacy_renum_only' is deprecated and will be removed."
+            )
+            warnings.warn(warning_msg, DeprecationWarning)
 
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
@@ -1054,11 +1076,7 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            (
-                renumbered_ddf,
-                number_map,
-                aggregate_segment_offsets,
-            ) = NumberMap.renumber_and_segment(
+            (renumbered_ddf, number_map,) = NumberMap.renumber_and_segment(
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,
@@ -1068,7 +1086,6 @@ class simpleDistributedGraphImpl:
 
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
-            self.aggregate_segment_offsets = aggregate_segment_offsets
             self.properties.store_transposed = transposed
 
     def vertex_column_size(self):

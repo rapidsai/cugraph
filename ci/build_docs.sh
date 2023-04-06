@@ -45,6 +45,9 @@ popd
 
 rapids-logger "Build Sphinx docs"
 pushd docs/cugraph
+# Ensure cugraph is importable, since sphinx does not report details about this
+# type of failure well.
+python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
 sphinx-build -b dirhtml source _html
 sphinx-build -b text source _text
 popd

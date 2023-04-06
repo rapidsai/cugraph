@@ -86,12 +86,7 @@ def input_expected_output(dask_client, input_combo):
 
     dg = cugraph.Graph(directed=False)
     dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr="value",
-        renumber=True,
-        legacy_renum_only=True,
+        ddf, source="src", destination="dst", edge_attr="value", renumber=True
     )
 
     input_combo["MGGraph"] = dg
@@ -161,7 +156,6 @@ def test_core_number_invalid_input(input_expected_output):
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
     )
 
     invalid_degree_type = 3

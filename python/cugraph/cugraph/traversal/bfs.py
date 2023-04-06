@@ -128,9 +128,6 @@ def bfs(
     Find the distances and predecessors for a breadth first traversal of a
     graph.
 
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
-
     Parameters
     ----------
     G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix

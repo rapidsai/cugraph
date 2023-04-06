@@ -153,6 +153,8 @@ class Graph:
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
 
+            This parameter is deprecated and will be removed.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -293,9 +295,11 @@ class Graph:
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
+
+            This parameter is deprecated and will be removed.
+
         """
-        if renumber is False:
-            raise ValueError("'renumber' must be set to 'True' for MNMG algos")
+
         if self._Impl is None:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleDistributedGraphImpl:
@@ -825,6 +829,8 @@ class NPartiteGraph(Graph):
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
 
+            This parameter is deprecated and will be removed.
+
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -893,6 +899,8 @@ class NPartiteGraph(Graph):
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms
             not yet converted to the pylibcugraph C API.
+
+            This parameter is deprecated and will be removed.
         """
         raise TypeError("Distributed N-partite graph not supported")
 
