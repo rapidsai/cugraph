@@ -6,13 +6,18 @@ The cuGraph package include both a C/C++ CUDA portion and a python portion.  Bot
 
 ## Prerequisites
 
+__OS__:
+* Ubuntu 20.04 or 22.04
+* CentOS 7
+* Rocky Linux 8
+
 __Compiler__:
-* `gcc`         version 9.3+
-* `nvcc`        version 11.0+
-* `cmake`       version 3.20.1+
+* `gcc`         version 11+
+* `nvcc`        version 11.5+
+* `cmake`       version 3.23.1+ (but not 3.25.0) 
 
 __CUDA:__
-* CUDA 11.0+
+* CUDA 11.5+
 * NVIDIA driver 450.80.02+
 * Pascal architecture or better
 
@@ -87,7 +92,7 @@ build.sh [<target> ...] [<flag> ...]
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
-   cugraph-pyg                - build the cugraph-dgl extensions for PyG
+   cugraph-pyg                - build the cugraph-pyg extensions for PyG
    docs                       - build the docs
  and <flag> is:
    -v                         - verbose build mode
