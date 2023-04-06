@@ -33,6 +33,8 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 
+#comment 
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
