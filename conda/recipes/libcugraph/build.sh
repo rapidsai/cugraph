@@ -8,5 +8,5 @@
 # openmpi build dependencies). The conda package does NOT include these test
 # binaries or extra dependencies, but these are built here for use in CI runs.
 
-+export NVCC_PREPEND_FLAGS="${NVCC_PREPEND_FLAGS} -ccbin ${CXX}" # Needed for CUDA 12 nvidia channel compilers
+export NVCC_PREPEND_FLAGS="${NVCC_PREPEND_FLAGS} -ccbin ${CXX}" # Needed for CUDA 12 nvidia channel compilers
 ./build.sh libcugraph libcugraph_etl cpp-mgtests -n -v --allgpuarch
