@@ -82,8 +82,6 @@ NumberMap
    :toctree: ../api/cugraph/
 
    cugraph.structure.NumberMap
-   cugraph.structure.NumberMap.MultiGPU
-   cugraph.structure.NumberMap.SingleGPU
    cugraph.structure.NumberMap.from_internal_vertex_id
    cugraph.structure.NumberMap.to_internal_vertex_id
    cugraph.structure.NumberMap.add_internal_vertex_id

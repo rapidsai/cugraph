@@ -12,5 +12,4 @@ This page provides a list of all publicly accessible modules, methods and classe
     plc/pylibcugraph.rst
     cugraph-dgl/cugraph_dgl.rst
     cugraph-pyg/cugraph_pyg.rst
-    service/cugraph_service_client.rst
-    service/cugraph_service_server.rst
+    service/index.rst
