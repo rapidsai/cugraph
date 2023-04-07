@@ -147,8 +147,8 @@ outputs:
       run:
         - {{ pin_subpackage('libcugraph', exact=True) }}
         - cudatoolkit {{ cuda_spec }}
-        - libcudf ={{ minor_version }}
-        - librmm ={{ minor_version }}
+        - libcudf ={{ minor_version }}*=cuda{{ cuda_major }}*
+        - librmm ={{ minor_version }}*=cuda{{ cuda_major }}*
     about:
       home: https://rapids.ai/
       license: Apache-2.0
