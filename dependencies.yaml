@@ -282,7 +282,7 @@ dependencies:
         packages:
           - cython>=0.29,<0.30
           - &pylibraft pylibraft==23.6.*
-          - &rmm rmm==23.4.*
+          - &rmm rmm==23.6.*
           - scikit-build>=0.13.1
   python_build_cugraph:
     common:
