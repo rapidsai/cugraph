@@ -102,47 +102,45 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
 
     Examples
     --------
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    >>>                   dtype=['int32', 'int32', 'float32'], header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
 
-    M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-                      dtype=['int32', 'int32', 'float32'], header=None)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >>> handle = ResourceHandle()
 
-    handle = ResourceHandle()
+    >>> srcs = G.edgelist.edgelist_df['src']
+    >>> dsts = G.edgelist.edgelist_df['dst']
+    >>> weights = G.edgelist.edgelist_df['weights']
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
+    >>> sg = SGGraph(
+    >>>     resource_handle = handle, 
+    >>>     graph_properties = GraphProperties(is_multigraph=G.is_multigraph()), 
+    >>>     src_array = srcs, 
+    >>>     dst_array = dsts, 
+    >>>     weight_array = weights,
+    >>>     store_transposed=False,
+    >>>     renumber=False,
+    >>>     do_expensive_check=do_expensive_check
+    >>> )
 
-    sg = SGGraph(
-        resource_handle = handle, 
-        graph_properties = GraphProperties(is_multigraph=G.is_multigraph()), 
-        src_array = srcs, 
-        dst_array = dsts, 
-        weight_array = weights,
-        store_transposed=False,
-        renumber=False,
-        do_expensive_check=do_expensive_check
-    )
+    >>> res = pylibcugraph_bfs(
+    >>>         handle,    
+    >>>         sg,
+    >>>         cudf.Series([0], dtype='int32'),
+    >>>         False,
+    >>>         10,
+    >>>         True,
+    >>>         False
+    >>> )
 
-    res = pylibcugraph_bfs(
-            handle,    
-            sg,
-            cudf.Series([0], dtype='int32'),
-            False,
-            10,
-            True,
-            False
-    )
+    >>> distances, predecessors, vertices = res
 
-    distances, predecessors, vertices = res
-    
-    final_results = cudf.DataFrame({
-        'distance': cudf.Series(distances),
-        'vertex': cudf.Series(vertices),
-        'predecessor': cudf.Series(predecessors),
-    })
-
+    >>> final_results = cudf.DataFrame({
+    >>>     'distance': cudf.Series(distances),
+    >>>     'vertex': cudf.Series(vertices),
+    >>>     'predecessor': cudf.Series(predecessors),
+    >>> })
     """
 
     try:

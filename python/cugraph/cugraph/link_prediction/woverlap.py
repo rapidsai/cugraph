@@ -60,8 +60,10 @@ def overlap_w(input_graph, weights, vertex_pair=None):
 
          df['first'] : cudf.Series
             The first vertex ID of each pair.
+
         df['second'] : cudf.Series
             The second vertex ID of each pair.
+
         df['overlap_coeff'] : cudf.Series
             The computed weighted Overlap coefficient between the first and the
             second vertex ID.

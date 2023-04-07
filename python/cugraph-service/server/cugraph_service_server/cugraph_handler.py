@@ -207,7 +207,7 @@ class CugraphHandler:
         """
         Returns a dictionary of meta-data about the server.
 
-        Dictionary items are string:union_objs, where union_objs are Value
+        Dictionary items are string:union_objs, where union-objs are Value
         "unions" used for RPC serialization.
         """
         # FIXME: expose self.__dask_client.scheduler_info() as needed
@@ -222,7 +222,7 @@ class CugraphHandler:
 
     def load_graph_creation_extensions(self, extension_dir_or_mod_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in the
+        Loads ("imports") all modules matching the pattern xxx_extension.py in the
         directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
         can be either a path to a directory on disk, or a python import path to a
         package.
