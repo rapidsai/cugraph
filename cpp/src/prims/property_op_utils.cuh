@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/comms/comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/device_span.hpp>
 
 #include <cub/cub.cuh>
@@ -39,47 +39,30 @@ namespace detail {
 
 template <typename key_t,
           typename vertex_t,
-          typename weight_t,
           typename src_value_t,
           typename dst_value_t,
+          typename e_value_t,
           typename EdgeOp,
           typename Enable = void>
 struct edge_op_result_type;
 
 template <typename key_t,
           typename vertex_t,
-          typename weight_t,
           typename src_value_t,
           typename dst_value_t,
+          typename e_value_t,
           typename EdgeOp>
 struct edge_op_result_type<
   key_t,
   vertex_t,
-  weight_t,
   src_value_t,
   dst_value_t,
+  e_value_t,
   EdgeOp,
   std::enable_if_t<
-    std::is_invocable_v<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>>> {
+    std::is_invocable_v<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t, e_value_t>>> {
   using type =
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>::type;
-};
-
-template <typename key_t,
-          typename vertex_t,
-          typename weight_t,
-          typename src_value_t,
-          typename dst_value_t,
-          typename EdgeOp>
-struct edge_op_result_type<
-  key_t,
-  vertex_t,
-  weight_t,
-  src_value_t,
-  dst_value_t,
-  EdgeOp,
-  std::enable_if_t<std::is_invocable_v<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>>> {
-  using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>::type;
+    typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t, e_value_t>::type;
 };
 
 template <typename vertex_t,
@@ -109,110 +92,94 @@ struct intersection_op_result_type<
                                            raft::device_span<vertex_t const>>::type;
 };
 
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> elementwise_atomic_min_impl(
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
+  T const& rhs)
+{
+  // no-op
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> elementwise_atomic_min_impl(
+  T& lhs, T const& rhs)
+{
+  atomicMin(&lhs, rhs);
+}
+
+template <typename Iterator, typename TupleType, size_t I, size_t N>
+struct elementwise_atomic_min_thrust_tuple_impl {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
+  {
+    elementwise_atomic_min_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
+                                thrust::get<I>(value));
+    elementwise_atomic_min_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+  }
+};
+
+template <typename Iterator, typename TupleType, size_t I>
+struct elementwise_atomic_min_thrust_tuple_impl<Iterator, TupleType, I, I> {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
+};
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> elementwise_atomic_max_impl(
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
+  T const& rhs)
+{
+  // no-op
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> elementwise_atomic_max_impl(
+  T& lhs, T const& rhs)
+{
+  atomicMax(&lhs, rhs);
+}
+
+template <typename Iterator, typename TupleType, size_t I, size_t N>
+struct elementwise_atomic_max_thrust_tuple_impl {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
+  {
+    elementwise_atomic_max_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
+                                thrust::get<I>(value));
+    elementwise_atomic_max_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+  }
+};
+
+template <typename Iterator, typename TupleType, size_t I>
+struct elementwise_atomic_max_thrust_tuple_impl<Iterator, TupleType, I, I> {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
+};
+
 }  // namespace detail
 
 template <typename GraphViewType,
           typename key_t,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
-          typename EdgeOp>
-struct evaluate_edge_op {
-  using vertex_type    = typename GraphViewType::vertex_type;
-  using weight_type    = typename GraphViewType::weight_type;
-  using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
-  using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
-  using result_type    = typename detail::
-    edge_op_result_type<key_t, vertex_type, weight_type, src_value_type, dst_value_type, EdgeOp>::
-      type;
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename W  = weight_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, W, SV, DV>,
-                              typename std::invoke_result<E, K, V, W, SV, DV>::type>
-  compute(K s, V d, W w, SV sv, DV dv, E e) const
-  {
-    return e(s, d, w, sv, dv);
-  }
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename W  = weight_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV>,
-                              typename std::invoke_result<E, K, V, SV, DV>::type>
-  compute(K s, V d, W w, SV sv, DV dv, E e) const
-  {
-    return e(s, d, sv, dv);
-  }
-};
-
-template <typename GraphViewType,
-          typename src_value_t,
-          typename dst_value_t,
-          typename IntersectionOp>
-struct evaluate_intersection_op {
-  using vertex_type = typename GraphViewType::vertex_type;
-  using weight_type = typename GraphViewType::weight_type;
-  using result_type = typename detail::
-    intersection_op_result_type<vertex_type, src_value_t, dst_value_t, IntersectionOp>::type;
-
-  template <typename V  = vertex_type,
-            typename SV = src_value_t,
-            typename DV = dst_value_t,
-            typename I  = IntersectionOp>
-  __device__
-    std::enable_if_t<std::is_invocable_v<I, V, V, SV, DV, raft::device_span<V const>>,
-                     typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>::type>
-    compute(V s, V d, SV sv, DV dv, raft::device_span<V const> intersection, I i)
-  {
-    return i(s, d, sv, dv, intersection);
-  }
-};
-
-template <typename GraphViewType,
-          typename key_t,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 struct cast_edge_op_bool_to_integer {
   static_assert(std::is_integral<T>::value);
   using vertex_type    = typename GraphViewType::vertex_type;
-  using weight_type    = typename GraphViewType::weight_type;
   using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
   using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
+  using e_value_type   = typename EdgePartitionEdgeValueInputWrapper::value_type;
 
   EdgeOp e_op{};
 
   template <typename K  = key_t,
             typename V  = vertex_type,
-            typename W  = weight_type,
             typename SV = src_value_type,
             typename DV = dst_value_type,
+            typename EV = e_value_type,
             typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, W, SV, DV>, T> operator()(
-    K s, V d, W w, SV sv, DV dv) const
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV, EV>, T> operator()(
+    K s, V d, SV sv, DV dv, EV ev) const
   {
-    return e_op(s, d, w, sv, dv) ? T{1} : T{0};
-  }
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV>, T> operator()(K s,
-                                                                                  V d,
-                                                                                  SV sv,
-                                                                                  DV dv) const
-  {
-    return e_op(s, d, sv, dv) ? T{1} : T{0};
+    return e_op(s, d, sv, dv, ev) ? T{1} : T{0};
   }
 };
 
@@ -263,6 +230,68 @@ template <typename T>
 constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> max_identity_element()
 {
   return std::numeric_limits<T>::max();
+}
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
+elementwise_atomic_min_edge_op_result(Iterator iter, T const& value)
+{
+  // no-op
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
+                     std::is_arithmetic<T>::value,
+                   void>
+  elementwise_atomic_min_edge_op_result(Iterator iter, T const& value)
+{
+  atomicMin(&(thrust::raw_reference_cast(*iter)), value);
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
+                     is_thrust_tuple<T>::value,
+                   void>
+  elementwise_atomic_min_edge_op_result(Iterator iter, T const& value)
+{
+  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+                thrust::tuple_size<T>::value);
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::elementwise_atomic_min_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(
+    iter, value);
+}
+
+template <typename Iterator, typename T>
+__device__ std::enable_if_t<thrust::detail::is_discard_iterator<Iterator>::value, void>
+elementwise_atomic_max_edge_op_result(Iterator iter, T const& value)
+{
+  // no-op
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<std::is_same<typename thrust::iterator_traits<Iterator>::value_type, T>::value &&
+                     std::is_arithmetic<T>::value,
+                   void>
+  elementwise_atomic_max_edge_op_result(Iterator iter, T const& value)
+{
+  atomicMax(&(thrust::raw_reference_cast(*iter)), value);
+}
+
+template <typename Iterator, typename T>
+__device__
+  std::enable_if_t<is_thrust_tuple<typename thrust::iterator_traits<Iterator>::value_type>::value &&
+                     is_thrust_tuple<T>::value,
+                   void>
+  elementwise_atomic_max_edge_op_result(Iterator iter, T const& value)
+{
+  static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
+                thrust::tuple_size<T>::value);
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::elementwise_atomic_max_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(
+    iter, value);
 }
 
 }  // namespace cugraph

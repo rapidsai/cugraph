@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,10 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 import cudf
-from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+from cugraph.structure import Graph, MultiGraph
 from cugraph.utilities import (
     ensure_cugraph_obj,
     is_matrix_type,
@@ -45,7 +46,7 @@ def _ensure_args(
 
     G_type = type(G)
     # Check for Graph-type inputs
-    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+    if G_type is Graph or is_nx_graph_type(G_type):
         # FIXME: Improve Graph-type checking
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
@@ -94,7 +95,7 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
     return_predecessors is only used for return values from cupy/scipy input
     types.
     """
-    if input_type in [Graph, DiGraph, MultiGraph, MultiDiGraph]:
+    if input_type in [Graph, MultiGraph]:
         return df
 
     elif is_nx_graph_type(input_type):
@@ -108,8 +109,8 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
         if return_predecessors:
             if is_cp_matrix_type(input_type):
                 return (
-                    cp.fromDlpack(sorted_df["distance"].to_dlpack()),
-                    cp.fromDlpack(sorted_df["predecessor"].to_dlpack()),
+                    cp.from_dlpack(sorted_df["distance"].to_dlpack()),
+                    cp.from_dlpack(sorted_df["predecessor"].to_dlpack()),
                 )
             else:
                 return (
@@ -118,7 +119,7 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
                 )
         else:
             if is_cp_matrix_type(input_type):
-                return cp.fromDlpack(sorted_df["distance"].to_dlpack())
+                return cp.from_dlpack(sorted_df["distance"].to_dlpack())
             else:
                 return sorted_df["distance"].to_numpy()
     else:
@@ -157,6 +158,7 @@ def sssp(
         matrix object, which should contain the connectivity information. Edge
         weights, if present, should be single or double precision floating
         point values.
+        The current implementation only supports weighted graphs.
     source : int
         Index of the source vertex.
     cutoff : double, optional (default = None)
@@ -213,6 +215,13 @@ def sssp(
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
+
+    if not G.edgelist.weights:
+        warning_msg = (
+            "'SSSP' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release."
+        )
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,16 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
+#include <prims/kv_store.cuh>
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <cuco/static_map.cuh>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -55,35 +56,33 @@ void unrenumber_local_int_edges(
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
+  auto& comm                 = handle.get_comms();
+  auto const comm_size       = comm.get_size();
+  auto const comm_rank       = comm.get_rank();
+  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+  auto const major_comm_size = major_comm.get_size();
+  auto const major_comm_rank = major_comm.get_rank();
+  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+  auto const minor_comm_size = minor_comm.get_size();
+  auto const minor_comm_rank = minor_comm.get_rank();
 
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto const comm_rank     = comm.get_rank();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto const row_comm_rank = row_comm.get_rank();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
-  auto const col_comm_rank = col_comm.get_rank();
-
-  CUGRAPH_EXPECTS(edgelist_majors.size() == static_cast<size_t>(col_comm_size),
+  CUGRAPH_EXPECTS(edgelist_majors.size() == static_cast<size_t>(minor_comm_size),
                   "Invalid input arguments: erroneous edgelist_majors.size().");
-  CUGRAPH_EXPECTS(edgelist_minors.size() == static_cast<size_t>(col_comm_size),
+  CUGRAPH_EXPECTS(edgelist_minors.size() == static_cast<size_t>(minor_comm_size),
                   "Invalid input arguments: erroneous edgelist_minors.size().");
-  CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(col_comm_size),
+  CUGRAPH_EXPECTS(edgelist_edge_counts.size() == static_cast<size_t>(minor_comm_size),
                   "Invalid input arguments: erroneous edgelist_edge_counts.size().");
   CUGRAPH_EXPECTS(
     std::is_sorted(vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.end()),
     "Invalid input arguments: vertex_partition_range_lasts is not sorted.");
   if (edgelist_intra_partition_segment_offsets) {
     CUGRAPH_EXPECTS(
-      (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(col_comm_size),
+      (*edgelist_intra_partition_segment_offsets).size() == static_cast<size_t>(minor_comm_size),
       "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets).size().");
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       CUGRAPH_EXPECTS(
         (*edgelist_intra_partition_segment_offsets)[i].size() ==
-          static_cast<size_t>(row_comm_size + 1),
+          static_cast<size_t>(major_comm_size + 1),
         "Invalid input arguments: erroneous (*edgelist_intra_partition_segment_offsets)[].size().");
       CUGRAPH_EXPECTS(
         std::is_sorted((*edgelist_intra_partition_segment_offsets)[i].begin(),
@@ -100,11 +99,15 @@ void unrenumber_local_int_edges(
 
   if (do_expensive_check) {
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto major_range_vertex_partition_id =
+        compute_local_edge_partition_major_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
       auto edge_partition_major_range_first =
-        vertex_partition_rank == 0 ? vertex_t{0}
-                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
-      auto edge_partition_major_range_last = vertex_partition_range_lasts[vertex_partition_rank];
+        major_range_vertex_partition_id == 0
+          ? vertex_t{0}
+          : vertex_partition_range_lasts[major_range_vertex_partition_id - 1];
+      auto edge_partition_major_range_last =
+        vertex_partition_range_lasts[major_range_vertex_partition_id];
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
@@ -118,12 +121,14 @@ void unrenumber_local_int_edges(
         "edgelist_majors[] + edgelist_edge_counts[]).");
 
       if (edgelist_intra_partition_segment_offsets) {
-        for (int j = 0; j < row_comm_size; ++j) {
-          auto vertex_partition_rank = col_comm_rank * row_comm_size + j;
-          auto valid_first           = vertex_partition_rank == 0
-                                         ? vertex_t{0}
-                                         : vertex_partition_range_lasts[vertex_partition_rank - 1];
-          auto valid_last            = vertex_partition_range_lasts[vertex_partition_rank];
+        for (int j = 0; j < major_comm_size; ++j) {
+          auto minor_range_vertex_partition_id =
+            compute_local_edge_partition_minor_range_vertex_partition_id_t{
+              major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(j);
+          auto valid_first = minor_range_vertex_partition_id == 0
+                               ? vertex_t{0}
+                               : vertex_partition_range_lasts[minor_range_vertex_partition_id - 1];
+          auto valid_last  = vertex_partition_range_lasts[minor_range_vertex_partition_id];
           CUGRAPH_EXPECTS(
             thrust::count_if(
               handle.get_thrust_policy(),
@@ -137,12 +142,19 @@ void unrenumber_local_int_edges(
             "edgelist_minors[] + edgelist_edge_counts[]).");
         }
       } else {
+        auto minor_range_first_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(0);
+        auto minor_range_last_vertex_partition_id =
+          compute_local_edge_partition_minor_range_vertex_partition_id_t{
+            major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(major_comm_size -
+                                                                                1);
         auto edge_partition_minor_range_first =
-          (col_comm_rank * row_comm_size) == 0
+          minor_range_first_vertex_partition_id == 0
             ? vertex_t{0}
-            : vertex_partition_range_lasts[col_comm_rank * row_comm_size - 1];
+            : vertex_partition_range_lasts[minor_range_first_vertex_partition_id - 1];
         auto edge_partition_minor_range_last =
-          vertex_partition_range_lasts[col_comm_rank * row_comm_size + row_comm_size - 1];
+          vertex_partition_range_lasts[minor_range_last_vertex_partition_id];
         CUGRAPH_EXPECTS(
           thrust::count_if(
             handle.get_thrust_policy(),
@@ -170,174 +182,158 @@ void unrenumber_local_int_edges(
   {
     vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto major_range_vertex_partition_id =
+        compute_local_edge_partition_major_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
       auto edge_partition_major_range_size =
-        vertex_partition_range_lasts[vertex_partition_rank] -
-        (vertex_partition_rank == 0 ? vertex_t{0}
-                                    : vertex_partition_range_lasts[vertex_partition_rank - 1]);
+        vertex_partition_range_lasts[major_range_vertex_partition_id] -
+        (major_range_vertex_partition_id == 0
+           ? vertex_t{0}
+           : vertex_partition_range_lasts[major_range_vertex_partition_id - 1]);
       max_edge_partition_major_range_size =
         std::max(max_edge_partition_major_range_size, edge_partition_major_range_size);
     }
     rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
                                                             handle.get_stream());
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
-      auto vertex_partition_rank = static_cast<int>(i) * row_comm_size + row_comm_rank;
+      auto major_range_vertex_partition_id =
+        compute_local_edge_partition_major_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
       auto edge_partition_major_range_first =
-        vertex_partition_rank == 0 ? vertex_t{0}
-                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
-      auto edge_partition_major_range_last = vertex_partition_range_lasts[vertex_partition_rank];
+        major_range_vertex_partition_id == 0
+          ? vertex_t{0}
+          : vertex_partition_range_lasts[major_range_vertex_partition_id - 1];
+      auto edge_partition_major_range_last =
+        vertex_partition_range_lasts[major_range_vertex_partition_id];
       auto edge_partition_major_range_size =
         edge_partition_major_range_last - edge_partition_major_range_first;
-      device_bcast(col_comm,
+      device_bcast(minor_comm,
                    renumber_map_labels,
                    renumber_map_major_labels.data(),
                    edge_partition_major_range_size,
                    i,
                    handle.get_stream());
 
-      auto poly_alloc =
-        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-      auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-        renumber_map{// cuco::static_map requires at least one empty slot
-                     std::max(static_cast<size_t>(
-                                static_cast<double>(edge_partition_major_range_size) / load_factor),
-                              static_cast<size_t>(edge_partition_major_range_size) + 1),
-                     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     stream_adapter,
-                     handle.get_stream()};
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(thrust::make_counting_iterator(edge_partition_major_range_first),
-                           renumber_map_major_labels.begin()));
-      renumber_map.insert(pair_first,
-                          pair_first + edge_partition_major_range_size,
-                          cuco::detail::MurmurHash3_32<vertex_t>{},
-                          thrust::equal_to<vertex_t>{},
-                          handle.get_stream());
-      renumber_map.find(edgelist_majors[i],
-                        edgelist_majors[i] + edgelist_edge_counts[i],
-                        edgelist_majors[i],
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
+      kv_store_t<vertex_t, vertex_t, false> renumber_map(
+        thrust::make_counting_iterator(edge_partition_major_range_first),
+        thrust::make_counting_iterator(edge_partition_major_range_first) +
+          edge_partition_major_range_size,
+        renumber_map_major_labels.begin(),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
+      auto renumber_map_view = renumber_map.view();
+      renumber_map_view.find(edgelist_majors[i],
+                             edgelist_majors[i] + edgelist_edge_counts[i],
+                             edgelist_majors[i],
+                             handle.get_stream());
     }
   }
 
   vertex_t edge_partition_minor_range_size{0};
-  for (int i = 0; i < row_comm_size; ++i) {
-    auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
+  for (int i = 0; i < major_comm_size; ++i) {
+    auto minor_range_vertex_partition_id =
+      compute_local_edge_partition_minor_range_vertex_partition_id_t{
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
     edge_partition_minor_range_size +=
-      vertex_partition_range_lasts[vertex_partition_rank] -
-      (vertex_partition_rank == 0 ? vertex_t{0}
-                                  : vertex_partition_range_lasts[vertex_partition_rank - 1]);
+      vertex_partition_range_lasts[minor_range_vertex_partition_id] -
+      (minor_range_vertex_partition_id == 0
+         ? vertex_t{0}
+         : vertex_partition_range_lasts[minor_range_vertex_partition_id - 1]);
   }
   if ((edge_partition_minor_range_size >= static_cast<vertex_t>(number_of_edges / comm_size)) &&
       edgelist_intra_partition_segment_offsets) {  // memory footprint dominated by the O(V/sqrt(P))
                                                    // part than the O(E/P) part
     vertex_t max_segment_size{0};
-    for (int i = 0; i < row_comm_size; ++i) {
-      auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
-      max_segment_size           = std::max(
-        max_segment_size,
-        vertex_partition_range_lasts[vertex_partition_rank] -
-          (vertex_partition_rank == 0 ? vertex_t{0}
-                                                : vertex_partition_range_lasts[vertex_partition_rank - 1]));
+    for (int i = 0; i < major_comm_size; ++i) {
+      auto minor_range_vertex_partition_id =
+        compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      max_segment_size =
+        std::max(max_segment_size,
+                 vertex_partition_range_lasts[minor_range_vertex_partition_id] -
+                   (minor_range_vertex_partition_id == 0
+                      ? vertex_t{0}
+                      : vertex_partition_range_lasts[minor_range_vertex_partition_id - 1]));
     }
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(max_segment_size, handle.get_stream());
-    for (int i = 0; i < row_comm_size; ++i) {
-      auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
+    for (int i = 0; i < major_comm_size; ++i) {
+      auto minor_range_vertex_partition_id =
+        compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
       auto vertex_partition_minor_range_first =
-        vertex_partition_rank == 0 ? vertex_t{0}
-                                   : vertex_partition_range_lasts[vertex_partition_rank - 1];
-      auto vertex_partition_minor_range_last = vertex_partition_range_lasts[vertex_partition_rank];
+        (minor_range_vertex_partition_id == 0)
+          ? vertex_t{0}
+          : vertex_partition_range_lasts[minor_range_vertex_partition_id - 1];
+      auto vertex_partition_minor_range_last =
+        vertex_partition_range_lasts[minor_range_vertex_partition_id];
       auto segment_size = vertex_partition_minor_range_last - vertex_partition_minor_range_first;
-      device_bcast(row_comm,
+      device_bcast(major_comm,
                    renumber_map_labels,
                    renumber_map_minor_labels.data(),
                    segment_size,
                    i,
                    handle.get_stream());
 
-      auto poly_alloc =
-        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-      auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-        renumber_map{// cuco::static_map requires at least one empty slot
-                     std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
-                              static_cast<size_t>(segment_size) + 1),
-                     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     stream_adapter,
-                     handle.get_stream()};
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(thrust::make_counting_iterator(vertex_partition_minor_range_first),
-                           renumber_map_minor_labels.begin()));
-      renumber_map.insert(pair_first,
-                          pair_first + segment_size,
-                          cuco::detail::MurmurHash3_32<vertex_t>{},
-                          thrust::equal_to<vertex_t>{},
-                          handle.get_stream());
+      kv_store_t<vertex_t, vertex_t, false> renumber_map(
+        thrust::make_counting_iterator(vertex_partition_minor_range_first),
+        thrust::make_counting_iterator(vertex_partition_minor_range_first) + segment_size,
+        renumber_map_minor_labels.begin(),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
+      auto renumber_map_view = renumber_map.view();
       for (size_t j = 0; j < edgelist_minors.size(); ++j) {
-        renumber_map.find(
+        renumber_map_view.find(
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
-          cuco::detail::MurmurHash3_32<vertex_t>{},
-          thrust::equal_to<vertex_t>{},
           handle.get_stream());
       }
     }
   } else {
+    auto minor_range_first_vertex_partition_id =
+      compute_local_edge_partition_minor_range_vertex_partition_id_t{
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(0);
     auto edge_partition_minor_range_first =
-      col_comm_rank * row_comm_size == 0
+      minor_range_first_vertex_partition_id == 0
         ? vertex_t{0}
-        : vertex_partition_range_lasts[col_comm_rank * row_comm_size - 1];
+        : vertex_partition_range_lasts[minor_range_first_vertex_partition_id - 1];
     rmm::device_uvector<vertex_t> renumber_map_minor_labels(edge_partition_minor_range_size,
                                                             handle.get_stream());
-    std::vector<size_t> recvcounts(row_comm_size);
-    for (int i = 0; i < row_comm_size; ++i) {
-      auto vertex_partition_rank = col_comm_rank * row_comm_size + i;
-      recvcounts[i] =
-        vertex_partition_range_lasts[vertex_partition_rank] -
-        (vertex_partition_rank == 0 ? vertex_t{0}
-                                    : vertex_partition_range_lasts[vertex_partition_rank - 1]);
+    std::vector<size_t> recvcounts(major_comm_size);
+    for (int i = 0; i < major_comm_size; ++i) {
+      auto minor_range_vertex_partition_id =
+        compute_local_edge_partition_minor_range_vertex_partition_id_t{
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
+      recvcounts[i] = vertex_partition_range_lasts[minor_range_vertex_partition_id] -
+                      (minor_range_vertex_partition_id == 0
+                         ? vertex_t{0}
+                         : vertex_partition_range_lasts[minor_range_vertex_partition_id - 1]);
     }
     std::vector<size_t> displacements(recvcounts.size(), 0);
     std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-    device_allgatherv(row_comm,
+    device_allgatherv(major_comm,
                       renumber_map_labels,
                       renumber_map_minor_labels.begin(),
                       recvcounts,
                       displacements,
                       handle.get_stream());
 
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      renumber_map{// cuco::static_map requires at least one empty slot
-                   std::max(static_cast<size_t>(
-                              static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
-                            renumber_map_minor_labels.size() + 1),
-                   cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   stream_adapter,
-                   handle.get_stream()};
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator(edge_partition_minor_range_first),
-                         renumber_map_minor_labels.begin()));
-    renumber_map.insert(pair_first,
-                        pair_first + renumber_map_minor_labels.size(),
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
+    kv_store_t<vertex_t, vertex_t, false> renumber_map(
+      thrust::make_counting_iterator(edge_partition_minor_range_first),
+      thrust::make_counting_iterator(edge_partition_minor_range_first) +
+        renumber_map_minor_labels.size(),
+      renumber_map_minor_labels.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
+    auto renumber_map_view = renumber_map.view();
     for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-      renumber_map.find(edgelist_minors[i],
-                        edgelist_minors[i] + edgelist_edge_counts[i],
-                        edgelist_minors[i],
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
+      renumber_map_view.find(edgelist_minors[i],
+                             edgelist_minors[i] + edgelist_edge_counts[i],
+                             edgelist_minors[i],
+                             handle.get_stream());
     }
   }
 }
@@ -353,8 +349,6 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                            vertex_t local_int_vertex_last,
                            bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
                                          handle.get_stream());
@@ -368,18 +362,14 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter   = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-  auto renumber_map_ptr = std::make_unique<
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-    size_t{0},
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    stream_adapter,
-    handle.get_stream());
+  std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>> renumber_map_ptr{nullptr};
   if (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
 
     rmm::device_uvector<vertex_t> sorted_unique_ext_vertices(num_vertices, handle.get_stream());
     sorted_unique_ext_vertices.resize(
@@ -401,66 +391,45 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                       sorted_unique_ext_vertices.end())),
       handle.get_stream());
 
+    kv_store_t<vertex_t, vertex_t, false> local_renumber_map(
+      renumber_map_labels,
+      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+      thrust::make_counting_iterator(local_int_vertex_first),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());  // map local external vertex IDs to local internal vertex IDs
+
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
-    std::tie(sorted_unique_ext_vertices, int_vertices_for_sorted_unique_ext_vertices) =
-      collect_values_for_unique_keys(
-        comm,
-        renumber_map_labels,
-        renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
-        thrust::make_counting_iterator(local_int_vertex_first),
-        std::move(sorted_unique_ext_vertices),
-        detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
-        handle.get_stream());
+    auto [unique_ext_vertices, int_vertices_for_unique_ext_vertices] =
+      collect_values_for_unique_keys(handle,
+                                     local_renumber_map.view(),
+                                     std::move(sorted_unique_ext_vertices),
+                                     detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+                                       comm_size, major_comm_size, minor_comm_size});
 
-    renumber_map_ptr.reset();
-
-    renumber_map_ptr = std::make_unique<
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-      // cuco::static_map requires at least one empty slot
-      std::max(
-        static_cast<size_t>(static_cast<double>(sorted_unique_ext_vertices.size()) / load_factor),
-        sorted_unique_ext_vertices.size() + 1),
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      stream_adapter,
+    renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
+      unique_ext_vertices.begin(),
+      unique_ext_vertices.begin() + unique_ext_vertices.size(),
+      int_vertices_for_unique_ext_vertices.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
-
-    auto kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      sorted_unique_ext_vertices.begin(), int_vertices_for_sorted_unique_ext_vertices.begin()));
-    renumber_map_ptr->insert(kv_pair_first,
-                             kv_pair_first + sorted_unique_ext_vertices.size(),
-                             cuco::detail::MurmurHash3_32<vertex_t>{},
-                             thrust::equal_to<vertex_t>{},
-                             handle.get_stream());
   } else {
-    renumber_map_ptr.reset();
-
-    renumber_map_ptr = std::make_unique<
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(
-                 static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
-               static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      stream_adapter,
+    renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
+      renumber_map_labels,
+      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+      thrust::make_counting_iterator(vertex_t{0}),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
-
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(renumber_map_labels, thrust::make_counting_iterator(vertex_t{0})));
-    renumber_map_ptr->insert(pair_first,
-                             pair_first + (local_int_vertex_last - local_int_vertex_first),
-                             cuco::detail::MurmurHash3_32<vertex_t>{},
-                             thrust::equal_to<vertex_t>{},
-                             handle.get_stream());
   }
+  auto renumber_map_view = renumber_map_ptr->view();
 
   if (do_expensive_check) {
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
-    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    renumber_map_view.contains(
+      vertices, vertices + num_vertices, contains.begin(), handle.get_stream());
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      vc_pair_first,
@@ -476,7 +445,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                     "(aggregate) renumber_map_labels.");
   }
 
-  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+  renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
 }
 
 template <typename vertex_t, bool multi_gpu>
@@ -488,8 +457,6 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                                  vertex_t local_int_vertex_last,
                                  bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
                                          handle.get_stream());
@@ -503,29 +470,19 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter   = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-  auto renumber_map_ptr = std::make_unique<
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-    std::max(static_cast<size_t>(
-               static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
-             static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    stream_adapter,
+  kv_store_t<vertex_t, vertex_t, false> renumber_map(
+    renumber_map_labels,
+    renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+    thrust::make_counting_iterator(local_int_vertex_first),
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value,
     handle.get_stream());
-
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-    renumber_map_labels, thrust::make_counting_iterator(local_int_vertex_first)));
-  renumber_map_ptr->insert(pair_first,
-                           pair_first + (local_int_vertex_last - local_int_vertex_first),
-                           cuco::detail::MurmurHash3_32<vertex_t>{},
-                           thrust::equal_to<vertex_t>{},
-                           handle.get_stream());
+  auto renumber_map_view = renumber_map.view();
 
   if (do_expensive_check) {
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
-    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    renumber_map_view.contains(
+      vertices, vertices + num_vertices, contains.begin(), handle.get_stream());
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      vc_pair_first,
@@ -541,7 +498,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                     "(aggregate) renumber_map_labels.");
   }
 
-  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+  renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
 }
 
 template <typename vertex_t>
@@ -586,8 +543,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              std::vector<vertex_t> const& vertex_partition_range_lasts,
                              bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
       thrust::count_if(handle.get_thrust_policy(),
@@ -602,13 +557,23 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
   }
 
   if (multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto const major_comm_rank = major_comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
 
-    auto local_int_vertex_first =
-      comm_rank == 0 ? vertex_t{0} : vertex_partition_range_lasts[comm_rank - 1];
-    auto local_int_vertex_last = vertex_partition_range_lasts[comm_rank];
+    auto vertex_partition_id =
+      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+    auto local_int_vertex_first = vertex_partition_id == 0
+                                    ? vertex_t{0}
+                                    : vertex_partition_range_lasts[vertex_partition_id - 1];
+    auto local_int_vertex_last  = vertex_partition_range_lasts[vertex_partition_id];
 
     rmm::device_uvector<vertex_t> sorted_unique_int_vertices(num_vertices, handle.get_stream());
     sorted_unique_int_vertices.resize(
@@ -630,73 +595,21 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                                       sorted_unique_int_vertices.end())),
       handle.get_stream());
 
-    rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(
-      vertex_partition_range_lasts.size(), handle.get_stream());
-    raft::update_device(d_vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.data(),
-                        vertex_partition_range_lasts.size(),
-                        handle.get_stream());
-    rmm::device_uvector<size_t> d_tx_int_vertex_offsets(d_vertex_partition_range_lasts.size(),
-                                                        handle.get_stream());
-    thrust::lower_bound(handle.get_thrust_policy(),
-                        sorted_unique_int_vertices.begin(),
-                        sorted_unique_int_vertices.end(),
-                        d_vertex_partition_range_lasts.begin(),
-                        d_vertex_partition_range_lasts.end(),
-                        d_tx_int_vertex_offsets.begin());
-    std::vector<size_t> h_tx_int_vertex_counts(d_tx_int_vertex_offsets.size());
-    raft::update_host(h_tx_int_vertex_counts.data(),
-                      d_tx_int_vertex_offsets.data(),
-                      d_tx_int_vertex_offsets.size(),
-                      handle.get_stream());
-    handle.sync_stream();
-    std::adjacent_difference(
-      h_tx_int_vertex_counts.begin(), h_tx_int_vertex_counts.end(), h_tx_int_vertex_counts.begin());
+    auto [unique_int_vertices, ext_vertices_for_unique_int_vertices] =
+      collect_values_for_unique_int_vertices(handle,
+                                             std::move(sorted_unique_int_vertices),
+                                             renumber_map_labels,
+                                             vertex_partition_range_lasts);
 
-    rmm::device_uvector<vertex_t> rx_int_vertices(0, handle.get_stream());
-    std::vector<size_t> rx_int_vertex_counts{};
-    std::tie(rx_int_vertices, rx_int_vertex_counts) = shuffle_values(
-      comm, sorted_unique_int_vertices.begin(), h_tx_int_vertex_counts, handle.get_stream());
-
-    auto tx_ext_vertices = std::move(rx_int_vertices);
-    thrust::transform(handle.get_thrust_policy(),
-                      tx_ext_vertices.begin(),
-                      tx_ext_vertices.end(),
-                      tx_ext_vertices.begin(),
-                      [renumber_map_labels, local_int_vertex_first] __device__(auto v) {
-                        return renumber_map_labels[v - local_int_vertex_first];
-                      });
-
-    rmm::device_uvector<vertex_t> rx_ext_vertices_for_sorted_unique_int_vertices(
-      0, handle.get_stream());
-    std::tie(rx_ext_vertices_for_sorted_unique_int_vertices, std::ignore) =
-      shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream());
-
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      renumber_map{// cuco::static_map requires at least one empty slot
-                   std::max(static_cast<size_t>(
-                              static_cast<double>(sorted_unique_int_vertices.size()) / load_factor),
-                            sorted_unique_int_vertices.size() + 1),
-                   cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   stream_adapter,
-                   handle.get_stream()};
-
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      sorted_unique_int_vertices.begin(), rx_ext_vertices_for_sorted_unique_int_vertices.begin()));
-    renumber_map.insert(pair_first,
-                        pair_first + sorted_unique_int_vertices.size(),
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
-    renumber_map.find(vertices,
-                      vertices + num_vertices,
-                      vertices,
-                      cuco::detail::MurmurHash3_32<vertex_t>{},
-                      thrust::equal_to<vertex_t>{},
-                      handle.get_stream());
+    kv_store_t<vertex_t, vertex_t, false> renumber_map(
+      unique_int_vertices.begin(),
+      unique_int_vertices.begin() + unique_int_vertices.size(),
+      ext_vertices_for_unique_int_vertices.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
+    auto renumber_map_view = renumber_map.view();
+    renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
   } else {
     unrenumber_local_int_vertices(handle,
                                   vertices,

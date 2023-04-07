@@ -21,7 +21,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <raft/util/device_atomics.cuh>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -82,6 +82,37 @@ struct rebase_offset_t {
   edge_t base_offset{};
   __device__ edge_t operator()(edge_t offset) const { return offset - base_offset; }
 };
+
+template <typename idx_t, typename offset_t>
+rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
+                                                 idx_t base_idx,
+                                                 rmm::cuda_stream_view stream_view)
+{
+  assert(offsets.size() > 0);
+
+  offset_t num_entries{0};
+  raft::update_host(&num_entries, offsets.data() + offsets.size() - 1, 1, stream_view);
+
+  rmm::device_uvector<idx_t> results(num_entries, stream_view);
+
+  if (num_entries > 0) {
+    thrust::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
+
+    raft::update_device(results.data(), &base_idx, 1, stream_view);
+
+    thrust::for_each(
+      rmm::exec_policy(stream_view),
+      offsets.begin() + 1,
+      offsets.end(),
+      [d_results = results.data(), n_results = results.size()] __device__(auto offset) {
+        if (offset < n_results) { atomicAdd(&d_results[offset], idx_t{1}); }
+      });
+    thrust::inclusive_scan(
+      rmm::exec_policy(stream_view), results.begin(), results.end(), results.begin());
+  }
+
+  return results;
+}
 
 template <typename edge_t, typename VertexIterator>
 rmm::device_uvector<edge_t> compute_sparse_offsets(

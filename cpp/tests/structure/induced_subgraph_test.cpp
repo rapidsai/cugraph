@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 #include <structure/induced_subgraph_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -49,25 +49,29 @@ extract_induced_subgraph_reference(std::vector<edge_t> const& offsets,
   std::vector<vertex_t> edgelist_majors{};
   std::vector<vertex_t> edgelist_minors{};
   auto edgelist_weights = weights ? std::make_optional<std::vector<weight_t>>(0) : std::nullopt;
-  std::vector<size_t> subgraph_edge_offsets{0};
+  std::vector<size_t> subgraph_edge_offsets({0});
 
   for (size_t i = 0; i < (subgraph_offsets.size() - 1); ++i) {
-    std::for_each(subgraph_vertices.data() + subgraph_offsets[i],
-                  subgraph_vertices.data() + subgraph_offsets[i + 1],
+    std::vector<vertex_t> sorted_this_subgraph_vertices(subgraph_offsets[i + 1] -
+                                                        subgraph_offsets[i]);
+    std::copy(subgraph_vertices.begin() + subgraph_offsets[i],
+              subgraph_vertices.begin() + subgraph_offsets[i + 1],
+              sorted_this_subgraph_vertices.begin());
+    std::sort(sorted_this_subgraph_vertices.begin(), sorted_this_subgraph_vertices.end());
+    std::for_each(sorted_this_subgraph_vertices.begin(),
+                  sorted_this_subgraph_vertices.end(),
                   [offsets,
                    indices,
                    weights,
-                   subgraph_vertices,
-                   subgraph_offsets,
+                   sorted_this_subgraph_vertices,
                    &edgelist_majors,
                    &edgelist_minors,
-                   &edgelist_weights,
-                   i](auto v) {
+                   &edgelist_weights](auto v) {
                     auto first = offsets[v];
                     auto last  = offsets[v + 1];
                     for (auto j = first; j < last; ++j) {
-                      if (std::binary_search(subgraph_vertices.data() + subgraph_offsets[i],
-                                             subgraph_vertices.data() + subgraph_offsets[i + 1],
+                      if (std::binary_search(sorted_this_subgraph_vertices.begin(),
+                                             sorted_this_subgraph_vertices.end(),
                                              indices[j])) {
                         edgelist_majors.push_back(v);
                         edgelist_minors.push_back(indices[j]);
@@ -108,36 +112,35 @@ class Tests_InducedSubgraph
     auto [induced_subgraph_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, induced_subgraph_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     // Construct random subgraph vertex lists
+
+    raft::random::RngState rng_state(0);
+
     std::vector<size_t> h_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1, 0);
     std::partial_sum(induced_subgraph_usecase.subgraph_sizes.begin(),
                      induced_subgraph_usecase.subgraph_sizes.end(),
                      h_subgraph_offsets.begin() + 1);
-
-    rmm::device_uvector<vertex_t> all_vertices(graph_view.number_of_vertices(),
-                                               handle.get_stream());
-    cugraph::detail::sequence_fill(
-      handle.get_stream(), all_vertices.data(), all_vertices.size(), vertex_t{0});
 
     rmm::device_uvector<vertex_t> d_subgraph_vertices(h_subgraph_offsets.back(),
                                                       handle.get_stream());
@@ -146,11 +149,9 @@ class Tests_InducedSubgraph
       auto start = h_subgraph_offsets[i];
       auto last  = h_subgraph_offsets[i + 1];
       ASSERT_TRUE(last - start <= graph_view.number_of_vertices()) << "Invalid subgraph size.";
-      // this is inefficient if last - start << graph_view.number_of_vertices() but this is for
-      // the test purpose only and the time & memory cost is only linear to
-      // graph_view.number_of_vertices(), so this may not matter.
 
-      auto vertices = cugraph::test::randomly_select(handle, all_vertices, (last - start), true);
+      auto vertices = cugraph::select_random_vertices(
+        handle, graph_view, rng_state, (last - start), false, false);
       raft::copy(
         d_subgraph_vertices.data() + start, vertices.data(), vertices.size(), handle.get_stream());
     }
@@ -159,7 +160,7 @@ class Tests_InducedSubgraph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Induced-subgraph");
     }
 
     auto [d_subgraph_edgelist_majors,
@@ -169,21 +170,22 @@ class Tests_InducedSubgraph
       cugraph::extract_induced_subgraphs(
         handle,
         graph_view,
+        edge_weight_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
         do_expensive_check);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "induced subgraph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (induced_subgraph_usecase.check_correctness) {
       auto h_subgraph_vertices = cugraph::test::to_host(handle, d_subgraph_vertices);
 
-      auto [h_offsets, h_indices, h_weights] = cugraph::test::graph_to_host_csr(handle, graph_view);
+      auto [h_offsets, h_indices, h_weights] =
+        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
 
       auto [h_reference_subgraph_edgelist_majors,
             h_reference_subgraph_edgelist_minors,

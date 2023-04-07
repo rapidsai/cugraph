@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -45,33 +45,39 @@ std::tuple<std::vector<vertex_t>, std::vector<edge_t>> compute_offset_aligned_ed
     thrust::make_counting_iterator(size_t{1}),
     [approx_edge_chunk_size] __device__(auto i) { return i * approx_edge_chunk_size; });
   auto num_chunks = (num_edges + approx_edge_chunk_size - 1) / approx_edge_chunk_size;
-  rmm::device_uvector<vertex_t> d_vertex_offsets(num_chunks - 1, handle.get_stream());
-  thrust::lower_bound(handle.get_thrust_policy(),
-                      offsets,
-                      offsets + num_vertices + 1,
-                      search_offset_first,
-                      search_offset_first + d_vertex_offsets.size(),
-                      d_vertex_offsets.begin());
-  rmm::device_uvector<edge_t> d_edge_offsets(d_vertex_offsets.size(), handle.get_stream());
-  thrust::gather(handle.get_thrust_policy(),
-                 d_vertex_offsets.begin(),
-                 d_vertex_offsets.end(),
-                 offsets,
-                 d_edge_offsets.begin());
-  std::vector<edge_t> h_edge_offsets(num_chunks + 1, edge_t{0});
-  h_edge_offsets.back() = num_edges;
-  raft::update_host(
-    h_edge_offsets.data() + 1, d_edge_offsets.data(), d_edge_offsets.size(), handle.get_stream());
-  std::vector<vertex_t> h_vertex_offsets(num_chunks + 1, vertex_t{0});
-  h_vertex_offsets.back() = num_vertices;
-  raft::update_host(h_vertex_offsets.data() + 1,
-                    d_vertex_offsets.data(),
-                    d_vertex_offsets.size(),
-                    handle.get_stream());
 
-  handle.sync_stream();
+  if (num_chunks > 1) {
+    rmm::device_uvector<vertex_t> d_vertex_offsets(num_chunks - 1, handle.get_stream());
+    thrust::lower_bound(handle.get_thrust_policy(),
+                        offsets,
+                        offsets + num_vertices + 1,
+                        search_offset_first,
+                        search_offset_first + d_vertex_offsets.size(),
+                        d_vertex_offsets.begin());
+    rmm::device_uvector<edge_t> d_edge_offsets(d_vertex_offsets.size(), handle.get_stream());
+    thrust::gather(handle.get_thrust_policy(),
+                   d_vertex_offsets.begin(),
+                   d_vertex_offsets.end(),
+                   offsets,
+                   d_edge_offsets.begin());
+    std::vector<edge_t> h_edge_offsets(num_chunks + 1, edge_t{0});
+    h_edge_offsets.back() = num_edges;
+    raft::update_host(
+      h_edge_offsets.data() + 1, d_edge_offsets.data(), d_edge_offsets.size(), handle.get_stream());
+    std::vector<vertex_t> h_vertex_offsets(num_chunks + 1, vertex_t{0});
+    h_vertex_offsets.back() = num_vertices;
+    raft::update_host(h_vertex_offsets.data() + 1,
+                      d_vertex_offsets.data(),
+                      d_vertex_offsets.size(),
+                      handle.get_stream());
 
-  return std::make_tuple(h_vertex_offsets, h_edge_offsets);
+    handle.sync_stream();
+
+    return std::make_tuple(h_vertex_offsets, h_edge_offsets);
+  } else {
+    return std::make_tuple(std::vector<vertex_t>{{0, num_vertices}},
+                           std::vector<edge_t>{{0, num_edges}});
+  }
 }
 
 template <typename T>

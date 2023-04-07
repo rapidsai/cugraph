@@ -80,8 +80,7 @@ struct extract_paths_functor : public abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
 
@@ -119,14 +118,13 @@ struct extract_paths_functor : public abstract_functor {
                                                  graph_view.local_vertex_partition_range_last(),
                                                  false);
 
-      auto [result, max_path_length] =
-        cugraph::extract_bfs_paths<vertex_t, edge_t, weight_t, multi_gpu>(
-          handle_,
-          graph_view,
-          paths_result_->distances_->view()->as_type<vertex_t>(),
-          predecessors.data(),
-          destinations.data(),
-          destinations.size());
+      auto [result, max_path_length] = cugraph::extract_bfs_paths<vertex_t, edge_t, multi_gpu>(
+        handle_,
+        graph_view,
+        paths_result_->distances_->view()->as_type<vertex_t>(),
+        predecessors.data(),
+        destinations.data(),
+        destinations.size());
 
       std::vector<vertex_t> vertex_partition_range_lasts =
         graph_view.vertex_partition_range_lasts();

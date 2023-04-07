@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,8 +79,7 @@ struct bfs_functor : public abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
 
@@ -99,7 +98,8 @@ struct bfs_functor : public abstract_functor {
         sources.data(), sources_->as_type<vertex_t>(), sources_->size_, handle_.get_stream());
 
       if constexpr (multi_gpu) {
-        sources = detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(sources));
+        sources = detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+          handle_, std::move(sources));
       }
 
       //
@@ -113,7 +113,7 @@ struct bfs_functor : public abstract_functor {
                                                  graph_view.local_vertex_partition_range_last(),
                                                  do_expensive_check_);
 
-      cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(
+      cugraph::bfs<vertex_t, edge_t, multi_gpu>(
         handle_,
         graph_view,
         distances.data(),
@@ -194,6 +194,14 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)
+        ->type_,
+    CUGRAPH_INVALID_INPUT,
+    "vertex type of graph and sources must match",
+    *error);
+
   cugraph::c_api::bfs_functor functor(handle,
                                       graph,
                                       sources,

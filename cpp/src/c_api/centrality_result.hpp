@@ -26,5 +26,11 @@ struct cugraph_centrality_result_t {
   cugraph_type_erased_device_array_t* values_{};
 };
 
+struct cugraph_edge_centrality_result_t {
+  cugraph_type_erased_device_array_t* src_ids_{};
+  cugraph_type_erased_device_array_t* dst_ids_{};
+  cugraph_type_erased_device_array_t* values_{};
+};
+
 }  // namespace c_api
 }  // namespace cugraph

@@ -72,16 +72,21 @@ struct eigenvector_centrality_functor : public cugraph::c_api::abstract_functor 
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }
 
-      auto graph = reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, true, multi_gpu>*>(
-        graph_->graph_);
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, true, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
       auto centralities = cugraph::eigenvector_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
+        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         std::optional<raft::device_span<weight_t>>{},
         static_cast<weight_t>(epsilon_),
         max_iterations_,

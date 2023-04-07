@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <raft/handle.hpp>
-#include <raft/span.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/core/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -133,7 +133,10 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<
+             cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                                      weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
@@ -175,8 +178,10 @@ decltype(auto) make_graph(raft::handle_t const& handle,
     raft::update_device((*d_w).data(), (*v_w).data(), (*d_w).size(), handle.get_stream());
   }
 
-  cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-  std::tie(graph, std::ignore, std::ignore) =
+  cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+  std::optional<cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+    edge_weights{std::nullopt};
+  std::tie(graph, edge_weights, std::ignore, std::ignore) =
     cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
       handle,
       std::nullopt,
@@ -187,7 +192,7 @@ decltype(auto) make_graph(raft::handle_t const& handle,
       cugraph::graph_properties_t{false, false},
       false);
 
-  return graph;
+  return std::make_tuple(std::move(graph), std::move(edge_weights));
 }
 
 // compares single GPU CSR graph data:
@@ -317,32 +322,40 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
   }
 }
 
+// check the mapping between v0 & v1 is invertible (one to one and onto)
 template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const& handle,
-                             std::vector<vertex_t> const& v1,
-                             std::vector<vertex_t> const& v2)
+bool check_invertible(raft::host_span<vertex_t const> v0, raft::host_span<vertex_t const> v1)
 {
-  if (v1.size() != v2.size()) return false;
+  if (v0.size() != v1.size()) return false;
 
-  std::map<vertex_t, vertex_t> map;
+  std::map<vertex_t, vertex_t> map{};
 
-  auto iter = thrust::make_zip_iterator(thrust::make_tuple(v1.begin(), v2.begin()));
+  for (size_t i = 0; i < v0.size(); ++i) {
+    auto find_it = map.find(v0[i]);
+    if (find_it == map.end()) {
+      map[v0[i]] = v1[i];
+    } else if (find_it->second != v1[i])
+      return false;  // one value in v0 is mapped to multiple distinct values in v1, so v0 to v1 is
+                     // not a function
+  }
 
-  std::for_each(iter, iter + v1.size(), [&map](auto pair) {
-    vertex_t e1 = thrust::get<0>(pair);
-    vertex_t e2 = thrust::get<1>(pair);
+  std::map<vertex_t, vertex_t> inv_map{};
+  for (auto it = map.begin(); it != map.end(); ++it) {
+    auto find_it = inv_map.find(it->second);
+    if (find_it == inv_map.end()) {
+      inv_map[it->second] = it->first;
+    } else
+      return false;  // multiple distinct values in v0 are mapped to one value in v1
+  }
 
-    map[e1] = e2;
-  });
+  std::vector<vertex_t> inv_v1(v1.size());
+  for (size_t i = 0; i < v1.size(); ++i) {
+    auto find_it = inv_map.find(v1[i]);
+    if (find_it == inv_map.end()) return false;  // elements in v0 are mapped to only a subset of v1
+    inv_v1[i] = find_it->second;
+  }
 
-  auto error_count = std::count_if(iter, iter + v1.size(), [&map](auto pair) {
-    vertex_t e1 = thrust::get<0>(pair);
-    vertex_t e2 = thrust::get<1>(pair);
-
-    return (map[e1] != e2);
-  });
-
-  return (error_count == 0);
+  return std::equal(v0.begin(), v0.end(), inv_v1.begin());
 }
 
 template <typename T>
@@ -434,13 +447,15 @@ std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
 }
 
 template <typename vertex_t>
-bool renumbered_vectors_same(raft::handle_t const& handle,
-                             rmm::device_uvector<vertex_t> const& v1,
-                             rmm::device_uvector<vertex_t> const& v2)
+bool check_invertible(raft::handle_t const& handle,
+                      raft::device_span<vertex_t const> v0,
+                      raft::device_span<vertex_t const> v1)
 {
-  if (v1.size() != v2.size()) return false;
+  auto v0_copy = to_host(handle, v0);
+  auto v1_copy = to_host(handle, v1);
 
-  return renumbered_vectors_same(handle, to_host(handle, v1), to_host(handle, v2));
+  return check_invertible(raft::host_span<vertex_t const>(v0_copy.data(), v0_copy.size()),
+                          raft::host_span<vertex_t const>(v1_copy.data(), v1_copy.size()));
 }
 
 template <typename T, typename L>
@@ -453,6 +468,7 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   return v;
 }
 
+// If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -461,9 +477,10 @@ template <typename vertex_t,
 std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
 graph_to_host_coo(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
-    graph_view);
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
+// If multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -472,17 +489,36 @@ template <typename vertex_t,
 std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
 graph_to_host_csr(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
-    graph_view);
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
+// Only the rank 0 GPU holds the valid data
 template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, false>,
+           std::optional<cugraph::edge_property_t<
+             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+             weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 mg_graph_to_sg_graph(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, true> const& graph_view,
-  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, true> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<vertex_t const>> number_map,
   bool renumber);
+
+// Only the rank 0 GPU holds the valid data
+template <typename vertex_t, typename value_t>
+std::tuple<std::optional<rmm::device_uvector<vertex_t>>, rmm::device_uvector<value_t>>
+mg_vertex_property_values_to_sg_vertex_property_values(
+  raft::handle_t const& handle,
+  std::optional<raft::device_span<vertex_t const>>
+    mg_renumber_map,  // std::nullopt if the MG graph is not renumbered
+  std::tuple<vertex_t, vertex_t> mg_vertex_partition_range,
+  std::optional<raft::device_span<vertex_t const>>
+    sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
+  std::optional<raft::device_span<vertex_t const>>
+    mg_vertices,  // std::nullopt if the entire local vertex partition range is assumed
+  raft::device_span<value_t const> mg_values);
 
 template <typename type_t>
 struct nearly_equal {

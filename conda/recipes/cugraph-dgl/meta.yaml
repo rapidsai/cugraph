@@ -1,0 +1,40 @@
+# Copyright (c) 2023, NVIDIA CORPORATION.
+
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set py_version = environ['CONDA_PY'] %}
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
+
+package:
+  name: cugraph-dgl
+  version: {{ version }}
+
+source:
+  git_url: ../../..
+
+build:
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+
+requirements:
+  host:
+    - python x.x
+  run:
+    - cugraph ={{ version }}
+    - dgl >=0.9.1
+    - numba >=0.56.2
+    - numpy
+    - python x.x
+    - pytorch
+
+tests:
+  imports:
+    - cugraph_dgl
+
+about:
+  home: https://rapids.ai/
+  license: Apache-2.0
+  license_file: ../../../LICENSE
+  summary: cuGraph library

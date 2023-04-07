@@ -13,7 +13,7 @@
 # =============================================================================
 
 set(cython_sources
-    ecg_wrapper.pyx egonet_wrapper.pyx
+    ecg_wrapper.pyx
     ktruss_subgraph_wrapper.pyx
     leiden_wrapper.pyx
     spectral_clustering_wrapper.pyx
@@ -25,8 +25,5 @@ rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX community_
+  ASSOCIATED_TARGETS cugraph
 )
-
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
-endforeach()

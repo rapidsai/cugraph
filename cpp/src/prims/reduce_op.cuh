@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,36 @@
 
 #include <prims/property_op_utils.cuh>
 
-#include <raft/comms/comms.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
+
+#include <raft/core/comms.hpp>
 
 #include <thrust/functional.h>
 
+#include <utility>
+
 namespace cugraph {
 namespace reduce_op {
+
+namespace detail {
+
+template <typename T, std::size_t... Is>
+__host__ __device__ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
+elementwise_thrust_min(T lhs, T rhs, std::index_sequence<Is...>)
+{
+  return thrust::make_tuple(
+    (thrust::get<Is>(lhs) < thrust::get<Is>(rhs) ? thrust::get<Is>(lhs) : thrust::get<Is>(rhs))...);
+}
+
+template <typename T, std::size_t... Is>
+__host__ __device__ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value, T>
+elementwise_thrust_max(T lhs, T rhs, std::index_sequence<Is...>)
+{
+  return thrust::make_tuple(
+    (thrust::get<Is>(lhs) < thrust::get<Is>(rhs) ? thrust::get<Is>(rhs) : thrust::get<Is>(lhs))...);
+}
+
+}  // namespace detail
 
 // Guidance on writing a custom reduction operator.
 // 1. It is required to add an "using value_type = type_of_the_reduced_values" statement.
@@ -52,8 +76,8 @@ struct null {
   using value_type = void;
 };
 
-// Binary reduction operator selecting any of the two input arguments, T should be arithmetic types
-// or thrust tuple of arithmetic types.
+// Binary reduction operator selecting any of the two input arguments, T should be an arithmetic
+// type or a thrust tuple of arithmetic types.
 template <typename T>
 struct any {
   using value_type                    = T;
@@ -62,10 +86,13 @@ struct any {
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
 };
 
+template <typename T, typename Enable = void>
+struct minimum;
+
 // Binary reduction operator selecting the minimum element of the two input arguments (using
-// operator <), T should be arithmetic types or thrust tuple of arithmetic types.
+// operator <), a compatible raft comms op exists if T is an arithmetic type.
 template <typename T>
-struct minimum {
+struct minimum<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
   using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
@@ -77,10 +104,55 @@ struct minimum {
   }
 };
 
-// Binary reduction operator selecting the maximum element of the two input arguments (using
-// operator <), T should be arithmetic types or thrust tuple of arithmetic types.
+// Binary reduction operator selecting the minimum element of the two input arguments (using
+// operator <), a compatible raft comms op does not exist when T is a thrust::tuple type.
 template <typename T>
-struct maximum {
+struct minimum<T, std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value>> {
+  using value_type                       = T;
+  static constexpr bool pure_function    = true;  // this can be called in any process
+  inline static T const identity_element = max_identity_element<T>();
+
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
+  {
+    return lhs < rhs ? lhs : rhs;
+  }
+};
+
+// Binary reduction operator selecting the minimum element of the two input arguments elementwise
+// (using operator < for each element), T should be an arithmetic type (this is identical to
+// reduce_op::minimum if T is an arithmetic type) or a thrust tuple of arithmetic types.
+template <typename T>
+struct elementwise_minimum {
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  using value_type                    = T;
+  static constexpr bool pure_function = true;  // this can be called in any process
+  static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
+  inline static T const identity_element                      = max_identity_element<T>();
+
+  template <typename U = T>
+  __host__ __device__ std::enable_if_t<std::is_arithmetic_v<U>, T> operator()(T const& lhs,
+                                                                              T const& rhs) const
+  {
+    return lhs < rhs ? lhs : rhs;
+  }
+
+  template <typename U = T>
+  __host__ __device__ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<U>::value, T>
+  operator()(T const& lhs, T const& rhs) const
+  {
+    return detail::elementwise_thrust_min(
+      lhs, rhs, std::make_index_sequence<thrust::tuple_size<T>::value>());
+  }
+};
+
+template <typename T, typename Enable = void>
+struct maximum;
+
+// Binary reduction operator selecting the maximum element of the two input arguments (using
+// operator <), a compatible raft comms op exists if T is an arithmetic type.
+template <typename T>
+struct maximum<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
   using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
@@ -92,10 +164,54 @@ struct maximum {
   }
 };
 
-// Binary reduction operator summing the two input arguments, T should be arithmetic types or thrust
-// tuple of arithmetic types.
+// Binary reduction operator selecting the maximum element of the two input arguments (using
+// operator <), a compatible raft comms op does not exist when T is a thrust::tuple type.
+template <typename T>
+struct maximum<T, std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<T>::value>> {
+  using value_type                       = T;
+  static constexpr bool pure_function    = true;  // this can be called in any process
+  inline static T const identity_element = min_identity_element<T>();
+
+  __host__ __device__ T operator()(T const& lhs, T const& rhs) const
+  {
+    return lhs < rhs ? rhs : lhs;
+  }
+};
+
+// Binary reduction operator selecting the maximum element of the two input arguments elementwise
+// (using operator < for each element), T should be an arithmetic type (this is identical to
+// reduce_op::maximum if T is an arithmetic type) or a thrust tuple of arithmetic types.
+template <typename T>
+struct elementwise_maximum {
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  using value_type                    = T;
+  static constexpr bool pure_function = true;  // this can be called in any process
+  static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
+  inline static T const identity_element                      = min_identity_element<T>();
+
+  template <typename U = T>
+  __host__ __device__ std::enable_if_t<std::is_arithmetic_v<U>, T> operator()(T const& lhs,
+                                                                              T const& rhs) const
+  {
+    return lhs < rhs ? rhs : lhs;
+  }
+
+  template <typename U = T>
+  __host__ __device__ std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<U>::value, T>
+  operator()(T const& lhs, T const& rhs) const
+  {
+    return detail::elementwise_thrust_max(
+      lhs, rhs, std::make_index_sequence<thrust::tuple_size<T>::value>());
+  }
+};
+
+// Binary reduction operator summing the two input arguments, T should be an arithmetic type or a
+// thrust tuple of arithmetic types.
 template <typename T>
 struct plus {
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
   using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::SUM;
@@ -130,6 +246,27 @@ struct has_identity_element<ReduceOp, std::remove_cv_t<decltype(ReduceOp::identi
 
 template <typename ReduceOp>
 inline constexpr bool has_identity_element_v = has_identity_element<ReduceOp>::value;
+
+template <typename ReduceOp, typename Iterator>
+__device__ std::enable_if_t<has_compatible_raft_comms_op_v<ReduceOp>, void> atomic_reduce(
+  Iterator iter, typename thrust::iterator_traits<Iterator>::value_type value)
+{
+  static_assert(std::is_same_v<typename ReduceOp::value_type,
+                               typename thrust::iterator_traits<Iterator>::value_type>);
+  static_assert(
+    (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) ||
+    (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) ||
+    (ReduceOp::compatible_raft_comms_op ==
+     raft::comms::op_t::MAX));  // currently, only (element-wise) sum, min, and max are supported.
+
+  if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) {
+    atomic_add_edge_op_result(iter, value);
+  } else if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) {
+    elementwise_atomic_min_edge_op_result(iter, value);
+  } else {
+    elementwise_atomic_max_edge_op_result(iter, value);
+  }
+}
 
 }  // namespace reduce_op
 }  // namespace cugraph

@@ -15,7 +15,7 @@
  */
 #include <structure/induced_subgraph_validate.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -39,15 +39,16 @@ void induced_subgraph_validate(
   std::optional<rmm::device_uvector<weight_t>>& d_reference_subgraph_edgelist_weights,
   rmm::device_uvector<size_t>& d_reference_subgraph_edge_offsets)
 {
-  ASSERT_TRUE(d_reference_subgraph_edge_offsets.size() == d_cugraph_subgraph_edge_offsets.size())
+  ASSERT_EQ(d_reference_subgraph_edge_offsets.size(), d_cugraph_subgraph_edge_offsets.size())
     << "Returned subgraph edge offset vector has an invalid size.";
+
   ASSERT_TRUE(thrust::equal(handle.get_thrust_policy(),
                             d_reference_subgraph_edge_offsets.begin(),
                             d_reference_subgraph_edge_offsets.end(),
                             d_cugraph_subgraph_edge_offsets.begin()))
     << "Returned subgraph edge offset values do not match with the reference values.";
-  ASSERT_TRUE(d_cugraph_subgraph_edgelist_weights.has_value() ==
-              d_reference_subgraph_edgelist_weights.has_value());
+  ASSERT_EQ(d_cugraph_subgraph_edgelist_weights.has_value(),
+            d_reference_subgraph_edgelist_weights.has_value());
 
   // FIXME: This might be more efficient if we could do a segmented sort on the subgraphs.
   rmm::device_uvector<vertex_t> d_subgraph_index(d_cugraph_subgraph_edgelist_majors.size(),
@@ -80,6 +81,7 @@ void induced_subgraph_validate(
                                                   d_cugraph_subgraph_edgelist_majors.end(),
                                                   d_cugraph_subgraph_edgelist_minors.end()),
                         d_cugraph_subgraph_edgelist_weights->begin());
+
     ASSERT_TRUE(
       thrust::equal(handle.get_thrust_policy(),
                     thrust::make_zip_iterator(d_reference_subgraph_edgelist_majors.begin(),
@@ -117,6 +119,7 @@ void induced_subgraph_validate(
                  thrust::make_zip_iterator(d_subgraph_index.end(),
                                            d_cugraph_subgraph_edgelist_majors.end(),
                                            d_cugraph_subgraph_edgelist_minors.end()));
+
     ASSERT_TRUE(
       thrust::equal(handle.get_thrust_policy(),
                     thrust::make_zip_iterator(d_reference_subgraph_edgelist_majors.begin(),

@@ -87,16 +87,101 @@ void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
  * @param [in]  start_vertices Optional type erased array of starting vertices
  *                             If NULL use all, if specified compute two-hop
  *                             neighbors for these starting vertices
- * @param [out] vertex_pairs   Opaque pointer to resulting vertex pairs
+ * @param [in]  do_expensive_check
+ *                             A flag to run expensive checks for input arguments (if set to true)
+ * @param [out] result         Opaque pointer to resulting vertex pairs
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_two_hop_neighbors(
   const cugraph_resource_handle_t* handle,
-  const cugraph_graph_t* graph,
+  cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  bool_t do_expensive_check,
   cugraph_vertex_pairs_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief       Opaque induced subgraph type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_induced_subgraph_result_t;
+
+/**
+ * @brief       Get the source vertex ids
+ *
+ * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
+ * @return type erased array view of source vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_sources(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
+ * @brief       Get the destination vertex ids
+ *
+ * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
+ * @return type erased array view of destination vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_destinations(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
+ * @brief       Get the edge weights
+ *
+ * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
+ * @return type erased array view of edge weights
+ */
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weights(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
+ * @brief       Get the subgraph offsets
+ *
+ * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
+ * @return type erased array view of subgraph identifiers
+ */
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_offsets(
+  cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
+ * @brief     Free induced subgraph
+ *
+ * @param [in]    induced subgraph   Opaque pointer to induced subgraph
+ */
+void cugraph_induced_subgraph_result_free(cugraph_induced_subgraph_result_t* induced_subgraph);
+
+/**
+ * @brief      Extract induced subgraph(s)
+ *
+ * Given a list of vertex ids, extract a list of edges that represent the subgraph
+ * containing only the specified vertex ids.
+ *
+ * This function will do multiple subgraph extractions concurrently.  The vertex ids
+ * are specified in CSR-style, with @p subgraph_vertices being a list of vertex ids
+ * and @p subgraph_offsets[i] identifying the start offset for each extracted subgraph
+ *
+ * @param [in]  handle            Handle for accessing resources
+ * @param [in]  graph             Pointer to graph
+ * @param [in]  subgraph_offsets  Type erased array of subgraph offsets into
+ *                                @p subgraph_vertices
+ * @param [in]  subgraph_vertices Type erased array of vertices to include in
+ *                                extracted subgraph.
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
+ * @param [out] result            Opaque pointer to induced subgraph result
+ * @param [out] error             Pointer to an error object storing details of any error.  Will
+ *                                be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_extract_induced_subgraph(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* subgraph_offsets,
+  const cugraph_type_erased_device_array_view_t* subgraph_vertices,
+  bool_t do_expensive_check,
+  cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
 
 #ifdef __cplusplus

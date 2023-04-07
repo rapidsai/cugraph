@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -26,11 +25,11 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -64,7 +63,7 @@ class Tests_MGKHopNbrs
   {
     using weight_t = float;
 
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
@@ -74,19 +73,20 @@ class Tests_MGKHopNbrs
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -114,7 +114,7 @@ class Tests_MGKHopNbrs
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG K-hop neighbors");
     }
 
     auto [d_mg_offsets, d_mg_nbrs] = cugraph::k_hop_nbrs(
@@ -126,67 +126,61 @@ class Tests_MGKHopNbrs
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG K-hop neighbors took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. compare SG & MG results
 
     if (k_hop_nbrs_usecase.check_correctness) {
-      // 3-1. aggregate MG results
+      // 3-1. unrenumber & aggregate MG start vertices & results
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        d_mg_start_vertices.data(),
+        d_mg_start_vertices.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
 
       auto h_mg_offsets = cugraph::test::to_host(*handle_, d_mg_offsets);
       std::vector<size_t> h_mg_counts(d_mg_start_vertices.size());
-      for (size_t i = 0; i < h_mg_counts.size(); ++i) {
-        h_mg_counts[i] = h_mg_offsets[i + 1] - h_mg_offsets[i];
-      }
+      std::adjacent_difference(h_mg_offsets.begin() + 1, h_mg_offsets.end(), h_mg_counts.begin());
       rmm::device_uvector<size_t> d_mg_counts(h_mg_counts.size(), handle_->get_stream());
       raft::update_device(
         d_mg_counts.data(), h_mg_counts.data(), h_mg_counts.size(), handle_->get_stream());
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
-        raft::device_span<vertex_t const>((*d_mg_renumber_map_labels).data(),
-                                          (*d_mg_renumber_map_labels).size()));
+        d_mg_nbrs.data(),
+        d_mg_nbrs.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
       auto d_mg_aggregate_start_vertices = cugraph::test::device_gatherv(
         *handle_,
         raft::device_span<vertex_t const>(d_mg_start_vertices.data(), d_mg_start_vertices.size()));
 
       auto d_mg_aggregate_counts = cugraph::test::device_gatherv(
         *handle_, raft::device_span<size_t const>(d_mg_counts.data(), d_mg_counts.size()));
+
       auto d_mg_aggregate_nbrs = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_mg_nbrs.data(), d_mg_nbrs.size()));
 
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. unrenumbr MG start vertices & neighbors
-
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          d_mg_aggregate_start_vertices.data(),
-          d_mg_aggregate_start_vertices.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-
-        cugraph::unrenumber_int_vertices<vertex_t, false>(
-          *handle_,
-          d_mg_aggregate_nbrs.data(),
-          d_mg_aggregate_nbrs.size(),
-          d_mg_aggregate_renumber_map_labels.data(),
-          std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
-
-        // 3-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            *handle_, input_usecase, false, false);
+        // 3-3. run SG K-hop neighbors
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
-
-        // 3-4. run SG K-hop neighbors
 
         auto [d_sg_offsets, d_sg_nbrs] = cugraph::k_hop_nbrs(
           *handle_,
@@ -195,7 +189,7 @@ class Tests_MGKHopNbrs
                                             d_mg_aggregate_start_vertices.size()),
           k_hop_nbrs_usecase.k);
 
-        // 3-5. compare
+        // 3-4. compare
 
         auto h_sg_offsets = cugraph::test::to_host(*handle_, d_sg_offsets);
         auto h_sg_nbrs    = cugraph::test::to_host(*handle_, d_sg_nbrs);
@@ -272,13 +266,13 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGKHopNbrs_Rmat,
-                         ::testing::Values(
-                           // enable correctness checks
-                           std::make_tuple(KHopNbrs_Usecase{1024, 2},
-                                           cugraph::test::Rmat_Usecase(
-                                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGKHopNbrs_Rmat,
+  ::testing::Values(
+    // enable correctness checks
+    std::make_tuple(KHopNbrs_Usecase{1024, 2},
+                    cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -289,8 +283,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGKHopNbrs_Rmat,
   ::testing::Values(
     // disable correctness checks for large graphs
-    std::make_tuple(
-      KHopNbrs_Usecase{4, 2, false},
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    std::make_tuple(KHopNbrs_Usecase{4, 2, false},
+                    cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

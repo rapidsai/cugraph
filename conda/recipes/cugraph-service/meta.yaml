@@ -1,0 +1,69 @@
+# Copyright (c) 2018-2023, NVIDIA CORPORATION.
+
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') %}
+{% set minor_version = version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set py_version = environ['CONDA_PY'] %}
+{% set date_string = environ['RAPIDS_DATE_STRING'] %}
+
+package:
+  name: cugraph-service-split
+
+source:
+  git_url: ../../..
+
+outputs:
+  - name: cugraph-service-client
+    version: {{ version }}
+    build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+    about:
+      home: https://rapids.ai/
+      license: Apache-2.0
+      license_family: APACHE
+      license_file: ../../../LICENSE
+      summary: cugraph-service client
+    script: install_cugraph-service-client.sh
+    requirements:
+      host:
+        - pip
+        - python x.x
+      run:
+        - python x.x
+        - thriftpy2 >=0.4.15
+
+  - name: cugraph-service-server
+    version: {{ version }}
+    build:
+      number: {{ GIT_DESCRIBE_NUMBER }}
+      string: py{{ py_version }}_{{ date_string }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+    about:
+      home: https://rapids.ai/
+      license: Apache-2.0
+      license_family: APACHE
+      license_file: ../../../LICENSE
+      summary: cugraph-service server
+    script: install_cugraph-service-server.sh
+    requirements:
+      host:
+        - pip
+        - python x.x
+        - setuptools
+        - wheel
+      run:
+        - {{ pin_subpackage('cugraph-service-client', exact=True) }}
+        - cudf ={{ minor_version }}
+        - cugraph ={{ minor_version }}
+        - cupy >=9.5.0,<12.0.0a0
+        - dask-cuda ={{ minor_version }}
+        - dask-cudf ={{ minor_version }}
+        - distributed >=2023.1.1
+        - numpy
+        - python x.x
+        - thriftpy2 >=0.4.15
+        - ucx-py {{ ucx_py_version }}
+
+tests:
+  imports:
+    - cugraph_service_server
+    - cugraph_service_client

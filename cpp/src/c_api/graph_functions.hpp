@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <c_api/array.hpp>
+
 namespace cugraph {
 namespace c_api {
 

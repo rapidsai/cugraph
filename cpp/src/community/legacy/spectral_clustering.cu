@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,9 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#if defined RAFT_COMPILED
 #include <raft/distance/specializations.cuh>
+#endif
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
 
@@ -81,7 +83,9 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
 
   int restartIter_lanczos = 15 + n_eig_vects;
 
-  unsigned long long seed{1234567};
+  // FIXME: These should be parameters (and a raft::random::rng_state)
+  unsigned long long seed1{1234567};
+  unsigned long long seed2{12345678};
   bool reorthog{false};
 
   using index_type = vertex_t;
@@ -90,11 +94,11 @@ void balancedCutClustering_impl(legacy::GraphCSRView<vertex_t, edge_t, weight_t>
   raft::spectral::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   raft::spectral::eigen_solver_config_t<index_type, value_type> eig_cfg{
-    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
+    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed1};
   raft::spectral::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
 
   raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
-    n_clusters, kmean_max_it, kmean_tol, seed};
+    n_clusters, kmean_max_it, kmean_tol, seed2};
   raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   raft::spectral::partition(
@@ -149,7 +153,9 @@ void spectralModularityMaximization_impl(
 
   int restartIter_lanczos = 15 + n_eig_vects;
 
-  unsigned long long seed{123456};
+  // FIXME: These should be parameters (and a raft::random::rng_state)
+  unsigned long long seed1{123456};
+  unsigned long long seed2{1234569};
   bool reorthog{false};
 
   using index_type = vertex_t;
@@ -158,11 +164,11 @@ void spectralModularityMaximization_impl(
   raft::spectral::matrix::sparse_matrix_t<index_type, value_type> const r_csr_m{handle, graph};
 
   raft::spectral::eigen_solver_config_t<index_type, value_type> eig_cfg{
-    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed};
+    n_eig_vects, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed1};
   raft::spectral::lanczos_solver_t<index_type, value_type> eig_solver{eig_cfg};
 
   raft::spectral::cluster_solver_config_t<index_type, value_type> clust_cfg{
-    n_clusters, kmean_max_it, kmean_tol, seed};
+    n_clusters, kmean_max_it, kmean_tol, seed2};
   raft::spectral::kmeans_solver_t<index_type, value_type> cluster_solver{clust_cfg};
 
   // not returned...

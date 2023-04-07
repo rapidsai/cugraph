@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -25,14 +24,14 @@
 #include <prims/count_if_v.cuh>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/partition_manager.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/graph_view.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/count.h>
@@ -74,25 +73,26 @@ class Tests_MGCountIfV
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -104,35 +104,41 @@ class Tests_MGCountIfV
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG count_if_v");
     }
 
-    vertex_t const* data = (*d_mg_renumber_map_labels).data();
+    vertex_t const* data = (*mg_renumber_map).data();
     auto vertex_count =
       count_if_v(*handle_, mg_graph_view, data, test_predicate<vertex_t>(hash_bin_count));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG count if took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          *handle_, input_usecase, true, false);
-      auto sg_graph_view         = sg_graph.view();
-      auto expected_vertex_count = count_if_v(
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
-        sg_graph_view,
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        test_predicate<vertex_t>(hash_bin_count));
-      ASSERT_TRUE(expected_vertex_count == vertex_count);
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view         = sg_graph.view();
+        auto expected_vertex_count = count_if_v(
+          *handle_,
+          sg_graph_view,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          test_predicate<vertex_t>(hash_bin_count));
+        ASSERT_TRUE(expected_vertex_count == vertex_count);
+      }
     }
   }
 
@@ -210,12 +216,11 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGCountIfV_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGCountIfV_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -224,8 +229,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGCountIfV_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -66,7 +66,7 @@ def jaccard(input_graph, vertex_pair=None):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
@@ -89,13 +89,13 @@ def jaccard(input_graph, vertex_pair=None):
         pairs.
 
         df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified)
+            The source vertex ID (will be identical to first if specified).
         df['destination'] : cudf.Series
             The destination vertex ID (will be identical to second if
-            specified)
+            specified).
         df['jaccard_coeff'] : cudf.Series
-            The computed Jaccard coefficient between the source and destination
-            vertices
+            The computed jaccard coefficient between the first and the second
+            vertex ID.
 
     Examples
     --------
@@ -114,8 +114,8 @@ def jaccard(input_graph, vertex_pair=None):
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
 
     if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+        df = input_graph.unrenumber(df, "first")
+        df = input_graph.unrenumber(df, "second")
 
     return df
 
@@ -148,14 +148,14 @@ def jaccard_coefficient(G, ebunch=None):
         relative to the adjacency list, or that given by the specified vertex
         pairs.
 
-        df['source'] : cudf.Series
-            The source vertex ID (will be identical to first if specified)
-        df['destination'] : cudf.Series
-            The destination vertex ID (will be identical to second if
-            specified)
+        df['first'] : cudf.Series
+            The first vertex ID of each pair (will be identical to first if specified).
+        df['second'] : cudf.Series
+            the second vertex ID of each pair (will be identical to second if
+            specified).
         df['jaccard_coeff'] : cudf.Series
             The computed Jaccard coefficient between the source and destination
-            vertices
+            vertices.
 
     Examples
     --------
@@ -175,7 +175,7 @@ def jaccard_coefficient(G, ebunch=None):
 
     if isNx is True:
         df = df_edge_score_to_dictionary(
-            df, k="jaccard_coeff", src="source", dst="destination"
+            df, k="jaccard_coeff", src="first", dst="second"
         )
 
     return df

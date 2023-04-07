@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/core/device_span.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cstddef>
@@ -33,13 +33,6 @@
  */
 
 namespace cugraph {
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-struct edgelist_t {
-  raft::device_span<vertex_t const> srcs{};
-  raft::device_span<vertex_t const> dsts{};
-  std::optional<raft::device_span<weight_t const>> weights{};
-};
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 struct graph_meta_t;
@@ -72,103 +65,35 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>> {
 // graph_t is an owning graph class (note that graph_view_t is a non-owning graph class)
 template <typename vertex_t,
           typename edge_t,
-          typename weight_t,
           bool store_transposed,
           bool multi_gpu,
           typename Enable = void>
 class graph_t;
 
 // multi-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
-  : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>
+  : public detail::graph_base_t<vertex_t, edge_t> {
  public:
   using vertex_type                           = vertex_t;
   using edge_type                             = edge_t;
-  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu          = multi_gpu;
 
-  graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
-
-  // FIXME: to be deleted once we retire cython.cu
-  graph_t(raft::handle_t const& handle,
-          std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check = false);
+  graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t>() {}
 
   graph_t(
     raft::handle_t const& handle,
     std::vector<rmm::device_uvector<edge_t>>&& edge_partition_offsets,
     std::vector<rmm::device_uvector<vertex_t>>&& edge_partition_indices,
-    std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_partition_weights,
     std::optional<std::vector<rmm::device_uvector<vertex_t>>>&& edge_partition_dcs_nzd_vertices,
     graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
     bool do_expensive_check = false);
 
-  /**
-   * @brief Symmetrize this graph.
-   *
-   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
-   * handles to various CUDA libraries) to run graph algorithms.
-   * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
-   * IDs.
-   * @param reciprocal If true, an edge is kept only when the reversed edge also exists. If false,
-   * keep (and symmetrize) all the edges that appear only in one direction.
-   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
-   * IDs).
-   */
-  rmm::device_uvector<vertex_t> symmetrize(raft::handle_t const& handle,
-                                           rmm::device_uvector<vertex_t>&& renumber_map,
-                                           bool reciprocal = false);
-
-  /**
-   * @brief Transpose this graph.
-   *
-   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
-   * handles to various CUDA libraries) to run graph algorithms.
-   * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
-   * IDs.
-   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
-   * IDs).
-   */
-  rmm::device_uvector<vertex_t> transpose(raft::handle_t const& handle,
-                                          rmm::device_uvector<vertex_t>&& renumber_map);
-
-  /**
-   * @brief Transpose the storage format (no change in actual graph).
-   *
-   * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
-   * and CSC + DCSC hybrid (but the internal representation in multi-GPU is subject to change).
-   *
-   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
-   * handles to various CUDA libraries) to run graph algorithms.
-   * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
-   * IDs.
-   * @param destroy If true, destroy this graph to free-up memory.
-   * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
-   * rmm::device_uvector<vertex_t>> Return a storage transposed graph and a new renumber map (to
-   * recover the original vertex IDs for the returned graph).
-   */
-  std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
-             rmm::device_uvector<vertex_t>>
-  transpose_storage(raft::handle_t const& handle,
-                    rmm::device_uvector<vertex_t>&& renumber_map,
-                    bool destroy = false);
-
-  bool is_weighted() const { return edge_partition_weights_.has_value(); }
-
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
     std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-    auto weights = edge_partition_weights_ ? std::make_optional<std::vector<weight_t const*>>(
-                                               (*edge_partition_weights_).size(), nullptr)
-                                           : std::nullopt;
     auto dcs_nzd_vertices      = edge_partition_dcs_nzd_vertices_
                                    ? std::make_optional<std::vector<vertex_t const*>>(
                                   (*edge_partition_dcs_nzd_vertices_).size(), nullptr)
@@ -180,7 +105,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
     for (size_t i = 0; i < offsets.size(); ++i) {
       offsets[i] = edge_partition_offsets_[i].data();
       indices[i] = edge_partition_indices_[i].data();
-      if (weights) { (*weights)[i] = (*edge_partition_weights_)[i].data(); }
       if (dcs_nzd_vertices) {
         (*dcs_nzd_vertices)[i]      = (*edge_partition_dcs_nzd_vertices_)[i].data();
         (*dcs_nzd_vertex_counts)[i] = (*edge_partition_dcs_nzd_vertex_counts_)[i];
@@ -271,11 +195,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       }
     }
 
-    return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
       offsets,
       indices,
-      weights,
       dcs_nzd_vertices,
       dcs_nzd_vertex_counts,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
@@ -294,17 +217,9 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
         local_sorted_unique_edge_dst_vertex_partition_offsets});
   }
 
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>>
-  decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-                         bool destroy = false);
-
  private:
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices_{};
-  std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{std::nullopt};
 
   // nzd: nonzero (local) degree
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
@@ -316,7 +231,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::vector<vertex_t> edge_partition_segment_offsets_{};
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
-  // rows/cols << V / row_comm_size|col_comm_size).
+  // sources/destinations << V / major_comm_size|minor_comm_size).
 
   std::conditional_t<store_transposed,
                      std::optional<rmm::device_uvector<vertex_t>>,
@@ -348,163 +263,41 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 };
 
 // single-GPU version
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
-  : public detail::graph_base_t<vertex_t, edge_t, weight_t> {
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+class graph_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if_t<!multi_gpu>>
+  : public detail::graph_base_t<vertex_t, edge_t> {
  public:
   using vertex_type                           = vertex_t;
   using edge_type                             = edge_t;
-  using weight_type                           = weight_t;
   static constexpr bool is_storage_transposed = store_transposed;
   static constexpr bool is_multi_gpu          = multi_gpu;
 
   graph_t(raft::handle_t const& handle)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(),
+    : detail::graph_base_t<vertex_t, edge_t>(),
       offsets_(0, handle.get_stream()),
       indices_(0, handle.get_stream()){};
-
-  // FIXME: to be deleted once we retire cython.cu
-  graph_t(raft::handle_t const& handle,
-          edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
           rmm::device_uvector<edge_t>&& offsets,
           rmm::device_uvector<vertex_t>&& indices,
-          std::optional<rmm::device_uvector<weight_t>>&& weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
-  /**
-   * @brief Symmetrize this graph.
-   *
-   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
-   * handles to various CUDA libraries) to run graph algorithms.
-   * @param renumber_map Optional renumber map to recover the original vertex IDs from the
-   * renumbered vertex IDs. If @p renuber_map.has_value() is false, this function assumes that
-   * vertex IDs are not renumbered.
-   * @param reciprocal If true, an edge is kept only when the reversed edge also exists. If false,
-   * keep (and symmetrize) all the edges that appear only in one direction.
-   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
-   * IDs) if @p renumber_map.has_value() is true.
-   */
-  std::optional<rmm::device_uvector<vertex_t>> symmetrize(
-    raft::handle_t const& handle,
-    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-    bool reciprocal = false);
-
-  /**
-   * @brief Transpose this graph.
-   *
-   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
-   * handles to various CUDA libraries) to run graph algorithms.
-   * @param renumber_map Optional renumber map to recover the original vertex IDs from the
-   * renumbered vertex IDs. If @p renuber_map.has_value() is false, this function assumes that
-   * vertex IDs are not renumbered.
-   * @return rmm::device_uvector<vertex_t> Return a new renumber map (to recover the original vertex
-   * IDs) if @p renumber_map.has_value() is true.
-   */
-  std::optional<rmm::device_uvector<vertex_t>> transpose(
-    raft::handle_t const& handle, std::optional<rmm::device_uvector<vertex_t>>&& renumber_map);
-
-  /**
-   * @brief Transpose the storage format (no change in actual graph).
-   *
-   * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
-   * and CSC + DCSC hybrid (but the internal representation in multi-GPU is subject to change).
-   *
-   * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
-   * handles to various CUDA libraries) to run graph algorithms.
-   * @param renumber_map Optional renumber map to recover the original vertex IDs from the
-   * renumbered vertex IDs. If @p renuber_map.has_value() is false, this function assumes that
-   * vertex IDs are not renumbered.
-   * @param destroy If true, destroy this graph to free-up memory.
-   * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
-   * rmm::device_uvector<vertex_t>> Return a storage transposed graph and a optional new renumber
-   * map (to recover the original vertex IDs for the returned graph) The returned optional new
-   * renumber map is valid only if @p renumber_map.has_value() is true.
-   */
-  std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
-             std::optional<rmm::device_uvector<vertex_t>>>
-  transpose_storage(raft::handle_t const& handle,
-                    std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
-                    bool destroy = false);
-
-  bool is_weighted() const { return weights_.has_value(); }
-
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> view() const
   {
-    return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+    return graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
       offsets_.data(),
       indices_.data(),
-      weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{this->number_of_vertices(),
                                                                        this->number_of_edges(),
                                                                        this->graph_properties(),
                                                                        segment_offsets_});
   }
 
-  // FIXME: possibley to be added later;
-  // for now it's unnecessary;
-  // (commented out, per reviewer request)
-  //
-  // generic in-place sorter on CSR structure;
-  // this is specifically targetting
-  // segmented-sort by weigths; but
-  // must be generic enough to support future
-  // types of sorting;
-  // Notes:
-  // (1.) criterion is mutable (non-const)
-  //      to allow for sorter obejcts for which
-  //      the sorting operation fills additional structures
-  //      (later to be retrieved; e.g., for debugging);
-  // (2.) sorting object is responsible for updating "in-place"
-  //      any of the (offsets, indices, weights) arrays;
-  //
-  // template <typename in_place_sorter_t>
-  // void sort(in_place_sorter_t& criterion)
-  // {
-  //   criterion(offsets_, indices_, weights_);
-  // }
-
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>>
-  decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map,
-                         bool destroy = false);
-
  private:
-  friend class cugraph::serializer::serializer_t;
-
-  // cnstr. to be used _only_ for un/serialization purposes:
-  //
-  graph_t(raft::handle_t const& handle,
-          vertex_t number_of_vertices,
-          edge_t number_of_edges,
-          graph_properties_t properties,
-          rmm::device_uvector<edge_t>&& offsets,
-          rmm::device_uvector<vertex_t>&& indices,
-          std::optional<rmm::device_uvector<weight_t>>&& weights,
-          std::optional<std::vector<vertex_t>>&& segment_offsets)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-        handle, number_of_vertices, number_of_edges, properties),
-      offsets_(std::move(offsets)),
-      indices_(std::move(indices)),
-      weights_(std::move(weights)),
-      segment_offsets_(std::move(segment_offsets))
-  {
-  }
-
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
-  std::optional<rmm::device_uvector<weight_t>> weights_{std::nullopt};
 
   // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
   std::optional<std::vector<vertex_t>> segment_offsets_{};

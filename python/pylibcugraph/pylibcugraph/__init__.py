@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,6 @@
 
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
-    weakly_connected_components,
 )
 
 from pylibcugraph import experimental
@@ -44,6 +43,21 @@ from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 
 from pylibcugraph.core_number import core_number
 
+from pylibcugraph.k_core import k_core
+
+from pylibcugraph.two_hop_neighbors import get_two_hop_neighbors
+
 from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count
+
+from pylibcugraph.egonet import ego_graph
+
+from pylibcugraph.weakly_connected_components import weakly_connected_components
+
+from pylibcugraph.uniform_random_walks import uniform_random_walks
+
+from pylibcugraph.random import CuGraphRandomState
+
+
+__version__ = "23.06.00"

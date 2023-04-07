@@ -8,7 +8,7 @@ python:
 
 benchmarks:
   - 'benchmarks/**'
-  
+
 doc:
   - 'docs/**'
   - '**/*.md'
@@ -19,18 +19,18 @@ doc:
   - '**/*.ipynb'
   - '**/*.pdf'
   - '**/*.png'
-  
+
 datasets:
   - 'datasets/**'
-  
+
 cuGraph:
   - 'cpp/**'
-  
+
 CMake:
   - '**/CMakeLists.txt'
   - '**/cmake/**'
 
-gpuCI:
+ci:
    - 'ci/**'
 
 conda:

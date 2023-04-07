@@ -18,8 +18,8 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
-#include <raft/error.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/error.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_vector.hpp>
 
 #include <rmm/device_vector.hpp>

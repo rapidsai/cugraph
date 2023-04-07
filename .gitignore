@@ -14,6 +14,7 @@ __pycache__
 *~
 DartConfiguration.tcl
 .DS_Store
+rmm_log.txt
 
 # Unit test / coverage reports
 htmlcov/
@@ -32,21 +33,22 @@ test-results
 dask-worker-space/
 htmlcov
 dist/
-cugraph.egg-info/
+*.egg-info/
 python/build
 python/cugraph/bindings/*.cpp
 wheels/
+wheelhouse/
 _skbuild/
 cufile.log
 
 ## pylibcugraph build directories & artifacts
 python/pylibcugraph/pylibcugraph.egg-info
-	
+
 ## Patching
 *.diff
 *.orig
 *.rej
-	
+
 ## C++ build directories & artifacts
 CMakeFiles/
 Debug
@@ -54,7 +56,7 @@ build/
 cpp/build/
 cpp/include/cugraph/ipc_generated/*.h
 cpp/thirdparty/googletest/
-	
+
 ## Eclipse IDE
 .project
 .cproject
@@ -70,6 +72,7 @@ cpp/thirdparty/googletest/
 ## Datasets
 datasets/*
 !datasets/cyber.csv
+!datasets/get_test_data.sh
 !datasets/karate-data.csv
 !datasets/karate_undirected.csv
 !datasets/karate-disjoint.csv
@@ -92,4 +95,5 @@ python/cugraph/cugraph/tests/dask-worker-space
 
 # Sphinx docs & build artifacts
 docs/cugraph/source/api_docs/api/*
-
+_html
+_text

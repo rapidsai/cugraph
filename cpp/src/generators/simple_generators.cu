@@ -17,7 +17,7 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/cudart_utils.h>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/copy.h>

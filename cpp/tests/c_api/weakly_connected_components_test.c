@@ -78,16 +78,15 @@ int generic_wcc_test(vertex_t* h_src,
     component_check[i] = num_vertices;
   }
 
-  vertex_t num_errors = 0;
-  for (vertex_t i = 0; i < num_vertices; ++i) {
-    if (component_check[h_components[i]] == num_vertices) {
-      component_check[h_components[i]] = h_result[h_vertices[i]];
-    } else if (component_check[h_components[i]] != h_result[h_vertices[i]]) {
-      ++num_errors;
+  for (vertex_t i = 0 ; i < num_vertices; ++i) {
+    if (component_check[h_result[h_vertices[i]]] == num_vertices) {
+      component_check[h_result[h_vertices[i]]] = h_components[i];
     }
   }
 
-  TEST_ASSERT(test_ret_value, num_errors == 0, "weakly connected components results don't match");
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value, h_components[i] == component_check[h_result[h_vertices[i]]], "component results don't match");
+  }
 
   cugraph_type_erased_device_array_view_free(components);
   cugraph_type_erased_device_array_view_free(vertices);
@@ -117,11 +116,30 @@ int test_weakly_connected_components()
   return generic_wcc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
 }
 
+int test_weakly_connected_components_transpose()
+{
+  size_t num_edges    = 32;
+  size_t num_vertices = 12;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10,
+                      1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11,
+                      0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
+  weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+
+  // WCC wants store_transposed = FALSE
+  return generic_wcc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_weakly_connected_components);
+  result |= RUN_TEST(test_weakly_connected_components_transpose);
   return result;
 }

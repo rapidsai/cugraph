@@ -66,46 +66,23 @@ void flatten_dendrogram(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename graph_view_t>
-std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
-          typename graph_view_t::weight_type>
-louvain(raft::handle_t const& handle,
-        graph_view_t const& graph_view,
-        size_t max_level,
-        typename graph_view_t::weight_type resolution)
-{
-  return detail::louvain(handle, graph_view, max_level, resolution);
-}
-
-template <typename graph_view_t>
-void flatten_dendrogram(raft::handle_t const& handle,
-                        graph_view_t const& graph_view,
-                        Dendrogram<typename graph_view_t::vertex_type> const& dendrogram,
-                        typename graph_view_t::vertex_type* clustering)
-{
-  detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
-}
-
-template <typename graph_view_t>
-std::pair<size_t, typename graph_view_t::weight_type> louvain(
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  typename graph_view_t::vertex_type* clustering,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
+  vertex_t* clustering,
   size_t max_level,
-  typename graph_view_t::weight_type resolution)
+  weight_t resolution)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using weight_t = typename graph_view_t::weight_type;
-
   CUGRAPH_EXPECTS(graph_view.has_data(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
   weight_t modularity;
 
-  std::tie(dendrogram, modularity) = louvain(handle, graph_view, max_level, resolution);
+  std::tie(dendrogram, modularity) = detail::louvain(handle, graph_view, max_level, resolution);
 
-  flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
+  detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }

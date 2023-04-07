@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,3 +49,31 @@ find_bicliques = deprecated_warning_wrapper(
 )
 
 from cugraph.experimental.datasets.dataset import Dataset
+
+from cugraph.experimental.link_prediction.jaccard import (
+    EXPERIMENTAL__jaccard,
+    EXPERIMENTAL__jaccard_coefficient,
+)
+
+jaccard = experimental_warning_wrapper(EXPERIMENTAL__jaccard)
+jaccard_coefficient = experimental_warning_wrapper(EXPERIMENTAL__jaccard_coefficient)
+
+from cugraph.experimental.link_prediction.sorensen import (
+    EXPERIMENTAL__sorensen,
+    EXPERIMENTAL__sorensen_coefficient,
+)
+
+sorensen = experimental_warning_wrapper(EXPERIMENTAL__sorensen)
+sorensen_coefficient = experimental_warning_wrapper(EXPERIMENTAL__sorensen_coefficient)
+
+from cugraph.experimental.link_prediction.overlap import (
+    EXPERIMENTAL__overlap,
+    EXPERIMENTAL__overlap_coefficient,
+)
+
+overlap = experimental_warning_wrapper(EXPERIMENTAL__overlap)
+overlap_coefficient = experimental_warning_wrapper(EXPERIMENTAL__overlap_coefficient)
+
+from cugraph.gnn.data_loading import EXPERIMENTAL__BulkSampler
+
+BulkSampler = experimental_warning_wrapper(EXPERIMENTAL__BulkSampler)

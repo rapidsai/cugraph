@@ -1,4 +1,5 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,43 +11,38 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (
-    get_distributed_data,
-    get_vertex_partition_offsets,
-)
-from cugraph.dask.components import mg_connectivity_wrapper as mg_connectivity
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
+import cudf
+
+from pylibcugraph import ResourceHandle
+from pylibcugraph import weakly_connected_components as pylibcugraph_wcc
 
 
-def call_wcc(
-    sID,
-    data,
-    src_col_name,
-    dst_col_name,
-    num_verts,
-    num_edges,
-    vertex_partition_offsets,
-    aggregate_segment_offsets,
-):
-    wid = Comms.get_worker_id(sID)
-    handle = Comms.get_handle(sID)
-    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
-    segment_offsets = aggregate_segment_offsets[
-        local_size * wid : local_size * (wid + 1)
-    ]
-    return mg_connectivity.mg_wcc(
-        data[0],
-        src_col_name,
-        dst_col_name,
-        num_verts,
-        num_edges,
-        vertex_partition_offsets,
-        wid,
-        handle,
-        segment_offsets,
+def convert_to_cudf(cp_arrays):
+    """
+    Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
+    """
+    cupy_vertex, cupy_labels = cp_arrays
+    df = cudf.DataFrame()
+    df["vertex"] = cupy_vertex
+    df["labels"] = cupy_labels
+
+    return df
+
+
+def _call_plc_wcc(sID, mg_graph_x, do_expensive_check):
+    return pylibcugraph_wcc(
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        graph=mg_graph_x,
+        offsets=None,
+        indices=None,
+        weights=None,
+        labels=None,
+        do_expensive_check=do_expensive_check,
     )
 
 
@@ -57,10 +53,21 @@ def weakly_connected_components(input_graph):
 
     Parameters
     ----------
-    input_graph : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    input_graph : cugraph.Graph
+        The graph descriptor should contain the connectivity information
+        and weights. The adjacency list will be computed if not already
+        present.
+        The current implementation only supports undirected graphs.
 
-        Graph or matrix object, which should contain the connectivity
-        information
+    Returns
+    -------
+    result : dask_cudf.DataFrame
+        GPU distributed data frame containing 2 dask_cudf.Series
+
+    ddf['vertex']: dask_cudf.Series
+        Contains the vertex identifiers
+    ddf['labels']: dask_cudf.Series
+        Contains the wcc labels
 
     Examples
     --------
@@ -74,45 +81,45 @@ def weakly_connected_components(input_graph):
     ...                          chunksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
-    >>> dg = cugraph.Graph(directed=True)
+    >>> dg = cugraph.Graph(directed=False)
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
     ...                            edge_attr='value')
     >>> result = dcg.weakly_connected_components(dg)
 
     """
 
+    if input_graph.is_directed():
+        raise ValueError("input graph must be undirected")
+
+    # Initialize dask client
     client = default_client()
 
-    input_graph.compute_renumber_edge_list()
-
-    ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    do_expensive_check = False
 
     result = [
         client.submit(
-            call_wcc,
+            _call_plc_wcc,
             Comms.get_session_id(),
-            wf[1],
-            src_col_name,
-            dst_col_name,
-            num_verts,
-            num_edges,
-            vertex_partition_offsets,
-            input_graph.aggregate_segment_offsets,
-            workers=[wf[0]],
+            input_graph._plc_graph[w],
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
         )
-        for idx, wf in enumerate(data.worker_to_parts.items())
+        for w in Comms.get_workers()
     ]
+
     wait(result)
-    ddf = dask_cudf.from_delayed(result)
+
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
-        return input_graph.unrenumber(ddf, "vertex")
+        ddf = input_graph.unrenumber(ddf, "vertex")
 
     return ddf

@@ -28,6 +28,7 @@ cdef extern from "cugraph_c/resource_handle.h":
         INT64
         FLOAT32
         FLOAT64
+        SIZE_T
 
     ctypedef int8_t byte_t
 

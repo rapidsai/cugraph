@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,18 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/partition_manager.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -57,55 +57,80 @@ class Tests_MGTranspose
   void run_current_test(Transpose_Usecase const& transpose_usecase,
                         input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, transpose_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
-    // 2. run MG transpose
+    // 2. create SG graph from MG graph before transposing (for correctness check)
+
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                               weight_t>>
+      sg_edge_weights{std::nullopt};
+    if (transpose_usecase.check_correctness) {
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph.view(),
+        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+    }
+
+    // 3. run MG transpose
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG transpose");
     }
 
-    *d_mg_renumber_map_labels = mg_graph.transpose(*handle_, std::move(*d_mg_renumber_map_labels));
+    std::tie(mg_graph, mg_edge_weights, mg_renumber_map) = cugraph::transpose_graph(
+      *handle_,
+      std::move(mg_graph),
+      std::move(mg_edge_weights),
+      mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>{std::move(*mg_renumber_map)}
+                      : std::nullopt);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG transpose took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
-    // 3. copmare SG & MG results
+    // 4. copmare SG & MG results
 
     if (transpose_usecase.check_correctness) {
-      // 3-1. decompress MG results
+      // 4-1. decompress MG results
 
-      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] =
-        mg_graph.decompress_to_edgelist(*handle_, d_mg_renumber_map_labels, false);
+      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
+        *handle_,
+        mg_graph.view(),
+        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
+        mg_renumber_map ? std::make_optional<raft::device_span<vertex_t const>>(
+                            (*mg_renumber_map).data(), (*mg_renumber_map).size())
+                        : std::nullopt);
 
-      // 3-2. aggregate MG results
+      // 4-2. aggregate MG results
 
       auto d_mg_aggregate_srcs =
         cugraph::test::device_gatherv(*handle_, d_mg_srcs.data(), d_mg_srcs.size());
@@ -118,24 +143,23 @@ class Tests_MGTranspose
       }
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-3. create SG graph
+        // 4-3. run SG transpose
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-            *handle_, input_usecase, transpose_usecase.test_weighted, false);
+        std::tie(sg_graph, sg_edge_weights, std::ignore) =
+          cugraph::transpose_graph(*handle_,
+                                   std::move(sg_graph),
+                                   std::move(sg_edge_weights),
+                                   std::optional<rmm::device_uvector<vertex_t>>{std::nullopt});
 
-        // 3-4. run SG transpose
+        // 4-4. decompress SG results
 
-        auto d_sg_renumber_map_labels = sg_graph.transpose(*handle_, std::nullopt);
-        ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
+        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
+          *handle_,
+          sg_graph.view(),
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
-        // 3-5. decompress SG results
-
-        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] =
-          sg_graph.decompress_to_edgelist(*handle_, std::nullopt, false);
-
-        // 3-6. compare
+        // 4-5. compare
 
         ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
         ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
@@ -256,13 +280,13 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGTranspose_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           ::testing::Values(Transpose_Usecase{false}, Transpose_Usecase{true}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGTranspose_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Transpose_Usecase{false}, Transpose_Usecase{true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -274,7 +298,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Transpose_Usecase{false, false}, Transpose_Usecase{true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

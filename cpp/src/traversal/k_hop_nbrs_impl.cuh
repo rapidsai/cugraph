@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/count.h>
@@ -48,6 +48,7 @@ template <typename vertex_t>
 struct e_op_t {
   __device__ thrust::optional<size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
                                                  vertex_t,
+                                                 thrust::nullopt_t,
                                                  thrust::nullopt_t,
                                                  thrust::nullopt_t) const
   {
@@ -149,6 +150,7 @@ k_hop_nbrs(raft::handle_t const& handle,
                                                     frontier.bucket(bucket_idx_cur),
                                                     edge_src_dummy_property_t{}.view(),
                                                     edge_dst_dummy_property_t{}.view(),
+                                                    edge_dummy_property_t{}.view(),
                                                     e_op_t<vertex_t>{},
                                                     reduce_op::null{},
                                                     do_expensive_check);
@@ -173,7 +175,7 @@ k_hop_nbrs(raft::handle_t const& handle,
                         start_vertex_displacements.size() - 1,
                         handle.get_stream());
     auto num_indices = start_vertex_displacements.back() + start_vertex_counts.back();
-    lasts.set_element_async(lasts.size() - 1, num_indices, handle.get_stream());
+    lasts.set_element(lasts.size() - 1, num_indices, handle.get_stream());
     std::tie(start_vertex_indices, nbrs, std::ignore) = groupby_gpu_id_and_shuffle_kv_pairs(
       handle.get_comms(),
       start_vertex_indices.begin(),
@@ -221,10 +223,10 @@ k_hop_nbrs(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbrs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t const> start_vertices,
   size_t k,
   bool do_expensive_check)

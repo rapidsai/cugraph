@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/detail/nbr_intersection.cuh>
 #include <prims/property_op_utils.cuh>
 #include <utilities/collect_comm.cuh>
@@ -27,7 +27,7 @@
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -103,7 +103,6 @@ template <typename GraphViewType,
 struct call_intersection_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu>
     edge_partition{};
   thrust::optional<raft::device_span<typename GraphViewType::vertex_type const>> unique_vertices;
@@ -150,11 +149,7 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
     *(major_minor_pair_value_output_first + index) =
-      evaluate_intersection_op<GraphViewType,
-                               decltype(src_prop),
-                               decltype(dst_prop),
-                               IntersectionOp>()
-        .compute(src, dst, src_prop, dst_prop, intersection, intersection_op);
+      intersection_op(src, dst, src_prop, dst_prop, intersection);
   }
 };
 
@@ -208,14 +203,14 @@ void per_v_pair_transform_dst_nbr_intersection(
 
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
-  using weight_t   = typename GraphViewType::weight_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
   using result_t   = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
   if (do_expensive_check) {
     auto num_invalids =
       detail::count_invalid_vertex_pairs(handle, graph_view, vertex_pair_first, vertex_pair_last);
-    CUGRAPH_EXPECTS(num_invalids == 0, "");
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input arguments: there are invalid input vertex pairs.");
   }
 
   auto num_input_pairs = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
@@ -248,13 +243,16 @@ void per_v_pair_transform_dst_nbr_intersection(
                                               (*unique_vertices).end())),
               handle.get_stream());
 
-    property_buffer_for_unique_vertices =
-      collect_values_for_sorted_unique_vertices(handle.get_comms(),
-                                                (*unique_vertices).data(),
-                                                static_cast<vertex_t>((*unique_vertices).size()),
-                                                vertex_value_input_first,
-                                                graph_view.vertex_partition_range_lasts(),
-                                                handle.get_stream());
+    std::tie(unique_vertices, property_buffer_for_unique_vertices) =
+      collect_values_for_unique_int_vertices(handle,
+                                             std::move(*unique_vertices),
+                                             vertex_value_input_first,
+                                             graph_view.vertex_partition_range_lasts());
+    thrust::sort_by_key(
+      handle.get_thrust_policy(),
+      (*unique_vertices).begin(),
+      (*unique_vertices).end(),
+      (*property_buffer_for_unique_vertices).begin());  // necessary for binary search
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
@@ -297,7 +295,7 @@ void per_v_pair_transform_dst_nbr_intersection(
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     auto edge_partition_vertex_pair_index_first =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,26 @@
  */
 #pragma once
 
+//#define TIMING
+
+#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <prims/vertex_frontier.cuh>
+#include <structure/detail/structure_utils.cuh>
+#include <utilities/collect_comm.cuh>
+
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -42,9 +55,58 @@
 
 #include <tuple>
 
-#include <utilities/high_res_timer.hpp>
-
 namespace cugraph {
+
+namespace detail {
+
+template <typename vertex_t, typename weight_t, typename property_t>
+struct induced_subgraph_weighted_edge_op {
+  using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t, size_t>>;
+
+  raft::device_span<size_t const> dst_subgraph_offsets;
+  raft::device_span<vertex_t const> dst_subgraph_vertices;
+
+  return_type __device__ operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+                                    vertex_t dst,
+                                    property_t sv,
+                                    property_t dv,
+                                    weight_t wgt)
+  {
+    size_t subgraph = thrust::get<1>(tagged_src);
+    return thrust::binary_search(thrust::seq,
+                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
+                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
+                                 dst)
+             ? thrust::make_optional(
+                 thrust::make_tuple(thrust::get<0>(tagged_src), dst, wgt, subgraph))
+             : thrust::nullopt;
+  }
+};
+
+template <typename vertex_t, typename property_t>
+struct induced_subgraph_unweighted_edge_op {
+  using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, size_t>>;
+
+  raft::device_span<size_t const> dst_subgraph_offsets;
+  raft::device_span<vertex_t const> dst_subgraph_vertices;
+
+  return_type __device__ operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+                                    vertex_t dst,
+                                    property_t sv,
+                                    property_t dv,
+                                    thrust::nullopt_t)
+  {
+    size_t subgraph = thrust::get<1>(tagged_src);
+    return thrust::binary_search(thrust::seq,
+                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph],
+                                 dst_subgraph_vertices.data() + dst_subgraph_offsets[subgraph + 1],
+                                 dst)
+             ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(tagged_src), dst, subgraph))
+             : thrust::nullopt;
+  }
+};
+
+}  // namespace detail
 
 template <typename vertex_t,
           typename edge_t,
@@ -57,7 +119,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<size_t const> subgraph_offsets,
   raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check)
@@ -66,13 +129,6 @@ extract_induced_subgraphs(
   HighResTimer hr_timer;
   hr_timer.start("extract_induced_subgraphs");
 #endif
-  // FIXME: this code is inefficient for the vertices with their local degrees much larger than the
-  // number of vertices in the subgraphs (in this case, searching that the subgraph vertices are
-  // included in the local neighbors is more efficient than searching the local neighbors are
-  // included in the subgraph vertices). We may later add additional code to handle such cases.
-  // FIXME: we may consider the performance (speed & memory footprint, hash based approach uses
-  // extra-memory) of hash table based and binary search based approaches
-
   // 1. check input arguments
 
   if (do_expensive_check) {
@@ -102,175 +158,145 @@ extract_induced_subgraphs(
                                 !vertex_partition.in_local_vertex_partition_range_nocheck(v);
                        }) == 0,
       "Invalid input argument: subgraph_vertices has invalid vertex IDs.");
-
-    CUGRAPH_EXPECTS(
-      thrust::count_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(subgraph_offsets.size() - 1),
-        [subgraph_offsets, subgraph_vertices] __device__(auto i) {
-          // vertices are sorted and unique
-          return !thrust::is_sorted(thrust::seq,
-                                    subgraph_vertices.begin() + subgraph_offsets[i],
-                                    subgraph_vertices.begin() + subgraph_offsets[i + 1]) ||
-                 (thrust::count_if(
-                    thrust::seq,
-                    thrust::make_counting_iterator(subgraph_offsets[i]),
-                    thrust::make_counting_iterator(subgraph_offsets[i + 1]),
-                    [subgraph_vertices, last = subgraph_offsets[i + 1] - 1] __device__(auto i) {
-                      return (i != last) && (subgraph_vertices[i] == subgraph_vertices[i + 1]);
-                    }) != 0);
-        }) == 0,
-      "Invalid input argument: subgraph_vertices for each subgraph idx should be sorted in "
-      "ascending order and unique.");
   }
 
-  // 2. extract induced subgraphs
+  // 2. Need to create list of src_subgraph_vertices and
+  //    dst_subgraph_vertices and corresponding src_subgraph_offsets
+  //    and dst_subgraph_offsets to use for checking endpoints
+  //    of edges.
+  //
+  rmm::device_uvector<vertex_t> dst_subgraph_vertices_v(0, handle.get_stream());
+  rmm::device_uvector<size_t> dst_subgraph_offsets_v(0, handle.get_stream());
+
+  raft::device_span<size_t const> dst_subgraph_offsets{subgraph_offsets};
+  raft::device_span<vertex_t const> dst_subgraph_vertices{subgraph_vertices};
+
+  auto graph_ids_v =
+    detail::expand_sparse_offsets(subgraph_offsets, size_t{0}, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    CUGRAPH_FAIL("Unimplemented.");
-    return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                           rmm::device_uvector<vertex_t>(0, handle.get_stream()),
-                           rmm::device_uvector<weight_t>(0, handle.get_stream()),
-                           rmm::device_uvector<size_t>(0, handle.get_stream()));
+    auto& comm           = handle.get_comms();
+    auto const comm_rank = comm.get_rank();
+    auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+
+    dst_subgraph_vertices_v = cugraph::device_allgatherv(handle, major_comm, subgraph_vertices);
+
+    graph_ids_v = cugraph::device_allgatherv(
+      handle, major_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
+
+    thrust::sort(handle.get_thrust_policy(),
+                 thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
+                 thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
+
+    dst_subgraph_offsets_v =
+      detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+                                             graph_ids_v.end(),
+                                             size_t{0},
+                                             size_t{subgraph_offsets.size() - 1},
+                                             handle.get_stream());
+
+    dst_subgraph_offsets =
+      raft::device_span<size_t const>(dst_subgraph_offsets_v.data(), dst_subgraph_offsets_v.size());
   } else {
-    // 2-1. Phase 1: calculate memory requirements
-
-    size_t num_aggregate_subgraph_vertices{};
-    raft::update_host(&num_aggregate_subgraph_vertices,
-                      subgraph_offsets.data() + subgraph_offsets.size() - 1,
-                      1,
-                      handle.get_stream());
-    handle.sync_stream();
-
-    rmm::device_uvector<size_t> subgraph_vertex_output_offsets(
-      num_aggregate_subgraph_vertices + 1,
-      handle.get_stream());  // for each element of subgraph_vertices
-
-    auto edge_partition = edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
-      graph_view.local_edge_partition_view());
-    // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
-    // vertex list.
-    thrust::transform(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
-      subgraph_vertex_output_offsets.begin(),
-      [subgraph_offsets, subgraph_vertices, edge_partition] __device__(auto i) {
-        auto subgraph_idx =
-          thrust::distance(subgraph_offsets.begin() + 1,
-                           thrust::upper_bound(
-                             thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end() - 1, i));
-        vertex_t const* indices{nullptr};
-        thrust::optional<weight_t const*> weights{thrust::nullopt};
-        edge_t local_degree{};
-        auto major_offset = edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
-        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
-        // FIXME: this is inefficient for high local degree vertices
-        return thrust::count_if(
-          thrust::seq,
-          indices,
-          indices + local_degree,
-          [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
-           vertex_last =
-             subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto nbr) {
-            return thrust::binary_search(thrust::seq, vertex_first, vertex_last, nbr);
-          });
-      });
-    thrust::exclusive_scan(handle.get_thrust_policy(),
-                           subgraph_vertex_output_offsets.begin(),
-                           subgraph_vertex_output_offsets.end(),
-                           subgraph_vertex_output_offsets.begin());
-
-    size_t num_aggregate_edges{};
-    raft::update_host(&num_aggregate_edges,
-                      subgraph_vertex_output_offsets.data() + num_aggregate_subgraph_vertices,
-                      1,
-                      handle.get_stream());
-    handle.sync_stream();
-
-    // 2-2. Phase 2: find the edges in the induced subgraphs
-
-    rmm::device_uvector<vertex_t> edge_majors(num_aggregate_edges, handle.get_stream());
-    rmm::device_uvector<vertex_t> edge_minors(num_aggregate_edges, handle.get_stream());
-    auto edge_weights = graph_view.is_weighted()
-                          ? std::make_optional<rmm::device_uvector<weight_t>>(num_aggregate_edges,
-                                                                              handle.get_stream())
-                          : std::nullopt;
-
-    // fill the edge list buffer (to be returned) for each vetex in the aggregate subgraph vertex
-    // list (use the offsets computed in the Phase 1)
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
-      [subgraph_offsets,
-       subgraph_vertices,
-       edge_partition,
-       subgraph_vertex_output_offsets = subgraph_vertex_output_offsets.data(),
-       edge_majors                    = edge_majors.data(),
-       edge_minors                    = edge_minors.data(),
-       edge_weights = edge_weights ? thrust::optional<weight_t*>{(*edge_weights).data()}
-                                   : thrust::nullopt] __device__(auto i) {
-        auto subgraph_idx = thrust::distance(
-          subgraph_offsets.begin() + 1,
-          thrust::upper_bound(
-            thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end() - 1, size_t{i}));
-        vertex_t const* indices{nullptr};
-        thrust::optional<weight_t const*> weights{thrust::nullopt};
-        edge_t local_degree{};
-        auto major_offset = edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
-        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
-        if (weights) {
-          auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
-            thrust::make_constant_iterator(subgraph_vertices[i]), indices, *weights));
-          // FIXME: this is inefficient for high local degree vertices
-          thrust::copy_if(
-            thrust::seq,
-            triplet_first,
-            triplet_first + local_degree,
-            thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors, *edge_weights)) +
-              subgraph_vertex_output_offsets[i],
-            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
-             vertex_last =
-               subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
-              return thrust::binary_search(
-                thrust::seq, vertex_first, vertex_last, thrust::get<1>(t));
-            });
-        } else {
-          auto pair_first = thrust::make_zip_iterator(
-            thrust::make_tuple(thrust::make_constant_iterator(subgraph_vertices[i]), indices));
-          // FIXME: this is inefficient for high local degree vertices
-          thrust::copy_if(
-            thrust::seq,
-            pair_first,
-            pair_first + local_degree,
-            thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors)) +
-              subgraph_vertex_output_offsets[i],
-            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
-             vertex_last =
-               subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
-              return thrust::binary_search(
-                thrust::seq, vertex_first, vertex_last, thrust::get<1>(t));
-            });
-        }
-      });
-
-    rmm::device_uvector<size_t> subgraph_edge_offsets(subgraph_offsets.size(), handle.get_stream());
-    thrust::gather(handle.get_thrust_policy(),
-                   subgraph_offsets.begin(),
-                   subgraph_offsets.end(),
-                   subgraph_vertex_output_offsets.begin(),
-                   subgraph_edge_offsets.begin());
-#ifdef TIMING
-    hr_timer.stop();
-    hr_timer.display(std::cout);
-#endif
-    return std::make_tuple(std::move(edge_majors),
-                           std::move(edge_minors),
-                           std::move(edge_weights),
-                           std::move(subgraph_edge_offsets));
+    dst_subgraph_vertices_v.resize(graph_ids_v.size(), handle.get_stream());
+    raft::copy(dst_subgraph_vertices_v.data(),
+               subgraph_vertices.data(),
+               subgraph_vertices.size(),
+               handle.get_stream());
+    thrust::sort(handle.get_thrust_policy(),
+                 thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),
+                 thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
   }
+
+  graph_ids_v.resize(0, handle.get_stream());
+  graph_ids_v.shrink_to_fit(handle.get_stream());
+
+  dst_subgraph_vertices = raft::device_span<vertex_t const>(dst_subgraph_vertices_v.data(),
+                                                            dst_subgraph_vertices_v.size());
+
+  // 3. Call extract_transform_v_frontier_e with a functor that
+  //    returns thrust::nullopt if the destination vertex has
+  //    a property of 0, return the edge if the destination
+  //    vertex has a property of 1
+  vertex_frontier_t<vertex_t, size_t, multi_gpu, false> vertex_frontier(handle, 1);
+
+  std::vector<size_t> h_subgraph_offsets(subgraph_offsets.size());
+  raft::update_host(h_subgraph_offsets.data(),
+                    subgraph_offsets.data(),
+                    subgraph_offsets.size(),
+                    handle.get_stream());
+
+  graph_ids_v = detail::expand_sparse_offsets(subgraph_offsets, size_t{0}, handle.get_stream());
+
+  vertex_frontier.bucket(0).insert(
+    thrust::make_zip_iterator(subgraph_vertices.begin(), graph_ids_v.begin()),
+    thrust::make_zip_iterator(subgraph_vertices.end(), graph_ids_v.end()));
+
+  graph_ids_v.resize(0, handle.get_stream());
+  graph_ids_v.shrink_to_fit(handle.get_stream());
+
+  rmm::device_uvector<vertex_t> edge_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edge_minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> edge_weights{std::nullopt};
+  rmm::device_uvector<size_t> subgraph_edge_graph_ids(0, handle.get_stream());
+
+  if (edge_weight_view) {
+    edge_weights = std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
+
+    std::tie(edge_majors, edge_minors, *edge_weights, subgraph_edge_graph_ids) =
+      extract_transform_v_frontier_outgoing_e(
+        handle,
+        graph_view,
+        vertex_frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        *edge_weight_view,
+        detail::induced_subgraph_weighted_edge_op<vertex_t, weight_t, thrust::nullopt_t>{
+          dst_subgraph_offsets, dst_subgraph_vertices},
+        do_expensive_check);
+
+    thrust::sort_by_key(
+      handle.get_thrust_policy(),
+      thrust::make_zip_iterator(
+        subgraph_edge_graph_ids.begin(), edge_majors.begin(), edge_minors.begin()),
+      thrust::make_zip_iterator(
+        subgraph_edge_graph_ids.end(), edge_majors.end(), edge_minors.end()),
+      edge_weights->begin());
+  } else {
+    std::tie(edge_majors, edge_minors, subgraph_edge_graph_ids) =
+      extract_transform_v_frontier_outgoing_e(
+        handle,
+        graph_view,
+        vertex_frontier.bucket(0),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        detail::induced_subgraph_unweighted_edge_op<vertex_t, thrust::nullopt_t>{
+          dst_subgraph_offsets, dst_subgraph_vertices},
+        do_expensive_check);
+
+    thrust::sort(handle.get_thrust_policy(),
+                 thrust::make_zip_iterator(
+                   subgraph_edge_graph_ids.begin(), edge_majors.begin(), edge_minors.begin()),
+                 thrust::make_zip_iterator(
+                   subgraph_edge_graph_ids.end(), edge_majors.end(), edge_minors.end()));
+  }
+
+  auto subgraph_edge_offsets =
+    detail::compute_sparse_offsets<size_t>(subgraph_edge_graph_ids.begin(),
+                                           subgraph_edge_graph_ids.end(),
+                                           size_t{0},
+                                           size_t{subgraph_offsets.size() - 1},
+                                           handle.get_stream());
+
+#ifdef TIMING
+  hr_timer.stop();
+  hr_timer.display_and_clear(std::cout);
+#endif
+  return std::make_tuple(std::move(edge_majors),
+                         std::move(edge_minors),
+                         std::move(edge_weights),
+                         std::move(subgraph_edge_offsets));
 }
 
 }  // namespace cugraph

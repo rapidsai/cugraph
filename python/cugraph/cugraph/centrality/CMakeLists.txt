@@ -22,8 +22,5 @@ rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX centrality_
+  ASSOCIATED_TARGETS cugraph
 )
-
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
-endforeach()

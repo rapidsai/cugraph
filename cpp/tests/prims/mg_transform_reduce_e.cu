@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -28,17 +27,17 @@
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/partition_manager.hpp>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
-#include <cugraph/edge_partition_view.hpp>
-#include <cugraph/graph_view.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/count.h>
@@ -116,25 +115,27 @@ class Tests_MGTransformReduceE
             bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
-    auto [mg_graph, d_mg_renumber_map_labels] =
+
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -147,7 +148,7 @@ class Tests_MGTransformReduceE
     auto property_initial_value =
       cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
     auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+      *handle_, *mg_renumber_map, hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
     auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
@@ -156,7 +157,7 @@ class Tests_MGTransformReduceE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG transform_reduce_e");
     }
 
     auto result = transform_reduce_e(
@@ -164,7 +165,8 @@ class Tests_MGTransformReduceE
       mg_graph_view,
       mg_src_prop.view(),
       mg_dst_prop.view(),
-      [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+      cugraph::edge_dummy_property_t{}.view(),
+      [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
         if (src_property < dst_property) {
           return src_property;
         } else {
@@ -176,45 +178,53 @@ class Tests_MGTransformReduceE
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG transform reduce took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          *handle_, input_usecase, true, false);
-      auto sg_graph_view = sg_graph.view();
-
-      auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count);
-      auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
-        *handle_, sg_graph_view, sg_vertex_prop);
-      auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
-        *handle_, sg_graph_view, sg_vertex_prop);
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
-      auto expected_result = transform_reduce_e(
-        *handle_,
-        sg_graph_view,
-        sg_src_prop.view(),
-        sg_dst_prop.view(),
-        [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
-          if (src_property < dst_property) {
-            return src_property;
-          } else {
-            return dst_property;
-          }
-        },
-        property_initial_value);
-      result_compare<result_t> compare{};
-      ASSERT_TRUE(compare(expected_result, result));
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
+
+        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+          *handle_,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+          hash_bin_count);
+        auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+        auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+
+        auto expected_result = transform_reduce_e(
+          *handle_,
+          sg_graph_view,
+          sg_src_prop.view(),
+          sg_dst_prop.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          [] __device__(
+            auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+            if (src_property < dst_property) {
+              return src_property;
+            } else {
+              return dst_property;
+            }
+          },
+          property_initial_value);
+        result_compare<result_t> compare{};
+        ASSERT_TRUE(compare(expected_result, result));
+      }
     }
   }
 
@@ -243,6 +253,22 @@ TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int32FloatTupleIntFloatTranspose
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int64FloatTupleIntFloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>, false>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, false>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
 TEST_P(Tests_MGTransformReduceE_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
@@ -254,6 +280,22 @@ TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int32FloatTupleIntFloatTranspose
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int64FloatTupleIntFloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, thrust::tuple<int, float>, true>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt64Int64FloatTupleIntFloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, thrust::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -272,6 +314,22 @@ TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int32FloatTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int, false>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt64Int64FloatTransposeFalse)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int, false>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
 TEST_P(Tests_MGTransformReduceE_File, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
@@ -286,6 +344,22 @@ TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int32FloatTransposeTrue)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt32Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int32_t, int64_t, float, int, true>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
+TEST_P(Tests_MGTransformReduceE_Rmat, CheckInt64Int64FloatTransposeTrue)
+{
+  auto param = GetParam();
+  run_current_test<int64_t, int64_t, float, int, true>(
+    std::get<0>(param),
+    cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
+}
+
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGTransformReduceE_File,
@@ -296,18 +370,21 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGTransformReduceE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGTransformReduceE_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  rmat_large_test,
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
   Tests_MGTransformReduceE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

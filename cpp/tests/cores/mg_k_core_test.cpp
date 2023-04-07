@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
+#include "k_core_validate.hpp"
+
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
+#include <utilities/device_comm_wrapper.hpp>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
@@ -36,52 +39,6 @@
 #include <numeric>
 #include <vector>
 
-template <typename graph_view_t>
-void check_correctness(
-  raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  rmm::device_uvector<typename graph_view_t::edge_type> const& d_core_numbers,
-  std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-             rmm::device_uvector<typename graph_view_t::vertex_type>,
-             std::optional<rmm::device_uvector<typename graph_view_t::weight_type>>> const&
-    subgraph,
-  size_t k)
-{
-#if 0
-  auto [graph_src, graph_dst, graph_wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
-
-  auto h_core_numbers = cugraph::test::to_host(handle, d_core_numbers.data(), d_core_number.size());
-
-  auto [d_subgraph_src, d_subgraph_dst, d_subgraph_wgt] = subgraph;
-
-  auto h_subgraph_src =
-    cugraph::test::to_host(handle, d_subgraph_src.data(), d_subgraph_src.size());
-  auto h_subgraph_dst =
-    cugraph::test::to_host(handle, d_subgraph_dst.data(), d_subgraph_dst.size());
-
-  std::optional<std::vector<weight_t>> h_subgraph_wgt{std::nullopt};
-  if (d_subgraph_wgt)
-    h_subgraph_wgt = std::make_optional(
-      cugraph::test::to_host(handle, d_subgraph_wgt->data(), d_subgraph_wgt->size()));
-
-  // Check that all edges in the subgraph are appropriate
-  std::for_each(h_subgraph_src.begin(), h_subgraph_src.end(), [&h_core_numbers](auto v) {
-    EXPECT_GE(h_core_numbers[v], k);
-  });
-  std::for_each(h_subgraph_dst.begin(), h_subgraph_dst.end(), [&h_core_numbers](auto v) {
-    EXPECT_GE(h_core_numbers[v], k);
-  });
-
-  // Now we'll count how many edges should be in the subgraph
-  size_t counter = 0;
-  for (size_t i = 0; i < graph_src.size(); ++i)
-    if ((h_core_numbers[graph_src[i]] >= k) && (h_core_numbers[graph_dst[i]] >= k)) ++counter;
-
-  EXPECT_EQ(counter, h_subgraph.size());
-
-#endif
-}
-
 struct KCore_Usecase {
   size_t k;
   cugraph::k_core_degree_type_t degree_type{cugraph::k_core_degree_type_t::OUT};
@@ -89,12 +46,12 @@ struct KCore_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, input_usecase_t>> {
+class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, input_usecase_t>> {
  public:
-  Tests_KCore() {}
+  Tests_MGKCore() {}
 
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -107,94 +64,160 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     using weight_t = float;
 
-    raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+        *handle_, input_usecase, false, renumber, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
-    auto graph_view = graph.view();
 
-    rmm::device_uvector<edge_t> d_core_numbers(graph_view.number_of_vertices(),
-                                               handle.get_stream());
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
-    cugraph::core_number(handle,
-                         graph_view,
-                         d_core_numbers.data(),
+    rmm::device_uvector<edge_t> d_mg_core_numbers(mg_graph_view.local_vertex_partition_range_size(),
+                                                  handle_->get_stream());
+
+    cugraph::core_number(*handle_,
+                         mg_graph_view,
+                         d_mg_core_numbers.data(),
                          k_core_usecase.degree_type,
                          k_core_usecase.k,
                          k_core_usecase.k);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("MG K-core");
     }
 
-    raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
-
-#if 0
-    auto subgraph = cugraph::k_core(
-                                    handle, graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
-#else
-    EXPECT_THROW(
-      cugraph::k_core(
-        handle, graph_view, k_core_usecase.k, std::nullopt, std::make_optional(core_number_span)),
-      cugraph::logic_error);
-#endif
+    auto [mg_subgraph_srcs, mg_subgraph_dsts, mg_subgraph_weights] =
+      cugraph::k_core(*handle_,
+                      mg_graph_view,
+                      mg_edge_weight_view,
+                      k_core_usecase.k,
+                      std::nullopt,
+                      std::make_optional<raft::device_span<edge_t const>>(
+                        d_mg_core_numbers.data(), d_mg_core_numbers.size()));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "Core Number took " << elapsed_time * 1e-6 << " s.\n";
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (k_core_usecase.check_correctness) {
-#if 0
-      check_correctness(handle, graph_view, d_core_numbers, subgraph, k_core_usecase.k);
-#endif
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        mg_subgraph_srcs.data(),
+        mg_subgraph_srcs.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      cugraph::unrenumber_int_vertices<vertex_t, true>(
+        *handle_,
+        mg_subgraph_dsts.data(),
+        mg_subgraph_dsts.size(),
+        (*mg_renumber_map).data(),
+        mg_graph_view.vertex_partition_range_lasts());
+
+      auto d_mg_aggregate_subgraph_srcs = cugraph::test::device_gatherv(
+        *handle_,
+        raft::device_span<vertex_t const>(mg_subgraph_srcs.data(), mg_subgraph_srcs.size()));
+
+      auto d_mg_aggregate_subgraph_dsts = cugraph::test::device_gatherv(
+        *handle_,
+        raft::device_span<vertex_t const>(mg_subgraph_dsts.data(), mg_subgraph_dsts.size()));
+
+      std::optional<rmm::device_uvector<weight_t>> d_mg_aggregate_subgraph_weights{std::nullopt};
+      if (mg_subgraph_weights) {
+        d_mg_aggregate_subgraph_weights = cugraph::test::device_gatherv(
+          *handle_,
+          raft::device_span<weight_t const>((*mg_subgraph_weights).data(),
+                                            (*mg_subgraph_weights).size()));
+      }
+
+      rmm::device_uvector<edge_t> d_mg_aggregate_core_numbers(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_core_numbers) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<edge_t const>(d_mg_core_numbers.data(), d_mg_core_numbers.size()));
+
+      auto [sg_graph, sg_edge_weights, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(*handle_,
+                                            mg_graph_view,
+                                            mg_edge_weight_view,
+                                            std::make_optional<raft::device_span<vertex_t const>>(
+                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
+                                            false);
+
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
+        auto sg_edge_weight_view =
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+        cugraph::test::check_correctness(
+          *handle_,
+          sg_graph_view,
+          sg_edge_weight_view,
+          d_mg_aggregate_core_numbers,
+          std::make_tuple(std::move(d_mg_aggregate_subgraph_srcs),
+                          std::move(d_mg_aggregate_subgraph_dsts),
+                          std::move(d_mg_aggregate_subgraph_weights)),
+          k_core_usecase.k);
+      }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_KCore_File = Tests_KCore<cugraph::test::File_Usecase>;
-using Tests_KCore_Rmat = Tests_KCore<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGKCore<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_KCore_File, CheckInt32Int32)
+using Tests_MGKCore_File = Tests_MGKCore<cugraph::test::File_Usecase>;
+using Tests_MGKCore_Rmat = Tests_MGKCore<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGKCore_File, CheckInt32Int32)
 {
   run_current_test<int32_t, int32_t>(override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt32Int32)
+TEST_P(Tests_MGKCore_Rmat, CheckInt32Int32)
 {
   run_current_test<int32_t, int32_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt32Int64)
+TEST_P(Tests_MGKCore_Rmat, CheckInt32Int64)
 {
   run_current_test<int32_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt64Int64)
+TEST_P(Tests_MGKCore_Rmat, CheckInt64Int64)
 {
   run_current_test<int64_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_KCore_File,
+  Tests_MGKCore_File,
   ::testing::Combine(
     // enable correctness checks
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
@@ -206,7 +229,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_KCore_Rmat,
+  Tests_MGKCore_Rmat,
   ::testing::Combine(
     // enable correctness checks
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
@@ -220,10 +243,10 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_KCore_Rmat,
+  Tests_MGKCore_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT, false}),
     testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-CUGRAPH_TEST_PROGRAM_MAIN()
+CUGRAPH_MG_TEST_PROGRAM_MAIN()

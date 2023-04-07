@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/visitors/generic_cascaded_dispatch.hpp>
 
 namespace cugraph {
 namespace c_api {
@@ -90,10 +89,13 @@ struct node2vec_functor : public abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -120,6 +122,7 @@ struct node2vec_functor : public abstract_functor {
       auto [paths, weights, sizes] = cugraph::random_walks(
         handle_,
         graph_view,
+        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         start_vertices.data(),
         static_cast<edge_t>(start_vertices.size()),
         static_cast<edge_t>(max_length_),
@@ -181,8 +184,6 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
     // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
-    } else if constexpr (multi_gpu) {
-      unsupported();
     } else {
       // random walks expects store_transposed == false
       if constexpr (store_transposed) {
@@ -193,10 +194,13 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -221,6 +225,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       auto [paths, weights] = cugraph::uniform_random_walks(
         handle_,
         graph_view,
+        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         seed_);
@@ -228,8 +233,13 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_local_int_vertices<vertex_t>(
-        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size() - 1, false);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        paths.data(),
+        paths.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,
@@ -288,10 +298,13 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -316,6 +329,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
       auto [paths, weights] = cugraph::biased_random_walks(
         handle_,
         graph_view,
+        edge_weights->view(),
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         seed_);
@@ -389,10 +403,13 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -417,6 +434,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       auto [paths, weights] = cugraph::node2vec_random_walks(
         handle_,
         graph_view,
+        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
         raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         static_cast<weight_t>(p_),

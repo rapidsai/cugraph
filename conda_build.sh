@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Copyright (c) 2021, NVIDIA CORPORATION
+# Copyright (c) 2021-2022, NVIDIA CORPORATION
 
 set -xe
 
 CUDA_REL=${CUDA_VERSION%.*}
 
 conda install conda-build anaconda-client conda-verify -y
-conda build -c nvidia -c rapidsai -c rapidsai-nightly/label/cuda${CUDA_REL} -c conda-forge --python=${PYTHON} conda/recipes/cugraph
+conda build -c rapidsai -c rapidsai-nightly/label/cuda${CUDA_REL} -c conda-forge -c nvidia --python=${PYTHON} conda/recipes/cugraph
 
 if [ "$UPLOAD_PACKAGE" == '1' ]; then
-    export UPLOADFILE=`conda build -c nvidia -c rapidsai -c conda-forge --python=${PYTHON} conda/recipes/cugraph --output`
+    export UPLOADFILE=`conda build -c rapidsai -c conda-forge -c nvidia --python=${PYTHON} conda/recipes/cugraph --output`
     SOURCE_BRANCH=main
 
     test -e ${UPLOADFILE}

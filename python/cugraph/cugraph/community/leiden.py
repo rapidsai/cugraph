@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ def leiden(G, max_iter=100, resolution=1.0):
     Compute the modularity optimizing partition of the input graph using the
     Leiden algorithm
 
-    It uses the Louvain method described in:
+    It uses the Leiden method described in:
 
     Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
     guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
@@ -34,7 +34,7 @@ def leiden(G, max_iter=100, resolution=1.0):
     G : cugraph.Graph
         cuGraph graph descriptor of type Graph
 
-        The current implementation only supports undirected graphs.
+        The current implementation only supports undirected weighted graphs.
 
         The adjacency list will be computed if not already present.
 

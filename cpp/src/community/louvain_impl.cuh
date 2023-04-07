@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <rmm/device_uvector.hpp>
 
@@ -34,8 +35,8 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                       vertex_t* clustering)
 {
   if (graph_view.local_vertex_partition_range_size() > 0)
@@ -45,20 +46,26 @@ void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution)
 {
-  using graph_t      = cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
-  using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
+  using graph_t      = cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>;
+  using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
   graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
-  HighResTimer hr_timer;
+  std::optional<edge_property_t<graph_view_t, weight_t>> current_edge_weights(handle);
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
+    edge_weight_view);
 
-  weight_t best_modularity   = weight_t{-1};
-  weight_t total_edge_weight = current_graph_view.compute_total_edge_weight(handle);
+  weight_t best_modularity = weight_t{-1};
+  weight_t total_edge_weight =
+    compute_total_edge_weight(handle, current_graph_view, *current_edge_weight_view);
 
   rmm::device_uvector<vertex_t> cluster_keys_v(0, handle.get_stream());
   rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
@@ -85,10 +92,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     //  Compute the vertex and cluster weights, these are different for each
     //  graph in the hierarchical decomposition
     //
+
+#ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
+#endif
 
-    vertex_weights_v = current_graph_view.compute_out_weight_sums(handle);
+    vertex_weights_v =
+      compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view);
     cluster_keys_v.resize(vertex_weights_v.size(), handle.get_stream());
     cluster_weights_v.resize(vertex_weights_v.size(), handle.get_stream());
 
@@ -103,8 +114,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      std::tie(cluster_keys_v, cluster_weights_v) = shuffle_ext_vertices_and_values_by_gpu_id(
-        handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
+      std::tie(cluster_keys_v, cluster_weights_v) =
+        detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
+          handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
         edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
@@ -114,12 +126,17 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       vertex_weights_v.shrink_to_fit(handle.get_stream());
     }
 
+#ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+#endif
 
     //
     //  Update the clustering assignment, this is the main loop of Louvain
     //
+
+#ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "update_clustering");
+#endif
 
     next_clusters_v =
       rmm::device_uvector<vertex_t>(dendrogram->current_level_size(), handle.get_stream());
@@ -140,6 +157,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     weight_t new_Q = detail::compute_modularity(handle,
                                                 current_graph_view,
+                                                current_edge_weight_view,
                                                 src_clusters_cache,
                                                 dst_clusters_cache,
                                                 next_clusters_v,
@@ -158,6 +176,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
       next_clusters_v = detail::update_clustering_by_delta_modularity(handle,
                                                                       current_graph_view,
+                                                                      current_edge_weight_view,
                                                                       total_edge_weight,
                                                                       resolution,
                                                                       vertex_weights_v,
@@ -177,12 +196,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       }
 
       std::tie(cluster_keys_v, cluster_weights_v) = detail::compute_cluster_keys_and_values(
-        handle, current_graph_view, next_clusters_v, src_clusters_cache);
+        handle, current_graph_view, current_edge_weight_view, next_clusters_v, src_clusters_cache);
 
       up_down = !up_down;
 
       new_Q = detail::compute_modularity(handle,
                                          current_graph_view,
+                                         current_edge_weight_view,
                                          src_clusters_cache,
                                          dst_clusters_cache,
                                          next_clusters_v,
@@ -198,7 +218,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
       }
     }
 
+#ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+#endif
 
     if (cur_Q <= best_modularity) { break; }
 
@@ -207,7 +229,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     //
     //  Contract the graph
     //
+
+#ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
+#endif
 
     cluster_keys_v.resize(0, handle.get_stream());
     cluster_weights_v.resize(0, handle.get_stream());
@@ -221,27 +246,33 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     src_clusters_cache.clear(handle);
     dst_clusters_cache.clear(handle);
 
-    current_graph = cugraph::detail::graph_contraction(
+    std::tie(current_graph, current_edge_weights) = cugraph::detail::graph_contraction(
       handle,
       current_graph_view,
+      current_edge_weight_view,
       raft::device_span<vertex_t>{dendrogram->current_level_begin(),
                                   dendrogram->current_level_size()});
-    current_graph_view = current_graph.view();
+    current_graph_view       = current_graph.view();
+    current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
+      (*current_edge_weights).view());
 
+#ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
+#endif
   }
 
+#ifdef TIMING
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
+#endif
 
   return std::make_pair(std::move(dendrogram), best_modularity);
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void flatten_dendrogram(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  Dendrogram<vertex_t> const& dendrogram,
-  vertex_t* clustering)
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void flatten_dendrogram(raft::handle_t const& handle,
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
 
@@ -256,46 +287,46 @@ void flatten_dendrogram(
 
 }  // namespace detail
 
-template <typename graph_view_t>
-std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
-          typename graph_view_t::weight_type>
-louvain(raft::handle_t const& handle,
-        graph_view_t const& graph_view,
-        size_t max_level,
-        typename graph_view_t::weight_type resolution)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level,
+  weight_t resolution)
 {
-  return detail::louvain(handle, graph_view, max_level, resolution);
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
+  return detail::louvain(handle, graph_view, edge_weight_view, max_level, resolution);
 }
 
-template <typename graph_view_t>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void flatten_dendrogram(raft::handle_t const& handle,
-                        graph_view_t const& graph_view,
-                        Dendrogram<typename graph_view_t::vertex_type> const& dendrogram,
-                        typename graph_view_t::vertex_type* clustering)
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }
 
-template <typename graph_view_t>
-std::pair<size_t, typename graph_view_t::weight_type> louvain(
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  typename graph_view_t::vertex_type* clustering,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  vertex_t* clustering,
   size_t max_level,
-  typename graph_view_t::weight_type resolution)
+  weight_t resolution)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using weight_t = typename graph_view_t::weight_type;
-
-  CUGRAPH_EXPECTS(graph_view.is_weighted(), "Graph must be weighted");
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
   weight_t modularity;
 
-  std::tie(dendrogram, modularity) = louvain(handle, graph_view, max_level, resolution);
+  std::tie(dendrogram, modularity) =
+    detail::louvain(handle, graph_view, edge_weight_view, max_level, resolution);
 
-  flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
+  detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 
   return std::make_pair(dendrogram->num_levels(), modularity);
 }

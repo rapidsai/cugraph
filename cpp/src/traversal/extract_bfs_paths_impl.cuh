@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <utilities/collect_comm.cuh>
 #include <utilities/graph_utils.cuh>
 
@@ -27,7 +27,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
@@ -137,17 +137,20 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>> shrink_ex
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   vertex_t const* distances,
   vertex_t const* predecessors,
   vertex_t const* destinations,
   size_t n_destinations)
 {
-  CUGRAPH_EXPECTS(distances != nullptr, "Invalid input argument: distances cannot be null");
-  CUGRAPH_EXPECTS(predecessors != nullptr, "Invalid input argument: predecessors cannot be null");
+  CUGRAPH_EXPECTS((graph_view.local_vertex_partition_range_size() == 0) || (distances != nullptr),
+                  "Invalid input argument: distances cannot be null");
+  CUGRAPH_EXPECTS(
+    (graph_view.local_vertex_partition_range_size() == 0) || (predecessors != nullptr),
+    "Invalid input argument: predecessors cannot be null");
 
   CUGRAPH_EXPECTS((n_destinations == 0) || (destinations != nullptr),
                   "Invalid input argument: destinations cannot be null");
@@ -217,12 +220,11 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                       detail::decrement_position{});
 
     if constexpr (multi_gpu) {
-      current_frontier = collect_values_for_vertices(handle.get_comms(),
-                                                     current_frontier.begin(),
-                                                     current_frontier.end(),
-                                                     predecessors,
-                                                     h_vertex_partition_range_lasts,
-                                                     handle.get_stream());
+      current_frontier = collect_values_for_int_vertices(handle,
+                                                         current_frontier.begin(),
+                                                         current_frontier.end(),
+                                                         predecessors,
+                                                         h_vertex_partition_range_lasts);
     } else {
       thrust::transform(handle.get_thrust_policy(),
                         current_frontier.begin(),

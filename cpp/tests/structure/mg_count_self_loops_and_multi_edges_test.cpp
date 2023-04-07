@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -26,11 +25,11 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/comms.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -63,26 +62,27 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     CountSelfLoopsAndMultiEdges_Usecase const& count_self_loops_and_multi_edges_usecase,
     input_usecase_t const& input_usecase)
   {
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto mg_graph_view = mg_graph.view();
@@ -92,7 +92,7 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Counting self-loops");
     }
 
     auto num_self_loops = mg_graph_view.count_self_loops(*handle_);
@@ -100,15 +100,14 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG Counting self-loops took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      hr_clock.start();
+      hr_timer.start("MG Counting multi-edges");
     }
 
     auto num_multi_edges = mg_graph_view.count_multi_edges(*handle_);
@@ -116,34 +115,39 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "MG Counting multi-edges took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. copmare SG & MG results
 
     if (count_self_loops_and_multi_edges_usecase.check_correctness) {
-      // 3-1. create SG graph
+      // 3-1. aggregate MG results
 
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          *handle_, input_usecase, false, false);
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
-      auto sg_graph_view = sg_graph.view();
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
 
-      ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
+        ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-      // 3-2. run SG count_self_loops & count_multi_edges
+        // 3-2. run SG count_self_loops & count_multi_edges
 
-      auto sg_num_self_loops  = sg_graph_view.count_self_loops(*handle_);
-      auto sg_num_multi_edges = sg_graph_view.count_multi_edges(*handle_);
+        auto sg_num_self_loops  = sg_graph_view.count_self_loops(*handle_);
+        auto sg_num_multi_edges = sg_graph_view.count_multi_edges(*handle_);
 
-      // 3-3. compare
+        // 3-3. compare
 
-      ASSERT_EQ(num_self_loops, sg_num_self_loops);
-      ASSERT_EQ(num_multi_edges, sg_num_multi_edges);
+        ASSERT_EQ(num_self_loops, sg_num_self_loops);
+        ASSERT_EQ(num_multi_edges, sg_num_multi_edges);
+      }
     }
   }
 
@@ -212,9 +216,9 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -223,8 +227,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

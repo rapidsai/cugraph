@@ -15,7 +15,6 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -24,9 +23,10 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -116,22 +116,23 @@ class Tests_TriangleCount
     auto [triangle_count_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("MG Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();
@@ -167,10 +168,10 @@ class Tests_TriangleCount
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("TriangleCount");
     }
 
-    cugraph::triangle_count<vertex_t, edge_t, weight_t, false>(
+    cugraph::triangle_count<vertex_t, edge_t, false>(
       handle,
       graph_view,
       d_vertices ? std::make_optional<raft::device_span<vertex_t const>>((*d_vertices).begin(),
@@ -181,15 +182,14 @@ class Tests_TriangleCount
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "Triangle count took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (triangle_count_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, input_usecase, false, false, false, true);
       }

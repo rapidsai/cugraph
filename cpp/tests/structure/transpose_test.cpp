@@ -15,13 +15,14 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_clock.h>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -55,49 +56,60 @@ class Tests_Transpose
     constexpr bool renumber = true;
 
     raft::handle_t handle{};
-    HighResClock hr_clock{};
+    HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Construct graph");
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, input_usecase, transpose_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     rmm::device_uvector<vertex_t> d_org_srcs(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_org_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
     if (transpose_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, d_org_weights) =
-        graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
+      std::tie(d_org_srcs, d_org_dsts, d_org_weights) = cugraph::decompress_to_edgelist(
+        handle,
+        graph.view(),
+        edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt,
+        d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                  (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size())
+                              : std::nullopt);
     }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      hr_clock.start();
+      hr_timer.start("Transpose");
     }
 
-    d_renumber_map_labels = graph.transpose(handle, std::move(d_renumber_map_labels));
+    std::tie(graph, edge_weights, d_renumber_map_labels) = transpose_graph(
+      handle, std::move(graph), std::move(edge_weights), std::move(d_renumber_map_labels));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "Transpose took " << elapsed_time * 1e-6 << " s.\n";
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (transpose_usecase.check_correctness) {
       auto [d_transposed_srcs, d_transposed_dsts, d_transposed_weights] =
-        graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
+        cugraph::decompress_to_edgelist(
+          handle,
+          graph.view(),
+          edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt,
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
       auto h_org_srcs    = cugraph::test::to_host(handle, d_org_srcs);
       auto h_org_dsts    = cugraph::test::to_host(handle, d_org_dsts);

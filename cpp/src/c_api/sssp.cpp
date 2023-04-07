@@ -75,10 +75,13 @@ struct sssp_functor : public abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -110,6 +113,7 @@ struct sssp_functor : public abstract_functor {
       cugraph::sssp<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
+        edge_weights->view(),
         distances.data(),
         compute_predecessors_ ? predecessors.data() : nullptr,
         src,

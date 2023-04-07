@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,8 +20,11 @@ from cugraph.utilities import (
     is_nx_graph_type,
     cupy_package as cp,
 )
-from cugraph.structure import Graph, DiGraph
+from cugraph.structure import Graph
 from cugraph.components import connectivity_wrapper
+import cudf
+from pylibcugraph import weakly_connected_components as pylibcugraph_wcc
+from pylibcugraph import ResourceHandle
 
 
 def _ensure_args(api_name, G, directed, connection, return_labels):
@@ -32,7 +35,7 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     G_type = type(G)
     # Check for Graph-type inputs and set defaults if unset
-    if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
+    if (G_type in [Graph]) or is_nx_graph_type(G_type):
         exc_value = "'%s' cannot be specified for a Graph-type input"
         if directed is not None:
             raise TypeError(exc_value % "directed")
@@ -68,7 +71,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
     graph algos in this module, based on input_type.
     return_labels is only used for return values from cupy/scipy input types.
     """
-    if input_type in [Graph, DiGraph]:
+    if input_type in [Graph]:
         return df
 
     elif is_nx_graph_type(input_type):
@@ -85,7 +88,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         sorted_df = df.sort_values("vertex")
         if return_labels:
             if is_cp_matrix_type(input_type):
-                labels = cp.fromDlpack(sorted_df["labels"].to_dlpack())
+                labels = cp.from_dlpack(sorted_df["labels"].to_dlpack())
             else:
                 labels = sorted_df["labels"].to_numpy()
             return (n_components, labels)
@@ -107,18 +110,18 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
 
         Graph or matrix object, which should contain the connectivity
         information (edge weights are not used for this algorithm). If using a
-        graph object, the graph can be either directed or undirected where an
+        graph object, the graph must be undirected where an
         undirected edge is represented by a directed edge in both directions.
-        The adjacency list will be computed if not already present.  The number
+        The adjacency list will be computed if not already present. The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional (default=True)
+    directed : bool, optional (default=None)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True, then convert the input matrix to a cugraph.DiGraph
+        If True, then convert the input matrix to a Graph(directed=True)
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
@@ -180,7 +183,22 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
 
-    df = connectivity_wrapper.weakly_connected_components(G)
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
+    vertex, labels = pylibcugraph_wcc(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        offsets=None,
+        indices=None,
+        weights=None,
+        labels=None,
+        do_expensive_check=False,
+    )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["labels"] = labels
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -212,7 +230,7 @@ def strongly_connected_components(
             For non-Graph-type (eg. sparse matrix) values of G only.
             Raises TypeError if used with a Graph object.
 
-        If True, then convert the input matrix to a cugraph.DiGraph
+        If True, then convert the input matrix to a Graph(directed=True)
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
@@ -304,13 +322,17 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
             For non-Graph-type (eg. sparse matrix) values of G only. Raises
             TypeError if used with a Graph object.
 
-        If True, then convert the input matrix to a cugraph.DiGraph
+        If True, then convert the input matrix to a Graph(directed=True)
         and only move from point i to point j along paths csgraph[i, j]. If
         False, then find the shortest path on an undirected graph: the
         algorithm can progress from point i to j along csgraph[i, j] or
         csgraph[j, i].
 
     connection : str, optional (default='weak')
+
+        NOTE
+            For Graph-type values of G, weak components are only
+            supported for undirected graphs.
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.

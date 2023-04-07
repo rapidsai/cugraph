@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/handle.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -65,15 +65,6 @@ auto get_dataframe_buffer_cend_tuple_impl(std::index_sequence<I...>, TupleType& 
   return thrust::make_zip_iterator(thrust::make_tuple((std::get<I>(buffer).cend())...));
 }
 
-template <typename Op, typename BufferType, std::size_t... I>
-void transform_tuple_impl(std::index_sequence<I...>,
-                          const BufferType& input,
-                          BufferType& output,
-                          Op&& op)
-{
-  (std::invoke(op, std::get<I>(input), std::get<I>(output)), ...);
-}
-
 }  // namespace detail
 
 template <typename T>
@@ -113,11 +104,13 @@ void resize_dataframe_buffer(BufferType& buffer,
                              size_t new_buffer_size,
                              rmm::cuda_stream_view stream_view)
 {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<BufferType>::value);
   if constexpr (is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
     std::apply([new_buffer_size,
                 stream_view](auto&&... args) { (args.resize(new_buffer_size, stream_view), ...); },
                buffer);
-  } else if constexpr (is_arithmetic_vector<BufferType>::value) {
+  } else {
     buffer.resize(new_buffer_size, stream_view);
   }
 }
@@ -125,9 +118,11 @@ void resize_dataframe_buffer(BufferType& buffer,
 template <typename BufferType>
 void shrink_to_fit_dataframe_buffer(BufferType& buffer, rmm::cuda_stream_view stream_view)
 {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<BufferType>::value);
   if constexpr (is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
     std::apply([stream_view](auto&&... args) { (args.shrink_to_fit(stream_view), ...); }, buffer);
-  } else if constexpr (is_arithmetic_vector<BufferType>::value) {
+  } else {
     buffer.shrink_to_fit(stream_view);
   }
 }
@@ -135,12 +130,13 @@ void shrink_to_fit_dataframe_buffer(BufferType& buffer, rmm::cuda_stream_view st
 template <typename BufferType>
 size_t size_dataframe_buffer(BufferType& buffer)
 {
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<BufferType>::value);
   if constexpr (is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
     return std::get<0>(buffer).size();
-  } else if constexpr (is_arithmetic_vector<BufferType>::value) {
+  } else {
     return buffer.size();
   }
-  return size_t{};
 }
 
 template <
@@ -210,17 +206,6 @@ auto get_dataframe_buffer_cend(BufferType& buffer)
 {
   return detail::get_dataframe_buffer_cend_tuple_impl(
     std::make_index_sequence<std::tuple_size<BufferType>::value>(), buffer);
-}
-
-template <typename BufferType, typename Op>
-void transform(const BufferType& input, BufferType& output, Op&& op)
-{
-  if constexpr (is_std_tuple_of_arithmetic_vectors<BufferType>::value) {
-    size_t constexpr tuple_size = std::tuple_size<BufferType>::value;
-    detail::transform_tuple_impl(std::make_index_sequence<tuple_size>(), input, output, op);
-  } else if constexpr (is_arithmetic_vector<BufferType>::value) {
-    std::invoke(op, input, output);
-  }
 }
 
 }  // namespace cugraph

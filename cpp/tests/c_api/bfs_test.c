@@ -116,6 +116,58 @@ int generic_bfs_test(vertex_t* h_src,
   return test_ret_value;
 }
 
+int test_bfs_exceptions()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+  size_t depth_limit  = 1;
+  size_t num_seeds    = 1;
+
+  vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  int64_t seeds[] = {0};
+
+  int test_ret_value = 0;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+
+  cugraph_resource_handle_t* p_handle                    = NULL;
+  cugraph_graph_t* p_graph                               = NULL;
+  cugraph_paths_result_t* p_result                       = NULL;
+  cugraph_type_erased_device_array_t* p_sources          = NULL;
+  cugraph_type_erased_device_array_view_t* p_source_view = NULL;
+
+  p_handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
+
+  ret_code = create_test_graph(
+    p_handle, src, dst, wgt, num_edges, FALSE, FALSE, FALSE, &p_graph, &ret_error);
+
+  /*
+   * FIXME: in create_graph_test.c, variables are defined but then hard-coded to
+   * the constant INT32. It would be better to pass the types into the functions
+   * in both cases so that the test cases could be parameterized in the main.
+   */
+  ret_code =
+    cugraph_type_erased_device_array_create(p_handle, num_seeds, INT64, &p_sources, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_sources create failed.");
+
+  p_source_view = cugraph_type_erased_device_array_view(p_sources);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    p_handle, p_source_view, (byte_t*)seeds, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_bfs(
+    p_handle, p_graph, p_source_view, FALSE, depth_limit, TRUE, FALSE, &p_result, &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_INVALID_INPUT, "cugraph_bfs expected to fail");
+
+  return test_ret_value;
+}
+
 int test_bfs()
 {
   size_t num_edges    = 8;
@@ -176,5 +228,6 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_bfs);
   result |= RUN_TEST(test_bfs_with_transpose);
+  result |= RUN_TEST(test_bfs_exceptions);
   return result;
 }

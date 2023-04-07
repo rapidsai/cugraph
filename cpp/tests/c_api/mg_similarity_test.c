@@ -42,23 +42,50 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
                             bool_t use_weight,
                             similarity_t test_type)
 {
-  int test_ret_value = 0;
+  int test_ret_value        = 0;
+  data_type_id_t vertex_tid = INT32;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* graph               = NULL;
-  cugraph_similarity_result_t* result  = NULL;
-  cugraph_vertex_pairs_t* vertex_pairs = NULL;
+  cugraph_graph_t* graph                           = NULL;
+  cugraph_similarity_result_t* result              = NULL;
+  cugraph_vertex_pairs_t* vertex_pairs             = NULL;
+  cugraph_type_erased_device_array_t* v1           = NULL;
+  cugraph_type_erased_device_array_t* v2           = NULL;
+  cugraph_type_erased_device_array_view_t* v1_view = NULL;
+  cugraph_type_erased_device_array_view_t* v2_view = NULL;
 
   ret_code = create_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, TRUE, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-#if 0
-  // FIXME: populate vertex_pairs
+  if (cugraph_resource_handle_get_rank(handle) != 0) { num_pairs = 0; }
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_pairs, vertex_tid, &v1, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "v1 create failed.");
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_pairs, vertex_tid, &v2, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "v2 create failed.");
+
+  v1_view = cugraph_type_erased_device_array_view(v1);
+  v2_view = cugraph_type_erased_device_array_view(v2);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, v1_view, (byte_t*)h_first, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "h_first copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, v2_view, (byte_t*)h_second, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "h_second copy_from_host failed.");
+
+  ret_code =
+    cugraph_create_vertex_pairs(handle, graph, v1_view, v2_view, &vertex_pairs, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create vertex pairs failed.");
 
   switch (test_type) {
     case JACCARD:
@@ -75,43 +102,28 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
       break;
   }
 
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_katz_centrality failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph similarity failed.");
 
-  cugraph_type_erased_device_array_view_t* first;
-  cugraph_type_erased_device_array_view_t* second;
   cugraph_type_erased_device_array_view_t* similarity_coefficient;
 
   similarity_coefficient = cugraph_similarity_result_get_similarity(result);
 
-  vertex_t h_first[num_pairs];
-  vertex_t h_second[num_pairs];
   weight_t h_similarity_coefficient[num_pairs];
-
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_first, first, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_second, second, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     handle, (byte_t*)h_similarity_coefficient, similarity_coefficient, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_pairs) && (test_ret_value == 0); ++i) {
-    /*
-      // FIXME: Implement this properly
     TEST_ASSERT(test_ret_value,
-                nearlyEqual(h_similarity_coefficient[h_vertices[i]], h_centralities[i], 0.001),
-                "katz centrality results don't match");
-    */
+                nearlyEqual(h_similarity_coefficient[i], h_result[i], 0.001),
+                "similarity results don't match");
   }
-#endif
 
   if (result != NULL) cugraph_similarity_result_free(result);
   if (vertex_pairs != NULL) cugraph_vertex_pairs_free(vertex_pairs);
-  cugraph_sg_graph_free(graph);
+  cugraph_mg_graph_free(graph);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
@@ -128,7 +140,7 @@ int test_jaccard(const cugraph_resource_handle_t* handle)
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
   vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
-  weight_t h_result[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};  // TODO: Fill in
+  weight_t h_result[] = {0.2, 0.666667, 0.333333, 0.4, 0.166667, 0.5, 0.2, 0.25, 0.25, 0.666667};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -184,7 +196,7 @@ int test_sorensen(const cugraph_resource_handle_t* handle)
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
   vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
-  weight_t h_result[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};  // TODO: Fill in
+  weight_t h_result[] = {0.333333, 0.8, 0.5, 0.571429, 0.285714, 0.666667, 0.333333, 0.4, 0.4, 0.8};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -240,7 +252,7 @@ int test_overlap(const cugraph_resource_handle_t* handle)
   weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_first[]  = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3};
   vertex_t h_second[] = {1, 3, 4, 2, 3, 5, 3, 4, 5, 4};
-  weight_t h_result[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};  // TODO: Fill in
+  weight_t h_result[] = {0.5, 1, 0.5, 0.666667, 0.333333, 1, 0.333333, 0.5, 0.5, 1};
 
   return generic_similarity_test(handle,
                                  h_src,
@@ -289,41 +301,19 @@ int test_weighted_overlap(const cugraph_resource_handle_t* handle)
 
 int main(int argc, char** argv)
 {
-  // Set up MPI:
-  int comm_rank;
-  int comm_size;
-  int num_gpus_per_node;
-  cudaError_t status;
-  int mpi_status;
-  int result                        = 0;
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_error_t* ret_error;
-  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  int prows                     = 1;
+  void* raft_handle                 = create_mg_raft_handle(argc, argv);
+  cugraph_resource_handle_t* handle = cugraph_create_resource_handle(raft_handle);
 
-  C_MPI_TRY(MPI_Init(&argc, &argv));
-  C_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
-  C_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
-  C_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
-  C_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));
+  int result = 0;
+  result |= RUN_MG_TEST(test_jaccard, handle);
+  result |= RUN_MG_TEST(test_sorensen, handle);
+  result |= RUN_MG_TEST(test_overlap, handle);
+  // result |= RUN_MG_TEST(test_weighted_jaccard, handle);
+  // result |= RUN_MG_TEST(test_weighted_sorensen, handle);
+  // result |= RUN_MG_TEST(test_weighted_overlap, handle);
 
-  void* raft_handle = create_raft_handle(prows);
-  handle            = cugraph_create_resource_handle(raft_handle);
-
-  if (result == 0) {
-    result |= RUN_MG_TEST(test_jaccard, handle);
-    result |= RUN_MG_TEST(test_sorensen, handle);
-    result |= RUN_MG_TEST(test_overlap, handle);
-    result |= RUN_MG_TEST(test_weighted_jaccard, handle);
-    result |= RUN_MG_TEST(test_weighted_sorensen, handle);
-    result |= RUN_MG_TEST(test_weighted_overlap, handle);
-
-    cugraph_free_resource_handle(handle);
-  }
-
-  free_raft_handle(raft_handle);
-
-  C_MPI_TRY(MPI_Finalize());
+  cugraph_free_resource_handle(handle);
+  free_mg_raft_handle(raft_handle);
 
   return result;
 }

@@ -58,8 +58,6 @@ cdef extern from "cugraph_c/graph.h":
             cugraph_graph_t* graph
         )
 
-    # FIXME: the API parameters may change to remove vertex_partition_offsets
-    # and segment_offsets
     cdef cugraph_error_code_t \
         cugraph_mg_graph_create(
             const cugraph_resource_handle_t* handle,
@@ -77,6 +75,48 @@ cdef extern from "cugraph_c/graph.h":
         )
 
     # This may get renamed to or replaced with cugraph_graph_free()
+    cdef void \
+        cugraph_mg_graph_free(
+            cugraph_graph_t* graph
+        )
+    
+    cdef cugraph_error_code_t \
+        cugraph_sg_graph_create_from_csr(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_graph_properties_t* properties,
+            const cugraph_type_erased_device_array_view_t* offsets,
+            const cugraph_type_erased_device_array_view_t* indices,
+            const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_device_array_view_t* edge_ids,
+            const cugraph_type_erased_device_array_view_t* edge_type_ids,
+            bool_t store_transposed,
+            bool_t renumber,
+            bool_t check,
+            cugraph_graph_t** graph,
+            cugraph_error_t** error
+        )
+    
+    cdef void \
+        cugraph_sg_graph_free(
+            cugraph_graph_t* graph
+        )
+    
+    cdef cugraph_error_code_t \
+        cugraph_mg_graph_create(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_graph_properties_t* properties,
+            const cugraph_type_erased_device_array_view_t* src,
+            const cugraph_type_erased_device_array_view_t* dst,
+            const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_device_array_view_t* edge_ids,
+            const cugraph_type_erased_device_array_view_t* edge_type_ids,
+            bool_t store_transposed,
+            size_t num_edges,
+            bool_t check,
+            cugraph_graph_t** graph,
+            cugraph_error_t** error
+        )
+    
     cdef void \
         cugraph_mg_graph_free(
             cugraph_graph_t* graph

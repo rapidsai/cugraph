@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include <community/detail/common_methods.hpp>
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_op.cuh>
@@ -54,9 +54,9 @@ struct key_aggregated_edge_op_t {
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighbor_cluster,
-    weight_t new_cluster_sum,
     thrust::tuple<weight_t, vertex_t, weight_t, weight_t, weight_t> src_info,
-    weight_t a_new) const
+    weight_t a_new,
+    weight_t new_cluster_sum) const
   {
     auto k_k              = thrust::get<0>(src_info);
     auto src_cluster      = thrust::get<1>(src_info);
@@ -113,25 +113,37 @@ struct cluster_update_op_t {
 template <typename vertex_t, typename weight_t>
 struct return_edge_weight_t {
   __device__ auto operator()(
-    vertex_t, vertex_t, weight_t w, thrust::nullopt_t, thrust::nullopt_t) const
+    vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, weight_t w) const
   {
     return w;
   }
 };
 
-template <typename graph_view_t>
-typename graph_view_t::weight_type compute_modularity(
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct return_one_t {
+  __device__ auto operator()(
+    vertex_t, vertex_t, thrust::nullopt_t, thrust::nullopt_t, thrust::nullopt_t) const
+  {
+    return 1.0;
+  }
+};
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+weight_t compute_modularity(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
-  rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters,
-  rmm::device_uvector<typename graph_view_t::weight_type> const& cluster_weights,
-  typename graph_view_t::weight_type total_edge_weight,
-  typename graph_view_t::weight_type resolution)
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    dst_clusters_cache,
+  rmm::device_uvector<vertex_t> const& next_clusters,
+  rmm::device_uvector<weight_t> const& cluster_weights,
+  weight_t total_edge_weight,
+  weight_t resolution)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using weight_t = typename graph_view_t::weight_type;
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
   weight_t sum_degree_squared = thrust::transform_reduce(
     handle.get_thrust_policy(),
@@ -141,7 +153,7 @@ typename graph_view_t::weight_type compute_modularity(
     weight_t{0},
     thrust::plus<weight_t>());
 
-  if constexpr (graph_view_t::is_multi_gpu) {
+  if constexpr (multi_gpu) {
     sum_degree_squared = host_scalar_allreduce(
       handle.get_comms(), sum_degree_squared, raft::comms::op_t::SUM, handle.get_stream());
   }
@@ -149,13 +161,13 @@ typename graph_view_t::weight_type compute_modularity(
   weight_t sum_internal = transform_reduce_e(
     handle,
     graph_view,
-    graph_view_t::is_multi_gpu
-      ? src_clusters_cache.view()
-      : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters.begin()),
-    graph_view_t::is_multi_gpu ? dst_clusters_cache.view()
-                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(
-                                   next_clusters.begin(), vertex_t{0}),
-    [] __device__(auto, auto, weight_t wt, auto src_cluster, auto nbr_cluster) {
+    multi_gpu ? src_clusters_cache.view()
+              : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters.begin()),
+    multi_gpu ? dst_clusters_cache.view()
+              : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(next_clusters.begin(),
+                                                                             vertex_t{0}),
+    *edge_weight_view,
+    [] __device__(auto, auto, auto src_cluster, auto nbr_cluster, weight_t wt) {
       if (src_cluster == nbr_cluster) {
         return wt;
       } else {
@@ -171,16 +183,20 @@ typename graph_view_t::weight_type compute_modularity(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t> labels)
+std::tuple<
+  cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>,
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                  raft::device_span<vertex_t> labels)
 {
-  auto [new_graph, numbering_map] = coarsen_graph(handle, graph_view, labels.data());
+  auto [new_graph, new_edge_weights, numbering_map] =
+    coarsen_graph(handle, graph_view, edge_weights, labels.data(), true);
 
   auto new_graph_view = new_graph.view();
 
-  rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
   detail::sequence_fill(handle.get_stream(),
                         numbering_indices.data(),
                         numbering_indices.size(),
@@ -188,55 +204,68 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
 
   relabel<vertex_t, multi_gpu>(
     handle,
-    std::make_tuple(static_cast<vertex_t const*>(numbering_map.begin()),
+    std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
                     static_cast<vertex_t const*>(numbering_indices.begin())),
     new_graph_view.local_vertex_partition_range_size(),
     labels.data(),
     labels.size(),
     false);
 
-  return std::move(new_graph);
+  return std::make_tuple(std::move(new_graph), std::move(new_edge_weights));
 }
 
-template <typename graph_view_t>
-rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_delta_modularity(
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  typename graph_view_t::weight_type total_edge_weight,
-  typename graph_view_t::weight_type resolution,
-  rmm::device_uvector<typename graph_view_t::weight_type> const& vertex_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>&& cluster_keys_v,
-  rmm::device_uvector<typename graph_view_t::weight_type>&& cluster_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>&& next_clusters_v,
-  edge_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  weight_t total_edge_weight,
+  weight_t resolution,
+  rmm::device_uvector<weight_t> const& vertex_weights_v,
+  rmm::device_uvector<vertex_t>&& cluster_keys_v,
+  rmm::device_uvector<weight_t>&& cluster_weights_v,
+  rmm::device_uvector<vertex_t>&& next_clusters_v,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t> const&
     src_vertex_weights_cache,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    dst_clusters_cache,
   bool up_down)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using weight_t = typename graph_view_t::weight_type;
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
   rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
-  edge_src_property_t<graph_view_t, weight_t> src_cluster_weights(handle);
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
+    src_cluster_weights(handle);
 
-  if constexpr (graph_view_t::is_multi_gpu) {
+  if constexpr (multi_gpu) {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
-      handle.get_comms().get_size()};
+      comm_size, major_comm_size, minor_comm_size};
 
-    vertex_cluster_weights_v =
-      cugraph::collect_values_for_keys(handle.get_comms(),
-                                       cluster_keys_v.begin(),
-                                       cluster_keys_v.end(),
-                                       cluster_weights_v.data(),
-                                       next_clusters_v.begin(),
-                                       next_clusters_v.end(),
-                                       vertex_to_gpu_id_op,
-                                       invalid_vertex_id<vertex_t>::value,
-                                       std::numeric_limits<weight_t>::max(),
-                                       handle.get_stream());
+    kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
+      cluster_keys_v.begin(),
+      cluster_keys_v.end(),
+      cluster_weights_v.data(),
+      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<weight_t>::max(),
+      handle.get_stream());
+    vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle,
+                                                                cluster_key_weight_map.view(),
+                                                                next_clusters_v.begin(),
+                                                                next_clusters_v.end(),
+                                                                vertex_to_gpu_id_op);
 
-    src_cluster_weights = edge_src_property_t<graph_view_t, weight_t>(handle, graph_view);
+    src_cluster_weights =
+      edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(handle,
+                                                                                      graph_view);
     update_edge_src_property(
       handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights);
     vertex_cluster_weights_v.resize(0, handle.get_stream());
@@ -271,13 +300,14 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
   per_v_transform_reduce_outgoing_e(
     handle,
     graph_view,
-    graph_view_t::is_multi_gpu
+    multi_gpu
       ? src_clusters_cache.view()
       : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data()),
-    graph_view_t::is_multi_gpu ? dst_clusters_cache.view()
-                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(
-                                   next_clusters_v.data(), vertex_t{0}),
-    [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
+    multi_gpu ? dst_clusters_cache.view()
+              : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data(),
+                                                                             vertex_t{0}),
+    *edge_weight_view,
+    [] __device__(auto src, auto dst, auto src_cluster, auto nbr_cluster, weight_t wt) {
       weight_t sum{0};
       weight_t subtract{0};
 
@@ -289,15 +319,18 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
       return thrust::make_tuple(sum, subtract);
     },
     thrust::make_tuple(weight_t{0}, weight_t{0}),
+    reduce_op::plus<thrust::tuple<weight_t, weight_t>>{},
     thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.begin(), cluster_subtract_v.begin())));
 
-  edge_src_property_t<graph_view_t, thrust::tuple<weight_t, weight_t>>
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                      thrust::tuple<weight_t, weight_t>>
     src_old_cluster_sum_subtract_pairs(handle);
 
-  if constexpr (graph_view_t::is_multi_gpu) {
+  if constexpr (multi_gpu) {
     src_old_cluster_sum_subtract_pairs =
-      edge_src_property_t<graph_view_t, thrust::tuple<weight_t, weight_t>>(handle, graph_view);
+      edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+                          thrust::tuple<weight_t, weight_t>>(handle, graph_view);
     update_edge_src_property(handle,
                              graph_view,
                              thrust::make_zip_iterator(thrust::make_tuple(
@@ -315,7 +348,7 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
   auto cluster_old_sum_subtract_pair_first = thrust::make_zip_iterator(
     thrust::make_tuple(old_cluster_sum_v.cbegin(), cluster_subtract_v.cbegin()));
   auto zipped_src_device_view =
-    graph_view_t::is_multi_gpu
+    multi_gpu
       ? view_concat(src_vertex_weights_cache.view(),
                     src_clusters_cache.view(),
                     src_cluster_weights.view(),
@@ -328,18 +361,22 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
           detail::edge_major_property_view_t<vertex_t, thrust::tuple<weight_t, weight_t> const>(
             cluster_old_sum_subtract_pair_first));
 
+  kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
+    cluster_keys_v.begin(),
+    cluster_keys_v.begin() + cluster_keys_v.size(),
+    cluster_weights_v.begin(),
+    invalid_vertex_id<vertex_t>::value,
+    std::numeric_limits<weight_t>::max(),
+    handle.get_stream());
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     handle,
     graph_view,
     zipped_src_device_view,
-    graph_view_t::is_multi_gpu ? dst_clusters_cache.view()
-                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(
-                                   next_clusters_v.data(), vertex_t{0}),
-    cluster_keys_v.begin(),
-    cluster_keys_v.end(),
-    cluster_weights_v.begin(),
-    invalid_vertex_id<vertex_t>::value,
-    std::numeric_limits<weight_t>::max(),
+    *edge_weight_view,
+    multi_gpu ? dst_clusters_cache.view()
+              : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data(),
+                                                                             vertex_t{0}),
+    cluster_key_weight_map.view(),
     detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
     thrust::make_tuple(vertex_t{-1}, weight_t{0}),
     detail::reduce_op_t<vertex_t, weight_t>{},
@@ -355,24 +392,25 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
   return std::move(next_clusters_v);
 }
 
-template <typename graph_view_t>
-std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<typename graph_view_t::weight_type>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
 compute_cluster_keys_and_values(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters_v,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache)
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  rmm::device_uvector<vertex_t> const& next_clusters_v,
+  edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, vertex_t> const&
+    src_clusters_cache)
 {
-  using vertex_t = typename graph_view_t::vertex_type;
-  using weight_t = typename graph_view_t::weight_type;
+  CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
 
   auto [cluster_keys, cluster_values] = cugraph::transform_reduce_e_by_src_key(
     handle,
     graph_view,
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
-    graph_view_t::is_multi_gpu
+    *edge_weight_view,
+    multi_gpu
       ? src_clusters_cache.view()
       : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data()),
     detail::return_edge_weight_t<vertex_t, weight_t>{},
