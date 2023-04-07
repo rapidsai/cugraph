@@ -10,15 +10,15 @@ Betweenness Centrality
 .. autosummary::
    :toctree: ../api/cugraph/
 
-   cugraph.betweenness_centrality
-   cugraph.edge_betweenness_centrality
+   cugraph.centrality.betweenness_centrality
+   cugraph.centrality.edge_betweenness_centrality
 
 Katz Centrality
 ---------------
 .. autosummary::
    :toctree: ../api/cugraph/
 
-   cugraph.katz_centrality
+   cugraph.centrality.katz_centrality
 
 Katz Centrality (MG)
 --------------------
@@ -32,7 +32,7 @@ Degree Centrality
 .. autosummary::
    :toctree: ../api/cugraph/
 
-   cugraph.degree_centrality
+   cugraph.centrality.degree_centrality
 
 Eigenvector Centrality
 ----------------------

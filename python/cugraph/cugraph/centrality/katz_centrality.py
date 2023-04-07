@@ -97,6 +97,7 @@ def katz_centrality(
     df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding katz centrality values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['katz_centrality'] : cudf.Series

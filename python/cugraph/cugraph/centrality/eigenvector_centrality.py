@@ -43,13 +43,12 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
         solver reaches the convergence tolerance.
 
     tol : float, optional (default=1e-6)
-        Set the tolerance the approximation, this parameter should be a small
-        magnitude value.
-        The lower the tolerance the better the approximation. If this value is
-        0.0f, cuGraph will use the default value which is 1.0e-6.
-        Setting too small a tolerance can lead to non-convergence due to
-        numerical roundoff. Usually values between 1e-2 and 1e-6 are
-        acceptable.
+        Set the tolerance of the approximation, this parameter should be a
+        small magnitude value. The lower the tolerance the better the
+        approximation. If this value is 0.0f, cuGraph will use the default
+        value which is 1.0e-6. Setting too small a tolerance can lead to
+        non-convergence due to numerical roundoff. Usually values between
+        1e-2 and 1e-6 are acceptable.
 
     normalized : not supported
         If True normalize the resulting eigenvector centrality values
@@ -57,8 +56,10 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
     Returns
     -------
     df : cudf.DataFrame or Dictionary if using NetworkX
-        GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding eigenvector centrality values.
+        GPU data frame containing two cudf.Series of size V:
+        the vertex identifiers and the corresponding eigenvector
+        centrality values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['eigenvector_centrality'] : cudf.Series
