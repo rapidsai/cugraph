@@ -12,17 +12,32 @@
 # limitations under the License.
 
 import cudf
+import cupy as cp
 from pylibcugraph import ResourceHandle
 from pylibcugraph import (
     uniform_random_walks as pylibcugraph_uniform_random_walks,
 )
 
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+from cugraph.structure import Graph
 
 import warnings
+from cugraph.utilities.utils import import_optional
+from typing import Union, Tuple
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# induced_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
-def uniform_random_walks(G, start_vertices, max_depth):
+def uniform_random_walks(
+    G: Graph,
+    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame] = None,
+    max_depth: int = None,
+) -> Tuple[cp.ndarray, cp.ndarray, int]:
     return pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
@@ -32,19 +47,25 @@ def uniform_random_walks(G, start_vertices, max_depth):
 
 
 def random_walks(
-    G,
-    random_walks_type="uniform",
-    start_vertices=None,
-    max_depth=None,
-    use_padding=False,
-    legacy_result_type=True,
-):
+    G: Graph,
+    random_walks_type: str = "uniform",
+    start_vertices: Union[int, list, cudf.Series, cudf.DataFrame] = None,
+    max_depth: int = None,
+    use_padding: bool = False,
+    legacy_result_type: bool = True,
+) -> Tuple[cudf.Series, cudf.Series, Union[None, int, cudf.Series]]:
     """
-    # FIXME: make the padded value for vertices with outgoing edges
-    # consistent in both SG and MG implementation.
-    compute random walks for each nodes in 'start_vertices' and returns
+    Compute random walks for each nodes in 'start_vertices' and returns
     either a padded or a coalesced result. For the padded case, vertices
-    with no outgoing edges will be padded with NA
+    with no outgoing edges will be padded with -1.
+
+    When 'use_padding' is turned OFF, 'random_walks' returns a coalesced
+    result which is a compressed version of the padded one. In the padded
+    form, sources with no out_going edges are padded with -1s in the
+    'vertex_paths' array and their corresponding edges('edge_weight_paths')
+    with 0.0s (given 'legacy_result_type' is turned ON). If 'legacy_result_type'
+    is turned OFF, 'random_walks' returns padded results (vertex_paths,
+    edge_weight_paths) but instead of 'sizes = None', returns the 'max_path_lengths'.
 
     parameters
     ----------
@@ -62,6 +83,9 @@ def random_walks(
 
     max_depth : int
         The maximum depth of the random walks
+
+        When 'legacy_result_type' is set to False, 'max_depth' is relative to
+        the number of edges otherwised, it is relative to the number of vertices.
 
     use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
@@ -81,20 +105,22 @@ def random_walks(
         returned vertex_paths
 
     and
-    sizes: int
-        The path size in case of coalesced paths.
+    sizes: None or cudf.Series
+        The path sizes in case of 'coalesced' paths or None if 'padded'.
     or
     max_path_length : int
-        The maximum path length
+        The maximum path length if 'legacy_result_type' is turned off
 
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> M = karate.get_edgelist(fetch=True)
     >>> G = karate.get_graph()
-    >>> _, _, _ = cugraph.random_walks(G, "uniform", M, 3)
+    >>> start_vertices = G.nodes()[:4]
+    >>> _, _, _ = cugraph.random_walks(G, "uniform", start_vertices, 3)
 
     """
+
     if legacy_result_type:
         warning_msg = (
             "Coalesced path results is deprecated and will no longer be "
@@ -117,7 +143,10 @@ def random_walks(
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
+        # Ensure the 'start_vertices' have the same dtype as the edge list.
+        # Failing to do that may produce erroneous results.
+        vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+        start_vertices = cudf.Series(start_vertices, dtype=vertex_dtype)
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -135,6 +164,8 @@ def random_walks(
     else:
         raise ValueError("Only 'uniform' random walks is currently supported")
 
+    vertex_paths = cudf.Series(vertex_paths)
+
     if G.renumbered:
         df_ = cudf.DataFrame()
         df_["vertex_paths"] = vertex_paths
@@ -143,13 +174,10 @@ def random_walks(
 
     edge_wgt_paths = cudf.Series(edge_wgt_paths)
 
-    # FIXME: Also add a warning here saying that the lesser path will
-    # be no longer be supported
     # The PLC uniform random walks returns an extra vertex along with an extra
     # edge per path. In fact, the max depth is relative to the number of vertices
     # for the legacy implementation and edges for the PLC implementation
 
-    # Get a list of extra vertex and edge index to drop
     if legacy_result_type:
         warning_msg = (
             "The 'max_depth' is relative to the number of vertices and will be "
@@ -158,56 +186,51 @@ def random_walks(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-        drop_vertex = [i for i in range(max_depth, len(vertex_paths), max_depth + 1)]
-        drop_edge_wgt = [
-            i - 1 for i in range(max_depth, len(edge_wgt_paths), max_depth)
-        ]
-
-        vertex_paths = vertex_paths.drop(vertex_paths.index[drop_vertex]).reset_index(
-            drop=True
-        )
+        # Drop the last vertex and and edge weight from each vertex and edge weight
+        # paths.
+        vertex_paths = vertex_paths.drop(
+            index=vertex_paths[max_depth :: max_depth + 1].index
+        ).reset_index(drop=True)
 
         edge_wgt_paths = edge_wgt_paths.drop(
-            edge_wgt_paths.index[drop_edge_wgt]
+            index=edge_wgt_paths[max_depth - 1 :: max_depth].index
         ).reset_index(drop=True)
 
         if use_padding:
             sizes = None
-            edge_wgt_paths_sz = (max_depth - 1) * len(start_vertices)
-            # FIXME: Is it necessary to bound the 'edge_wgt_paths'?
-            return vertex_paths, edge_wgt_paths[:edge_wgt_paths_sz], sizes
+            # FIXME: Is it necessary to slice it with 'edge_wgt_paths_sz'?
+            return vertex_paths, edge_wgt_paths, sizes
 
         # If 'use_padding' is False, compute the sizes of the unpadded results
-        sizes = [
-            len(vertex_paths.iloc[i : i + max_depth].dropna())
-            for i in range(0, len(vertex_paths), max_depth)
-        ]
-        sizes = cudf.Series(sizes, dtype=vertex_paths.dtype)
 
-        # Compress the 'vertex_paths' by dropping 'NA' values which is
-        # representative of vertices with no outgoing link
-        vertex_paths = vertex_paths.dropna().reset_index(drop=True)
-        # Compress the 'edge_wgt_paths' by dropping 'NA'
-        edge_wgt_paths.replace(0.0, None, inplace=True)
-        edge_wgt_paths = edge_wgt_paths.dropna().reset_index(drop=True)
+        sizes = (
+            vertex_paths.apply(lambda x: 1 if x != -1 else 0)
+            .groupby(vertex_paths.index // max_depth, sort=True)
+            .sum()
+            .reset_index(drop=True)
+        )
 
-        vertex_paths_sz = sizes.sum()
-        edge_wgt_paths_sz = vertex_paths_sz - len(start_vertices)
-        # FIXME: Is it necessary to bound the 'vertex_paths' and 'edge_wgt_paths'?
-        return vertex_paths[:vertex_paths_sz], edge_wgt_paths[:edge_wgt_paths_sz], sizes
+        # Drop the -1 values which are representative of no outgoing edges
+        vertex_paths = vertex_paths.pipe(lambda x: x[x != -1]).reset_index(drop=True)
+
+        # Drop the 0.0 values which are representative of no edges.
+        edge_wgt_paths = edge_wgt_paths.pipe(lambda x: x[x != 0.0]).reset_index(
+            drop=True
+        )
+
+        return vertex_paths, edge_wgt_paths, sizes
 
     else:
-        vertex_paths_sz = sizes.sum()
-        edge_wgt_paths_sz = vertex_paths_sz - len(start_vertices)
-        # FIXME: Is it necessary to bound the 'vertex_paths' and 'edge_wgt_paths'?
         return (
-            vertex_paths[:vertex_paths_sz],
-            edge_wgt_paths[:edge_wgt_paths_sz],
+            vertex_paths,
+            edge_wgt_paths,
             max_path_length,
         )
 
 
-def rw_path(num_paths, sizes):
+def rw_path(
+    num_paths: int, sizes: cudf.Series
+) -> Tuple[cudf.Series, cudf.Series, cudf.Series]:
     """
     Retrieve more information on the obtained paths in case use_padding
     is False.
