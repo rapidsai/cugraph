@@ -18,6 +18,7 @@ import pytest
 from cudf.testing import assert_series_equal
 
 import cugraph
+import cudf
 from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
 
 # =============================================================================
@@ -36,7 +37,7 @@ def setup_function():
     gc.collect()
 
 
-def calc_random_walks(graph_file, directed=False, max_depth=None, use_padding=False):
+def calc_random_walks(G, max_depth=None, use_padding=False, legacy_result_type=True):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -70,25 +71,30 @@ def calc_random_walks(graph_file, directed=False, max_depth=None, use_padding=Fa
     sizes: int
         The path size in case of coalesced paths.
     """
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
     assert G is not None
 
-    k = random.randint(1, 10)
+    k = random.randint(1, 6)
+
     random_walks_type = "uniform"
-    start_vertices = random.sample(range(G.number_of_vertices()), k)
+
+    start_vertices = G.select_random_vertices(num_vertices=k)
+
+    print("\nstart_vertices is \n", start_vertices)
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.random_walks(
-        G, random_walks_type, start_vertices, max_depth, use_padding
+        G, random_walks_type, start_vertices, max_depth, use_padding, legacy_result_type
     )
 
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
-def check_random_walks(path_data, seeds, df_G=None):
+def check_random_walks(path_data, seeds, G):
     invalid_edge = 0
     invalid_seeds = 0
     offsets_idx = 0
     next_path_idx = 0
     v_paths = path_data[0]
+    df_G = G.input_df
+
     sizes = path_data[2].to_numpy().tolist()
 
     for s in sizes:
@@ -107,7 +113,7 @@ def check_random_walks(path_data, seeds, df_G=None):
             (df_G["src"] == (src)) & (df_G["dst"] == (dst))
         ].reset_index(drop=True)
 
-        if not (exp_edge["src"].loc[0], exp_edge["dst"].loc[0]) == (src, dst):
+        if len(exp_edge) == 0:
             print(
                 "[ERR] Invalid edge: " "There is no edge src {} dst {}".format(src, dst)
             )
@@ -117,15 +123,91 @@ def check_random_walks(path_data, seeds, df_G=None):
     assert invalid_seeds == 0
 
 
+def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type=True):
+    invalid_edge = 0
+    invalid_seeds = 0
+    invalid_edge_wgt = 0
+    v_paths = path_data[0]
+    e_wgt_paths = path_data[1]
+    e_wgt_idx = 0
+
+    df_G = G.input_df
+
+    total_depth = (max_depth) * len(seeds)
+
+    for i in range(total_depth - 1):
+        vertex_1, vertex_2 = v_paths.iloc[i], v_paths.iloc[i + 1]
+
+        # Every max_depth'th vertex in 'v_paths' is a seed
+        # instead of 'seeds[i // (max_depth)]', could have just pop the first element
+        # of the seeds array once there is a match and compare it to 'vertex_1'
+        if i % (max_depth) == 0 and vertex_1 != seeds[i // (max_depth)]:
+            invalid_seeds += 1
+            print(
+                "[ERR] Invalid seed: "
+                " src {} != src {}".format(vertex_1, seeds[i // (max_depth)])
+            )
+
+        if (i % (max_depth)) != (max_depth - 1):
+            # These are the edges
+            src = vertex_1
+            dst = vertex_2
+
+            if src != -1 and dst != -1:
+                # check for valid edge.
+                edge = df_G.loc[
+                    (df_G["src"] == (src)) & (df_G["dst"] == (dst))
+                ].reset_index(drop=True)
+
+                if len(edge) == 0:
+                    print(
+                        "[ERR] Invalid edge: "
+                        "There is no edge src {} dst {}".format(src, dst)
+                    )
+                    invalid_edge += 1
+
+                else:
+                    # check valid edge wgt
+                    expected_wgt = edge["wgt"].iloc[0]
+                    result_wgt = e_wgt_paths.iloc[e_wgt_idx]
+
+                    if expected_wgt != result_wgt:
+                        print(
+                            "[ERR] Invalid edge wgt: "
+                            "The edge src {} dst {} has wgt {} but got {}".format(
+                                src, dst, expected_wgt, result_wgt
+                            )
+                        )
+                        invalid_edge_wgt += 1
+            e_wgt_idx += 1
+
+            if src != -1 and dst == -1:
+                # ensure there is no outgoing edges from 'src'
+                assert G.out_degree([src])["degree"].iloc[0] == 0
+
+    assert invalid_seeds == 0
+    assert invalid_edge == 0
+    assert invalid_edge_wgt == 0
+    assert len(v_paths) == (max_depth) * len(seeds)
+    assert len(e_wgt_paths) == (max_depth - 1) * len(seeds)
+
+    if legacy_result_type:
+        sizes = path_data[2]
+        assert sizes is None
+    else:
+        max_path_lenth = path_data[2]
+        assert max_path_lenth == max_depth - 1
+
+
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
 def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
+
+    input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
     with pytest.raises(TypeError):
-        df, offsets, seeds = calc_random_walks(
-            graph_file, directed=directed, max_depth=max_depth
-        )
+        _, _, _ = calc_random_walks(input_graph, max_depth=max_depth)
 
 
 @pytest.mark.sg
@@ -134,9 +216,13 @@ def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(graph_file, directed):
     max_depth = random.randint(2, 10)
-    df_G = graph_file.get_edgelist()
-    path_data, seeds = calc_random_walks(graph_file, directed, max_depth=max_depth)
-    check_random_walks(path_data, seeds, df_G)
+
+    input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
+
+    path_data, seeds = calc_random_walks(
+        input_graph, max_depth=max_depth, use_padding=False
+    )
+    check_random_walks(path_data, seeds, input_graph)
 
     # Check path query output
     df = cugraph.rw_path(len(seeds), path_data[2])
@@ -152,15 +238,48 @@ def test_random_walks_coalesced(graph_file, directed):
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
-def test_random_walks_padded(graph_file, directed):
+def test_random_walks_padded_0(graph_file, directed):
     max_depth = random.randint(2, 10)
+    print("max_depth is ", max_depth)
+    input_graph = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
+
     path_data, seeds = calc_random_walks(
-        graph_file, directed, max_depth=max_depth, use_padding=True
+        input_graph, max_depth=max_depth, use_padding=True
     )
-    v_paths = path_data[0]
-    e_weights = path_data[1]
-    assert len(v_paths) == max_depth * len(seeds)
-    assert len(e_weights) == (max_depth - 1) * len(seeds)
+
+    check_random_walks_padded(input_graph, path_data, seeds, max_depth)
+
+    # test for 'legacy_result_type=False'
+    path_data, seeds = calc_random_walks(
+        input_graph, max_depth=max_depth, use_padding=True, legacy_result_type=False
+    )
+    # Non 'legacy_result_type' has an extra edge 'path_data'
+    check_random_walks_padded(
+        input_graph, path_data, seeds, max_depth + 1, legacy_result_type=False
+    )
+
+
+@pytest.mark.sg
+@pytest.mark.cugraph_ops
+def test_random_walks_padded_1():
+    max_depth = random.randint(2, 10)
+
+    df = cudf.DataFrame()
+    df["src"] = [1, 2, 4, 7, 3]
+    df["dst"] = [5, 4, 1, 5, 2]
+    df["wgt"] = [0.4, 0.5, 0.6, 0.7, 0.8]
+
+    input_graph = cugraph.Graph(directed=True)
+
+    input_graph.from_cudf_edgelist(
+        df, source="src", destination="dst", edge_attr="wgt", renumber=True
+    )
+
+    path_data, seeds = calc_random_walks(
+        input_graph, max_depth=max_depth, use_padding=True
+    )
+
+    check_random_walks_padded(input_graph, path_data, seeds, max_depth)
 
 
 """@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
