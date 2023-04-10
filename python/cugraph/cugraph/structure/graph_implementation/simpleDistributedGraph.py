@@ -17,7 +17,12 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 import cupy
 import cudf
+import warnings
 import dask_cudf
+import cupy as cp
+import dask
+from typing import Union
+import numpy as np
 
 from pylibcugraph import (
     MGGraph,
@@ -27,7 +32,10 @@ from pylibcugraph import (
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
-from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
+from pylibcugraph import (
+    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
+    select_random_vertices as pylibcugraph_select_random_vertices,
+)
 import cugraph.dask.comms.comms as Comms
 
 
@@ -64,7 +72,6 @@ class simpleDistributedGraphImpl:
         # Structure
         self.edgelist = None
         self.renumber_map = None
-        self.aggregate_segment_offsets = None
         self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
@@ -122,8 +129,17 @@ class simpleDistributedGraphImpl:
         store_transposed=False,
         legacy_renum_only=False,
     ):
+
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
+
+        if renumber is False:
+            if type(source) is list and type(destination) is list:
+                raise ValueError("set renumber to True for multi column ids")
+            elif input_ddf[source].dtype not in [np.int32, np.int64] or input_ddf[
+                destination
+            ].dtype not in [np.int32, np.int64]:
+                raise ValueError("set renumber to True for non integer columns ids")
 
         s_col = source
         d_col = destination
@@ -180,13 +196,6 @@ class simpleDistributedGraphImpl:
                         "User-provided edge ids and edge "
                         "types are not permitted for an "
                         "undirected graph."
-                    )
-                if not legacy_renum_only:
-                    raise ValueError(
-                        "User-provided edge ids and edge "
-                        "types are only permitted when "
-                        "from_edgelist is called with "
-                        "legacy_renum_only=True."
                     )
 
             source_col, dest_col, value_col = symmetrize(
@@ -245,13 +254,24 @@ class simpleDistributedGraphImpl:
             transposed=store_transposed, legacy_renum_only=legacy_renum_only
         )
 
-        self.properties.renumbered = self.renumber_map.implementation.numbered
+        if renumber is False:
+            self.properties.renumbered = False
+            src_col_name = self.source_columns
+            dst_col_name = self.destination_columns
+
+        else:
+            # If 'renumber' is set to 'True', an extra renumbering (python)
+            # occurs if there are non-integer or multi-columns vertices
+            self.properties.renumbered = self.renumber_map.is_renumbered
+
+            src_col_name = self.renumber_map.renumbered_src_col_name
+            dst_col_name = self.renumber_map.renumbered_dst_col_name
+
         ddf = self.edgelist.edgelist_df
 
         num_edges = len(ddf)
         edge_data = get_distributed_data(ddf)
-        src_col_name = self.renumber_map.renumbered_src_col_name
-        dst_col_name = self.renumber_map.renumbered_dst_col_name
+
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
@@ -761,6 +781,92 @@ class simpleDistributedGraphImpl:
 
         return ddf
 
+    def select_random_vertices(
+        self, random_state: int = None, num_vertices: int = None
+    ) -> Union[dask_cudf.Series, dask_cudf.DataFrame]:
+        """
+        Select random vertices from the graph
+
+        Parameters
+        ----------
+        random_state : int , optional(default=None)
+            Random state to use when generating samples.  Optional argument,
+            defaults to a hash of process id, time, and hostname.
+
+        num_vertices : int, optional(default=None)
+            Number of vertices to sample. If None, all vertices will be selected
+
+        Returns
+        -------
+        return random vertices from the graph as a dask object
+        """
+
+        _client = default_client()
+
+        def convert_to_cudf(cp_arrays: cp.ndarray) -> cudf.Series:
+            """
+            Creates a cudf Series from cupy arrays
+            """
+            vertices = cudf.Series(cp_arrays)
+
+            return vertices
+
+        def _call_plc_select_random_vertices(
+            mg_graph_x, sID: bytes, random_state: int, num_vertices: int
+        ) -> cudf.Series:
+
+            cp_arrays = pylibcugraph_select_random_vertices(
+                graph=mg_graph_x,
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                random_state=random_state,
+                num_vertices=num_vertices,
+            )
+            return convert_to_cudf(cp_arrays)
+
+        def _mg_call_plc_select_random_vertices(
+            input_graph,
+            client: dask.distributed.client.Client,
+            sID: bytes,
+            random_state: int,
+            num_vertices: int,
+        ) -> dask_cudf.Series:
+
+            result = [
+                client.submit(
+                    _call_plc_select_random_vertices,
+                    input_graph._plc_graph[w],
+                    sID,
+                    hash((random_state, i)),
+                    num_vertices,
+                    workers=[w],
+                    allow_other_workers=False,
+                    pure=False,
+                )
+                for i, w in enumerate(Comms.get_workers())
+            ]
+            ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
+            wait(ddf)
+            wait([r.release() for r in result])
+            return ddf
+
+        ddf = _mg_call_plc_select_random_vertices(
+            self,
+            _client,
+            Comms.get_session_id(),
+            random_state,
+            num_vertices,
+        )
+
+        if self.properties.renumbered:
+            vertices = ddf.rename("vertex").to_frame()
+            vertices = self.renumber_map.unrenumber(vertices, "vertex")
+            if len(vertices.columns) == 1:
+                vertices = vertices["vertex"]
+        else:
+            vertices = ddf
+
+        return vertices
+
     def to_directed(self, G):
         """
         Return a directed representation of the graph.
@@ -947,7 +1053,15 @@ class simpleDistributedGraphImpl:
             if True, The C++ renumbering will not be triggered.
             This parameter is added for new algos following the
             C/Pylibcugraph path
+
+            This parameter is deprecated and will be removed.
         """
+
+        if legacy_renum_only:
+            warning_msg = (
+                "The parameter 'legacy_renum_only' is deprecated and will be removed."
+            )
+            warnings.warn(warning_msg, DeprecationWarning)
 
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
@@ -962,11 +1076,7 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            (
-                renumbered_ddf,
-                number_map,
-                aggregate_segment_offsets,
-            ) = NumberMap.renumber_and_segment(
+            (renumbered_ddf, number_map,) = NumberMap.renumber_and_segment(
                 self.input_df,
                 self.source_columns,
                 self.destination_columns,
@@ -976,7 +1086,6 @@ class simpleDistributedGraphImpl:
 
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
-            self.aggregate_segment_offsets = aggregate_segment_offsets
             self.properties.store_transposed = transposed
 
     def vertex_column_size(self):

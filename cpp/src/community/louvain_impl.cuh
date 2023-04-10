@@ -16,14 +16,12 @@
 
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
-
-// FIXME:  Only outstanding items preventing this becoming a .hpp file
 #include <prims/update_edge_src_dst_property.cuh>
-
+// FIXME: Only outstanding items preventing this becoming a .hpp file
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>

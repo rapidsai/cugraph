@@ -117,10 +117,11 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
       --channel pytorch-nightly \
-      --channel dglteam/label/cu117 \
+      --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-dgl \
       'dgl>=1.0' \
@@ -134,7 +135,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     pytest \
       --cache-clear \
       --ignore=mg \
-      --ignore=nn \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
       --cov-config=../../.coveragerc \
       --cov=cugraph_dgl \
