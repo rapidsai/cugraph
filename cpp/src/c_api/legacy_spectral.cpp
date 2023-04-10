@@ -307,9 +307,11 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
 
       weight_t score;
 
-      if (cugraph::detail::is_sorted(handle_,
-                                     raft::device_span<vertex_t const>{
-                                       vertices_->as_type<vertex_t const>(), vertices_->size_})) {
+      if (cugraph::detail::is_equal(
+            handle_,
+            raft::device_span<vertex_t const>{vertices_->as_type<vertex_t const>(),
+                                              vertices_->size_},
+            raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
         cugraph::ext_raft::analyzeClustering_ratio_cut(
           legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
@@ -320,6 +322,15 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
           tmp_v.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
         raft::copy(
           tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
+
+        cugraph::renumber_ext_vertices<vertex_t, false>(
+          handle_,
+          tmp_v.data(),
+          tmp_v.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          false);
 
         cugraph::c_api::detail::sort_by_key(
           handle_,
@@ -403,9 +414,11 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
 
       weight_t score;
 
-      if (cugraph::detail::is_sorted(handle_,
-                                     raft::device_span<vertex_t const>{
-                                       vertices_->as_type<vertex_t const>(), vertices_->size_})) {
+      if (cugraph::detail::is_equal(
+            handle_,
+            raft::device_span<vertex_t const>{vertices_->as_type<vertex_t const>(),
+                                              vertices_->size_},
+            raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
         cugraph::ext_raft::analyzeClustering_edge_cut(
           legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
@@ -416,6 +429,15 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
           tmp_v.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
         raft::copy(
           tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
+
+        cugraph::renumber_ext_vertices<vertex_t, false>(
+          handle_,
+          tmp_v.data(),
+          tmp_v.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          false);
 
         cugraph::c_api::detail::sort_by_key(
           handle_,
@@ -499,9 +521,11 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
 
       weight_t score;
 
-      if (cugraph::detail::is_sorted(handle_,
-                                     raft::device_span<vertex_t const>{
-                                       vertices_->as_type<vertex_t const>(), vertices_->size_})) {
+      if (cugraph::detail::is_equal(
+            handle_,
+            raft::device_span<vertex_t const>{vertices_->as_type<vertex_t const>(),
+                                              vertices_->size_},
+            raft::device_span<vertex_t const>{number_map->data(), number_map->size()})) {
         cugraph::ext_raft::analyzeClustering_modularity(
           legacy_graph_view, n_clusters_, clusters_->as_type<vertex_t>(), &score);
       } else {
@@ -512,6 +536,15 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
           tmp_v.data(), vertices_->as_type<vertex_t>(), vertices_->size_, handle_.get_stream());
         raft::copy(
           tmp_c.data(), clusters_->as_type<vertex_t>(), clusters_->size_, handle_.get_stream());
+
+        cugraph::renumber_ext_vertices<vertex_t, false>(
+          handle_,
+          tmp_v.data(),
+          tmp_v.size(),
+          number_map->data(),
+          graph_view.local_vertex_partition_range_first(),
+          graph_view.local_vertex_partition_range_last(),
+          false);
 
         cugraph::c_api::detail::sort_by_key(
           handle_,
