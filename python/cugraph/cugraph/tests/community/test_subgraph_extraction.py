@@ -45,9 +45,6 @@ def cugraph_call(M, verts, directed=True):
 
     cu_M = cudf.from_pandas(M)
 
-    # FIXME: Add the column name in a list to trigger the python renumbering
-    # Drop this requirement when 'subgraph_extraction' leverages the CAPI graph
-    # which calls renumbering
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="weight")
 
     cu_verts = cudf.Series(verts)
@@ -94,7 +91,7 @@ def test_subgraph_extraction_Graph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DATASETS[2]])
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
     directed = False
     verts = np.zeros(3, dtype=np.int32)
@@ -166,9 +163,7 @@ def test_subgraph_extraction_multi_column(graph_file):
 
 # FIXME: the coverage provided by this test could probably be handled by
 # another test that also checks using renumber=False
-# FIXME: Drop this test as 'subgraph_extraction' requires renumbering
 @pytest.mark.sg
-@pytest.mark.skip("obsolete")
 def test_subgraph_extraction_graph_not_renumbered():
     """
     Ensure subgraph() works with a Graph that has not been renumbered

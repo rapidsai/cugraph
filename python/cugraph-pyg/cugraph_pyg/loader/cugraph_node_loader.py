@@ -35,14 +35,12 @@ class EXPERIMENTAL__BulkSampleLoader:
         self,
         feature_store: CuGraphStore,
         graph_store: CuGraphStore,
-        all_indices: Union[Sequence, int],
-        batch_size: int = 0,
+        all_indices: Sequence,
+        batch_size: int,
         shuffle=False,
         edge_types: Sequence[Tuple[str]] = None,
         directory=None,
         rank=0,
-        starting_batch_id=0,
-        batches_per_partition=100,
         # Sampler args
         num_neighbors: List[int] = [1, 1],
         replace: bool = True,
@@ -61,15 +59,11 @@ class EXPERIMENTAL__BulkSampleLoader:
         graph_store: CuGraphStore
             The graph store containing the graph structure.
 
-        all_indices: Union[Tensor, int]
+        all_indices: Tensor
             The input nodes associated with this sampler.
-            If this is an integer N , this loader will load N batches
-            from disk rather than performing sampling in memory.
 
         batch_size: int
             The number of input nodes per sampling batch.
-            Generally required unless loading already-sampled
-            data from disk.
 
         shuffle: bool (optional, default=False)
             Whether to shuffle the input indices.
@@ -87,35 +81,12 @@ class EXPERIMENTAL__BulkSampleLoader:
         rank: int (optional, default=0)
             The rank of the current worker.  Should be provided
             when there are multiple workers.
-
-        starting_batch_id: int (optional, default=0)
-            The starting id for each batch.  Defaults to 0.
-            Generally used when loading previously-sampled
-            batches from disk.
-
-        batches_per_partition: int (optional, default=100)
-            The number of batches in each output partition.
-            Defaults to 100.  Gets passed to the bulk
-            sampler if there is one; otherwise, this argument
-            is used to determine which files to read.
         """
 
         self.__feature_store = feature_store
         self.__graph_store = graph_store
         self.__rank = rank
-        self.__next_batch = starting_batch_id
-        self.__end_exclusive = starting_batch_id
-        self.__batches_per_partition = batches_per_partition
-        self.__starting_batch_id = starting_batch_id
-
-        if isinstance(all_indices, int):
-            # Will be loading from disk
-            self.__num_batches = all_indices
-            self.__directory = directory
-            return
-
-        if batch_size is None or batch_size < 1:
-            raise ValueError("Batch size must be >= 1")
+        self.__next_batch = 0
 
         self.__directory = tempfile.TemporaryDirectory(dir=directory)
 
@@ -126,9 +97,9 @@ class EXPERIMENTAL__BulkSampleLoader:
             rank=rank,
             fanout_vals=num_neighbors,
             with_replacement=replace,
-            batches_per_partition=self.__batches_per_partition,
             **kwargs,
         )
+        self.__batches_per_partition = bulk_sampler.batches_per_partition
 
         # Make sure indices are in cupy
         all_indices = cupy.asarray(all_indices)
@@ -143,6 +114,7 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         # Split into batches
         all_indices = cupy.split(all_indices, len(all_indices) // batch_size)
+        print("all_indices:", all_indices)
 
         self.__num_batches = 0
         for batch_num, batch_i in enumerate(all_indices):
@@ -151,9 +123,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                 cudf.DataFrame(
                     {
                         "start": batch_i,
-                        "batch": cupy.full(
-                            batch_size, batch_num + starting_batch_id, dtype="int32"
-                        ),
+                        "batch": cupy.full(batch_size, batch_num, dtype="int32"),
                     }
                 ),
                 start_col_name="start",
@@ -162,46 +132,29 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         bulk_sampler.flush()
 
+        self.__end_exclusive = 0
+
     def __next__(self):
         # Quit iterating if there are no batches left
-        if self.__next_batch >= self.__num_batches + self.__starting_batch_id:
+        if self.__next_batch >= self.__num_batches:
             raise StopIteration
 
         # Load the next set of sampling results if necessary
         if self.__next_batch >= self.__end_exclusive:
             # Read the next parquet file into memory
-            dir_path = (
-                self.__directory
-                if isinstance(self.__directory, str)
-                else self.__directory.name
-            )
-            rank_path = os.path.join(dir_path, f"rank={self.__rank}")
+            rank_path = os.path.join(self.__directory.name, f"rank={self.__rank}")
 
-            file_end_batch_incl = min(
-                self.__end_exclusive + self.__batches_per_partition - 1,
-                self.__starting_batch_id + self.__num_batches - 1,
-            )
             parquet_path = os.path.join(
                 rank_path,
-                f"batch={self.__end_exclusive}" f"-{file_end_batch_incl}.parquet",
+                f"batch={self.__end_exclusive}"
+                f"-{self.__end_exclusive + self.__batches_per_partition - 1}.parquet",
             )
 
             self.__end_exclusive += self.__batches_per_partition
-
-            columns = {
-                "sources": "int64",
-                "destinations": "int64",
-                # 'edge_id':'int64',
-                "edge_type": "int32",
-                "batch_id": "int32",
-                # 'hop_id':'int32'
-            }
             self.__data = cudf.read_parquet(parquet_path)
-            self.__data = self.__data[list(columns.keys())].astype(columns)
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
-
         sampler_output = _sampler_output_from_sampling_results(
             self.__data[f], self.__graph_store
         )
@@ -209,8 +162,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Get ready for next iteration
         # If there is no next iteration, make sure results are deleted
         self.__next_batch += 1
-        if self.__next_batch >= self.__num_batches + self.__starting_batch_id:
-            # Won't delete a non-temp dir (since it would just be deleting a string)
+        if self.__next_batch >= self.__num_batches:
             del self.__directory
 
         # Get and return the sampled subgraph
@@ -225,7 +177,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                 edge_dict,
             )
         else:
-            out = torch_geometric.loader.utils.filter_custom_store(
+            return torch_geometric.loader.utils.filter_custom_store(
                 self.__feature_store,
                 self.__graph_store,
                 sampler_output.node,
@@ -233,11 +185,6 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.col,
                 sampler_output.edge,
             )
-
-            return out
-
-    def __iter__(self):
-        return self
 
 
 class EXPERIMENTAL__CuGraphNeighborLoader:
@@ -281,12 +228,10 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         self.inner_loader_args = kwargs
 
     def __iter__(self):
-        self.current_loader = EXPERIMENTAL__BulkSampleLoader(
+        return EXPERIMENTAL__BulkSampleLoader(
             self.__feature_store,
             self.__graph_store,
             self.__input_nodes,
             self.__batch_size,
             **self.inner_loader_args,
         )
-
-        return self.current_loader

@@ -64,6 +64,7 @@ def create_mg_graph(graph_data):
         source="src",
         destination="dst",
         edge_attr="weight",
+        legacy_renum_only=True,
     )
     return G
 

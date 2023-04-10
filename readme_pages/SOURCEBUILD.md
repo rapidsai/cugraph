@@ -89,7 +89,6 @@ build.sh [<target> ...] [<flag> ...]
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
-   cugraph-pyg                - build the cugraph-dgl extensions for PyG
    docs                       - build the docs
  and <flag> is:
    -v                         - verbose build mode

@@ -25,6 +25,9 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
 
+    Note: This is a pylibcugraph-enabled algorithm, which requires that the
+    graph was created with legacy_renum_only=True.
+
     References
     ----------
 

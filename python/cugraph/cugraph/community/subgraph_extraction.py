@@ -11,26 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
-import warnings
-
 import cudf
-
-import cugraph
 from cugraph.structure import Graph
-from cugraph.utilities.utils import import_optional
-
-# FIXME: the networkx.Graph type used in the type annotation for subgraph() is
-# specified using a string literal to avoid depending on and importing
-# networkx. Instead, networkx is imported optionally, which may cause a problem
-# for a type checker if run in an environment where networkx is not installed.
-networkx = import_optional("networkx")
+from cugraph.community import subgraph_extraction_wrapper
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    cugraph_to_nx,
+)
 
 
-def subgraph(
-    G,
-    vertices: Union[cudf.Series, cudf.DataFrame],
-) -> Union[Graph, "networkx.Graph"]:
+def subgraph(G, vertices):
     """
     Compute a subgraph of the existing graph including only the specified
     vertices.  This algorithm works with both directed and undirected graphs
@@ -38,12 +28,10 @@ def subgraph(
     edges that are incident on vertices that are both contained in the vertices
     list.
 
-    If no subgraph can be extracted from the vertices provided, a 'None' value
-    will be returned.
-
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
+    G : cugraph.Graph
+        cuGraph graph descriptor
         The current implementation only supports weighted graphs.
 
     vertices : cudf.Series or cudf.DataFrame
@@ -52,7 +40,7 @@ def subgraph(
 
     Returns
     -------
-    Sg : cugraph.Graph or networkx.Graph
+    Sg : cugraph.Graph
         A graph object containing the subgraph induced by the given vertex set.
 
     Examples
@@ -68,11 +56,33 @@ def subgraph(
 
     """
 
-    warning_msg = (
-        "This call is deprecated. Please call 'cugraph.induced_subgraph()' instead."
-    )
-    warnings.warn(warning_msg, DeprecationWarning)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
+    directed = G.is_directed()
 
-    result_graph, _ = cugraph.induced_subgraph(G, vertices)
+    if G.renumbered:
+        if isinstance(vertices, cudf.DataFrame):
+            vertices = G.lookup_internal_vertex_id(vertices, vertices.columns)
+        else:
+            vertices = G.lookup_internal_vertex_id(vertices)
+
+    result_graph = Graph(directed=directed)
+
+    df = subgraph_extraction_wrapper.subgraph(G, vertices)
+    src_names = "src"
+    dst_names = "dst"
+
+    if G.renumbered:
+        df, src_names = G.unrenumber(df, src_names, get_column_names=True)
+        df, dst_names = G.unrenumber(df, dst_names, get_column_names=True)
+
+    if G.edgelist.weights:
+        result_graph.from_cudf_edgelist(
+            df, source=src_names, destination=dst_names, edge_attr="weight"
+        )
+    else:
+        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
+
+    if isNx is True:
+        result_graph = cugraph_to_nx(result_graph)
 
     return result_graph

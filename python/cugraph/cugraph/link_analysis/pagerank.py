@@ -40,38 +40,21 @@ def renumber_vertices(input_graph, input_df):
 # shared by other algos
 def ensure_valid_dtype(input_graph, input_df, input_df_name):
     if input_graph.edgelist.weights is False:
-        # If the graph is not weighted, an artificial weight column
-        # of type 'float32' is added and it must match the user
-        # personalization/nstart values.
         edge_attr_dtype = np.float32
     else:
         edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
 
-    if "values" in input_df.columns:
-        input_df_values_dtype = input_df["values"].dtype
-        if input_df_values_dtype != edge_attr_dtype:
-            warning_msg = (
-                f"PageRank requires '{input_df_name}' values "
-                "to match the graph's 'edge_attr' type. "
-                f"edge_attr type is: {edge_attr_dtype} and got "
-                f"'{input_df_name}' values of type: "
-                f"{input_df_values_dtype}."
-            )
-            warnings.warn(warning_msg, UserWarning)
-            input_df = input_df.astype({"values": edge_attr_dtype})
-
-    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
-    input_df_vertex_dtype = input_df["vertex"].dtype
-    if input_df_vertex_dtype != vertex_dtype:
+    input_df_dtype = input_df["values"].dtype
+    if input_df_dtype != edge_attr_dtype:
         warning_msg = (
-            f"PageRank requires '{input_df_name}' vertex "
-            "to match the graph's 'vertex' type. "
-            f"input graph's vertex type is: {vertex_dtype} and got "
-            f"'{input_df_name}' vertex of type: "
-            f"{input_df_vertex_dtype}."
+            f"PageRank requires '{input_df_name}' values "
+            "to match the graph's 'edge_attr' type. "
+            f"edge_attr type is: {edge_attr_dtype} and got "
+            f"'{input_df_name}' values of type: "
+            f"{input_df_dtype}."
         )
         warnings.warn(warning_msg, UserWarning)
-        input_df = input_df.astype({"vertex": vertex_dtype})
+        input_df = input_df.astype({"values": edge_attr_dtype})
 
     return input_df
 
@@ -213,9 +196,6 @@ def pagerank(
             precomputed_vertex_out_weight = renumber_vertices(
                 G, precomputed_vertex_out_weight
             )
-        precomputed_vertex_out_weight = ensure_valid_dtype(
-            G, precomputed_vertex_out_weight, "precomputed_vertex_out_weight"
-        )
         pre_vtx_o_wgt_vertices = precomputed_vertex_out_weight["vertex"]
         pre_vtx_o_wgt_sums = precomputed_vertex_out_weight["sums"]
 
@@ -227,7 +207,7 @@ def pagerank(
         if G.renumbered is True:
             personalization = renumber_vertices(G, personalization)
 
-        personalization = ensure_valid_dtype(G, personalization, "personalization")
+            personalization = ensure_valid_dtype(G, personalization, "personalization")
 
         vertex, pagerank_values = pylibcugraph_p_pagerank(
             resource_handle=ResourceHandle(),

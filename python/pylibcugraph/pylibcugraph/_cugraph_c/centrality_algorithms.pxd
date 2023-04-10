@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -98,7 +98,7 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             cugraph_centrality_result_t** result,
             cugraph_error_t** error
         )
-
+    
     ###########################################################################
     # katz centrality
     cdef cugraph_error_code_t \
@@ -124,17 +124,17 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_hits_result_get_vertices(
             cugraph_hits_result_t* result
         )
-
+    
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_hits_result_get_hubs(
             cugraph_hits_result_t* result
         )
-
+    
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_hits_result_get_authorities(
             cugraph_hits_result_t* result
         )
-
+    
     cdef void \
         cugraph_hits_result_free(
             cugraph_hits_result_t* result
@@ -151,20 +151,5 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             bool_t normalized,
             bool_t do_expensive_check,
             cugraph_hits_result_t** result,
-            cugraph_error_t** error
-        )
-
-    ###########################################################################
-    # betweenness centrality
-
-    cdef cugraph_error_code_t \
-        cugraph_betweenness_centrality(
-            const cugraph_resource_handle_t* handle,
-            cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* vertex_list,
-            bool_t normalized,
-            bool_t include_endpoints,
-            bool_t do_expensive_check,
-            cugraph_centrality_result_t** result,
             cugraph_error_t** error
         )

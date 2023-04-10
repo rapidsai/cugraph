@@ -105,6 +105,7 @@ def input_expected_output(input_combo):
         source="src",
         destination="dst",
         renumber=True,
+        legacy_renum_only=True,
         store_transposed=True,
     )
 
@@ -173,6 +174,7 @@ def test_dask_weighted_jaccard():
         destination="dst",
         edge_attr="value",
         renumber=True,
+        legacy_renum_only=True,
         store_transposed=True,
     )
     with pytest.raises(ValueError):
@@ -184,6 +186,7 @@ def test_dask_weighted_jaccard():
         source="src",
         destination="dst",
         edge_attr="value",
+        legacy_renum_only=True,
         store_transposed=True,
     )
 

@@ -22,13 +22,8 @@ import dask_cudf
 import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
-import warnings
 from cugraph.dask.structure import replication
-from typing import Union
-from pylibcugraph import (
-    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
-    select_random_vertices as pylibcugraph_select_random_vertices,
-)
+from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 
 from pylibcugraph import (
     ResourceHandle,
@@ -119,11 +114,6 @@ class simpleGraphImpl:
         legacy_renum_only=True,
         store_transposed=False,
     ):
-        if legacy_renum_only:
-            warning_msg = (
-                "The parameter 'legacy_renum_only' is deprecated and will be removed."
-            )
-            warnings.warn(warning_msg, DeprecationWarning)
 
         # Verify column names present in input DataFrame
         s_col = source
@@ -169,6 +159,13 @@ class simpleGraphImpl:
                         "types are not permitted for an "
                         "undirected graph."
                     )
+                if not legacy_renum_only:
+                    raise ValueError(
+                        "User-provided edge ids and edge "
+                        "types are only permitted when "
+                        "from_edgelist is called with "
+                        "legacy_renum_only=True."
+                    )
 
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
@@ -192,8 +189,6 @@ class simpleGraphImpl:
                 "input should be a cudf.DataFrame or " "a dask_cudf dataFrame"
             )
 
-        # Original, unmodified input dataframe.
-        self.input_df = elist
         # Renumbering
         self.renumber_map = None
         self.store_transposed = store_transposed
@@ -208,8 +203,10 @@ class simpleGraphImpl:
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            # Use renumber_map to figure out if the python renumbering occured
-            self.properties.renumbered = renumber_map.is_renumbered
+            # Use renumber_map to figure out if renumbering was skipped or not
+            # This was added to handle 'legacy_renum_only' which will skip the
+            # old C++ renumbering  when running the pylibcugraph/C algos
+            self.properties.renumbered = renumber_map.implementation.numbered
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
@@ -309,8 +306,8 @@ class simpleGraphImpl:
 
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
-
-        nodes = self.nodes().values_host.tolist()
+        if self.properties.renumbered:
+            nodes = self.renumber_map.implementation.df["0"].values_host.tolist()
         pdf.columns = nodes
         pdf.index = nodes
         return pdf
@@ -324,12 +321,10 @@ class simpleGraphImpl:
         elen = self.number_of_edges()
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
-        nodes = self.nodes()
         for i in range(0, elen):
-            # Map vertices to consecutive integers
-            idx_src = nodes[nodes == df[simpleGraphImpl.srcCol].iloc[i]].index[0]
-            idx_dst = nodes[nodes == df[simpleGraphImpl.dstCol].iloc[i]].index[0]
-            np_array[idx_src, idx_dst] = df[self.edgeWeightCol].iloc[i]
+            np_array[
+                df[simpleGraphImpl.srcCol].iloc[i], df[simpleGraphImpl.dstCol].iloc[i]
+            ] = df[self.edgeWeightCol].iloc[i]
         return np_array
 
     def to_numpy_matrix(self):
@@ -639,43 +634,6 @@ class simpleGraphImpl:
 
         return df
 
-    def select_random_vertices(
-        self,
-        random_state: int = None,
-        num_vertices: int = None,
-    ) -> Union[cudf.Series, cudf.DataFrame]:
-        """
-        Select random vertices from the graph
-
-        Parameters
-        ----------
-        random_state : int , optional(default=None)
-            Random state to use when generating samples.  Optional argument,
-            defaults to a hash of process id, time, and hostname.
-
-        num_vertices : int, optional(default=None)
-            Number of vertices to sample. If None, all vertices will be selected
-
-        Returns
-        -------
-        return random vertices from the graph as a cudf
-        """
-        vertices = pylibcugraph_select_random_vertices(
-            resource_handle=ResourceHandle(),
-            graph=self._plc_graph,
-            random_state=random_state,
-            num_vertices=num_vertices,
-        )
-
-        vertices = cudf.Series(vertices)
-        if self.properties.renumbered is True:
-            df_ = cudf.DataFrame()
-            df_["vertex"] = vertices
-            df_ = self.renumber_map.unrenumber(df_, "vertex")
-            vertices = df_["vertex"]
-
-        return vertices
-
     def number_of_vertices(self):
         """
         Get the number of nodes in the graph.
@@ -686,7 +644,10 @@ class simpleGraphImpl:
             elif self.transposedadjlist is not None:
                 self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
-                self.properties.node_count = len(self.nodes())
+                df = self.edgelist.edgelist_df[
+                    [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
+                ]
+                self.properties.node_count = df.max().max() + 1
             else:
                 raise RuntimeError("Graph is Empty")
         return self.properties.node_count
@@ -760,9 +721,7 @@ class simpleGraphImpl:
         >>> df = G.in_degree([0,9,12])
 
         """
-        in_degree = self._degree(vertex_subset, direction=Direction.IN)
-
-        return in_degree
+        return self._degree(vertex_subset, direction=Direction.IN)
 
     def out_degree(self, vertex_subset=None):
         """
@@ -800,8 +759,7 @@ class simpleGraphImpl:
         >>> df = G.out_degree([0,9,12])
 
         """
-        out_degree = self._degree(vertex_subset, direction=Direction.OUT)
-        return out_degree
+        return self._degree(vertex_subset, direction=Direction.OUT)
 
     def degree(self, vertex_subset=None):
         """
@@ -891,27 +849,11 @@ class simpleGraphImpl:
         df["in_degree"] = in_degree_col
         df["out_degree"] = out_degree_col
 
-        if self.properties.renumbered:
-            # Get the internal vertex IDs
-            nodes = self.renumber_map.df_internal_to_external["id"]
-        else:
-            nodes = self.nodes()
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        df = df[df["vertex"].isin(nodes.to_cupy())]
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            if not isinstance(vertex_subset, cudf.Series):
-                vertex_subset = cudf.Series(vertex_subset)
-                if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(
-                        vertex_subset
-                    )
-                vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
-
-        if self.properties.renumbered:
-            df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
 
@@ -921,27 +863,11 @@ class simpleGraphImpl:
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.properties.renumbered:
-            # Get the internal vertex IDs
-            nodes = self.renumber_map.df_internal_to_external["id"]
-        else:
-            nodes = self.nodes()
-        # If the vertex IDs are not contiguous, remove results for the
-        # isolated vertices
-        df = df[df["vertex"].isin(nodes.to_cupy())]
+        if self.properties.renumbered is True:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            if not isinstance(vertex_subset, cudf.Series):
-                vertex_subset = cudf.Series(vertex_subset)
-                if self.properties.renumbered:
-                    vertex_subset = self.renumber_map.to_internal_vertex_id(
-                        vertex_subset
-                    )
-                vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
-
-        if self.properties.renumbered:
-            df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
 
@@ -1145,8 +1071,10 @@ class simpleGraphImpl:
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
             if self.properties.renumbered:
-                df = self.renumber_map.df_internal_to_external.drop(columns="id")
-
+                # FIXME: This relies on current implementation
+                #        of NumberMap, should not really expose
+                #        this, perhaps add a method to NumberMap
+                df = self.renumber_map.implementation.df.drop(columns="id")
                 if len(df.columns) > 1:
                     return df
                 else:

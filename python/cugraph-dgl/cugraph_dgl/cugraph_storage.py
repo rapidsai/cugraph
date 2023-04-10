@@ -67,27 +67,22 @@ class CuGraphStorage:
             specifying the source node, edge, and destination node types.
             The values are graph data is a dataframe with 2 columns form of (𝑈,𝑉),
             where (𝑈[𝑖],𝑉[𝑖]) forms the edge with ID 𝑖.
-
          num_nodes_dict: dict[str, int]
             The number of nodes for some node types, which is a
             dictionary mapping a node type T to the number of T-typed nodes.
-
         single_gpu: bool
             Whether to create the cugraph Property Graph
             on a single GPU or multiple GPUs
             single GPU = True
             single GPU = False
-
         device_id: int
             If specified, must be the integer ID of the GPU device to have the
             results being created on
-
         idtype: Framework-specific device object,
             The data type for storing the structure-related graph
             information this can be ``torch.int32`` or ``torch.int64``
             for PyTorch.
             Defaults to ``torch.int64`` if pytorch is installed
-
 
          Examples
          --------

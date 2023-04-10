@@ -92,8 +92,7 @@ def random_walks(
     >>> from cugraph.experimental.datasets import karate
     >>> M = karate.get_edgelist(fetch=True)
     >>> G = karate.get_graph()
-    >>> start_vertices = G.nodes()[:4]
-    >>> _, _, _ = cugraph.random_walks(G, "uniform", start_vertices, 3)
+    >>> _, _, _ = cugraph.random_walks(G, "uniform", M, 3)
 
     """
     if legacy_result_type:
@@ -118,10 +117,7 @@ def random_walks(
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        # Ensure the 'start_vertices' have the same dtype as the edge list.
-        # Failing to do that may produce erroneous results.
-        vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
-        start_vertices = cudf.Series(start_vertices, dtype=vertex_dtype)
+        start_vertices = cudf.Series(start_vertices)
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -138,8 +134,6 @@ def random_walks(
 
     else:
         raise ValueError("Only 'uniform' random walks is currently supported")
-
-    vertex_paths = cudf.Series(vertex_paths)
 
     if G.renumbered:
         df_ = cudf.DataFrame()

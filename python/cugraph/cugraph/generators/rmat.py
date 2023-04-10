@@ -283,7 +283,7 @@ def rmat(
         Probability of the second partition
 
     c : float
-        Probability of the third partition
+        Probability of the thrid partition
 
     seed : int
         Seed value for the random number generator

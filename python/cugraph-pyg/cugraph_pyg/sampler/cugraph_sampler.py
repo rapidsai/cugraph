@@ -54,20 +54,12 @@ def _sampler_output_from_sampling_results(
     HeteroSamplerOutput, if PyG is installed.
     dict, if PyG is not installed.
     """
-    nodes_of_interest = torch.unique(
-        torch.stack(
-            [
-                torch.as_tensor(sampling_results.destinations, device="cuda"),
-                torch.as_tensor(sampling_results.sources, device="cuda"),
-            ]
-        )
-    )
-    # unique will always sort this array
+    nodes_of_interest = cudf.concat(
+        [sampling_results.destinations, sampling_results.sources]
+    ).unique()
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
-    noi_index = graph_store._get_vertex_groups_from_sample(
-        nodes_of_interest, is_sorted=True
-    )
+    noi_index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
     # Get the new edge index (by type as expected for HeteroData)
     # FIXME handle edge ids/types after the C++ updates
@@ -168,6 +160,14 @@ class EXPERIMENTAL__CuGraphSampler:
         metadata=None,
         **kwargs,
     ) -> Union[dict, HeteroSamplerOutput]:
+        backend = self.__graph_store.backend
+        if backend != self.__feature_store.backend:
+            raise ValueError(
+                f"Graph store backend {backend}"
+                f"does not match feature store "
+                f"backend {self.__feature_store.backend}"
+            )
+
         if not directed:
             raise ValueError("Undirected sampling not currently supported")
 
@@ -180,7 +180,7 @@ class EXPERIMENTAL__CuGraphSampler:
             # FIXME support variable num neighbors per edge type
             num_neighbors = list(num_neighbors.values())[0]
 
-        if not index.is_cuda:
+        if backend == "torch" and not index.is_cuda:
             index = index.cuda()
 
         G = self.__graph_store._subgraph(edge_types)

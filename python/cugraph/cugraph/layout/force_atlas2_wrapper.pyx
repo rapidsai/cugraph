@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -56,9 +56,7 @@ def force_atlas2(input_graph,
     if not input_graph.edgelist:
         input_graph.view_edge_list()
 
-    # FIXME: This implementation assumes that the number of vertices
-    # is the max vertex ID + 1 which is not always the case.
-    num_verts = input_graph.nodes().max() + 1
+    num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
     cdef GraphCOOView[int,int,float] graph_float

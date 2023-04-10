@@ -161,7 +161,6 @@ def _calc_bc_subset(G, Gnx, normalized, weight, endpoints, k, seed, result_dtype
     # We first mimic acquisition of the nodes to compare with same sources
     random.seed(seed)  # It will be called again in nx's call
     sources = random.sample(list(Gnx.nodes()), k)
-    print("\nsources are ", sources)
     df = cugraph.betweenness_centrality(
         G,
         k=sources,
@@ -305,7 +304,7 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # =============================================================================
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
-@pytest.mark.parametrize("directed", [False, True])
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
@@ -313,7 +312,7 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_0(
+def test_betweenness_centrality(
     graph_file,
     directed,
     subset_size,

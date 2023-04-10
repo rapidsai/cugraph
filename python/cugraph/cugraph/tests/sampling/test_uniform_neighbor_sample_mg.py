@@ -15,7 +15,6 @@ import random
 import os
 
 import pytest
-import cupy
 import cudf
 import dask_cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
@@ -96,6 +95,7 @@ def input_combo(request):
         destination="dst",
         edge_attr="value",
         store_transposed=False,
+        legacy_renum_only=True,
     )
 
     parameters["MGGraph"] = dg
@@ -219,7 +219,9 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     )
 
     G = cugraph.Graph(directed=directed)
-    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value", store_transposed=False)
+    G.from_dask_cudf_edgelist(
+        ddf, "src", "dst", "value", store_transposed=False, legacy_renum_only=True
+    )
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
@@ -273,7 +275,9 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = dask_cudf.from_cudf(df, npartitions=2)
 
     G = cugraph.Graph()
-    G.from_dask_cudf_edgelist(df, source="src", destination="dst")
+    G.from_dask_cudf_edgelist(
+        df, source="src", destination="dst", legacy_renum_only=True
+    )
 
     start_list = cudf.Series([0], dtype="int32")
     fanout_vals = [-1]
@@ -307,7 +311,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
     mg_G = cugraph.MultiGraph(directed=True)
     mg_G.from_dask_cudf_edgelist(
-        dask_df, source="src", destination="dst", renumber=True
+        dask_df, source="src", destination="dst", renumber=True, legacy_renum_only=True
     )
 
     output_df = cugraph.dask.uniform_neighbor_sample(
@@ -345,6 +349,7 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
     )
 
     dest_rank = [0, 1]
@@ -417,7 +422,7 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
 
 
 @pytest.mark.mg
-def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
+def test_uniform_neighbor_sample_edge_properties_self_loops():
     df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
@@ -437,6 +442,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
     )
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
@@ -478,9 +484,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
 @pytest.mark.skipif(
     int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
 )
-def test_uniform_neighbor_edge_properties_sample_small_start_list(
-    dask_client, with_replacement
-):
+def test_uniform_neighbor_edge_properties_sample_small_start_list(with_replacement):
     df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
@@ -500,6 +504,7 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
     )
 
     cugraph.dask.uniform_neighbor_sample(
@@ -513,7 +518,7 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
 
 
 @pytest.mark.mg
-def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
+def test_uniform_neighbor_sample_without_dask_inputs():
     df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
@@ -533,6 +538,7 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
+        legacy_renum_only=True,
     )
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
@@ -567,65 +573,6 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
-@pytest.mark.mg
-@pytest.mark.parametrize("dataset", datasets)
-@pytest.mark.parametrize("input_df", [cudf.DataFrame, dask_cudf.DataFrame])
-@pytest.mark.parametrize("max_batches", [2, 8, 16, 32])
-def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_batches):
-    num_workers = len(dask_client.scheduler_info()["workers"])
-
-    df = dataset.get_edgelist()
-    df["eid"] = cupy.arange(len(df), dtype=df["src"].dtype)
-    df["etp"] = cupy.zeros_like(df["eid"].to_cupy())
-    ddf = dask_cudf.from_cudf(df, npartitions=num_workers)
-
-    G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr=["wgt", "eid", "etp"],
-        legacy_renum_only=True,
-    )
-
-    input_vertices = dask_cudf.concat([df.src, df.dst]).unique().compute()
-    assert isinstance(input_vertices, cudf.Series)
-
-    input_vertices.index = cupy.random.permutation(len(input_vertices))
-
-    input_batch = cudf.Series(
-        cupy.random.randint(0, max_batches, len(input_vertices)), dtype="int32"
-    )
-    input_batch.index = cupy.random.permutation(len(input_vertices))
-
-    if input_df == dask_cudf.DataFrame:
-        input_batch = dask_cudf.from_cudf(input_batch, npartitions=num_workers)
-        input_vertices = dask_cudf.from_cudf(input_vertices, npartitions=num_workers)
-
-    sampling_results = cugraph.dask.uniform_neighbor_sample(
-        G,
-        start_list=input_vertices,
-        batch_id_list=input_batch,
-        fanout_vals=[5, 5],
-        with_replacement=False,
-        with_edge_properties=True,
-    )
-
-    for batch_id in range(max_batches):
-        output_starts_per_batch = (
-            sampling_results[
-                (sampling_results.batch_id == batch_id) & (sampling_results.hop_id == 0)
-            ]
-            .sources.nunique()
-            .compute()
-        )
-
-        input_starts_per_batch = len(input_batch[input_batch == batch_id])
-
-        # Should be <= to account for starts without outgoing edges
-        assert output_starts_per_batch <= input_starts_per_batch
-
-
 # =============================================================================
 # Benchmarks
 # =============================================================================
@@ -634,7 +581,7 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
 @pytest.mark.mg
 @pytest.mark.slow
 @pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
-def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
+def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
     input_data_path = email_Eu_core.get_path()
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -653,6 +600,7 @@ def bench_uniform_neighbor_sample_email_eu_core(gpubenchmark, dask_client, n_sam
         destination="dst",
         edge_attr="value",
         store_transposed=False,
+        legacy_renum_only=True,
     )
     # Partition the dataframe to add in chunks
     srcs = dg.input_df["src"]

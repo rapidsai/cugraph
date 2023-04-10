@@ -29,7 +29,6 @@ def cugraph_call(G, partitions):
     df = cugraph.spectralModularityMaximizationClustering(
         G, partitions, num_eigen_vects=(partitions - 1)
     )
-
     score = cugraph.analyzeClustering_modularity(G, partitions, df, "vertex", "cluster")
     return score
 
@@ -43,7 +42,6 @@ def random_call(G, partitions):
 
     assignment_cu = cudf.DataFrame(assignment, columns=["cluster"])
     assignment_cu["vertex"] = assignment_cu.index
-    assignment_cu = assignment_cu.astype("int32")
 
     score = cugraph.analyzeClustering_modularity(
         G, partitions, assignment_cu, "vertex", "cluster"

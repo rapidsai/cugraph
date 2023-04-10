@@ -101,6 +101,7 @@ def input_expected_output(input_combo):
         destination="dst",
         edge_attr="value",
         renumber=True,
+        legacy_renum_only=True,
         store_transposed=True,
     )
 

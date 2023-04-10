@@ -1177,14 +1177,8 @@ def test_extract_subgraph_vertex_prop_condition_only(
     expected_edgelist = cudf.DataFrame(
         {"src": [89216, 78634], "dst": [78634, 89216], "weights": [99, 8]}
     )
-
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     # check_like=True ignores differences in column/index ordering
@@ -1214,14 +1208,8 @@ def test_extract_subgraph_vertex_edge_prop_condition(
         )
 
     expected_edgelist = cudf.DataFrame({"src": [78634], "dst": [32431], "weights": [4]})
-
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -1249,13 +1237,8 @@ def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph, as_pg
     expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts})
     expected_edgelist = expected_edgelist.sort_values(by="src", ignore_index=True)
 
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
     actual_edgelist = actual_edgelist.sort_values(by="src", ignore_index=True)
 
     assert G.is_directed()
@@ -1312,13 +1295,8 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph, as_pg_first):
         )
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [4], "weights": [8832]})
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -1352,14 +1330,8 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph, as_pg_f
         G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [78634]})
-
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -1413,14 +1385,8 @@ def test_extract_subgraph_graph_without_vert_props(as_pg_first):
     expected_edgelist = cudf.DataFrame(
         {"src": [89216, 89216, 89216], "dst": [4, 89021, 32431], "weights": [0, 9, 9]}
     )
-
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -1566,13 +1532,8 @@ def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts, "weights": weights})
     expected_edgelist = expected_edgelist.sort_values(by="src", ignore_index=True)
 
-    if G.renumbered:
-        actual_edgelist = G.unrenumber(
-            G.edgelist.edgelist_df, "src", preserve_order=True
-        )
-        actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
-    else:
-        actual_edgelist = G.edgelist.edgelist_df
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
     actual_edgelist = actual_edgelist.sort_values(by="src", ignore_index=True)
 
     assert G.is_directed()

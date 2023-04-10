@@ -102,3 +102,4 @@ Other
    :toctree: api/
 
    cugraph.hypergraph
+   cugraph.structure.shuffle

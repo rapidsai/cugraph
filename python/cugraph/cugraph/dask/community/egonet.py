@@ -80,7 +80,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     Parameters
     ----------
-    input_graph : cugraph.Graph
+    input_graph : cugraph.Graph, networkx.Graph
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
@@ -175,9 +175,5 @@ def ego_graph(input_graph, n, radius=1, center=True):
     )
 
     ddf = ddf.drop(columns="labels")
-
-    if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "src")
-        ddf = input_graph.unrenumber(ddf, "dst")
 
     return ddf, offsets

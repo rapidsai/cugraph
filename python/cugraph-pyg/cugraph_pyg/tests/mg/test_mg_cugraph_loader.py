@@ -10,24 +10,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import pytest
+import cupy
 
 from cugraph_pyg.loader import CuGraphNeighborLoader
 from cugraph_pyg.data import CuGraphStore
 
-from cugraph.utilities.utils import import_optional, MissingModule
 
-torch = import_optional("torch")
-
-
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skip(
+    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+)
 def test_cugraph_loader_basic(dask_client, karate_gnn):
     F, G, N = karate_gnn
-    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
     loader = CuGraphNeighborLoader(
         (cugraph_store, cugraph_store),
-        torch.arange(N["type0"] + N["type1"], dtype=torch.int64),
+        cupy.arange(N["type0"] + N["type1"], dtype="int64"),
         10,
         num_neighbors=[4, 4],
         random_state=62,
@@ -40,10 +38,7 @@ def test_cugraph_loader_basic(dask_client, karate_gnn):
 
     assert len(samples) == 3
     for sample in samples:
-        if "type0" in sample:
-            for prop in sample["type0"]["prop0"].tolist():
-                assert prop % 31 == 0
-
-        if "type1" in sample:
-            for prop in sample["type1"]["prop0"].tolist():
-                assert prop % 41 == 0
+        for prop in sample["type0"]["prop0"].tolist():
+            assert prop % 31 == 0
+        for prop in sample["type1"]["prop0"].tolist():
+            assert prop % 41 == 0

@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -13,8 +13,11 @@
 # =============================================================================
 
 set(cython_sources
+    ecg_wrapper.pyx
     ktruss_subgraph_wrapper.pyx
     leiden_wrapper.pyx
+    spectral_clustering_wrapper.pyx
+    subgraph_extraction_wrapper.pyx
 )
 
 set(linked_libraries cugraph::cugraph)

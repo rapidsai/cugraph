@@ -86,6 +86,7 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
+#if 0
       auto [level, modularity] = cugraph::leiden(
         handle_,
         graph_view,
@@ -102,6 +103,9 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
         modularity,
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
+#else
+      CUGRAPH_FAIL("NOT IMPLEMENTED YET");
+#endif
     }
   }
 };
