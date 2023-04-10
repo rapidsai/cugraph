@@ -69,7 +69,7 @@ struct e_op_t {
     bool push{};
     if constexpr (multi_gpu) {
       auto dst_offset = dst - dst_first;
-      auto old        = atomicOr(visited_flags.get_iter(dst_offset), uint8_t{1});
+      auto old        = visited_flags.atomic_or(dst_offset, uint8_t{1});
       push            = (old == uint8_t{0});
     } else {
       auto mask = uint32_t{1} << (dst % (sizeof(uint32_t) * 8));
