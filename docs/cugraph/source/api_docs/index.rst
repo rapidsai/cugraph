@@ -8,9 +8,9 @@ This page provides a list of all publicly accessible modules, methods and classe
     :maxdepth: 2
     :caption: Python API Documentation
 
-    cugraph_top.rst
-    pylibcugraph.rst
-    cugraph_dgl.rst
-    cugraph_pyg.rst
-    cugraph_service_client.rst
-    cugraph_service_server.rst
+    cugraph/cugraph_top.rst
+    plc/pylibcugraph.rst
+    cugraph-dgl/cugraph_dgl.rst
+    cugraph-pyg/cugraph_pyg.rst
+    service/cugraph_service_client.rst
+    service/cugraph_service_server.rst

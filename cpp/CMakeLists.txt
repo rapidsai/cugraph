@@ -186,6 +186,10 @@ set(CUGRAPH_SOURCES
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
+    src/community/detail/refine_sg.cu
+    src/community/detail/refine_mg.cu
+    src/community/detail/mis_sg.cu
+    src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/utilities/cython.cu
@@ -207,6 +211,7 @@ set(CUGRAPH_SOURCES
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
+    src/community/leiden_mg.cu
     src/community/legacy/louvain.cu
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu

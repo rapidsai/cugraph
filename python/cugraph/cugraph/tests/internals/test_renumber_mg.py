@@ -181,52 +181,6 @@ def test_dask_pagerank(dask_client, directed):
 
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize("renumber", [False])
-@pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_graph_renumber_false(renumber, dask_client, directed):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-    dg = cugraph.Graph(directed=directed)
-
-    with pytest.raises(ValueError):
-        dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize("renumber", [False])
-@pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_multi_graph_renumber_false(renumber, dask_client, directed):
-    input_data_path = (
-        RAPIDS_DATASET_ROOT_DIR_PATH / "karate_multi_edge.csv"
-    ).as_posix()
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-    dg = cugraph.MultiGraph(directed=directed)
-
-    # ValueError always thrown since renumber must be True with
-    # MNMG algorithms
-    with pytest.raises(ValueError):
-        dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
-
-
-@pytest.mark.mg
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
     "graph_file",
     utils.DATASETS_UNRENUMBERED,

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -268,7 +268,7 @@ def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
 
 def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.betweenness_centrality,
-                 anyGraphWithAdjListComputed, k=10, seed=123)
+                 anyGraphWithAdjListComputed, k=10, random_state=123)
 
 
 def bench_edge_betweenness_centrality(gpubenchmark,

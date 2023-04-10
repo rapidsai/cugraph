@@ -79,6 +79,7 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
 def test_ecg_clustering_nx(graph_file, min_weight, ensemble_size):
+
     gc.collect()
     dataset_path = graph_file.get_path()
     # Read in the graph and get a NetworkX graph
