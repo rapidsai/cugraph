@@ -49,6 +49,7 @@ extensions = [
     "nbsphinx",
     "recommonmark",
     "sphinx_copybutton",
+    "sphinx_tabs.tabs",
 ]
 
 

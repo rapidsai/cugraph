@@ -62,6 +62,8 @@ dependencies:
 - sphinx-markdown-tables
 - sphinx<6
 - sphinxcontrib-websupport
+- sphinx_rtd_theme
 - ucx-proc=*=gpu
 - ucx-py==0.32.*
+- thriftpy2 >=0.4.15
 name: all_cuda-118_arch-x86_64

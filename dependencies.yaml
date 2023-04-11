@@ -251,6 +251,7 @@ dependencies:
           - sphinx-markdown-tables
           - sphinx<6
           - sphinxcontrib-websupport
+          - sphinx_rtd_theme
   py_version:
     specific:
       - output_types: [conda]
@@ -368,6 +369,7 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
+          - sphinx_rtd_theme
   test_notebook:
     common:
       - output_types: [conda, requirements]
