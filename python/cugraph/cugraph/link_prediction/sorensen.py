@@ -60,9 +60,11 @@ def sorensen(input_graph, vertex_pair=None):
 
         df['first'] : cudf.Series
             The first vertex ID of each pair (will be identical to first if specified)
+
         df['second'] : cudf.Series
             The second vertex ID of each pair (will be identical to second if
             specified)
+
         df['sorensen_coeff'] : cudf.Series
             The computed Sorensen coefficient between the source and
             destination vertices

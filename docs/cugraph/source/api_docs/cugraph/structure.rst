@@ -10,15 +10,12 @@ Constructors
 
    Graph
    MultiGraph
-   BiPartiteGraph
-
 
 
 Adding Data
 -----------
 .. autosummary::
    :toctree: ../api/cugraph/
-
 
    Graph.from_cudf_adjlist
    Graph.from_cudf_edgelist
@@ -35,7 +32,7 @@ Adding Data
 Checks
 ------
 .. autosummary::
-   :toctree: ../api/cugraph/
+#    :toctree: ../api/cugraph/
 
    Graph.has_isolated_vertices
    Graph.is_bipartite

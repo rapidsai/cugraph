@@ -36,8 +36,10 @@ def degree_centrality(G, normalized=True):
     df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding degree centrality values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
+
         df['degree_centrality'] : cudf.Series
             Contains the degree centrality of vertices
 

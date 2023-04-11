@@ -59,8 +59,10 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
     df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding eigenvector centrality values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
+
         df['eigenvector_centrality'] : cudf.Series
             Contains the eigenvector centrality of vertices
 
