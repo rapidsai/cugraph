@@ -217,16 +217,16 @@ class EXPERIMENTAL__CuGraphStore:
             Dictionary of edge indices.
             Option 1 (graph in memory):
 
-                Pass the edge indices: i.e. 
+                Pass the edge indices: i.e.
                 {
                 ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
                 ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
                 }
 
-                
+
             Option 2 (graph not in memory):
 
-                Pass the number of edges: i.e. 
+                Pass the number of edges: i.e.
                 {
                 ('author', 'writes', 'paper'): 2,
                 ('author', 'affiliated', 'institution'): 2
