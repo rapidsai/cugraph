@@ -38,6 +38,7 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
 
         weights['vertex'] : cudf.Series
             Contains the vertex identifiers
+
         weights['weight'] : cudf.Series
             Contains the weights of vertices
 
@@ -56,8 +57,10 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
 
          df['first'] : cudf.Series
             The first vertex ID of each pair.
+
         df['second'] : cudf.Series
             The second vertex ID of each pair.
+
         df['sorensen_coeff'] : cudf.Series
             The computed weighted Sorensen coefficient between the first and the
             second vertex ID.
