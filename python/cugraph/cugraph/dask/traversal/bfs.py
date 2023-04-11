@@ -62,9 +62,6 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
     The input graph must contain edge list as a dask-cudf dataframe with
     one partition per GPU.
 
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
-
     Parameters
     ----------
     input_graph : cugraph.Graph

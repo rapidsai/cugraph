@@ -21,6 +21,7 @@ from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.testing.mg_utils import stop_dask_client
 
+import torch
 import numpy as np
 import cudf
 from cugraph.gnn import FeatureStore
@@ -80,14 +81,14 @@ def karate_gnn():
     el.dst = el.dst.astype("int64")
     all_vertices = np.array_split(cudf.concat([el.src, el.dst]).unique().values_host, 2)
 
-    F = FeatureStore(backend="numpy")
+    F = FeatureStore(backend="torch")
     F.add_data(
-        np.arange(len(all_vertices[0]), dtype="float32") * 31,
+        torch.arange(len(all_vertices[0]), dtype=torch.float32) * 31,
         "type0",
         "prop0",
     )
     F.add_data(
-        np.arange(len(all_vertices[1]), dtype="float32") * 41,
+        torch.arange(len(all_vertices[1]), dtype=torch.float32) * 41,
         "type1",
         "prop0",
     )
@@ -116,8 +117,8 @@ def karate_gnn():
 
     G = {
         (src_type, edge_type, dst_type): (
-            elx["src"].values_host - offsets[src_type],
-            elx["dst"].values_host - offsets[dst_type],
+            torch.tensor(elx["src"].values_host - offsets[src_type]),
+            torch.tensor(elx["dst"].values_host - offsets[dst_type]),
         )
         for (src_type, edge_type, dst_type), elx in G.items()
     }
@@ -129,17 +130,19 @@ def karate_gnn():
 def basic_graph_1():
     G = {
         ("vt1", "pig", "vt1"): [
-            np.array([0, 0, 1, 2, 2, 3]),
-            np.array([1, 2, 4, 3, 4, 1]),
+            torch.tensor([0, 0, 1, 2, 2, 3]),
+            torch.tensor([1, 2, 4, 3, 4, 1]),
         ]
     }
 
     N = {"vt1": 5}
 
     F = FeatureStore()
-    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
+    F.add_data(
+        torch.tensor([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1"
+    )
 
-    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
+    F.add_data(torch.tensor([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
 
     return F, G, N
 
@@ -147,20 +150,22 @@ def basic_graph_1():
 @pytest.fixture
 def multi_edge_graph_1():
     G = {
-        ("vt1", "pig", "vt1"): [np.array([0, 2, 3, 1]), np.array([1, 3, 1, 4])],
-        ("vt1", "dog", "vt1"): [np.array([0, 3, 4]), np.array([2, 2, 3])],
+        ("vt1", "pig", "vt1"): [torch.tensor([0, 2, 3, 1]), torch.tensor([1, 3, 1, 4])],
+        ("vt1", "dog", "vt1"): [torch.tensor([0, 3, 4]), torch.tensor([2, 2, 3])],
         ("vt1", "cat", "vt1"): [
-            np.array([1, 2, 2]),
-            np.array([4, 3, 4]),
+            torch.tensor([1, 2, 2]),
+            torch.tensor([4, 3, 4]),
         ],
     }
 
     N = {"vt1": 5}
 
     F = FeatureStore()
-    F.add_data(np.array([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1")
+    F.add_data(
+        torch.tensor([100, 200, 300, 400, 500]), type_name="vt1", feat_name="prop1"
+    )
 
-    F.add_data(np.array([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
+    F.add_data(torch.tensor([5, 4, 3, 2, 1]), type_name="vt1", feat_name="prop2")
 
     return F, G, N
 
@@ -170,25 +175,49 @@ def multi_edge_multi_vertex_graph_1():
 
     G = {
         ("brown", "horse", "brown"): [
-            np.array([0, 0]),
-            np.array([1, 2]),
+            torch.tensor([0, 0]),
+            torch.tensor([1, 2]),
         ],
         ("brown", "tortoise", "black"): [
-            np.array([1, 1, 2]),
-            np.array([1, 0, 1]),
+            torch.tensor([1, 1, 2]),
+            torch.tensor([1, 0, 1]),
         ],
         ("brown", "mongoose", "black"): [
-            np.array([2, 1]),
-            np.array([0, 1]),
+            torch.tensor([2, 1]),
+            torch.tensor([0, 1]),
         ],
         ("black", "cow", "brown"): [
-            np.array([0, 0]),
-            np.array([1, 2]),
+            torch.tensor([0, 0]),
+            torch.tensor([1, 2]),
         ],
         ("black", "snake", "black"): [
-            np.array([1]),
-            np.array([0]),
+            torch.tensor([1]),
+            torch.tensor([0]),
         ],
+    }
+
+    N = {"brown": 3, "black": 2}
+
+    F = FeatureStore()
+    F.add_data(torch.tensor([100, 200, 300]), type_name="brown", feat_name="prop1")
+
+    F.add_data(torch.tensor([400, 500]), type_name="black", feat_name="prop1")
+
+    F.add_data(torch.tensor([5, 4, 3]), type_name="brown", feat_name="prop2")
+
+    F.add_data(torch.tensor([2, 1]), type_name="black", feat_name="prop2")
+
+    return F, G, N
+
+
+@pytest.fixture
+def multi_edge_multi_vertex_no_graph_1():
+    G = {
+        ("brown", "horse", "brown"): 2,
+        ("brown", "tortoise", "black"): 3,
+        ("brown", "mongoose", "black"): 3,
+        ("black", "cow", "brown"): 3,
+        ("black", "snake", "black"): 1,
     }
 
     N = {"brown": 3, "black": 2}

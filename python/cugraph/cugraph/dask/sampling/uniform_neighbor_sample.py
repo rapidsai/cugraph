@@ -87,8 +87,8 @@ def create_empty_df_with_edge_props(indices_t, weight_t, return_offsets=False):
                 weight_n: numpy.empty(shape=0, dtype=weight_t),
                 edge_id_n: numpy.empty(shape=0, dtype=indices_t),
                 edge_type_n: numpy.empty(shape=0, dtype="int32"),
-                batch_id_n: numpy.empty(shape=0, dtype="int32"),
                 hop_id_n: numpy.empty(shape=0, dtype="int32"),
+                batch_id_n: numpy.empty(shape=0, dtype="int32"),
             }
         )
         return df
@@ -263,19 +263,16 @@ def uniform_neighbor_sample(
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
 
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
-
     Parameters
     ----------
     input_graph : cugraph.Graph
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_list : list or cudf.Series (int32)
+    start_list : int, list, cudf.Series, or dask_cudf.Series (int32 or int64)
         a list of starting vertices for sampling
 
-    fanout_vals : list (int32)
+    fanout_vals : list
         List of branching out (fan-out) degrees per starting vertex for each
         hop level.
 
@@ -286,15 +283,16 @@ def uniform_neighbor_sample(
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
 
-    batch_id_list: list (int32), optional (default=None)
+    batch_id_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
         List of batch ids that will be returned with the sampled edges if
         with_edge_properties is set to True.
 
-    label_list: list (int32), optional (default=None)
+    label_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
         List of unique batch id labels.  Used along with
         label_to_output_comm_rank to assign batch ids to GPUs.
 
-    label_to_out_comm_rank (int32), optional (default=None)
+    label_to_out_comm_rank: cudf.Series or dask_cudf.Series (int32),
+    optional (default=None)
         List of output GPUs (by rank) corresponding to batch
         id labels in the label list.  Used to assign each batch
         id to a GPU.
@@ -396,23 +394,41 @@ def uniform_neighbor_sample(
     else:
         indices_t = numpy.int32
 
-    if input_graph.renumbered:
-        start_list = input_graph.lookup_internal_vertex_id(start_list)
-
-    start_list = start_list.rename(start_col_name).to_frame()
+    start_list = start_list.rename(start_col_name)
     if batch_id_list is not None:
-        ddf = start_list.join(batch_id_list.rename(batch_col_name))
+        batch_id_list = batch_id_list.rename(batch_col_name)
+        if hasattr(start_list, "compute"):
+            # mg input
+            start_list = start_list.to_frame()
+            batch_id_list = batch_id_list.to_frame()
+            ddf = start_list.merge(
+                batch_id_list,
+                how="left",
+                left_index=True,
+                right_index=True,
+            )
+        else:
+            # sg input
+            ddf = cudf.concat(
+                [
+                    start_list,
+                    batch_id_list,
+                ],
+                axis=1,
+            )
     else:
-        ddf = start_list
+        ddf = start_list.to_frame()
 
-    if isinstance(ddf, cudf.DataFrame):
-        splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
-        ddf = {w: [ddf.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
+    if input_graph.renumbered:
+        ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
 
-    else:
+    if hasattr(ddf, "compute"):
         ddf = get_distributed_data(ddf)
         wait(ddf)
         ddf = ddf.worker_to_parts
+    else:
+        splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
+        ddf = {w: [ddf.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
 
     client = get_client()
     session_id = Comms.get_session_id()

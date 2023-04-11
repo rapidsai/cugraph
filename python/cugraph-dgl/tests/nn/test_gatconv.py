@@ -28,7 +28,7 @@ dgl = import_optional("dgl")
 options = {
     "idtype_int": [False, True],
     "max_in_degree": [None, 8],
-    "num_heads": [1, 3],
+    "num_heads": [1, 2, 3, 7],
     "to_block": [False, True],
 }
 

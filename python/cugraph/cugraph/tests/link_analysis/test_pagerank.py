@@ -392,18 +392,33 @@ def test_pagerank_invalid_personalization_dtype():
         store_transposed=True,
     )
 
-    personalization_vec = cudf.DataFrame()
-    personalization_vec["vertex"] = [17, 26]
-    personalization_vec["values"] = [0.5, 0.75]
+    personalization = cudf.DataFrame()
+    personalization["vertex"] = [17, 26]
+    personalization["values"] = [0.5, 0.75]
+
+    # cu_M["weights"] is of type 'float32' and personalization["values"] of type
+    # 'float64'. The python code should enforce that both types match nd raise the
+    # following warning.
     warning_msg = (
         "PageRank requires 'personalization' values to match the "
         "graph's 'edge_attr' type. edge_attr type is: "
         "float32 and got 'personalization' values "
         "of type: float64."
     )
-
     with pytest.warns(UserWarning, match=warning_msg):
-        cugraph.pagerank(G, personalization=personalization_vec)
+        cugraph.pagerank(G, personalization=personalization)
+
+    # cu_M["src"] is of type 'int32' and personalization["vertex"] of type
+    # 'int64'. The python code should enforce that both types match and raise the
+    # following warning.
+    warning_msg = (
+        "PageRank requires 'personalization' vertex to match the "
+        "graph's 'vertex' type. input graph's vertex type is: "
+        "int32 and got 'personalization' vertex "
+        "of type: int64."
+    )
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.pagerank(G, personalization=personalization)
 
 
 @pytest.mark.sg
