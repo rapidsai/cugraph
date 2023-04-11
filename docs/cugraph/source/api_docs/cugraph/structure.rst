@@ -32,7 +32,7 @@ Adding Data
 Checks
 ------
 .. autosummary::
-#    :toctree: ../api/cugraph/
+    :toctree: ../api/cugraph/
 
    Graph.has_isolated_vertices
    Graph.is_bipartite
