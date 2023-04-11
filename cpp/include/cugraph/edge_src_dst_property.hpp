@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -34,10 +35,17 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename ValueIterator>
+template <typename vertex_t,
+          typename ValueIterator,
+          typename value_t = typename thrust::iterator_traits<ValueIterator>::value_type>
 class edge_major_property_view_t {
  public:
-  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t> ||
+    cugraph::has_packed_bool_element<ValueIterator, value_t>());
+
+  using vertex_type    = vertex_t;
+  using value_type     = value_t;
   using value_iterator = ValueIterator;
 
   edge_major_property_view_t() = default;
@@ -101,10 +109,17 @@ class edge_major_property_view_t {
   std::vector<vertex_t> edge_partition_major_range_firsts_{};
 };
 
-template <typename vertex_t, typename ValueIterator>
+template <typename vertex_t,
+          typename ValueIterator,
+          typename value_t = typename thrust::iterator_traits<ValueIterator>::value_type>
 class edge_minor_property_view_t {
  public:
-  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t> ||
+    cugraph::has_packed_bool_element<ValueIterator, value_t>());
+
+  using vertex_type    = vertex_t;
+  using value_type     = value_t;
   using value_iterator = ValueIterator;
 
   edge_minor_property_view_t() = default;
@@ -152,6 +167,8 @@ class edge_minor_property_view_t {
 template <typename vertex_t, typename T>
 class edge_major_property_t {
  public:
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
   using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
 
   edge_major_property_t(raft::handle_t const& handle) {}
@@ -163,8 +180,12 @@ class edge_major_property_t {
   {
     buffers_.reserve(edge_partition_major_range_firsts_.size());
     for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
+      size_t buffer_size = std::is_same_v<T, bool>
+                             ? cugraph::packed_bool_size(edge_partition_major_range_sizes[i])
+                             : edge_partition_major_range_sizes[i];
       buffers_.push_back(
-        allocate_dataframe_buffer<T>(edge_partition_major_range_sizes[i], handle.get_stream()));
+        allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+          buffer_size, handle.get_stream()));
     }
   }
 
@@ -181,8 +202,12 @@ class edge_major_property_t {
   {
     buffers_.reserve(edge_partition_major_range_firsts_.size());
     for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
+      size_t buffer_size = std::is_same_v<T, bool>
+                             ? cugraph::packed_bool_size(edge_partition_keys[i].size())
+                             : edge_partition_keys[i].size();
       buffers_.push_back(
-        allocate_dataframe_buffer<T>(edge_partition_keys[i].size(), handle.get_stream()));
+        allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+          buffer_size, handle.get_stream()));
     }
   }
 
@@ -208,14 +233,14 @@ class edge_major_property_t {
     }
 
     if (edge_partition_keys_) {
-      return edge_major_property_view_t<vertex_t, const_value_iterator>(
+      return edge_major_property_view_t<vertex_t, const_value_iterator, T>(
         *edge_partition_keys_,
         *edge_partition_key_chunk_start_offsets_,
         *key_chunk_size_,
         edge_partition_value_firsts,
         edge_partition_major_range_firsts_);
     } else {
-      return edge_major_property_view_t<vertex_t, const_value_iterator>(
+      return edge_major_property_view_t<vertex_t, const_value_iterator, T>(
         edge_partition_value_firsts, edge_partition_major_range_firsts_);
     }
   }
@@ -230,14 +255,14 @@ class edge_major_property_t {
     }
 
     if (edge_partition_keys_) {
-      return edge_major_property_view_t<vertex_t, value_iterator>(
+      return edge_major_property_view_t<vertex_t, value_iterator, T>(
         *edge_partition_keys_,
         *edge_partition_key_chunk_start_offsets_,
         *key_chunk_size_,
         edge_partition_value_firsts,
         edge_partition_major_range_firsts_);
     } else {
-      return edge_major_property_view_t<vertex_t, value_iterator>(
+      return edge_major_property_view_t<vertex_t, value_iterator, T>(
         edge_partition_value_firsts, edge_partition_major_range_firsts_);
     }
   }
@@ -256,6 +281,8 @@ class edge_major_property_t {
 template <typename vertex_t, typename T>
 class edge_minor_property_t {
  public:
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
   edge_minor_property_t(raft::handle_t const& handle)
     : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream())),
       minor_range_first_(vertex_t{0})
@@ -265,7 +292,9 @@ class edge_minor_property_t {
   edge_minor_property_t(raft::handle_t const& handle,
                         vertex_t buffer_size,
                         vertex_t minor_range_first)
-    : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream())),
+    : buffer_(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+        std::is_same_v<T, bool> ? cugraph::packed_bool_size(buffer_size) : buffer_size,
+        handle.get_stream())),
       minor_range_first_(minor_range_first)
   {
   }
@@ -278,7 +307,9 @@ class edge_minor_property_t {
     : keys_(keys),
       key_chunk_start_offsets_(key_chunk_start_offsets),
       key_chunk_size_(key_chunk_size),
-      buffer_(allocate_dataframe_buffer<T>(keys.size(), handle.get_stream())),
+      buffer_(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+        std::is_same_v<T, bool> ? cugraph::packed_bool_size(keys.size()) : keys.size(),
+        handle.get_stream())),
       minor_range_first_(minor_range_first)
   {
   }
@@ -298,11 +329,11 @@ class edge_minor_property_t {
   {
     auto value_first = get_dataframe_buffer_cbegin(buffer_);
     if (keys_) {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(
+      return edge_minor_property_view_t<vertex_t, decltype(value_first), T>(
         *keys_, *key_chunk_start_offsets_, *key_chunk_size_, value_first, minor_range_first_);
     } else {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(value_first,
-                                                                         minor_range_first_);
+      return edge_minor_property_view_t<vertex_t, decltype(value_first), T>(value_first,
+                                                                            minor_range_first_);
     }
   }
 
@@ -310,11 +341,11 @@ class edge_minor_property_t {
   {
     auto value_first = get_dataframe_buffer_begin(buffer_);
     if (keys_) {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(
+      return edge_minor_property_view_t<vertex_t, decltype(value_first), T>(
         *keys_, *key_chunk_start_offsets_, *key_chunk_size_, value_first, minor_range_first_);
     } else {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(value_first,
-                                                                         minor_range_first_);
+      return edge_minor_property_view_t<vertex_t, decltype(value_first), T>(value_first,
+                                                                            minor_range_first_);
     }
   }
 
@@ -338,8 +369,9 @@ class edge_endpoint_dummy_property_view_t {
 template <typename GraphViewType, typename T>
 class edge_src_property_t {
  public:
-  using value_type = T;
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  using value_type = T;
 
   edge_src_property_t(raft::handle_t const& handle) : property_(handle) {}
 
@@ -429,9 +461,9 @@ class edge_src_property_t {
 template <typename GraphViewType, typename T>
 class edge_dst_property_t {
  public:
-  using value_type = T;
-
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
+  using value_type = T;
 
   edge_dst_property_t(raft::handle_t const& handle) : property_(handle) {}
 
@@ -532,11 +564,12 @@ class edge_dst_dummy_property_t {
   auto view() const { return detail::edge_endpoint_dummy_property_view_t{}; }
 };
 
-template <typename vertex_t, typename... Ts>
-auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... views)
+template <typename vertex_t, typename... Iters, typename... Types>
+auto view_concat(detail::edge_major_property_view_t<vertex_t, Iters, Types> const&... views)
 {
   using concat_value_iterator = decltype(thrust::make_zip_iterator(
     thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[0])...)));
+  using concat_value_type     = decltype(thrust_tuple_cat(to_thrust_tuple(Types{})...));
 
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
   auto first_view = get_first_of_pack(views...);
@@ -547,23 +580,24 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
   }
 
   if (first_view.key_chunk_size()) {
-    return detail::edge_major_property_view_t<vertex_t, concat_value_iterator>(
+    return detail::edge_major_property_view_t<vertex_t, concat_value_iterator, concat_value_type>(
       *(first_view.keys()),
       *(first_view.key_chunk_start_offsets()),
       *(first_view.key_chunk_size()),
       edge_partition_concat_value_firsts,
       first_view.major_range_firsts());
   } else {
-    return detail::edge_major_property_view_t<vertex_t, concat_value_iterator>(
+    return detail::edge_major_property_view_t<vertex_t, concat_value_iterator, concat_value_type>(
       edge_partition_concat_value_firsts, first_view.major_range_firsts());
   }
 }
 
-template <typename vertex_t, typename... Ts>
-auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... views)
+template <typename vertex_t, typename... Iters, typename... Types>
+auto view_concat(detail::edge_minor_property_view_t<vertex_t, Iters, Types> const&... views)
 {
-  using concat_value_iterator = decltype(
-    thrust::make_zip_iterator(thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...)));
+  using concat_value_iterator = decltype(thrust::make_zip_iterator(
+    thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...)));
+  using concat_value_type     = decltype(thrust_tuple_cat(to_thrust_tuple(Types{})...));
 
   concat_value_iterator edge_partition_concat_value_first{};
 
@@ -573,14 +607,14 @@ auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... view
     thrust::make_zip_iterator(thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...));
 
   if (first_view.key_chunk_size()) {
-    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
+    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator, concat_value_type>(
       *(first_view.keys()),
       *(first_view.key_chunk_start_offsets()),
       *(first_view.key_chunk_size()),
       edge_partition_concat_value_first,
       first_view.minor_range_first());
   } else {
-    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
+    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator, concat_value_type>(
       edge_partition_concat_value_first, first_view.minor_range_first());
   }
 }
