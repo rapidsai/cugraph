@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -283,7 +283,7 @@ def rmat(
         Probability of the second partition
 
     c : float
-        Probability of the thrid partition
+        Probability of the third partition
 
     seed : int
         Seed value for the random number generator
@@ -317,16 +317,18 @@ def rmat(
     --------
     >>> import cugraph
     >>> from cugraph.generators import rmat
+    >>> scale = 10
+    >>> edgefactor = 16
     >>> df = rmat(
     ...    scale,
     ...    (2**scale)*edgefactor,
     ...    0.57,
     ...    0.19,
     ...    0.19,
-    ...    seed or 42,
+    ...    seed=42,
     ...    clip_and_flip=False,
     ...    scramble_vertex_ids=True,
-    ...    create_using=None,  # return edgelist instead of Graph instance
+    ...    create_using=None,
     ...    mg=False
     ... )
 

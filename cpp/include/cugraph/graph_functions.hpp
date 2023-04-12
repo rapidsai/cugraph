@@ -21,6 +21,7 @@
 
 #include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
+#include <raft/random/rng_state.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
@@ -662,7 +663,10 @@ extract_induced_subgraphs(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weight.  Needs to be floating point type
+ * @tparam edge_id_t Type of edge id.  Needs to be an integral type
+ * @tparam edge_type_t Type of edge type.  Needs to be an integral type, currently only int32_t is
+ * supported
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -678,21 +682,21 @@ extract_induced_subgraphs(
  * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
  * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
- * @param edgelist_weights Vector of edge weights.
- * @param edgelist_id_type_pairs Vector of edge ID and type pairs.
+ * @param edgelist_weights Vector of weight values for edges
+ * @param edgelist_edge_ids Vector of edge_id values for edges
+ * @param edgelist_edge_types Vector of edge_type values for edges
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * is true).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of the generated graph and optional edge_property_t objects storing edge weights
- * and edge IDs & types (valid if @p edgelist_weights.has_value() and @p
- * edgelist_id_type_pairss.has_value() are true, respectively) and a renumber map (if @p renumber is
- * true).
+ * @return Tuple of the generated graph and optional edge_property_t objects storing the provided
+ * edge properties and a renumber map (if @p renumber is true).
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_id_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
@@ -700,20 +704,21 @@ std::tuple<
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
   std::optional<
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                thrust::tuple<edge_t, edge_type_t>>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_id_t>>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, edge_type_t>>,
   std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(
-  raft::handle_t const& handle,
-  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-  rmm::device_uvector<vertex_t>&& edgelist_srcs,
-  rmm::device_uvector<vertex_t>&& edgelist_dsts,
-  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&&
-    edgelist_id_type_pairs,
-  graph_properties_t graph_properties,
-  bool renumber,
-  bool do_expensive_check = false);
+create_graph_from_edgelist(raft::handle_t const& handle,
+                           std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
+                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
+                           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+                           std::optional<rmm::device_uvector<edge_id_t>>&& edgelist_edge_ids,
+                           std::optional<rmm::device_uvector<edge_type_t>>&& edgelist_edge_types,
+                           graph_properties_t graph_properties,
+                           bool renumber,
+                           bool do_expensive_check = false);
 
 /**
  * @brief      Find all 2-hop neighbors in the graph
@@ -874,5 +879,34 @@ weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
+
+/**
+ * @brief Select random vertices
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
+ * edge weight sums.
+ * @param  rng_state The RngState instance holding pseudo-random number generator state.
+ * @param  select_count The number of vertices to select from the graph
+ * @param  with_replacement If true, select with replacement, if false select without replacement
+ * @param  sort_vertices If true, return the sorted vertices (in the ascending order).
+ * @return Device vector of selected vertices.
+ */
+template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
+rmm::device_uvector<vertex_t> select_random_vertices(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state,
+  size_t select_count,
+  bool with_replacement,
+  bool sort_vertices);
 
 }  // namespace cugraph

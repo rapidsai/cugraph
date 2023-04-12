@@ -46,8 +46,8 @@
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
+    vertex_t v0,
     vertex_t v1,
-    vertex_t v2,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
     raft::device_span<vertex_t const> intersection) const
@@ -82,10 +82,6 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
-    auto const row_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().row_name()).get_size();
-    auto const col_comm_size =
-      handle_->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()).get_size();
 
     // 1. create MG graph
 
@@ -96,8 +92,8 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
 
@@ -137,17 +133,19 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     std::tie(std::get<0>(mg_vertex_pair_buffer),
              std::get<1>(mg_vertex_pair_buffer),
              std::ignore,
+             std::ignore,
              std::ignore) =
-      cugraph::detail::shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                  edge_t,
-                                                                                  weight_t,
-                                                                                  int32_t>(
-        *handle_,
-        std::move(std::get<0>(mg_vertex_pair_buffer)),
-        std::move(std::get<1>(mg_vertex_pair_buffer)),
-        std::nullopt,
-        std::nullopt,
-        h_vertex_partition_range_lasts);
+      cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+        vertex_t,
+        edge_t,
+        weight_t,
+        int32_t>(*handle_,
+                 std::move(std::get<0>(mg_vertex_pair_buffer)),
+                 std::move(std::get<1>(mg_vertex_pair_buffer)),
+                 std::nullopt,
+                 std::nullopt,
+                 std::nullopt,
+                 h_vertex_partition_range_lasts);
 
     auto mg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
       cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
@@ -182,45 +180,67 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         *handle_,
         std::get<0>(mg_vertex_pair_buffer).data(),
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         h_vertex_partition_range_lasts);
       cugraph::unrenumber_int_vertices<vertex_t, true>(
         *handle_,
         std::get<1>(mg_vertex_pair_buffer).data(),
         cugraph::size_dataframe_buffer(mg_vertex_pair_buffer),
-        (*d_mg_renumber_map_labels).data(),
+        (*mg_renumber_map).data(),
         h_vertex_partition_range_lasts);
 
-      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
-      std::tie(unrenumbered_graph, std::ignore, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-          *handle_, input_usecase, false, false);
+      auto mg_aggregate_vertex_pair_buffer =
+        cugraph::allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(
+          0, handle_->get_stream());
+      std::get<0>(mg_aggregate_vertex_pair_buffer) =
+        cugraph::test::device_gatherv(*handle_,
+                                      std::get<0>(mg_vertex_pair_buffer).data(),
+                                      std::get<0>(mg_vertex_pair_buffer).size());
+      std::get<1>(mg_aggregate_vertex_pair_buffer) =
+        cugraph::test::device_gatherv(*handle_,
+                                      std::get<1>(mg_vertex_pair_buffer).data(),
+                                      std::get<1>(mg_vertex_pair_buffer).size());
 
-      auto unrenumbered_graph_view = unrenumbered_graph.view();
+      auto mg_aggregate_result_buffer =
+        cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(0, handle_->get_stream());
+      std::get<0>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
+        *handle_, std::get<0>(mg_result_buffer).data(), std::get<0>(mg_result_buffer).size());
+      std::get<1>(mg_aggregate_result_buffer) = cugraph::test::device_gatherv(
+        *handle_, std::get<1>(mg_result_buffer).data(), std::get<1>(mg_result_buffer).size());
 
-      auto sg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
-        cugraph::size_dataframe_buffer(mg_vertex_pair_buffer), handle_->get_stream());
-      auto sg_out_degrees = unrenumbered_graph_view.compute_out_degrees(*handle_);
-
-      cugraph::per_v_pair_transform_dst_nbr_intersection(
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
-        unrenumbered_graph_view,
-        cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer /* now unrenumbered */),
-        cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer /* now unrenumbered */),
-        sg_out_degrees.begin(),
-        intersection_op_t<vertex_t, edge_t>{},
-        cugraph::get_dataframe_buffer_begin(sg_result_buffer));
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
-      bool valid = thrust::equal(handle_->get_thrust_policy(),
-                                 cugraph::get_dataframe_buffer_begin(mg_result_buffer),
-                                 cugraph::get_dataframe_buffer_end(mg_result_buffer),
-                                 cugraph::get_dataframe_buffer_begin(sg_result_buffer));
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
 
-      valid = static_cast<bool>(cugraph::host_scalar_allreduce(handle_->get_comms(),
-                                                               static_cast<int>(valid),
-                                                               raft::comms::op_t::MIN,
-                                                               handle_->get_stream()));
-      ASSERT_TRUE(valid);
+        auto sg_result_buffer = cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t>>(
+          cugraph::size_dataframe_buffer(mg_aggregate_vertex_pair_buffer), handle_->get_stream());
+        auto sg_out_degrees = sg_graph_view.compute_out_degrees(*handle_);
+
+        cugraph::per_v_pair_transform_dst_nbr_intersection(
+          *handle_,
+          sg_graph_view,
+          cugraph::get_dataframe_buffer_begin(
+            mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
+          cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
+          sg_out_degrees.begin(),
+          intersection_op_t<vertex_t, edge_t>{},
+          cugraph::get_dataframe_buffer_begin(sg_result_buffer));
+
+        bool valid = thrust::equal(handle_->get_thrust_policy(),
+                                   cugraph::get_dataframe_buffer_begin(mg_aggregate_result_buffer),
+                                   cugraph::get_dataframe_buffer_end(mg_aggregate_result_buffer),
+                                   cugraph::get_dataframe_buffer_begin(sg_result_buffer));
+
+        ASSERT_TRUE(valid);
+      }
     }
   }
 
@@ -308,12 +328,11 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1024}, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1024}, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -322,8 +341,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{1024 * 1024}, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

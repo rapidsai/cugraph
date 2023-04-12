@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -69,7 +68,7 @@ class Tests_MGSymmetrize
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, symmetrize_usecase.test_weighted, true);
 
@@ -80,7 +79,24 @@ class Tests_MGSymmetrize
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 2. run MG symmetrize
+    // 2. create SG graph from MG graph before symmetrizing (for correctness check)
+
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                               weight_t>>
+      sg_edge_weights{std::nullopt};
+    if (symmetrize_usecase.check_correctness) {
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph.view(),
+        mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+    }
+
+    // 3. run MG symmetrize
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -88,13 +104,12 @@ class Tests_MGSymmetrize
       hr_timer.start("MG symmetrize");
     }
 
-    std::tie(mg_graph, mg_edge_weights, d_mg_renumber_map_labels) = cugraph::symmetrize_graph(
+    std::tie(mg_graph, mg_edge_weights, mg_renumber_map) = cugraph::symmetrize_graph(
       *handle_,
       std::move(mg_graph),
       std::move(mg_edge_weights),
-      d_mg_renumber_map_labels
-        ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*d_mg_renumber_map_labels))
-        : std::nullopt,
+      mg_renumber_map ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*mg_renumber_map))
+                      : std::nullopt,
       symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
@@ -104,21 +119,20 @@ class Tests_MGSymmetrize
       hr_timer.display_and_clear(std::cout);
     }
 
-    // 3. copmare SG & MG results
+    // 4. copmare SG & MG results
 
     if (symmetrize_usecase.check_correctness) {
-      // 3-1. decompress MG results
+      // 4-1. decompress MG results
 
       auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
         *handle_,
         mg_graph.view(),
         mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt,
-        d_mg_renumber_map_labels
-          ? std::make_optional<raft::device_span<vertex_t const>>(
-              (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size())
-          : std::nullopt);
+        mg_renumber_map ? std::make_optional<raft::device_span<vertex_t const>>(
+                            (*mg_renumber_map).data(), (*mg_renumber_map).size())
+                        : std::nullopt);
 
-      // 3-2. aggregate MG results
+      // 4-2. aggregate MG results
 
       auto d_mg_aggregate_srcs =
         cugraph::test::device_gatherv(*handle_, d_mg_srcs.data(), d_mg_srcs.size());
@@ -131,18 +145,7 @@ class Tests_MGSymmetrize
       }
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-        std::optional<
-          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
-                                   weight_t>>
-          sg_edge_weights{std::nullopt};
-        std::tie(sg_graph, sg_edge_weights, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-            *handle_, input_usecase, symmetrize_usecase.test_weighted, false);
-
-        // 3-4. run SG symmetrize
+        // 4-3. run SG symmetrize
 
         std::optional<rmm::device_uvector<vertex_t>> d_sg_renumber_map_labels{};
         std::tie(sg_graph, sg_edge_weights, d_sg_renumber_map_labels) =
@@ -153,7 +156,7 @@ class Tests_MGSymmetrize
                                     symmetrize_usecase.reciprocal);
         ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
 
-        // 3-5. decompress SG results
+        // 4-4. decompress SG results
 
         auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
           *handle_,
@@ -161,7 +164,7 @@ class Tests_MGSymmetrize
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
-        // 3-6. compare
+        // 4-5. compare
 
         ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
         ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
@@ -285,16 +288,16 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGSymmetrize_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           ::testing::Values(Symmetrize_Usecase{false, false},
-                                             Symmetrize_Usecase{true, false},
-                                             Symmetrize_Usecase{false, true},
-                                             Symmetrize_Usecase{true, true}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGSymmetrize_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(Symmetrize_Usecase{false, false},
+                      Symmetrize_Usecase{true, false},
+                      Symmetrize_Usecase{false, true},
+                      Symmetrize_Usecase{true, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -309,7 +312,6 @@ INSTANTIATE_TEST_SUITE_P(
                       Symmetrize_Usecase{true, false, false},
                       Symmetrize_Usecase{false, true, false},
                       Symmetrize_Usecase{true, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

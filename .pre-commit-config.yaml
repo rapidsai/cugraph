@@ -14,14 +14,13 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        exclude: versioneer.py
         args: [--target-version=py38]
         files: ^python/
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
-        args: ["--config=setup.cfg"]
+        args: ["--config=.flake8"]
         files: python/.*$
         types: [file]
         types_or: [python] # TODO: Enable [python, cython]
@@ -51,3 +50,8 @@ repos:
         language: python
         pass_filenames: false
         additional_dependencies: [gitpython]
+  - repo: https://github.com/rapidsai/dependency-file-generator
+    rev: v1.5.1
+    hooks:
+        - id: rapids-dependency-file-generator
+          args: ["--clean"]

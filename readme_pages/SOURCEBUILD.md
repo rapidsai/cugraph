@@ -89,6 +89,7 @@ build.sh [<target> ...] [<flag> ...]
    cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
+   cugraph-pyg                - build the cugraph-dgl extensions for PyG
    docs                       - build the docs
  and <flag> is:
    -v                         - verbose build mode
@@ -232,11 +233,6 @@ Run either the C++ or the Python tests with datasets
    ```
 
 Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
-
-### Building and Testing on a gpuCI image locally
-
-You can do a local build and test on your machine that mimics our gpuCI environment using the `ci/local/build.sh` script.
-For detailed information on usage of this script, see [here](ci/local/README.md).
 
 ### (OPTIONAL) Set environment variable on activation
 

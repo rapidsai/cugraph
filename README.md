@@ -5,7 +5,6 @@
 
 <div align="center">
 
-[![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 <a href="https://github.com/rapidsai/cugraph/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 <img alt="GitHub tag (latest by date)" src="https://img.shields.io/github/v/tag/rapidsai/cugraph">
@@ -105,7 +104,7 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 
 </br>
 
-[Why cuGraph does not support Method Cascading]()
+[Why cuGraph does not support Method Cascading](https://docs.rapids.ai/api/cugraph/nightly/basics/cugraph_cascading.html)
 
 
 

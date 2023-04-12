@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,39 +84,24 @@ class Tests_BetweennessCentrality
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<vertex_t> d_seeds(graph_view.number_of_vertices(), handle.get_stream());
-    cugraph::detail::sequence_fill(
-      handle.get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
-
-    d_seeds = cugraph::test::randomly_select(handle, d_seeds, betweenness_usecase.num_seeds);
+    raft::random::RngState rng_state(0);
+    auto d_seeds = cugraph::select_random_vertices(
+      handle, graph_view, rng_state, betweenness_usecase.num_seeds, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Betweenness centrality");
     }
 
-#if 0
     auto d_centralities = cugraph::betweenness_centrality(
       handle,
       graph_view,
       edge_weight_view,
-      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+      std::make_optional<raft::device_span<vertex_t const>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints,
       do_expensive_check);
-#else
-    EXPECT_THROW(cugraph::betweenness_centrality(
-                   handle,
-                   graph_view,
-                   edge_weight_view,
-                   std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
-                     raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
-                   betweenness_usecase.normalized,
-                   betweenness_usecase.include_endpoints,
-                   do_expensive_check),
-                 cugraph::logic_error);
-#endif
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -125,22 +110,23 @@ class Tests_BetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
-#if 0
-      auto [h_offsets, h_indices, h_wgt] = cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
-
-      auto h_seeds        = cugraph::test::to_host(handle, d_seeds);
+      auto [h_offsets, h_indices, h_wgt] =
+        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      auto h_seeds = cugraph::test::to_host(handle, d_seeds);
 
       auto h_reference_centralities =
-        betweenness_centrality_reference(h_offsets, h_indices, h_wgt, h_seeds, betweenness_usecase.include_endpoints);
+        betweenness_centrality_reference(h_offsets,
+                                         h_indices,
+                                         h_wgt,
+                                         h_seeds,
+                                         betweenness_usecase.include_endpoints,
+                                         !graph_view.is_symmetric(),
+                                         betweenness_usecase.normalized);
 
       auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
-      
-      cugraph::test::betweenness_centrality_validate(handle,
-                                                     d_renumber_map_labels,
-                                                     d_centralities,
-                                                     std::nullopt,
-                                                     d_reference_centralities);
-#endif
+
+      cugraph::test::betweenness_centrality_validate(
+        handle, d_centralities, d_reference_centralities);
     }
   }
 };
@@ -179,11 +165,10 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(BetweennessCentrality_Usecase{20, false, false, false, true},
-                      BetweennessCentrality_Usecase{20, false, false, true, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      BetweennessCentrality_Usecase{20, false, false, true, true},
+                      BetweennessCentrality_Usecase{20, false, true, false, true},
+                      BetweennessCentrality_Usecase{20, false, true, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

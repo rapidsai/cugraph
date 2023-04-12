@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -70,7 +69,7 @@ class Tests_MGEigenvectorCentrality
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
         *handle_, input_usecase, eigenvector_usecase.test_weighted, true);
 
@@ -102,9 +101,7 @@ class Tests_MGEigenvectorCentrality
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
-      std::optional<raft::device_span<weight_t const>>{},
-      // std::make_optional(raft::device_span<weight_t
-      // const>{d_mg_centralities.data(), d_mg_centralities.size()}),
+      std::optional<raft::device_span<weight_t const>>{std::nullopt},
       epsilon,
       eigenvector_usecase.max_iterations,
       false);
@@ -121,20 +118,31 @@ class Tests_MGEigenvectorCentrality
     if (eigenvector_usecase.check_correctness) {
       // 3-1. aggregate MG results
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_centralities =
-        cugraph::test::device_gatherv(*handle_, d_mg_centralities.data(), d_mg_centralities.size());
+      rmm::device_uvector<weight_t> d_mg_aggregate_centralities(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_centralities) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<weight_t const>(d_mg_centralities.data(), d_mg_centralities.size()));
+
+      cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore) =
+        cugraph::test::mg_graph_to_sg_graph(*handle_,
+                                            mg_graph_view,
+                                            mg_edge_weight_view,
+                                            std::make_optional<raft::device_span<vertex_t const>>(
+                                              (*mg_renumber_map).data(), (*mg_renumber_map).size()),
+                                            false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 3-2. Sort MG results by original vertex id
-        std::tie(std::ignore, d_mg_aggregate_centralities) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_centralities);
-
-        // 3-3. create SG graph
-        auto [sg_graph, sg_edge_weights, d_sg_renumber_map_labels] =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            *handle_, input_usecase, eigenvector_usecase.test_weighted, true);
+        // 3-2. run SG Eigenvector Centrality
 
         auto sg_graph_view = sg_graph.view();
         auto sg_edge_weight_view =
@@ -142,7 +150,6 @@ class Tests_MGEigenvectorCentrality
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        // 3-4. run SG Eigenvector Centrality
         rmm::device_uvector<weight_t> d_sg_centralities(sg_graph_view.number_of_vertices(),
                                                         handle_->get_stream());
 
@@ -150,17 +157,12 @@ class Tests_MGEigenvectorCentrality
           *handle_,
           sg_graph_view,
           sg_edge_weight_view,
-          std::optional<raft::device_span<weight_t const>>{},
-          // std::make_optional(raft::device_span<weight_t const>{d_sg_centralities.data(),
-          // d_sg_centralities.size()}),
+          std::optional<raft::device_span<weight_t const>>{std::nullopt},
           epsilon,
           eigenvector_usecase.max_iterations,
           false);
 
-        std::tie(std::ignore, d_sg_centralities) =
-          cugraph::test::sort_by_key(*handle_, *d_sg_renumber_map_labels, d_sg_centralities);
-
-        // 3-5. compare
+        // 3-3. compare
 
         auto h_mg_aggregate_centralities =
           cugraph::test::to_host(*handle_, d_mg_aggregate_centralities);
@@ -169,11 +171,13 @@ class Tests_MGEigenvectorCentrality
         auto max_centrality =
           *std::max_element(h_mg_aggregate_centralities.begin(), h_mg_aggregate_centralities.end());
 
+        auto threshold_ratio = weight_t{1e-3};
         // skip comparison for low Eigenvector Centrality vertices (lowly ranked vertices)
-        auto threshold_magnitude = max_centrality * epsilon;
+        auto threshold_magnitude = max_centrality * threshold_ratio;
 
-        auto nearly_equal = [epsilon, threshold_magnitude](auto lhs, auto rhs) {
-          return std::abs(lhs - rhs) < std::max(std::max(lhs, rhs) * epsilon, threshold_magnitude);
+        auto nearly_equal = [threshold_ratio, threshold_magnitude](auto lhs, auto rhs) {
+          return std::abs(lhs - rhs) <
+                 std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
         };
 
         // FIND DIFFERENCES...
@@ -247,14 +251,14 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGEigenvectorCentrality_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           ::testing::Values(EigenvectorCentrality_Usecase{500, false},
-                                             EigenvectorCentrality_Usecase{500, true}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGEigenvectorCentrality_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    ::testing::Values(EigenvectorCentrality_Usecase{500, false},
+                      EigenvectorCentrality_Usecase{500, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -267,7 +271,6 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(EigenvectorCentrality_Usecase{500, false, false},
                       EigenvectorCentrality_Usecase{500, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

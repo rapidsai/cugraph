@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,11 +84,9 @@ class Tests_EdgeBetweennessCentrality
     auto edge_weight_view =
       edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<vertex_t> d_seeds(graph_view.number_of_vertices(), handle.get_stream());
-    cugraph::detail::sequence_fill(
-      handle.get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
-
-    d_seeds = cugraph::test::randomly_select(handle, d_seeds, betweenness_usecase.num_seeds);
+    raft::random::RngState rng_state(0);
+    auto d_seeds = cugraph::select_random_vertices(
+      handle, graph_view, rng_state, betweenness_usecase.num_seeds, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -100,7 +98,7 @@ class Tests_EdgeBetweennessCentrality
       handle,
       graph_view,
       edge_weight_view,
-      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+      std::make_optional<raft::device_span<vertex_t const>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       do_expensive_check);
@@ -109,7 +107,7 @@ class Tests_EdgeBetweennessCentrality
                    handle,
                    graph_view,
                    edge_weight_view,
-                   std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+                   std::make_optional<raft::device_span<vertex_t const>>(
                      raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
                    betweenness_usecase.normalized,
                    do_expensive_check),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -74,8 +73,8 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, true);
 
@@ -123,26 +122,32 @@ class Tests_MGCountSelfLoopsAndMultiEdges
     // 3. copmare SG & MG results
 
     if (count_self_loops_and_multi_edges_usecase.check_correctness) {
-      // 3-1. create SG graph
+      // 3-1. aggregate MG results
 
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          *handle_, input_usecase, false, false);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
-      auto sg_graph_view = sg_graph.view();
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
 
-      ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
+        ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-      // 3-2. run SG count_self_loops & count_multi_edges
+        // 3-2. run SG count_self_loops & count_multi_edges
 
-      auto sg_num_self_loops  = sg_graph_view.count_self_loops(*handle_);
-      auto sg_num_multi_edges = sg_graph_view.count_multi_edges(*handle_);
+        auto sg_num_self_loops  = sg_graph_view.count_self_loops(*handle_);
+        auto sg_num_multi_edges = sg_graph_view.count_multi_edges(*handle_);
 
-      // 3-3. compare
+        // 3-3. compare
 
-      ASSERT_EQ(num_self_loops, sg_num_self_loops);
-      ASSERT_EQ(num_multi_edges, sg_num_multi_edges);
+        ASSERT_EQ(num_self_loops, sg_num_self_loops);
+        ASSERT_EQ(num_multi_edges, sg_num_multi_edges);
+      }
     }
   }
 
@@ -211,9 +216,9 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -222,8 +227,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

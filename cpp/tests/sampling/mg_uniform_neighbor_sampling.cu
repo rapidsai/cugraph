@@ -18,6 +18,8 @@
 
 #include <utilities/mg_utilities.hpp>
 
+#include <cugraph/graph_functions.hpp>
+
 #include <thrust/distance.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
@@ -27,8 +29,8 @@
 struct Uniform_Neighbor_Sampling_Usecase {
   std::vector<int32_t> fanout{{-1}};
   int32_t batch_size{10};
+  bool with_replacement{true};
   bool check_correctness{true};
-  bool flag_replacement{true};
 };
 
 template <typename input_usecase_t>
@@ -46,9 +48,10 @@ class Tests_MGUniform_Neighbor_Sampling
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t>
-  void run_current_test(Uniform_Neighbor_Sampling_Usecase const& uniform_neighbor_sampling_usecase,
-                        input_usecase_t const& input_usecase)
+  void run_current_test(std::tuple<Uniform_Neighbor_Sampling_Usecase, input_usecase_t> const& param)
   {
+    auto [uniform_neighbor_sampling_usecase, input_usecase] = param;
+
     HighResTimer hr_timer{};
 
     // 1. create MG graph
@@ -59,11 +62,14 @@ class Tests_MGUniform_Neighbor_Sampling
       hr_timer.start("MG construct graph");
     }
 
-    constexpr bool sort_adjacency_list = true;
-
     auto [mg_graph, mg_edge_weights, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, true, true, false, sort_adjacency_list);
+        *handle_,
+        input_usecase,
+        true /* test_weighted */,
+        true /* renumber */,
+        false /* drop_self_loops */,
+        false /* drop_multi_edges */);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -77,64 +83,35 @@ class Tests_MGUniform_Neighbor_Sampling
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     //
-    // Test is designed like GNN sampling.  We'll select 90% of vertices
-    // to be included in sampling batches
+    // Test is designed like GNN sampling.  We'll select 5% of vertices to be included in sampling
+    // batches
     //
-    constexpr float select_probability{0.9};
 
-    // FIXME:  Update the tests to initialize RngState and use it instead
-    //         of seed...
-    uint64_t seed{static_cast<uint64_t>(handle_->get_comms().get_rank())};
+    constexpr float select_probability{0.05};
 
-    raft::random::RngState rng_state(seed);
+    raft::random::RngState rng_state(handle_->get_comms().get_rank());
 
-    rmm::device_uvector<float> random_numbers(mg_graph_view.local_vertex_partition_range_size(),
-                                              handle_->get_stream());
-    rmm::device_uvector<vertex_t> random_sources(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle_->get_stream());
-
-    cugraph::detail::uniform_random_fill(handle_->get_stream(),
-                                         random_numbers.data(),
-                                         random_numbers.size(),
-                                         float{0},
-                                         float{1},
-                                         seed);
-
-    auto random_sources_end = thrust::copy_if(
-      handle_->get_thrust_policy(),
-      thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(mg_graph_view.local_vertex_partition_range_size()),
-      random_sources.begin(),
-      [d_random_number = random_numbers.data(), select_probability] __device__(vertex_t offset) {
-        return d_random_number[offset] < select_probability;
-      });
-
-    random_sources.resize(thrust::distance(random_sources.begin(), random_sources_end),
-                          handle_->get_stream());
-    random_sources.shrink_to_fit(handle_->get_stream());
-
-    random_numbers.resize(random_sources.size(), handle_->get_stream());
-    random_numbers.shrink_to_fit(handle_->get_stream());
-
-    if (mg_graph_view.local_vertex_partition_range_first() > 0)
-      thrust::transform(
-        handle_->get_thrust_policy(),
-        random_sources.begin(),
-        random_sources.end(),
-        random_sources.begin(),
-        [base_offset = mg_graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
-          return v + base_offset;
-        });
+    auto random_sources = cugraph::select_random_vertices(
+      *handle_,
+      mg_graph_view,
+      rng_state,
+      std::max(static_cast<size_t>(mg_graph_view.number_of_vertices() * select_probability),
+               std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()), size_t{1})),
+      false,
+      false);
 
     //
     //  Now we'll assign the vertices to batches
     //
+
+    rmm::device_uvector<float> random_numbers(random_sources.size(), handle_->get_stream());
+
     cugraph::detail::uniform_random_fill(handle_->get_stream(),
                                          random_numbers.data(),
                                          random_numbers.size(),
                                          float{0},
                                          float{1},
-                                         seed);
+                                         rng_state);
 
     thrust::sort_by_key(handle_->get_thrust_policy(),
                         random_numbers.begin(),
@@ -146,11 +123,33 @@ class Tests_MGUniform_Neighbor_Sampling
 
     rmm::device_uvector<int32_t> batch_number(random_sources.size(), handle_->get_stream());
 
+    auto seed_sizes = cugraph::host_scalar_allgather(
+      handle_->get_comms(), random_sources.size(), handle_->get_stream());
+    size_t num_seeds   = std::reduce(seed_sizes.begin(), seed_sizes.end());
+    size_t num_batches = (num_seeds + uniform_neighbor_sampling_usecase.batch_size - 1) /
+                         uniform_neighbor_sampling_usecase.batch_size;
+
+    std::vector<size_t> seed_offsets(seed_sizes.size());
+    std::exclusive_scan(seed_sizes.begin(), seed_sizes.end(), seed_offsets.begin(), size_t{0});
+
+    thrust::tabulate(
+      handle_->get_thrust_policy(),
+      batch_number.begin(),
+      batch_number.end(),
+      [seed_offset = seed_offsets[handle_->get_comms().get_rank()],
+       num_batches] __device__(int32_t index) { return (seed_offset + index) % num_batches; });
+
+    rmm::device_uvector<int32_t> unique_batches(num_batches, handle_->get_stream());
+    rmm::device_uvector<int32_t> comm_ranks(num_batches, handle_->get_stream());
+
+    cugraph::detail::sequence_fill(
+      handle_->get_stream(), unique_batches.data(), unique_batches.size(), int32_t{0});
     thrust::tabulate(handle_->get_thrust_policy(),
-                     batch_number.begin(),
-                     batch_number.end(),
-                     [batch_size = uniform_neighbor_sampling_usecase.batch_size] __device__(
-                       int32_t index) { return index / batch_size; });
+                     comm_ranks.begin(),
+                     comm_ranks.end(),
+                     [num_gpus = handle_->get_comms().get_size()] __device__(auto index) {
+                       return index % num_gpus;
+                     });
 
     rmm::device_uvector<vertex_t> random_sources_copy(random_sources.size(), handle_->get_stream());
 
@@ -160,34 +159,58 @@ class Tests_MGUniform_Neighbor_Sampling
                handle_->get_stream());
 
 #ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(cugraph::uniform_neighbor_sample(
-                   *handle_,
-                   handle,
-                   mg_graph_view,
-                   mg_edge_weight_view,
-                   std::nullopt,
-                   std::move(random_sources_copy),
-                   std::move(batch_number),
-                   raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
-                                                  uniform_neighbor_sampling_usecase.fanout.size()),
-                   rng_state,
-                   uniform_neighbor_sampling_usecase.flag_replacement),
-                 std::exception);
+    EXPECT_THROW(
+      cugraph::uniform_neighbor_sample(
+        *handle_,
+        handle,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        std::make_optional(
+          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
+        std::make_optional(std::make_tuple(
+          raft::device_span<int32_t const>{unique_batches.data(), unique_batches.size()},
+          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()})),
+        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
+                                       uniform_neighbor_sampling_usecase.fanout.size()),
+        rng_state,
+        true,
+        uniform_neighbor_sampling_usecase.with_replacement),
+      std::exception);
 #else
-    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels] =
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.start("MG uniform_neighbor_sample");
+    }
+
+    auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<cugraph::edge_property_view_t<
-          edge_t,
-          thrust::zip_iterator<thrust::tuple<edge_t const*, int32_t const*>>>>{std::nullopt},
-        std::move(random_sources_copy),
-        std::move(batch_number),
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        std::make_optional(
+          raft::device_span<int32_t const>{batch_number.data(), batch_number.size()}),
+        std::make_optional(std::make_tuple(
+          raft::device_span<int32_t const>{unique_batches.data(), unique_batches.size()},
+          raft::device_span<int32_t const>{comm_ranks.data(), comm_ranks.size()})),
         raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
                                        uniform_neighbor_sampling_usecase.fanout.size()),
         rng_state,
-        uniform_neighbor_sampling_usecase.flag_replacement);
+        true,
+        uniform_neighbor_sampling_usecase.with_replacement);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      handle_->get_comms().barrier();
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
 
     if (uniform_neighbor_sampling_usecase.check_correctness) {
       // Consolidate results on GPU 0
@@ -292,46 +315,34 @@ using Tests_MGUniform_Neighbor_Sampling_Rmat =
 
 TEST_P(Tests_MGUniform_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_MGUniform_Neighbor_Sampling_File, CheckInt32Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_MGUniform_Neighbor_Sampling_File, CheckInt64Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_MGUniform_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_MGUniform_Neighbor_Sampling_Rmat, CheckInt32Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 TEST_P(Tests_MGUniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 {
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGUniform_Neighbor_Sampling_File,
   ::testing::Combine(
-    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, true},
-                      Uniform_Neighbor_Sampling_Usecase{{2}, 100, true, false}),
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -340,9 +351,12 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGUniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 10, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
+                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
+    ::testing::Values(
+      // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+      cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -351,8 +365,9 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGUniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Uniform_Neighbor_Sampling_Usecase{{2}, 500, false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
+                      Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -101,9 +101,6 @@ int create_sg_test_graph(const cugraph_resource_handle_t* handle,
                          cugraph_graph_t** graph,
                          cugraph_error_t** ret_error);
 
-void* create_raft_handle(int prows);
-void free_raft_handle(void* raft_handle);
-
 #ifdef __cplusplus
 }
 #endif

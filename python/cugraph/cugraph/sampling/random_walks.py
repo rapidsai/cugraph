@@ -1,5 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
-#
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -93,7 +92,8 @@ def random_walks(
     >>> from cugraph.experimental.datasets import karate
     >>> M = karate.get_edgelist(fetch=True)
     >>> G = karate.get_graph()
-    >>> _, _, _ = cugraph.random_walks(G, "uniform", M, 3)
+    >>> start_vertices = G.nodes()[:4]
+    >>> _, _, _ = cugraph.random_walks(G, "uniform", start_vertices, 3)
 
     """
     if legacy_result_type:
@@ -102,7 +102,7 @@ def random_walks(
             "supported in the next releases. only padded paths will be "
             "returned instead"
         )
-    warnings.warn(warning_msg, PendingDeprecationWarning)
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if max_depth is None:
         raise TypeError("must specify a 'max_depth'")
@@ -118,7 +118,10 @@ def random_walks(
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
+        # Ensure the 'start_vertices' have the same dtype as the edge list.
+        # Failing to do that may produce erroneous results.
+        vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+        start_vertices = cudf.Series(start_vertices, dtype=vertex_dtype)
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -135,6 +138,8 @@ def random_walks(
 
     else:
         raise ValueError("Only 'uniform' random walks is currently supported")
+
+    vertex_paths = cudf.Series(vertex_paths)
 
     if G.renumbered:
         df_ = cudf.DataFrame()

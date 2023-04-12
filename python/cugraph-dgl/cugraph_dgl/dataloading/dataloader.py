@@ -13,14 +13,12 @@
 from __future__ import annotations
 import os
 import shutil
-import torch
 import cugraph_dgl
 import cupy as cp
 import cudf
+from cugraph.utilities.utils import import_optional
 from cugraph.experimental import BulkSampler
 from dask.distributed import default_client, Event
-import dgl
-from dgl.dataloading import WorkerInitWrapper, create_tensorized_dataset
 from cugraph_dgl.dataloading import (
     HomogenousBulkSamplerDataset,
     HetrogenousBulkSamplerDataset,
@@ -28,6 +26,9 @@ from cugraph_dgl.dataloading import (
 from cugraph_dgl.dataloading.utils.extract_graph_helpers import (
     create_cugraph_graph_from_edges_dict,
 )
+
+dgl = import_optional("dgl")
+torch = import_optional("torch")
 
 
 class DataLoader(torch.utils.data.DataLoader):
@@ -45,7 +46,7 @@ class DataLoader(torch.utils.data.DataLoader):
         indices: torch.Tensor,
         graph_sampler: cugraph_dgl.dataloading.NeighborSampler,
         sampling_output_dir: str,
-        batches_per_partition: int = 100,
+        batches_per_partition: int = 50,
         seeds_per_call: int = 400_000,
         device: torch.device = None,
         use_ddp: bool = False,
@@ -128,7 +129,9 @@ class DataLoader(torch.utils.data.DataLoader):
         self.shuffle = shuffle
         self.drop_last = drop_last
         self.graph_sampler = graph_sampler
-        worker_init_fn = WorkerInitWrapper(kwargs.get("worker_init_fn", None))
+        worker_init_fn = dgl.dataloading.WorkerInitWrapper(
+            kwargs.get("worker_init_fn", None)
+        )
         self.other_storages = {}
         self.epoch_number = 0
         self._batch_size = batch_size
@@ -138,12 +141,18 @@ class DataLoader(torch.utils.data.DataLoader):
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
-        self.tensorized_indices_ds = create_tensorized_dataset(
-            indices, batch_size, drop_last, use_ddp, ddp_seed, shuffle
+        self.tensorized_indices_ds = dgl.dataloading.create_tensorized_dataset(
+            indices,
+            batch_size,
+            drop_last,
+            use_ddp,
+            ddp_seed,
+            shuffle,
+            kwargs.get("persistent_workers", False),
         )
+
         if len(graph.ntypes) <= 1:
             self.cugraph_dgl_dataset = HomogenousBulkSamplerDataset(
-                num_batches=len(self.tensorized_indices_ds),
                 total_number_of_nodes=graph.total_number_of_nodes,
                 edge_dir=self.graph_sampler.edge_dir,
             )
@@ -151,7 +160,6 @@ class DataLoader(torch.utils.data.DataLoader):
             etype_id_to_etype_str_dict = {v: k for k, v in graph._etype_id_dict.items()}
 
             self.cugraph_dgl_dataset = HetrogenousBulkSamplerDataset(
-                num_batches=len(self.tensorized_indices_ds),
                 num_nodes_dict=graph.num_nodes_dict,
                 etype_id_dict=etype_id_to_etype_str_dict,
                 etype_offset_dict=graph._etype_offset_d,
@@ -160,26 +168,26 @@ class DataLoader(torch.utils.data.DataLoader):
             )
 
         if use_ddp:
-            worker_info = torch.utils.data.get_worker_info()
+            rank = torch.distributed.get_rank()
             client = default_client()
-            event = Event("cugraph_dgl_load_mg_graph_event")
-            if worker_info.id == 0:
+            self._graph_creation_event = Event("cugraph_dgl_load_mg_graph_event")
+            if rank == 0:
                 G = create_cugraph_graph_from_edges_dict(
                     edges_dict=graph._edges_dict,
                     etype_id_dict=graph._etype_id_dict,
                     edge_dir=graph_sampler.edge_dir,
                 )
                 client.publish_dataset(cugraph_dgl_mg_graph_ds=G)
-                event.set()
+                self._graph_creation_event.set()
             else:
-                if event.wait(timeout=1000):
-                    G = client.get_dataset(G, "cugraph_dgl_mg_graph_ds")
+                if self._graph_creation_event.wait(timeout=1000):
+                    G = client.get_dataset("cugraph_dgl_mg_graph_ds")
                 else:
                     raise RuntimeError(
-                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {worker_info.id}",
+                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {rank}",
                         "from worker_id 0 failed",
                     )
-            self._rank = worker_info.id
+            self._rank = rank
         else:
             G = create_cugraph_graph_from_edges_dict(
                 edges_dict=graph._edges_dict,
@@ -201,9 +209,6 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
-        _clean_directory(output_dir)
-
-        # Todo: Figure out how to get rank
         rank = self._rank
         bs = BulkSampler(
             output_path=output_dir,
@@ -222,9 +227,19 @@ class DataLoader(torch.utils.data.DataLoader):
         bs.add_batches(batch_df, start_col_name="start", batch_col_name="batch_id")
         bs.flush()
         output_dir = output_dir + f"/rank={rank}/"
-        self.cugraph_dgl_dataset.set_input_directory(output_dir)
+        self.cugraph_dgl_dataset.set_input_files(input_directory=output_dir)
         self.epoch_number = self.epoch_number + 1
         return super().__iter__()
+
+    def __del__(self):
+        if self.use_ddp:
+            torch.distributed.barrier()
+        if self._rank == 0:
+            if self.use_ddp:
+                client = default_client()
+                client.unpublish_dataset("cugraph_dgl_mg_graph_ds")
+                self._graph_creation_event.clear()
+            _clean_directory(self._sampling_output_dir)
 
 
 def get_batch_id_series(n_output_rows: int, batch_size: int):
@@ -246,7 +261,7 @@ def create_batch_df(dataset: torch.Tensor):
         indices_ls.append(b_indices)
 
     batch_id_ar = cp.concatenate(batch_id_ls)
-    indices_ar = cp.asarray(torch.concatenate(indices_ls))
+    indices_ar = cp.asarray(torch.concat(indices_ls))
     batches_df = cudf.DataFrame(
         {
             "start": indices_ar,

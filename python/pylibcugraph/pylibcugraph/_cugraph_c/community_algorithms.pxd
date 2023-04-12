@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,26 +68,26 @@ cdef extern from "cugraph_c/community_algorithms.h":
 
     ###########################################################################
     # louvain
-    ctypedef struct cugraph_heirarchical_clustering_result_t:
+    ctypedef struct cugraph_hierarchical_clustering_result_t:
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_vertices(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_get_vertices(
+            cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_clusters(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_get_clusters(
+            cugraph_hierarchical_clustering_result_t* result
         )
     
-    cdef double cugraph_heirarchical_clustering_result_get_modularity(
-        cugraph_heirarchical_clustering_result_t* result
+    cdef double cugraph_hierarchical_clustering_result_get_modularity(
+        cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef void \
-        cugraph_heirarchical_clustering_result_free(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_hierarchical_clustering_result_free(
+            cugraph_hierarchical_clustering_result_t* result
         )
 
     cdef cugraph_error_code_t \
@@ -97,7 +97,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             size_t max_level,
             double resolution,
             bool_t do_expensive_check,
-            cugraph_heirarchical_clustering_result_t** result,
+            cugraph_hierarchical_clustering_result_t** result,
             cugraph_error_t** error
         )
     
@@ -112,3 +112,105 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_induced_subgraph_result_t** result,
             cugraph_error_t** error
         )
+    
+    ###########################################################################
+    # ECG
+    cdef cugraph_error_code_t \
+        cugraph_ecg(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            double min_weight,
+            size_t ensemble_size,
+            bool_t do_expensive_check,
+            cugraph_hierarchical_clustering_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    ###########################################################################
+    # Clustering
+    ctypedef struct cugraph_clustering_result_t:
+        pass
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_clustering_result_get_vertices(
+            cugraph_clustering_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_clustering_result_get_clusters(
+            cugraph_clustering_result_t* result
+        )
+    
+    cdef void \
+        cugraph_clustering_result_free(
+            cugraph_clustering_result_t* result
+        )
+
+    # Balanced cut clustering
+    cdef cugraph_error_code_t \
+        cugraph_balanced_cut_clustering(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t n_clusters,
+            size_t n_eigenvectors,
+            double evs_tolerance,
+            int evs_max_iterations,
+            double k_means_tolerance,
+            int k_means_max_iterations,
+            bool_t do_expensive_check,
+            cugraph_clustering_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    # Spectral modularity maximization
+    cdef cugraph_error_code_t \
+        cugraph_spectral_modularity_maximization(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t n_clusters,
+            size_t n_eigenvectors,
+            double evs_tolerance,
+            int evs_max_iterations,
+            double k_means_tolerance,
+            int k_means_max_iterations,
+            bool_t do_expensive_check,
+            cugraph_clustering_result_t** result,
+            cugraph_error_t** error
+        )
+    
+    # Analyze clustering modularity
+    cdef cugraph_error_code_t \
+        cugraph_analyze_clustering_modularity(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t n_clusters,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* clusters,
+            double* score,
+            cugraph_error_t** error
+        )
+    
+    # Analyze clustering edge cut
+    cdef cugraph_error_code_t \
+        cugraph_analyze_clustering_edge_cut(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t n_clusters,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* clusters,
+            double* score,
+            cugraph_error_t** error
+        )
+    
+    # Analyze clustering ratio cut
+    cdef cugraph_error_code_t \
+        cugraph_analyze_clustering_ratio_cut(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t n_clusters,
+            const cugraph_type_erased_device_array_view_t* vertices,
+            const cugraph_type_erased_device_array_view_t* clusters,
+            double* score,
+            cugraph_error_t** error
+        )
+

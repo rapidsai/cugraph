@@ -57,6 +57,19 @@ class EXPERIMENTAL__BulkSampler:
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
+
+        max_batches_per_partition = seeds_per_call // batch_size
+        if batches_per_partition > max_batches_per_partition:
+            import warnings
+
+            warnings.warn(
+                f"batches_per_partition ({batches_per_partition}) is >"
+                f" seeds_per_call / batch size ({max_batches_per_partition})"
+                "; automatically setting batches_per_partition to "
+                "{max_batches_per_partition}"
+            )
+            batches_per_partition = max_batches_per_partition
+
         self.__batch_size = batch_size
         self.__output_path = output_path
         self.__graph = graph
@@ -142,7 +155,11 @@ class EXPERIMENTAL__BulkSampler:
             self.__batches = df
         else:
             if isinstance(df, type(self.__batches)):
-                self.__batches = self.__batches.append(df)
+                if isinstance(df, dask_cudf.DataFrame):
+                    concat_fn = dask_cudf.concat
+                else:
+                    concat_fn = cudf.concat
+                self.__batches = concat_fn([self.__batches, df])
             else:
                 raise TypeError(
                     "Provided batches must match the dataframe"
@@ -158,6 +175,7 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
+        self.__batches.reset_index(drop=True)
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
@@ -165,17 +183,19 @@ class EXPERIMENTAL__BulkSampler:
         min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
-        partitions_per_call = self.seeds_per_call // partition_size
+        partitions_per_call = (
+            self.seeds_per_call + partition_size - 1
+        ) // partition_size
         npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
 
-        sample_fn = (
-            cugraph.uniform_neighbor_sample
-            if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph)
-            else cugraph.dask.uniform_neighbor_sample
-        )
+        if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph):
+            sample_fn = cugraph.uniform_neighbor_sample
+        else:
+            sample_fn = cugraph.dask.uniform_neighbor_sample
+            self.__sample_call_args["_multiple_clients"] = True
 
         samples = sample_fn(
             self.__graph,
@@ -209,17 +229,21 @@ class EXPERIMENTAL__BulkSampler:
             ix_partition_end_inclusive = (
                 min_batch_id + (partition_k + 1) * self.batches_per_partition - 1
             )
+            f = (samples.batch_id >= ix_partition_start_inclusive) & (
+                samples.batch_id <= ix_partition_end_inclusive
+            )
+            if len(samples[f]) == 0:
+                break
+
+            ix_partition_end_inclusive = samples[f].batch_id.max()
+            if hasattr(ix_partition_end_inclusive, "compute"):
+                ix_partition_end_inclusive = ix_partition_end_inclusive.compute()
+            ix_partition_end_inclusive = int(ix_partition_end_inclusive)
 
             inner_path = os.path.join(
                 outer_partition_path,
                 f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}"
                 ".parquet",
             )
-
-            f = (samples.batch_id >= ix_partition_start_inclusive) & (
-                samples.batch_id <= ix_partition_end_inclusive
-            )
-            if len(samples[f]) == 0:
-                break
 
             samples[f].to_parquet(inner_path, index=False)

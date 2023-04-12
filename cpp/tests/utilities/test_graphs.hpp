@@ -21,8 +21,12 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/legacy/functions.hpp>  // legacy coo_to_csr
 
+#include <raft/random/rng_state.hpp>
+
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
+
+#include <memory>
 
 namespace cugraph {
 namespace test {
@@ -170,21 +174,19 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                double a,
                double b,
                double c,
-               uint64_t seed,
+               uint64_t base_seed,
                bool undirected,
                bool scramble_vertex_ids,
-               size_t base_vertex_id  = 0,
-               bool multi_gpu_usecase = false)
+               size_t base_vertex_id = 0)
     : detail::TranslateGraph_Usecase(base_vertex_id),
       scale_(scale),
       edge_factor_(edge_factor),
       a_(a),
       b_(b),
       c_(c),
-      seed_(seed),
+      base_seed_(base_seed),
       undirected_(undirected),
-      scramble_vertex_ids_(scramble_vertex_ids),
-      multi_gpu_usecase_(multi_gpu_usecase)
+      scramble_vertex_ids_(scramble_vertex_ids)
   {
   }
 
@@ -210,38 +212,24 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     // (https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management), we
     // can reduce the temporary memory requirement to (1 / num_partitions) * (original data size)
     size_t constexpr num_partitions_per_gpu = 2;
+    size_t num_partitions =
+      num_partitions_per_gpu * static_cast<size_t>(multi_gpu ? handle.get_comms().get_size() : 1);
 
-    // 1. calculate # partitions, # edges to generate in each partition, and partition vertex ranges
-
-    std::vector<size_t> partition_ids{};
-    size_t num_partitions{};
-
-    if (multi_gpu_usecase_) {
-      auto& comm           = handle.get_comms();
-      num_partitions       = comm.get_size() * num_partitions_per_gpu;
-      auto const comm_rank = comm.get_rank();
-
-      partition_ids.resize(multi_gpu ? num_partitions_per_gpu : num_partitions);
-
-      std::iota(partition_ids.begin(),
-                partition_ids.end(),
-                multi_gpu ? static_cast<size_t>(comm_rank) * num_partitions_per_gpu : size_t{0});
-    } else {
-      num_partitions = num_partitions_per_gpu;
-      partition_ids.resize(num_partitions);
-      std::iota(partition_ids.begin(), partition_ids.end(), size_t{0});
-    }
+    // 1. calculate # edges to generate in each partition, and partition vertex ranges
 
     vertex_t number_of_vertices = static_cast<vertex_t>(size_t{1} << scale_);
     size_t number_of_edges =
       static_cast<size_t>(static_cast<size_t>(number_of_vertices) * edge_factor_);
 
-    std::vector<size_t> partition_edge_counts(partition_ids.size());
-    std::vector<vertex_t> partition_vertex_firsts(partition_ids.size());
-    std::vector<vertex_t> partition_vertex_lasts(partition_ids.size());
+    std::array<size_t, num_partitions_per_gpu> partition_edge_counts{};
+    std::array<vertex_t, num_partitions_per_gpu> partition_vertex_firsts{};
+    std::array<vertex_t, num_partitions_per_gpu> partition_vertex_lasts{};
 
-    for (size_t i = 0; i < partition_ids.size(); ++i) {
-      auto id = partition_ids[i];
+    for (size_t i = 0; i < num_partitions_per_gpu; ++i) {
+      auto id =
+        (multi_gpu ? num_partitions_per_gpu * static_cast<size_t>(handle.get_comms().get_rank())
+                   : size_t{0}) +
+        i;
 
       partition_edge_counts[i] = number_of_edges / num_partitions +
                                  (id < number_of_edges % num_partitions ? size_t{1} : size_t{0});
@@ -260,25 +248,26 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
 
     // 2. generate edges
 
+    raft::random::RngState rng_state{
+      base_seed_ + static_cast<uint64_t>(multi_gpu ? handle.get_comms().get_rank() : 0)};
+
     std::vector<rmm::device_uvector<vertex_t>> src_partitions{};
     std::vector<rmm::device_uvector<vertex_t>> dst_partitions{};
     auto weight_partitions = test_weighted
                                ? std::make_optional<std::vector<rmm::device_uvector<weight_t>>>()
                                : std::nullopt;
-    src_partitions.reserve(partition_ids.size());
-    dst_partitions.reserve(partition_ids.size());
-    if (weight_partitions) { (*weight_partitions).reserve(partition_ids.size()); }
-    for (size_t i = 0; i < partition_ids.size(); ++i) {
-      auto id = partition_ids[i];
-
+    src_partitions.reserve(num_partitions_per_gpu);
+    dst_partitions.reserve(num_partitions_per_gpu);
+    if (weight_partitions) { (*weight_partitions).reserve(num_partitions_per_gpu); }
+    for (size_t i = 0; i < num_partitions_per_gpu; ++i) {
       auto [tmp_src_v, tmp_dst_v] =
         cugraph::generate_rmat_edgelist<vertex_t>(handle,
+                                                  rng_state,
                                                   scale_,
                                                   partition_edge_counts[i],
                                                   a_,
                                                   b_,
                                                   c_,
-                                                  seed_ + id,
                                                   undirected_ ? true : false);
 
       std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
@@ -291,7 +280,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                              tmp_weights_v->size(),
                                              weight_t{0.0},
                                              weight_t{1.0},
-                                             seed_ + num_partitions + id);
+                                             rng_state);
       }
 
       translate(handle, tmp_src_v, tmp_dst_v);
@@ -306,16 +295,18 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
         std::tie(store_transposed ? tmp_dst_v : tmp_src_v,
                  store_transposed ? tmp_src_v : tmp_dst_v,
                  tmp_weights_v,
+                 std::ignore,
                  std::ignore) =
-          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
-                                                                                      vertex_t,
-                                                                                      weight_t,
-                                                                                      int32_t>(
-            handle,
-            store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
-            store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
-            std::move(tmp_weights_v),
-            std::nullopt);
+          cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+            vertex_t,
+            vertex_t,
+            weight_t,
+            int32_t>(handle,
+                     store_transposed ? std::move(tmp_dst_v) : std::move(tmp_src_v),
+                     store_transposed ? std::move(tmp_src_v) : std::move(tmp_dst_v),
+                     std::move(tmp_weights_v),
+                     std::nullopt,
+                     std::nullopt);
       }
 
       src_partitions.push_back(std::move(tmp_src_v));
@@ -378,7 +369,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   double a_{};
   double b_{};
   double c_{};
-  uint64_t seed_{};
+  uint64_t base_seed_{};
   bool undirected_{};
   bool scramble_vertex_ids_{};
   bool multi_gpu_usecase_{};
@@ -632,13 +623,20 @@ construct_graph(raft::handle_t const& handle,
     edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
     edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, edge_weights, std::ignore, renumber_map) = cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
+  std::tie(graph, edge_weights, std::ignore, std::ignore, renumber_map) =
+    cugraph::create_graph_from_edgelist<vertex_t,
+                                        edge_t,
+                                        weight_t,
+                                        edge_t,
+                                        int32_t,
+                                        store_transposed,
+                                        multi_gpu>(
       handle,
       std::move(d_vertices_v),
       std::move(d_src_v),
       std::move(d_dst_v),
       std::move(d_weights_v),
+      std::nullopt,
       std::nullopt,
       cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
       renumber);
