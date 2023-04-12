@@ -13,18 +13,15 @@
 
 from typing import Optional, Tuple
 
+from pylibcugraphops.pytorch.operators import mha_gat_n2n as GATConvAgg
+
 from cugraph.utilities.utils import import_optional
 
 from .base import BaseConv
 
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
-torch_geometric = import_optional("torch_geometric")
 
-try:
-    from pylibcugraphops.pytorch.operators import mha_gat_n2n as GATConvAgg
-except ImportError:
-    pass
 
 
 class GATConv(BaseConv):  # pragma: no cover
@@ -72,7 +69,8 @@ class GATConv(BaseConv):  # pragma: no cover
         torch.nn.init.xavier_normal_(
             self.att.view(2, self.heads, self.out_channels), gain=gain
         )
-        torch_geometric.nn.inits.zeros(self.bias)
+        if self.bias is not None:
+            self.bias.data.fill_(0.)
 
     def forward(
         self,
