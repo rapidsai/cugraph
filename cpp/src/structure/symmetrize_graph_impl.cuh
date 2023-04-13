@@ -205,7 +205,7 @@ symmetrize_graph_impl(
                                           std::move(edgelist_weights),
                                           std::nullopt,
                                           std::nullopt,
-                                          graph_properties_t{is_multigraph, true},
+                                          graph_properties_t{true, is_multigraph},
                                           renumber);
 
   return std::make_tuple(
