@@ -21,6 +21,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <detail/graph_partition_utils.cuh>
 
 #include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
@@ -118,22 +119,34 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     }
 
   } else {
-    if (given_vertices) {
-      mg_sample_buffer = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
-        handle, std::move((*given_vertices)));
+    size_t mg_buffer_size = 0;
+    vertex_t start_idx;
 
+    if (given_vertices) {
+      start_idx = vertex_t{0};
+      if constexpr (multi_gpu) {
+        auto const comm_rank = handle.get_comms().get_rank();
+        auto const comm_size = handle.get_comms().get_size();
+
+        auto recvcounts =
+          host_scalar_allgather(handle.get_comms(), (*given_vertices).size(), handle.get_stream());
+        std::vector<size_t> displacements(recvcounts.size(), size_t{0});
+        std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
+
+        start_idx = displacements[comm_rank];
+      }
+      mg_buffer_size = (*given_vertices).size();
     } else {
       auto local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first();
       auto local_vertex_partition_range_last  = graph_view.local_vertex_partition_range_last();
 
-      mg_sample_buffer = rmm::device_uvector<vertex_t>(
-        local_vertex_partition_range_last - local_vertex_partition_range_first,
-        handle.get_stream());
-      thrust::sequence(handle.get_thrust_policy(),
-                       mg_sample_buffer.begin(),
-                       mg_sample_buffer.end(),
-                       local_vertex_partition_range_first);
+      mg_buffer_size = local_vertex_partition_range_last - local_vertex_partition_range_first;
+      start_idx      = local_vertex_partition_range_first;
     }
+
+    mg_sample_buffer = rmm::device_uvector<vertex_t>(mg_buffer_size, handle.get_stream());
+    thrust::sequence(
+      handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end(), start_idx);
 
     {  // random shuffle (use this instead of thrust::shuffle to use raft::random::RngState)
       rmm::device_uvector<float> random_numbers(mg_sample_buffer.size(), handle.get_stream());
@@ -201,7 +214,19 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
   if constexpr (multi_gpu) {
     mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(mg_sample_buffer), graph_view.vertex_partition_range_lasts());
+      handle,
+      std::move(mg_sample_buffer),
+      given_vertices ? cugraph::partition_manager::compute_vertex_partition_range_lasts(
+                         handle, static_cast<vertex_t>((*given_vertices).size()))
+                     : graph_view.vertex_partition_range_lasts());
+
+    if (given_vertices) {
+      thrust::gather(handle.get_thrust_policy(),
+                     mg_sample_buffer.begin(),
+                     mg_sample_buffer.end(),
+                     (*given_vertices).begin(),
+                     mg_sample_buffer.begin());
+    }
   }
 
   if (sort_vertices) {
