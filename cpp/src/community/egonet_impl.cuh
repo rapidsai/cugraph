@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <utilities/graph_utils.cuh>
 

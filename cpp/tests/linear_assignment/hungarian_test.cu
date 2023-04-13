@@ -55,8 +55,7 @@ __global__ void generate_random(curandState* state, int n, T* data, int32_t uppe
   state[first] = local_state;
 }
 
-struct HungarianTest : public ::testing::Test {
-};
+struct HungarianTest : public ::testing::Test {};
 
 TEST_F(HungarianTest, Bipartite4x4)
 {
@@ -221,7 +220,7 @@ TEST_F(HungarianTest, Dense4x6)
   int32_t num_rows = 4;
   int32_t num_cols = 6;
   float cost[]     = {0,  16, 1,    0,    90, 100, 33, 45, 0,    4,    90, 100,
-                  22, 0,  1000, 2000, 90, 100, 2,  0,  3000, 4000, 90, 100};
+                      22, 0,  1000, 2000, 90, 100, 2,  0,  3000, 4000, 90, 100};
 
   float min_cost = 2;
 
@@ -248,7 +247,7 @@ TEST_F(HungarianTest, Dense6x4)
   int32_t num_rows = 6;
   int32_t num_cols = 4;
   float cost[]     = {0,  16, 1,    0,    33, 45,  0,   4,   90, 100, 110,  120,
-                  22, 0,  1000, 2000, 90, 100, 110, 120, 2,  0,   3000, 4000};
+                      22, 0,  1000, 2000, 90, 100, 110, 120, 2,  0,   3000, 4000};
 
   float min_cost = 2;
 

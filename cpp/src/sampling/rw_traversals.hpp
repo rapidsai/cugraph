@@ -72,7 +72,7 @@ struct device_const_vector_view {
   {
   }
 
-  device_const_vector_view(device_const_vector_view const& other) = delete;
+  device_const_vector_view(device_const_vector_view const& other)            = delete;
   device_const_vector_view& operator=(device_const_vector_view const& other) = delete;
 
   device_const_vector_view(device_const_vector_view&& other)

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//#define TIMING
+// #define TIMING
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>

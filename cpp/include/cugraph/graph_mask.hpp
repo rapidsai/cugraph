@@ -128,7 +128,7 @@ struct graph_mask_view_t {
   ~graph_mask_view_t()                            = default;
   graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
 
-  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept = default;
+  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept   = default;
   graph_mask_view_t& operator=(graph_mask_view_t const& other) = default;
 
   /**
@@ -231,7 +231,7 @@ struct graph_mask_t {
   {
   }
 
-  graph_mask_t& operator=(graph_mask_t&&) noexcept = default;
+  graph_mask_t& operator=(graph_mask_t&&) noexcept   = default;
   graph_mask_t& operator=(graph_mask_t const& other) = default;
 
   /**

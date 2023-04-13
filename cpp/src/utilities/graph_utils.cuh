@@ -41,7 +41,7 @@
 namespace cugraph {
 namespace detail {
 
-//#define DEBUG 1
+// #define DEBUG 1
 #define CUDA_MAX_BLOCKS         65535
 #define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
 #define US

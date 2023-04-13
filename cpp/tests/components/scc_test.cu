@@ -222,8 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
     Usecase("test/datasets/cage6.mtx")  // DG "small" enough to meet SCC GPU memory requirements
     ));
 
-struct SCCSmallTest : public ::testing::Test {
-};
+struct SCCSmallTest : public ::testing::Test {};
 
 // FIXME: we should take advantage of gtest parameterization over copy-and-paste reuse.
 //

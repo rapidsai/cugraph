@@ -27,8 +27,7 @@
 
 #include <gtest/gtest.h>
 
-struct GenerateErdosRenyiTest : public ::testing::Test {
-};
+struct GenerateErdosRenyiTest : public ::testing::Test {};
 
 template <typename vertex_t>
 void test_symmetric(std::vector<vertex_t>& h_src_v, std::vector<vertex_t>& h_dst_v)

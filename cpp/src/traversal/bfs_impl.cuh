@@ -76,7 +76,7 @@ struct e_op_t {
       if (*(prev_visited_flags + (dst / (sizeof(uint32_t) * 8))) &
           mask) {  // check if unvisited in previous iterations
         push = false;
-      } else {  // check if unvisited in this iteration as well
+      } else {     // check if unvisited in this iteration as well
         auto old = atomicOr(visited_flags + (dst / (sizeof(uint32_t) * 8)), mask);
         push     = ((old & mask) == 0);
       }
