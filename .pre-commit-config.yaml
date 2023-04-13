@@ -32,7 +32,7 @@ repos:
         additional_dependencies:
           - flake8==6.0.0
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v11.1.0
+    rev: v16.0.1
     hooks:
       - id: clang-format
         exclude: |
