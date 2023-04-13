@@ -23,7 +23,6 @@ torch = import_optional("torch")
 nn = import_optional("torch.nn")
 
 
-
 class GATConv(BaseConv):  # pragma: no cover
     r"""The graph attentional operator from the `"Graph Attention Networks"
     <https://arxiv.org/abs/1710.10903>`_ paper.
@@ -70,7 +69,7 @@ class GATConv(BaseConv):  # pragma: no cover
             self.att.view(2, self.heads, self.out_channels), gain=gain
         )
         if self.bias is not None:
-            self.bias.data.fill_(0.)
+            self.bias.data.fill_(0.0)
 
     def forward(
         self,

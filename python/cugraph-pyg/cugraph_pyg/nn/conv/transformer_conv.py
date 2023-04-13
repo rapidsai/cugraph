@@ -30,7 +30,7 @@ class TransformerConv(BaseConv):
 
     def __init__(
         self,
-        in_channels: int,
+        in_channels: Union[int, Tuple[int, int]],
         out_channels: int,
         heads: int = 1,
         concat: bool = True,
@@ -56,7 +56,7 @@ class TransformerConv(BaseConv):
         if edge_dim is not None:
             self.lin_edge = nn.Linear(edge_dim, heads * out_channels, bias=False)
         else:
-            self.lin_edge = self.register_parameter('lin_edge', None)
+            self.lin_edge = self.register_parameter("lin_edge", None)
 
         self.reset_parameters()
 
@@ -67,24 +67,39 @@ class TransformerConv(BaseConv):
         if self.lin_edge is not None:
             self.lin_edge.reset_parameters()
 
-    def forward(self, x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-                csc: Tuple[torch.Tensor, torch.Tensor, int],
-                edge_attr: Optional[torch.Tensor] = None,
-                max_num_neighbors: Optional[int] = None):
-        graph = self.get_cugraph(csc, max_num_neighbors)
+    def forward(
+        self,
+        x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        csc: Tuple[torch.Tensor, torch.Tensor, int],
+        edge_attr: Optional[torch.Tensor] = None,
+        max_num_neighbors: Optional[int] = None,
+    ):
+        bipartite = not isinstance(x, torch.Tensor)
+        graph = self.get_cugraph(csc, max_num_neighbors, bipartite=bipartite)
 
-        if isinstance(x, torch.Tensor):
+        if not bipartite:
             x = (x, x)
 
         query = self.lin_query(x[1])
         key = self.lin_key(x[0])
         value = self.lin_value(x[0])
 
-        out = TransformerConvAgg(key, query, value, graph, self.heads, self.concat,
-                                 edge_emb=edge_attr, norm_by_dim=False, score_bias=None)
+        out = TransformerConvAgg(
+            key,
+            query,
+            value,
+            graph,
+            self.heads,
+            self.concat,
+            edge_emb=edge_attr,
+            norm_by_dim=False,
+            score_bias=None,
+        )
 
         return out
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels}, heads={self.heads})')
+        return (
+            f"{self.__class__.__name__}({self.in_channels}, "
+            f"{self.out_channels}, heads={self.heads})"
+        )

@@ -21,6 +21,7 @@ torch_geometric = import_optional("torch_geometric")
 
 try:  # pragma: no cover
     from pylibcugraphops.pytorch import (
+        BipartiteCSC,
         SampledCSC,
         SampledHeteroCSC,
         StaticCSC,
@@ -92,6 +93,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         self,
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         max_num_neighbors: Optional[int] = None,
+        bipartite: Optional[bool] = False,
     ) -> Any:
         r"""Constructs a :obj:`cugraph` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
@@ -115,6 +117,9 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
                 f"based processing (got CPU tensor)"
             )
 
+        if bipartite:
+            return BipartiteCSC(colptr, row, num_src_nodes)
+
         if num_src_nodes != colptr.numel() - 1:  # Bipartite graph:
             if max_num_neighbors is None:
                 max_num_neighbors = int((colptr[1:] - colptr[:-1]).max())
@@ -129,6 +134,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         edge_type: torch.Tensor,
         num_edge_types: Optional[int] = None,
         max_num_neighbors: Optional[int] = None,
+        bipartite: Optional[bool] = False,
     ) -> Any:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
@@ -154,6 +160,9 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
 
         row, colptr, num_src_nodes = csc
         edge_type = edge_type.int()
+
+        if bipartite:
+            raise NotImplementedError
 
         if num_src_nodes != colptr.numel() - 1:  # Bipartite graph:
             if max_num_neighbors is None:
