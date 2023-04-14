@@ -2,6 +2,7 @@
 #
 # Before first use: `pre-commit install`
 # To run: `pre-commit run --all-files`
+exclude: '^thirdparty'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -38,7 +39,7 @@ repos:
         exclude: |
           (?x)^(
             cpp/libcugraph_etl|
-            cpp/tests/c_api/.*
+            cpp/tests/c_api
           )
         types_or: [c, c++, cuda]
         args: ["-fallback-style=none", "-style=file", "-i"]
