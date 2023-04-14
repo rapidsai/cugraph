@@ -34,7 +34,7 @@ except ImportError:
 
 
 class BaseConv(torch.nn.Module):  # pragma: no cover
-    r"""An abstract base class for implementing cugraph message passing layers."""
+    r"""An abstract base class for implementing cugraph-ops message passing layers."""
 
     def __init__(self):
         super().__init__()
@@ -58,7 +58,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         Tuple[Tuple[torch.Tensor, torch.Tensor, int], torch.Tensor],
     ]:
         r"""Returns a CSC representation of an :obj:`edge_index` tensor to be
-        used as input to a :class:`CuGraphModule`.
+        used as input to cugraph-ops conv layers.
 
         Args:
             edge_index (torch.Tensor): The edge indices.
@@ -93,21 +93,23 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         self,
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         max_num_neighbors: Optional[int] = None,
-        bipartite: Optional[bool] = False,
+        bipartite: bool = False,
     ) -> Any:
-        r"""Constructs a :obj:`cugraph` graph object from CSC representation.
+        r"""Constructs a :obj:`cugraph-ops` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
 
         Args:
             csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
                 representation of a graph, given as a tuple of
                 :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`CuGraphModule.to_csc` method to convert an
-                :obj:`edge_index` representation to the desired format.
+                :meth:`to_csc` method to convert an :obj:`edge_index`
+                representation to the desired format.
             max_num_neighbors (int, optional): The maximum number of neighbors
                 of a target node. It is only effective when operating in a
                 bipartite graph. When not given, will be computed on-the-fly,
                 leading to slightly worse performance. (default: :obj:`None`)
+            bipartite (bool): If set to :obj:`True`, will create the bipartite
+                structure in cugraph-ops. (default: :obj:`False`)
         """
         row, colptr, num_src_nodes = csc
 
@@ -120,7 +122,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         if bipartite:
             return BipartiteCSC(colptr, row, num_src_nodes)
 
-        if num_src_nodes != colptr.numel() - 1:  # Bipartite graph:
+        if num_src_nodes != colptr.numel() - 1:
             if max_num_neighbors is None:
                 max_num_neighbors = int((colptr[1:] - colptr[:-1]).max())
 
@@ -134,7 +136,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         edge_type: torch.Tensor,
         num_edge_types: Optional[int] = None,
         max_num_neighbors: Optional[int] = None,
-        bipartite: Optional[bool] = False,
+        bipartite: bool = False,
     ) -> Any:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
@@ -144,8 +146,8 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
             csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
                 representation of a graph, given as a tuple of
                 :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`CuGraphModule.to_csc` method to convert an
-                :obj:`edge_index` representation to the desired format.
+                :meth:`to_csc` method to convert an :obj:`edge_index`
+                representation to the desired format.
             edge_type (torch.Tensor): The edge type.
             num_edge_types (int, optional): The maximum number of edge types.
                 When not given, will be computed on-the-fly, leading to
@@ -154,6 +156,8 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
                 of a target node. It is only effective when operating in a
                 bipartite graph. When not given, will be computed on-the-fly,
                 leading to slightly worse performance. (default: :obj:`None`)
+            bipartite (bool): If set to :obj:`True`, will create the bipartite
+                structure in cugraph-ops. (default: :obj:`False`)
         """
         if num_edge_types is None:
             num_edge_types = int(edge_type.max()) + 1
@@ -164,7 +168,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         if bipartite:
             raise NotImplementedError
 
-        if num_src_nodes != colptr.numel() - 1:  # Bipartite graph:
+        if num_src_nodes != colptr.numel() - 1:
             if max_num_neighbors is None:
                 max_num_neighbors = int((colptr[1:] - colptr[:-1]).max())
 
@@ -176,9 +180,8 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
 
     def forward(
         self,
-        x: torch.Tensor,
+        x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         csc: Tuple[torch.Tensor, torch.Tensor, int],
-        max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
         r"""Runs the forward pass of the module.
 
@@ -187,12 +190,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
             csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
                 representation of a graph, given as a tuple of
                 :obj:`(row, colptr, num_src_nodes)`. Use the
-                :meth:`CuGraphModule.to_csc` method to convert an
-                :obj:`edge_index` representation to the desired format.
-            max_num_neighbors (int, optional): The maximum number of neighbors
-                of a target node. It is only effective when operating in a
-                bipartite graph. When not given, the value will be computed
-                on-the-fly, leading to slightly worse performance.
-                (default: :obj:`None`)
+                :meth:`to_csc` method to convert an :obj:`edge_index`
+                representation to the desired format.
         """
         raise NotImplementedError

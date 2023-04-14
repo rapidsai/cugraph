@@ -26,6 +26,68 @@ class TransformerConv(BaseConv):
     r"""The graph transformer operator from the `"Masked Label Prediction:
     Unified Message Passing Model for Semi-Supervised Classification"
     <https://arxiv.org/abs/2009.03509>`_ paper
+
+    .. math::
+        \mathbf{x}^{\prime}_i = \mathbf{W}_1 \mathbf{x}_i +
+        \sum_{j \in \mathcal{N}(i)} \alpha_{i,j} \mathbf{W}_2 \mathbf{x}_{j},
+
+    where the attention coefficients :math:`\alpha_{i,j}` are computed via
+    multi-head dot product attention:
+
+    .. math::
+        \alpha_{i,j} = \textrm{softmax} \left(
+        \frac{(\mathbf{W}_3\mathbf{x}_i)^{\top} (\mathbf{W}_4\mathbf{x}_j)}
+        {\sqrt{d}} \right)
+
+    Args:
+        in_channels (int or tuple): Size of each input sample, or :obj:`-1` to
+            derive the size from the first input(s) to the forward method.
+            A tuple corresponds to the sizes of source and target
+            dimensionalities.
+        out_channels (int): Size of each output sample.
+        heads (int, optional): Number of multi-head-attentions.
+            (default: :obj:`1`)
+        concat (bool, optional): If set to :obj:`False`, the multi-head
+            attentions are averaged instead of concatenated.
+            (default: :obj:`True`)
+        beta (bool, optional): If set, will combine aggregation and
+            skip information via
+
+            .. math::
+                \mathbf{x}^{\prime}_i = \beta_i \mathbf{W}_1 \mathbf{x}_i +
+                (1 - \beta_i) \underbrace{\left(\sum_{j \in \mathcal{N}(i)}
+                \alpha_{i,j} \mathbf{W}_2 \vec{x}_j \right)}_{=\mathbf{m}_i}
+
+            with :math:`\beta_i = \textrm{sigmoid}(\mathbf{w}_5^{\top}
+            [ \mathbf{W}_1 \mathbf{x}_i, \mathbf{m}_i, \mathbf{W}_1
+            \mathbf{x}_i - \mathbf{m}_i ])` (default: :obj:`False`)
+        edge_dim (int, optional): Edge feature dimensionality (in case
+            there are any). Edge features are added to the keys after
+            linear transformation, that is, prior to computing the
+            attention dot product. They are also added to final values
+            after the same linear transformation. The model is:
+
+            .. math::
+                \mathbf{x}^{\prime}_i = \mathbf{W}_1 \mathbf{x}_i +
+                \sum_{j \in \mathcal{N}(i)} \alpha_{i,j} \left(
+                \mathbf{W}_2 \mathbf{x}_{j} + \mathbf{W}_6 \mathbf{e}_{ij}
+                \right),
+
+            where the attention coefficients :math:`\alpha_{i,j}` are now
+            computed via:
+
+            .. math::
+                \alpha_{i,j} = \textrm{softmax} \left(
+                \frac{(\mathbf{W}_3\mathbf{x}_i)^{\top}
+                (\mathbf{W}_4\mathbf{x}_j + \mathbf{W}_6 \mathbf{e}_{ij})}
+                {\sqrt{d}} \right)
+
+            (default :obj:`None`)
+        bias (bool, optional): If set to :obj:`False`, the layer will not learn
+            an additive bias. (default: :obj:`True`)
+        root_weight (bool, optional): If set to :obj:`False`, the layer will
+            not add the transformed root node features to the output and the
+            option  :attr:`beta` is set to :obj:`False`. (default: :obj:`True`)
     """
 
     def __init__(
@@ -93,6 +155,18 @@ class TransformerConv(BaseConv):
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         edge_attr: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        r"""Runs the forward pass of the module.
+
+        Args:
+            x (torch.Tensor or tuple): The node features. Can be a tuple of
+                tensors denoting source and destination node features.
+            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
+                representation of a graph, given as a tuple of
+                :obj:`(row, colptr, num_src_nodes)`. Use the
+                :meth:`to_csc` method to convert an :obj:`edge_index`
+                representation to the desired format.
+            edge_attr: (torch.Tensor, optional) The edge features.
+        """
         bipartite = not isinstance(x, torch.Tensor)
         graph = self.get_cugraph(csc, bipartite=bipartite)
 
