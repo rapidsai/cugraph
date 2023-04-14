@@ -305,9 +305,7 @@ def test_random_walks_nx(graph_file):
         create_using=nx.DiGraph(),
     )
     max_depth = random.randint(2, 10)
-    path_data, seeds = calc_random_walks(
-        Gnx, max_depth=max_depth, use_padding=True
-    )
+    path_data, seeds = calc_random_walks(Gnx, max_depth=max_depth, use_padding=True)
 
     check_random_walks_padded(Gnx, path_data, seeds, max_depth)
 
