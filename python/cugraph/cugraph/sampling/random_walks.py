@@ -59,13 +59,14 @@ def random_walks(
     either a padded or a coalesced result. For the padded case, vertices
     with no outgoing edges will be padded with -1.
 
-    When 'use_padding' is turned OFF, 'random_walks' returns a coalesced
+    When 'use_padding' is 'False', 'random_walks' returns a coalesced
     result which is a compressed version of the padded one. In the padded
     form, sources with no out_going edges are padded with -1s in the
     'vertex_paths' array and their corresponding edges('edge_weight_paths')
-    with 0.0s (given 'legacy_result_type' is turned ON). If 'legacy_result_type'
-    is turned OFF, 'random_walks' returns padded results (vertex_paths,
+    with 0.0s (when 'legacy_result_type' is 'True'). If 'legacy_result_type'
+    is 'False', 'random_walks' returns padded results (vertex_paths,
     edge_weight_paths) but instead of 'sizes = None', returns the 'max_path_lengths'.
+    When 'legacy_result_type' is 'False', the arhument 'use_padding' is ignored.
 
     parameters
     ----------
@@ -109,7 +110,7 @@ def random_walks(
         The path sizes in case of 'coalesced' paths or None if 'padded'.
     or
     max_path_length : int
-        The maximum path length if 'legacy_result_type' is turned off
+        The maximum path length if 'legacy_result_type' is 'False'
 
     Examples
     --------
@@ -123,9 +124,9 @@ def random_walks(
 
     if legacy_result_type:
         warning_msg = (
-            "Coalesced path results is deprecated and will no longer be "
-            "supported in the next releases. only padded paths will be "
-            "returned instead"
+            "Coalesced path results, returned when setting legacy_result_type=True, "
+            "is deprecated and will no longer be supported in the next releases. "
+            "only padded paths will be returned instead"
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
