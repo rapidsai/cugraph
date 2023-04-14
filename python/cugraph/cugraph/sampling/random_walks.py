@@ -47,7 +47,7 @@ def uniform_random_walks(
 
 
 def random_walks(
-    G: Graph,
+    G: Union[Graph, "networkx.Graph"],
     random_walks_type: str = "uniform",
     start_vertices: Union[int, list, cudf.Series, cudf.DataFrame] = None,
     max_depth: int = None,
