@@ -92,8 +92,8 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
     def get_cugraph(
         self,
         csc: Tuple[torch.Tensor, torch.Tensor, int],
-        max_num_neighbors: Optional[int] = None,
         bipartite: bool = False,
+        max_num_neighbors: Optional[int] = None,
     ) -> Any:
         r"""Constructs a :obj:`cugraph-ops` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
@@ -104,12 +104,12 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
                 :obj:`(row, colptr, num_src_nodes)`. Use the
                 :meth:`to_csc` method to convert an :obj:`edge_index`
                 representation to the desired format.
+            bipartite (bool): If set to :obj:`True`, will create the bipartite
+                structure in cugraph-ops. (default: :obj:`False`)
             max_num_neighbors (int, optional): The maximum number of neighbors
                 of a target node. It is only effective when operating in a
                 bipartite graph. When not given, will be computed on-the-fly,
                 leading to slightly worse performance. (default: :obj:`None`)
-            bipartite (bool): If set to :obj:`True`, will create the bipartite
-                structure in cugraph-ops. (default: :obj:`False`)
         """
         row, colptr, num_src_nodes = csc
 
@@ -135,8 +135,8 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         edge_type: torch.Tensor,
         num_edge_types: Optional[int] = None,
-        max_num_neighbors: Optional[int] = None,
         bipartite: bool = False,
+        max_num_neighbors: Optional[int] = None,
     ) -> Any:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
@@ -152,12 +152,12 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
             num_edge_types (int, optional): The maximum number of edge types.
                 When not given, will be computed on-the-fly, leading to
                 slightly worse performance. (default: :obj:`None`)
+            bipartite (bool): If set to :obj:`True`, will create the bipartite
+                structure in cugraph-ops. (default: :obj:`False`)
             max_num_neighbors (int, optional): The maximum number of neighbors
                 of a target node. It is only effective when operating in a
                 bipartite graph. When not given, will be computed on-the-fly,
                 leading to slightly worse performance. (default: :obj:`None`)
-            bipartite (bool): If set to :obj:`True`, will create the bipartite
-                structure in cugraph-ops. (default: :obj:`False`)
         """
         if num_edge_types is None:
             num_edge_types = int(edge_type.max()) + 1

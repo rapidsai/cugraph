@@ -10,10 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Optional, Tuple, Union
 
-from typing import Optional, Tuple
-
-from pylibcugraphops.pytorch.operators import mha_gat_n2n as GATConvAgg
+from pylibcugraphops.pytorch.operators import mha_gat_n2n, mha_gat_n2n_bipartite
 
 from cugraph.utilities.utils import import_optional
 
@@ -23,23 +22,68 @@ torch = import_optional("torch")
 nn = import_optional("torch.nn")
 
 
-class GATConv(BaseConv):  # pragma: no cover
+class GATConv(BaseConv):
     r"""The graph attentional operator from the `"Graph Attention Networks"
     <https://arxiv.org/abs/1710.10903>`_ paper.
 
-    :class:`GATConv` is an optimized version of
-    :class:`~torch_geometric.nn.conv.GATConv` based on the :obj:`cugraph-ops`
-    package that fuses message passing computation for accelerated execution
-    and lower memory footprint.
+    .. math::
+        \mathbf{x}^{\prime}_i = \alpha_{i,i}\mathbf{\Theta}\mathbf{x}_{i} +
+        \sum_{j \in \mathcal{N}(i)} \alpha_{i,j}\mathbf{\Theta}\mathbf{x}_{j},
+
+    where the attention coefficients :math:`\alpha_{i,j}` are computed as
+
+    .. math::
+        \alpha_{i,j} =
+        \frac{
+        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
+        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_j]
+        \right)\right)}
+        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
+        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
+        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_k]
+        \right)\right)}.
+
+    If the graph has multi-dimensional edge features :math:`\mathbf{e}_{i,j}`,
+    the attention coefficients :math:`\alpha_{i,j}` are computed as
+
+    .. math::
+        \alpha_{i,j} =
+        \frac{
+        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
+        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_j
+        \, \Vert \, \mathbf{\Theta}_{e} \mathbf{e}_{i,j}]\right)\right)}
+        {\sum_{k \in \mathcal{N}(i) \cup \{ i \}}
+        \exp\left(\mathrm{LeakyReLU}\left(\mathbf{a}^{\top}
+        [\mathbf{\Theta}\mathbf{x}_i \, \Vert \, \mathbf{\Theta}\mathbf{x}_k
+        \, \Vert \, \mathbf{\Theta}_{e} \mathbf{e}_{i,k}]\right)\right)}.
+
+    Args:
+        in_channels (int or tuple): Size of each input sample, or :obj:`-1` to
+            derive the size from the first input(s) to the forward method.
+            A tuple corresponds to the sizes of source and target
+            dimensionalities.
+        out_channels (int): Size of each output sample.
+        heads (int, optional): Number of multi-head-attentions.
+            (default: :obj:`1`)
+        concat (bool, optional): If set to :obj:`False`, the multi-head
+            attentions are averaged instead of concatenated.
+            (default: :obj:`True`)
+        negative_slope (float, optional): LeakyReLU angle of the negative
+            slope. (default: :obj:`0.2`)
+        edge_dim (int, optional): Edge feature dimensionality (in case
+            there are any). (default: :obj:`None`)
+        bias (bool, optional): If set to :obj:`False`, the layer will not learn
+            an additive bias. (default: :obj:`True`)
     """
 
     def __init__(
         self,
-        in_channels: int,
+        in_channels: Union[int, Tuple[int, int]],
         out_channels: int,
         heads: int = 1,
         concat: bool = True,
         negative_slope: float = 0.2,
+        edge_dim: Optional[int] = None,
         bias: bool = True,
     ):
         super().__init__()
@@ -49,9 +93,20 @@ class GATConv(BaseConv):  # pragma: no cover
         self.heads = heads
         self.concat = concat
         self.negative_slope = negative_slope
+        self.edge_dim = edge_dim
 
-        self.lin = nn.Linear(in_channels, heads * out_channels, bias=False)
-        self.att = nn.Parameter(torch.Tensor(2 * heads * out_channels))
+        if isinstance(in_channels, int):
+            self.lin = nn.Linear(in_channels, heads * out_channels, bias=False)
+        else:
+            self.lin_src = nn.Linear(in_channels[0], heads * out_channels, bias=False)
+            self.lin_dst = nn.Linear(in_channels[1], heads * out_channels, bias=False)
+
+        if edge_dim is not None:
+            self.lin_edge = nn.Linear(edge_dim, heads * out_channels, bias=False)
+            self.att = nn.Parameter(torch.Tensor(3 * heads * out_channels))
+        else:
+            self.register_parameter("lin_edge", None)
+            self.att = nn.Parameter(torch.Tensor(2 * heads * out_channels))
 
         if bias and concat:
             self.bias = nn.Parameter(torch.Tensor(heads * out_channels))
@@ -63,33 +118,84 @@ class GATConv(BaseConv):  # pragma: no cover
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.lin.reset_parameters()
+        if isinstance(self.in_channels, int):
+            self.lin.reset_parameters()
+        else:
+            self.lin_src.reset_parameters()
+            self.lin_dst.reset_parameters()
+
         gain = torch.nn.init.calculate_gain("relu")
         torch.nn.init.xavier_normal_(
-            self.att.view(2, self.heads, self.out_channels), gain=gain
+            self.att.view(-1, self.heads, self.out_channels), gain=gain
         )
+
+        if self.lin_edge is not None:
+            self.lin_edge.reset_parameters()
         if self.bias is not None:
             self.bias.data.fill_(0.0)
 
     def forward(
         self,
-        x: torch.Tensor,
+        x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         csc: Tuple[torch.Tensor, torch.Tensor, int],
+        edge_attr: Optional[torch.Tensor] = None,
         max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
-        graph = self.get_cugraph(csc, max_num_neighbors)
+        r"""Runs the forward pass of the module.
 
-        x = self.lin(x)
-
-        out = GATConvAgg(
-            x,
-            self.att,
-            graph,
-            self.heads,
-            "LeakyReLU",
-            self.negative_slope,
-            self.concat,
+        Args:
+            x (torch.Tensor or tuple): The node features. Can be a tuple of
+                tensors denoting source and destination node features.
+            csc ((torch.Tensor, torch.Tensor, int)): A tuple containing the CSC
+                representation of a graph, given as a tuple of
+                :obj:`(row, colptr, num_src_nodes)`. Use the
+                :meth:`to_csc` method to convert an :obj:`edge_index`
+                representation to the desired format.
+            edge_attr: (torch.Tensor, optional) The edge features.
+            max_num_neighbors (int, optional): The maximum number of neighbors
+                of a target node. It is only effective when operating in a
+                bipartite graph. When not given, will be computed on-the-fly,
+                leading to slightly worse performance. (default: :obj:`None`)
+        """
+        bipartite = not isinstance(x, torch.Tensor)
+        graph = self.get_cugraph(
+            csc, bipartite=bipartite, max_num_neighbors=max_num_neighbors
         )
+
+        if edge_attr is not None and self.lin_edge is not None:
+            if edge_attr.dim() == 1:
+                edge_attr = edge_attr.view(-1, 1)
+            edge_attr = self.lin_edge(edge_attr)
+
+        if bipartite:
+            x_src = self.lin_src(x[0])
+            x_dst = self.lin_dst(x[1])
+
+            out = mha_gat_n2n_bipartite(
+                x_src,
+                x_dst,
+                self.att,
+                graph,
+                num_heads=self.heads,
+                activation="LeakyReLU",
+                negative_slope=self.negative_slope,
+                concat_heads=self.concat,
+                edge_feat=edge_attr,
+            )
+
+        else:
+            x = self.lin(x)
+
+            out = mha_gat_n2n(
+                x,
+                self.att,
+                graph,
+                num_heads=self.heads,
+                activation="LeakyReLU",
+                negative_slope=self.negative_slope,
+                concat_heads=self.concat,
+                edge_feat=edge_attr,
+            )
 
         if self.bias is not None:
             out = out + self.bias
