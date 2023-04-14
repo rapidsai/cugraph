@@ -34,7 +34,9 @@ class TransformerConv(BaseConv):
         out_channels: int,
         heads: int = 1,
         concat: bool = True,
+        beta: bool = False,
         edge_dim: Optional[int] = None,
+        bias: bool = True,
         root_weight: bool = True,
     ):
         super().__init__()
@@ -42,6 +44,7 @@ class TransformerConv(BaseConv):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.heads = heads
+        self.beta = beta and root_weight
         self.root_weight = root_weight
         self.concat = concat
         self.edge_dim = edge_dim
@@ -58,6 +61,19 @@ class TransformerConv(BaseConv):
         else:
             self.lin_edge = self.register_parameter("lin_edge", None)
 
+        if concat:
+            self.lin_skip = nn.Linear(in_channels[1], heads * out_channels, bias=bias)
+            if self.beta:
+                self.lin_beta = nn.Linear(3 * heads * out_channels, 1, bias=bias)
+            else:
+                self.lin_beta = self.register_parameter("lin_beta", None)
+        else:
+            self.lin_skip = nn.Linear(in_channels[1], out_channels, bias=bias)
+            if self.beta:
+                self.lin_beta = nn.Linear(3 * out_channels, 1, bias=False)
+            else:
+                self.lin_beta = self.register_parameter("lin_beta", None)
+
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -66,16 +82,19 @@ class TransformerConv(BaseConv):
         self.lin_value.reset_parameters()
         if self.lin_edge is not None:
             self.lin_edge.reset_parameters()
+        if self.lin_skip is not None:
+            self.lin_skip.reset_parameters()
+        if self.lin_beta is not None:
+            self.lin_beta.reset_parameters()
 
     def forward(
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         edge_attr: Optional[torch.Tensor] = None,
-        max_num_neighbors: Optional[int] = None,
-    ):
+    ) -> torch.Tensor:
         bipartite = not isinstance(x, torch.Tensor)
-        graph = self.get_cugraph(csc, max_num_neighbors, bipartite=bipartite)
+        graph = self.get_cugraph(csc, bipartite=bipartite)
 
         if not bipartite:
             x = (x, x)
@@ -92,9 +111,18 @@ class TransformerConv(BaseConv):
             self.heads,
             self.concat,
             edge_emb=edge_attr,
-            norm_by_dim=False,
+            norm_by_dim=True,
             score_bias=None,
         )
+
+        if self.root_weight:
+            x_r = self.lin_skip(x[1])
+            if self.lin_beta is not None:
+                beta = self.lin_beta(torch.cat([out, x_r, out - x_r], dim=-1))
+                beta = beta.sigmoid()
+                out = beta * x_r + (1 - beta) * out
+            else:
+                out = out + x_r
 
         return out
 

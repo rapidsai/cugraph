@@ -25,12 +25,12 @@ torch = import_optional("torch")
 
 
 @pytest.mark.parametrize("bipartite", [True, False])
-@pytest.mark.parametrize("concat", [True])
+@pytest.mark.parametrize("concat", [True, False])
 @pytest.mark.parametrize("heads", [1, 2, 3])
 def test_transformer_conv_equality(bipartite, concat, heads):
     out_channels = 2
     size = (10, 10)
-    kwargs = dict(concat=concat)
+    kwargs = dict(concat=concat, bias=False, root_weight=False)
 
     if bipartite:
         in_channels = (5, 3)
@@ -44,30 +44,28 @@ def test_transformer_conv_equality(bipartite, concat, heads):
 
     edge_index = torch.tensor(
         [
-            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9],
-            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7],
+            [7, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 9, 3, 4, 5],
+            [0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 6],
         ],
         device="cuda",
     )
 
-    conv1 = TransformerConv(
-        in_channels, out_channels, heads, bias=False, root_weight=False, **kwargs
-    ).cuda()
+    conv1 = TransformerConv(in_channels, out_channels, heads, **kwargs).cuda()
     conv2 = CuGraphTransformerConv(in_channels, out_channels, heads, **kwargs).cuda()
 
     with torch.no_grad():
-        conv2.lin_query.weight.data[:, :] = conv1.lin_query.weight.data
-        conv2.lin_key.weight.data[:, :] = conv1.lin_key.weight.data
-        conv2.lin_value.weight.data[:, :] = conv1.lin_value.weight.data
-        conv2.lin_query.bias.data[:] = conv1.lin_query.bias.data
-        conv2.lin_key.bias.data[:] = conv1.lin_key.bias.data
-        conv2.lin_value.bias.data[:] = conv1.lin_value.bias.data
+        conv2.lin_query.weight.data = conv1.lin_query.weight.data.detach().clone()
+        conv2.lin_key.weight.data = conv1.lin_key.weight.data.detach().clone()
+        conv2.lin_value.weight.data = conv1.lin_value.weight.data.detach().clone()
+        conv2.lin_query.bias.data = conv1.lin_query.bias.data.detach().clone()
+        conv2.lin_key.bias.data = conv1.lin_key.bias.data.detach().clone()
+        conv2.lin_value.bias.data = conv1.lin_value.bias.data.detach().clone()
 
     out1 = conv1(x, edge_index)
     csc = CuGraphTransformerConv.to_csc(edge_index, size)
     out2 = conv2(x, csc)
 
-    atol = 1e-2
+    atol = 1e-5
 
     assert torch.allclose(out1, out2, atol=atol)
 
