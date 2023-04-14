@@ -361,10 +361,13 @@ class simpleGraphImpl:
         -------
         df : cudf.DataFrame
             This cudf.DataFrame wraps source, destination and weight
+
             df[src] : cudf.Series
                 contains the source index for each edge
+
             df[dst] : cudf.Series
                 contains the destination index for each edge
+
             df[weight] : cusd.Series
                 Column is only present for weighted Graph,
                 then containing the weight value for each edge
@@ -745,9 +748,11 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df[degree] : cudf.Series
                 The computed in-degree of the corresponding vertex.
 
@@ -785,9 +790,11 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df[degree] : cudf.Series
                 The computed out-degree of the corresponding vertex.
 
@@ -824,9 +831,11 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df['degree'] : cudf.Series
                 The computed degree of the corresponding vertex.
 
@@ -863,11 +872,14 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the degrees. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df['in_degree'] : cudf.Series
                 The in-degree of the vertex.
+
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
 

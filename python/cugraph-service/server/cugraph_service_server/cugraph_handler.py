@@ -222,7 +222,7 @@ class CugraphHandler:
 
     def load_graph_creation_extensions(self, extension_dir_or_mod_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in the
+        Loads ("imports") all modules matching the pattern '_extension.py' in the
         directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
         can be either a path to a directory on disk, or a python import path to a
         package.
@@ -257,7 +257,7 @@ class CugraphHandler:
 
     def load_extensions(self, extension_dir_or_mod_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in the
+        Loads ("imports") all modules matching the pattern _extension.py in the
         directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
         can be either a path to a directory on disk, or a python import path to a
         package.

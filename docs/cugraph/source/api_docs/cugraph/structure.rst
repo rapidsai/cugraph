@@ -10,15 +10,12 @@ Constructors
 
    Graph
    MultiGraph
-   BiPartiteGraph
-
 
 
 Adding Data
 -----------
 .. autosummary::
    :toctree: ../api/cugraph/
-
 
    Graph.from_cudf_adjlist
    Graph.from_cudf_edgelist
@@ -35,7 +32,7 @@ Adding Data
 Checks
 ------
 .. autosummary::
-   :toctree: ../api/cugraph/
+    :toctree: ../api/cugraph/
 
    Graph.has_isolated_vertices
    Graph.is_bipartite
@@ -82,8 +79,6 @@ NumberMap
    :toctree: ../api/cugraph/
 
    cugraph.structure.NumberMap
-   cugraph.structure.NumberMap.MultiGPU
-   cugraph.structure.NumberMap.SingleGPU
    cugraph.structure.NumberMap.from_internal_vertex_id
    cugraph.structure.NumberMap.to_internal_vertex_id
    cugraph.structure.NumberMap.add_internal_vertex_id
