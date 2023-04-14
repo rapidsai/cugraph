@@ -19,6 +19,8 @@ from cudf.testing import assert_series_equal
 
 import cugraph
 import cudf
+import networkx as nx
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
 
 # =============================================================================
@@ -72,6 +74,8 @@ def calc_random_walks(G, max_depth=None, use_padding=False, legacy_result_type=T
         The path size in case of coalesced paths.
     """
     assert G is not None
+
+    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="weights")
 
     k = random.randint(1, 6)
 
@@ -131,7 +135,10 @@ def check_random_walks_padded(G, path_data, seeds, max_depth, legacy_result_type
     e_wgt_paths = path_data[1]
     e_wgt_idx = 0
 
+    G, _ = ensure_cugraph_obj_for_nx(G, nx_weight_attr="weights")
     df_G = G.input_df
+    if "weight" in df_G.columns:
+        df_G = df_G.rename(columns={"weight": "wgt"})
 
     total_depth = (max_depth) * len(seeds)
 
@@ -280,6 +287,29 @@ def test_random_walks_padded_1():
     )
 
     check_random_walks_padded(input_graph, path_data, seeds, max_depth)
+
+
+@pytest.mark.sg
+@pytest.mark.cugraph_ops
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+def test_random_walks_nx(graph_file):
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+
+    M = G.to_pandas_edgelist()
+
+    Gnx = nx.from_pandas_edgelist(
+        M,
+        source="src",
+        target="dst",
+        edge_attr="weights",
+        create_using=nx.DiGraph(),
+    )
+    max_depth = random.randint(2, 10)
+    path_data, seeds = calc_random_walks(
+        Gnx, max_depth=max_depth, use_padding=True
+    )
+
+    check_random_walks_padded(Gnx, path_data, seeds, max_depth)
 
 
 """@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
