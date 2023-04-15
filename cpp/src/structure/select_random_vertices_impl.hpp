@@ -172,7 +172,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       }
 
       srand((unsigned)time(NULL));
-      for (int i = 0; i < static_cast<vertex_t>(mg_sample_buffer.size() % comm_size); i++) {
+      for (int i = 0; i < static_cast<int>(mg_sample_buffer.size() % comm_size); i++) {
         tx_value_counts[rand() % comm_size]++;
       }
 
@@ -213,20 +213,34 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if constexpr (multi_gpu) {
-    mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      handle,
-      std::move(mg_sample_buffer),
+    auto vertex_partition_range_lasts =
       given_vertices ? cugraph::partition_manager::compute_vertex_partition_range_lasts(
                          handle, static_cast<vertex_t>((*given_vertices).size()))
-                     : graph_view.vertex_partition_range_lasts());
+                     : graph_view.vertex_partition_range_lasts();
+
+    mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
+      handle, std::move(mg_sample_buffer), vertex_partition_range_lasts);
 
     if (given_vertices) {
-      thrust::gather(handle.get_thrust_policy(),
-                     mg_sample_buffer.begin(),
-                     mg_sample_buffer.end(),
-                     (*given_vertices).begin(),
-                     mg_sample_buffer.begin());
+      auto const comm_rank = handle.get_comms().get_rank();
+      auto const comm_size = handle.get_comms().get_size();
+
+      auto start_idx = comm_rank ? vertex_partition_range_lasts[comm_rank - 1] : 0;
+
+      thrust::transform(handle.get_thrust_policy(),
+                        mg_sample_buffer.begin(),
+                        mg_sample_buffer.end(),
+                        mg_sample_buffer.begin(),
+                        [start_idx = start_idx] __device__(auto idx) { return idx - start_idx; });
     }
+  }
+
+  if (given_vertices) {
+    thrust::gather(handle.get_thrust_policy(),
+                   mg_sample_buffer.begin(),
+                   mg_sample_buffer.end(),
+                   (*given_vertices).begin(),
+                   mg_sample_buffer.begin());
   }
 
   if (sort_vertices) {
