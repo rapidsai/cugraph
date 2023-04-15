@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,10 @@
  * limitations under the License.
  */
 
-#include <centrality/betweenness_centrality_validate.hpp>
-
+#include <cugraph/utilities/high_res_timer.hpp>
 #include <utilities/base_fixture.hpp>
-#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
-#include <utilities/thrust_wrapper.hpp>
-
-#include <cugraph/algorithms.hpp>
-#include <cugraph/graph.hpp>
-#include <cugraph/graph_functions.hpp>
-#include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/high_res_timer.hpp>
-
-#include <raft/core/handle.hpp>
-#include <raft/util/cudart_utils.hpp>
-
-#include <raft/comms/mpi_comms.hpp>
-#include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
 
 #include <gtest/gtest.h>
 
