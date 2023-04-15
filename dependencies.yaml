@@ -208,10 +208,10 @@ dependencies:
           - cxx-compiler
           - gmock=1.10.0
           - gtest=1.10.0
-          - libcugraphops=23.04.*
-          - libraft-headers=23.04.*
-          - libraft=23.04.*
-          - librmm=23.04.*
+          - libcugraphops=23.6.*
+          - libraft-headers=23.6.*
+          - libraft=23.6.*
+          - librmm=23.6.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -281,39 +281,38 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - cython>=0.29,<0.30
-          - &pylibraft pylibraft==23.4.*
-          - &rmm rmm==23.4.*
+          - &pylibraft pylibraft==23.6.*
+          - &rmm rmm==23.6.*
           - scikit-build>=0.13.1
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - pylibcugraph==23.4.*
+          - pylibcugraph==23.6.*
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - cuda-python>=11.7.1,<12.0
-          - &cudf cudf==23.4.*
+          - &cudf cudf==23.6.*
           - &dask dask==2023.3.2
           - &distributed distributed==2023.3.2.1
-          - &dask_cuda dask-cuda==23.4.*
-          - &dask_cudf dask-cudf==23.4.*
+          - &dask_cuda dask-cuda==23.6.*
+          - &dask_cudf dask-cudf==23.6.*
           - &numba numba>=0.56.2
-          - raft-dask==23.4.*
+          - raft-dask==23.6.*
           - *rmm
-          - &ucx_py ucx-py==0.31.*
+          - &ucx_py ucx-py==0.32.*
       - output_types: conda
         packages:
           - &cupy cupy>=9.5.0,<12.0.0a0
           - &dask-core dask-core==2023.3.2
-          - libcudf=23.04.*
+          - libcudf=23.6.*
           - nccl>=2.9.9
           - ucx-proc=*=gpu
       - output_types: pyproject
         packages:
           - &cupy_pip cupy-cuda11x>=9.5.0,<12.0.0a0
-          - pylibcugraph==23.4.*
+          - pylibcugraph==23.6.*
   python_run_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
@@ -355,7 +354,7 @@ dependencies:
         packages:
           - *cupy_pip
           - *cugraph
-          - cugraph-service-client==23.4.*
+          - cugraph-service-client==23.6.*
   doc:
     common:
       - output_types: [conda]

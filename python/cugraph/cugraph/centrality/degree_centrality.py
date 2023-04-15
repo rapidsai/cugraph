@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,8 +36,10 @@ def degree_centrality(G, normalized=True):
     df : cudf.DataFrame or Dictionary if using NetworkX
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding degree centrality values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
+
         df['degree_centrality'] : cudf.Series
             Contains the degree centrality of vertices
 
