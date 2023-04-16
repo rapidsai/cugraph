@@ -78,52 +78,52 @@ class Tests_MGSelectRandomVertices
     {
       // Generate distributed vertex set to sample from
       srand((unsigned)time(NULL));
-      std::vector<vertex_t> h_given_vertices(
+      std::vector<vertex_t> h_given_set(
         rand() % mg_graph_view.local_vertex_partition_range_size() + 1);
 
-      for (int i = 0; i < h_given_vertices.size(); i++) {
-        h_given_vertices[i] = mg_graph_view.local_vertex_partition_range_first() +
+      for (int i = 0; i < h_given_set.size(); i++) {
+        h_given_set[i] = mg_graph_view.local_vertex_partition_range_first() +
                               rand() % mg_graph_view.local_vertex_partition_range_size();
       }
 
-      std::sort(h_given_vertices.begin(), h_given_vertices.end());
-      auto last = std::unique(h_given_vertices.begin(), h_given_vertices.end());
-      h_given_vertices.erase(last, h_given_vertices.end());
+      std::sort(h_given_set.begin(), h_given_set.end());
+      auto last = std::unique(h_given_set.begin(), h_given_set.end());
+      h_given_set.erase(last, h_given_set.end());
 
       // Compute size of the distributed vertex set
-      int num_of_given_vertices = static_cast<int>(h_given_vertices.size());
+      int num_of_given_set = static_cast<int>(h_given_set.size());
 
-      rmm::device_uvector<int> d_num_of_given_vertices(1, handle_->get_stream());
+      rmm::device_uvector<int> d_num_of_given_set(1, handle_->get_stream());
       raft::update_device(
-        d_num_of_given_vertices.data(), &num_of_given_vertices, 1, handle_->get_stream());
-      handle_->get_comms().allreduce(d_num_of_given_vertices.data(),
-                                     d_num_of_given_vertices.data(),
+        d_num_of_given_set.data(), &num_of_given_set, 1, handle_->get_stream());
+      handle_->get_comms().allreduce(d_num_of_given_set.data(),
+                                     d_num_of_given_set.data(),
                                      1,
                                      raft::comms::op_t::SUM,
                                      handle_->get_stream());
       raft::update_host(
-        &num_of_given_vertices, d_num_of_given_vertices.data(), 1, handle_->get_stream());
+        &num_of_given_set, d_num_of_given_set.data(), 1, handle_->get_stream());
       auto status = handle_->get_comms().sync_stream(handle_->get_stream());
       CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
       // Move the distributed vertex set to GPUs
-      std::optional<rmm::device_uvector<vertex_t>> d_given_vertices{std::nullopt};
-      d_given_vertices =
-        rmm::device_uvector<vertex_t>(h_given_vertices.size(), handle_->get_stream());
-      raft::update_device((*d_given_vertices).data(),
-                          h_given_vertices.data(),
-                          h_given_vertices.size(),
+      std::optional<rmm::device_uvector<vertex_t>> d_given_set{std::nullopt};
+      d_given_set =
+        rmm::device_uvector<vertex_t>(h_given_set.size(), handle_->get_stream());
+      raft::update_device((*d_given_set).data(),
+                          h_given_set.data(),
+                          h_given_set.size(),
                           handle_->get_stream());
 
       // Sampling size should not exceed the size of distributed vertex set
-      size_t select_count = num_of_given_vertices > select_random_vertices_usecase.select_count
+      size_t select_count = num_of_given_set > select_random_vertices_usecase.select_count
                               ? select_random_vertices_usecase.select_count
-                              : num_of_given_vertices / 2 + 1;
+                              : num_of_given_set / 2 + 1;
 
       auto d_sampled_vertices = cugraph::select_random_vertices(
         *handle_,
         mg_graph_view,
-        d_given_vertices ? std::move(d_given_vertices)
+        d_given_set ? std::move(d_given_set)
                          : std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
         rng_state,
         select_count,
@@ -140,8 +140,8 @@ class Tests_MGSelectRandomVertices
 
       if (select_random_vertices_usecase.check_correctness) {
         std::for_each(
-          h_sampled_vertices.begin(), h_sampled_vertices.end(), [&h_given_vertices](vertex_t v) {
-            ASSERT_TRUE(std::binary_search(h_given_vertices.begin(), h_given_vertices.end(), v));
+          h_sampled_vertices.begin(), h_sampled_vertices.end(), [&h_given_set](vertex_t v) {
+            ASSERT_TRUE(std::binary_search(h_given_set.begin(), h_given_set.end(), v));
           });
       }
     }

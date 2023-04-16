@@ -21,7 +21,7 @@ namespace cugraph {
 template rmm::device_uvector<int32_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-  std::optional<rmm::device_uvector<int32_t>>&& given_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
@@ -30,7 +30,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
 template rmm::device_uvector<int32_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  std::optional<rmm::device_uvector<int32_t>>&& given_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
@@ -39,7 +39,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
 template rmm::device_uvector<int64_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  std::optional<rmm::device_uvector<int64_t>>&& given_vertices,
+  std::optional<rmm::device_uvector<int64_t>>&& given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
@@ -48,7 +48,7 @@ template rmm::device_uvector<int64_t> select_random_vertices(
 template rmm::device_uvector<int32_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, true, false> const& graph_view,
-  std::optional<rmm::device_uvector<int32_t>>&& given_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
@@ -57,7 +57,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
 template rmm::device_uvector<int32_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, true, false> const& graph_view,
-  std::optional<rmm::device_uvector<int32_t>>&& given_vertices,
+  std::optional<rmm::device_uvector<int32_t>>&& given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
@@ -66,7 +66,7 @@ template rmm::device_uvector<int32_t> select_random_vertices(
 template rmm::device_uvector<int64_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, true, false> const& graph_view,
-  std::optional<rmm::device_uvector<int64_t>>&& given_vertices,
+  std::optional<rmm::device_uvector<int64_t>>&& given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
