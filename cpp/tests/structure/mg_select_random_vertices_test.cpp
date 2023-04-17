@@ -78,12 +78,12 @@ class Tests_MGSelectRandomVertices
     {
       // Generate distributed vertex set to sample from
       srand((unsigned)time(NULL));
-      std::vector<vertex_t> h_given_set(
-        rand() % mg_graph_view.local_vertex_partition_range_size() + 1);
+      std::vector<vertex_t> h_given_set(rand() % mg_graph_view.local_vertex_partition_range_size() +
+                                        1);
 
       for (int i = 0; i < h_given_set.size(); i++) {
         h_given_set[i] = mg_graph_view.local_vertex_partition_range_first() +
-                              rand() % mg_graph_view.local_vertex_partition_range_size();
+                         rand() % mg_graph_view.local_vertex_partition_range_size();
       }
 
       std::sort(h_given_set.begin(), h_given_set.end());
@@ -94,26 +94,21 @@ class Tests_MGSelectRandomVertices
       int num_of_given_set = static_cast<int>(h_given_set.size());
 
       rmm::device_uvector<int> d_num_of_given_set(1, handle_->get_stream());
-      raft::update_device(
-        d_num_of_given_set.data(), &num_of_given_set, 1, handle_->get_stream());
+      raft::update_device(d_num_of_given_set.data(), &num_of_given_set, 1, handle_->get_stream());
       handle_->get_comms().allreduce(d_num_of_given_set.data(),
                                      d_num_of_given_set.data(),
                                      1,
                                      raft::comms::op_t::SUM,
                                      handle_->get_stream());
-      raft::update_host(
-        &num_of_given_set, d_num_of_given_set.data(), 1, handle_->get_stream());
+      raft::update_host(&num_of_given_set, d_num_of_given_set.data(), 1, handle_->get_stream());
       auto status = handle_->get_comms().sync_stream(handle_->get_stream());
       CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
       // Move the distributed vertex set to GPUs
       std::optional<rmm::device_uvector<vertex_t>> d_given_set{std::nullopt};
-      d_given_set =
-        rmm::device_uvector<vertex_t>(h_given_set.size(), handle_->get_stream());
-      raft::update_device((*d_given_set).data(),
-                          h_given_set.data(),
-                          h_given_set.size(),
-                          handle_->get_stream());
+      d_given_set = rmm::device_uvector<vertex_t>(h_given_set.size(), handle_->get_stream());
+      raft::update_device(
+        (*d_given_set).data(), h_given_set.data(), h_given_set.size(), handle_->get_stream());
 
       // Sampling size should not exceed the size of distributed vertex set
       size_t select_count = num_of_given_set > select_random_vertices_usecase.select_count
@@ -124,7 +119,7 @@ class Tests_MGSelectRandomVertices
         *handle_,
         mg_graph_view,
         d_given_set ? std::move(d_given_set)
-                         : std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+                    : std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
         rng_state,
         select_count,
         false,
