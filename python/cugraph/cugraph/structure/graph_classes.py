@@ -497,7 +497,7 @@ class Graph:
             Name of the column containing the external vertex ids
 
         Returns
-        ---------
+        -------
         series : cudf.Series or dask_cudf.Series
             The internal vertex identifiers
         """
@@ -536,7 +536,7 @@ class Graph:
             Preserve the order of the data frame (requires an extra sort)
 
         Returns
-        ---------
+        -------
         df : cudf.DataFrame or dask_cudf.DataFrame
             Original DataFrame with new column containing internal vertex
             id

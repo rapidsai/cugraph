@@ -748,8 +748,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_values.begin()));
     auto major_value_map_device_view =
       (GraphViewType::is_multi_gpu && edge_src_value_input.keys())
-        ? thrust::make_optional<detail::kv_binary_search_store_device_view_t<decltype(
-            multi_gpu_major_value_map_ptr->view())>>(multi_gpu_major_value_map_ptr->view())
+        ? thrust::make_optional<detail::kv_binary_search_store_device_view_t<
+            decltype(multi_gpu_major_value_map_ptr->view())>>(multi_gpu_major_value_map_ptr->view())
         : thrust::nullopt;
     std::conditional_t<KVStoreViewType::binary_search,
                        detail::kv_binary_search_store_device_view_t<KVStoreViewType>,

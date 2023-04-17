@@ -106,8 +106,8 @@ std::tuple<rmm::device_uvector<vertex_t>, ValueBuffer> sort_and_reduce_by_vertic
   rmm::device_uvector<vertex_t>&& vertices,
   ValueBuffer&& value_buffer)
 {
-  using value_t = typename thrust::iterator_traits<decltype(
-    get_dataframe_buffer_begin(value_buffer))>::value_type;
+  using value_t = typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(
+    value_buffer))>::value_type;
 
   thrust::sort_by_key(handle.get_thrust_policy(),
                       vertices.begin(),
