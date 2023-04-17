@@ -15,6 +15,7 @@ files:
       - python_run_cugraph
       - python_run_pylibcugraph
       - python_run_cugraph_dgl
+      - python_run_cugraph_pyg
       - test_notebook
       - test_python_common
       - test_python_cugraph
@@ -327,7 +328,16 @@ dependencies:
           - &numpy numpy>=1.21
       - output_types: [pyproject]
         packages:
-          - &cugraph cugraph==23.4.*
+          - &cugraph cugraph==23.6.*
+  python_run_cugraph_pyg:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - *numba
+          - *numpy
+      - output_types: [pyproject]
+        packages:
+          - *cugraph
   python_run_cugraph_service_client:
     common:
       - output_types: [conda, pyproject]
