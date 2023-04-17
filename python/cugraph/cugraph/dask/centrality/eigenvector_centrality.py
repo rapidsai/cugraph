@@ -89,6 +89,7 @@ def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
     df : dask_cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding eigenvector centrality values.
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['eigenvector_centrality'] : cudf.Series

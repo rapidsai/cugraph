@@ -4,7 +4,6 @@ DASK MG Helper functions
 .. currentmodule:: cugraph
 
 
-
 Methods
 -------
 .. autosummary::

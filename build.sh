@@ -272,7 +272,7 @@ if buildAll || hasArg libcugraph_etl; then
             CUGRAPH_CMAKE_CUDA_ARCHITECTURES="NATIVE"
             echo "Building for the architecture of the GPU in the system..."
         else
-            CUGRAPH_CMAKE_CUDA_ARCHITECTURES="ALL"
+            CUGRAPH_CMAKE_CUDA_ARCHITECTURES="RAPIDS"
             echo "Building for *ALL* supported GPU architectures..."
         fi
         mkdir -p ${LIBCUGRAPH_ETL_BUILD_DIR}

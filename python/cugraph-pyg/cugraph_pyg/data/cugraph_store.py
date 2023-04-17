@@ -216,20 +216,25 @@ class EXPERIMENTAL__CuGraphStore:
         G: dict[str, tuple[TensorType]] or dict[str, int] (Required)
             Dictionary of edge indices.
             Option 1 (graph in memory):
-                Pass the edge indices
-                i.e. {
-                    ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
-                    ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
+
+                Pass the edge indices: i.e.
+                {
+                ('author', 'writes', 'paper'): [[0,1,2],[2,0,1]],
+                ('author', 'affiliated', 'institution'): [[0,1],[0,1]]
                 }
+
+
             Option 2 (graph not in memory):
-                Pass the number of edges
-                i.e. {
-                    ('author', 'writes', 'paper'): 2,
-                    ('author', 'affiliated', 'institution'): 2
+
+                Pass the number of edges: i.e.
+                {
+                ('author', 'writes', 'paper'): 2,
+                ('author', 'affiliated', 'institution'): 2
                 }
                 If the graph is not in memory, manipulating the edge indices
                 or calling sampling is not possible.  This is for cases where
                 sampling has already been done and samples were written to disk.
+
             Note: the internal cugraph representation will use
             offsetted vertex and edge ids.
 

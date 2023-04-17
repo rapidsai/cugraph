@@ -4,7 +4,6 @@ Traversal
 .. currentmodule:: cugraph
 
 
-
 Breadth-first-search
 --------------------
 .. autosummary::
