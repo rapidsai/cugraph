@@ -11,6 +11,10 @@ rapids-print-env
 
 rapids-logger "Begin cpp build"
 
-rapids-mamba-retry mambabuild conda/recipes/libcugraph
+LIBRAFT_CHANNEL=$(rapids-get-artifact ci/raft/pull-request/1415/7203c76/raft_conda_cpp_cuda11_$(arch).tar.gz)
+
+rapids-mamba-retry mambabuild \
+    --channel "${LIBRAFT_CHANNEL}" \
+    conda/recipes/libcugraph
 
 rapids-upload-conda-to-s3 cpp
