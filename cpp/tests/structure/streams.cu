@@ -23,8 +23,7 @@
 #include <thrust/functional.h>
 #include <thrust/transform.h>
 
-struct StreamTest : public ::testing::Test {
-};
+struct StreamTest : public ::testing::Test {};
 
 TEST_F(StreamTest, basic_test)
 {
