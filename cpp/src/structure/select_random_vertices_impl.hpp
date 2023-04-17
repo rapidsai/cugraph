@@ -101,14 +101,13 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     // V])
     mg_sample_buffer.resize(this_gpu_select_count, handle.get_stream());
 
-    cugraph::detail::uniform_random_fill(handle.get_stream(),
-                                         mg_sample_buffer.data(),
-                                         mg_sample_buffer.size(),
-                                         vertex_t{0},
-                                         given_set
-                                           ? static_cast<vertex_t>((*given_set).size())
-                                           : graph_view.number_of_vertices(),
-                                         rng_state);
+    cugraph::detail::uniform_random_fill(
+      handle.get_stream(),
+      mg_sample_buffer.data(),
+      mg_sample_buffer.size(),
+      vertex_t{0},
+      given_set ? static_cast<vertex_t>((*given_set).size()) : graph_view.number_of_vertices(),
+      rng_state);
 
     if (given_set) {
       thrust::gather(handle.get_thrust_policy(),
@@ -215,8 +214,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   if constexpr (multi_gpu) {
     auto vertex_partition_range_lasts =
       given_set ? cugraph::partition_manager::compute_vertex_partition_range_lasts(
-                         handle, static_cast<vertex_t>((*given_set).size()))
-                     : graph_view.vertex_partition_range_lasts();
+                    handle, static_cast<vertex_t>((*given_set).size()))
+                : graph_view.vertex_partition_range_lasts();
 
     mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
       handle, std::move(mg_sample_buffer), vertex_partition_range_lasts);
