@@ -141,10 +141,11 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         df[dst_n] = cupy_destinations
         df[indices_n] = cupy_indices
 
-        if weight_t == "int32":
-            df.indices = df.indices.astype("int32")
-        elif weight_t == "int64":
-            df.indices = df.indices.astype("int64")
+        if cupy_indices is not None:
+            if weight_t == "int32":
+                df.indices = df.indices.astype("int32")
+            elif weight_t == "int64":
+                df.indices = df.indices.astype("int64")
 
         return df
 
