@@ -207,19 +207,19 @@ class simpleDistributedGraphImpl:
             value_col_names = {}
             if weight is not None:
                 value_col_names[weight] = self.edgeWeightCol
-                self.properties.weighted=True
+                self.properties.weighted = True
             if edge_id is not None:
                 value_col_names[edge_id] = self.edgeIdCol
             if edge_type is not None:
                 value_col_names[edge_type] = self.edgeTypeCol
-            
+
             if len(value_col_names.keys()) > 0:
                 input_ddf = input_ddf.rename(columns=value_col_names)
             value_col_names = list(value_col_names.values())
-        
+
         ddf_columns += value_col_names
         input_ddf = input_ddf[ddf_columns]
-        
+
         if len(value_col_names) == 0:
             source_col, dest_col = symmetrize(
                 input_ddf,

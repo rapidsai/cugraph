@@ -149,10 +149,10 @@ class Graph:
 
         weight : str, optional (default=None)
             Name of the weight column in the input dataframe.
-        
+
         edge_id : str, optional (default=None)
             Name of the edge id column in the input dataframe.
-        
+
         edge_type : str, optional (default=None)
             Name of the edge type column in the input dataframe.
 
@@ -311,10 +311,10 @@ class Graph:
 
         weight : str, optional (default=None)
             Name of the weight column in the input dataframe.
-        
+
         edge_id : str, optional (default=None)
             Name of the edge id column in the input dataframe.
-        
+
         edge_type : str, optional (default=None)
             Name of the edge type column in the input dataframe.
 
@@ -399,10 +399,10 @@ class Graph:
 
         weight : str, optional (default=None)
             Name of the weight column in the input dataframe.
-        
+
         edge_id : str, optional (default=None)
             Name of the edge id column in the input dataframe.
-        
+
         edge_type : str, optional (default=None)
             Name of the edge type column in the input dataframe.
 

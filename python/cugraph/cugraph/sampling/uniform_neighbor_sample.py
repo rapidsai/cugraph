@@ -234,7 +234,7 @@ def uniform_neighbor_sample(
         df["destinations"] = destinations
 
         if indices is None:
-            df['indices'] = None
+            df["indices"] = None
         else:
             df["indices"] = indices
             if weight_t == "int32":

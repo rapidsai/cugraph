@@ -16,7 +16,6 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
-import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
@@ -24,8 +23,8 @@ import pandas as pd
 import numpy as np
 import warnings
 from cugraph.dask.structure import replication
-from typing import Union, Dict, List
-from pylibcugraph import (   
+from typing import Union, Dict
+from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
 )
@@ -46,8 +45,13 @@ class simpleGraphImpl:
     dstCol = "dst"
 
     class EdgeList:
-        def __init__(self, source:str, destination:str, edge_attr:Union[cudf.DataFrame, Dict[str, cudf.DataFrame]]=None):
-            print('edge attr: ', edge_attr)
+        def __init__(
+            self,
+            source: str,
+            destination: str,
+            edge_attr: Union[cudf.DataFrame, Dict[str, cudf.DataFrame]] = None,
+        ):
+            print("edge attr: ", edge_attr)
             self.edgelist_df = cudf.DataFrame()
             self.edgelist_df[simpleGraphImpl.srcCol] = source
             self.edgelist_df[simpleGraphImpl.dstCol] = destination
@@ -57,7 +61,11 @@ class simpleGraphImpl:
                     if edge_attr[simpleGraphImpl.edgeWeightCol] is not None:
                         self.weights = True
 
-                    for ea in [simpleGraphImpl.edgeIdCol, simpleGraphImpl.edgeTypeCol, simpleGraphImpl.edgeWeightCol]:
+                    for ea in [
+                        simpleGraphImpl.edgeIdCol,
+                        simpleGraphImpl.edgeTypeCol,
+                        simpleGraphImpl.edgeWeightCol,
+                    ]:
                         if edge_attr[ea] is not None:
                             self.edgelist_df[ea] = edge_attr[ea]
                 else:
@@ -173,13 +181,13 @@ class simpleGraphImpl:
                         "types are not permitted for an "
                         "undirected graph."
                     )
-                
+
                 weight, edge_id, edge_type = edge_attr
         else:
             edge_attr = []
             if weight is not None:
                 edge_attr.append(weight)
-                self.properties.weighted=True
+                self.properties.weighted = True
             if edge_id is not None:
                 edge_attr.append(edge_id)
             if edge_type is not None:
@@ -204,9 +212,7 @@ class simpleGraphImpl:
                 )
             elist = input_df.compute().reset_index(drop=True)
         else:
-            raise TypeError(
-                "input should be a cudf.DataFrame or a dask_cudf dataFrame"
-            )
+            raise TypeError("input should be a cudf.DataFrame or a dask_cudf dataFrame")
 
         # Original, unmodified input dataframe.
         self.input_df = elist
@@ -249,7 +255,7 @@ class simpleGraphImpl:
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed,
             )
-            print('symmetrized df:\n', value_col)
+            print("symmetrized df:\n", value_col)
 
             if isinstance(value_col, cudf.DataFrame):
                 value_dict = {}
@@ -270,11 +276,13 @@ class simpleGraphImpl:
             value_col = {
                 self.edgeWeightCol: value_col[weight] if weight in value_col else None,
                 self.edgeIdCol: value_col[edge_id] if edge_id in value_col else None,
-                self.edgeTypeCol: value_col[edge_type] if edge_type in value_col else None,
+                self.edgeTypeCol: value_col[edge_type]
+                if edge_type in value_col
+                else None,
             }
 
-        print('weight name:', weight)
-        print('vc:')
+        print("weight name:", weight)
+        print("vc:")
         print(value_col)
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
@@ -971,7 +979,12 @@ class simpleGraphImpl:
 
         return df
 
-    def _make_plc_graph(self, value_col: Dict[str, cudf.DataFrame]=None, store_transposed:bool=False, renumber:bool=True):
+    def _make_plc_graph(
+        self,
+        value_col: Dict[str, cudf.DataFrame] = None,
+        store_transposed: bool = False,
+        renumber: bool = True,
+    ):
         """
         Parameters
         ----------
