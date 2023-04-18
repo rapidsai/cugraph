@@ -746,7 +746,9 @@ class EXPERIMENTAL__CuGraphStore:
             src = torch.searchsorted(src_id_table, sources)
             row_dict[t_pyg_type] = src
 
-            destinations = torch.as_tensor(sampling_results.destinations.values, device="cuda")
+            destinations = torch.as_tensor(
+                sampling_results.destinations.values, device="cuda"
+            )
             dst_id_table = noi_index[dst_type]
             dst = torch.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
