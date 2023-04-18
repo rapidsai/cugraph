@@ -125,7 +125,7 @@ def convert_from_nx(
             f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}"
         )
 
-    is_weighted = nx.is_weighted(nxG)
+    is_weighted = nx.is_weighted(nxG, weight=weight)
 
     if is_weighted is False:
         _gdf = convert_unweighted_to_gdf(nxG, vertex_type)
