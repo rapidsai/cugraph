@@ -72,6 +72,7 @@ sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/pylibcugrap
 
 for FILE in conda/environments/*.yaml dependencies.yaml; do
    sed_runner "s/libcugraphops=${CURRENT_SHORT_TAG}/libcugraphops=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/pylibcugraphops=${CURRENT_SHORT_TAG}/pylibcugraphops=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/cudf=${CURRENT_SHORT_TAG}/cudf=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/rmm=${CURRENT_SHORT_TAG}/rmm=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/libraft-headers=${CURRENT_SHORT_TAG}/libraft-headers=${NEXT_SHORT_TAG}/g" ${FILE};
