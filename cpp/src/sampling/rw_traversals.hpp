@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ struct device_const_vector_view {
   {
   }
 
-  device_const_vector_view(device_const_vector_view const& other) = delete;
+  device_const_vector_view(device_const_vector_view const& other)            = delete;
   device_const_vector_view& operator=(device_const_vector_view const& other) = delete;
 
   device_const_vector_view(device_const_vector_view&& other)

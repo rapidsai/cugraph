@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
