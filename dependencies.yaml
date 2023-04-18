@@ -123,6 +123,13 @@ files:
       table: build-system
     includes:
       - python_build_wheel
+  py_run_cugraph_pyg:
+    output: pyproject
+    pyproject_dir: python/cugraph-pyg
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph_pyg
   py_build_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
