@@ -41,6 +41,7 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
+#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
