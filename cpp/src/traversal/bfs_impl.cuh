@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ struct e_op_t {
       if (*(prev_visited_flags + (dst / (sizeof(uint32_t) * 8))) &
           mask) {  // check if unvisited in previous iterations
         push = false;
-      } else {  // check if unvisited in this iteration as well
+      } else {     // check if unvisited in this iteration as well
         auto old = atomicOr(visited_flags + (dst / (sizeof(uint32_t) * 8)), mask);
         push     = ((old & mask) == 0);
       }

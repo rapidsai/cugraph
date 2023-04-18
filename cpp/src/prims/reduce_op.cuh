@@ -224,27 +224,23 @@ struct plus {
 };
 
 template <typename ReduceOp, typename = raft::comms::op_t>
-struct has_compatible_raft_comms_op : std::false_type {
-};
+struct has_compatible_raft_comms_op : std::false_type {};
 
 template <typename ReduceOp>
 struct has_compatible_raft_comms_op<ReduceOp,
                                     std::remove_cv_t<decltype(ReduceOp::compatible_raft_comms_op)>>
-  : std::true_type {
-};
+  : std::true_type {};
 
 template <typename ReduceOp>
 inline constexpr bool has_compatible_raft_comms_op_v =
   has_compatible_raft_comms_op<ReduceOp>::value;
 
 template <typename ReduceOp, typename = typename ReduceOp::value_type>
-struct has_identity_element : std::false_type {
-};
+struct has_identity_element : std::false_type {};
 
 template <typename ReduceOp>
 struct has_identity_element<ReduceOp, std::remove_cv_t<decltype(ReduceOp::identity_element)>>
-  : std::true_type {
-};
+  : std::true_type {};
 
 template <typename ReduceOp>
 inline constexpr bool has_identity_element_v = has_identity_element<ReduceOp>::value;
