@@ -70,6 +70,10 @@ constexpr bool has_packed_bool_element()
   }
 }
 
+constexpr size_t packed_bools_per_word() {
+  return sizeof(uint32_t) * size_t{8};
+}
+
 constexpr size_t packed_bool_size(size_t bool_size)
 {
   return (bool_size + (sizeof(uint32_t) * 8 - 1)) / (sizeof(uint32_t) * 8);
