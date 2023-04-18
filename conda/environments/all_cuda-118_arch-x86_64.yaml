@@ -29,7 +29,6 @@ dependencies:
 - ipython
 - libcudf=23.6.*
 - libcugraphops=23.6.*
-- pylibcugraphops=23.6.*
 - libraft-headers=23.6.*
 - libraft=23.6.*
 - librmm=23.6.*
@@ -46,6 +45,7 @@ dependencies:
 - pandas
 - pre-commit
 - pydata-sphinx-theme
+- pylibcugraphops=23.6.*
 - pylibraft==23.6.*
 - pytest
 - pytest-benchmark
