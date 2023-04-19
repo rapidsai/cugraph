@@ -78,6 +78,7 @@ class Tests_MGSelectRandomVertices
     // Test sampling from a distributed set
     //
 
+    std::vector<bool> with_replacement_flags = {true, false};
     {
       // Generate distributed vertex set to sample from
       std::srand((unsigned)std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -114,72 +115,49 @@ class Tests_MGSelectRandomVertices
       size_t select_count =
         num_of_elements_in_given_set > select_random_vertices_usecase.select_count
           ? select_random_vertices_usecase.select_count
-          : num_of_elements_in_given_set / 2 + 1;
+          : std::rand() % num_of_elements_in_given_set + 1;
 
-      for (int i = 0; i < comm_size; ++i) {
-        if (comm_rank == i) {
-          if (select_random_vertices_usecase.select_count <= 30) {
-            std::cout << "rank (h_given_set) " << comm_rank << ":";
-            std::copy(
-              h_given_set.begin(), h_given_set.end(), std::ostream_iterator<int>(std::cout, " "));
-            std::cout << std::endl;
+      for (int idx = 0; idx < with_replacement_flags.size(); idx++) {
+        bool with_replacement = with_replacement_flags[idx];
+        auto d_sampled_vertices =
+          cugraph::select_random_vertices(*handle_,
+                                          mg_graph_view,
+                                          std::make_optional(raft::device_span<vertex_t const>{
+                                            d_given_set.data(), d_given_set.size()}),
+                                          rng_state,
+                                          select_count,
+                                          with_replacement,
+                                          true);
+
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+        auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
+
+        if (select_random_vertices_usecase.check_correctness) {
+          if (!with_replacement) {
+            std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
+
+            auto nr_duplicates =
+              std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
+                            h_sampled_vertices.end());
+
+            ASSERT_EQ(nr_duplicates, 0);
           }
+
+          std::sort(h_given_set.begin(), h_given_set.end());
+          std::for_each(
+            h_sampled_vertices.begin(), h_sampled_vertices.end(), [&h_given_set](vertex_t v) {
+              ASSERT_TRUE(std::binary_search(h_given_set.begin(), h_given_set.end(), v));
+            });
         }
-        handle_->get_comms().barrier();
-      }
-
-      bool with_replacement = false;
-      auto d_sampled_vertices =
-        cugraph::select_random_vertices(*handle_,
-                                        mg_graph_view,
-                                        std::make_optional(raft::device_span<vertex_t const>{
-                                          d_given_set.data(), d_given_set.size()}),
-                                        rng_state,
-                                        select_count,
-                                        with_replacement,
-                                        true);
-
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-      auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
-
-      if (select_random_vertices_usecase.check_correctness) {
-        if (!with_replacement) {
-          std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
-
-          auto nr_duplicates =
-            std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
-                          h_sampled_vertices.end());
-
-          ASSERT_EQ(nr_duplicates, 0);
-        }
-
-        for (int i = 0; i < comm_size; ++i) {
-          if (comm_rank == i) {
-            if (select_random_vertices_usecase.select_count <= 30) {
-              std::cout << "rank(h_sampled_vertices) " << comm_rank << ":";
-              std::copy(h_sampled_vertices.begin(),
-                        h_sampled_vertices.end(),
-                        std::ostream_iterator<int>(std::cout, " "));
-              std::cout << std::endl;
-            }
-          }
-          handle_->get_comms().barrier();
-        }
-
-        std::sort(h_given_set.begin(), h_given_set.end());
-
-        std::for_each(
-          h_sampled_vertices.begin(), h_sampled_vertices.end(), [&h_given_set](vertex_t v) {
-            ASSERT_TRUE(std::binary_search(h_given_set.begin(), h_given_set.end(), v));
-          });
       }
     }
 
     //
     // Test sampling from [0, V)
     //
-    {
+
+    for (int idx = 0; idx < with_replacement_flags.size(); idx++) {
       bool with_replacement   = false;
       auto d_sampled_vertices = cugraph::select_random_vertices(
         *handle_,
