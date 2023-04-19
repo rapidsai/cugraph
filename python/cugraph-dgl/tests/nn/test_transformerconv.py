@@ -75,4 +75,6 @@ def test_TransformerConv(
         edge_feats=edge_feats,
     ).to(device)
 
-    _ = conv(g, nfeats, efeats)
+    out = conv(g, nfeats, efeats)
+    grad_out = torch.rand_like(out)
+    out.backward(grad_out)
