@@ -9,8 +9,10 @@ This page provides a list of all publicly accessible modules, methods and classe
     :caption: API Documentation
 
     graph_types
+    pytorch
     mfg_operators
     bipartite_operators
     static_operators
     fg_operators
     dimenet
+    pytorch
