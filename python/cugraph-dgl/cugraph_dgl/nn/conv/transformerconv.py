@@ -26,7 +26,29 @@ nn = import_optional("torch.nn")
 class TransformerConv(BaseConv):
     r"""The graph transformer layer from the `"Masked Label Prediction:
     Unified Message Passing Model for Semi-Supervised Classification"
-    <https://arxiv.org/abs/2009.03509>`_ paper."""
+    <https://arxiv.org/abs/2009.03509>`_ paper.
+
+    Parameters
+    ----------
+    in_node_feats : int or pair of ints
+        Input feature size. A pair denotes feature sizes of source and
+        destination nodes.
+    out_node_feats : int
+        Output feature size.
+    num_heads : int
+        Number of multi-head-attentions.
+    concat : bool, optional
+        If False, the multi-head attentions are averaged instead of concatenated.
+        Default: ``True``.
+    beta : bool, optional
+        If True, use a gated residual connection. Default: ``True``.
+    edge_feats: int, optional
+        Edge feature size. Default: ``None``.
+    bias: bool, optional
+        If True, learns a bias term. Default: ``True``.
+    root_weight: bool, optional
+        If False, will skip to learn a root weight matrix. Default: ``True``.
+    """
 
     def __init__(
         self,
@@ -98,30 +120,37 @@ class TransformerConv(BaseConv):
         nfeats: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         efeats: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        """Forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph.
+        nfeats: torch.Tensor or a pair of torch.Tensor
+            Node feature tensor. A pair denotes features for source and
+            destination nodes, respectively.
+        efeats: torch.Tensor, optional
+            Edge feature tensor. Default: ``None``.
+        """
         bipartite = not isinstance(nfeats, torch.Tensor)
         offsets, indices, _ = g.adj_sparse("csc")
 
         if bipartite:
+            src_feats, dst_feats = nfeats
             _graph = BipartiteCSC(
                 offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
             )
         else:
-            nfeats = (nfeats, nfeats)
-
-        query = self.lin_query(nfeats[1])
-        key = self.lin_key(nfeats[0])
-        value = self.lin_value(nfeats[0])
-        if self.lin_edge is not None:
-            efeats = self.lin_edge(efeats)
-
-        if bipartite:
-            _graph = BipartiteCSC(
-                offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
-            )
-        else:
+            src_feats = dst_feats = nfeats
             if g.is_block:
                 offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
             _graph = StaticCSC(offsets=offsets, indices=indices)
+
+        query = self.lin_query(dst_feats)
+        key = self.lin_key(src_feats)
+        value = self.lin_value(src_feats)
+        if self.lin_edge is not None:
+            efeats = self.lin_edge(efeats)
 
         out = mha_simple_n2n(
             key_emb=key,
@@ -136,7 +165,7 @@ class TransformerConv(BaseConv):
         )[: g.num_dst_nodes()]
 
         if self.root_weight:
-            res = self.lin_skip(nfeats[1])
+            res = self.lin_skip(dst_feats[: g.num_dst_nodes()])
             if self.lin_beta is not None:
                 beta = self.lin_beta(torch.cat([out, res, out - res], dim=-1))
                 beta = beta.sigmoid()

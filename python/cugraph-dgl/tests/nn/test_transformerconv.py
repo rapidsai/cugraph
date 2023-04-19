@@ -24,30 +24,55 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
+options = {
+    "beta": [False, True],
+    "bipartite": [False, True],
+    "concat": [False, True],
+    "idtype_int": [False, True],
+    "num_heads": [1, 2, 3, 4],
+    "to_block": [False, True],
+    "use_edge_feats": [False, True],
+}
 
-def test_TransformerConv():
+
+@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
+def test_TransformerConv(
+    beta, bipartite, concat, idtype_int, num_heads, to_block, use_edge_feats
+):
     device = "cuda"
-    in_node_feats = (5, 3)
-    out_node_feats = 2
-    edge_feats = 3
-    num_heads = 4
-    concat = True
-
     g = create_graph1().to(device)
 
-    nfeats = (
-        torch.rand(g.num_src_nodes(), in_node_feats[0], device=device),
-        torch.rand(g.num_dst_nodes(), in_node_feats[1], device=device),
-    )
+    if idtype_int:
+        g = g.int()
 
-    efeats = torch.rand(g.num_edges(), edge_feats, device=device)
+    if to_block:
+        g = dgl.to_block(g)
+
+    if bipartite:
+        in_node_feats = (5, 3)
+        nfeats = (
+            torch.rand(g.num_src_nodes(), in_node_feats[0], device=device),
+            torch.rand(g.num_dst_nodes(), in_node_feats[1], device=device),
+        )
+    else:
+        in_node_feats = 3
+        nfeats = torch.rand(g.num_src_nodes(), in_node_feats, device=device)
+    out_node_feats = 2
+
+    if use_edge_feats:
+        edge_feats = 3
+        efeats = torch.rand(g.num_edges(), edge_feats, device=device)
+    else:
+        edge_feats = None
+        efeats = None
 
     conv = TransformerConv(
         in_node_feats,
         out_node_feats,
         num_heads=num_heads,
         concat=concat,
+        beta=beta,
         edge_feats=edge_feats,
     ).to(device)
 
-    out = conv(g, nfeats, efeats)
+    _ = conv(g, nfeats, efeats)
