@@ -66,14 +66,14 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
 
       rmm::device_uvector<vertex_t> local_vertices(0, handle_.get_stream());
 
-      local_vertices =
-        cugraph::select_random_vertices(handle_,
-                                        graph_view,
-                                        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
-                                        rng_state_->rng_state_,
-                                        num_vertices_,
-                                        false,
-                                        false);
+      local_vertices = cugraph::select_random_vertices(
+        handle_,
+        graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state_->rng_state_,
+        num_vertices_,
+        false,
+        false);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,

@@ -19,6 +19,9 @@
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <chrono>
+#include <random>
+
 #include <gtest/gtest.h>
 
 struct SelectRandomVertices_Usecase {
@@ -77,63 +80,95 @@ class Tests_MGSelectRandomVertices
 
     {
       // Generate distributed vertex set to sample from
-      srand((unsigned)time(NULL));
-      std::vector<vertex_t> h_given_set(rand() % mg_graph_view.local_vertex_partition_range_size() +
-                                        1);
+      std::srand((unsigned)std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+                   .count());
 
-      for (int i = 0; i < h_given_set.size(); i++) {
-        h_given_set[i] = mg_graph_view.local_vertex_partition_range_first() +
-                         rand() % mg_graph_view.local_vertex_partition_range_size();
-      }
+      std::vector<vertex_t> h_given_set(mg_graph_view.local_vertex_partition_range_size());
 
-      std::sort(h_given_set.begin(), h_given_set.end());
-      auto last = std::unique(h_given_set.begin(), h_given_set.end());
-      h_given_set.erase(last, h_given_set.end());
+      std::iota(
+        h_given_set.begin(), h_given_set.end(), mg_graph_view.local_vertex_partition_range_first());
+      std::shuffle(h_given_set.begin(), h_given_set.end(), std::mt19937{std::random_device{}()});
+      h_given_set.resize(std::rand() % mg_graph_view.local_vertex_partition_range_size() + 1);
 
       // Compute size of the distributed vertex set
-      int num_of_given_set = static_cast<int>(h_given_set.size());
+      int num_of_elements_in_given_set = static_cast<int>(h_given_set.size());
 
       rmm::device_uvector<int> d_num_of_given_set(1, handle_->get_stream());
-      raft::update_device(d_num_of_given_set.data(), &num_of_given_set, 1, handle_->get_stream());
+      raft::update_device(
+        d_num_of_given_set.data(), &num_of_elements_in_given_set, 1, handle_->get_stream());
       handle_->get_comms().allreduce(d_num_of_given_set.data(),
                                      d_num_of_given_set.data(),
                                      1,
                                      raft::comms::op_t::SUM,
                                      handle_->get_stream());
-      raft::update_host(&num_of_given_set, d_num_of_given_set.data(), 1, handle_->get_stream());
+      raft::update_host(
+        &num_of_elements_in_given_set, d_num_of_given_set.data(), 1, handle_->get_stream());
       auto status = handle_->get_comms().sync_stream(handle_->get_stream());
       CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
 
       // Move the distributed vertex set to GPUs
-      std::optional<rmm::device_uvector<vertex_t>> d_given_set{std::nullopt};
-      d_given_set = rmm::device_uvector<vertex_t>(h_given_set.size(), handle_->get_stream());
-      raft::update_device(
-        (*d_given_set).data(), h_given_set.data(), h_given_set.size(), handle_->get_stream());
+      auto d_given_set = cugraph::test::to_device(*handle_, h_given_set);
 
       // Sampling size should not exceed the size of distributed vertex set
-      size_t select_count = num_of_given_set > select_random_vertices_usecase.select_count
-                              ? select_random_vertices_usecase.select_count
-                              : num_of_given_set / 2 + 1;
+      size_t select_count =
+        num_of_elements_in_given_set > select_random_vertices_usecase.select_count
+          ? select_random_vertices_usecase.select_count
+          : num_of_elements_in_given_set / 2 + 1;
 
-      auto d_sampled_vertices = cugraph::select_random_vertices(
-        *handle_,
-        mg_graph_view,
-        d_given_set ? std::move(d_given_set)
-                    : std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
-        rng_state,
-        select_count,
-        false,
-        true);
+      for (int i = 0; i < comm_size; ++i) {
+        if (comm_rank == i) {
+          if (select_random_vertices_usecase.select_count <= 30) {
+            std::cout << "rank (h_given_set) " << comm_rank << ":";
+            std::copy(
+              h_given_set.begin(), h_given_set.end(), std::ostream_iterator<int>(std::cout, " "));
+            std::cout << std::endl;
+          }
+        }
+        handle_->get_comms().barrier();
+      }
+
+      bool with_replacement = false;
+      auto d_sampled_vertices =
+        cugraph::select_random_vertices(*handle_,
+                                        mg_graph_view,
+                                        std::make_optional(raft::device_span<vertex_t const>{
+                                          d_given_set.data(), d_given_set.size()}),
+                                        rng_state,
+                                        select_count,
+                                        with_replacement,
+                                        true);
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      std::vector<vertex_t> h_sampled_vertices(d_sampled_vertices.size());
-      raft::update_host(h_sampled_vertices.data(),
-                        d_sampled_vertices.data(),
-                        d_sampled_vertices.size(),
-                        handle_->get_stream());
+      auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
 
       if (select_random_vertices_usecase.check_correctness) {
+        if (!with_replacement) {
+          std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
+
+          auto nr_duplicates =
+            std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
+                          h_sampled_vertices.end());
+
+          ASSERT_EQ(nr_duplicates, 0);
+        }
+
+        for (int i = 0; i < comm_size; ++i) {
+          if (comm_rank == i) {
+            if (select_random_vertices_usecase.select_count <= 30) {
+              std::cout << "rank(h_sampled_vertices) " << comm_rank << ":";
+              std::copy(h_sampled_vertices.begin(),
+                        h_sampled_vertices.end(),
+                        std::ostream_iterator<int>(std::cout, " "));
+              std::cout << std::endl;
+            }
+          }
+          handle_->get_comms().barrier();
+        }
+
+        std::sort(h_given_set.begin(), h_given_set.end());
+
         std::for_each(
           h_sampled_vertices.begin(), h_sampled_vertices.end(), [&h_given_set](vertex_t v) {
             ASSERT_TRUE(std::binary_search(h_given_set.begin(), h_given_set.end(), v));
@@ -145,24 +180,31 @@ class Tests_MGSelectRandomVertices
     // Test sampling from [0, V)
     //
     {
-      auto d_sampled_vertices =
-        cugraph::select_random_vertices(*handle_,
-                                        mg_graph_view,
-                                        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
-                                        rng_state,
-                                        select_random_vertices_usecase.select_count,
-                                        false,
-                                        true);
+      bool with_replacement   = false;
+      auto d_sampled_vertices = cugraph::select_random_vertices(
+        *handle_,
+        mg_graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        select_random_vertices_usecase.select_count,
+        with_replacement,
+        true);
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-      std::vector<vertex_t> h_sampled_vertices(d_sampled_vertices.size());
-      raft::update_host(h_sampled_vertices.data(),
-                        d_sampled_vertices.data(),
-                        d_sampled_vertices.size(),
-                        handle_->get_stream());
+      auto h_sampled_vertices = cugraph::test::to_host(*handle_, d_sampled_vertices);
 
       if (select_random_vertices_usecase.check_correctness) {
+        if (!with_replacement) {
+          std::sort(h_sampled_vertices.begin(), h_sampled_vertices.end());
+
+          auto nr_duplicates =
+            std::distance(std::unique(h_sampled_vertices.begin(), h_sampled_vertices.end()),
+                          h_sampled_vertices.end());
+
+          ASSERT_EQ(nr_duplicates, 0);
+        }
+
         auto vertex_first = mg_graph_view.local_vertex_partition_range_first();
         auto vertex_last  = mg_graph_view.local_vertex_partition_range_last();
 
@@ -185,7 +227,6 @@ std::unique_ptr<raft::handle_t> Tests_MGSelectRandomVertices<input_usecase_t>::h
 using Tests_MGSelectRandomVertices_File = Tests_MGSelectRandomVertices<cugraph::test::File_Usecase>;
 using Tests_MGSelectRandomVertices_Rmat = Tests_MGSelectRandomVertices<cugraph::test::Rmat_Usecase>;
 
-// FIXME: add tests for type combinations
 TEST_P(Tests_MGSelectRandomVertices_File, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float>(

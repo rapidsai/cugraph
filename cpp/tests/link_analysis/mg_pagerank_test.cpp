@@ -95,7 +95,7 @@ class Tests_MGPageRank
       d_mg_personalization_vertices = cugraph::select_random_vertices(
         *handle_,
         mg_graph_view,
-        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         rng_state,
         std::max(
           static_cast<size_t>(mg_graph_view.number_of_vertices() *

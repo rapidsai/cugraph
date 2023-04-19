@@ -18,6 +18,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -37,43 +38,46 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
-namespace cugraph {
 
+namespace cugraph {
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<rmm::device_uvector<vertex_t>>&& given_set,
+  std::optional<raft::device_span<vertex_t const>> given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
-  bool sort_vertices)
+  bool sort_vertices,
+  bool do_expensive_check)
 {
+  size_t num_of_elements_in_given_set{0};
   if (given_set) {
-    bool is_any_v_out_of_range =
-      thrust::any_of(handle.get_thrust_policy(),
-                     (*given_set).begin(),
-                     (*given_set).end(),
-                     [v_first = graph_view.local_vertex_partition_range_first(),
-                      v_last  = graph_view.local_vertex_partition_range_last()] __device__(auto v) {
-                       return !((v >= v_first) && (v < v_last));
-                     });
-
-    CUGRAPH_EXPECTS(!is_any_v_out_of_range, "All given vertices must be within range [0, V)");
-
-    size_t nr_given_set = static_cast<size_t>((*given_set).size());
-    if (multi_gpu) {
-      nr_given_set = host_scalar_allreduce(
-        handle.get_comms(), nr_given_set, raft::comms::op_t::SUM, handle.get_stream());
+    if (do_expensive_check) {
+      CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
+                        handle.get_thrust_policy(),
+                        (*given_set).begin(),
+                        (*given_set).begin() + (*given_set).size(),
+                        detail::check_out_of_range_t<vertex_t>{
+                          graph_view.local_vertex_partition_range_first(),
+                          graph_view.local_vertex_partition_range_last()})) == size_t{0},
+                      "Invalid input argument: vertex IDs in the given set must be within vertex "
+                      "partition assigned to this GPU");
     }
-
+    num_of_elements_in_given_set = static_cast<size_t>((*given_set).size());
+    if (multi_gpu) {
+      num_of_elements_in_given_set = host_scalar_allreduce(handle.get_comms(),
+                                                           num_of_elements_in_given_set,
+                                                           raft::comms::op_t::SUM,
+                                                           handle.get_stream());
+    }
     CUGRAPH_EXPECTS(
-      with_replacement || select_count <= nr_given_set,
+      with_replacement || select_count <= num_of_elements_in_given_set,
       "Invalid input arguments: select_count should not exceed the number of given vertices if "
       "with_replacement == false.");
-
   } else {
     CUGRAPH_EXPECTS(
       with_replacement || select_count <= static_cast<size_t>(graph_view.number_of_vertices()),
@@ -96,51 +100,36 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     this_gpu_select_count = select_count;
   }
 
+  std::vector<vertex_t> partition_range_lasts;
+  if constexpr (multi_gpu) {
+    partition_range_lasts = given_set ? cugraph::partition_manager::compute_partition_range_lasts(
+                                          handle, static_cast<vertex_t>((*given_set).size()))
+                                      : graph_view.vertex_partition_range_lasts();
+  }
+
   if (with_replacement) {
-    // FIXME: need to double check uniform_random_fill generates random numbers in [0, V) (not [0,
-    // V])
     mg_sample_buffer.resize(this_gpu_select_count, handle.get_stream());
-
-    cugraph::detail::uniform_random_fill(
-      handle.get_stream(),
-      mg_sample_buffer.data(),
-      mg_sample_buffer.size(),
-      vertex_t{0},
-      given_set ? static_cast<vertex_t>((*given_set).size()) : graph_view.number_of_vertices(),
-      rng_state);
-
-    if (given_set) {
-      thrust::gather(handle.get_thrust_policy(),
-                     mg_sample_buffer.begin(),
-                     mg_sample_buffer.end(),
-                     (*given_set).begin(),
-                     mg_sample_buffer.begin());
-    }
-
+    cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                         mg_sample_buffer.data(),
+                                         mg_sample_buffer.size(),
+                                         vertex_t{0},
+                                         given_set
+                                           ? static_cast<vertex_t>(num_of_elements_in_given_set)
+                                           : graph_view.number_of_vertices(),
+                                         rng_state);
   } else {
-    size_t mg_buffer_size = 0;
     vertex_t start_idx;
-
+    size_t mg_buffer_size;
     if (given_set) {
-      start_idx = vertex_t{0};
+      mg_buffer_size = (*given_set).size();
+      start_idx      = vertex_t{0};
       if constexpr (multi_gpu) {
         auto const comm_rank = handle.get_comms().get_rank();
-        auto const comm_size = handle.get_comms().get_size();
-
-        auto recvcounts =
-          host_scalar_allgather(handle.get_comms(), (*given_set).size(), handle.get_stream());
-        std::vector<size_t> displacements(recvcounts.size(), size_t{0});
-        std::partial_sum(recvcounts.begin(), recvcounts.end() - 1, displacements.begin() + 1);
-
-        start_idx = displacements[comm_rank];
+        start_idx            = comm_rank ? partition_range_lasts[comm_rank - 1] : 0;
       }
-      mg_buffer_size = (*given_set).size();
     } else {
-      auto local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first();
-      auto local_vertex_partition_range_last  = graph_view.local_vertex_partition_range_last();
-
-      mg_buffer_size = local_vertex_partition_range_last - local_vertex_partition_range_first;
-      start_idx      = local_vertex_partition_range_first;
+      mg_buffer_size = graph_view.local_vertex_partition_range_size();
+      start_idx      = graph_view.local_vertex_partition_range_first();
     }
 
     mg_sample_buffer = rmm::device_uvector<vertex_t>(mg_buffer_size, handle.get_stream());
@@ -170,9 +159,12 @@ rmm::device_uvector<vertex_t> select_random_vertices(
         tx_value_counts[i] = mg_sample_buffer.size() / comm_size;
       }
 
-      srand((unsigned)time(NULL));
+      std::srand((unsigned)std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+                   .count());
+
       for (int i = 0; i < static_cast<int>(mg_sample_buffer.size() % comm_size); i++) {
-        tx_value_counts[rand() % comm_size]++;
+        tx_value_counts[std::rand() % comm_size]++;
       }
 
       std::tie(mg_sample_buffer, std::ignore) = cugraph::shuffle_values(
@@ -212,32 +204,21 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if constexpr (multi_gpu) {
-    auto vertex_partition_range_lasts =
-      given_set ? cugraph::partition_manager::compute_vertex_partition_range_lasts(
-                    handle, static_cast<vertex_t>((*given_set).size()))
-                : graph_view.vertex_partition_range_lasts();
-
     mg_sample_buffer = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-      handle, std::move(mg_sample_buffer), vertex_partition_range_lasts);
-
-    if (given_set) {
-      auto const comm_rank = handle.get_comms().get_rank();
-      auto const comm_size = handle.get_comms().get_size();
-
-      auto start_idx = comm_rank ? vertex_partition_range_lasts[comm_rank - 1] : 0;
-
-      thrust::transform(handle.get_thrust_policy(),
-                        mg_sample_buffer.begin(),
-                        mg_sample_buffer.end(),
-                        mg_sample_buffer.begin(),
-                        [start_idx = start_idx] __device__(auto idx) { return idx - start_idx; });
-    }
+      handle, std::move(mg_sample_buffer), partition_range_lasts);
   }
 
   if (given_set) {
+    auto const comm_rank = handle.get_comms().get_rank();
     thrust::gather(handle.get_thrust_policy(),
-                   mg_sample_buffer.begin(),
-                   mg_sample_buffer.end(),
+                   thrust::make_transform_iterator(
+                     mg_sample_buffer.begin(),
+                     cugraph::detail::shift_left_t<vertex_t>{
+                       multi_gpu ? (comm_rank ? partition_range_lasts[comm_rank - 1] : 0) : 0}),
+                   thrust::make_transform_iterator(
+                     mg_sample_buffer.end(),
+                     cugraph::detail::shift_left_t<vertex_t>{
+                       multi_gpu ? (comm_rank ? partition_range_lasts[comm_rank - 1] : 0) : 0}),
                    (*given_set).begin(),
                    mg_sample_buffer.begin());
   }

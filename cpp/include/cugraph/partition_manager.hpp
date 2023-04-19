@@ -97,8 +97,8 @@ class partition_manager {
   }
 
   template <typename vertex_t>
-  static std::vector<vertex_t> compute_vertex_partition_range_lasts(raft::handle_t const& handle,
-                                                                    vertex_t local_parition_size)
+  static std::vector<vertex_t> compute_partition_range_lasts(raft::handle_t const& handle,
+                                                             vertex_t local_partition_size)
   {
     auto& comm                 = handle.get_comms();
     auto const comm_size       = comm.get_size();
@@ -109,7 +109,7 @@ class partition_manager {
     auto const minor_comm_size = minor_comm.get_size();
     auto const minor_comm_rank = minor_comm.get_rank();
 
-    auto vertex_counts = host_scalar_allgather(comm, local_parition_size, handle.get_stream());
+    auto vertex_counts = host_scalar_allgather(comm, local_partition_size, handle.get_stream());
     auto vertex_partition_ids =
       host_scalar_allgather(comm,
                             partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
