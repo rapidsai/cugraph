@@ -4,7 +4,6 @@ Tree
 .. currentmodule:: cugraph
 
 
-
 Minimum Spanning Tree
 ---------------------
 .. autosummary::

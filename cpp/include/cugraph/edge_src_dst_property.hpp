@@ -25,6 +25,7 @@
 
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <optional>
@@ -562,8 +563,8 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
 template <typename vertex_t, typename... Ts>
 auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... views)
 {
-  using concat_value_iterator = decltype(
-    thrust::make_zip_iterator(thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...)));
+  using concat_value_iterator = decltype(thrust::make_zip_iterator(
+    thrust_tuple_cat(to_thrust_iterator_tuple(views.value_first())...)));
 
   concat_value_iterator edge_partition_concat_value_first{};
 

@@ -42,6 +42,7 @@
 
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <gtest/gtest.h>

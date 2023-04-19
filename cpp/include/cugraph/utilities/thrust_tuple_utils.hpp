@@ -96,16 +96,13 @@ constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max(TupleType t,
 }  // namespace detail
 
 template <typename T>
-struct is_thrust_tuple : std::false_type {
-};
+struct is_thrust_tuple : std::false_type {};
 
 template <typename... Ts>
-struct is_thrust_tuple<thrust::tuple<Ts...>> : std::true_type {
-};
+struct is_thrust_tuple<thrust::tuple<Ts...>> : std::true_type {};
 
 template <typename TupleType>
-struct is_thrust_tuple_of_arithmetic : std::false_type {
-};
+struct is_thrust_tuple_of_arithmetic : std::false_type {};
 
 template <typename... Args>
 struct is_thrust_tuple_of_arithmetic<thrust::tuple<Args...>> {
@@ -118,25 +115,20 @@ struct is_thrust_tuple_of_arithmetic<thrust::tuple<Args...>> {
 };
 
 template <typename T>
-struct is_std_tuple : std::false_type {
-};
+struct is_std_tuple : std::false_type {};
 
 template <typename... Ts>
-struct is_std_tuple<std::tuple<Ts...>> : std::true_type {
-};
+struct is_std_tuple<std::tuple<Ts...>> : std::true_type {};
 
 template <typename T, template <typename> typename Vector>
-struct is_arithmetic_vector : std::false_type {
-};
+struct is_arithmetic_vector : std::false_type {};
 
 template <template <typename> typename Vector, typename T>
 struct is_arithmetic_vector<Vector<T>, Vector>
-  : std::integral_constant<bool, std::is_arithmetic<T>::value> {
-};
+  : std::integral_constant<bool, std::is_arithmetic<T>::value> {};
 
 template <typename T>
-struct is_std_tuple_of_arithmetic_vectors : std::false_type {
-};
+struct is_std_tuple_of_arithmetic_vectors : std::false_type {};
 
 template <typename... Args>
 struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Args>...>> {
@@ -145,22 +137,18 @@ struct is_std_tuple_of_arithmetic_vectors<std::tuple<rmm::device_uvector<Args>..
 
 template <typename T>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic
-  : std::integral_constant<bool, std::is_arithmetic<T>::value> {
-};
+  : std::integral_constant<bool, std::is_arithmetic<T>::value> {};
 
 template <typename... Ts>
 struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>
-  : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>::value> {
-};
+  : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>::value> {};
 
 template <typename T>
-struct thrust_tuple_size_or_one : std::integral_constant<size_t, 1> {
-};
+struct thrust_tuple_size_or_one : std::integral_constant<size_t, 1> {};
 
 template <typename... Ts>
 struct thrust_tuple_size_or_one<thrust::tuple<Ts...>>
-  : std::integral_constant<size_t, thrust::tuple_size<thrust::tuple<Ts...>>::value> {
-};
+  : std::integral_constant<size_t, thrust::tuple_size<thrust::tuple<Ts...>>::value> {};
 
 template <typename TupleType>
 struct compute_thrust_tuple_element_sizes {

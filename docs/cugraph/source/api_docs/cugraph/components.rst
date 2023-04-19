@@ -4,7 +4,6 @@ Components
 .. currentmodule:: cugraph
 
 
-
 Connected Components
 --------------------
 .. autosummary::
