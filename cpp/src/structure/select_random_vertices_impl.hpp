@@ -159,12 +159,27 @@ rmm::device_uvector<vertex_t> select_random_vertices(
         tx_value_counts[i] = mg_sample_buffer.size() / comm_size;
       }
 
-      std::srand((unsigned)std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-                   .count());
+      std::vector<vertex_t> h_random_numbers;
+      {
+        rmm::device_uvector<vertex_t> d_random_numbers(mg_sample_buffer.size() % comm_size,
+                                                       handle.get_stream());
+        cugraph::detail::uniform_random_fill(handle.get_stream(),
+                                             d_random_numbers.data(),
+                                             d_random_numbers.size(),
+                                             vertex_t{0},
+                                             vertex_t{comm_size},
+                                             rng_state);
+
+        h_random_numbers.resize(d_random_numbers.size());
+
+        raft::update_host(h_random_numbers.data(),
+                          d_random_numbers.data(),
+                          d_random_numbers.size(),
+                          handle.get_stream());
+      }
 
       for (int i = 0; i < static_cast<int>(mg_sample_buffer.size() % comm_size); i++) {
-        tx_value_counts[std::rand() % comm_size]++;
+        tx_value_counts[h_random_numbers[i]]++;
       }
 
       std::tie(mg_sample_buffer, std::ignore) = cugraph::shuffle_values(
