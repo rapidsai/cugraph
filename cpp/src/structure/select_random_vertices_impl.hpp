@@ -236,7 +236,6 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   if (given_set) {
-    auto const comm_rank = handle.get_comms().get_rank();
     thrust::gather(
       handle.get_thrust_policy(),
       thrust::make_transform_iterator(
