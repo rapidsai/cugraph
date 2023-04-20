@@ -38,7 +38,9 @@ struct is_one_or_greater_t {
 };
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> 
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
 trim(raft::handle_t const& handle,
        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
        std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -125,5 +127,7 @@ trim(raft::handle_t const& handle,
     raft::device_span<size_t const>{subgraph_offsets_in.data(), subgraph_offsets_in.size()},
     raft::device_span<vertex_t const>{in_one_core_flags.data(), in_one_core_flags.size()},
     do_expensive_check);
+    
+    return  std::make_tuple(std::move(src_), std::move(dst_), std::move(wgt_));
 }
 }
