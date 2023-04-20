@@ -94,7 +94,19 @@ class edge_property_t {
     }
   }
 
-  edge_property_t(std::vector<buffer_type>&& buffers) : buffers_(std::move(buffers)) {}
+  template <typename value_type = T, typename = std::enable_if_t<!std::is_same_v<value_type, bool>>>
+  edge_property_t(std::vector<buffer_type>&& buffers) : buffers_(std::move(buffers))
+  {
+    edge_counts_.resize(buffers_.size());
+    for (size_t i = 0; i < edge_counts_.size(); ++i) {
+      edge_counts_[i] = size_dataframe_buffer(buffers_[i]);
+    }
+  }
+
+  edge_property_t(std::vector<buffer_type>&& buffers, std::vector<edge_type>&& edge_counts)
+    : buffers_(std::move(buffers)), edge_counts_(std::move(edge_counts))
+  {
+  }
 
   void clear(raft::handle_t const& handle)
   {
@@ -130,7 +142,6 @@ class edge_property_t {
       edge_partition_edge_counts[i]  = edge_counts_[i];
     }
 
-    constexpr auto packed_bool = std::is_same_v<T, bool>;
     return edge_property_view_t<edge_type, value_iterator, T>(edge_partition_value_firsts,
                                                               edge_partition_edge_counts);
   }
