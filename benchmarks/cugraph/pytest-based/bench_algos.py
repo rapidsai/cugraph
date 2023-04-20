@@ -66,9 +66,15 @@ def createGraph(csvFileName, graphType=None):
         else:
             graphType = cugraph.Graph()
 
+    gdf = utils.read_csv_file(csvFileName)
+    if len(gdf.columns) == 2:
+        edge_attr = None
+    else:
+        edge_attr = "2"
+
     return cugraph.from_cudf_edgelist(
-        utils.read_csv_file(csvFileName),
-        source="0", destination="1", edge_attr="2",
+        gdf,
+        source="0", destination="1", edge_attr=edge_attr,
         create_using=graphType,
         renumber=True)
 
@@ -208,7 +214,8 @@ def bench_pagerank(gpubenchmark, anyGraphWithTransposedAdjListComputed):
 
 
 def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, 0)
+    start = anyGraphWithAdjListComputed.edgelist.edgelist_df["src"][0]
+    gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, start)
 
 
 def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
@@ -217,7 +224,8 @@ def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
 
 
 def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, 0)
+    start = anyGraphWithAdjListComputed.edgelist.edgelist_df["src"][0]
+    gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, start)
 
 
 def bench_jaccard(gpubenchmark, graphWithAdjListComputed):
@@ -232,8 +240,11 @@ def bench_louvain(gpubenchmark, graphWithAdjListComputed):
 
 def bench_weakly_connected_components(gpubenchmark,
                                       anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.weakly_connected_components,
-                 anyGraphWithAdjListComputed)
+    if anyGraphWithAdjListComputed.is_directed():
+        G = anyGraphWithAdjListComputed.to_undirected()
+    else:
+        G = anyGraphWithAdjListComputed
+    gpubenchmark(cugraph.weakly_connected_components, G)
 
 
 def bench_overlap(gpubenchmark, anyGraphWithAdjListComputed):
