@@ -167,9 +167,8 @@ rmm::device_uvector<vertex_t> select_random_vertices(
       auto const comm_size = handle.get_comms().get_size();
 
       std::vector<size_t> tx_value_counts(comm_size);
-      for (int i = 0; i < comm_size; ++i) {
-        tx_value_counts[i] = mg_sample_buffer.size() / comm_size;
-      }
+      std::fill(
+        tx_value_counts.begin(), tx_value_counts.end(), mg_sample_buffer.size() / comm_size);
 
       std::vector<vertex_t> h_random_numbers;
       {
