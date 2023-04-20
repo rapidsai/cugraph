@@ -14,15 +14,17 @@
 primitives in cugraph-ops"""
 # pylint: disable=no-member, arguments-differ, invalid-name, too-many-arguments
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Tuple, Union
 
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
+from pylibcugraphops.pytorch import BipartiteCSC, SampledCSC, StaticCSC
+from pylibcugraphops.pytorch.operators import mha_gat_n2n, mha_gat_n2n_bipartite
+
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
-ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(BaseConv):
@@ -30,19 +32,20 @@ class GATConv(BaseConv):
     <https://arxiv.org/pdf/1710.10903.pdf>`__, with the sparse aggregation
     accelerated by cugraph-ops.
 
-    See :class:`dgl.nn.pytorch.conv.GATConv` for mathematical model.
-
-    This module depends on :code:`pylibcugraphops` package, which can be
-    installed via :code:`conda install -c nvidia pylibcugraphops>=23.02`.
-
     Parameters
     ----------
-    in_feats : int
-        Input feature size.
+    in_feats : int, pair of ints
+        Input feature size. A pair denotes feature sizes of source and
+        destination nodes.
     out_feats : int
         Output feature size.
     num_heads : int
         Number of heads in Multi-Head Attention.
+    concat : bool, optional
+        If False, the multi-head attentions are averaged instead of concatenated.
+        Default: ``True``.
+    edge_feats : int, optional
+        Edge feature size. Default: ``None``.
     negative_slope : float, optional
         LeakyReLU angle of negative slope. Defaults: ``0.2``.
     bias : bool, optional
@@ -84,9 +87,11 @@ class GATConv(BaseConv):
 
     def __init__(
         self,
-        in_feats: int,
+        in_feats: Union[int, Tuple[int, int]],
         out_feats: int,
         num_heads: int,
+        concat: bool = True,
+        edge_feats: Optional[int] = None,
         negative_slope: float = 0.2,
         bias: bool = True,
     ):
@@ -94,13 +99,27 @@ class GATConv(BaseConv):
         self.in_feats = in_feats
         self.out_feats = out_feats
         self.num_heads = num_heads
+        self.concat = concat
+        self.edge_feats = edge_feats
         self.negative_slope = negative_slope
 
-        self.fc = nn.Linear(in_feats, out_feats * num_heads, bias=False)
-        self.attn_weights = nn.Parameter(torch.Tensor(2 * num_heads * out_feats))
+        if isinstance(in_feats, int):
+            self.fc = nn.Linear(in_feats, num_heads * out_feats, bias=False)
+        else:
+            self.fc_src = nn.Linear(in_feats[0], num_heads * out_feats, bias=False)
+            self.fc_dst = nn.Linear(in_feats[1], num_heads * out_feats, bias=False)
 
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(num_heads * out_feats))
+        if edge_feats is not None:
+            self.fc_edge = nn.Linear(edge_feats, num_heads * out_feats, bias=False)
+            self.attn_weights = nn.Parameter(torch.Tensor(3 * num_heads * out_feats))
+        else:
+            self.register_parameter("fc_edge", None)
+            self.attn_weights = nn.Parameter(torch.Tensor(2 * num_heads * out_feats))
+
+        if bias and concat:
+            self.bias = nn.Parameter(torch.Tensor(num_heads, out_feats))
+        elif bias and not concat:
+            self.bias = nn.Parameter(torch.Tensor(out_feats))
         else:
             self.register_buffer("bias", None)
 
@@ -108,19 +127,26 @@ class GATConv(BaseConv):
 
     def reset_parameters(self):
         r"""Reinitialize learnable parameters."""
-
         gain = nn.init.calculate_gain("relu")
-        nn.init.xavier_normal_(self.fc.weight, gain=gain)
+        if hasattr(self, "fc"):
+            nn.init.xavier_normal_(self.fc.weight, gain=gain)
+        else:
+            nn.init.xavier_normal_(self.fc_src.weight, gain=gain)
+            nn.init.xavier_normal_(self.fc_dst.weight, gain=gain)
+
         nn.init.xavier_normal_(
-            self.attn_weights.view(2, self.num_heads, self.out_feats), gain=gain
+            self.attn_weights.view(-1, self.num_heads, self.out_feats), gain=gain
         )
+        if self.fc_edge is not None:
+            self.fc_edge.reset_parameters()
         if self.bias is not None:
             nn.init.zeros_(self.bias)
 
     def forward(
         self,
         g: dgl.DGLHeteroGraph,
-        feat: torch.Tensor,
+        nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        efeat: Optional[torch.Tensor] = None,
         max_in_degree: Optional[int] = None,
     ) -> torch.Tensor:
         r"""Forward computation.
@@ -129,8 +155,9 @@ class GATConv(BaseConv):
         ----------
         graph : DGLGraph
             The graph.
-        feat : torch.Tensor
+        nfeat : torch.Tensor
             Input features of shape :math:`(N, D_{in})`.
+        efeat: torch.Tensor, optional
         max_in_degree : int
             Maximum in-degree of destination nodes. It is only effective when
             :attr:`g` is a :class:`DGLBlock`, i.e., bipartite graph. When
@@ -145,32 +172,65 @@ class GATConv(BaseConv):
             :math:`H` is the number of heads, and :math:`D_{out}` is size of
             output feature.
         """
+        bipartite = not isinstance(nfeat, torch.Tensor)
         offsets, indices, _ = g.adj_sparse("csc")
 
-        if g.is_block:
-            if max_in_degree is None:
-                max_in_degree = g.in_degrees().max().item()
+        if efeat is not None and self.fc_edge is not None:
+            efeat = self.fc_edge(efeat)
 
-            if max_in_degree < self.MAX_IN_DEGREE_MFG:
-                _graph = ops_torch.SampledCSC(
-                    offsets, indices, max_in_degree, g.num_src_nodes()
-                )
-            else:
-                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-                _graph = ops_torch.StaticCSC(offsets_fg, indices)
+        if bipartite:
+            _graph = BipartiteCSC(
+                offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
+            )
+            nfeat_src = self.fc_src(nfeat[0])
+            nfeat_dst = self.fc_dst(nfeat[1])
+
+            out = mha_gat_n2n_bipartite(
+                src_feat=nfeat_src,
+                dst_feat=nfeat_dst,
+                attn_weights=self.attn_weights,
+                graph=_graph,
+                num_heads=self.num_heads,
+                activation="LeakyReLU",
+                negative_slope=self.negative_slope,
+                concat_heads=self.concat,
+                edge_feat=efeat,
+            )
         else:
-            _graph = ops_torch.StaticCSC(offsets, indices)
+            nfeat = self.fc(nfeat)
+            # Sampled primitive does not support edge features
+            if g.is_block and efeat is None:
+                if max_in_degree is None:
+                    max_in_degree = g.in_degrees().max().item()
 
-        feat_transformed = self.fc(feat)
-        out = ops_torch.operators.mha_gat_n2n(
-            feat_transformed,
-            self.attn_weights,
-            _graph,
-            self.num_heads,
-            "LeakyReLU",
-            self.negative_slope,
-            concat_heads=True,
-        ).view(-1, self.num_heads, self.out_feats)[: g.num_dst_nodes()]
+                if max_in_degree < self.MAX_IN_DEGREE_MFG:
+                    _graph = SampledCSC(
+                        offsets=offsets,
+                        indices=indices,
+                        max_num_neighbors=max_in_degree,
+                        num_src_nodes=g.num_src_nodes(),
+                    )
+                else:
+                    offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
+                    _graph = StaticCSC(offsets=offsets, indices=indices)
+            else:
+                if g.is_block:
+                    offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
+                _graph = StaticCSC(offsets=offsets, indices=indices)
+
+            out = mha_gat_n2n(
+                feat=nfeat,
+                attn_weights=self.attn_weights,
+                graph=_graph,
+                num_heads=self.num_heads,
+                activation="LeakyReLU",
+                negative_slope=self.negative_slope,
+                concat_heads=self.concat,
+                edge_feat=efeat,
+            )[: g.num_dst_nodes()]
+
+        if self.concat:
+            out = out.view(-1, self.num_heads, self.out_feats)
 
         if self.bias is not None:
             out = out + self.bias
