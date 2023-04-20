@@ -101,10 +101,33 @@ rmm::device_uvector<vertex_t> select_random_vertices(
   }
 
   std::vector<vertex_t> partition_range_lasts;
+
+  vertex_t local_int_vertex_first{0};
+  vertex_t local_int_vertex_last{given_set ? static_cast<vertex_t>(given_set->size())
+                                           : graph_view.number_of_vertices()};
+
   if constexpr (multi_gpu) {
     partition_range_lasts = given_set ? cugraph::partition_manager::compute_partition_range_lasts(
                                           handle, static_cast<vertex_t>((*given_set).size()))
                                       : graph_view.vertex_partition_range_lasts();
+
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto const comm_rank       = comm.get_rank();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto const major_comm_rank = major_comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
+
+    auto vertex_partition_id =
+      partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+        major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+
+    local_int_vertex_first =
+      vertex_partition_id == 0 ? vertex_t{0} : partition_range_lasts[vertex_partition_id - 1];
+    local_int_vertex_last = partition_range_lasts[vertex_partition_id];
   }
 
   if (with_replacement) {
@@ -118,23 +141,12 @@ rmm::device_uvector<vertex_t> select_random_vertices(
                                            : graph_view.number_of_vertices(),
                                          rng_state);
   } else {
-    vertex_t start_idx;
-    size_t mg_buffer_size;
-    if (given_set) {
-      mg_buffer_size = (*given_set).size();
-      start_idx      = vertex_t{0};
-      if constexpr (multi_gpu) {
-        auto const comm_rank = handle.get_comms().get_rank();
-        start_idx            = comm_rank ? partition_range_lasts[comm_rank - 1] : 0;
-      }
-    } else {
-      mg_buffer_size = graph_view.local_vertex_partition_range_size();
-      start_idx      = graph_view.local_vertex_partition_range_first();
-    }
-
-    mg_sample_buffer = rmm::device_uvector<vertex_t>(mg_buffer_size, handle.get_stream());
-    thrust::sequence(
-      handle.get_thrust_policy(), mg_sample_buffer.begin(), mg_sample_buffer.end(), start_idx);
+    mg_sample_buffer = rmm::device_uvector<vertex_t>(local_int_vertex_last - local_int_vertex_first,
+                                                     handle.get_stream());
+    thrust::sequence(handle.get_thrust_policy(),
+                     mg_sample_buffer.begin(),
+                     mg_sample_buffer.end(),
+                     local_int_vertex_first);
 
     {  // random shuffle (use this instead of thrust::shuffle to use raft::random::RngState)
       rmm::device_uvector<float> random_numbers(mg_sample_buffer.size(), handle.get_stream());
@@ -225,17 +237,14 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
   if (given_set) {
     auto const comm_rank = handle.get_comms().get_rank();
-    thrust::gather(handle.get_thrust_policy(),
-                   thrust::make_transform_iterator(
-                     mg_sample_buffer.begin(),
-                     cugraph::detail::shift_left_t<vertex_t>{
-                       multi_gpu ? (comm_rank ? partition_range_lasts[comm_rank - 1] : 0) : 0}),
-                   thrust::make_transform_iterator(
-                     mg_sample_buffer.end(),
-                     cugraph::detail::shift_left_t<vertex_t>{
-                       multi_gpu ? (comm_rank ? partition_range_lasts[comm_rank - 1] : 0) : 0}),
-                   (*given_set).begin(),
-                   mg_sample_buffer.begin());
+    thrust::gather(
+      handle.get_thrust_policy(),
+      thrust::make_transform_iterator(
+        mg_sample_buffer.begin(), cugraph::detail::shift_left_t<vertex_t>{local_int_vertex_first}),
+      thrust::make_transform_iterator(
+        mg_sample_buffer.end(), cugraph::detail::shift_left_t<vertex_t>{local_int_vertex_first}),
+      (*given_set).begin(),
+      mg_sample_buffer.begin());
   }
 
   if (sort_vertices) {
