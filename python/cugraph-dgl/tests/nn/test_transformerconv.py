@@ -50,21 +50,21 @@ def test_TransformerConv(
 
     if bipartite:
         in_node_feats = (5, 3)
-        nfeats = (
+        nfeat = (
             torch.rand(g.num_src_nodes(), in_node_feats[0], device=device),
             torch.rand(g.num_dst_nodes(), in_node_feats[1], device=device),
         )
     else:
         in_node_feats = 3
-        nfeats = torch.rand(g.num_src_nodes(), in_node_feats, device=device)
+        nfeat = torch.rand(g.num_src_nodes(), in_node_feats, device=device)
     out_node_feats = 2
 
     if use_edge_feats:
         edge_feats = 3
-        efeats = torch.rand(g.num_edges(), edge_feats, device=device)
+        efeat = torch.rand(g.num_edges(), edge_feats, device=device)
     else:
         edge_feats = None
-        efeats = None
+        efeat = None
 
     conv = TransformerConv(
         in_node_feats,
@@ -75,6 +75,6 @@ def test_TransformerConv(
         edge_feats=edge_feats,
     ).to(device)
 
-    out = conv(g, nfeats, efeats)
+    out = conv(g, nfeat, efeat)
     grad_out = torch.rand_like(out)
     out.backward(grad_out)

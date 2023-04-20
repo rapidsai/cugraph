@@ -117,8 +117,8 @@ class TransformerConv(BaseConv):
     def forward(
         self,
         g: dgl.DGLHeteroGraph,
-        nfeats: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
-        efeats: Optional[torch.Tensor] = None,
+        nfeat: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+        efeat: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Forward computation.
 
@@ -126,22 +126,22 @@ class TransformerConv(BaseConv):
         ----------
         g: DGLGraph
             The graph.
-        nfeats: torch.Tensor or a pair of torch.Tensor
+        nfeat: torch.Tensor or a pair of torch.Tensor
             Node feature tensor. A pair denotes features for source and
             destination nodes, respectively.
-        efeats: torch.Tensor, optional
+        efeat: torch.Tensor, optional
             Edge feature tensor. Default: ``None``.
         """
-        bipartite = not isinstance(nfeats, torch.Tensor)
+        bipartite = not isinstance(nfeat, torch.Tensor)
         offsets, indices, _ = g.adj_sparse("csc")
 
         if bipartite:
-            src_feats, dst_feats = nfeats
+            src_feats, dst_feats = nfeat
             _graph = BipartiteCSC(
                 offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
             )
         else:
-            src_feats = dst_feats = nfeats
+            src_feats = dst_feats = nfeat
             if g.is_block:
                 offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
             _graph = StaticCSC(offsets=offsets, indices=indices)
@@ -150,7 +150,7 @@ class TransformerConv(BaseConv):
         key = self.lin_key(src_feats)
         value = self.lin_value(src_feats)
         if self.lin_edge is not None:
-            efeats = self.lin_edge(efeats)
+            efeat = self.lin_edge(efeat)
 
         out = mha_simple_n2n(
             key_emb=key,
@@ -159,7 +159,7 @@ class TransformerConv(BaseConv):
             graph=_graph,
             num_heads=self.num_heads,
             concat_heads=self.concat,
-            edge_emb=efeats,
+            edge_emb=efeat,
             norm_by_dim=True,
             score_bias=None,
         )[: g.num_dst_nodes()]
