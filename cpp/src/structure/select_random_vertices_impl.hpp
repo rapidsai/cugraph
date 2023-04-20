@@ -68,7 +68,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
                       "partition assigned to this GPU");
     }
     num_of_elements_in_given_set = static_cast<size_t>((*given_set).size());
-    if (multi_gpu) {
+    if constexpr (multi_gpu) {
       num_of_elements_in_given_set = host_scalar_allreduce(handle.get_comms(),
                                                            num_of_elements_in_given_set,
                                                            raft::comms::op_t::SUM,
@@ -163,8 +163,9 @@ rmm::device_uvector<vertex_t> select_random_vertices(
     }
 
     if constexpr (multi_gpu) {
-      auto const comm_rank = handle.get_comms().get_rank();
-      auto const comm_size = handle.get_comms().get_size();
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+      auto const comm_rank = comm.get_rank();
 
       std::vector<size_t> tx_value_counts(comm_size);
       std::fill(
