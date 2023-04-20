@@ -94,20 +94,10 @@ class Tests_MGSelectRandomVertices
 
       // Compute size of the distributed vertex set
       int num_of_elements_in_given_set = static_cast<int>(h_given_set.size());
-
-      rmm::device_uvector<int> d_num_of_given_set(1, handle_->get_stream());
-      raft::update_device(
-        d_num_of_given_set.data(), &num_of_elements_in_given_set, 1, handle_->get_stream());
-      handle_->get_comms().allreduce(d_num_of_given_set.data(),
-                                     d_num_of_given_set.data(),
-                                     1,
-                                     raft::comms::op_t::SUM,
-                                     handle_->get_stream());
-      raft::update_host(
-        &num_of_elements_in_given_set, d_num_of_given_set.data(), 1, handle_->get_stream());
-      auto status = handle_->get_comms().sync_stream(handle_->get_stream());
-      CUGRAPH_EXPECTS(status == raft::comms::status_t::SUCCESS, "sync_stream() failure.");
-
+      num_of_elements_in_given_set     = cugraph::host_scalar_allreduce(handle_->get_comms(),
+                                                                    num_of_elements_in_given_set,
+                                                                    raft::comms::op_t::SUM,
+                                                                    handle_->get_stream());
       // Move the distributed vertex set to GPUs
       auto d_given_set = cugraph::test::to_device(*handle_, h_given_set);
 
@@ -232,16 +222,16 @@ TEST_P(Tests_MGSelectRandomVertices_Rmat, CheckInt64Int64FloatFloat)
 INSTANTIATE_TEST_SUITE_P(
   file_test_pass,
   Tests_MGSelectRandomVertices_File,
-  ::testing::Combine(::testing::Values(SelectRandomVertices_Usecase{20, false},
-                                       SelectRandomVertices_Usecase{20, false}),
+  ::testing::Combine(::testing::Values(SelectRandomVertices_Usecase{20, true},
+                                       SelectRandomVertices_Usecase{20, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGSelectRandomVertices_Rmat,
   ::testing::Combine(
-    ::testing::Values(SelectRandomVertices_Usecase{50, false},
-                      SelectRandomVertices_Usecase{50, false}),
+    ::testing::Values(SelectRandomVertices_Usecase{50, true},
+                      SelectRandomVertices_Usecase{50, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(6, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -252,8 +242,8 @@ INSTANTIATE_TEST_SUITE_P(
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGSelectRandomVertices_Rmat,
   ::testing::Combine(
-    ::testing::Values(SelectRandomVertices_Usecase{500, false},
-                      SelectRandomVertices_Usecase{500, false}),
+    ::testing::Values(SelectRandomVertices_Usecase{500, true},
+                      SelectRandomVertices_Usecase{500, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -89,8 +89,9 @@ rmm::device_uvector<vertex_t> select_random_vertices(
 
   size_t this_gpu_select_count{0};
   if constexpr (multi_gpu) {
-    auto const comm_rank = handle.get_comms().get_rank();
-    auto const comm_size = handle.get_comms().get_size();
+    auto& comm           = handle.get_comms();
+    auto const comm_size = comm.get_size();
+    auto const comm_rank = comm.get_rank();
 
     this_gpu_select_count =
       select_count / static_cast<size_t>(comm_size) +

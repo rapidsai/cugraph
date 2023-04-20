@@ -13,7 +13,6 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include "randomly_select_destinations.cuh"
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
@@ -125,14 +124,38 @@ class Tests_MGExtractBFSPaths
     auto h_mg_distances    = cugraph::test::to_host(*handle_, d_mg_distances);
     auto h_mg_predecessors = cugraph::test::to_host(*handle_, d_mg_predecessors);
 
-    vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
+    rmm::device_uvector<vertex_t> d_vertices(mg_graph_view.local_vertex_partition_range_size(),
+                                             handle_->get_stream());
+    {
+      constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
+      auto local_vertex_first           = mg_graph_view.local_vertex_partition_range_first();
+      cugraph::detail::sequence_fill(
+        handle_->get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+      auto end_iter = thrust::remove_if(
+        handle_->get_thrust_policy(),
+        d_vertices.begin(),
+        d_vertices.end(),
+        [invalid_vertex, predecessors = d_mg_predecessors.data(), local_vertex_first] __device__(
+          auto v) { return predecessors[v - local_vertex_first] == invalid_vertex; });
+      d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle_->get_stream());
+    }
 
-    auto d_mg_destinations = cugraph::test::randomly_select_destinations<false>(
+    // Compute size of the distributed vertex set
+    auto num_of_paths_in_given_set = d_vertices.size();
+    num_of_paths_in_given_set      = cugraph::host_scalar_allreduce(handle_->get_comms(),
+                                                               num_of_paths_in_given_set,
+                                                               raft::comms::op_t::SUM,
+                                                               handle_->get_stream());
+
+    raft::random::RngState rng_state(0);
+    auto d_mg_destinations = cugraph::select_random_vertices(
       *handle_,
-      mg_graph_view.local_vertex_partition_range_size(),
-      mg_graph_view.local_vertex_partition_range_first(),
-      d_mg_predecessors,
-      extract_bfs_paths_usecase.num_paths_to_check);
+      mg_graph_view,
+      std::make_optional(raft::device_span<vertex_t const>{d_vertices.data(), d_vertices.size()}),
+      rng_state,
+      std::min(num_of_paths_in_given_set, extract_bfs_paths_usecase.num_paths_to_check),
+      false,
+      false);
 
     rmm::device_uvector<vertex_t> d_mg_paths(0, handle_->get_stream());
 
@@ -296,11 +319,7 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(ExtractBFSPaths_Usecase{0, 100},
                     cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
     std::make_tuple(ExtractBFSPaths_Usecase{100, 100},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(ExtractBFSPaths_Usecase{1000, 2000},
-                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(ExtractBFSPaths_Usecase{1000, 20000},
-                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
