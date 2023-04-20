@@ -28,7 +28,7 @@ networkx = import_optional("networkx")
 
 
 def subgraph(
-    G,
+    G: Union[Graph, "networkx.Graph"],
     vertices: Union[cudf.Series, cudf.DataFrame],
 ) -> Union[Graph, "networkx.Graph"]:
     """
