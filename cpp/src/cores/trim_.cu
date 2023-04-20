@@ -1,9 +1,12 @@
 #pragma once
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> 91c2d056 (update)
+=======
+>>>>>>> 91c2d056867ee23497c86de6d359139861a1a358
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -16,9 +19,13 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 <<<<<<< HEAD
+<<<<<<< HEAD
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
+=======
+rmm::device_uvector<vertex_t> 
+>>>>>>> 91c2d056867ee23497c86de6d359139861a1a358
 trim(raft::handle_t const& handle,
        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view)
 {
