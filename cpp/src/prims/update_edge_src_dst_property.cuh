@@ -531,7 +531,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     for (size_t round = 0; round < num_rounds; ++round) {
       if constexpr (packed_bool) {
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
-          auto j = num_rounds * i + round;
+          auto j = static_cast<int>(num_rounds * i + round);
           if (j == major_comm_rank) {
             auto minor_range_vertex_partition_id =
               compute_local_edge_partition_minor_range_vertex_partition_id_t{
@@ -600,6 +600,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                              packed_bool_mask(v_offset));
                   });
                 pack_unaligned_bools(
+                  handle,
                   bool_first,
                   bool_first + (key_offsets[j + 1] - key_offsets[j]),
                   edge_partition_value_first + packed_bool_offset(key_offsets[j]),
@@ -614,6 +615,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                              packed_bool_mask(v_offset));
                   });
                 pack_unaligned_bools(
+                  handle,
                   bool_first,
                   bool_first +
                     graph_view.vertex_partition_range_size(minor_range_vertex_partition_id),
