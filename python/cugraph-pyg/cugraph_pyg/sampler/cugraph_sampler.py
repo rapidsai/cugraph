@@ -57,8 +57,8 @@ def _sampler_output_from_sampling_results(
     nodes_of_interest = torch.unique(
         torch.stack(
             [
-                torch.as_tensor(sampling_results.destinations, device="cuda"),
-                torch.as_tensor(sampling_results.sources, device="cuda"),
+                torch.as_tensor(sampling_results.destinations.values, device="cuda"),
+                torch.as_tensor(sampling_results.sources.values, device="cuda"),
             ]
         )
     )

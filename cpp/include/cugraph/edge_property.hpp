@@ -22,6 +22,7 @@
 #include <raft/core/handle.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
+#include <thrust/optional.h>
 
 #include <optional>
 #include <type_traits>

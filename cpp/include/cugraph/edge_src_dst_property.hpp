@@ -25,6 +25,7 @@
 
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <optional>

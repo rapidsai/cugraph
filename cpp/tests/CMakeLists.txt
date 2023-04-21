@@ -472,6 +472,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp)
 
+
+    ###############################################################################################
+    # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
+    ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
+
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cu)
