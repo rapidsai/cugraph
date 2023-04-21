@@ -54,6 +54,18 @@ namespace cugraph {
 
 namespace detail {
 
+template <typename Iterator, typename vertex_t>
+__device__ void packed_bool_atomic_set(Iterator value_first, vertex_t offset, bool val)
+{
+  auto packed_output_offset = packed_bool_offset(offset);
+  auto packed_output_mask   = packed_bool_mask(offset);
+  if (val) {
+    atomicOr(value_first + packed_output_offset, packed_output_mask);
+  } else {
+    atomicAnd(value_first + packed_output_offset, ~packed_output_mask);
+  }
+}
+
 template <typename BoolInputIterator, typename PackedBoolOutputIterator>
 void pack_bools(raft::handle_t const& handle,
                 BoolInputIterator input_first,
@@ -94,21 +106,11 @@ void pack_unaligned_bools(raft::handle_t const& handle,
      last_word_output            = output_first + ((num_first_word_bools > 0 ? 1 : 0) +
                                         packed_bool_size(num_aligned_bools))] __device__(size_t i) {
       if (i < num_first_word_bools) {
-        auto val  = *(first_word_input_bool_first + i);
-        auto mask = cugraph::packed_bool_mask(intraword_start_offset + i);
-        if (val) {
-          atomicOr(first_word_output, mask);
-        } else {
-          atomicAnd(first_word_output, ~mask);
-        }
+        auto val = *(first_word_input_bool_first + i);
+        packed_bool_atomic_set(first_word_output, intraword_start_offset + i, val);
       } else {
-        auto val  = *(last_word_input_bool_first + (i - num_first_word_bools));
-        auto mask = cugraph::packed_bool_mask(i - num_first_word_bools);
-        if (val) {
-          atomicOr(last_word_output, mask);
-        } else {
-          atomicAnd(last_word_output, ~mask);
-        }
+        auto val = *(last_word_input_bool_first + (i - num_first_word_bools));
+        packed_bool_atomic_set(last_word_output, i - num_first_word_bools, val);
       }
     });
 
@@ -363,13 +365,7 @@ void update_edge_major_property(raft::handle_t const& handle,
               if constexpr (packed_bool) {
                 auto rx_value = static_cast<bool>(
                   *(rx_value_first + packed_bool_offset(rx_offset)) & packed_bool_mask(rx_offset));
-                auto packed_output_offset = packed_bool_offset(i);
-                auto packed_output_mask   = packed_bool_mask(i);
-                if (rx_value) {
-                  atomicOr(output_value_first + packed_output_offset, packed_output_mask);
-                } else {
-                  atomicAnd(output_value_first + packed_output_offset, ~packed_output_mask);
-                }
+                packe_bool_atomic_set(output_value_first, i, rx_value);
               } else {
                 auto rx_value             = *(rx_value_first + rx_offset);
                 *(output_value_first + i) = rx_value;
@@ -389,14 +385,8 @@ void update_edge_major_property(raft::handle_t const& handle,
               auto rx_vertex = *(rx_vertex_first + i);
               auto rx_value =
                 static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) & packed_bool_mask(i));
-              auto major_offset         = edge_partition.major_offset_from_major_nocheck(rx_vertex);
-              auto packed_output_offset = packed_bool_offset(major_offset);
-              auto packed_output_mask   = packed_bool_mask(major_offset);
-              if (rx_value) {
-                atomicOr(output_value_first + packed_output_offset, packed_output_mask);
-              } else {
-                atomicAnd(output_value_first + packed_output_offset, ~packed_output_mask);
-              }
+              auto major_offset = edge_partition.major_offset_from_major_nocheck(rx_vertex);
+              packed_bool_atomic_set(output_value_first, major_offset, rx_value);
             });
         } else {
           auto map_first = thrust::make_transform_iterator(
@@ -425,7 +415,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                        [vertex_property_input_first,
                         output_value_first = edge_partition_value_firsts[0]] __device__(auto v) {
                          bool val = static_cast<bool>(*(vertex_property_input_first + v));
-                         packed_bool_output_set(output_value_first, v, val);
+                         packed_bool_atomic_set(output_value_first, v, val);
                        });
     } else {
       auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
@@ -780,13 +770,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
               if constexpr (packed_bool) {
                 auto rx_value = static_cast<bool>(
                   *(rx_value_first + packed_bool_offset(rx_offset)) & packed_bool_mask(rx_offset));
-                auto packed_output_offset = packed_bool_offset(key_offset + i);
-                auto packed_output_mask   = packed_bool_mask(key_offset + i);
-                if (rx_value) {
-                  atomicOr(output_value_first + packed_output_offset, packed_output_mask);
-                } else {
-                  atomicAnd(output_value_first + packed_output_offset, ~packed_output_mask);
-                }
+                packed_bool_atomic_set(output_value_first, key_offset + i, rx_value);
               } else {
                 auto rx_value                          = *(rx_value_first + rx_offset);
                 *(output_value_first + key_offset + i) = rx_value;
@@ -806,14 +790,8 @@ void update_edge_minor_property(raft::handle_t const& handle,
               auto rx_vertex = *(rx_vertex_first + i);
               auto rx_value =
                 static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) & packed_bool_mask(i));
-              auto minor_offset         = edge_partition.minor_offset_from_minor_nocheck(rx_vertex);
-              auto packed_output_offset = packed_bool_offset(minor_offset);
-              auto packed_output_mask   = packed_bool_mask(minor_offset);
-              if (rx_value) {
-                atomicOr(output_value_first + packed_output_offset, packed_output_mask);
-              } else {
-                atomicAnd(output_value_first + packed_output_offset, ~packed_output_mask);
-              }
+              auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(rx_vertex);
+              packed_bool_atomic_set(output_value_first, minor_offset, rx_value);
             });
         } else {
           auto map_first = thrust::make_transform_iterator(
@@ -840,7 +818,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
                        [vertex_property_input_first,
                         output_value_first = edge_partition_value_first] __device__(auto v) {
                          bool val = static_cast<bool>(*(vertex_property_input_first + v));
-                         packed_bool_output_set(output_value_first, v, val);
+                         packed_bool_atomic_set(output_value_first, v, val);
                        });
     } else {
       auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);

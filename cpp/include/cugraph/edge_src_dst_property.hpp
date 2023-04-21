@@ -170,7 +170,9 @@ class edge_major_property_t {
  public:
   static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
-  using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+  using buffer_type =
+    decltype(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+      size_t{0}, rmm::cuda_stream_view{}));
 
   edge_major_property_t(raft::handle_t const& handle) {}
 
@@ -285,7 +287,8 @@ class edge_minor_property_t {
   static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   edge_minor_property_t(raft::handle_t const& handle)
-    : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream())),
+    : buffer_(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+        size_t{0}, handle.get_stream())),
       minor_range_first_(vertex_t{0})
   {
   }
@@ -355,7 +358,8 @@ class edge_minor_property_t {
   std::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{std::nullopt};
   std::optional<size_t> key_chunk_size_{std::nullopt};
 
-  decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{})) buffer_;
+  decltype(allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+    size_t{0}, rmm::cuda_stream_view{})) buffer_;
   vertex_t minor_range_first_{};
 };
 
