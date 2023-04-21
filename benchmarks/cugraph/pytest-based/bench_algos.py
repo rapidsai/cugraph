@@ -80,8 +80,9 @@ def createGraph(csvFileName, graphType=None):
 
 
 # Record the current RMM settings so reinitialize() will be called only when a
-# change is needed (RMM defaults both values to False). This allows the
-# --no-rmm-reinit option to prevent reinitialize() from being called at all
+# change is needed (RMM defaults both values to False). The --allow-rmm-reinit
+# option is required to allow the RMM options to be set by the pytest user
+# directly, in order to prevent reinitialize() from being called more than once
 # (see conftest.py for details).
 RMM_SETTINGS = {"managed_mem": False,
                 "pool_alloc": False}
