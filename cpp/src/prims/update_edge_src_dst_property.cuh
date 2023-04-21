@@ -227,7 +227,8 @@ void update_edge_major_property(raft::handle_t const& handle,
           device_bcast(minor_comm,
                        edge_partition_value_firsts[i],
                        edge_partition_value_firsts[i],
-                       graph_view.vertex_partition_range_size(major_range_vertex_partition_id),
+                       packed_bool_size(
+                         graph_view.vertex_partition_range_size(major_range_vertex_partition_id)),
                        i,
                        handle.get_stream());
         } else {
