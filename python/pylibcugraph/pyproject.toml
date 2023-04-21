@@ -19,7 +19,7 @@ testpaths = ["pylibcugraph/tests"]
 
 [project]
 name = "pylibcugraph"
-version = "23.04.00"
+version = "23.04.01"
 description = "pylibcugraph - Python bindings for the libcugraph cuGraph C/C++/CUDA library"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
