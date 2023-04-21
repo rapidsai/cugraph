@@ -17,7 +17,7 @@ authors = [
     { name = "NVIDIA Corporation" },
 ]
 license = { text = "Apache 2.0" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "cudf==23.6.*",
     "cugraph-service-client==23.6.*",
@@ -35,7 +35,7 @@ dependencies = [
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
 dynamic = ["entry-points"]
