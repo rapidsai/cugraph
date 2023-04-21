@@ -177,6 +177,9 @@ class TransformerConv(BaseConv):
         key = self.lin_key(x[0])
         value = self.lin_value(x[0])
 
+        if self.lin_edge is not None and edge_attr is not None:
+            edge_attr = self.lin_edge(edge_attr)
+
         out = TransformerConvAgg(
             key,
             query,
