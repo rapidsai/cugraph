@@ -259,6 +259,7 @@ dependencies:
           - sphinx-markdown-tables
           - sphinx<6
           - sphinxcontrib-websupport
+          - pylibcugraphops=23.6.*
   py_version:
     specific:
       - output_types: [conda]
@@ -385,6 +386,7 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
+          - pylibcugraphops=23.6.*
   test_notebook:
     common:
       - output_types: [conda, requirements]
