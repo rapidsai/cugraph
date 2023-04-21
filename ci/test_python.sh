@@ -179,6 +179,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-pyg
 
@@ -198,13 +199,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov-report=term \
       .
     popd
-    
+
     # Reactivate the test environment back
     set +u
     conda deactivate
     conda activate test
     set -u
-    
+
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi
