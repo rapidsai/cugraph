@@ -42,6 +42,7 @@
 
 #include <thrust/adjacent_difference.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
@@ -143,7 +144,13 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                               : std::min(prims_usecase.num_seeds,
                                      static_cast<size_t>(mg_graph_view.number_of_vertices()));
     auto mg_vertex_buffer = cugraph::select_random_vertices(
-      *handle_, mg_graph_view, rng_state, select_count, prims_usecase.with_replacement, false);
+      *handle_,
+      mg_graph_view,
+      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+      rng_state,
+      select_count,
+      prims_usecase.with_replacement,
+      false);
 
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;

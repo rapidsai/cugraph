@@ -31,6 +31,7 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <thrust/functional.h>
+#include <thrust/optional.h>
 #include <thrust/reduce.h>
 
 #include <raft/core/handle.hpp>

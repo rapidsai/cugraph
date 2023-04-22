@@ -139,7 +139,7 @@ def test_nx_convert_weighted(graph_file):
     assert nx.is_directed(nxG) is True
     assert nx.is_weighted(nxG) is True
 
-    cuG = cugraph.utilities.convert_from_nx(nxG)
+    cuG = cugraph.utilities.convert_from_nx(nxG, weight="weight")
     assert cugraph.is_directed(cuG) is True
     assert cugraph.is_weighted(cuG) is True
 
