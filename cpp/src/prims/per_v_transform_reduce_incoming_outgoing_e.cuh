@@ -547,20 +547,23 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                    init);
     }
   } else {
-    auto minor_init = init;
     if constexpr (GraphViewType::is_multi_gpu) {
-      auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-      auto const major_comm_rank = major_comm.get_rank();
-      minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
-    }
-
-    if constexpr (GraphViewType::is_multi_gpu) {
+      auto minor_init = init;
+      auto view       = minor_tmp_buffer.view();
+      if (view.keys()) {  // defer applying the initial value to the end as minor_tmp_buffer may not
+                          // store values for the entire minor range
+        minor_init = ReduceOp::identity_element;
+      } else {
+        auto& major_comm = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+        auto const major_comm_rank = major_comm.get_rank();
+        minor_init                 = (major_comm_rank == 0) ? init : ReduceOp::identity_element;
+      }
       fill_edge_minor_property(handle, graph_view, minor_init, minor_tmp_buffer.mutable_view());
     } else {
       thrust::fill(handle.get_thrust_policy(),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
-                   minor_init);
+                   init);
     }
   }
 
@@ -911,7 +914,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto const minor_comm_size = minor_comm.get_size();
 
     auto view = minor_tmp_buffer.view();
-    if (view.keys()) {
+    if (view.keys()) {  // applying the initial value is deferred to here
       vertex_t max_vertex_partition_size{0};
       for (int i = 0; i < major_comm_size; ++i) {
         auto this_segment_vertex_partition_id =
@@ -922,7 +925,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                    graph_view.vertex_partition_range_size(this_segment_vertex_partition_id));
       }
       auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
-      auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
+      auto tx_buffer_first = get_dataframe_buffer_begin(tx_buffer);
       std::optional<raft::host_span<vertex_t const>> minor_key_offsets{};
       if constexpr (GraphViewType::is_storage_transposed) {
         minor_key_offsets = graph_view.local_sorted_unique_edge_src_vertex_partition_offsets();
@@ -930,25 +933,29 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         minor_key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
       }
       for (int i = 0; i < major_comm_size; ++i) {
+        auto minor_init = (major_comm_rank == i) ? init : ReduceOp::identity_element;
         auto this_segment_vertex_partition_id =
           compute_local_edge_partition_minor_range_vertex_partition_id_t{
             major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank}(i);
-        thrust::fill(
-          handle.get_thrust_policy(),
-          tx_first,
-          tx_first + graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
-          ReduceOp::identity_element);
+        thrust::fill(handle.get_thrust_policy(),
+                     tx_buffer_first,
+                     tx_buffer_first +
+                       graph_view.vertex_partition_range_size(this_segment_vertex_partition_id),
+                     minor_init);
+        auto value_first = thrust::make_transform_iterator(
+          view.value_first(),
+          [reduce_op, minor_init] __device__(auto val) { return reduce_op(val, minor_init); });
         thrust::scatter(
           handle.get_thrust_policy(),
-          view.value_first() + (*minor_key_offsets)[i],
-          view.value_first() + (*minor_key_offsets)[i + 1],
+          value_first + (*minor_key_offsets)[i],
+          value_first + (*minor_key_offsets)[i + 1],
           thrust::make_transform_iterator(
             (*(view.keys())).begin() + (*minor_key_offsets)[i],
             [key_first = graph_view.vertex_partition_range_first(
                this_segment_vertex_partition_id)] __device__(auto key) { return key - key_first; }),
-          tx_first);
+          tx_buffer_first);
         device_reduce(major_comm,
-                      tx_first,
+                      tx_buffer_first,
                       vertex_value_output_first,
                       static_cast<size_t>(
                         graph_view.vertex_partition_range_size(this_segment_vertex_partition_id)),
