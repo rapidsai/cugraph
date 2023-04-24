@@ -355,9 +355,9 @@ void update_edge_major_property(raft::handle_t const& handle,
           thrust::make_counting_iterator(rx_counts[i]),
           [rx_vertex_first = rx_vertices.begin(),
            rx_value_first,
-           edge_partition_key_first    = ((*edge_partition_keys)[i]).begin(),
-           edge_partition_key_last     = ((*edge_partition_keys)[i]).end(),
-           edge_partitiont_value_first = edge_partition_value_firsts[i]] __device__(size_t i) {
+           edge_partition_key_first   = ((*edge_partition_keys)[i]).begin(),
+           edge_partition_key_last    = ((*edge_partition_keys)[i]).end(),
+           edge_partition_value_first = edge_partition_value_firsts[i]] __device__(size_t i) {
             auto major = *(rx_vertex_first + i);
             auto it    = thrust::lower_bound(
               thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
