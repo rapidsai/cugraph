@@ -15,8 +15,11 @@ import os
 
 from typing import Union
 
+import cupy
 import cudf
 import dask_cudf
+import cugraph.dask as dask_cugraph
+
 import cugraph
 import pylibcugraph
 
@@ -196,17 +199,21 @@ class EXPERIMENTAL__BulkSampler:
         else:
             sample_fn = cugraph.dask.uniform_neighbor_sample
             self.__sample_call_args["_multiple_clients"] = True
+            self.__sample_call_args["label_to_output_comm_rank"] = (
+                self.__get_label_to_output_comm_rank(min_batch_id, max_batch_id)
+            )
 
-        samples = sample_fn(
+        samples, offsets = sample_fn(
             self.__graph,
             **self.__sample_call_args,
             start_list=self.__batches[self.start_col_name][batch_id_filter],
             batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
             with_edge_properties=True,
+            return_offsets=True,
         )
 
         self.__batches = self.__batches[~batch_id_filter]
-        self.__write(samples, min_batch_id, npartitions)
+        self.__write(samples, offsets, min_batch_id, npartitions)
 
         if self.size > 0:
             self.flush()
@@ -214,13 +221,11 @@ class EXPERIMENTAL__BulkSampler:
     def __write(
         self,
         samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
+        offsets: Union[cudf.DataFrame, dask_cudf.DataFrame],
         min_batch_id: int,
         npartitions: int,
     ) -> None:
-        # Ensure each rank writes to its own partition so there is no conflict
-        outer_partition = f"rank={self.__rank}"
-        outer_partition_path = os.path.join(self.__output_path, outer_partition)
-        os.makedirs(outer_partition_path, exist_ok=True)
+        os.makedirs(self.__output_path, exist_ok=True)
 
         for partition_k in range(npartitions):
             ix_partition_start_inclusive = (
@@ -241,9 +246,19 @@ class EXPERIMENTAL__BulkSampler:
             ix_partition_end_inclusive = int(ix_partition_end_inclusive)
 
             inner_path = os.path.join(
-                outer_partition_path,
+                self.__output_path,
                 f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}"
                 ".parquet",
             )
 
             samples[f].to_parquet(inner_path, index=False)
+
+    def __get_label_to_output_comm_rank(min_batch_id, max_batch_id):
+        num_workers = dask_cugraph.get_n_workers()
+        num_batches = max_batch_id - min_batch_id + 1
+        z = cupy.zeros(num_batches, dtype='int32')
+        s = cupy.array_split(cupy.arange(num_batches), num_workers)
+        for i, t in enumerate(s):
+            z[t] = i
+        
+        return cudf.Series(z)
