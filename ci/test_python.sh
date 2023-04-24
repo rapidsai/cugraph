@@ -80,7 +80,7 @@ pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
-  -m "managedmem_on and poolallocator_on and tiny" \
+  -m tiny \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
 popd
