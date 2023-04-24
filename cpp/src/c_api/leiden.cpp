@@ -63,6 +63,9 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
+    } else if constexpr (multi_gpu) {
+      error_code_            = CUGRAPH_NOT_IMPLEMENTED;
+      error_->error_message_ = "leiden not currently implemented for multi-GPU";
     } else {
       // leiden expects store_transposed == false
       if constexpr (store_transposed) {
