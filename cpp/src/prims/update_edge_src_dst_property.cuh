@@ -349,27 +349,27 @@ void update_edge_major_property(raft::handle_t const& handle,
                    handle.get_stream());
 
       if (edge_partition_keys) {
-        // FIXME: better iterate over rx_vertices rather than edge partition keys
         thrust::for_each(
           handle.get_thrust_policy(),
-          thrust::make_counting_iterator(vertex_t{0}),
-          thrust::make_counting_iterator(static_cast<vertex_t>((*edge_partition_keys)[i].size())),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator(rx_counts[i]),
           [rx_vertex_first = rx_vertices.begin(),
-           rx_vertex_last  = rx_vertices.end(),
            rx_value_first,
-           output_key_first   = ((*edge_partition_keys)[i]).begin(),
-           output_value_first = edge_partition_value_firsts[i]] __device__(auto i) {
-            auto major = *(output_key_first + i);
-            auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, major);
-            if ((it != rx_vertex_last) && (*it == major)) {
-              auto rx_offset = thrust::distance(rx_vertex_first, it);
+           edge_partition_key_first    = ((*edge_partition_keys)[i]).begin(),
+           edge_partition_key_last     = ((*edge_partition_keys)[i]).end(),
+           edge_partitiont_value_first = edge_partition_value_firsts[i]] __device__(size_t i) {
+            auto major = *(rx_vertex_first + i);
+            auto it    = thrust::lower_bound(
+              thrust::seq, edge_partition_key_first, edge_partition_key_last, major);
+            if ((it != edge_partition_key_last) && (*it == major)) {
+              auto edge_partition_offset = thrust::distance(edge_partition_key_first, it);
               if constexpr (packed_bool) {
-                auto rx_value = static_cast<bool>(
-                  *(rx_value_first + packed_bool_offset(rx_offset)) & packed_bool_mask(rx_offset));
-                packe_bool_atomic_set(output_value_first, i, rx_value);
+                auto rx_value = static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) &
+                                                  packed_bool_mask(i));
+                packe_bool_atomic_set(edge_partition_value_first, edge_partition_offset, rx_value);
               } else {
-                auto rx_value             = *(rx_value_first + rx_offset);
-                *(output_value_first + i) = rx_value;
+                auto rx_value                                         = *(rx_value_first + i);
+                *(edge_partition_value_first + edge_partition_offset) = rx_value;
               }
             }
           });
@@ -755,28 +755,29 @@ void update_edge_minor_property(raft::handle_t const& handle,
                    handle.get_stream());
 
       if (edge_partition_keys) {
-        // FIXME: better iterate over rx_vertices rather than edge partition keys
         thrust::for_each(
           handle.get_thrust_policy(),
-          thrust::make_counting_iterator(vertex_t{0}),
-          thrust::make_counting_iterator((*key_offsets)[i + 1] - (*key_offsets)[i]),
+          thrust::make_counting_iterator(size_t{0}),
+          thrust::make_counting_iterator(rx_counts[i]),
           [rx_vertex_first = rx_vertices.begin(),
-           rx_vertex_last  = rx_vertices.end(),
            rx_value_first,
-           output_key_first   = (*edge_partition_keys).begin() + (*key_offsets)[i],
-           output_value_first = edge_partition_value_first,
-           key_offset         = (*key_offsets)[i]] __device__(auto i) {
-            auto minor = *(output_key_first + i);
-            auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, minor);
-            if ((it != rx_vertex_last) && (*it == minor)) {
-              auto rx_offset = thrust::distance(rx_vertex_first, it);
+           subrange_key_first         = (*edge_partition_keys).begin() + (*key_offsets)[i],
+           subrange_key_last          = (*edge_partition_keys).begin() + (*key_offsets)[i + 1],
+           edge_partition_value_first = edge_partition_value_first,
+           subrange_start_offset      = (*key_offsets)[i]] __device__(auto i) {
+            auto minor = *(rx_vertex_first + i);
+            auto it =
+              thrust::lower_bound(thrust::seq, subrange_key_first, subrange_key_last, minor);
+            if ((it != subrange_key_last) && (*it == minor)) {
+              auto subrange_offset = thrust::distance(subrange_key_first, it);
               if constexpr (packed_bool) {
-                auto rx_value = static_cast<bool>(
-                  *(rx_value_first + packed_bool_offset(rx_offset)) & packed_bool_mask(rx_offset));
-                packed_bool_atomic_set(output_value_first, key_offset + i, rx_value);
+                auto rx_value = static_cast<bool>(*(rx_value_first + packed_bool_offset(i)) &
+                                                  packed_bool_mask(i));
+                packed_bool_atomic_set(
+                  edge_partition_value_first, subrange_start_offset + subrange_offset, rx_value);
               } else {
-                auto rx_value                          = *(rx_value_first + rx_offset);
-                *(output_value_first + key_offset + i) = rx_value;
+                auto rx_value = *(rx_value_first + i);
+                *(edge_partition_value_first + subrange_start_offset + subrange_offset) = rx_value;
               }
             }
           });
