@@ -80,7 +80,7 @@ pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
-  -m "managedmem_on and poolallocator_on and tiny" \
+  -m tiny \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
 popd
@@ -198,13 +198,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov-report=term \
       .
     popd
-    
+
     # Reactivate the test environment back
     set +u
     conda deactivate
     conda activate test
     set -u
-    
+
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi
