@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2018-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -435,7 +435,7 @@ __global__ void main_bottomup_kernel(const IndexType* unvisited,
       // neutral about elts < unvisited_vertex
       int iv   = unvisited_vertex % INT_SIZE;  // we know that this unvisited_vertex is valid
       int mask = traversal::getMaskNLeftmostBitSet(INT_SIZE - iv);
-      local_bmap_agg &= mask;  // we have to be neutral for elts < unvisited_vertex
+      local_bmap_agg &= mask;                  // we have to be neutral for elts < unvisited_vertex
       atomicOr(&visited_bmap[unvisited_vertex / INT_SIZE], local_bmap_agg);
     } else if (warpid == (MAIN_BOTTOMUP_NWARPS - 1) &&
                laneid >= laneid_last_head_in_warp &&  // We need the other ones
@@ -1032,7 +1032,7 @@ __global__ void topdown_expand_kernel(
             IndexType v = shared_local_new_frontier_candidates[idx_shared];  // popping
                                                                              // queue
             int m = 1 << (v % INT_SIZE);
-            int q = atomicOr(&bmap[v / INT_SIZE], m);  // atomicOr returns old
+            int q = atomicOr(&bmap[v / INT_SIZE], m);                        // atomicOr returns old
 
             if (!(m & q)) {  // if this thread was the first to discover this node
               if (distances) distances[v] = lvl;
