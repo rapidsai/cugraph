@@ -64,5 +64,5 @@ dependencies:
 - sphinx<6
 - sphinxcontrib-websupport
 - ucx-proc=*=gpu
-- ucx-py=0.32.*
+- ucx-py==0.32.*
 name: all_cuda-118_arch-x86_64
