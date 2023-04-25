@@ -42,9 +42,10 @@ struct pack_bool_t {
   BoolIterator bool_first{};
   size_t num_bools{};
 
-  __device__ uint32_t operator()(size_t i) const {
+  __device__ uint32_t operator()(size_t i) const
+  {
     auto first = i * (sizeof(uint32_t) * 8);
-    auto last = std::min((i + 1) * (sizeof(uint32_t) * 8), num_bools);
+    auto last  = std::min((i + 1) * (sizeof(uint32_t) * 8), num_bools);
     uint32_t ret{0};
     for (auto j = first; j < last; ++j) {
       if (*(bool_first + j)) {
