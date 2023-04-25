@@ -2033,6 +2033,13 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   size_t k,
   bool do_expensive_check = false);
 
+// FIXME: Write doc string
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> compute_mis(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
+
 }  // namespace cugraph
 
 /**

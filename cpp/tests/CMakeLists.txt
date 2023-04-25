@@ -474,6 +474,13 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
 
     ###############################################################################################
+    # - MG MIS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cpp)
+
+
+
+
+    ###############################################################################################
     # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
     ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
 
