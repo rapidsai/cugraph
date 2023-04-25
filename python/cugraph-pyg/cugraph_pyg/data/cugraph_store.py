@@ -741,12 +741,14 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
-            sources = torch.as_tensor(sampling_results.sources, device="cuda")
+            sources = torch.as_tensor(sampling_results.sources.values, device="cuda")
             src_id_table = noi_index[src_type]
             src = torch.searchsorted(src_id_table, sources)
             row_dict[t_pyg_type] = src
 
-            destinations = torch.as_tensor(sampling_results.destinations, device="cuda")
+            destinations = torch.as_tensor(
+                sampling_results.destinations.values, device="cuda"
+            )
             dst_id_table = noi_index[dst_type]
             dst = torch.searchsorted(dst_id_table, destinations)
             col_dict[t_pyg_type] = dst
@@ -767,7 +769,7 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Get the de-offsetted sources
                 sources = torch.as_tensor(
-                    sampling_results.sources.iloc[ix], device="cuda"
+                    sampling_results.sources.iloc[ix].values, device="cuda"
                 )
                 sources_ix = torch.searchsorted(
                     self.__vertex_type_offsets["stop"], sources
@@ -781,7 +783,7 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Get the de-offsetted destinations
                 destinations = torch.as_tensor(
-                    sampling_results.destinations.iloc[ix], device="cuda"
+                    sampling_results.destinations.iloc[ix].values, device="cuda"
                 )
                 destinations_ix = torch.searchsorted(
                     self.__vertex_type_offsets["stop"], destinations
