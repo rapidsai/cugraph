@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -196,8 +196,8 @@ void update_v_frontier(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using key_t =
     typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(key_buffer))>::value_type;
-  using payload_t = typename thrust::iterator_traits<decltype(
-    get_dataframe_buffer_begin(payload_buffer))>::value_type;
+  using payload_t = typename thrust::iterator_traits<decltype(get_dataframe_buffer_begin(
+    payload_buffer))>::value_type;
 
   static_assert(std::is_rvalue_reference_v<decltype(key_buffer)>);
   static_assert(std::is_rvalue_reference_v<decltype(payload_buffer)>);

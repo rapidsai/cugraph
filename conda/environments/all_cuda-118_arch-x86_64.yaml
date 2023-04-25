@@ -45,6 +45,7 @@ dependencies:
 - pandas
 - pre-commit
 - pydata-sphinx-theme
+- pylibcugraphops=23.6.*
 - pylibraft==23.6.*
 - pytest
 - pytest-benchmark

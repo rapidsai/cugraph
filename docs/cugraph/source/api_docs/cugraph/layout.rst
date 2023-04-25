@@ -4,7 +4,6 @@ Layout
 .. currentmodule:: cugraph
 
 
-
 Force Atlas 2
 -------------
 .. autosummary::

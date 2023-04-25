@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
+
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 
@@ -91,6 +94,39 @@ class partition_manager {
   static std::string minor_comm_name()
   {
     return std::string(map_major_comm_to_gpu_row_comm ? "gpu_col_comm" : "gpu_row_comm");
+  }
+
+  template <typename vertex_t>
+  static std::vector<vertex_t> compute_partition_range_lasts(raft::handle_t const& handle,
+                                                             vertex_t local_partition_size)
+  {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto const major_comm_rank = major_comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
+
+    auto vertex_counts = host_scalar_allgather(comm, local_partition_size, handle.get_stream());
+    auto vertex_partition_ids =
+      host_scalar_allgather(comm,
+                            partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                              major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
+                            handle.get_stream());
+
+    std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
+    for (int i = 0; i < comm_size; ++i) {
+      vertex_partition_range_offsets[vertex_partition_ids[i]] = vertex_counts[i];
+    }
+    std::exclusive_scan(vertex_partition_range_offsets.begin(),
+                        vertex_partition_range_offsets.end(),
+                        vertex_partition_range_offsets.begin(),
+                        vertex_t{0});
+
+    return std::vector<vertex_t>(vertex_partition_range_offsets.begin() + 1,
+                                 vertex_partition_range_offsets.end());
   }
 
   static void init_subcomm(raft::handle_t& handle, int gpu_row_comm_size)

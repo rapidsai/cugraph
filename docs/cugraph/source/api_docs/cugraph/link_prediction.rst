@@ -4,7 +4,6 @@ Link Prediction
 .. currentmodule:: cugraph
 
 
-
 Jaccard Coefficient
 -------------------
 .. autosummary::
