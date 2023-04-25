@@ -709,7 +709,7 @@ class EXPERIMENTAL__CuGraphStore:
         Example Input: {'horse': [1, 3, 5], 'duck': [1, 2]}
         Output: [1, 3, 5, 14, 15]
         """
-        t = torch.tensor([], dtype=torch.int64, device='cuda')
+        t = torch.tensor([], dtype=torch.int64, device="cuda")
 
         for group_name, ix in vertex_groups.items():
             type_id = self._numeric_vertex_type_from_name(group_name)
@@ -718,7 +718,7 @@ class EXPERIMENTAL__CuGraphStore:
             offset = self.__vertex_type_offsets["start"][type_id]
             u = ix + offset
             t = torch.concatenate([t, u])
-        
+
         return t
 
     def _get_renumbered_edge_groups_from_sample(

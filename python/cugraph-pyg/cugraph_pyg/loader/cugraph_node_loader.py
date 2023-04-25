@@ -28,14 +28,19 @@ from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_re
 from typing import Union, Tuple, Sequence, List, Dict
 
 torch_geometric = import_optional("torch_geometric")
-InputNodes = Sequence if isinstance(torch_geometric, MissingModule) else torch_geometric.typing.InputNodes
+InputNodes = (
+    Sequence
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.typing.InputNodes
+)
+
 
 class EXPERIMENTAL__BulkSampleLoader:
     def __init__(
         self,
         feature_store: CuGraphStore,
         graph_store: CuGraphStore,
-        input_nodes: Union[InputNodes, int]=None,
+        input_nodes: Union[InputNodes, int] = None,
         batch_size: int = 0,
         shuffle=False,
         edge_types: Sequence[Tuple[str]] = None,
@@ -98,8 +103,9 @@ class EXPERIMENTAL__BulkSampleLoader:
             Defaults to 100.  Gets passed to the bulk
             sampler if there is one; otherwise, this argument
             is used to determine which files to read.
-        
-        num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] (required)
+
+        num_neighbors: Union[List[int],
+                 Dict[Tuple[str, str, str], List[int]]] (required)
             The number of neighbors to sample for each node in each iteration.
             If an entry is set to -1, all neighbors will be included.
             In heterogeneous graphs, may also take in a dictionary denoting
@@ -122,8 +128,10 @@ class EXPERIMENTAL__BulkSampleLoader:
             self.__num_batches = input_nodes
             self.__directory = directory
             return
-        
-        input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes((feature_store, graph_store), input_nodes)
+
+        input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
+            (feature_store, graph_store), input_nodes
+        )
         if input_type is not None:
             input_nodes = graph_store._get_sample_from_vertex_groups(
                 {input_type: input_nodes}
@@ -262,8 +270,8 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
     def __init__(
         self,
         data: Union[CuGraphStore, Tuple[CuGraphStore, CuGraphStore]],
-        input_nodes: Union[InputNodes, int]=None,
-        batch_size: int=None,
+        input_nodes: Union[InputNodes, int] = None,
+        batch_size: int = None,
         **kwargs,
     ):
         """

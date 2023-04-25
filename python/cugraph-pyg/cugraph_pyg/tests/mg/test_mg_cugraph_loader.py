@@ -48,13 +48,14 @@ def test_cugraph_loader_basic(dask_client, karate_gnn):
             for prop in sample["type1"]["prop0"].tolist():
                 assert prop % 41 == 0
 
+
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_cugraph_loader_hetero(dask_client, karate_gnn):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
     loader = CuGraphNeighborLoader(
         (cugraph_store, cugraph_store),
-        input_nodes=('type1', torch.tensor([0,1,2,5], device='cuda')),
+        input_nodes=("type1", torch.tensor([0, 1, 2, 5], device="cuda")),
         batch_size=2,
         num_neighbors=[4, 4],
         random_state=62,
