@@ -127,6 +127,45 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double c           = 0.19,
   bool clip_and_flip = false);
 
+/**
+ * @brief generate an edge list for a bi-partite R-mat graph.
+ *
+ * The source vertex IDs will be in the range of [0, 2^src_scale) and the destination vertex IDs
+ * will be in the range of [0, 2^dst_scale). This function allows multi-edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state RAFT RNG state, updated with each call
+ * @param src_scale Scale factor to set the range of source vertex IDs (or the first vertex set) in
+ * the bi-partite graph. Vertex IDs have values in [0, V_src), where V_src = 1 << @p src_scale.
+ * @param dst_scale Scale factor to set the range of destination vertex IDs (or the second vertex
+ * set) in the bi-partite graph. Vertex IDs have values in [0, V_dst), where V_dst = 1 << @p
+ * dst_scale.
+ * @param num_edges Number of edges to generate.
+ * @param a a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
+ * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
+ * than 1.0.
+ * @param b a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
+ * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
+ * than 1.0.
+ * @param c a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
+ * for additional details). a, b, c, d should be non-negative and a + b + c should be no larger
+ * than 1.0.
+ * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
+ * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
+ */
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>>
+generate_bipartite_rmat_edgelist(raft::handle_t const& handle,
+                                 raft::random::RngState& rng_state,
+                                 size_t src_scale,
+                                 size_t dst_scale,
+                                 size_t num_edges,
+                                 double a = 0.57,
+                                 double b = 0.19,
+                                 double c = 0.19);
+
 enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
 
 /**
