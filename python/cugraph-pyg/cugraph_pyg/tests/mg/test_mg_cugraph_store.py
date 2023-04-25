@@ -32,6 +32,7 @@ import pytest
 
 
 torch = import_optional("torch")
+torch_geometric = import_optional("torch_geometric")
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
@@ -312,6 +313,14 @@ def test_get_tensor(graph, dask_client):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_get_tensor_empty_idx(karate_gnn, dask_client):
+    F, G, N = karate_gnn
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+
+    t = cugraph_store.get_tensor(CuGraphTensorAttr(group_name='type0', attr_name='prop0', index=None))
+    assert t.tolist() == (torch.arange(17, dtype=torch.float32) * 31).tolist()
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_multi_get_tensor(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
@@ -395,6 +404,19 @@ def test_get_tensor_size(graph, dask_client):
 
         tensor_attr.index = np.arange(sz)
         assert cugraph_store.get_tensor_size(tensor_attr) == torch.Size((sz,))
+
+
+@pytest.mark.skip(reason='pyg bug: https://github.com/pyg-team/pytorch_geometric/issues/7232')
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(isinstance(torch_geometric, MissingModule), reason="pyg not available")
+def test_get_input_nodes(karate_gnn, dask_client):
+    F, G, N = karate_gnn
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+
+    node_type, input_nodes = torch_geometric.loader.utils.get_input_nodes((cugraph_store, cugraph_store), 'type0')
+    
+    assert node_type == 'type0'
+    assert input_nodes.tolist() == torch.arange(17, dtype=torch.int32).tolist()
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")

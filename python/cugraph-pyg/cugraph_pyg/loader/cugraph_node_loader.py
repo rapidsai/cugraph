@@ -25,17 +25,17 @@ from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.loader.filter import _filter_cugraph_store
 from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
 
-from typing import Union, Tuple, Sequence, List
+from typing import Union, Tuple, Sequence, List, Dict
 
 torch_geometric = import_optional("torch_geometric")
-
+InputNodes = Sequence if isinstance(torch_geometric, MissingModule) else torch_geometric.typing.InputNodes
 
 class EXPERIMENTAL__BulkSampleLoader:
     def __init__(
         self,
         feature_store: CuGraphStore,
         graph_store: CuGraphStore,
-        all_indices: Union[Sequence, int],
+        input_nodes: Union[InputNodes, int]=None,
         batch_size: int = 0,
         shuffle=False,
         edge_types: Sequence[Tuple[str]] = None,
@@ -44,7 +44,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         starting_batch_id=0,
         batches_per_partition=100,
         # Sampler args
-        num_neighbors: List[int] = [1, 1],
+        num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] = None,
         replace: bool = True,
         # Other kwargs for the BulkSampler
         **kwargs,
@@ -61,9 +61,9 @@ class EXPERIMENTAL__BulkSampleLoader:
         graph_store: CuGraphStore
             The graph store containing the graph structure.
 
-        all_indices: Union[Tensor, int]
+        input_nodes: Union[InputNodes, int]
             The input nodes associated with this sampler.
-            If this is an integer N , this loader will load N batches
+            If this is an integer N, this loader will load N batches
             from disk rather than performing sampling in memory.
 
         batch_size: int
@@ -98,6 +98,15 @@ class EXPERIMENTAL__BulkSampleLoader:
             Defaults to 100.  Gets passed to the bulk
             sampler if there is one; otherwise, this argument
             is used to determine which files to read.
+        
+        num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] (required)
+            The number of neighbors to sample for each node in each iteration.
+            If an entry is set to -1, all neighbors will be included.
+            In heterogeneous graphs, may also take in a dictionary denoting
+            the number of neighbors to sample for each individual edge type.
+
+            Note: in cuGraph, only one value of num_neighbors is currently supported.
+            Passing in a dictionary will result in an exception.
         """
 
         self.__feature_store = feature_store
@@ -108,16 +117,25 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
-        if isinstance(all_indices, int):
+        if isinstance(input_nodes, int):
             # Will be loading from disk
-            self.__num_batches = all_indices
+            self.__num_batches = input_nodes
             self.__directory = directory
             return
+        
+        input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes((feature_store, graph_store), input_nodes)
+        if input_type is not None:
+            input_nodes = graph_store._get_sample_from_vertex_groups(
+                {input_type: input_nodes}
+            )
 
         if batch_size is None or batch_size < 1:
             raise ValueError("Batch size must be >= 1")
 
         self.__directory = tempfile.TemporaryDirectory(dir=directory)
+
+        if isinstance(num_neighbors, dict):
+            raise ValueError("num_neighbors dict is currently unsupported!")
 
         bulk_sampler = BulkSampler(
             batch_size,
@@ -131,21 +149,21 @@ class EXPERIMENTAL__BulkSampleLoader:
         )
 
         # Make sure indices are in cupy
-        all_indices = cupy.asarray(all_indices)
+        input_nodes = cupy.asarray(input_nodes)
 
         # Shuffle
         if shuffle:
-            cupy.random.shuffle(all_indices)
+            cupy.random.shuffle(input_nodes)
 
         # Truncate if we can't evenly divide the input array
-        stop = (len(all_indices) // batch_size) * batch_size
-        all_indices = all_indices[:stop]
+        stop = (len(input_nodes) // batch_size) * batch_size
+        input_nodes = input_nodes[:stop]
 
         # Split into batches
-        all_indices = cupy.split(all_indices, len(all_indices) // batch_size)
+        input_nodes = cupy.split(input_nodes, len(input_nodes) // batch_size)
 
         self.__num_batches = 0
-        for batch_num, batch_i in enumerate(all_indices):
+        for batch_num, batch_i in enumerate(input_nodes):
             self.__num_batches += 1
             bulk_sampler.add_batches(
                 cudf.DataFrame(
@@ -244,8 +262,8 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
     def __init__(
         self,
         data: Union[CuGraphStore, Tuple[CuGraphStore, CuGraphStore]],
-        input_nodes: Sequence,
-        batch_size: int,
+        input_nodes: Union[InputNodes, int]=None,
+        batch_size: int=None,
         **kwargs,
     ):
         """
@@ -254,18 +272,22 @@ class EXPERIMENTAL__CuGraphNeighborLoader:
         data: CuGraphStore or (CuGraphStore, CuGraphStore)
             The CuGraphStore or stores where the graph/feature data is held.
 
-        batch_size: int
+        batch_size: int (required)
             The number of input nodes in each batch.
 
-        input_nodes: Tensor
-            The input nodes for *this* loader.  If there are multiple loaders,
-            the appropriate split should be given for this loader.
+        input_nodes: Union[InputNodes, int] (required)
+            The input nodes associated with this sampler.
 
         **kwargs: kwargs
             Keyword arguments to pass through for sampling.
             i.e. "shuffle", "fanout"
             See BulkSampleLoader.
         """
+
+        if input_nodes is None:
+            raise ValueError("input_nodes is required")
+        if batch_size is None:
+            raise ValueError("batch_size is required")
 
         # Allow passing in a feature store and graph store as a tuple, as
         # in the standard PyG API.  If only one is passed, it is assumed

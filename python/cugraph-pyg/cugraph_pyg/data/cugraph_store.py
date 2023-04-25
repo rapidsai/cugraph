@@ -464,6 +464,9 @@ class EXPERIMENTAL__CuGraphStore:
             return False
         return self.__graph.is_multi_gpu()
 
+    def _numeric_vertex_type_from_name(self, vertex_type_name: str) -> int:
+        return np.searchsorted(self.__vertex_type_offsets["type"], vertex_type_name)
+
     def get_vertex_index(self, vtypes) -> TensorType:
         if isinstance(vtypes, str):
             vtypes = [vtypes]
@@ -561,12 +564,12 @@ class EXPERIMENTAL__CuGraphStore:
             src_type, _, dst_type = attr.edge_type
             src_offset = int(
                 self.__vertex_type_offsets["start"][
-                    np.searchsorted(self.__vertex_type_offsets["type"], src_type)
+                    self._numeric_vertex_type_from_name(src_type)
                 ]
             )
             dst_offset = int(
                 self.__vertex_type_offsets["start"][
-                    np.searchsorted(self.__vertex_type_offsets["type"], dst_type)
+                    self._numeric_vertex_type_from_name(dst_type)
                 ]
             )
             coli = np.searchsorted(
@@ -694,6 +697,29 @@ class EXPERIMENTAL__CuGraphStore:
                 noi_index[type_name] = nodes_of_interest[ix] - noi_starts[ix]
 
         return noi_index
+
+    def _get_sample_from_vertex_groups(
+        self, vertex_groups: Dict[str, TensorType]
+    ) -> TensorType:
+        """
+        Inverse of _get_vertex_groups_from_sample() (although with de-offsetted ids).
+        Given a dictionary of node types and de-offsetted node ids, return
+        the global (non-renumbered) vertex ids.
+
+        Example Input: {'horse': [1, 3, 5], 'duck': [1, 2]}
+        Output: [1, 3, 5, 14, 15]
+        """
+        t = torch.tensor([], dtype=torch.int64, device='cuda')
+
+        for group_name, ix in vertex_groups.items():
+            type_id = self._numeric_vertex_type_from_name(group_name)
+            if not ix.is_cuda:
+                ix = ix.cuda()
+            offset = self.__vertex_type_offsets["start"][type_id]
+            u = ix + offset
+            t = torch.concatenate([t, u])
+        
+        return t
 
     def _get_renumbered_edge_groups_from_sample(
         self, sampling_results: cudf.DataFrame, noi_index: dict
@@ -864,22 +890,25 @@ class EXPERIMENTAL__CuGraphStore:
         cols = attr.properties
 
         idx = attr.index
-        if feature_backend == "torch":
-            if not isinstance(idx, torch.Tensor):
-                raise TypeError(
-                    f"Type {type(idx)} invalid"
-                    f" for feature store backend {feature_backend}"
-                )
-            idx = idx.cpu()
-        elif feature_backend == "numpy":
-            # allow indexing through cupy arrays
-            if isinstance(idx, cupy.ndarray):
-                idx = idx.get()
-            elif isinstance(idx, torch.Tensor):
-                idx = np.asarray(idx.cpu())
+        if idx is not None:
+            if feature_backend == "torch":
+                if not isinstance(idx, torch.Tensor):
+                    raise TypeError(
+                        f"Type {type(idx)} invalid"
+                        f" for feature store backend {feature_backend}"
+                    )
+                idx = idx.cpu()
+            elif feature_backend == "numpy":
+                # allow indexing through cupy arrays
+                if isinstance(idx, cupy.ndarray):
+                    idx = idx.get()
+                elif isinstance(idx, torch.Tensor):
+                    idx = np.asarray(idx.cpu())
 
         if cols is None:
             t = self.__features.get_data(idx, attr.group_name, attr.attr_name)
+            if idx is None:
+                t = t[-1]
 
             if isinstance(t, np.ndarray):
                 t = torch.as_tensor(t, device="cuda")
