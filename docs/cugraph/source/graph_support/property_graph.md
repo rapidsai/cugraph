@@ -1,6 +1,6 @@
 <h1 align="center";>
   <br>
-  <img src="./pg_example.png" alt="cuGraph" width="400">
+  <img src="../images/pg_example.png" alt="cuGraph" width="400">
 </h1>
 <h1 align="left";>
   <br>
