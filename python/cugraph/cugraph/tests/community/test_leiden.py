@@ -601,7 +601,9 @@ def test_leiden_directed_graph():
 
 @pytest.mark.sg
 def test_leiden_golden_results(input_and_expected_output):
-    expected_partition = cudf.Series(input_and_expected_output["expected_output"]["partition"])
+    expected_partition = cudf.Series(
+        input_and_expected_output["expected_output"]["partition"]
+    )
     expected_mod = input_and_expected_output["expected_output"]["modularity_score"]
 
     result_partition = input_and_expected_output["result_output"]["partition"]
@@ -609,4 +611,6 @@ def test_leiden_golden_results(input_and_expected_output):
 
     assert abs(expected_mod - result_mod) < 0.0001
 
-    assert_series_equal(expected_partition, result_partition, check_dtype=False, check_names=False)
+    assert_series_equal(
+        expected_partition, result_partition, check_dtype=False, check_names=False
+    )
