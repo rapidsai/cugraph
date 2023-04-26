@@ -462,14 +462,12 @@ symmetrize_edgelist_from_triangular(
  * @param d_src_v Vector of source vertices
  * @param d_dst_v Vector of destination vertices
  * @param vertex_id_offset Offset to add to each vertex id
- * @param seed Used to initialize random number generator
  */
 template <typename vertex_t>
 void scramble_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_src_v,
                          rmm::device_uvector<vertex_t>& d_dst_v,
-                         vertex_t vertex_id_offset,
-                         uint64_t seed = 0);
+                         vertex_t vertex_id_offset);
 
 /**
  * @brief Combine edgelists from multiple sources into a single edgelist

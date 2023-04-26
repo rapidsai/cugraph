@@ -43,10 +43,10 @@ template <typename T>
 rmm::device_uvector<T> append_all(raft::handle_t const& handle,
                                   std::vector<rmm::device_uvector<T>>&& input)
 {
-  size_t size{0};
-  // for (size_t i = 0; i < input.size(); ++i) size += input[i].size();
-  for (auto& element : input)
-    size += element.size();
+  auto size = std::transform_reduce(
+    input.begin(), input.end(), size_t{0}, std::plus<size_t>{}, [](auto const& element) {
+      return element.size();
+    });
 
   rmm::device_uvector<T> output(size, handle.get_stream());
   auto output_iter = output.begin();
@@ -55,13 +55,6 @@ rmm::device_uvector<T> append_all(raft::handle_t const& handle,
     raft::copy(output_iter, element.begin(), element.size(), handle.get_stream());
     output_iter += element.size();
   }
-
-  /*
-for (size_t i = 0; i < input.size(); ++i) {
-  raft::copy(output_iter, input[i].begin(), input[i].size(), handle.get_stream());
-  output_iter += input[i].size();
-}
-  */
 
   return output;
 }
@@ -72,8 +65,7 @@ template <typename vertex_t>
 void scramble_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_src_v,
                          rmm::device_uvector<vertex_t>& d_dst_v,
-                         vertex_t vertex_id_offset,
-                         uint64_t seed)
+                         vertex_t vertex_id_offset)
 {
   vertex_t scale = 1 + raft::log2(d_src_v.size());
 
@@ -253,14 +245,12 @@ symmetrize_edgelist_from_triangular(
 template void scramble_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int32_t>& d_src_v,
                                   rmm::device_uvector<int32_t>& d_dst_v,
-                                  int32_t vertex_id_offset,
-                                  uint64_t seed);
+                                  int32_t vertex_id_offset);
 
 template void scramble_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_src_v,
                                   rmm::device_uvector<int64_t>& d_dst_v,
-                                  int64_t vertex_id_offset,
-                                  uint64_t seed);
+                                  int64_t vertex_id_offset);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,

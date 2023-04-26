@@ -48,7 +48,7 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
 
   if (scramble_vertex_ids) {
     cugraph::scramble_vertex_ids<vertex_t>(
-      handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
+      handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0});
   }
 
   graph_generator_t gg_vals{
@@ -85,7 +85,7 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
     std::for_each(
       src_dst_vec_tuple.begin(), src_dst_vec_tuple.end(), [&handle, seed](auto& src_dst_tuple) {
         cugraph::scramble_vertex_ids<vertex_t>(
-          handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0}, seed);
+          handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), vertex_t{0});
       });
   }
 

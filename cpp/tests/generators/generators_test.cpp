@@ -614,7 +614,7 @@ TEST_F(GeneratorsTest, ScrambleTest)
   raft::update_device(d_src_v.data(), input_src_v.data(), input_src_v.size(), handle.get_stream());
   raft::update_device(d_dst_v.data(), input_dst_v.data(), input_dst_v.size(), handle.get_stream());
 
-  cugraph::scramble_vertex_ids(handle, d_src_v, d_dst_v, 5, 0);
+  cugraph::scramble_vertex_ids(handle, d_src_v, d_dst_v, 5);
 
   auto output_src_v = cugraph::test::to_host(handle, d_src_v);
   auto output_dst_v = cugraph::test::to_host(handle, d_dst_v);
