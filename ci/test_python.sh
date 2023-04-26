@@ -179,7 +179,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       libcugraph \
       pylibcugraph \
-      pylibcugraphops \
       cugraph \
       cugraph-pyg
 
