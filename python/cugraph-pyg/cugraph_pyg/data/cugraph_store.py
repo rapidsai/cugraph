@@ -851,7 +851,11 @@ class EXPERIMENTAL__CuGraphStore:
             )
         )
 
-    def __infer_edge_types(self, num_nodes_dict: Dict[str, int], num_edges_dict: Dict[Tuple[str, str, str], int]) -> None:
+    def __infer_edge_types(
+        self,
+        num_nodes_dict: Dict[str, int],
+        num_edges_dict: Dict[Tuple[str, str, str], int],
+    ) -> None:
         self.__edge_types_to_attrs = {}
 
         for pyg_can_edge_type in sorted(num_edges_dict.keys()):

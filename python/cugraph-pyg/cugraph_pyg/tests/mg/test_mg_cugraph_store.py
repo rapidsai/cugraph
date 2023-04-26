@@ -412,9 +412,6 @@ def test_get_tensor_size(graph, dask_client):
         assert cugraph_store.get_tensor_size(tensor_attr) == torch.Size((sz,))
 
 
-@pytest.mark.skip(
-    reason="pyg bug: https://github.com/pyg-team/pytorch_geometric/issues/7232"
-)
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skipif(
     isinstance(torch_geometric, MissingModule), reason="pyg not available"
