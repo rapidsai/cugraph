@@ -189,6 +189,8 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   size_t ret{0};
 
   vertex_t const* local_frontier_vertex_first{nullptr};
@@ -321,6 +323,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   using edge_t    = typename GraphViewType::edge_type;
   using key_t     = typename VertexFrontierBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do

@@ -417,6 +417,8 @@ T transform_reduce_e(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_iterator,
       typename EdgeValueInputWrapper::value_type>>;
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -598,6 +600,8 @@ auto transform_reduce_e(raft::handle_t const& handle,
   using T           = typename detail::
     edge_op_result_type<vertex_t, vertex_t, src_value_t, dst_value_t, e_value_t, EdgeOp>::type;
   static_assert(!std::is_same_v<T, void>);
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do

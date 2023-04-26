@@ -1054,6 +1054,8 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
                                        VertexValueOutputIterator vertex_value_output_first,
                                        bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -1133,6 +1135,8 @@ void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
                                        VertexValueOutputIterator vertex_value_output_first,
                                        bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
