@@ -138,7 +138,10 @@ def test_edge_types(graph):
     assert eta.keys() == G.keys()
 
     for attr_name, attr_repr in eta.items():
-        assert len(G[attr_name][0]) == attr_repr.size[-1]
+        src_size = N[attr_name[0]]
+        dst_size = N[attr_name[-1]]
+        assert src_size == attr_repr.size[0]
+        assert dst_size == attr_repr.size[-1]
         assert attr_name == attr_repr.edge_type
 
 

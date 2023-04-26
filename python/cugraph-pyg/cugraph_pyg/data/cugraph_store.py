@@ -271,7 +271,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         self.__infer_offsets(num_nodes_dict, num_edges_dict)
         self.__infer_existing_tensors(F)
-        self.__infer_edge_types(num_edges_dict)
+        self.__infer_edge_types(num_nodes_dict, num_edges_dict)
 
         self._edge_attr_cls = CuGraphEdgeAttr
 
@@ -851,16 +851,17 @@ class EXPERIMENTAL__CuGraphStore:
             )
         )
 
-    def __infer_edge_types(self, num_edges_dict) -> None:
+    def __infer_edge_types(self, num_nodes_dict: Dict[str, int], num_edges_dict: Dict[Tuple[str, str, str], int]) -> None:
         self.__edge_types_to_attrs = {}
 
         for pyg_can_edge_type in sorted(num_edges_dict.keys()):
-            sz = num_edges_dict[pyg_can_edge_type]
+            sz_src = num_nodes_dict[pyg_can_edge_type[0]]
+            sz_dst = num_nodes_dict[pyg_can_edge_type[-1]]
             self.__edge_types_to_attrs[pyg_can_edge_type] = CuGraphEdgeAttr(
                 edge_type=pyg_can_edge_type,
                 layout=EdgeLayout.COO,
                 is_sorted=False,
-                size=(sz, sz),
+                size=(sz_src, sz_dst),
             )
 
     def __infer_existing_tensors(self, F) -> None:
