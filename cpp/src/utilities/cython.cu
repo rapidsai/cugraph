@@ -47,8 +47,8 @@ std::unique_ptr<graph_generator_t> call_generate_rmat_edgelist(raft::handle_t co
     handle, scale, num_edges, a, b, c, seed, clip_and_flip);
 
   if (scramble_vertex_ids) {
-    cugraph::scramble_vertex_ids<vertex_t>(
-      handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), scale);
+    src_dst_tuple = cugraph::scramble_vertex_ids<vertex_t>(
+      handle, std::move(std::get<0>(src_dst_tuple)), std::move(std::get<1>(src_dst_tuple)), scale);
   }
 
   graph_generator_t gg_vals{
@@ -85,8 +85,11 @@ call_generate_rmat_edgelists(raft::handle_t const& handle,
     std::for_each(src_dst_vec_tuple.begin(),
                   src_dst_vec_tuple.end(),
                   [&handle, max_scale, seed](auto& src_dst_tuple) {
-                    cugraph::scramble_vertex_ids<vertex_t>(
-                      handle, std::get<0>(src_dst_tuple), std::get<1>(src_dst_tuple), max_scale);
+                    src_dst_tuple =
+                      cugraph::scramble_vertex_ids<vertex_t>(handle,
+                                                             std::move(std::get<0>(src_dst_tuple)),
+                                                             std::move(std::get<1>(src_dst_tuple)),
+                                                             max_scale);
                   });
   }
 

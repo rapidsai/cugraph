@@ -448,10 +448,9 @@ symmetrize_edgelist_from_triangular(
   bool check_diagonal = false);
 
 /**
- * @brief scramble vertex ids in a graph
+ * @brief scramble vertex IDs in a graph
  *
- * Given an edgelist for a graph, scramble all vertex ids by the given offset.
- * This translation is done in place.
+ * Given a vertex list for a graph, scramble the input vertex IDs.
  *
  * The scramble code here follows the algorithm in the Graph 500 reference
  * implementation version 3.0.0.
@@ -459,15 +458,38 @@ symmetrize_edgelist_from_triangular(
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param d_src_v Vector of source vertices
- * @param d_dst_v Vector of destination vertices
- * @param lgN The input & output vertex IDs are assumed to be in [0, 2^lgN).
+ * @param vertices Vector of input vertices
+ * @param lgN The input & output (scrambled) vertex IDs are assumed to be in [0, 2^lgN).
+ * @return rmm::device_uvector object storing scrambled vertex IDs.
  */
 template <typename vertex_t>
-void scramble_vertex_ids(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>& d_src_v,
-                         rmm::device_uvector<vertex_t>& d_dst_v,
-                         size_t lgN);
+rmm::device_uvector<vertex_t> scramble_vertex_ids(raft::handle_t const& handle,
+                                                  rmm::device_uvector<vertex_t>&& vertices,
+                                                  size_t lgN);
+
+/**
+ * @brief scramble vertex ids in a graph
+ *
+ * Given an edge list for a graph, scramble the input vertex IDs.
+ *
+ * The scramble code here follows the algorithm in the Graph 500 reference
+ * implementation version 3.0.0.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param d_src_v Vector of input source vertices
+ * @param d_dst_v Vector of input destination vertices
+ * @param lgN The input & output (scrambled) vertex IDs are assumed to be in [0, 2^lgN).
+ * @return Tuple of two rmm::device_uvector objects storing scrambled source & destination vertex
+ * IDs, respectively.
+ */
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scramble_vertex_ids(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& srcs,
+  rmm::device_uvector<vertex_t>&& dsts,
+  size_t lgN);
 
 /**
  * @brief Combine edgelists from multiple sources into a single edgelist
