@@ -265,10 +265,6 @@ dependencies:
       - output_types: [conda]
         matrices:
           - matrix:
-              py: "3.8"
-            packages:
-              - python=3.8
-          - matrix:
               py: "3.9"
             packages:
               - python=3.9
@@ -278,7 +274,7 @@ dependencies:
               - python=3.10
           - matrix:
             packages:
-              - python>=3.8,<3.11
+              - python>=3.9,<3.11
   python_build_wheel:
     common:
       - output_types: [conda, pyproject]
