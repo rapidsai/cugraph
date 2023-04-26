@@ -20,6 +20,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/core/handle.hpp>
 #include <raft/util/cudart_utils.hpp>
@@ -140,7 +141,7 @@ void validate_rmat_distribution(
   return;
 }
 
-typedef struct GenerateRmat_Usecase_t {
+struct GenerateRmat_Usecase {
   size_t scale{0};
   size_t edge_factor{0};
   double a{0.0};
@@ -148,10 +149,10 @@ typedef struct GenerateRmat_Usecase_t {
   double c{0.0};
   bool clip_and_flip{false};
 
-  GenerateRmat_Usecase_t(
+  GenerateRmat_Usecase(
     size_t scale, size_t edge_factor, double a, double b, double c, bool clip_and_flip)
     : scale(scale), edge_factor(edge_factor), a(a), b(b), c(c), clip_and_flip(clip_and_flip){};
-} GenerateRmat_Usecase;
+};
 
 class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase> {
  public:
@@ -167,6 +168,7 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
   void run_current_test(GenerateRmat_Usecase const& configuration)
   {
     raft::handle_t handle{};
+    HighResTimer hr_timer{};
 
     auto num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale);
     std::vector<size_t> no_scramble_out_degrees(num_vertices, 0);
@@ -174,23 +176,36 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
     std::vector<size_t> scramble_out_degrees(num_vertices, 0);
     std::vector<size_t> scramble_in_degrees(num_vertices, 0);
     for (size_t scramble = 0; scramble < 2; ++scramble) {
+      raft::random::RngState rng_state(0);
+
       rmm::device_uvector<vertex_t> d_srcs(0, handle.get_stream());
       rmm::device_uvector<vertex_t> d_dsts(0, handle.get_stream());
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        hr_timer.start("Generate edge list");
+      }
 
       std::tie(d_srcs, d_dsts) = cugraph::generate_rmat_edgelist<vertex_t>(
         handle,
+        rng_state,
         configuration.scale,
         (size_t{1} << configuration.scale) * configuration.edge_factor,
         configuration.a,
         configuration.b,
         configuration.c,
-        uint64_t{0},
         configuration.clip_and_flip);
-      // static_cast<bool>(scramble));
 
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      if (scramble == 1) {
+        std::tie(d_srcs, d_dsts) = cugraph::scramble_vertex_ids(
+          handle, std::move(d_srcs), std::move(d_dsts), configuration.scale);
+      }
+
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        hr_timer.stop();
+        hr_timer.display_and_clear(std::cout);
+      }
 
       auto h_cugraph_srcs = cugraph::test::to_host(handle, d_srcs);
       auto h_cugraph_dsts = cugraph::test::to_host(handle, d_dsts);
@@ -260,7 +275,7 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
     }
 
     // this relies on the fact that the edge generator is deterministic.
-    // ideally, we should test that the two graphs are isomorphic, but this is NP hard; insted, we
+    // ideally, we should test that the two graphs are isomorphic, but this is NP hard; instead, we
     // just check out-degree & in-degree distributions
     ASSERT_TRUE(std::equal(no_scramble_out_degrees.begin(),
                            no_scramble_out_degrees.end(),
@@ -270,9 +285,8 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
   }
 };
 
-// FIXME: add tests for type combinations
-
 TEST_P(Tests_GenerateRmat, CheckInt32) { run_current_test<int32_t>(GetParam()); }
+TEST_P(Tests_GenerateRmat, CheckInt64) { run_current_test<int64_t>(GetParam()); }
 
 INSTANTIATE_TEST_SUITE_P(simple_test,
                          Tests_GenerateRmat,
@@ -280,7 +294,8 @@ INSTANTIATE_TEST_SUITE_P(simple_test,
                                            GenerateRmat_Usecase(20, 16, 0.57, 0.19, 0.19, false),
                                            GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, true),
                                            GenerateRmat_Usecase(20, 16, 0.45, 0.22, 0.22, false)));
-typedef struct GenerateRmats_Usecase_t {
+
+struct GenerateRmats_Usecase {
   size_t n_edgelists{0};
   size_t min_scale{0};
   size_t max_scale{0};
@@ -288,19 +303,20 @@ typedef struct GenerateRmats_Usecase_t {
   cugraph::generator_distribution_t component_distribution;
   cugraph::generator_distribution_t edge_distribution;
 
-  GenerateRmats_Usecase_t(size_t n_edgelists,
-                          size_t min_scale,
-                          size_t max_scale,
-                          size_t edge_factor,
-                          cugraph::generator_distribution_t component_distribution,
-                          cugraph::generator_distribution_t edge_distribution)
+  GenerateRmats_Usecase(size_t n_edgelists,
+                        size_t min_scale,
+                        size_t max_scale,
+                        size_t edge_factor,
+                        cugraph::generator_distribution_t component_distribution,
+                        cugraph::generator_distribution_t edge_distribution)
     : n_edgelists(n_edgelists),
       min_scale(min_scale),
       max_scale(max_scale),
       component_distribution(component_distribution),
       edge_distribution(edge_distribution),
       edge_factor(edge_factor){};
-} GenerateRmats_Usecase;
+};
+
 class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecase> {
  public:
   Tests_GenerateRmats() {}
@@ -315,19 +331,30 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
   void run_current_test(GenerateRmats_Usecase const& configuration)
   {
     raft::handle_t handle{};
+    HighResTimer hr_timer{};
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    raft::random::RngState rng_state(0);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.start("Generate edge list");
+    }
 
     auto outputs = cugraph::generate_rmat_edgelists<vertex_t>(handle,
+                                                              rng_state,
                                                               configuration.n_edgelists,
                                                               configuration.min_scale,
                                                               configuration.max_scale,
                                                               configuration.edge_factor,
                                                               configuration.component_distribution,
-                                                              configuration.edge_distribution,
-                                                              uint64_t{0});
+                                                              configuration.edge_distribution);
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_timer.stop();
+      hr_timer.display_and_clear(std::cout);
+    }
+
     ASSERT_EQ(configuration.n_edgelists, outputs.size());
     for (auto i = outputs.begin(); i != outputs.end(); ++i) {
       ASSERT_EQ(std::get<0>(*i).size(), std::get<1>(*i).size());
@@ -336,7 +363,9 @@ class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecas
     }
   }
 };
+
 TEST_P(Tests_GenerateRmats, CheckInt32) { run_current_test<int32_t>(GetParam()); }
+TEST_P(Tests_GenerateRmats, CheckInt64) { run_current_test<int64_t>(GetParam()); }
 
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
