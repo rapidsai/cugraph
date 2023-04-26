@@ -86,10 +86,18 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
+      // FIXME: Revisit the constant edge property idea.  We could consider an alternate
+      // implementation (perhaps involving the thrust::constant_iterator), or we
+      // could add support in Leiden for std::nullopt as the edge weights behaving
+      // as desired and only instantiating a real edge_property_view_t for the
+      // coarsened graphs.
       auto [level, modularity] = cugraph::leiden(
         handle_,
         graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+        (edge_weights != nullptr)
+          ? std::make_optional(edge_weights->view())
+          : std::make_optional(
+              cugraph::create_constant_edge_property(handle_, graph_view, weight_t{1}).view()),
         clusters.data(),
         max_level_,
         static_cast<weight_t>(resolution_));

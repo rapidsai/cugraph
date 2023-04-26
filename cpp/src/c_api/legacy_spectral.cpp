@@ -110,10 +110,18 @@ struct balanced_cut_clustering_functor : public cugraph::c_api::abstract_functor
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
+      if (edge_weights == nullptr) {
+        tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
+        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+      }
+
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
         const_cast<edge_t*>(edge_partition_view.offsets().data()),
         const_cast<vertex_t*>(edge_partition_view.indices().data()),
-        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
 
@@ -209,10 +217,18 @@ struct spectral_clustering_functor : public cugraph::c_api::abstract_functor {
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
+      if (edge_weights == nullptr) {
+        tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
+        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+      }
+
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
         const_cast<edge_t*>(edge_partition_view.offsets().data()),
         const_cast<vertex_t*>(edge_partition_view.indices().data()),
-        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
 
@@ -298,10 +314,18 @@ struct analyze_clustering_ratio_cut_functor : public cugraph::c_api::abstract_fu
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
+      if (edge_weights == nullptr) {
+        tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
+        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+      }
+
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
         const_cast<edge_t*>(edge_partition_view.offsets().data()),
         const_cast<vertex_t*>(edge_partition_view.indices().data()),
-        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
 
@@ -405,10 +429,18 @@ struct analyze_clustering_edge_cut_functor : public cugraph::c_api::abstract_fun
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
+      if (edge_weights == nullptr) {
+        tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
+        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+      }
+
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
         const_cast<edge_t*>(edge_partition_view.offsets().data()),
         const_cast<vertex_t*>(edge_partition_view.indices().data()),
-        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
 
@@ -512,10 +544,18 @@ struct analyze_clustering_modularity_functor : public cugraph::c_api::abstract_f
       auto graph_view          = graph->view();
       auto edge_partition_view = graph_view.local_edge_partition_view();
 
+      rmm::device_uvector<weight_t> tmp_weights(0, handle_.get_stream());
+      if (edge_weights == nullptr) {
+        tmp_weights.resize(edge_partition_view.indices().size(), handle_.get_stream());
+        cugraph::detail::scalar_fill(handle_, tmp_weights.data(), tmp_weights.size(), weight_t{1});
+      }
+
       cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> legacy_graph_view(
         const_cast<edge_t*>(edge_partition_view.offsets().data()),
         const_cast<vertex_t*>(edge_partition_view.indices().data()),
-        const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
+        (edge_weights == nullptr)
+          ? tmp_weights.data()
+          : const_cast<weight_t*>(edge_weights->view().value_firsts().front()),
         edge_partition_view.offsets().size() - 1,
         edge_partition_view.indices().size());
 

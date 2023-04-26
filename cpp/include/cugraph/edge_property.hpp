@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
@@ -125,6 +126,26 @@ class edge_dummy_property_t {
 
   auto view() const { return edge_dummy_property_view_t{}; }
 };
+
+template <typename GraphViewType, typename T>
+auto create_constant_edge_property(raft::handle_t const& handle,
+                                   GraphViewType const& graph_view,
+                                   T constant_value)
+{
+  edge_property_t<GraphViewType, T> edge_property(handle, graph_view);
+
+  auto mutable_view = edge_property.mutable_view();
+
+  std::for_each(
+    thrust::make_zip_iterator(mutable_view.value_firsts().begin(),
+                              mutable_view.edge_counts().begin()),
+    thrust::make_zip_iterator(mutable_view.value_firsts().end(), mutable_view.edge_counts().end()),
+    [&handle, constant_value](auto tuple) {
+      detail::scalar_fill(handle, thrust::get<0>(tuple), thrust::get<1>(tuple), constant_value);
+    });
+
+  return edge_property;
+}
 
 template <typename edge_t, typename... Ts>
 auto view_concat(edge_property_view_t<edge_t, Ts> const&... views)
