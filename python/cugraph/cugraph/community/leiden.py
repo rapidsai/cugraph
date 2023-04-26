@@ -13,16 +13,25 @@
 
 from pylibcugraph import louvain as pylibcugraph_leiden
 from pylibcugraph import ResourceHandle
+from cugraph.structure import Graph
 import cudf
-from typing import Tuple
+from typing import Union, Tuple
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# induced_subgraph() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
 def leiden(
-    G, max_iter: int = 100, resolution: float = 1.0
+    G: Union[Graph, "networkx.Graph"], max_iter: int = 100, resolution: float = 1.0
 ) -> Tuple[cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
