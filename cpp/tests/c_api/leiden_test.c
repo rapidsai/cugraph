@@ -87,6 +87,7 @@ int generic_leiden_test(vertex_t* h_src,
 
     cugraph_hierarchical_clustering_result_free(p_result);
   }
+#endif
 
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);

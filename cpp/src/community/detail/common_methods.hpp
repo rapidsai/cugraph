@@ -86,12 +86,11 @@ weight_t compute_modularity(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<
   graph_t<vertex_t, edge_t, false, multi_gpu>,
-  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>,
-  std::optional<rmm::device_uvector<vertex_t>>>
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>>
 graph_contraction(raft::handle_t const& handle,
                   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
-                  raft::device_span<vertex_t const> labels);
+                  raft::device_span<vertex_t> labels);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(

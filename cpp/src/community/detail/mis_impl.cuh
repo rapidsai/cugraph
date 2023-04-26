@@ -102,14 +102,11 @@ rmm::device_uvector<vertex_t> compute_mis(
   out_degrees.resize(0, handle.get_stream());
   out_degrees.shrink_to_fit(handle.get_stream());
 
-<<<<<<< HEAD
-=======
   thrust::default_random_engine g;
   size_t seed = 0;
   if constexpr (multi_gpu) { seed = handle.get_comms().get_rank(); }
   g.seed(seed);
 
->>>>>>> upstream/branch-23.06
   size_t loop_counter = 0;
   while (true) {
     loop_counter++;

@@ -52,7 +52,7 @@ template <typename vertex_t,
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> input_edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution)
 {
