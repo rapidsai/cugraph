@@ -26,7 +26,7 @@ torch = import_optional("torch")
 
 @pytest.mark.parametrize("bipartite", [True, False])
 @pytest.mark.parametrize("concat", [True, False])
-@pytest.mark.parametrize("heads", [1, 2, 3])
+@pytest.mark.parametrize("heads", [1, 2, 3, 5, 10, 16])
 def test_transformer_conv_equality(bipartite, concat, heads):
     out_channels = 2
     size = (10, 10)
@@ -65,7 +65,7 @@ def test_transformer_conv_equality(bipartite, concat, heads):
     csc = CuGraphTransformerConv.to_csc(edge_index, size)
     out2 = conv2(x, csc)
 
-    atol = 1e-5
+    atol = 1e-6
 
     assert torch.allclose(out1, out2, atol=atol)
 
