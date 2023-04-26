@@ -12,9 +12,11 @@
 # limitations under the License.
 
 from .gat_conv import GATConv
+from .gatv2_conv import GATv2Conv
 from .transformer_conv import TransformerConv
 
 __all__ = [
     "GATConv",
+    "GATv2Conv",
     "TransformerConv",
 ]
