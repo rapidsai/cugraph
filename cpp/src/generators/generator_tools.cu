@@ -65,18 +65,16 @@ template <typename vertex_t>
 void scramble_vertex_ids(raft::handle_t const& handle,
                          rmm::device_uvector<vertex_t>& d_src_v,
                          rmm::device_uvector<vertex_t>& d_dst_v,
-                         vertex_t vertex_id_offset)
+                         size_t lgN)
 {
-  vertex_t scale = 1 + raft::log2(d_src_v.size());
-
   auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
   thrust::transform(handle.get_thrust_policy(),
                     pair_first,
                     pair_first + d_src_v.size(),
                     pair_first,
-                    [scale] __device__(auto pair) {
-                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), scale),
-                                                detail::scramble(thrust::get<1>(pair), scale));
+                    [lgN] __device__(auto pair) {
+                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), lgN),
+                                                detail::scramble(thrust::get<1>(pair), lgN));
                     });
 }
 
@@ -245,12 +243,12 @@ symmetrize_edgelist_from_triangular(
 template void scramble_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int32_t>& d_src_v,
                                   rmm::device_uvector<int32_t>& d_dst_v,
-                                  int32_t vertex_id_offset);
+                                  size_t lgN);
 
 template void scramble_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_src_v,
                                   rmm::device_uvector<int64_t>& d_dst_v,
-                                  int64_t vertex_id_offset);
+                                  size_t lgN);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
