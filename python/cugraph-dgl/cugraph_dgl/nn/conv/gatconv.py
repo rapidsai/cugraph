@@ -158,6 +158,7 @@ class GATConv(BaseConv):
         nfeat : torch.Tensor
             Input features of shape :math:`(N, D_{in})`.
         efeat: torch.Tensor, optional
+            Optional edge features.
         max_in_degree : int
             Maximum in-degree of destination nodes. It is only effective when
             :attr:`g` is a :class:`DGLBlock`, i.e., bipartite graph. When
@@ -179,6 +180,10 @@ class GATConv(BaseConv):
             efeat = self.fc_edge(efeat)
 
         if bipartite:
+            assert hasattr(self, "fc_src"), (
+                f"Bipartite mode requires {self.__class__.__name__}.in_feats "
+                f"to be a tuple, but got {type(self.in_feats)}."
+            )
             _graph = BipartiteCSC(
                 offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
             )
@@ -197,6 +202,10 @@ class GATConv(BaseConv):
                 edge_feat=efeat,
             )
         else:
+            assert hasattr(self, "fc"), (
+                f"Non-bipartite mode requires {self.__class__.__name__}.in_feats "
+                f"to be an int, but got {type(self.in_feats)}."
+            )
             nfeat = self.fc(nfeat)
             # Sampled primitive does not support edge features
             if g.is_block and efeat is None:
