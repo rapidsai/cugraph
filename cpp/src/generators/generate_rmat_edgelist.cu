@@ -274,7 +274,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
             auto r = rands[rand_offset++];
             auto src_bit_set = r > a_plus_b;
             src += src_bit_set ? static_cast<vertex_t>(vertex_t{1} << (src_scale - (level + 1))) : 0;
-            dst_threshold = src_bit_set ? c_nrom : a_norm;
+            dst_threshold = src_bit_set ? c_norm : a_norm;
           }
           if (level < dst_scale) {
             auto r = rands[rand_offset++];
