@@ -44,7 +44,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double c,
   bool clip_and_flip)
 {
-  CUGRAPH_EXPECTS(scale >= 1, "Invalid input argument; scale should be at least 1.");
   CUGRAPH_EXPECTS((size_t{1} << scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
                   "Invalid input argument: scale too large for vertex_t.");
   CUGRAPH_EXPECTS((a >= 0.0) && (b >= 0.0) && (c >= 0.0) && (a + b + c <= 1.0),
@@ -224,7 +223,6 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double b,
   double c)
 {
-  CUGRAPH_EXPECTS(src_scale >= 1 && dst_scale >= 1, "Invalid input argument; src_scale & dst_scale should be at least 1.");
   CUGRAPH_EXPECTS((size_t{1} << src_scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
                   "Invalid input argument: src_scale too large for vertex_t.");
   CUGRAPH_EXPECTS((size_t{1} << dst_scale) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
