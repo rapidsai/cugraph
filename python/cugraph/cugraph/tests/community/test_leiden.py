@@ -22,7 +22,7 @@ import cudf
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS, karate_asymmetric
 
-# from cudf.testing.testing import assert_series_equal
+from cudf.testing.testing import assert_series_equal
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -67,7 +67,7 @@ _test_data = {
         "resolution": 1.0,
         "input_type": "COO",
         "expected_output": {
-            "partition": [0, 1, 0, 1, 1, 1],
+            "partition": [1, 1, 1, 0, 0, 0],
             "modularity_score": 0.215969,
         },
     },
@@ -431,44 +431,42 @@ _test_data = {
         "resolution": 1.0,
         "input_type": "CSR",
         "expected_output": {
-            # FIXME: Update with the correct partition IDs
             "partition": [
                 0,
                 0,
                 0,
                 0,
+                3,
+                3,
+                3,
+                0,
+                1,
+                0,
+                3,
                 0,
                 0,
                 0,
+                1,
+                1,
+                3,
                 0,
+                1,
                 0,
+                1,
                 0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
+                1,
+                1,
+                2,
+                2,
+                1,
+                1,
+                2,
+                1,
+                1,
+                2,
+                1,
+                1,
             ],
-            # FIXME: Ensure this is correct
             "modularity_score": 0.4155982,
         },
     },
@@ -484,6 +482,7 @@ _test_data = {
 )
 def input_and_expected_output(request):
     d = request.param.copy()
+
     input_graph_data = d.pop("graph")
     input_type = d.pop("input_type")
     src_or_offset_array = cudf.Series(
@@ -568,11 +567,7 @@ def test_leiden(graph_file):
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
-    # Calculating modularity scores for comparison
-    # FIXME: If the datasets is not renumbered, the leiden parts will
-    # also include isolated vertices which will be reflected in the modularity
-    # score.
-    assert leiden_mod >= (0.97 * louvain_mod)
+    assert leiden_mod >= (0.99 * louvain_mod)
 
 
 @pytest.mark.sg
@@ -589,10 +584,7 @@ def test_leiden_nx(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
-    # FIXME: If the datasets is not renumbered, the leiden parts will
-    # also include isolated vertices which will be reflected in the modularity
-    # score.
-    assert leiden_mod >= (0.97 * louvain_mod)
+    assert leiden_mod >= (0.99 * louvain_mod)
 
 
 @pytest.mark.sg
@@ -609,13 +601,12 @@ def test_leiden_directed_graph():
 
 @pytest.mark.sg
 def test_leiden_golden_results(input_and_expected_output):
-    _ = cudf.Series(input_and_expected_output["expected_output"]["partition"])
+    expected_partition = cudf.Series(input_and_expected_output["expected_output"]["partition"])
     expected_mod = input_and_expected_output["expected_output"]["modularity_score"]
 
-    _ = input_and_expected_output["result_output"]["partition"]
+    result_partition = input_and_expected_output["result_output"]["partition"]
     result_mod = input_and_expected_output["result_output"]["modularity_score"]
 
     assert abs(expected_mod - result_mod) < 0.0001
 
-    # Temporarily disable the partition checl
-    # assert_series_equal(expected_partition, result_partition, check_dtype=False)
+    assert_series_equal(expected_partition, result_partition, check_dtype=False, check_names=False)
