@@ -102,6 +102,14 @@ rmm::device_uvector<vertex_t> compute_mis(
   out_degrees.resize(0, handle.get_stream());
   out_degrees.shrink_to_fit(handle.get_stream());
 
+<<<<<<< HEAD
+=======
+  thrust::default_random_engine g;
+  size_t seed = 0;
+  if constexpr (multi_gpu) { seed = handle.get_comms().get_rank(); }
+  g.seed(seed);
+
+>>>>>>> upstream/branch-23.06
   size_t loop_counter = 0;
   while (true) {
     loop_counter++;
@@ -112,9 +120,8 @@ rmm::device_uvector<vertex_t> compute_mis(
     thrust::copy(handle.get_thrust_policy(), ranks.begin(), ranks.end(), temporary_ranks.begin());
 
     // Select a random set of candidate vertices
-
-    thrust::default_random_engine g;
-    g.seed(0);
+    // FIXME: use common utility function to select a subset of remaining vertices
+    // and for MG extension, select from disributed array remaining vertices
     thrust::shuffle(
       handle.get_thrust_policy(), remaining_vertices.begin(), remaining_vertices.end(), g);
 

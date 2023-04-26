@@ -13,6 +13,7 @@
 
 from cugraph.community import (
     ecg,
+    induced_subgraph,
     ktruss_subgraph,
     k_truss,
     louvain,
@@ -118,4 +119,4 @@ from cugraph import experimental
 from cugraph import gnn
 
 
-__version__ = "23.04.00"
+__version__ = "23.06.00"

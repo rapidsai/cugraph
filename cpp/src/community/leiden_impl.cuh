@@ -14,23 +14,21 @@
  * limitations under the License.
  */
 #pragma once
-// #define TIMING
 
 #include <community/detail/common_methods.hpp>
 #include <community/detail/refine.hpp>
 #include <community/flatten_dendrogram.hpp>
+#include <prims/update_edge_src_dst_property.cuh>
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
-#include <prims/update_edge_src_dst_property.cuh>
 
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/sort.h>
 #include <thrust/unique.h>
-
-#include <algorithm>
 
 namespace cugraph {
 
@@ -67,7 +65,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t current_graph_view(graph_view);
 
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
-    input_edge_weight_view);
+    edge_weight_view);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_weight(handle);
 
 #ifdef TIMING
@@ -78,8 +76,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   weight_t total_edge_weight =
     compute_total_edge_weight(handle, current_graph_view, *current_edge_weight_view);
 
-  // rmm::device_uvector<vertex_t> louvain_assignment_for_vertices(0, handle.get_stream());  // #V
-  rmm::device_uvector<vertex_t> louvain_of_refined_partition(0, handle.get_stream());  // #V
+  rmm::device_uvector<vertex_t> louvain_of_refined_graph(0, handle.get_stream());  // #V
 
   while (dendrogram->num_levels() < max_level) {
     //
@@ -99,10 +96,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     rmm::device_uvector<weight_t> vertex_weights =
       compute_out_weight_sums(handle, current_graph_view, *current_edge_weight_view);
-    rmm::device_uvector<vertex_t> cluster_keys(vertex_weights.size(), handle.get_stream());
-    rmm::device_uvector<weight_t> cluster_weights(vertex_weights.size(), handle.get_stream());
+    rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());
+    rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());
 
     if (dendrogram->num_levels() == 1) {
+      cluster_keys.resize(vertex_weights.size(), handle.get_stream());
+      cluster_weights.resize(vertex_weights.size(), handle.get_stream());
+
       detail::sequence_fill(handle.get_stream(),
                             dendrogram->current_level_begin(),
                             dendrogram->current_level_size(),
@@ -129,8 +129,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                        handle.get_stream());  // #C
 
       raft::copy(dendrogram->current_level_begin(),
-                 louvain_of_refined_partition.begin(),
-                 louvain_of_refined_partition.size(),
+                 louvain_of_refined_graph.begin(),
+                 louvain_of_refined_graph.size(),
                  handle.get_stream());
 
       raft::copy(tmp_weights_buffer.begin(),
@@ -139,32 +139,31 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                  handle.get_stream());
 
       thrust::sort_by_key(handle.get_thrust_policy(),
-                          louvain_of_refined_partition.begin(),
-                          louvain_of_refined_partition.end(),
+                          louvain_of_refined_graph.begin(),
+                          louvain_of_refined_graph.end(),
                           tmp_weights_buffer.begin());
 
-      auto pair_of_iterators_end = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                         louvain_of_refined_partition.begin(),
-                                                         louvain_of_refined_partition.end(),
-                                                         tmp_weights_buffer.begin(),
-                                                         cluster_keys.begin(),
-                                                         cluster_weights.begin());
+      auto num_unique_louvain_clusters_in_refined_partition =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(louvain_of_refined_graph.size()),
+                         is_first_in_run_t<vertex_t const*>{louvain_of_refined_graph.data()});
 
-      louvain_of_refined_partition.resize(0, handle.get_stream());
-      louvain_of_refined_partition.shrink_to_fit(handle.get_stream());
+      cluster_keys.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+      cluster_weights.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+
+      thrust::reduce_by_key(handle.get_thrust_policy(),
+                            louvain_of_refined_graph.begin(),
+                            louvain_of_refined_graph.end(),
+                            tmp_weights_buffer.begin(),
+                            cluster_keys.begin(),
+                            cluster_weights.begin());
+
+      louvain_of_refined_graph.resize(0, handle.get_stream());
+      louvain_of_refined_graph.shrink_to_fit(handle.get_stream());
 
       tmp_weights_buffer.resize(0, handle.get_stream());
       tmp_weights_buffer.shrink_to_fit(handle.get_stream());
-
-      cluster_keys.resize(
-        static_cast<size_t>(thrust::distance(cluster_keys.begin(), pair_of_iterators_end.first)),
-        handle.get_stream());
-      cluster_weights.resize(static_cast<size_t>(thrust::distance(cluster_weights.begin(),
-                                                                  pair_of_iterators_end.second)),
-                             handle.get_stream());
-
-      cluster_keys.shrink_to_fit(handle.get_stream());
-      cluster_weights.shrink_to_fit(handle.get_stream());
 
       if constexpr (graph_view_t::is_multi_gpu) {
         rmm::device_uvector<vertex_t> tmp_keys_buffer(0, handle.get_stream());  // #C
@@ -178,30 +177,27 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                             tmp_keys_buffer.end(),
                             tmp_weights_buffer.begin());
 
-        cluster_keys.resize(tmp_keys_buffer.size(), handle.get_stream());
-        cluster_weights.resize(tmp_weights_buffer.size(), handle.get_stream());
+        num_unique_louvain_clusters_in_refined_partition =
+          thrust::count_if(handle.get_thrust_policy(),
+                           thrust::make_counting_iterator(size_t{0}),
+                           thrust::make_counting_iterator(tmp_keys_buffer.size()),
+                           is_first_in_run_t<vertex_t const*>{tmp_keys_buffer.data()});
 
-        pair_of_iterators_end = thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                      tmp_keys_buffer.begin(),
-                                                      tmp_keys_buffer.end(),
-                                                      tmp_weights_buffer.begin(),
-                                                      cluster_keys.begin(),
-                                                      cluster_weights.begin());
+        cluster_keys.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
+        cluster_weights.resize(num_unique_louvain_clusters_in_refined_partition,
+                               handle.get_stream());
+
+        thrust::reduce_by_key(handle.get_thrust_policy(),
+                              tmp_keys_buffer.begin(),
+                              tmp_keys_buffer.end(),
+                              tmp_weights_buffer.begin(),
+                              cluster_keys.begin(),
+                              cluster_weights.begin());
 
         tmp_keys_buffer.resize(0, handle.get_stream());
         tmp_keys_buffer.shrink_to_fit(handle.get_stream());
         tmp_weights_buffer.resize(0, handle.get_stream());
         tmp_weights_buffer.shrink_to_fit(handle.get_stream());
-
-        cluster_keys.resize(
-          static_cast<size_t>(thrust::distance(cluster_keys.begin(), pair_of_iterators_end.first)),
-          handle.get_stream());
-        cluster_weights.resize(static_cast<size_t>(thrust::distance(cluster_weights.begin(),
-                                                                    pair_of_iterators_end.second)),
-                               handle.get_stream());
-
-        cluster_keys.shrink_to_fit(handle.get_stream());
-        cluster_weights.shrink_to_fit(handle.get_stream());
       }
     }
 
@@ -346,34 +342,33 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
 
-    if (no_movement) { break; }
-    if (cur_Q <= best_modularity) { break; }
-    best_modularity = cur_Q;
+    bool terminate = no_movement || (cur_Q <= best_modularity);
 
-    //
-    // Count number of unique clusters (aka partitions) and check if it's same as
-    // number of vertices in the current graph
-    //
+#ifdef TIMING
+    detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
+#endif
 
-    rmm::device_uvector<vertex_t> copied_louvain_partition(louvain_assignment_for_vertices.size(),
+    if (!terminate) { best_modularity = cur_Q; }
+
+    // Count number of unique louvain clusters
+
+    rmm::device_uvector<vertex_t> copied_louvain_partition(dendrogram->current_level_size(),
                                                            handle.get_stream());
-
     thrust::copy(handle.get_thrust_policy(),
-                 louvain_assignment_for_vertices.begin(),
-                 louvain_assignment_for_vertices.end(),
+                 dendrogram->current_level_begin(),
+                 dendrogram->current_level_begin() + dendrogram->current_level_size(),
                  copied_louvain_partition.begin());
 
     thrust::sort(
       handle.get_thrust_policy(), copied_louvain_partition.begin(), copied_louvain_partition.end());
 
-    auto nr_unique_clusters =
+    auto nr_unique_louvain_clusters =
       static_cast<vertex_t>(thrust::distance(copied_louvain_partition.begin(),
                                              thrust::unique(handle.get_thrust_policy(),
                                                             copied_louvain_partition.begin(),
                                                             copied_louvain_partition.end())));
 
-    copied_louvain_partition.resize(nr_unique_clusters, handle.get_stream());
-    copied_louvain_partition.shrink_to_fit(handle.get_stream());
+    copied_louvain_partition.resize(nr_unique_louvain_clusters, handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
       copied_louvain_partition =
@@ -384,51 +379,61 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                    copied_louvain_partition.begin(),
                    copied_louvain_partition.end());
 
-      nr_unique_clusters =
+      nr_unique_louvain_clusters =
         static_cast<vertex_t>(thrust::distance(copied_louvain_partition.begin(),
                                                thrust::unique(handle.get_thrust_policy(),
                                                               copied_louvain_partition.begin(),
                                                               copied_louvain_partition.end())));
 
-      copied_louvain_partition.resize(0, handle.get_stream());
-      copied_louvain_partition.shrink_to_fit(handle.get_stream());
+      copied_louvain_partition.resize(nr_unique_louvain_clusters, handle.get_stream());
 
-      nr_unique_clusters = host_scalar_allreduce(
-        handle.get_comms(), nr_unique_clusters, raft::comms::op_t::SUM, handle.get_stream());
+      nr_unique_louvain_clusters = host_scalar_allreduce(handle.get_comms(),
+                                                         nr_unique_louvain_clusters,
+                                                         raft::comms::op_t::SUM,
+                                                         handle.get_stream());
     }
 
-    if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
+    terminate =
+      terminate || (nr_unique_louvain_clusters == current_graph_view.number_of_vertices());
 
-    //
-    // Refine the current partition
-    //
+    rmm::device_uvector<vertex_t> refined_leiden_partition(0, handle.get_stream());
+    std::pair<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> leiden_to_louvain_map{
+      rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+      rmm::device_uvector<vertex_t>(0, handle.get_stream())};
 
-    if constexpr (graph_view_t::is_multi_gpu) {
-      update_edge_src_property(handle,
-                               current_graph_view,
-                               louvain_assignment_for_vertices.begin(),
-                               src_louvain_assignment_cache);
-      update_edge_dst_property(handle,
-                               current_graph_view,
-                               louvain_assignment_for_vertices.begin(),
-                               dst_louvain_assignment_cache);
+    if (!terminate) {
+      // Refine the current partition
+      thrust::copy(handle.get_thrust_policy(),
+                   dendrogram->current_level_begin(),
+                   dendrogram->current_level_begin() + dendrogram->current_level_size(),
+                   louvain_assignment_for_vertices.begin());
+
+      if constexpr (graph_view_t::is_multi_gpu) {
+        update_edge_src_property(handle,
+                                 current_graph_view,
+                                 louvain_assignment_for_vertices.begin(),
+                                 src_louvain_assignment_cache);
+        update_edge_dst_property(handle,
+                                 current_graph_view,
+                                 louvain_assignment_for_vertices.begin(),
+                                 dst_louvain_assignment_cache);
+      }
+
+      std::tie(refined_leiden_partition, leiden_to_louvain_map) =
+        detail::refine_clustering(handle,
+                                  current_graph_view,
+                                  current_edge_weight_view,
+                                  total_edge_weight,
+                                  resolution,
+                                  vertex_weights,
+                                  std::move(cluster_keys),
+                                  std::move(cluster_weights),
+                                  std::move(louvain_assignment_for_vertices),
+                                  src_vertex_weights_cache,
+                                  src_louvain_assignment_cache,
+                                  dst_louvain_assignment_cache,
+                                  up_down);
     }
-
-    auto [refined_leiden_partition, leiden_to_louvain_map] =
-      detail::refine_clustering(handle,
-                                current_graph_view,
-                                current_edge_weight_view,
-                                total_edge_weight,
-                                resolution,
-                                vertex_weights,
-                                std::move(cluster_keys),
-                                std::move(cluster_weights),
-                                std::move(louvain_assignment_for_vertices),
-                                src_vertex_weights_cache,
-                                src_louvain_assignment_cache,
-                                dst_louvain_assignment_cache,
-                                up_down);
-
     // Clear buffer and contract the graph
 
     cluster_keys.resize(0, handle.get_stream());
@@ -443,47 +448,73 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     src_louvain_assignment_cache.clear(handle);
     dst_louvain_assignment_cache.clear(handle);
 
-#ifdef TIMING
-    detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
-#endif
-    // Create aggregate graph based on refined (leiden) partition
+    if (!terminate) {
+      auto nr_unique_leiden = static_cast<vertex_t>(leiden_to_louvain_map.first.size());
+      if (graph_view_t::is_multi_gpu) {
+        nr_unique_leiden = host_scalar_allreduce(
+          handle.get_comms(), nr_unique_leiden, raft::comms::op_t::SUM, handle.get_stream());
+      }
+      terminate = terminate || (nr_unique_leiden == current_graph_view.number_of_vertices());
 
-    std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
+      if (nr_unique_leiden < current_graph_view.number_of_vertices()) {
+        // Create aggregate graph based on refined (leiden) partition
+        std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
+        std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) =
+          coarsen_graph(handle,
+                        current_graph_view,
+                        current_edge_weight_view,
+                        refined_leiden_partition.data(),
+                        true);
 
-    std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) =
-      cugraph::detail::graph_contraction(
-        handle,
-        current_graph_view,
-        current_edge_weight_view,
-        raft::device_span<vertex_t const>{refined_leiden_partition.begin(),
-                                          refined_leiden_partition.size()});
-    current_graph_view = current_graph.view();
+        current_graph_view = current_graph.view();
 
-    current_edge_weight_view = std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
-      (*coarsen_graph_edge_weight).view());
+        current_edge_weight_view =
+          std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
+            (*coarsen_graph_edge_weight).view());
 
-    // After call to relabel, cluster_assignment contains louvain partition of the aggregated graph
-    relabel<vertex_t, multi_gpu>(
-      handle,
-      std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
-                      static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
-      leiden_to_louvain_map.first.size(),
-      (*cluster_assignment).data(),
-      (*cluster_assignment).size(),
-      false);
+        // cluster_assignment contains leiden cluster ids of aggregated nodes
+        // After call to relabel, cluster_assignment will louvain cluster ids of the aggregated
+        // nodes
+        relabel<vertex_t, multi_gpu>(
+          handle,
+          std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
+                          static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
+          leiden_to_louvain_map.first.size(),
+          (*cluster_assignment).data(),
+          (*cluster_assignment).size(),
+          false);
 
-    louvain_of_refined_partition.resize(current_graph_view.local_vertex_partition_range_size(),
+        louvain_of_refined_graph.resize(current_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
 
-    raft::copy(louvain_of_refined_partition.begin(),
-               (*cluster_assignment).begin(),
-               (*cluster_assignment).size(),
-               handle.get_stream());
-
-    if (cluster_assignment) {
-      (*cluster_assignment).resize(0, handle.get_stream());
-      (*cluster_assignment).shrink_to_fit(handle.get_stream());
+        raft::copy(louvain_of_refined_graph.begin(),
+                   (*cluster_assignment).begin(),
+                   (*cluster_assignment).size(),
+                   handle.get_stream());
+      }
     }
+
+    // Relabel dendrogram
+    rmm::device_uvector<vertex_t> numbering_indices(copied_louvain_partition.size(),
+                                                    handle.get_stream());
+    detail::sequence_fill(handle.get_stream(),
+                          numbering_indices.data(),
+                          numbering_indices.size(),
+                          current_graph_view.local_vertex_partition_range_first());
+
+    relabel<vertex_t, multi_gpu>(
+      handle,
+      std::make_tuple(static_cast<vertex_t const*>(copied_louvain_partition.begin()),
+                      static_cast<vertex_t const*>(numbering_indices.begin())),
+      copied_louvain_partition.size(),
+      dendrogram->current_level_begin(),
+      dendrogram->current_level_size(),
+      false);
+
+    copied_louvain_partition.resize(0, handle.get_stream());
+    copied_louvain_partition.shrink_to_fit(handle.get_stream());
+
+    if (terminate) { break; }
 
 #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);

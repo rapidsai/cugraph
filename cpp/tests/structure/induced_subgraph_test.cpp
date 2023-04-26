@@ -151,7 +151,13 @@ class Tests_InducedSubgraph
       ASSERT_TRUE(last - start <= graph_view.number_of_vertices()) << "Invalid subgraph size.";
 
       auto vertices = cugraph::select_random_vertices(
-        handle, graph_view, rng_state, (last - start), false, false);
+        handle,
+        graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        (last - start),
+        false,
+        false);
       raft::copy(
         d_subgraph_vertices.data() + start, vertices.data(), vertices.size(), handle.get_stream());
     }

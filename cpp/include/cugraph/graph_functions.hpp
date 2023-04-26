@@ -892,8 +892,9 @@ weight_t compute_total_edge_weight(
  * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
- * edge weight sums.
+ * @param graph_view Graph view object of the input graph to select random vertices from.
+ * @param given_set Distributed set to sample from. If @p given_set is not specified, sample from
+ *  the entire vertex range provided by @p graph_view.
  * @param  rng_state The RngState instance holding pseudo-random number generator state.
  * @param  select_count The number of vertices to select from the graph
  * @param  with_replacement If true, select with replacement, if false select without replacement
@@ -904,9 +905,11 @@ template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_
 rmm::device_uvector<vertex_t> select_random_vertices(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> given_set,
   raft::random::RngState& rng_state,
   size_t select_count,
   bool with_replacement,
-  bool sort_vertices);
+  bool sort_vertices,
+  bool do_expensive_check = false);
 
 }  // namespace cugraph

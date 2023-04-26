@@ -70,7 +70,7 @@ class Tests_MGPageRank
       hr_timer.start("MG Construct graph");
     }
 
-    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
         *handle_, input_usecase, pagerank_usecase.test_weighted, true);
 
@@ -95,6 +95,7 @@ class Tests_MGPageRank
       d_mg_personalization_vertices = cugraph::select_random_vertices(
         *handle_,
         mg_graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         rng_state,
         std::max(
           static_cast<size_t>(mg_graph_view.number_of_vertices() *
@@ -158,65 +159,57 @@ class Tests_MGPageRank
     // 4. copmare SG & MG results
 
     if (pagerank_usecase.check_correctness) {
-      // 4-1. unrenumber & aggregate MG personalization vertices & results
+      // 4-1. aggregate MG results
 
+      std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_personalization_vertices{
+        std::nullopt};
+      std::optional<rmm::device_uvector<result_t>> d_mg_aggregate_personalization_values{
+        std::nullopt};
       if (d_mg_personalization_vertices) {
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
-          *handle_,
-          (*d_mg_personalization_vertices).data(),
-          (*d_mg_personalization_vertices).size(),
-          (*d_mg_renumber_map_labels).data(),
-          mg_graph_view.vertex_partition_range_lasts());
+        std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
+          cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+            *handle_,
+            std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
+                                                                  (*d_mg_renumber_map).size()),
+            mg_graph_view.local_vertex_partition_range(),
+            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+            std::make_optional<raft::device_span<vertex_t const>>(
+              (*d_mg_personalization_vertices).data(), (*d_mg_personalization_vertices).size()),
+            raft::device_span<result_t const>((*d_mg_personalization_values).data(),
+                                              (*d_mg_personalization_values).size()));
       }
 
-      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      auto d_mg_aggregate_personalization_vertices =
-        d_mg_personalization_vertices
-          ? std::optional<rmm::device_uvector<vertex_t>>{cugraph::test::device_gatherv(
-              *handle_,
-              (*d_mg_personalization_vertices).data(),
-              (*d_mg_personalization_vertices).size())}
-          : std::nullopt;
-      auto d_mg_aggregate_personalization_values =
-        d_mg_personalization_values
-          ? std::optional<rmm::device_uvector<result_t>>{cugraph::test::device_gatherv(
-              *handle_,
-              (*d_mg_personalization_values).data(),
-              (*d_mg_personalization_values).size())}
-          : std::nullopt;
-      auto d_mg_aggregate_pageranks =
-        cugraph::test::device_gatherv(*handle_, d_mg_pageranks.data(), d_mg_pageranks.size());
+      rmm::device_uvector<result_t> d_mg_aggregate_pageranks(0, handle_->get_stream());
+      std::tie(std::ignore, d_mg_aggregate_pageranks) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
+          *handle_,
+          std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
+                                                                (*d_mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          raft::device_span<result_t const>(d_mg_pageranks.data(), d_mg_pageranks.size()));
+
+      cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::make_optional<raft::device_span<vertex_t const>>((*d_mg_renumber_map).data(),
+                                                              (*d_mg_renumber_map).size()),
+        false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 4-2. unrenumbr MG results
-
-        if (d_mg_aggregate_personalization_vertices) {
-          std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
-            cugraph::test::sort_by_key(*handle_,
-                                       *d_mg_aggregate_personalization_vertices,
-                                       *d_mg_aggregate_personalization_values);
-        }
-        std::tie(std::ignore, d_mg_aggregate_pageranks) = cugraph::test::sort_by_key(
-          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_pageranks);
-
-        // 4-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
-        std::optional<
-          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
-          sg_edge_weights{std::nullopt};
-        std::tie(sg_graph, sg_edge_weights, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            *handle_, input_usecase, pagerank_usecase.test_weighted, false);
+        // 4-2. run SG PageRank
 
         auto sg_graph_view = sg_graph.view();
         auto sg_edge_weight_view =
           sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
-
-        // 4-4. run SG PageRank
 
         rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.number_of_vertices(),
                                                      handle_->get_stream());
@@ -242,7 +235,7 @@ class Tests_MGPageRank
           std::numeric_limits<size_t>::max(),  // max_iterations
           false);
 
-        // 4-5. compare
+        // 4-3. compare
 
         auto h_mg_aggregate_pageranks = cugraph::test::to_host(*handle_, d_mg_aggregate_pageranks);
         auto h_sg_pageranks           = cugraph::test::to_host(*handle_, d_sg_pageranks);
@@ -314,15 +307,14 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_tests,
-  Tests_MGPageRank_Rmat,
-  ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false},
-                                       PageRank_Usecase{0.5, false},
-                                       PageRank_Usecase{0.0, true},
-                                       PageRank_Usecase{0.5, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
+                         Tests_MGPageRank_Rmat,
+                         ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false},
+                                                              PageRank_Usecase{0.5, false},
+                                                              PageRank_Usecase{0.0, true},
+                                                              PageRank_Usecase{0.5, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -331,11 +323,11 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGPageRank_Rmat,
-  ::testing::Combine(::testing::Values(PageRank_Usecase{0.0, false, false},
-                                       PageRank_Usecase{0.5, false, false},
-                                       PageRank_Usecase{0.0, true, false},
-                                       PageRank_Usecase{0.5, true, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(PageRank_Usecase{0.0, false, false},
+                      PageRank_Usecase{0.5, false, false},
+                      PageRank_Usecase{0.0, true, false},
+                      PageRank_Usecase{0.5, true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

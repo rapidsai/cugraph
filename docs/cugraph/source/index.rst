@@ -1,53 +1,42 @@
-Welcome to cugraph's documentation!
-===================================
-RAPIDS cuGraph is a library of graph algorithms that seamlessly integrates
-into the RAPIDS data science ecosystem and allows the data scientist to
-easily call graph algorithms using data stored in GPU DataFrames,
-NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
+Welcome to RAPIDS Graph documentation
+=====================================
+RAPIDS Graph covers a range of libraries and packages, that includes:
 
-.. image:: images/Stack2.png
-  :width: 600
-  :alt: Alternative text
+__cugraph__: focuses on GPU accelerated graph algorithms.
 
-Basics
-######
-.. toctree::
-   :maxdepth: 2
-   :caption: Basic cuGraph Information:
+__cugraph-ops__: focuses on GNN aggregators and operators.
 
-General CuGraph Information
-  - `CuGraph Intro <./basics/cugraph_intro.md>`_
-  - `Blogs and Presentation <./basics/cugraph_blogs.rst>`_
-  - `How-to Guides <./basics/coming_soon.md>`_
-  - `Performance <./basics/coming_soon.md>`_
-  - `References <./basics/cugraph_ref.rst>`_
+__cugraph-pg__: focuses on providing support for Property Graph (and future Knowledge Graph).
 
-CuGraph Development and Contributing
-  - `Getting cuGraph Packages <./basics/coming_soon.md>`_
-  - `Contributing to cuGraph <./basics/coming_soon.md>`_
-  - `CuGraph Development Guide <./basics/coming_soon.md>`_
+__cugraph-service__: focuses on wrapping graph features as a service.
 
-Algorithms
-  - `Current list of algorithms <./basics/coming_soon.md>`_
-  
-  
+__cugraph-pyg__:  focuses on exposing features under the Graph umbrella into the PyG framework.
 
-API
-###
-.. toctree::
-   :maxdepth: 2
+__cugraph-dgl__:  focuses on exposing features under the Graph umbrella into the DGL framework
 
-   api_docs/index.rst
+__WholeGraph__: focuses on GNN training using shared memory.
+
+cuGraph is a library of graph algorithms that seamlessly integrates into the RAPIDS data science ecosystem and allows the data scientist to easily call graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
+
+Note: We are redoing all of our documents, please be patient as we update
+the docs and links
 
 
 .. toctree::
    :maxdepth: 2
+   :caption: Contents:
 
-   api_docs/c_and_cpp.rst
+   basics/index
+   installation/index
+   tutorials/index
+   graph_support/index
+   references/index
+   dev_resources/index
+   releases/index
+   api_docs/index
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

@@ -214,8 +214,7 @@ struct cast_edge_op_bool_to_integer {
 };
 
 template <typename T, template <typename> typename Op>
-struct property_op : public Op<T> {
-};
+struct property_op : public Op<T> {};
 
 template <typename... Args, template <typename> typename Op>
 struct property_op<thrust::tuple<Args...>, Op>

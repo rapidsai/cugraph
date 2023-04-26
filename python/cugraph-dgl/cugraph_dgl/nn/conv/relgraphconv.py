@@ -17,16 +17,16 @@ from __future__ import annotations
 import math
 from typing import Optional
 
+from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
-ops = import_optional("pylibcugraphops")
-ops_autograd = import_optional("pylibcugraphops.torch.autograd")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
-class RelGraphConv(nn.Module):
+class RelGraphConv(BaseConv):
     r"""An accelerated relational graph convolution layer from `Modeling
     Relational Data with Graph Convolutional Networks
     <https://arxiv.org/abs/1703.06103>`__ that leverages the highly-optimized
@@ -84,6 +84,7 @@ class RelGraphConv(nn.Module):
             [-1.4335, -2.3758],
             [-1.4331, -2.3295]], device='cuda:0', grad_fn=<AddBackward0>)
     """
+    MAX_IN_DEGREE_MFG = 500
 
     def __init__(
         self,
@@ -178,43 +179,45 @@ class RelGraphConv(nn.Module):
         torch.Tensor
             New node features. Shape: :math:`(|V|, D_{out})`.
         """
-        # Create csc-representation and cast etypes to int32.
         offsets, indices, edge_ids = g.adj_sparse("csc")
         edge_types_perm = etypes[edge_ids.long()].int()
 
-        # Create cugraph-ops graph.
         if g.is_block:
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
-            _graph = ops.make_mfg_csr_hg(
-                g.dstnodes(),
-                offsets,
-                indices,
-                max_in_degree,
-                g.num_src_nodes(),
-                n_node_types=0,
-                n_edge_types=self.num_rels,
-                out_node_types=None,
-                in_node_types=None,
-                edge_types=edge_types_perm,
-            )
+
+            if max_in_degree < self.MAX_IN_DEGREE_MFG:
+                _graph = ops_torch.SampledHeteroCSC(
+                    offsets,
+                    indices,
+                    edge_types_perm,
+                    max_in_degree,
+                    g.num_src_nodes(),
+                    self.num_rels,
+                )
+            else:
+                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
+                _graph = ops_torch.StaticHeteroCSC(
+                    offsets_fg,
+                    indices,
+                    edge_types_perm,
+                    self.num_rels,
+                )
         else:
-            _graph = ops.make_fg_csr_hg(
+            _graph = ops_torch.StaticHeteroCSC(
                 offsets,
                 indices,
-                n_node_types=0,
-                n_edge_types=self.num_rels,
-                node_types=None,
-                edge_types=edge_types_perm,
+                edge_types_perm,
+                self.num_rels,
             )
 
-        h = ops_autograd.agg_hg_basis_n2n_post(
+        h = ops_torch.operators.agg_hg_basis_n2n_post(
             feat,
             self.coeff,
             _graph,
             concat_own=self.self_loop,
             norm_by_out_degree=self.apply_norm,
-        )
+        )[: g.num_dst_nodes()]
         h = h @ self.W.view(-1, self.out_feats)
         if self.bias is not None:
             h = h + self.bias

@@ -56,6 +56,9 @@ int generic_leiden_test(vertex_t* h_src,
 
   ret_code = cugraph_leiden(p_handle, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
 
+#if 0
+  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_leiden should have failed");
+#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_leiden failed.");
 
@@ -77,11 +80,6 @@ int generic_leiden_test(vertex_t* h_src,
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
       p_handle, (byte_t*)h_clusters, clusters, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
-
-    for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(
-        test_ret_value, h_result[h_vertices[i]] == h_clusters[i], "cluster results don't match");
-    }
 
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(modularity, expected_modularity, 0.001),

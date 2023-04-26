@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -31,7 +31,7 @@
 
 struct Leiden_Usecase {
   size_t max_level_{100};
-  double resolution_{0.05};
+  double resolution_{1.0};
   bool check_correctness_{false};
   int expected_level_{0};
   float expected_modularity_{0};
@@ -139,8 +139,6 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
 
     std::tie(level, modularity) = cugraph::leiden(
       handle, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
-    std::cout << "modularity: " << modularity << std::endl;
-    std::cout << "level:" << level << std::endl;
 
     float compare_modularity = static_cast<float>(modularity);
 
@@ -236,173 +234,5 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_ex2, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_ex2, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File32,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_ex1, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_ex1, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File32,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_karate, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File32,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_Leiden_Rmat32,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
-
-INSTANTIATE_TEST_SUITE_P(
-  rmat64_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_Leiden_Rmat64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
-                          (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_DBLP, /* note that the test filename can be overridden in benchmarking
-                          (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_coPapersCiteseer, /* note that the test filename can be overridden in
-                          benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersCiteseer.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking
-                          (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_ljournal2008, /* note that the test filename can be overridden in benchmarking
-                          (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test_soc_LiveJournal1, /* note that the test filename can be overridden in
-                          benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

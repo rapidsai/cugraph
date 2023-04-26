@@ -21,6 +21,7 @@ import dask_cudf
 from pylibcugraph import bfs as pylibcugraph_bfs
 from pylibcugraph import ResourceHandle
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cudf.testing.testing import assert_frame_equal
 
 import cugraph
 import cugraph.dask as dcg
@@ -45,9 +46,7 @@ IS_DIRECTED = [True, False]
 datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 
 fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
-    (IS_DIRECTED, "directed"),
-    ([True, False], "legacy_renum_only"),
+    (datasets, "graph_file"), (IS_DIRECTED, "directed")
 )
 
 
@@ -57,13 +56,10 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(
-        zip(("graph_file", "directed", "legacy_renum_only"), request.param)
-    )
+    parameters = dict(zip(("graph_file", "directed"), request.param))
 
     input_data_path = parameters["graph_file"]
     directed = parameters["directed"]
-    legacy_renum_only = parameters["legacy_renum_only"]
 
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -76,13 +72,7 @@ def input_combo(request):
     parameters["input_df"] = ddf
 
     dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        edge_attr="value",
-        legacy_renum_only=legacy_renum_only,
-    )
+    dg.from_dask_cudf_edgelist(ddf, source="src", destination="dst", edge_attr="value")
 
     parameters["MGGraph"] = dg
 
@@ -234,7 +224,47 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
         source="0",
         destination="1",
         edge_attr=["2", "id", "etype"],
-        legacy_renum_only=True,
+    )
+
+
+@pytest.mark.mg
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids_check_renumbering(dask_client, graph_file):
+    el = utils.read_csv_file(graph_file)
+    el = el.rename(columns={"0": "0_src", "1": "0_dst", "2": "value"})
+    el["1_src"] = el["0_src"] + 1000
+    el["1_dst"] = el["0_dst"] + 1000
+
+    el["edge_id"] = cupy.random.permutation(len(el))
+    el["edge_id"] = el["edge_id"].astype(el["1_dst"].dtype)
+    el["edge_type"] = cupy.random.random_integers(4, size=len(el))
+    el["edge_type"] = el["edge_type"].astype("int32")
+
+    num_workers = len(Comms.get_workers())
+    el = dask_cudf.from_cudf(el, npartitions=num_workers)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        el,
+        source=["0_src", "1_src"],
+        destination=["0_dst", "1_dst"],
+        edge_attr=["value", "edge_id", "edge_type"],
+    )
+    assert G.renumbered is True
+
+    renumbered_df = G.edgelist.edgelist_df
+    unrenumbered_df = G.unrenumber(renumbered_df, "renumbered_src")
+    unrenumbered_df = G.unrenumber(unrenumbered_df, "renumbered_dst")
+
+    unrenumbered_df.columns = unrenumbered_df.columns.str.replace(r"renumbered_", "")
+
+    assert_frame_equal(
+        el.compute().sort_values(by=["0_src", "0_dst"]).reset_index(drop=True),
+        unrenumbered_df.compute()
+        .sort_values(by=["0_src", "0_dst"])
+        .reset_index(drop=True),
+        check_dtype=False,
+        check_like=True,
     )
 
 
@@ -278,3 +308,30 @@ def test_mg_graph_copy():
     G = cugraph.MultiGraph(directed=True)
     G_c = copy.deepcopy(G)
     assert type(G) == type(G_c)
+
+
+@pytest.mark.mg
+@pytest.mark.parametrize("random_state", [42, None])
+@pytest.mark.parametrize("num_vertices", [5, None])
+def test_mg_select_random_vertices(
+    dask_client, input_combo, random_state, num_vertices
+):
+    G = input_combo["MGGraph"]
+
+    if num_vertices is None:
+        # Select all vertices
+        num_vertices = len(G.nodes())
+
+    sampled_vertices = G.select_random_vertices(random_state, num_vertices).compute()
+
+    original_vertices_df = cudf.DataFrame()
+    sampled_vertices_df = cudf.DataFrame()
+
+    sampled_vertices_df["sampled_vertices"] = sampled_vertices
+    original_vertices_df["original_vertices"] = G.nodes().compute()
+
+    join = sampled_vertices_df.merge(
+        original_vertices_df, left_on="sampled_vertices", right_on="original_vertices"
+    )
+
+    assert len(join) == len(sampled_vertices)

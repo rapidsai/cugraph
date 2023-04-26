@@ -94,6 +94,7 @@ class Tests_MGUniform_Neighbor_Sampling
     auto random_sources = cugraph::select_random_vertices(
       *handle_,
       mg_graph_view,
+      std::optional<raft::device_span<vertex_t const>>{std::nullopt},
       rng_state,
       std::max(static_cast<size_t>(mg_graph_view.number_of_vertices() * select_probability),
                std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()), size_t{1})),
@@ -355,8 +356,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, true},
                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, true}),
     ::testing::Values(
-      // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
-      cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+      // cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+      cugraph::test::Rmat_Usecase(5, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -368,7 +369,6 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, false, false},
                       Uniform_Neighbor_Sampling_Usecase{{10, 25}, 128, true, false}),
-    ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

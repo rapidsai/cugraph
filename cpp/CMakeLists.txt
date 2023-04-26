@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.04.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 23.06.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -216,7 +216,6 @@ set(CUGRAPH_SOURCES
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
-    src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
     src/sampling/random_walks.cu

@@ -73,8 +73,8 @@ class Tests_MGTriangleCount
     }
 
     cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true, false, true);
 
@@ -152,49 +152,35 @@ class Tests_MGTriangleCount
       // 4-1. aggregate MG results
 
       std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_vertices{std::nullopt};
-      std::optional<rmm::device_uvector<vertex_t>> d_mg_aggregate_renumber_map_labels{std::nullopt};
-      if (d_mg_vertices) {
-        cugraph::unrenumber_int_vertices<vertex_t, true>(
+      rmm::device_uvector<edge_t> d_mg_aggregate_triangle_counts(0, handle_->get_stream());
+      std::tie(d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts) =
+        cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
           *handle_,
-          (*d_mg_vertices).data(),
-          (*d_mg_vertices).size(),
-          (*d_mg_renumber_map_labels).data(),
-          mg_graph_view.vertex_partition_range_lasts());
+          std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                                (*mg_renumber_map).size()),
+          mg_graph_view.local_vertex_partition_range(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+          d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
+                            (*d_mg_vertices).data(), (*d_mg_vertices).size())
+                        : std::nullopt,
+          raft::device_span<edge_t const>(d_mg_triangle_counts.data(),
+                                          d_mg_triangle_counts.size()));
 
-        d_mg_aggregate_vertices =
-          cugraph::test::device_gatherv(*handle_, (*d_mg_vertices).data(), (*d_mg_vertices).size());
-      } else {
-        d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-          *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
-      }
-
-      auto d_mg_aggregate_triangle_counts = cugraph::test::device_gatherv(
-        *handle_, d_mg_triangle_counts.data(), d_mg_triangle_counts.size());
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
       if (handle_->get_comms().get_rank() == int{0}) {
-        // 4-2. unrenumbr MG results
-
-        if (d_mg_aggregate_vertices) {
-          std::tie(d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts) =
-            cugraph::test::sort_by_key(
-              *handle_, *d_mg_aggregate_vertices, d_mg_aggregate_triangle_counts);
-        } else {
-          std::tie(std::ignore, d_mg_aggregate_triangle_counts) = cugraph::test::sort_by_key(
-            *handle_, *d_mg_aggregate_renumber_map_labels, d_mg_aggregate_triangle_counts);
-        }
-
-        // 4-3. create SG graph
-
-        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            *handle_, input_usecase, false, false, false, true);
+        // 4-2. run SG TriangleCount
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
-
-        // 4-4. run SG TriangleCount
 
         rmm::device_uvector<edge_t> d_sg_triangle_counts(d_mg_aggregate_vertices
                                                            ? (*d_mg_aggregate_vertices).size()
@@ -211,7 +197,7 @@ class Tests_MGTriangleCount
           raft::device_span<edge_t>(d_sg_triangle_counts.begin(), d_sg_triangle_counts.end()),
           false);
 
-        // 4-5. compare
+        // 4-3. compare
 
         auto h_mg_aggregate_triangle_counts =
           cugraph::test::to_host(*handle_, d_mg_aggregate_triangle_counts);
@@ -275,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          ::testing::Combine(::testing::Values(TriangleCount_Usecase{0.1},
                                                               TriangleCount_Usecase{1.0}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -284,9 +270,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTriangleCount_Rmat,
-  ::testing::Combine(::testing::Values(TriangleCount_Usecase{0.1, false},
-                                       TriangleCount_Usecase{1.0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(TriangleCount_Usecase{0.1, false}, TriangleCount_Usecase{1.0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

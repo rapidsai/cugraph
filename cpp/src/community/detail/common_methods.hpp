@@ -15,8 +15,6 @@
  */
 #pragma once
 
-// #define TIMING
-
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
