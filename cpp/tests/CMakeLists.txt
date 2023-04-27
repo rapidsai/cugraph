@@ -372,6 +372,10 @@ ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
 ###################################################################################################
+# - MTMG tests -------------------------------------------------------------------------
+ConfigureTest(MTMG_TEST mtmg/threaded_test.cpp)
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
