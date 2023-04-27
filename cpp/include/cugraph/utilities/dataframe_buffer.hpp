@@ -72,9 +72,9 @@ struct dataframe_element {
   using type = void;
 };
 
-template <typename... T>
-struct dataframe_element<std::tuple<rmm::device_uvector<T>...>> {
-  using type = thrust::tuple<T...>;
+template <typename... Ts>
+struct dataframe_element<std::tuple<rmm::device_uvector<Ts>...>> {
+  using type = thrust::tuple<Ts...>;
 };
 
 template <typename T>
