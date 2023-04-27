@@ -128,7 +128,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   bool clip_and_flip = false);
 
 /**
- * @brief generate an edge list for a bi-partite R-mat graph.
+ * @brief generate an edge list for a bipartite R-mat graph.
  *
  * The source vertex IDs will be in the range of [0, 2^src_scale) and the destination vertex IDs
  * will be in the range of [0, 2^dst_scale). This function allows multi-edges.
@@ -138,9 +138,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
  * handles to various CUDA libraries) to run graph algorithms.
  * @param rng_state RAFT RNG state, updated with each call
  * @param src_scale Scale factor to set the range of source vertex IDs (or the first vertex set) in
- * the bi-partite graph. Vertex IDs have values in [0, V_src), where V_src = 1 << @p src_scale.
+ * the bipartite graph. Vertex IDs have values in [0, V_src), where V_src = 1 << @p src_scale.
  * @param dst_scale Scale factor to set the range of destination vertex IDs (or the second vertex
- * set) in the bi-partite graph. Vertex IDs have values in [0, V_dst), where V_dst = 1 << @p
+ * set) in the bipartite graph. Vertex IDs have values in [0, V_dst), where V_dst = 1 << @p
  * dst_scale.
  * @param num_edges Number of edges to generate.
  * @param a a, b, c, d (= 1.0 - (a + b + c)) in the R-mat graph generator (vist https://graph500.org
