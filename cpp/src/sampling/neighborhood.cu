@@ -32,10 +32,10 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 vertex_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
-                                ops::gnn::graph::SamplingAlgoT sampling_algo)
+                                ops::graph::SamplingAlgoT sampling_algo)
 {
   const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
-  return ops::gnn::graph::uniform_sample_csr(rng_state,
+  return ops::graph::uniform_sample_csr(rng_state,
                                              ops_graph,
                                              ptr_d_start,
                                              num_start_vertices,
@@ -53,10 +53,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_
   vertex_t const* ptr_d_start,
   size_t num_start_vertices,
   size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo)
+  ops::graph::SamplingAlgoT sampling_algo)
 {
   const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
-  return ops::gnn::graph::uniform_sample_coo(rng_state,
+  return ops::graph::uniform_sample_coo(rng_state,
                                              ops_graph,
                                              ptr_d_start,
                                              num_start_vertices,
@@ -76,7 +76,7 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 int32_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
-                                ops::gnn::graph::SamplingAlgoT sampling_algo);
+                                ops::graph::SamplingAlgoT sampling_algo);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
@@ -85,7 +85,7 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 int64_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
-                                ops::gnn::graph::SamplingAlgoT sampling_algo);
+                                ops::graph::SamplingAlgoT sampling_algo);
 //}
 //
 // COO SG FP32{
@@ -96,7 +96,7 @@ sample_neighbors_edgelist(raft::handle_t const& handle,
                           int32_t const* ptr_d_start,
                           size_t num_start_vertices,
                           size_t sampling_size,
-                          ops::gnn::graph::SamplingAlgoT sampling_algo);
+                          ops::graph::SamplingAlgoT sampling_algo);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
 sample_neighbors_edgelist(raft::handle_t const& handle,
@@ -105,7 +105,7 @@ sample_neighbors_edgelist(raft::handle_t const& handle,
                           int64_t const* ptr_d_start,
                           size_t num_start_vertices,
                           size_t sampling_size,
-                          ops::gnn::graph::SamplingAlgoT sampling_algo);
+                          ops::graph::SamplingAlgoT sampling_algo);
 //}
 
 }  // namespace cugraph
