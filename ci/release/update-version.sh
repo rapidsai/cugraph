@@ -83,7 +83,7 @@ for FILE in conda/environments/*.yaml dependencies.yaml; do
    sed_runner "s/dask-cuda=${CURRENT_SHORT_TAG}/dask-cuda=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/dask-cudf=${CURRENT_SHORT_TAG}/dask-cudf=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/cuxfilter=${CURRENT_SHORT_TAG}/cuxfilter=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/ucx-py=.*/ucx-py=${NEXT_UCX_PY_VERSION}/g" ${FILE};
+   sed_runner "s/ucx-py==.*/ucx-py==${NEXT_UCX_PY_VERSION}/g" ${FILE};
 done
 
 # Doxyfile update
@@ -94,6 +94,7 @@ sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/recipes/cugraph-service/conda_build_config.yaml
 sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/recipes/pylibcugraph/conda_build_config.yaml
 
+# CI files
 for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-action-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds clone cugraph-ops, update its branch
@@ -101,6 +102,7 @@ for FILE in .github/workflows/*.yaml; do
   # Wheel builds install dask-cuda from source, update its branch
   sed_runner "s/dask-cuda.git@branch-[0-9][0-9].[0-9][0-9]/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done
+sed_runner "s/VERSION_NUMBER=\".*/VERSION_NUMBER=\"${NEXT_SHORT_TAG}\"/g" ci/build_docs.sh
 
 
 # Need to distutils-normalize the original version

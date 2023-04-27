@@ -206,36 +206,6 @@ template void populate_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_vertices_v,
                                   int64_t vertex_id_offset);
 
-template <typename T>
-rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
-                                       rmm::device_uvector<T> const& input,
-                                       size_t count,
-                                       bool sort_results)
-{
-  thrust::default_random_engine random_engine;
-
-  rmm::device_uvector<T> tmp(input.size(), handle.get_stream());
-
-  thrust::copy(handle.get_thrust_policy(), input.begin(), input.end(), tmp.begin());
-  thrust::shuffle(handle.get_thrust_policy(), tmp.begin(), tmp.end(), random_engine);
-
-  tmp.resize(std::min(count, tmp.size()), handle.get_stream());
-  tmp.shrink_to_fit(handle.get_stream());
-
-  if (sort_results) thrust::sort(handle.get_thrust_policy(), tmp.begin(), tmp.end());
-
-  return tmp;
-}
-
-template rmm::device_uvector<int32_t> randomly_select(raft::handle_t const& handle,
-                                                      rmm::device_uvector<int32_t> const& input,
-                                                      size_t count,
-                                                      bool sort_results);
-template rmm::device_uvector<int64_t> randomly_select(raft::handle_t const& handle,
-                                                      rmm::device_uvector<int64_t> const& input,
-                                                      size_t count,
-                                                      bool sort_results);
-
 template <typename vertex_t, typename weight_t>
 void remove_self_loops(raft::handle_t const& handle,
                        rmm::device_uvector<vertex_t>& d_src_v /* [INOUT] */,

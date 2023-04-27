@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/handle.hpp>
@@ -29,10 +30,17 @@
 
 namespace cugraph {
 
-template <typename edge_t, typename ValueIterator>
+template <typename edge_t,
+          typename ValueIterator,
+          typename value_t = typename thrust::iterator_traits<ValueIterator>::value_type>
 class edge_property_view_t {
  public:
-  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
+  static_assert(
+    std::is_same_v<typename thrust::iterator_traits<ValueIterator>::value_type, value_t> ||
+    cugraph::has_packed_bool_element<ValueIterator, value_t>());
+
+  using edge_type      = edge_t;
+  using value_type     = value_t;
   using value_iterator = ValueIterator;
 
   edge_property_view_t() = default;
@@ -62,6 +70,8 @@ class edge_dummy_property_view_t {
 template <typename GraphViewType, typename T>
 class edge_property_t {
  public:
+  static_assert(cugraph::is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
   using edge_type   = typename GraphViewType::edge_type;
   using value_type  = T;
   using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
@@ -71,18 +81,39 @@ class edge_property_t {
   edge_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     buffers_.reserve(graph_view.number_of_local_edge_partitions());
+    edge_counts_ = std::vector<edge_type>(graph_view.number_of_local_edge_partitions(), 0);
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      buffers_.push_back(allocate_dataframe_buffer<T>(
-        graph_view.local_edge_partition_view(i).number_of_edges(), handle.get_stream()));
+      auto num_edges =
+        static_cast<size_t>(graph_view.local_edge_partition_view(i).number_of_edges());
+      size_t buffer_size =
+        std::is_same_v<T, bool> ? cugraph::packed_bool_size(num_edges) : num_edges;
+      buffers_.push_back(
+        allocate_dataframe_buffer<std::conditional_t<std::is_same_v<T, bool>, uint32_t, T>>(
+          buffer_size, handle.get_stream()));
+      edge_counts_[i] = num_edges;
     }
   }
 
-  edge_property_t(std::vector<buffer_type>&& buffers) : buffers_(std::move(buffers)) {}
+  template <typename value_type = T, typename = std::enable_if_t<!std::is_same_v<value_type, bool>>>
+  edge_property_t(std::vector<buffer_type>&& buffers) : buffers_(std::move(buffers))
+  {
+    edge_counts_.resize(buffers_.size());
+    for (size_t i = 0; i < edge_counts_.size(); ++i) {
+      edge_counts_[i] = size_dataframe_buffer(buffers_[i]);
+    }
+  }
+
+  edge_property_t(std::vector<buffer_type>&& buffers, std::vector<edge_type>&& edge_counts)
+    : buffers_(std::move(buffers)), edge_counts_(std::move(edge_counts))
+  {
+  }
 
   void clear(raft::handle_t const& handle)
   {
     buffers_.clear();
     buffers_.shrink_to_fit();
+    edge_counts_.clear();
+    edge_counts_.shrink_to_fit();
   }
 
   auto view() const
@@ -93,11 +124,11 @@ class edge_property_t {
     std::vector<edge_type> edge_partition_edge_counts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_cbegin(buffers_[i]);
-      edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
+      edge_partition_edge_counts[i]  = edge_counts_[i];
     }
 
-    return edge_property_view_t<edge_type, const_value_iterator>(edge_partition_value_firsts,
-                                                                 edge_partition_edge_counts);
+    return edge_property_view_t<edge_type, const_value_iterator, T>(edge_partition_value_firsts,
+                                                                    edge_partition_edge_counts);
   }
 
   auto mutable_view()
@@ -108,15 +139,16 @@ class edge_property_t {
     std::vector<edge_type> edge_partition_edge_counts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_begin(buffers_[i]);
-      edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
+      edge_partition_edge_counts[i]  = edge_counts_[i];
     }
 
-    return edge_property_view_t<edge_type, value_iterator>(edge_partition_value_firsts,
-                                                           edge_partition_edge_counts);
+    return edge_property_view_t<edge_type, value_iterator, T>(edge_partition_value_firsts,
+                                                              edge_partition_edge_counts);
   }
 
  private:
   std::vector<buffer_type> buffers_{};
+  std::vector<edge_type> edge_counts_{};
 };
 
 class edge_dummy_property_t {
@@ -126,11 +158,12 @@ class edge_dummy_property_t {
   auto view() const { return edge_dummy_property_view_t{}; }
 };
 
-template <typename edge_t, typename... Ts>
-auto view_concat(edge_property_view_t<edge_t, Ts> const&... views)
+template <typename edge_t, typename... Iters, typename... Types>
+auto view_concat(edge_property_view_t<edge_t, Iters, Types> const&... views)
 {
   using concat_value_iterator = decltype(thrust::make_zip_iterator(
     thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[0])...)));
+  using concat_value_type     = decltype(thrust_tuple_cat(to_thrust_tuple(Types{})...));
 
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
   auto first_view = get_first_of_pack(views...);
@@ -140,8 +173,8 @@ auto view_concat(edge_property_view_t<edge_t, Ts> const&... views)
       thrust_tuple_cat(to_thrust_iterator_tuple(views.value_firsts()[i])...));
   }
 
-  return edge_property_view_t<edge_t, concat_value_iterator>(edge_partition_concat_value_firsts,
-                                                             first_view.edge_counts());
+  return edge_property_view_t<edge_t, concat_value_iterator, concat_value_type>(
+    edge_partition_concat_value_firsts, first_view.edge_counts());
 }
 
 }  // namespace cugraph

@@ -15,6 +15,7 @@ files:
       - python_run_cugraph
       - python_run_pylibcugraph
       - python_run_cugraph_dgl
+      - python_run_cugraph_pyg
       - test_notebook
       - test_python_common
       - test_python_cugraph
@@ -122,6 +123,13 @@ files:
       table: build-system
     includes:
       - python_build_wheel
+  py_run_cugraph_pyg:
+    output: pyproject
+    pyproject_dir: python/cugraph-pyg
+    extras:
+      table: project
+    includes:
+      - python_run_cugraph_pyg
   py_build_cugraph_service_client:
     output: pyproject
     pyproject_dir: python/cugraph-service/client
@@ -257,10 +265,6 @@ dependencies:
       - output_types: [conda]
         matrices:
           - matrix:
-              py: "3.8"
-            packages:
-              - python=3.8
-          - matrix:
               py: "3.9"
             packages:
               - python=3.9
@@ -270,7 +274,7 @@ dependencies:
               - python=3.10
           - matrix:
             packages:
-              - python>=3.8,<3.11
+              - python>=3.9,<3.11
   python_build_wheel:
     common:
       - output_types: [conda, pyproject]
@@ -328,7 +332,16 @@ dependencies:
           - &numpy numpy>=1.21
       - output_types: [pyproject]
         packages:
-          - &cugraph cugraph==23.4.*
+          - &cugraph cugraph==23.6.*
+  python_run_cugraph_pyg:
+    common:
+      - output_types: [conda, pyproject]
+        packages:
+          - *numba
+          - *numpy
+      - output_types: [pyproject]
+        packages:
+          - *cugraph
   python_run_cugraph_service_client:
     common:
       - output_types: [conda, pyproject]
