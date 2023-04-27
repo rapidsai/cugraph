@@ -320,7 +320,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
       [K,
        low_first,
        sample_nbr_indices = sample_nbr_indices.data(),
-       invalid_idx        = cugraph::ops::gnn::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+       invalid_idx        = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
         auto pair       = *(low_first + (i / K));
         auto degree     = thrust::get<0>(pair);
         auto seed_idx   = thrust::get<1>(pair);
@@ -334,7 +334,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
     rmm::device_uvector<edge_t> tmp_sample_nbr_indices(mid_partition_size * K, handle.get_stream());
     // FIXME: we can avoid the follow-up copy if get_sampling_index takes output offsets for
     // sampling output
-    cugraph::ops::gnn::graph::get_sampling_index(tmp_sample_nbr_indices.data(),
+    cugraph::ops::graph::get_sampling_index(tmp_sample_nbr_indices.data(),
                                                  rng_state,
                                                  thrust::get<0>(mid_first.get_iterator_tuple()),
                                                  mid_partition_size,
@@ -415,7 +415,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
             (*retry_segment_indices).size() * high_partition_over_sampling_K, handle.get_stream());
         }
 
-        cugraph::ops::gnn::graph::get_sampling_index(
+        cugraph::ops::graph::get_sampling_index(
           retry_segment_indices ? (*retry_sample_nbr_indices).data()
                                 : tmp_sample_nbr_indices.data(),
           rng_state,
@@ -859,7 +859,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   if (with_replacement) {
     if (frontier_degrees.size() > 0) {
       sample_nbr_indices.resize(frontier.size() * K, handle.get_stream());
-      cugraph::ops::gnn::graph::get_sampling_index(sample_nbr_indices.data(),
+      cugraph::ops::graph::get_sampling_index(sample_nbr_indices.data(),
                                                    rng_state,
                                                    frontier_degrees.data(),
                                                    static_cast<edge_t>(frontier_degrees.size()),
@@ -912,7 +912,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         raft::device_span<size_t>(d_tx_counts.data(), d_tx_counts.size()),
         frontier.size(),
         minor_comm_size,
-        cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
+        cugraph::ops::graph::INVALID_ID<edge_t>});
     rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
     thrust::exclusive_scan(
       handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
@@ -1022,7 +1022,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           edge_partition_dst_value_input,
           edge_partition_e_value_input,
           e_op,
-          cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
+          cugraph::ops::graph::INVALID_ID<edge_t>,
           to_thrust_optional(invalid_value),
           K});
     } else {
@@ -1047,7 +1047,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
+                                         cugraph::ops::graph::INVALID_ID<edge_t>,
                                          to_thrust_optional(invalid_value),
                                          K});
     }
@@ -1147,7 +1147,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
                                                                sample_local_nbr_indices.size()),
                                K,
-                               cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
+                               cugraph::ops::graph::INVALID_ID<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
@@ -1164,7 +1164,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         thrust::remove_if(handle.get_thrust_policy(),
                           pair_first,
                           pair_first + sample_local_nbr_indices.size(),
-                          check_invalid_t<edge_t, T>{cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
+                          check_invalid_t<edge_t, T>{cugraph::ops::graph::INVALID_ID<edge_t>});
       sample_local_nbr_indices.resize(0, handle.get_stream());
       sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 
