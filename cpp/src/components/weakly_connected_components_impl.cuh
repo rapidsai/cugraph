@@ -195,10 +195,8 @@ struct e_op_t {
   {
     auto tag        = thrust::get<1>(tagged_src);
     auto dst_offset = dst - dst_first;
-    // FIXME: better switch to atomic_ref after
-    // https://github.com/nvidia/libcudacxx/milestone/2
     auto old =
-      atomicCAS(dst_components.get_iter(dst_offset), invalid_component_id<vertex_t>::value, tag);
+      dst_components.elementwise_atomic_cas(dst_offset, invalid_component_id<vertex_t>::value, tag);
     if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
       static_assert(sizeof(unsigned long long int) == sizeof(size_t));
       auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
