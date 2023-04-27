@@ -12,10 +12,11 @@
 # limitations under the License.
 
 from cugraph.testing.mg_utils import (
-    generate_edgelist,
+    generate_edgelist_rmat,
     get_allocation_counts_dask_persist,
     sizeof_fmt,
     get_peak_output_ratio_across_workers,
+    restart_client,
 )
 
 from cugraph.testing.mg_utils import (
@@ -24,7 +25,6 @@ from cugraph.testing.mg_utils import (
     enable_spilling,
 )
 import cugraph
-from cugraph.dask.comms import comms as Comms
 from time import sleep
 import pandas as pd
 
@@ -54,8 +54,8 @@ def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber
     """
     Entry point for the benchmark.
     """
-    dask_df = generate_edgelist(
-        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True
+    dask_df = generate_edgelist_rmat(
+        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
     )
     dask_df = dask_df.astype("int64")
     dask_df = dask_df.reset_index(drop=True)
@@ -108,17 +108,6 @@ def get_memory_statistics(allocation_counts, input_memory):
         input_memory_per_worker,
         peak_allocation_across_workers,
     )
-
-
-def restart_client(client):
-    """
-    Restart the Dask client
-    """
-    Comms.destroy()
-    client.restart()
-    client = client.run(enable_spilling)
-    Comms.initialize(p2p=True)
-
 
 # call __main__ function
 if __name__ == "__main__":

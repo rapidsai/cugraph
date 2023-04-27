@@ -13,7 +13,7 @@
 
 import os
 import tempfile
-from pprint import pprint
+from pprint import pformat
 import time
 from dask.distributed import wait, default_client
 from dask import persist
@@ -88,35 +88,51 @@ def stop_dask_client(client, cluster=None):
     print("\ndask_client closed.")
 
 
+def restart_client(client):
+    """
+    Restart the Dask client
+    """
+    Comms.destroy()
+    client.restart()
+    client = client.run(enable_spilling)
+    Comms.initialize(p2p=True)
+
+
 def enable_spilling():
     import cudf
 
     cudf.set_option("spill", True)
 
 
-def generate_edgelist(
+def generate_edgelist_rmat(
     scale,
     edgefactor,
     seed=None,
     unweighted=False,
+    mg=True,
 ):
     """
-    Returns a dask_cudf DataFrame created using the R-MAT graph generator.
+    Returns a cudf/dask_cudf DataFrame created using the R-MAT graph generator.
 
     The resulting graph is weighted with random values of a uniform distribution
     from the interval [0, 1)
-
-    scale is used to determine the number of vertices to be generated (num_verts
-    = 2^scale), which is also used to determine the data type for the vertex ID
-    values in the DataFrame.
-
-    edgefactor determies the number of edges (num_edges = num_edges*edgefactor)
-
-    seed, if specified, will be used as the seed to the RNG.
-
-    unweighted determines if the resulting edgelist will have randomly-generated
-    weightes ranging in value between [0, 1). If True, an edgelist with only 2
-    columns is returned.
+    Args:
+        scale:
+            scale is used to determine the number of vertices to be generated (num_verts
+            = 2^scale), which is also used to determine the data type for the vertex ID
+            values in the DataFrame.
+        edgefactor:
+            edgefactor determies the number of edges (num_edges = num_edges*edgefactor)
+        seed:
+            seed, if specified, will be used as the seed to the RNG.
+        unweighted:
+            unweighted determines if the resulting edgelist will have randomly-generated
+            weights ranging in value between [0, 1). If True, an edgelist with only 2
+            columns is returned.
+        mg:
+            mg determines if the resulting edgelist will be a multi-GPU edgelist.
+            If True, returns a dask_cudf.DataFrame and
+            if False, returns a cudf.DataFrame.
     """
     ddf = rmat(
         scale,
@@ -128,7 +144,7 @@ def generate_edgelist(
         clip_and_flip=False,
         scramble_vertex_ids=True,
         create_using=None,  # return edgelist instead of Graph instance
-        mg=True,
+        mg=mg,
     )
     if not unweighted:
         rng = np.random.default_rng(seed)
@@ -250,16 +266,26 @@ def get_allocation_counts_dask_persist(return_allocations=False, logging=True):
     return decorator
 
 
-def _print_allocation_statistics(func, args, kwargs, execution_time, allocation_counts):
-    print(f"function:  {func.__name__}\n")
-    print(f"function args: {args} kwargs: {kwargs}", flush=True)
-    print(f"execution_time: {execution_time}", flush=True)
-    print("allocation_counts")
+def _get_allocation_stats_string(func, args, kwargs, execution_time, allocation_counts):
     allocation_counts_parsed = {
         worker_id: _parse_allocation_counts(worker_allocations)
         for worker_id, worker_allocations in allocation_counts.items()
     }
-    pprint(allocation_counts_parsed, indent=4, width=1, compact=True)
+    return (
+        f"function:  {func.__name__}\n"
+        + f"function args: {args} kwargs: {kwargs}\n"
+        + f"execution_time: {execution_time}\n"
+        + "allocation_counts:\n"
+        + f"{pformat(allocation_counts_parsed, indent=4, width=1, compact=True)}"
+    )
+
+
+def _print_allocation_statistics(func, args, kwargs, execution_time, allocation_counts):
+    print(
+        _get_allocation_stats_string(
+            func, args, kwargs, execution_time, allocation_counts
+        )
+    )
 
 
 def get_peak_output_ratio_across_workers(allocation_counts):
