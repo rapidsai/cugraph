@@ -2,12 +2,12 @@ Welcome to RAPIDS Graph documentation
 =====================================
 RAPIDS Graph covers a range of graph libraries and packages, that includes:
 
-* cugraph: focuses on GPU accelerated graph algorithms.
-* cugraph-ops: focuses on GNN aggregators and operators.
-* cugraph-service: focuses on wrapping graph features as a service.
-* cugraph-pyg:  focuses on exposing features under the Graph umbrella into the PyG framework.
-* cugraph-dgl:  focuses on exposing features under the Graph umbrella into the DGL framework
-* wholegraph: focuses on GNN training using shared memory.
+* cugraph: GPU-accelerated graph algorithms
+* cugraph-ops: GPU-accelerated GNN aggregators and operators
+* cugraph-service: multi-user, remote GPU-accelerated graph algorithm service
+* cugraph-pyg:  GPU-accelerated extensions for use with the PyG framework
+* cugraph-dgl:  GPU-accelerated extensions for use with the DGL framework
+* wholegraph: shared memory-based GPU-accelerated GNN training
 
 cuGraph is a library of graph algorithms that seamlessly integrates into the RAPIDS data science ecosystem and allows the data scientist to easily call graph algorithms using data stored in GPU DataFrames, NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
 
