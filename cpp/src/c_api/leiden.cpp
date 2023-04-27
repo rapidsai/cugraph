@@ -18,6 +18,7 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/graph_helper.hpp>
 #include <c_api/hierarchical_clustering_result.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
@@ -63,6 +64,10 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
+    } else if constexpr (multi_gpu) {
+      error_code_            = CUGRAPH_NOT_IMPLEMENTED;
+      error_->error_message_ = "leiden not currently implemented for multi-GPU";
+
     } else {
       // leiden expects store_transposed == false
       if constexpr (store_transposed) {
@@ -91,16 +96,17 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
       // could add support in Leiden for std::nullopt as the edge weights behaving
       // as desired and only instantiating a real edge_property_view_t for the
       // coarsened graphs.
-      auto [level, modularity] = cugraph::leiden(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr)
-          ? std::make_optional(edge_weights->view())
-          : std::make_optional(
-              cugraph::create_constant_edge_property(handle_, graph_view, weight_t{1}).view()),
-        clusters.data(),
-        max_level_,
-        static_cast<weight_t>(resolution_));
+      auto [level, modularity] =
+        cugraph::leiden(handle_,
+                        graph_view,
+                        (edge_weights != nullptr)
+                          ? std::make_optional(edge_weights->view())
+                          : std::make_optional(cugraph::c_api::create_constant_edge_property(
+                                                 handle_, graph_view, weight_t{1})
+                                                 .view()),
+                        clusters.data(),
+                        max_level_,
+                        static_cast<weight_t>(resolution_));
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());

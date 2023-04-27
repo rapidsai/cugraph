@@ -18,6 +18,8 @@
 
 #include <prims/property_op_utils.cuh>
 
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/core/comms.hpp>
@@ -256,11 +258,34 @@ __device__ std::enable_if_t<has_compatible_raft_comms_op_v<ReduceOp>, void> atom
      raft::comms::op_t::MAX));  // currently, only (element-wise) sum, min, and max are supported.
 
   if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) {
-    atomic_add_edge_op_result(iter, value);
+    atomic_add(iter, value);
   } else if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) {
-    elementwise_atomic_min_edge_op_result(iter, value);
+    elementwise_atomic_min(iter, value);
   } else {
-    elementwise_atomic_max_edge_op_result(iter, value);
+    elementwise_atomic_max(iter, value);
+  }
+}
+
+template <typename ReduceOp, typename EdgePartitionEndpointPropertyValueWrapper>
+__device__ std::enable_if_t<has_compatible_raft_comms_op_v<ReduceOp>, void> atomic_reduce(
+  EdgePartitionEndpointPropertyValueWrapper edge_partition_endpoint_property_value,
+  typename EdgePartitionEndpointPropertyValueWrapper::vertex_type offset,
+  typename EdgePartitionEndpointPropertyValueWrapper::value_type value)
+{
+  static_assert(std::is_same_v<typename ReduceOp::value_type,
+                               typename EdgePartitionEndpointPropertyValueWrapper::value_type>);
+  static_assert(
+    (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) ||
+    (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) ||
+    (ReduceOp::compatible_raft_comms_op ==
+     raft::comms::op_t::MAX));  // currently, only (element-wise) sum, min, and max are supported.
+
+  if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::SUM) {
+    edge_partition_endpoint_property_value.atomic_add(offset, value);
+  } else if constexpr (ReduceOp::compatible_raft_comms_op == raft::comms::op_t::MIN) {
+    edge_partition_endpoint_property_value.elementwise_atomic_min(offset, value);
+  } else {
+    edge_partition_endpoint_property_value.elementwise_atomic_max(offset, value);
   }
 }
 
