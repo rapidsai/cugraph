@@ -38,8 +38,6 @@ void fill_edge_property(raft::handle_t const& handle,
 {
   static_assert(std::is_same_v<T, typename EdgePropertyOutputWrapper::value_type>);
 
-  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
-
   auto value_firsts = edge_property_output.value_firsts();
   auto edge_counts  = edge_property_output.edge_counts();
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
