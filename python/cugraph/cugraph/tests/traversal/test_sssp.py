@@ -450,4 +450,3 @@ def test_scipy_api_compat():
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_coo_matrix, indices=[0, 1, 2])
     cugraph.shortest_path(input_coo_matrix, indices=0)
-
