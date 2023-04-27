@@ -36,13 +36,13 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
 {
   const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
   return ops::graph::uniform_sample_csr(rng_state,
-                                             ops_graph,
-                                             ptr_d_start,
-                                             num_start_vertices,
-                                             sampling_size,
-                                             sampling_algo,
-                                             max_degree,
-                                             handle.get_stream());
+                                        ops_graph,
+                                        ptr_d_start,
+                                        num_start_vertices,
+                                        sampling_size,
+                                        sampling_algo,
+                                        max_degree,
+                                        handle.get_stream());
 }
 
 template <typename vertex_t, typename edge_t>
@@ -57,13 +57,13 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_
 {
   const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
   return ops::graph::uniform_sample_coo(rng_state,
-                                             ops_graph,
-                                             ptr_d_start,
-                                             num_start_vertices,
-                                             sampling_size,
-                                             sampling_algo,
-                                             max_degree,
-                                             handle.get_stream());
+                                        ops_graph,
+                                        ptr_d_start,
+                                        num_start_vertices,
+                                        sampling_size,
+                                        sampling_algo,
+                                        max_degree,
+                                        handle.get_stream());
 }
 
 // template explicit instantiation directives (EIDir's):
