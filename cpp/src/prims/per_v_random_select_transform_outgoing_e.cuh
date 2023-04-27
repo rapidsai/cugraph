@@ -313,21 +313,20 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
   auto high_partition_size = frontier_degrees.size() - (low_partition_size + mid_partition_size);
 
   if (low_partition_size > 0) {
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(low_partition_size * K),
-      [K,
-       low_first,
-       sample_nbr_indices = sample_nbr_indices.data(),
-       invalid_idx        = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
-        auto pair       = *(low_first + (i / K));
-        auto degree     = thrust::get<0>(pair);
-        auto seed_idx   = thrust::get<1>(pair);
-        auto sample_idx = static_cast<edge_t>(i % K);
-        sample_nbr_indices[seed_idx * K + sample_idx] =
-          (sample_idx < degree) ? sample_idx : invalid_idx;
-      });
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(low_partition_size * K),
+                     [K,
+                      low_first,
+                      sample_nbr_indices = sample_nbr_indices.data(),
+                      invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+                       auto pair       = *(low_first + (i / K));
+                       auto degree     = thrust::get<0>(pair);
+                       auto seed_idx   = thrust::get<1>(pair);
+                       auto sample_idx = static_cast<edge_t>(i % K);
+                       sample_nbr_indices[seed_idx * K + sample_idx] =
+                         (sample_idx < degree) ? sample_idx : invalid_idx;
+                     });
   }
 
   if (mid_partition_size > 0) {
@@ -335,12 +334,12 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
     // FIXME: we can avoid the follow-up copy if get_sampling_index takes output offsets for
     // sampling output
     cugraph::ops::graph::get_sampling_index(tmp_sample_nbr_indices.data(),
-                                                 rng_state,
-                                                 thrust::get<0>(mid_first.get_iterator_tuple()),
-                                                 mid_partition_size,
-                                                 static_cast<int32_t>(K),
-                                                 false,
-                                                 handle.get_stream());
+                                            rng_state,
+                                            thrust::get<0>(mid_first.get_iterator_tuple()),
+                                            mid_partition_size,
+                                            static_cast<int32_t>(K),
+                                            false,
+                                            handle.get_stream());
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator(size_t{0}),
                      thrust::make_counting_iterator(mid_partition_size * K),
@@ -860,12 +859,12 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     if (frontier_degrees.size() > 0) {
       sample_nbr_indices.resize(frontier.size() * K, handle.get_stream());
       cugraph::ops::graph::get_sampling_index(sample_nbr_indices.data(),
-                                                   rng_state,
-                                                   frontier_degrees.data(),
-                                                   static_cast<edge_t>(frontier_degrees.size()),
-                                                   static_cast<int32_t>(K),
-                                                   with_replacement,
-                                                   handle.get_stream());
+                                              rng_state,
+                                              frontier_degrees.data(),
+                                              static_cast<edge_t>(frontier_degrees.size()),
+                                              static_cast<int32_t>(K),
+                                              with_replacement,
+                                              handle.get_stream());
       frontier_degrees.resize(0, handle.get_stream());
       frontier_degrees.shrink_to_fit(handle.get_stream());
     }
