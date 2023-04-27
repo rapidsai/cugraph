@@ -89,54 +89,62 @@ void validate_rmat_distribution(
       << " iput c=" << c << " error tolerance=" << error_tolerance << ".";
   }
 
-  validate_rmat_distribution(edges,
-                             std::distance(edges, a_last),
-                             src_first,
-                             src_threshold,
-                             dst_first,
-                             dst_threshold,
-                             a,
-                             b,
-                             c,
-                             clip_and_flip,
-                             min_edges,
-                             error_tolerance);
-  validate_rmat_distribution(a_last,
-                             std::distance(a_last, a_plus_b_last),
-                             src_first,
-                             (src_first + src_last) / 2,
-                             dst_threshold,
-                             dst_last,
-                             a,
-                             b,
-                             c,
-                             clip_and_flip,
-                             min_edges,
-                             error_tolerance);
-  validate_rmat_distribution(a_plus_b_last,
-                             std::distance(a_plus_b_last, c_last),
-                             src_threshold,
-                             src_last,
-                             dst_first,
-                             dst_threshold,
-                             a,
-                             b,
-                             c,
-                             clip_and_flip,
-                             min_edges,
-                             error_tolerance);
-  validate_rmat_distribution(c_last,
-                             std::distance(c_last, edges + num_edges),
-                             src_threshold,
-                             src_last,
-                             dst_threshold,
-                             dst_last,
-                             a,
-                             b,
-                             c,
-                             clip_and_flip,
-                             min_edges,
-                             error_tolerance);
+  if ((src_threshold - src_first) * (dst_threshold - dst_first) >= 2) {
+    validate_rmat_distribution(edges,
+                               std::distance(edges, a_last),
+                               src_first,
+                               src_threshold,
+                               dst_first,
+                               dst_threshold,
+                               a,
+                               b,
+                               c,
+                               clip_and_flip,
+                               min_edges,
+                               error_tolerance);
+  }
+  if ((src_threshold - src_first) * (dst_last - dst_threshold) >= 2) {
+    validate_rmat_distribution(a_last,
+                               std::distance(a_last, a_plus_b_last),
+                               src_first,
+                               src_threshold,
+                               dst_threshold,
+                               dst_last,
+                               a,
+                               b,
+                               c,
+                               clip_and_flip,
+                               min_edges,
+                               error_tolerance);
+  }
+  if ((src_last - src_threshold) * (dst_threshold - dst_first) >= 2) {
+    validate_rmat_distribution(a_plus_b_last,
+                               std::distance(a_plus_b_last, c_last),
+                               src_threshold,
+                               src_last,
+                               dst_first,
+                               dst_threshold,
+                               a,
+                               b,
+                               c,
+                               clip_and_flip,
+                               min_edges,
+                               error_tolerance);
+  }
+  if ((src_last - src_threshold) * (dst_last - dst_threshold) >= 2) {
+    validate_rmat_distribution(c_last,
+                               std::distance(c_last, edges + num_edges),
+                               src_threshold,
+                               src_last,
+                               dst_threshold,
+                               dst_last,
+                               a,
+                               b,
+                               c,
+                               clip_and_flip,
+                               min_edges,
+                               error_tolerance);
+  }
 
   return;
 }
@@ -214,17 +222,17 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&
         (h_cugraph_dsts.size() == (size_t{1} << configuration.scale) * configuration.edge_factor))
         << "Returned an invalid number of R-mat graph edges.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_srcs.begin(),
-                      h_cugraph_srcs.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_srcs.begin(),
+                                h_cugraph_srcs.end(),
+                                [num_vertices](auto v) {
+                                  return !cugraph::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid source vertex IDs.";
-      ASSERT_TRUE(
-        std::count_if(h_cugraph_dsts.begin(),
-                      h_cugraph_dsts.end(),
-                      [num_vertices = static_cast<vertex_t>(size_t{1} << configuration.scale)](
-                        auto v) { return !cugraph::is_valid_vertex(num_vertices, v); }) == 0)
+      ASSERT_TRUE(std::count_if(h_cugraph_dsts.begin(),
+                                h_cugraph_dsts.end(),
+                                [num_vertices](auto v) {
+                                  return !cugraph::is_valid_vertex(num_vertices, v);
+                                }) == 0)
         << "Returned R-mat graph edges have invalid destination vertex IDs.";
 
       if (!scramble) {
