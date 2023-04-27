@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,26 @@ namespace detail {
 template <typename input_t, typename output_t>
 struct typecast_t {
   __device__ output_t operator()(input_t val) const { return static_cast<output_t>(val); }
+};
+
+template <typename BoolIterator>
+struct pack_bool_t {
+  BoolIterator bool_first{};
+  size_t num_bools{};
+
+  __device__ uint32_t operator()(size_t i) const
+  {
+    auto first = i * (sizeof(uint32_t) * 8);
+    auto last  = std::min((i + 1) * (sizeof(uint32_t) * 8), num_bools);
+    uint32_t ret{0};
+    for (auto j = first; j < last; ++j) {
+      if (*(bool_first + j)) {
+        auto mask = uint32_t{1} << (j % (sizeof(uint32_t) * 8));
+        ret |= mask;
+      }
+    }
+    return ret;
+  }
 };
 
 template <typename Iterator>
