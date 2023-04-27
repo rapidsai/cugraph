@@ -23,6 +23,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -127,7 +128,7 @@ __global__ void trasnform_reduce_e_hypersparse(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -206,7 +207,7 @@ __global__ void trasnform_reduce_e_low_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -272,7 +273,7 @@ __global__ void trasnform_reduce_e_mid_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -335,7 +336,7 @@ __global__ void trasnform_reduce_e_high_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 }  // namespace detail
@@ -399,19 +400,22 @@ T transform_reduce_e(raft::handle_t const& handle,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeSrcValueInputWrapper::value_iterator>>;
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeDstValueInputWrapper::value_iterator>>;
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
 
   if (do_expensive_check) {
     // currently, nothing to do
