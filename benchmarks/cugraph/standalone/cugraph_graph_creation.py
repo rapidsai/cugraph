@@ -11,22 +11,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dask.distributed import wait
-from cugraph.testing.mg_utils import generate_edgelist, get_allocation_counts_dask_persist, sizeof_fmt
-from cugraph.testing.mg_utils import start_dask_client, stop_dask_client, enable_spilling
+from cugraph.testing.mg_utils import (
+    generate_edgelist,
+    get_allocation_counts_dask_persist,
+    sizeof_fmt,
+    get_peak_output_ratio_across_workers,
+)
+
+from cugraph.testing.mg_utils import (
+    start_dask_client,
+    stop_dask_client,
+    enable_spilling,
+)
 import cugraph
 from cugraph.dask.comms import comms as Comms
 from time import sleep
+import pandas as pd
 
-@get_allocation_counts_dask_persist
+
+@get_allocation_counts_dask_persist(return_allocations=True, logging=False)
 def construct_graph(dask_dataframe, directed=False, renumber=False):
     """
-    dask_dataframe contains weighted and undirected edges with self
-    loops. Multiple edges will likely be present as well.  The returned Graph
-    object must be symmetrized and have self loops removed.
+    Args:
+        dask_dataframe:
+            dask_dataframe contains weighted and undirected edges with self
+            loops. Multiple edges will likely be present as well.
+        directed:
+            If True, the graph will be directed.
+        renumber:
+            If True, the graph will be renumbered.
+    Returns:
+        G:  cugraph.Graph
     """
     G = cugraph.Graph(directed=directed)
-    G.from_dask_cudf_edgelist(dask_dataframe, source="src", destination="dst", renumber=renumber)
+    G.from_dask_cudf_edgelist(
+        dask_dataframe, source="src", destination="dst", renumber=renumber
+    )
     return G
 
 
@@ -34,16 +54,60 @@ def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber
     """
     Entry point for the benchmark.
     """
-    dask_df = generate_edgelist(scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True)
+    dask_df = generate_edgelist(
+        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True
+    )
     dask_df = dask_df.astype("int64")
     dask_df = dask_df.reset_index(drop=True)
-    #dask_df = dask_df.persist()
-    #wait(dask_df)
-    memory_est = dask_df.memory_usage().sum().compute()
-    print(f"Edge List Memory = {sizeof_fmt(memory_est)}, Number of input edges  = {len(dask_df):,}")
-    G = construct_graph(dask_df, directed=directed, renumber=renumber)
+    input_memory = dask_df.memory_usage().sum().compute()
+    num_input_edges = len(dask_df)
+    print(
+        f"Number of input edges = {num_input_edges:,}, directed = {directed}, renumber = {renumber}"
+    )
+    G, allocation_counts = construct_graph(
+        dask_df, directed=directed, renumber=renumber
+    )
+    (
+        input_to_peak_ratio,
+        output_to_peak_ratio,
+        input_memory_per_worker,
+        peak_allocation_across_workers,
+    ) = get_memory_statistics(
+        allocation_counts=allocation_counts, input_memory=input_memory
+    )
     print(f"Number of edges in final graph = {G.number_of_edges():,}")
     print("-" * 80)
+    return (
+        num_input_edges,
+        input_to_peak_ratio,
+        output_to_peak_ratio,
+        input_memory_per_worker,
+        peak_allocation_across_workers,
+    )
+
+
+def get_memory_statistics(allocation_counts, input_memory):
+    """
+    Get memory statistics for the benchmark.
+    """
+    output_to_peak_ratio = get_peak_output_ratio_across_workers(allocation_counts)
+    peak_allocation_across_workers = max(
+        [a["peak_bytes"] for a in allocation_counts.values()]
+    )
+    input_memory_per_worker = input_memory / len(allocation_counts.keys())
+    input_to_peak_ratio = peak_allocation_across_workers / input_memory_per_worker
+    print(f"Edge List Memory = {sizeof_fmt(input_memory_per_worker)}")
+    print(f"Peak Memory across workers = {sizeof_fmt(peak_allocation_across_workers)}")
+    print(f"Max Peak to output graph ratio across workers = {output_to_peak_ratio:.2f}")
+    print(
+        f"Max Peak to avg input graph ratio across workers = {input_to_peak_ratio:.2f}"
+    )
+    return (
+        input_to_peak_ratio,
+        output_to_peak_ratio,
+        input_memory_per_worker,
+        peak_allocation_across_workers,
+    )
 
 
 def restart_client(client):
@@ -55,19 +119,64 @@ def restart_client(client):
     client = client.run(enable_spilling)
     Comms.initialize(p2p=True)
 
+
 # call __main__ function
 if __name__ == "__main__":
-   client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False, device_memory_limit=1.2)
-   enable_spilling()
-   client.run(enable_spilling)
-   for scale in [22,23,24,25]:
-    for directed in [True, False]:
-        for renumber in [True, False]:
-            benchmark_cugraph_graph_creation(scale=scale, edgefactor=16,  seed=123, directed=directed, renumber=renumber)  
-            restart_client(client)
-            sleep(10)
-        print("-"*40 + f"renumber completed" + "-"*40)
-    print("-" * 40 + f"scale = {scale} completed" + "-" * 40)
-   
-   # Cleanup Dask Cluster
-   stop_dask_client(client, cluster)
+    client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False)
+    enable_spilling()
+    stats_ls = []
+    client.run(enable_spilling)
+    for scale in [22, 23, 24]:
+        for directed in [True, False]:
+            for renumber in [True, False]:
+                try:
+                    stats_d = {}
+                    (
+                        num_input_edges,
+                        input_to_peak_ratio,
+                        output_to_peak_ratio,
+                        input_memory_per_worker,
+                        peak_allocation_across_workers,
+                    ) = benchmark_cugraph_graph_creation(
+                        scale=scale,
+                        edgefactor=16,
+                        seed=123,
+                        directed=directed,
+                        renumber=renumber,
+                    )
+                    stats_d["scale"] = scale
+                    stats_d["num_input_edges"] = num_input_edges
+                    stats_d["directed"] = directed
+                    stats_d["renumber"] = renumber
+                    stats_d["input_memory_per_worker"] = sizeof_fmt(input_memory_per_worker)
+                    stats_d["peak_allocation_across_workers"] = sizeof_fmt(
+                        peak_allocation_across_workers
+                    )
+                    stats_d["input_to_peak_ratio"] = input_to_peak_ratio
+                    stats_d["output_to_peak_ratio"] = output_to_peak_ratio
+                    stats_ls.append(stats_d)
+                except Exception as e:
+                    print(e)
+                restart_client(client)
+                sleep(10)
+
+            print("-" * 40 + f"renumber completed" + "-" * 40)
+
+        stats_df = pd.DataFrame(
+            stats_ls,
+            columns=[
+                "scale",
+                "num_input_edges",
+                "directed",
+                "renumber",
+                "input_memory_per_worker",
+                "peak_allocation_across_workers",
+                "input_to_peak_ratio",
+                "output_to_peak_ratio",
+            ],
+        )
+        stats_df.to_csv("cugraph_graph_creation_stats.csv")
+        print("-" * 40 + f"scale = {scale} completed" + "-" * 40)
+
+    # Cleanup Dask Cluster
+    stop_dask_client(client, cluster)

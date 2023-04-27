@@ -193,63 +193,61 @@ def _parse_allocation_counts(allocation_counts):
 
 # Decorator to set the statistics adaptor
 # and calls the allocation_counts function
-def get_allocation_counts_dask_lazy(func):
-    def wrapper(*args, **kwargs):
-        client = default_client()
-        client.run(set_statistics_adaptor)
-        st = time.time()
-        return_val = func(*args, **kwargs)
-        et = time.time()
-        allocation_counts = client.run(_get_allocation_counts)
-        allocation_counts = {
-            worker_id: _parse_allocation_counts(worker_allocations)
-            for worker_id, worker_allocations in allocation_counts.items()
-        }
-        _print_allocation_statistics(func, args, kwargs, et - st, allocation_counts)
-        client.run(set_statistics_adaptor)
-        return return_val
+def get_allocation_counts_dask_lazy(return_allocations=False, logging=True):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            client = default_client()
+            client.run(set_statistics_adaptor)
+            st = time.time()
+            return_val = func(*args, **kwargs)
+            et = time.time()
+            allocation_counts = client.run(_get_allocation_counts)
+            allocation_counts = {
+                worker_id: _parse_allocation_counts(worker_allocations)
+                for worker_id, worker_allocations in allocation_counts.items()
+            }
+            if logging:
+                _print_allocation_statistics(
+                    func, args, kwargs, et - st, allocation_counts
+                )
+            client.run(set_statistics_adaptor)
+            if return_allocations:
+                return return_val, allocation_counts
+            else:
+                return return_val
 
-    return wrapper
+        return wrapper
 
-
-def get_allocation_counts_local(func):
-    def wrapper(*args, **kwargs):
-        set_statistics_adaptor()
-        st = time.time()
-        return_val = func(*args, **kwargs)
-        et = time.time()
-        allocation_counts = _get_allocation_counts()
-        allocation_counts = _parse_allocation_counts(allocation_counts)
-        _print_allocation_statistics(func, args, kwargs, et - st, allocation_counts)
-        set_statistics_adaptor()
-        return return_val
-
-    return wrapper
+    return decorator
 
 
-def get_allocation_counts_dask_persist(func):
-    def wrapper(*args, **kwargs):
-        args = [persist_dask_object(a) for a in args]
-        kwargs = {k: persist_dask_object(v) for k, v in kwargs.items()}
-        client = default_client()
-        client.run(set_statistics_adaptor)
-        st = time.time()
-        return_val = func(*args, **kwargs)
-        return_val = persist_dask_object(return_val)
-        if isinstance(return_val, (list, tuple)):
-            return_val = [persist_dask_object(d) for d in return_val]
-        et = time.time()
-        allocation_counts = client.run(_get_allocation_counts)
-        allocation_counts = {
-            worker_id: _parse_allocation_counts(worker_allocations)
-            for worker_id, worker_allocations in allocation_counts.items()
-        }
+def get_allocation_counts_dask_persist(return_allocations=False, logging=True):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            args = [persist_dask_object(a) for a in args]
+            kwargs = {k: persist_dask_object(v) for k, v in kwargs.items()}
+            client = default_client()
+            client.run(set_statistics_adaptor)
+            st = time.time()
+            return_val = func(*args, **kwargs)
+            return_val = persist_dask_object(return_val)
+            if isinstance(return_val, (list, tuple)):
+                return_val = [persist_dask_object(d) for d in return_val]
+            et = time.time()
+            allocation_counts = client.run(_get_allocation_counts)
+            if logging:
+                _print_allocation_statistics(
+                    func, args, kwargs, et - st, allocation_counts
+                )
+            client.run(set_statistics_adaptor)
+            if return_allocations:
+                return return_val, allocation_counts
+            else:
+                return return_val
 
-        _print_allocation_statistics(func, args, kwargs, et - st, allocation_counts)
-        client.run(set_statistics_adaptor)
-        return return_val
+        return wrapper
 
-    return wrapper
+    return decorator
 
 
 def _print_allocation_statistics(func, args, kwargs, execution_time, allocation_counts):
@@ -257,4 +255,16 @@ def _print_allocation_statistics(func, args, kwargs, execution_time, allocation_
     print(f"function args: {args} kwargs: {kwargs}", flush=True)
     print(f"execution_time: {execution_time}", flush=True)
     print("allocation_counts")
-    pprint(allocation_counts, indent=4, width=1, compact=True)
+    allocation_counts_parsed = {
+        worker_id: _parse_allocation_counts(worker_allocations)
+        for worker_id, worker_allocations in allocation_counts.items()
+    }
+    pprint(allocation_counts_parsed, indent=4, width=1, compact=True)
+
+
+def get_peak_output_ratio_across_workers(allocation_counts):
+    peak_ratio = -1
+    for w_allocations in allocation_counts.values():
+        w_peak_ratio = w_allocations["peak_bytes"] / w_allocations["current_bytes"]
+        peak_ratio = max(w_peak_ratio, peak_ratio)
+    return peak_ratio
