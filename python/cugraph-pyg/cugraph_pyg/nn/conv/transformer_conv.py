@@ -20,6 +20,7 @@ from .base import BaseConv
 
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
+torch_geometric = import_optional("torch_geometric")
 
 
 class TransformerConv(BaseConv):
@@ -114,25 +115,26 @@ class TransformerConv(BaseConv):
         if isinstance(in_channels, int):
             in_channels = (in_channels, in_channels)
 
-        self.lin_key = nn.Linear(in_channels[0], heads * out_channels)
-        self.lin_query = nn.Linear(in_channels[1], heads * out_channels)
-        self.lin_value = nn.Linear(in_channels[0], heads * out_channels)
+        Linear = torch_geometric.nn.Linear
 
+        self.lin_key = Linear(in_channels[0], heads * out_channels)
+        self.lin_query = Linear(in_channels[1], heads * out_channels)
+        self.lin_value = Linear(in_channels[0], heads * out_channels)
         if edge_dim is not None:
-            self.lin_edge = nn.Linear(edge_dim, heads * out_channels, bias=False)
+            self.lin_edge = Linear(edge_dim, heads * out_channels, bias=False)
         else:
             self.lin_edge = self.register_parameter("lin_edge", None)
 
         if concat:
-            self.lin_skip = nn.Linear(in_channels[1], heads * out_channels, bias=bias)
+            self.lin_skip = Linear(in_channels[1], heads * out_channels, bias=bias)
             if self.beta:
-                self.lin_beta = nn.Linear(3 * heads * out_channels, 1, bias=bias)
+                self.lin_beta = Linear(3 * heads * out_channels, 1, bias=False)
             else:
                 self.lin_beta = self.register_parameter("lin_beta", None)
         else:
-            self.lin_skip = nn.Linear(in_channels[1], out_channels, bias=bias)
+            self.lin_skip = Linear(in_channels[1], out_channels, bias=bias)
             if self.beta:
-                self.lin_beta = nn.Linear(3 * out_channels, 1, bias=False)
+                self.lin_beta = Linear(3 * out_channels, 1, bias=False)
             else:
                 self.lin_beta = self.register_parameter("lin_beta", None)
 
@@ -144,8 +146,7 @@ class TransformerConv(BaseConv):
         self.lin_value.reset_parameters()
         if self.lin_edge is not None:
             self.lin_edge.reset_parameters()
-        if self.lin_skip is not None:
-            self.lin_skip.reset_parameters()
+        self.lin_skip.reset_parameters()
         if self.lin_beta is not None:
             self.lin_beta.reset_parameters()
 
@@ -177,7 +178,8 @@ class TransformerConv(BaseConv):
         key = self.lin_key(x[0])
         value = self.lin_value(x[0])
 
-        if self.lin_edge is not None and edge_attr is not None:
+        if self.lin_edge is not None:
+            assert edge_attr is not None
             edge_attr = self.lin_edge(edge_attr)
 
         out = TransformerConvAgg(

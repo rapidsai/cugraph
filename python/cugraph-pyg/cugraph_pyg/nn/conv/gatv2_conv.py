@@ -20,6 +20,7 @@ from .base import BaseConv
 
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
+torch_geometric = import_optional("torch_geometric")
 
 
 class GATv2Conv(BaseConv):
@@ -105,21 +106,45 @@ class GATv2Conv(BaseConv):
         self.edge_dim = edge_dim
         self.share_weights = share_weights
 
+        Linear = torch_geometric.nn.Linear
+
         if isinstance(in_channels, int):
-            self.lin_src = nn.Linear(in_channels, heads * out_channels, bias=False)
+            self.lin_src = Linear(
+                in_channels,
+                heads * out_channels,
+                bias=bias,
+                weight_initializer="glorot",
+            )
 
             if share_weights:
                 self.lin_dst = self.lin_src
             else:
-                self.lin_dst = nn.Linear(in_channels, heads * out_channels, bias=False)
+                self.lin_dst = Linear(
+                    in_channels,
+                    heads * out_channels,
+                    bias=bias,
+                    weight_initializer="glorot",
+                )
         else:
-            self.lin_src = nn.Linear(in_channels[0], heads * out_channels, bias=False)
-            self.lin_dst = nn.Linear(in_channels[1], heads * out_channels, bias=False)
+            self.lin_src = Linear(
+                in_channels[0],
+                heads * out_channels,
+                bias=bias,
+                weight_initializer="glorot",
+            )
+            self.lin_dst = Linear(
+                in_channels[1],
+                heads * out_channels,
+                bias=bias,
+                weight_initializer="glorot",
+            )
 
         self.att = nn.Parameter(torch.Tensor(heads * out_channels))
 
         if edge_dim is not None:
-            self.lin_edge = nn.Linear(edge_dim, heads * out_channels, bias=False)
+            self.lin_edge = Linear(
+                edge_dim, heads * out_channels, bias=False, weight_initializer="glorot"
+            )
         else:
             self.register_parameter("lin_edge", None)
 
@@ -135,16 +160,14 @@ class GATv2Conv(BaseConv):
     def reset_parameters(self):
         self.lin_src.reset_parameters()
         self.lin_dst.reset_parameters()
-
-        gain = torch.nn.init.calculate_gain("relu")
-        torch.nn.init.xavier_normal_(
-            self.att.view(-1, self.heads, self.out_channels), gain=gain
-        )
-
         if self.lin_edge is not None:
             self.lin_edge.reset_parameters()
-        if self.bias is not None:
-            nn.init.zeros_(self.bias.data)
+
+        torch_geometric.nn.inits.glorot(
+            self.att.view(-1, self.heads, self.out_channels)
+        )
+
+        torch_geometric.nn.inits.zeros(self.bias)
 
     def forward(
         self,
