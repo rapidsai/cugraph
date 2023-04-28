@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/packed_bool_utils.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
