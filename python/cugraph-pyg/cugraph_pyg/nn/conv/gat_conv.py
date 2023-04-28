@@ -191,6 +191,7 @@ class GATConv(BaseConv):
             edge_attr = self.lin_edge(edge_attr)
 
         if bipartite:
+            assert hasattr(self, "lin_src")
             x_src = self.lin_src(x[0])
             x_dst = self.lin_dst(x[1])
 
@@ -207,6 +208,7 @@ class GATConv(BaseConv):
             )
 
         else:
+            assert hasattr(self, "lin")
             x = self.lin(x)
 
             out = mha_gat_n2n(
