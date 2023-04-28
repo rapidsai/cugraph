@@ -23,6 +23,8 @@ import cugraph.dask as dask_cugraph
 import cugraph
 import pylibcugraph
 
+from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
+
 
 class EXPERIMENTAL__BulkSampler:
     start_col_name = "_START_"
@@ -202,6 +204,7 @@ class EXPERIMENTAL__BulkSampler:
             self.__sample_call_args["label_to_output_comm_rank"] = (
                 self.__get_label_to_output_comm_rank(min_batch_id, max_batch_id)
             )
+            self.__sample_call_args["label_list"] = cupy.arange(min_batch_id, max_batch_id+1, dtype='int32')
 
         samples, offsets = sample_fn(
             self.__graph,
@@ -213,47 +216,22 @@ class EXPERIMENTAL__BulkSampler:
         )
 
         self.__batches = self.__batches[~batch_id_filter]
-        self.__write(samples, offsets, min_batch_id, npartitions)
+        self.__write(samples, offsets)
 
         if self.size > 0:
             self.flush()
+
 
     def __write(
         self,
         samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
         offsets: Union[cudf.DataFrame, dask_cudf.DataFrame],
-        min_batch_id: int,
-        npartitions: int,
     ) -> None:
         os.makedirs(self.__output_path, exist_ok=True)
+        write_samples(samples, offsets, self.__batches_per_partition, self.__output_path)
+        
 
-        for partition_k in range(npartitions):
-            ix_partition_start_inclusive = (
-                min_batch_id + partition_k * self.batches_per_partition
-            )
-            ix_partition_end_inclusive = (
-                min_batch_id + (partition_k + 1) * self.batches_per_partition - 1
-            )
-            f = (samples.batch_id >= ix_partition_start_inclusive) & (
-                samples.batch_id <= ix_partition_end_inclusive
-            )
-            if len(samples[f]) == 0:
-                break
-
-            ix_partition_end_inclusive = samples[f].batch_id.max()
-            if hasattr(ix_partition_end_inclusive, "compute"):
-                ix_partition_end_inclusive = ix_partition_end_inclusive.compute()
-            ix_partition_end_inclusive = int(ix_partition_end_inclusive)
-
-            inner_path = os.path.join(
-                self.__output_path,
-                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}"
-                ".parquet",
-            )
-
-            samples[f].to_parquet(inner_path, index=False)
-
-    def __get_label_to_output_comm_rank(min_batch_id, max_batch_id):
+    def __get_label_to_output_comm_rank(self, min_batch_id, max_batch_id):
         num_workers = dask_cugraph.get_n_workers()
         num_batches = max_batch_id - min_batch_id + 1
         z = cupy.zeros(num_batches, dtype='int32')

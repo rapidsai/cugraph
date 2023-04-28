@@ -14,6 +14,7 @@
 import tempfile
 
 import os
+import re
 
 import cupy
 import cudf
@@ -29,8 +30,10 @@ from typing import Union, Tuple, Sequence, List
 
 torch_geometric = import_optional("torch_geometric")
 
-
 class EXPERIMENTAL__BulkSampleLoader:
+
+    __ex_parquet_file = re.compile(r'batch=([0-9]+)\-([0-9]+)\.parquet')
+
     def __init__(
         self,
         feature_store: CuGraphStore,
@@ -40,7 +43,6 @@ class EXPERIMENTAL__BulkSampleLoader:
         shuffle=False,
         edge_types: Sequence[Tuple[str]] = None,
         directory=None,
-        rank=0,
         starting_batch_id=0,
         batches_per_partition=100,
         # Sampler args
@@ -84,10 +86,6 @@ class EXPERIMENTAL__BulkSampleLoader:
             The path of the directory to write samples to.
             Defaults to a new generated temporary directory.
 
-        rank: int (optional, default=0)
-            The rank of the current worker.  Should be provided
-            when there are multiple workers.
-
         starting_batch_id: int (optional, default=0)
             The starting id for each batch.  Defaults to 0.
             Generally used when loading previously-sampled
@@ -102,9 +100,8 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         self.__feature_store = feature_store
         self.__graph_store = graph_store
-        self.__rank = rank
-        self.__next_batch = starting_batch_id
-        self.__end_exclusive = starting_batch_id
+        self.__next_batch = -1
+        self.__end_exclusive = -1
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
@@ -112,6 +109,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             # Will be loading from disk
             self.__num_batches = all_indices
             self.__directory = directory
+            self.__input_files = os.listdir(directory)
+            self.__input_files.reverse()
             return
 
         if batch_size is None or batch_size < 1:
@@ -123,7 +122,6 @@ class EXPERIMENTAL__BulkSampleLoader:
             batch_size,
             self.__directory.name,
             self.__graph_store._subgraph(edge_types),
-            rank=rank,
             fanout_vals=num_neighbors,
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
@@ -161,32 +159,38 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
         bulk_sampler.flush()
+        self.__input_files = os.listdir(self.__directory.name)
+        self.__input_files.reverse()
 
     def __next__(self):
-        # Quit iterating if there are no batches left
-        if self.__next_batch >= self.__num_batches + self.__starting_batch_id:
-            raise StopIteration
-
         # Load the next set of sampling results if necessary
+        print('batch:', self.__next_batch, self.__end_exclusive)
+        print(self.__input_files)
         if self.__next_batch >= self.__end_exclusive:
+            # Quit iterating if there are no batches left
+            if len(self.__input_files) == 0:
+                raise StopIteration
+
             # Read the next parquet file into memory
             dir_path = (
                 self.__directory
                 if isinstance(self.__directory, str)
                 else self.__directory.name
             )
-            rank_path = os.path.join(dir_path, f"rank={self.__rank}")
 
-            file_end_batch_incl = min(
-                self.__end_exclusive + self.__batches_per_partition - 1,
-                self.__starting_batch_id + self.__num_batches - 1,
-            )
+            fname = self.__input_files.pop()
+            print('fname: ', fname)
+            m = self.__ex_parquet_file.match(fname)
+            if m is None:
+                raise ValueError(f'Invalid parquet filename {fname}')
+
+            self.__next_batch, end_inclusive = [int(g) for g in m.groups()]
+            self.__end_exclusive = end_inclusive + 1
+
             parquet_path = os.path.join(
-                rank_path,
-                f"batch={self.__end_exclusive}" f"-{file_end_batch_incl}.parquet",
-            )
-
-            self.__end_exclusive += self.__batches_per_partition
+                dir_path,
+                fname,
+            )            
 
             columns = {
                 "sources": "int64",

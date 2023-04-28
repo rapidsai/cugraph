@@ -51,7 +51,6 @@ class simpleGraphImpl:
             destination: str,
             edge_attr: Union[cudf.DataFrame, Dict[str, cudf.DataFrame]] = None,
         ):
-            print("edge attr: ", edge_attr)
             self.edgelist_df = cudf.DataFrame()
             self.edgelist_df[simpleGraphImpl.srcCol] = source
             self.edgelist_df[simpleGraphImpl.dstCol] = destination
@@ -255,7 +254,6 @@ class simpleGraphImpl:
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed,
             )
-            print("symmetrized df:\n", value_col)
 
             if isinstance(value_col, cudf.DataFrame):
                 value_dict = {}
@@ -281,9 +279,7 @@ class simpleGraphImpl:
                 else None,
             }
 
-        print("weight name:", weight)
-        print("vc:")
-        print(value_col)
+        
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
         if self.batch_enabled:
