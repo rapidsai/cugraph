@@ -20,6 +20,6 @@ cugraph API Reference
     sampling
     traversal
     tree
-    generator
+    generators
     helper_functions
     dask-cugraph.rst

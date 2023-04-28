@@ -277,13 +277,17 @@ def rmat(
         Number of edges to generate
 
     a : float
-        Probability of the first partition
+        Probability of the edge being in the first partition
+        The Graph 500 spec sets this value to 0.57
 
     b : float
-        Probability of the second partition
+        Probability of the edge being in the second partition
+        The Graph 500 spec sets this value to 0.19
+
 
     c : float
-        Probability of the third partition
+        Probability of the edge being in the third partition
+        The Graph 500 spec sets this value to 0.19
 
     seed : int
         Seed value for the random number generator

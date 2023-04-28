@@ -1,13 +1,9 @@
-<h1 align="center";>
-  <br>
-  <img src="./pg_example.png" alt="cuGraph" width="400">
-</h1>
-<h1 align="left";>
-  <br>
-Property Graph
-</h1>
+# Property Graph
 
 Part of [RAPIDS](https://rapids.ai) cuGraph, Property Graph allows all the great benefits of cuGraph to be applied to property-rich datasets stored in a graph structure. A Property Graph is really a data model rather than a type of graph.  Within the cuGraph ecosystem, a Property Graph is a meta-graph that can encapsulate and instantiate all the other graph types.  That view stems from property graphs being originally created for database systems.  Conceptually a Property Graph can be viewed as a property rich structure that can be projected onto any graph types.  The Dataversity, has a good definition of [Property Graph](https://www.dataversity.net/what-is-a-property-graph) which contains definitions from a collection of resources.
+
+![Sample Property Graph](../images/pg_example.png)
+
 
 Property Graph enables:
 
