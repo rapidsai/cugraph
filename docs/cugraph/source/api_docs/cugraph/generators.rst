@@ -1,6 +1,6 @@
-=========
-Generator
-=========
+==========
+Generators
+==========
 .. currentmodule:: cugraph
 
 
