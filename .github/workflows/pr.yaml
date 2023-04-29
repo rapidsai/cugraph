@@ -86,7 +86,7 @@ jobs:
       extra-repo: rapidsai/cugraph-ops
       extra-repo-sha: branch-23.06
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
-      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/cugraph-ops/"
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/pylibcugraph/cugraph-ops/"
   wheel-tests-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
@@ -110,7 +110,7 @@ jobs:
       extra-repo-sha: branch-23.06
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
       before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 /local-wheelhouse"
-      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/cugraph-ops/"
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/cugraph/cugraph-ops/"
   wheel-tests-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
