@@ -12,71 +12,71 @@ concurrency:
 jobs:
   pr-builder:
     needs:
-      #- checks
-      #- conda-cpp-build
-      #- conda-cpp-tests
-      #- conda-notebook-tests
-      #- conda-python-build
-      #- conda-python-tests
-      #- docs-build
+      - checks
+      - conda-cpp-build
+      - conda-cpp-tests
+      - conda-notebook-tests
+      - conda-python-build
+      - conda-python-tests
+      - docs-build
       - wheel-build-pylibcugraph
       - wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/pr-builder.yaml@py-39
-  #checks:
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/checks.yaml@py-39
-  #  with:
-  #    enable_check_generated_files: false
-  #conda-cpp-build:
-  #  needs: checks
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@py-39
-  #  with:
-  #    build_type: pull-request
-  #    node_type: cpu16
-  #conda-cpp-tests:
-  #  needs: conda-cpp-build
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@py-39
-  #  with:
-  #    build_type: pull-request
-  #conda-python-build:
-  #  needs: conda-cpp-build
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-build.yaml@py-39
-  #  with:
-  #    build_type: pull-request
-  #conda-python-tests:
-  #  needs: conda-python-build
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@py-39
-  #  with:
-  #    build_type: pull-request
-  #conda-notebook-tests:
-  #  needs: conda-python-build
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@py-39
-  #  with:
-  #    build_type: pull-request
-  #    node_type: "gpu-v100-latest-1"
-  #    arch: "amd64"
-  #    container_image: "rapidsai/ci:latest"
-  #    run_script: "ci/test_notebooks.sh"
-  #docs-build:
-  #  needs: conda-python-build
-  #  secrets: inherit
-  #  uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@py-39
-  #  with:
-  #    build_type: pull-request
-  #    node_type: "gpu-v100-latest-1"
-  #    arch: "amd64"
-  #    container_image: "rapidsai/ci:latest"
-  #    run_script: "ci/build_docs.sh"
+  checks:
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/checks.yaml@py-39
+    with:
+      enable_check_generated_files: false
+  conda-cpp-build:
+    needs: checks
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@py-39
+    with:
+      build_type: pull-request
+      node_type: cpu16
+  conda-cpp-tests:
+    needs: conda-cpp-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@py-39
+    with:
+      build_type: pull-request
+  conda-python-build:
+    needs: conda-cpp-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-build.yaml@py-39
+    with:
+      build_type: pull-request
+  conda-python-tests:
+    needs: conda-python-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@py-39
+    with:
+      build_type: pull-request
+  conda-notebook-tests:
+    needs: conda-python-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@py-39
+    with:
+      build_type: pull-request
+      node_type: "gpu-v100-latest-1"
+      arch: "amd64"
+      container_image: "rapidsai/ci:latest"
+      run_script: "ci/test_notebooks.sh"
+  docs-build:
+    needs: conda-python-build
+    secrets: inherit
+    uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@py-39
+    with:
+      build_type: pull-request
+      node_type: "gpu-v100-latest-1"
+      arch: "amd64"
+      container_image: "rapidsai/ci:latest"
+      run_script: "ci/build_docs.sh"
   wheel-build-pylibcugraph:
-    #needs: checks
+    needs: checks
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@manylinux_v2
     with:
