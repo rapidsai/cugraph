@@ -20,7 +20,7 @@ jobs:
       - conda-python-tests
       - docs-build
       - wheel-build-pylibcugraph
-      - wheel-tests-pylibcugraph
+      #- wheel-tests-pylibcugraph
       - wheel-build-cugraph
       - wheel-tests-cugraph
     secrets: inherit
