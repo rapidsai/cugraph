@@ -20,7 +20,6 @@ from cugraph.experimental.datasets import karate
 from cugraph.experimental import BulkSampler
 
 import tempfile
-import os
 
 
 @pytest.mark.mg

@@ -1,14 +1,30 @@
+# Copyright (c) 2023, NVIDIA CORPORATION.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import cudf
 import cupy
 
 from typing import Union, Optional
 
-def _write_samples_to_parquet(results: cudf.DataFrame,
-                               offsets:cudf.DataFrame,
-                               batches_per_partition:int,
-                               output_path:str,
-                               partition_info:Optional[Union[dict, str]]=None) -> None:
+
+def _write_samples_to_parquet(
+    results: cudf.DataFrame,
+    offsets: cudf.DataFrame,
+    batches_per_partition: int,
+    output_path: str,
+    partition_info: Optional[Union[dict, str]] = None,
+) -> None:
     """
     Writes the samples to parquet.
     results: cudf.DataFrame
@@ -29,13 +45,13 @@ def _write_samples_to_parquet(results: cudf.DataFrame,
     # Required by dask; need to skip dummy partitions.
     if partition_info is None:
         return
-    if partition_info != 'sg' and (not isinstance(partition_info, dict)):
-        raise ValueError('Invalid value of partition_info')
+    if partition_info != "sg" and (not isinstance(partition_info, dict)):
+        raise ValueError("Invalid value of partition_info")
 
     max_batch_id = offsets.batch_id.max()
 
     for p in range(0, len(offsets), batches_per_partition):
-        offsets_p = offsets.iloc[p:p+batches_per_partition]
+        offsets_p = offsets.iloc[p : p + batches_per_partition]
         start_batch_id = offsets_p.batch_id.iloc[0]
         end_batch_id = offsets_p.batch_id.iloc[-1]
 
@@ -43,18 +59,25 @@ def _write_samples_to_parquet(results: cudf.DataFrame,
         if end_batch_id == max_batch_id:
             end_ix = len(results)
         else:
-            end_ix = offsets.offsets[offsets.batch_id==(end_batch_id+1)].iloc[0]
-        
-        full_output_path = os.path.join(output_path, f'batch={start_batch_id}-{end_batch_id}.parquet')
+            end_ix = offsets.offsets[offsets.batch_id == (end_batch_id + 1)].iloc[0]
+
+        full_output_path = os.path.join(
+            output_path, f"batch={start_batch_id}-{end_batch_id}.parquet"
+        )
         results_p = results.iloc[start_ix:end_ix]
 
-        results_p['batch_id'] = offsets_p.batch_id.repeat(cupy.diff(offsets_p.offsets.values, append=end_ix)).values
+        results_p["batch_id"] = offsets_p.batch_id.repeat(
+            cupy.diff(offsets_p.offsets.values, append=end_ix)
+        ).values
         results_p.to_parquet(full_output_path)
 
-def write_samples(results: cudf.DataFrame,
-                  offsets: cudf.DataFrame,
-                  batches_per_partition: cudf.DataFrame,
-                  output_path: str):
+
+def write_samples(
+    results: cudf.DataFrame,
+    offsets: cudf.DataFrame,
+    batches_per_partition: cudf.DataFrame,
+    output_path: str,
+):
     """
     Writes the samples to parquet.
     results: cudf.DataFrame
@@ -73,13 +96,9 @@ def write_samples(results: cudf.DataFrame,
             offsets,
             batches_per_partition,
             output_path,
-            align_dataframes=False
+            align_dataframes=False,
         ).compute()
     else:
         _write_samples_to_parquet(
-            results,
-            offsets,
-            batches_per_partition,
-            output_path,
-            partition_info='sg'
+            results, offsets, batches_per_partition, output_path, partition_info="sg"
         )

@@ -201,10 +201,12 @@ class EXPERIMENTAL__BulkSampler:
         else:
             sample_fn = cugraph.dask.uniform_neighbor_sample
             self.__sample_call_args["_multiple_clients"] = True
-            self.__sample_call_args["label_to_output_comm_rank"] = (
-                self.__get_label_to_output_comm_rank(min_batch_id, max_batch_id)
+            self.__sample_call_args[
+                "label_to_output_comm_rank"
+            ] = self.__get_label_to_output_comm_rank(min_batch_id, max_batch_id)
+            self.__sample_call_args["label_list"] = cupy.arange(
+                min_batch_id, max_batch_id + 1, dtype="int32"
             )
-            self.__sample_call_args["label_list"] = cupy.arange(min_batch_id, max_batch_id+1, dtype='int32')
 
         samples, offsets = sample_fn(
             self.__graph,
@@ -221,22 +223,22 @@ class EXPERIMENTAL__BulkSampler:
         if self.size > 0:
             self.flush()
 
-
     def __write(
         self,
         samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
         offsets: Union[cudf.DataFrame, dask_cudf.DataFrame],
     ) -> None:
         os.makedirs(self.__output_path, exist_ok=True)
-        write_samples(samples, offsets, self.__batches_per_partition, self.__output_path)
-        
+        write_samples(
+            samples, offsets, self.__batches_per_partition, self.__output_path
+        )
 
     def __get_label_to_output_comm_rank(self, min_batch_id, max_batch_id):
         num_workers = dask_cugraph.get_n_workers()
         num_batches = max_batch_id - min_batch_id + 1
-        z = cupy.zeros(num_batches, dtype='int32')
+        z = cupy.zeros(num_batches, dtype="int32")
         s = cupy.array_split(cupy.arange(num_batches), num_workers)
         for i, t in enumerate(s):
             z[t] = i
-        
+
         return cudf.Series(z)

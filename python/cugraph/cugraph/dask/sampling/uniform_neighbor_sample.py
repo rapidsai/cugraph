@@ -120,10 +120,10 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         df[hop_id_n] = hop_ids
 
         print(
-            f'sources: {sources}\n'
-            f'destinations: {destinations}\n'
-            f'batch: {batch_ids}\n'
-            f'offset: {offsets}\n'
+            f"sources: {sources}\n"
+            f"destinations: {destinations}\n"
+            f"batch: {batch_ids}\n"
+            f"offset: {offsets}\n"
         )
 
         if return_offsets:

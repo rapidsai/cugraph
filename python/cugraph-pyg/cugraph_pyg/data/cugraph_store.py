@@ -439,7 +439,7 @@ class EXPERIMENTAL__CuGraphStore:
                 df,
                 source="src",
                 destination="dst",
-                edge_type='etp',
+                edge_type="etp",
             )
             distributed.get_client().publish_dataset(cugraph_graph=graph)
         else:
@@ -447,7 +447,7 @@ class EXPERIMENTAL__CuGraphStore:
                 df,
                 source="src",
                 destination="dst",
-                edge_type='etp',
+                edge_type="etp",
             )
 
         return graph

@@ -279,7 +279,6 @@ class simpleGraphImpl:
                 else None,
             }
 
-        
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
         if self.batch_enabled:

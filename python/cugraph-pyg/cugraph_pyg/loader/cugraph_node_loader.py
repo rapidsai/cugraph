@@ -30,9 +30,10 @@ from typing import Union, Tuple, Sequence, List
 
 torch_geometric = import_optional("torch_geometric")
 
+
 class EXPERIMENTAL__BulkSampleLoader:
 
-    __ex_parquet_file = re.compile(r'batch=([0-9]+)\-([0-9]+)\.parquet')
+    __ex_parquet_file = re.compile(r"batch=([0-9]+)\-([0-9]+)\.parquet")
 
     def __init__(
         self,
@@ -164,7 +165,7 @@ class EXPERIMENTAL__BulkSampleLoader:
 
     def __next__(self):
         # Load the next set of sampling results if necessary
-        print('batch:', self.__next_batch, self.__end_exclusive)
+        print("batch:", self.__next_batch, self.__end_exclusive)
         print(self.__input_files)
         if self.__next_batch >= self.__end_exclusive:
             # Quit iterating if there are no batches left
@@ -179,10 +180,10 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
             fname = self.__input_files.pop()
-            print('fname: ', fname)
+            print("fname: ", fname)
             m = self.__ex_parquet_file.match(fname)
             if m is None:
-                raise ValueError(f'Invalid parquet filename {fname}')
+                raise ValueError(f"Invalid parquet filename {fname}")
 
             self.__next_batch, end_inclusive = [int(g) for g in m.groups()]
             self.__end_exclusive = end_inclusive + 1
@@ -190,7 +191,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             parquet_path = os.path.join(
                 dir_path,
                 fname,
-            )            
+            )
 
             columns = {
                 "sources": "int64",
