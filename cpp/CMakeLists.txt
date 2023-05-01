@@ -231,6 +231,7 @@ set(CUGRAPH_SOURCES
     src/components/legacy/connectivity.cu
     src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
+    src/generators/generate_bipartite_rmat_edgelist.cu
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
     src/generators/erdos_renyi_generator.cu
