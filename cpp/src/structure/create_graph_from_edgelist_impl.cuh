@@ -355,17 +355,23 @@ create_graph_from_edgelist_impl(
                                                   renumber);
 
     if (graph_properties.is_symmetric) {
-      check_symmetric<vertex_t, store_transposed, multi_gpu>(
-        handle,
-        raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-        raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+      CUGRAPH_EXPECTS(
+        check_symmetric<vertex_t, store_transposed, multi_gpu>(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+        "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
+        "not symmetric.");
     }
 
     if (!graph_properties.is_multigraph) {
-      check_no_parallel_edge(
-        handle,
-        raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-        raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+      CUGRAPH_EXPECTS(
+        check_no_parallel_edge(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge list "
+        "has parallel edges.");
     }
   }
 
@@ -898,17 +904,23 @@ create_graph_from_edgelist_impl(
                                                   renumber);
 
     if (graph_properties.is_symmetric) {
-      check_symmetric<vertex_t, store_transposed, multi_gpu>(
-        handle,
-        raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-        raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+      CUGRAPH_EXPECTS(
+        check_symmetric<vertex_t, store_transposed, multi_gpu>(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+        "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
+        "not symmetric.");
     }
 
     if (!graph_properties.is_multigraph) {
-      check_no_parallel_edge(
-        handle,
-        raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-        raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()));
+      CUGRAPH_EXPECTS(
+        check_no_parallel_edge(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge list "
+        "has parallel edges.");
     }
   }
 
