@@ -199,6 +199,9 @@ using Tests_Node2VecRandomWalks_File =
 using Tests_Node2VecRandomWalks_Rmat =
   Tests_RandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 
+#if 0
+// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
+//         to define and not instantiate these.
 TEST_P(Tests_UniformRandomWalks_File, Initialize_i32_i32_f)
 {
   run_current_test<int32_t, int32_t, float>(
@@ -210,6 +213,7 @@ TEST_P(Tests_UniformRandomWalks_Rmat, Initialize_i32_i32_f)
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 TEST_P(Tests_BiasedRandomWalks_File, Initialize_i32_i32_f)
 {

@@ -243,6 +243,9 @@ TEST_P(Tests_InducedSubgraph_File, CheckInt32Int32FloatTransposeTrue)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
+#if 0
+// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
+//         to define and not instantiate these.
 TEST_P(Tests_InducedSubgraph_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   run_current_test<int32_t, int32_t, float, false>(
@@ -254,6 +257,7 @@ TEST_P(Tests_InducedSubgraph_Rmat, CheckInt32Int32FloatTransposeTrue)
   run_current_test<int32_t, int32_t, float, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
   karate_test,
