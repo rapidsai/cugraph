@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -553,23 +553,19 @@ template <typename T>
 struct invalid_idx<
   T,
   typename std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value>>
-  : std::integral_constant<T, -1> {
-};
+  : std::integral_constant<T, -1> {};
 
 template <typename T>
 struct invalid_idx<
   T,
   typename std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value>>
-  : std::integral_constant<T, std::numeric_limits<T>::max()> {
-};
+  : std::integral_constant<T, std::numeric_limits<T>::max()> {};
 
 template <typename vertex_t>
-struct invalid_vertex_id : invalid_idx<vertex_t> {
-};
+struct invalid_vertex_id : invalid_idx<vertex_t> {};
 
 template <typename edge_t>
-struct invalid_edge_id : invalid_idx<edge_t> {
-};
+struct invalid_edge_id : invalid_idx<edge_t> {};
 
 }  // namespace legacy
 }  // namespace cugraph

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -199,9 +199,8 @@ template <typename edge_t,
 std::tuple<
   rmm::device_uvector<edge_t>,
   rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>,
-  decltype(
-    allocate_dataframe_buffer<typename thrust::iterator_traits<EdgeValueIterator>::value_type>(
-      size_t{0}, rmm::cuda_stream_view{})),
+  decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<
+             EdgeValueIterator>::value_type>(size_t{0}, rmm::cuda_stream_view{})),
   std::optional<rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>>>
 compress_edgelist(
   VertexIterator edgelist_src_first,

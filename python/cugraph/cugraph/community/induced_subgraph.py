@@ -53,7 +53,7 @@ def ensure_valid_dtype(input_graph: Graph, input: cudf.Series, input_name: str):
 
 
 def induced_subgraph(
-    G: Graph,
+    G: Union[Graph, "networkx.Graph"],
     vertices: Union[cudf.Series, cudf.DataFrame],
     offsets: Union[list, cudf.Series] = None,
 ) -> Tuple[Union[Graph, "networkx.Graph"], cudf.Series]:

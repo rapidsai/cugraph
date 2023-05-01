@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ struct graph_mask_view_t {
   ~graph_mask_view_t()                            = default;
   graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
 
-  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept = default;
+  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept   = default;
   graph_mask_view_t& operator=(graph_mask_view_t const& other) = default;
 
   /**
@@ -231,7 +231,7 @@ struct graph_mask_t {
   {
   }
 
-  graph_mask_t& operator=(graph_mask_t&&) noexcept = default;
+  graph_mask_t& operator=(graph_mask_t&&) noexcept   = default;
   graph_mask_t& operator=(graph_mask_t const& other) = default;
 
   /**
