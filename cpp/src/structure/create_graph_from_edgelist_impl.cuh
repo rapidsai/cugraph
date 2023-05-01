@@ -356,10 +356,10 @@ create_graph_from_edgelist_impl(
 
     if (graph_properties.is_symmetric) {
       CUGRAPH_EXPECTS(
-        check_symmetric<vertex_t, store_transposed, multi_gpu>(
+        (check_symmetric<vertex_t, store_transposed, multi_gpu>(
           handle,
           raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()))),
         "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
         "not symmetric.");
     }
@@ -905,10 +905,10 @@ create_graph_from_edgelist_impl(
 
     if (graph_properties.is_symmetric) {
       CUGRAPH_EXPECTS(
-        check_symmetric<vertex_t, store_transposed, multi_gpu>(
+        (check_symmetric<vertex_t, store_transposed, multi_gpu>(
           handle,
           raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()))),
         "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
         "not symmetric.");
     }
