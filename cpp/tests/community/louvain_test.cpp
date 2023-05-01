@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -383,6 +383,9 @@ TEST_P(Tests_Louvain_File64, CheckInt64Int64FloatFloat)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
+#if 0
+// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
+//         to define and not instantiate these.
 TEST_P(Tests_Louvain_Rmat, CheckInt32Int32FloatFloatLegacy)
 {
   run_legacy_test<int32_t, int32_t, float, float>(
@@ -400,6 +403,7 @@ TEST_P(Tests_Louvain_Rmat, CheckInt64Int64FloatFloat)
   run_current_test<int64_t, int64_t, float, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 TEST_P(Tests_Louvain_Rmat32, CheckInt32Int32FloatFloat)
 {
