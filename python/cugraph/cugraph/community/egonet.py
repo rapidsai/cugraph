@@ -18,6 +18,7 @@ from cugraph.utilities import (
 from cugraph.utilities import cugraph_to_nx
 
 import cudf
+import cupy
 
 from pylibcugraph import ego_graph as pylibcugraph_ego_graph
 
@@ -132,13 +133,14 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     df = cudf.DataFrame()
     df["src"] = source
     df["dst"] = destination
-    df["weight"] = weight
+    if weight is not None:
+        df["weight"] = weight
 
     if G.renumbered:
         df, src_names = G.unrenumber(df, "src", get_column_names=True)
         df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
     else:
-        # FIXME: THe original 'src' and 'dst' are not stored in 'simpleGraph'
+        # FIXME: The original 'src' and 'dst' are not stored in 'simpleGraph'
         src_names = "src"
         dst_names = "dst"
 

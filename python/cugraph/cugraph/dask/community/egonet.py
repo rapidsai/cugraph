@@ -18,6 +18,7 @@ from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import cupy
 from cugraph.dask.common.input_utils import get_distributed_data
 
 from pylibcugraph import ResourceHandle, ego_graph as pylibcugraph_ego_graph
@@ -63,10 +64,15 @@ def consolidate_results(df, offsets):
 def convert_to_cudf(cp_arrays):
     cp_src, cp_dst, cp_weight, cp_offsets = cp_arrays
 
+    print(cp_weight)
+
     df = cudf.DataFrame()
     df["src"] = cp_src
     df["dst"] = cp_dst
-    df["weight"] = cp_weight
+    if cp_weight is None:
+        df['weight'] = None
+    else:
+        df["weight"] = cp_weight
 
     offsets = cudf.Series(cp_offsets)
 
@@ -180,4 +186,5 @@ def ego_graph(input_graph, n, radius=1, center=True):
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
 
+    print(ddf.compute())
     return ddf, offsets
