@@ -1,4 +1,4 @@
 CuGraph C and C++ API Links
 ===========================
 
-`CuGraph C and C++ API <../basics/coming_soon.md>`_
+coming soon - see https://docs.rapids.ai/api/libcugraph/nightly/
