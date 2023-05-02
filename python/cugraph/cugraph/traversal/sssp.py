@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import numpy as np
-import warnings
 
 import cudf
 from cugraph.structure import Graph, MultiGraph
@@ -217,11 +216,11 @@ def sssp(
     )
 
     if not G.edgelist.weights:
-        warning_msg = (
-            "'SSSP' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release."
+        err_msg = (
+            "'SSSP' requires the input graph to be weighted."
+            "'BFS' should be used instead of 'SSSP' for unweighted graphs."
         )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
+        raise RuntimeError(err_msg)
 
     if not G.has_node(source):
         raise ValueError("Graph does not contain source vertex")
