@@ -58,7 +58,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_hypersparse(
+__global__ void transform_reduce_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -137,7 +137,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_low_degree(
+__global__ void transform_reduce_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -216,7 +216,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_mid_degree(
+__global__ void transform_reduce_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -282,7 +282,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_high_degree(
+__global__ void transform_reduce_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -457,7 +457,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                           detail::transform_reduce_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_high_degree<GraphViewType>
+        detail::transform_reduce_e_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
@@ -472,7 +472,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                          detail::transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_mid_degree<GraphViewType>
+        detail::transform_reduce_e_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -487,7 +487,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_low_degree<GraphViewType>
+        detail::transform_reduce_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -502,7 +502,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_hypersparse<GraphViewType>
+        detail::transform_reduce_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_src_value_input,
@@ -517,7 +517,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 
-        detail::trasnform_reduce_e_low_degree<GraphViewType>
+        detail::transform_reduce_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
