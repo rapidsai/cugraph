@@ -42,7 +42,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 trim(raft::handle_t const& handle,
-       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+       cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
        std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
        bool do_expensive_check)
 {
