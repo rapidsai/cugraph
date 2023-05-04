@@ -32,6 +32,7 @@ build:
     - SCCACHE_S3_KEY_PREFIX=cugraph-aarch64 # [aarch64]
     - SCCACHE_S3_KEY_PREFIX=cugraph-linux64 # [linux64]
     - SCCACHE_S3_USE_SSL
+    - SCCACHE_S3_NO_CREDENTIALS
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
 
