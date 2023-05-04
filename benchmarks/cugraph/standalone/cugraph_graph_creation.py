@@ -14,6 +14,7 @@
 from cugraph.testing.mg_utils import (
     generate_edgelist_rmat,
     get_allocation_counts_dask_persist,
+    get_allocation_counts_dask_lazy,
     sizeof_fmt,
     get_peak_output_ratio_across_workers,
     restart_client,
@@ -24,12 +25,14 @@ from cugraph.testing.mg_utils import (
     stop_dask_client,
     enable_spilling,
 )
+from cugraph.structure.symmetrize import symmetrize_ddf
+
 import cugraph
 from time import sleep
 import pandas as pd
 
 
-@get_allocation_counts_dask_persist(return_allocations=True, logging=False)
+@get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
 def construct_graph(dask_dataframe, directed=False, renumber=False):
     """
     Args:
@@ -48,6 +51,40 @@ def construct_graph(dask_dataframe, directed=False, renumber=False):
         dask_dataframe, source="src", destination="dst", renumber=renumber
     )
     return G
+
+@get_allocation_counts_dask_persist(return_allocations=True, logging=True)
+def symmetrize_cugraph_df(dask_df, multi=False):
+    output_df = symmetrize_ddf(dask_df, "src", "dst", multi=multi)
+    return output_df
+
+def benchmark_cugraph_graph_symmetrize(scale, edgefactor, seed, multi):
+    """
+        Benchmark cugraph graph symmetrization
+    """
+    dask_df = generate_edgelist_rmat(scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True)
+    dask_df = dask_df.astype("int64")
+    dask_df = dask_df.reset_index(drop=True)
+    input_memory = dask_df.memory_usage().sum().compute()
+    num_input_edges = len(dask_df)
+    print(f"Number of input edges = {num_input_edges:,}, multi = {multi}")
+    output_df, allocation_counts = symmetrize_cugraph_df(dask_df, multi=multi)
+    (
+        input_to_peak_ratio,
+        output_to_peak_ratio,
+        input_memory_per_worker,
+        peak_allocation_across_workers,
+    ) = get_memory_statistics(
+        allocation_counts=allocation_counts, input_memory=input_memory
+    )
+    print(f"Number of edges after symmetrization = {len(output_df):,}")
+    print("-" * 80)
+    return (
+        num_input_edges,
+        input_to_peak_ratio,
+        output_to_peak_ratio,
+        input_memory_per_worker,
+        peak_allocation_across_workers,
+    )
 
 
 def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber):
@@ -109,15 +146,16 @@ def get_memory_statistics(allocation_counts, input_memory):
         peak_allocation_across_workers,
     )
 
-# call __main__ function
+
+#call __main__ function
 if __name__ == "__main__":
     client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False)
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    for scale in [22, 23, 24]:
-        for directed in [True, False]:
-            for renumber in [True, False]:
+    for scale in [24]:
+        for directed in [False]:
+            for renumber in [True]:
                 try:
                     stats_d = {}
                     (

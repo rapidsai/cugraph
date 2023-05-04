@@ -37,6 +37,7 @@ from pylibcugraph import (
     select_random_vertices as pylibcugraph_select_random_vertices,
 )
 import cugraph.dask.comms.comms as Comms
+from distributed import futures_of
 
 
 class simpleDistributedGraphImpl:
@@ -268,16 +269,20 @@ class simpleDistributedGraphImpl:
             dst_col_name = self.renumber_map.renumbered_dst_col_name
 
         ddf = self.edgelist.edgelist_df
-
+        _client = default_client()
+        workers = _client.scheduler_info()["workers"]
+        ddf = ddf.repartition(npartitions=len(workers))
+        # ddf = ddf.persist()
+        # wait(ddf)
         num_edges = len(ddf)
-        edge_data = get_distributed_data(ddf)
-
+        self._number_of_edges = num_edges
+        edge_data = {w: futures_of(ddf.partitions[i]) for i, w in enumerate(workers)}
+        self.edgelist.edgelist_df = ddf
+        del ddf
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
-
-        _client = default_client()
         self._plc_graph = {
             w: _client.submit(
                 simpleDistributedGraphImpl._make_plc_graph,
@@ -290,9 +295,8 @@ class simpleDistributedGraphImpl:
                 num_edges,
                 workers=[w],
             )
-            for w, edata in edge_data.worker_to_parts.items()
+            for w, edata in edge_data.items()
         }
-
         wait(self._plc_graph)
 
     @property
@@ -391,7 +395,7 @@ class simpleDistributedGraphImpl:
         Get the number of edges in the graph.
         """
         if self.edgelist is not None:
-            return len(self.edgelist.edgelist_df)
+            return self._number_of_edges
         else:
             raise RuntimeError("Graph is Empty")
 

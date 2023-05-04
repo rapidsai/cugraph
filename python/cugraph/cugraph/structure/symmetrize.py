@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -77,13 +77,7 @@ def symmetrize_df(
         weight_name = [weight_name]
 
     if symmetrize:
-        if weight_name:
-            df2 = df[[*dst_name, *src_name, *weight_name]]
-            df2.columns = [*src_name, *dst_name, *weight_name]
-        else:
-            df2 = df[[*dst_name, *src_name]]
-            df2.columns = [*src_name, *dst_name]
-        result = cudf.concat([df, df2]).reset_index(drop=True)
+        result = _add_reverse_edges(df, src_name, dst_name, weight_name)
     else:
         result = df
     if multi:
@@ -164,29 +158,14 @@ def symmetrize_ddf(
         weight_name = [weight_name]
 
     if symmetrize:
-        if weight_name:
-            ddf2 = ddf[[*dst_name, *src_name, *weight_name]]
-            ddf2.columns = [*src_name, *dst_name, *weight_name]
-        else:
-            ddf2 = ddf[[*dst_name, *src_name]]
-            ddf2.columns = [*src_name, *dst_name]
-        result = dask_cudf.concat([ddf, ddf2]).reset_index(drop=True)
+        result = ddf.map_partitions(_add_reverse_edges, src_name, dst_name, weight_name)
     else:
         result = ddf
     if multi:
-        # The concat call doubles the number of partitions therefore,
-        # repartition the result so that the number of partitions equals
-        # the number of workers
-        result = result.repartition(npartitions=ddf.npartitions)
         return result
     else:
         vertex_col_name = src_name + dst_name
-        result = (
-            result.groupby(by=[*vertex_col_name])
-            .min(split_out=ddf.npartitions)
-            .reset_index()
-        )
-
+        result = _memory_efficient_drop_duplicates(result, vertex_col_name)
         return result
 
 
@@ -283,3 +262,41 @@ def symmetrize(
             )
 
     return output_df[source_col_name], output_df[dest_col_name]
+
+
+def _add_reverse_edges(df, src_name, dst_name, weight_name):
+    """
+    Add reverse edges to the input dataframe.
+    args:
+        df: cudf.DataFrame or dask_cudf.DataFrame
+        src_name: str
+            source column name
+        dst_name: str
+            destination column name
+        weight_name: str
+            weight column name
+    """
+    if weight_name:
+        reverse_df = df[[*dst_name, *src_name, *weight_name]]
+        reverse_df.columns = [*src_name, *dst_name, *weight_name]
+    else:
+        reverse_df = df[[*dst_name, *src_name]]
+        reverse_df.columns = [*src_name, *dst_name]
+    return cudf.concat([df, reverse_df], ignore_index=True)
+
+
+def _memory_efficient_drop_duplicates(ddf, vertex_col_name):
+    """
+    Drop duplicate edges from the input dataframe.
+    """
+    input_partitions = ddf.npartitions
+    ddf = ddf.repartition(npartitions=input_partitions * 8)
+    ddf = ddf.drop_duplicates(
+        subset=[*vertex_col_name],
+        ignore_index=True,
+        split_out=ddf.npartitions,
+        split_every=2,
+    )
+    ddf = ddf.repartition(npartitions=input_partitions)
+    ddf = ddf.reset_index(drop=True)
+    return ddf
