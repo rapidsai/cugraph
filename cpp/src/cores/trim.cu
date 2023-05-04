@@ -46,11 +46,6 @@ trim(raft::handle_t const& handle,
        std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
        bool do_expensive_check)
 {
-    //std::optional<graph_t<vertex_t, edge_t, false, multi_gpu>> modified_graph{std::nullopt};
-    //std::optional<graph_view_t<vertex_t, edge_t, false, multi_gpu>> modified_graph_view{std::nullopt};
-    //std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-    //auto vertex_partition_range_lasts =
-    //     std::make_optional<std::vector<vertex_t>>(graph_view.vertex_partition_range_lasts());
 
     rmm::device_uvector<edge_t> core_numbers(graph_view.number_of_vertices(), handle.get_stream());
 
@@ -76,19 +71,18 @@ trim(raft::handle_t const& handle,
     update_edge_dst_property(
       handle, graph_view, out_one_core_flags.begin(), edge_dst_out_one_cores);
 
-    rmm::device_uvector<size_t> subgraph_offsets_out(2, handle.get_stream());
+    rmm::device_uvector<size_t> d_subgraph_offsets_out(2, handle.get_stream());
     std::vector<size_t> h_subgraph_offsets_out{{0, out_one_core_flags.size()}};
-    raft::update_device(subgraph_offsets_out.data(),
+    raft::update_device(d_subgraph_offsets_out.data(),
                       h_subgraph_offsets_out.data(),
                       h_subgraph_offsets_out.size(),
                       handle.get_stream());
-    handle.sync_stream();
 
     auto [src, dst, wgt, offsets] = extract_induced_subgraphs(
     handle,
     graph_view,
     edge_weight_view,
-    raft::device_span<size_t const>{subgraph_offsets_out.data(), subgraph_offsets_out.size()},
+    raft::device_span<size_t const>{d_subgraph_offsets_out.data(), d_subgraph_offsets_out.size()},
     raft::device_span<vertex_t const>{out_one_core_flags.data(), out_one_core_flags.size()},
     do_expensive_check);
 
