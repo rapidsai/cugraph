@@ -26,8 +26,8 @@
 
 <div align="center">
 
-[Getting cuGraph](./readme_pages/getting_cugraph.md) *
-[Graph Algorithms](./readme_pages/algorithms.md) *
+[Getting cuGraph](./docs/cugraph/source/installation/getting_cugraph.md) *
+[Graph Algorithms](./docs/cugraph/source/graph_support/algorithms.md) *
 [Graph Service](./readme_pages/cugraph_service.md) *
 [Property Graph](./readme_pages/property_graph.md) *
 [GNN Support](./readme_pages/gnn_support.md)
@@ -37,8 +37,9 @@
 -----
 
 ## Table of content
-- Getting packages
-  - [Getting cuGraph Packages](./readme_pages/getting_cugraph.md)
+- Installation
+  - [Getting cuGraph Packages](./docs/cugraph/source/installation/getting_cugraph.md)
+  - [Building from Source](./docs/cugraph/source/installation/source_build.md)
   - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
 - General
   - [Latest News](./readme_pages/news.md)
