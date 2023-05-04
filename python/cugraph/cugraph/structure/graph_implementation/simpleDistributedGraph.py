@@ -272,8 +272,6 @@ class simpleDistributedGraphImpl:
         _client = default_client()
         workers = _client.scheduler_info()["workers"]
         ddf = ddf.repartition(npartitions=len(workers))
-        # ddf = ddf.persist()
-        # wait(ddf)
         num_edges = len(ddf)
         self._number_of_edges = num_edges
         edge_data = {w: futures_of(ddf.partitions[i]) for i, w in enumerate(workers)}
