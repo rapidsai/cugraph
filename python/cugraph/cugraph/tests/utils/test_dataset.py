@@ -12,20 +12,24 @@
 # limitations under the License.
 
 
-import pytest
 import yaml
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+
+import pytest
+from cudf.testing.testing import assert_frame_equal
+
 from cugraph.experimental.datasets import ALL_DATASETS, ALL_DATASETS_WGT, SMALL_DATASETS
 from cugraph.structure import Graph
+from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
 
+# Add the sg marker to all tests in this module.
+pytestmark = pytest.mark.sg
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
-
-dataset_path = Path(__file__).parents[4] / "datasets"
 
 
 # Use this to simulate a fresh API import
@@ -64,7 +68,6 @@ def create_config(custom_path="custom_storage_location"):
 
 
 # setting download_dir to None effectively re-initialized the default
-@pytest.mark.sg
 def test_env_var(datasets):
     os.environ["RAPIDS_DATASET_ROOT_DIR"] = "custom_storage_location"
     datasets.set_download_dir(None)
@@ -75,7 +78,6 @@ def test_env_var(datasets):
     del os.environ["RAPIDS_DATASET_ROOT_DIR"]
 
 
-@pytest.mark.sg
 def test_home_dir(datasets):
     datasets.set_download_dir(None)
     expected_path = Path.home() / ".cugraph/datasets"
@@ -83,7 +85,6 @@ def test_home_dir(datasets):
     assert datasets.get_download_dir() == expected_path
 
 
-@pytest.mark.sg
 def test_set_config(datasets):
     cfg = create_config()
     datasets.set_config(cfg.name)
@@ -93,7 +94,6 @@ def test_set_config(datasets):
     cfg.close()
 
 
-@pytest.mark.sg
 def test_set_download_dir(datasets):
     tmpd = TemporaryDirectory()
     datasets.set_download_dir(tmpd.name)
@@ -103,7 +103,6 @@ def test_set_download_dir(datasets):
     tmpd.cleanup()
 
 
-@pytest.mark.sg
 @pytest.mark.skip(
     reason="Timeout errors; see: https://github.com/rapidsai/cugraph/issues/2810"
 )
@@ -122,7 +121,6 @@ def test_load_all(datasets):
     tmpd.cleanup()
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_fetch(dataset, datasets):
     tmpd = TemporaryDirectory()
@@ -137,25 +135,22 @@ def test_fetch(dataset, datasets):
     tmpd.cleanup()
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset, datasets):
-    datasets.set_download_dir(dataset_path)
+    datasets.set_download_dir(RAPIDS_DATASET_ROOT_DIR_PATH)
     E = dataset.get_edgelist(fetch=True)
 
     assert E is not None
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset, datasets):
-    datasets.set_download_dir(dataset_path)
+    datasets.set_download_dir(RAPIDS_DATASET_ROOT_DIR_PATH)
     G = dataset.get_graph(fetch=True)
 
     assert G is not None
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_metadata(dataset):
     M = dataset.metadata
@@ -163,7 +158,6 @@ def test_metadata(dataset):
     assert M is not None
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_path(dataset, datasets):
     tmpd = TemporaryDirectory()
@@ -174,10 +168,9 @@ def test_get_path(dataset, datasets):
     tmpd.cleanup()
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
 def test_weights(dataset, datasets):
-    datasets.set_download_dir(dataset_path)
+    datasets.set_download_dir(RAPIDS_DATASET_ROOT_DIR_PATH)
 
     G_w = dataset.get_graph(fetch=True)
     G = dataset.get_graph(fetch=True, ignore_weights=True)
@@ -186,10 +179,9 @@ def test_weights(dataset, datasets):
     assert not G.is_weighted()
 
 
-@pytest.mark.sg
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset, datasets):
-    datasets.set_download_dir(dataset_path)
+    datasets.set_download_dir(RAPIDS_DATASET_ROOT_DIR_PATH)
 
     G_d = dataset.get_graph()
     G_t = dataset.get_graph(create_using=Graph)
@@ -198,3 +190,54 @@ def test_create_using(dataset, datasets):
     assert not G_d.is_directed()
     assert not G_t.is_directed()
     assert G.is_directed()
+
+
+def test_ctor_with_datafile(datasets):
+    from cugraph.experimental.datasets import karate
+
+    karate_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
+
+    # test that only a metadata file or csv can be specified, not both
+    with pytest.raises(ValueError):
+        datasets.Dataset(metadata_yaml_file="metadata_file", csv_file=karate_csv)
+
+    # ensure at least one arg is provided
+    with pytest.raises(ValueError):
+        datasets.Dataset()
+
+    # ensure csv file has all other required args (col names and col dtypes)
+    with pytest.raises(ValueError):
+        datasets.Dataset(csv_file=karate_csv)
+
+    with pytest.raises(ValueError):
+        datasets.Dataset(csv_file=karate_csv, csv_col_names=["src", "dst", "wgt"])
+
+    # test with file that DNE
+    with pytest.raises(FileNotFoundError):
+        datasets.Dataset(
+            csv_file="/some/file/that/does/not/exist",
+            csv_col_names=["src", "dst", "wgt"],
+            csv_col_dtypes=["int32", "int32", "float32"],
+        )
+
+    expected_karate_edgelist = karate.get_edgelist()
+
+    # test with file path as string, ensure fetch=True does not break
+    ds = datasets.Dataset(
+        csv_file=karate_csv.as_posix(),
+        csv_col_names=["src", "dst", "wgt"],
+        csv_col_dtypes=["int32", "int32", "float32"],
+    )
+    assert_frame_equal(ds.get_edgelist(fetch=True), expected_karate_edgelist)
+    assert str(ds) == "karate"
+    assert ds.get_path() == karate_csv
+
+    # test with file path as Path object
+    ds = datasets.Dataset(
+        csv_file=karate_csv,
+        csv_col_names=["src", "dst", "wgt"],
+        csv_col_dtypes=["int32", "int32", "float32"],
+    )
+    assert_frame_equal(ds.get_edgelist(), expected_karate_edgelist)
+    assert str(ds) == "karate"
+    assert ds.get_path() == karate_csv

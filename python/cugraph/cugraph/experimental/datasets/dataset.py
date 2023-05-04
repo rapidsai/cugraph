@@ -70,27 +70,63 @@ class Dataset:
         properties
     """
 
-    def __init__(self, meta_data_file_name):
-        with open(meta_data_file_name, "r") as file:
-            self.metadata = yaml.safe_load(file)
-
-        self._metadata_file = Path(meta_data_file_name)
+    def __init__(
+        self,
+        metadata_yaml_file=None,
+        csv_file=None,
+        csv_header=None,
+        csv_delim=" ",
+        csv_col_names=None,
+        csv_col_dtypes=None,
+    ):
+        self._metadata_file = None
         self._dl_path = default_download_dir
         self._edgelist = None
         self._graph = None
         self._path = None
-        """
-        self._path = self._dl_path.path / (self.metadata['name'] +
-                                           self.metadata['file_type'])
-        """
+
+        if metadata_yaml_file is not None and csv_file is not None:
+            raise ValueError("cannot specify both metadata_yaml_file and csv_file")
+
+        elif metadata_yaml_file is not None:
+            with open(metadata_yaml_file, "r") as file:
+                self.metadata = yaml.safe_load(file)
+                self._metadata_file = Path(metadata_yaml_file)
+
+        elif csv_file is not None:
+            if csv_col_names is None or csv_col_dtypes is None:
+                raise ValueError(
+                    "csv_col_names and csv_col_dtypes must both be "
+                    "not None when csv_file is specified."
+                )
+            self._path = Path(csv_file)
+            if self._path.exists() is False:
+                raise FileNotFoundError(csv_file)
+            self.metadata = {
+                "name": self._path.with_suffix("").name,
+                "file_type": ".csv",
+                "url": None,
+                "header": csv_header,
+                "delim": csv_delim,
+                "col_names": csv_col_names,
+                "col_types": csv_col_dtypes,
+            }
+
+        else:
+            raise ValueError("must specify either metadata_yaml_file or csv_file")
 
     def __str__(self):
         """
         Use the basename of the meta_data_file the instance was constructed with,
         without any extension, as the string repr.
         """
+        # The metadata file is likely to have a more descriptive file name, so
+        # use that one first if present.
         # FIXME: this may need to provide a more unique or descriptive string repr
-        return self._metadata_file.with_suffix("").name
+        if self._metadata_file is not None:
+            return self._metadata_file.with_suffix("").name
+        else:
+            return self.get_path().with_suffix("").name
 
     def __download_csv(self, url):
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
@@ -194,9 +230,10 @@ class Dataset:
         """
         Returns the location of the stored dataset file
         """
-        self._path = self._dl_path.path / (
-            self.metadata["name"] + self.metadata["file_type"]
-        )
+        if self._path is None:
+            self._path = self._dl_path.path / (
+                self.metadata["name"] + self.metadata["file_type"]
+            )
 
         return self._path.absolute()
 
