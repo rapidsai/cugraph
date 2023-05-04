@@ -32,7 +32,7 @@ from time import sleep
 import pandas as pd
 
 
-@get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
+@get_allocation_counts_dask_persist(return_allocations=True, logging=True)
 def construct_graph(dask_dataframe, directed=False, renumber=False):
     """
     Args:
@@ -153,9 +153,9 @@ if __name__ == "__main__":
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    for scale in [24]:
-        for directed in [False]:
-            for renumber in [True]:
+    for scale in [22,23,24,25]:
+        for directed in [True, False]:
+            for renumber in [True, False]:
                 try:
                     stats_d = {}
                     (
