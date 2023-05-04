@@ -21,6 +21,23 @@ def pytest_addoption(parser):
                      "since it does not represent a typical use case, and support for "
                      "this may be limited. Instead, consider multiple pytest runs that "
                      "use a fixed set of RMM settings.")
+    parser.addoption("--rmat-scale",
+                     action="store",
+                     type=int,
+                     default=8,
+                     metavar="scale",
+                     help="For use when using synthetic graph data generated using RMAT. "
+                     "This results in a graph with 2^scale vertices. Default is "
+                     "%(default)s.")
+    parser.addoption("--rmat-edgefactor",
+                     action="store",
+                     type=int,
+                     default=16,
+                     metavar="edgefactor",
+                     help="For use when using synthetic graph data generated using RMAT. "
+                     "This results in a graph with (2^scale)*edgefactor edges. Default "
+                     "is %(default)s.")
+
 
 
 def pytest_sessionstart(session):

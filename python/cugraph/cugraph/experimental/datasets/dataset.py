@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,6 +74,7 @@ class Dataset:
         with open(meta_data_file_name, "r") as file:
             self.metadata = yaml.safe_load(file)
 
+        self._metadata_file = Path(meta_data_file_name)
         self._dl_path = default_download_dir
         self._edgelist = None
         self._graph = None
@@ -82,6 +83,14 @@ class Dataset:
         self._path = self._dl_path.path / (self.metadata['name'] +
                                            self.metadata['file_type'])
         """
+
+    def __str__(self):
+        """
+        Use the basename of the meta_data_file the instance was constructed with,
+        without any extension, as the string repr.
+        """
+        # FIXME: this may need to provide a more unique or descriptive string repr
+        return self._metadata_file.with_suffix("").name
 
     def __download_csv(self, url):
         self._dl_path.path.mkdir(parents=True, exist_ok=True)

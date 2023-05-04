@@ -15,13 +15,13 @@ from pathlib import Path
 
 import pytest
 
-from cugraph.testing import utils
 from pylibcugraph.testing.utils import gen_fixture_params
+from cugraph.testing import utils
+from cugraph.experimental.datasets import karate
 
 
-# FIXME: omitting soc-twitter-2010.csv due to OOM error on some workstations.
 undirected_datasets = [
-    pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv",
+    pytest.param(karate,
                  marks=[pytest.mark.tiny, pytest.mark.undirected]),
     pytest.param(Path(utils.RAPIDS_DATASET_ROOT_DIR) / "csv/undirected/hollywood.csv",
                  marks=[pytest.mark.small, pytest.mark.undirected]),
