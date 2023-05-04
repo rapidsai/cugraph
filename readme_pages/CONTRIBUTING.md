@@ -72,13 +72,14 @@ If you need more context on a particular issue, please ask.
 2. Read the RAPIDS [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
 3. Find or submit an issue to work on (include a comment that you are working issue)
 4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
-5. When done, and code passes local CI, create your pull request (PR)
+5. All RAPIDS projects are released under the Apache-2.0 license, so also make sure all source files that support comments include a copyright and the Apache-2.0 license text.
+6. When done, and code passes local CI, create your pull request (PR)
    1. Update the CHANGELOG.md with PR number - see [Changelog formatting](https://docs.rapids.ai/resources/changelog/)
    2. Ensure that the PR has the proper [tags](./PRTAGS.md)
    3. Ensure the code matches out [style guide](https://docs.rapids.ai/resources/style/)
-6. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
-7. Wait for other developers to review your code and update code as needed
-8. Once reviewed and approved, a RAPIDS developer will merge your pull request
+7. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
+8. Wait for other developers to review your code and update code as needed
+9. Once reviewed and approved, a RAPIDS developer will merge your pull request
 
 Remember, if you are unsure about anything, don't hesitate to comment on issues
 and ask for clarifications!
