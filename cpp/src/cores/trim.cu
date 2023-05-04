@@ -1,8 +1,5 @@
 #pragma once
 
-#include <thrust/copy.h>
-#include <thrust/iterator/discard_iterator.h>
-//#include <prims/extract_transform_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
@@ -12,6 +9,8 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <thrust/copy.h>
+#include <thrust/iterator/discard_iterator.h>
 
 
 namespace cugraph {
@@ -19,11 +18,11 @@ template <typename vertex_t>
 struct extract_one_core_t {
   __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
                                                                             vertex_t dst,
-                                                                            uint8_t src_one_core,
-                                                                            uint8_t dst_one_core,
+                                                                            bool src_one_core,
+                                                                            bool dst_one_core,
                                                                             thrust::nullopt_t) const
   {
-    return (src_one_core == uint8_t{1}) && (dst_one_core == uint8_t{1})
+    return (src_one_core ==  true) && (dst_one_core == true)
              ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
              : thrust::nullopt;
   }
@@ -31,9 +30,9 @@ struct extract_one_core_t {
 
 template <typename edge_t>
 struct is_one_or_greater_t {
-  __device__ uint8_t operator()(edge_t core_number) const
+  __device__ bool operator()(edge_t core_number) const
   {
-    return core_number >= edge_t{1} ? uint8_t{1} : uint8_t{0};
+    return core_number >= edge_t{1} ? true : false;
   }
 };
 
