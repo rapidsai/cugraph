@@ -85,21 +85,24 @@ trim(raft::handle_t const& handle,
     raft::device_span<vertex_t const>{out_one_core_flags.data(), out_one_core_flags.size()},
     do_expensive_check);
 
+
     // in degree 1 core
     core_number(
       handle, graph_view, core_numbers.data(), k_core_degree_type_t::IN, size_t{1}, size_t{1});
 
-    edge_src_property_t<decltype(graph_view), uint8_t> edge_src_in_one_cores(handle,
-                                                                                 graph_view);
-    edge_dst_property_t<decltype(graph_view), uint8_t> edge_dst_in_one_cores(handle,
-                                                                                 graph_view);
-    auto in_one_core_first =
+   auto in_one_core_first =
       thrust::make_transform_iterator(core_numbers.begin(), is_one_or_greater_t<edge_t>{});
     rmm::device_uvector<uint8_t> in_one_core_flags(core_numbers.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  in_one_core_first,
                  in_one_core_first + core_numbers.size(),
                  in_one_core_flags.begin());
+
+    edge_src_property_t<decltype(graph_view), uint8_t> edge_src_in_one_cores(handle,
+                                                                                 graph_view);
+    edge_dst_property_t<decltype(graph_view), uint8_t> edge_dst_in_one_cores(handle,
+                                                                                 graph_view);
+ 
     update_edge_src_property(
       handle, graph_view, in_one_core_flags.begin(), edge_src_in_one_cores);
     update_edge_dst_property(
@@ -110,7 +113,6 @@ trim(raft::handle_t const& handle,
                       h_subgraph_offsets_in.data(),
                       h_subgraph_offsets_in.size(),
                       handle.get_stream());
-    handle.sync_stream();
 
    
     auto [src_, dst_, wgt_, offsets_] = extract_induced_subgraphs(
