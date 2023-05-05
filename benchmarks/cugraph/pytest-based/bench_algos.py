@@ -29,12 +29,14 @@ except ImportError:
     def setFixtureParamNames(*args, **kwargs):
         pass
 
+import rmm
+from pylibcugraph.testing import gen_fixture_params_product
+
 import cugraph
 from cugraph.structure.number_map import NumberMap
+from cugraph.generators import rmat
 from cugraph.testing import utils
-from pylibcugraph.testing import gen_fixture_params_product
 from cugraph.utilities.utils import is_device_version_less_than
-import rmm
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -45,19 +47,48 @@ from cugraph_benchmarking.params import (
 
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
-    def __init__(self, scale=8, edgefactor=16):
+    def __init__(self, scale=4, edgefactor=8):
         self.scale = scale
         self.edgefactor = edgefactor
+        self._df = None
+        self._graph = None
+
+    def unload(self):
+        self._df = None
+        self._graph = None
 
     def __str__(self):
         return f"rmat_{self.scale}_{self.edgefactor}"
 
     def get_edgelist(self, fetch=False):
-        pass
+        if self._df is None:
+            self._df = rmat(
+                self.scale,
+                (2**self.scale)*self.edgefactor,
+                0.57,  # from Graph500
+                0.19,  # from Graph500
+                0.19,  # from Graph500
+                seed or 42,
+                clip_and_flip=False,
+                scramble_vertex_ids=True,
+                create_using=None,  # return edgelist instead of Graph instance
+                mg=False
+            )
+            rng = np.random.default_rng(seed)
+            self._df["weight"] = rng.random(size=len(self._df))
+
+        return self._df
+
     def get_graph(self, fetch=False, create_using=cugraph.Graph, ignore_weights=False):
-        pass
+        if self._graph is None:
+            df = self.get_edgelist()
+            self._graph = cugraph.Graph(directed=True)
+            self._graph.from_cudf_edgelist(
+                df, source="src", destination="dst", weight="weight")
+
     def get_path(self):
-        pass
+        return str(self)
+
 
 rmat_dataset = pytest.param(RmatDataset(), marks=[pytest.rmat])
 
@@ -65,37 +96,6 @@ fixture_params = gen_fixture_params_product(
     (directed_datasets + undirected_datasets + [rmat_dataset], "ds"),
     (managed_memory, "mm"),
     (pool_allocator, "pa"))
-
-###############################################################################
-# Helpers
-#def createGraph(csvFileName, graphType=None):
-#    """
-#    Helper function to create a Graph (directed or undirected) based on
-#    csvFileName.
-#    """
-#    if graphType is None:
-#        # There's potential value in verifying that a directed graph can be
-#        # created from a undirected dataset, and an undirected from a directed
-#        # dataset. (For now?) do not include those combinations to keep
-#        # benchmark runtime and complexity lower, and assume tests have
-#        # coverage to verify correctness for those combinations.
-#        if "directed" in csvFileName.parts:
-#            graphType = cugraph.Graph(directed=True)
-#        else:
-#            graphType = cugraph.Graph()
-#
-#    gdf = utils.read_csv_file(csvFileName)
-#    if len(gdf.columns) == 2:
-#        edge_attr = None
-#    else:
-#        edge_attr = "2"
-#
-#    return cugraph.from_cudf_edgelist(
-#        gdf,
-#        source="0", destination="1", edge_attr=edge_attr,
-#        create_using=graphType,
-#        renumber=True)
-
 
 # Record the current RMM settings so reinitialize() will be called only when a
 # change is needed (RMM defaults both values to False). The --allow-rmm-reinit
@@ -155,58 +155,56 @@ def edgelist(request):
 
 @pytest.fixture(scope="module",
                 params=fixture_params)
-def graphWithAdjListComputed(request):
+def graph(request):
     """
-    Create a Graph obj from the CSV file in param, compute the adjacency list
-    and return it.
+    Returns a new Graph with, adj list computed, created from the dataset obj
+    specified as part of the parameterization for this fixture.
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
-    csvFileName = request.param[0]
+
+    dataset = request.param[0]
     reinitRMM(request.param[1], request.param[2])
 
-    G = createGraph(csvFileName, cugraph.structure.graph_classes.Graph)
+    if isinstance(dataset, RmatDataset):
+        dataset.scale = request.config.getoption("--scale")
+        dataset.edgefactor = request.config.getoption("--edgefactor")
+
+    G = dataset.get_graph(fetch=True)
     G.view_adj_list()
-    return G
+    yield G
+    dataset.unload()
 
 
 @pytest.fixture(scope="module",
                 params=fixture_params)
-def anyGraphWithAdjListComputed(request):
+def graph_transposed(request):
     """
-    Create a Graph (directed or undirected) obj based on the param, compute the
-    adjacency list and return it.
-    """
-    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
-    csvFileName = request.param[0]
-    reinitRMM(request.param[1], request.param[2])
-
-    G = createGraph(csvFileName)
-    G.view_adj_list()
-    return G
-
-
-@pytest.fixture(scope="module",
-                params=fixture_params)
-def anyGraphWithTransposedAdjListComputed(request):
-    """
-    Create a Graph (directed or undirected) obj based on the param, compute the
-    transposed adjacency list and return it.
+    Returns a new Graph with, transposed adj list computed, created from the
+    dataset obj specified as part of the parameterization for this fixture.
     """
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
-    csvFileName = request.param[0]
+
+    dataset = request.param[0]
     reinitRMM(request.param[1], request.param[2])
 
-    G = createGraph(csvFileName)
+    if isinstance(dataset, RmatDataset):
+        dataset.scale = request.config.getoption("--scale")
+        dataset.edgefactor = request.config.getoption("--edgefactor")
+
+    G = dataset.get_graph(fetch=True)
     G.view_transposed_adj_list()
-    return G
+    yield G
+    dataset.unload()
+
+
 
 
 ###############################################################################
 # Benchmarks
 @pytest.mark.ETL
-def bench_create_graph(gpubenchmark, edgelistCreated):
+def bench_create_graph(gpubenchmark, edgelist):
     gpubenchmark(cugraph.from_cudf_edgelist,
-                 edgelistCreated,
+                 edgelist,
                  source="0", destination="1",
                  create_using=cugraph.structure.graph_classes.Graph,
                  renumber=False)
@@ -221,93 +219,93 @@ def bench_create_graph(gpubenchmark, edgelistCreated):
     warmup_iterations=10,
     max_time=0.005
 )
-def bench_create_digraph(gpubenchmark, edgelistCreated):
+def bench_create_digraph(gpubenchmark, edgelist):
     gpubenchmark(cugraph.from_cudf_edgelist,
-                 edgelistCreated,
+                 edgelist,
                  source="0", destination="1",
                  create_using=cugraph.Graph(directed=True),
                  renumber=False)
 
 
 @pytest.mark.ETL
-def bench_renumber(gpubenchmark, edgelistCreated):
-    gpubenchmark(NumberMap.renumber, edgelistCreated, "0", "1")
+def bench_renumber(gpubenchmark, edgelist):
+    gpubenchmark(NumberMap.renumber, edgelist, "0", "1")
 
 
-def bench_pagerank(gpubenchmark, anyGraphWithTransposedAdjListComputed):
-    gpubenchmark(cugraph.pagerank, anyGraphWithTransposedAdjListComputed)
+def bench_pagerank(gpubenchmark, graph_transposed):
+    gpubenchmark(cugraph.pagerank, graph_transposed)
 
 
-def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
-    start = anyGraphWithAdjListComputed.edgelist.edgelist_df["src"][0]
-    gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, start)
+def bench_bfs(gpubenchmark, graph):
+    start = graph.edgelist.edgelist_df["src"][0]
+    gpubenchmark(cugraph.bfs, graph, start)
 
 
-def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.force_atlas2, anyGraphWithAdjListComputed,
+def bench_force_atlas2(gpubenchmark, graph):
+    gpubenchmark(cugraph.force_atlas2, graph,
                  max_iter=50)
 
 
-def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
-    start = anyGraphWithAdjListComputed.edgelist.edgelist_df["src"][0]
-    gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, start)
+def bench_sssp(gpubenchmark, graph):
+    start = graph.edgelist.edgelist_df["src"][0]
+    gpubenchmark(cugraph.sssp, graph, start)
 
 
-def bench_jaccard(gpubenchmark, graphWithAdjListComputed):
-    gpubenchmark(cugraph.jaccard, graphWithAdjListComputed)
+def bench_jaccard(gpubenchmark, graph):
+    gpubenchmark(cugraph.jaccard, graph)
 
 
 @pytest.mark.skipif(
     is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
-def bench_louvain(gpubenchmark, graphWithAdjListComputed):
-    gpubenchmark(cugraph.louvain, graphWithAdjListComputed)
+def bench_louvain(gpubenchmark, graph):
+    gpubenchmark(cugraph.louvain, graph)
 
 
 def bench_weakly_connected_components(gpubenchmark,
-                                      anyGraphWithAdjListComputed):
-    if anyGraphWithAdjListComputed.is_directed():
-        G = anyGraphWithAdjListComputed.to_undirected()
+                                      graph):
+    if graph.is_directed():
+        G = graph.to_undirected()
     else:
-        G = anyGraphWithAdjListComputed
+        G = graph
     gpubenchmark(cugraph.weakly_connected_components, G)
 
 
-def bench_overlap(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.overlap, anyGraphWithAdjListComputed)
+def bench_overlap(gpubenchmark, graph):
+    gpubenchmark(cugraph.overlap, graph)
 
 
-def bench_triangle_count(gpubenchmark, graphWithAdjListComputed):
-    gpubenchmark(cugraph.triangle_count, graphWithAdjListComputed)
+def bench_triangle_count(gpubenchmark, graph):
+    gpubenchmark(cugraph.triangle_count, graph)
 
 
 def bench_spectralBalancedCutClustering(gpubenchmark,
-                                        graphWithAdjListComputed):
+                                        graph):
     gpubenchmark(cugraph.spectralBalancedCutClustering,
-                 graphWithAdjListComputed, 2)
+                 graph, 2)
 
 
 @pytest.mark.skip(reason="Need to guarantee graph has weights, "
                          "not doing that yet")
 def bench_spectralModularityMaximizationClustering(
-        gpubenchmark, anyGraphWithAdjListComputed):
+        gpubenchmark, graph):
     gpubenchmark(cugraph.spectralModularityMaximizationClustering,
-                 anyGraphWithAdjListComputed, 2)
+                 graph, 2)
 
 
-def bench_graph_degree(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(anyGraphWithAdjListComputed.degree)
+def bench_graph_degree(gpubenchmark, graph):
+    gpubenchmark(graph.degree)
 
 
-def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(anyGraphWithAdjListComputed.degrees)
+def bench_graph_degrees(gpubenchmark, graph):
+    gpubenchmark(graph.degrees)
 
 
-def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
+def bench_betweenness_centrality(gpubenchmark, graph):
     gpubenchmark(cugraph.betweenness_centrality,
-                 anyGraphWithAdjListComputed, k=10, random_state=123)
+                 graph, k=10, random_state=123)
 
 
 def bench_edge_betweenness_centrality(gpubenchmark,
-                                      anyGraphWithAdjListComputed):
+                                      graph):
     gpubenchmark(cugraph.edge_betweenness_centrality,
-                 anyGraphWithAdjListComputed, k=10, seed=123)
+                 graph, k=10, seed=123)

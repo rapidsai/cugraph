@@ -46,9 +46,7 @@ def datasets():
 
 def clear_locals():
     for dataset in ALL_DATASETS:
-        dataset._edgelist = None
-        dataset._graph = None
-        dataset._path = None
+        dataset.unload()
 
 
 # We use this to create tempfiles that act as config files when we call
