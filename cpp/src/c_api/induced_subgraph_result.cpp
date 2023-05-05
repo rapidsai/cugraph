@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,10 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t*>(induced_subgraph);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->wgt_->view());
+  return (internal_pointer->wgt_ == nullptr)
+           ? NULL
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->wgt_->view());
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_offsets(
