@@ -18,7 +18,6 @@ from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import cupy
 from cugraph.dask.common.input_utils import get_distributed_data
 
 from pylibcugraph import ResourceHandle, ego_graph as pylibcugraph_ego_graph
