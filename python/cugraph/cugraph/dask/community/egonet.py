@@ -70,7 +70,7 @@ def convert_to_cudf(cp_arrays):
     df["src"] = cp_src
     df["dst"] = cp_dst
     if cp_weight is None:
-        df['weight'] = None
+        df["weight"] = None
     else:
         df["weight"] = cp_weight
 
