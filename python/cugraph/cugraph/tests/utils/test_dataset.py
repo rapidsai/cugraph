@@ -16,9 +16,11 @@ import yaml
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+import gc
 
 import pytest
 from cudf.testing.testing import assert_frame_equal
+import cupy as cp
 
 from cugraph.experimental.datasets import ALL_DATASETS, ALL_DATASETS_WGT, SMALL_DATASETS
 from cugraph.structure import Graph
@@ -241,3 +243,32 @@ def test_ctor_with_datafile(datasets):
     assert_frame_equal(ds.get_edgelist(), expected_karate_edgelist)
     assert str(ds) == "karate"
     assert ds.get_path() == karate_csv
+
+
+def test_unload(datasets):
+    email_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+
+    ds = datasets.Dataset(
+        csv_file=email_csv.as_posix(),
+        csv_col_names=["src", "dst", "wgt"],
+        csv_col_dtypes=["int32", "int32", "float32"],
+    )
+
+    device = cp.cuda.Device(0)
+
+    free_memory_before = device.mem_info[0]
+    df = ds.get_edgelist()
+    free_memory_after_load = device.mem_info[0]
+
+    assert free_memory_before > free_memory_after_load
+
+    del df
+    gc.collect()
+    free_memory_after_delete = device.mem_info[0]
+
+    assert free_memory_before > free_memory_after_delete
+
+    ds.unload()
+    free_memory_after_unload = device.mem_info[0]
+
+    assert free_memory_after_unload == free_memory_before

@@ -43,40 +43,58 @@ from cugraph_benchmarking.params import (
     pool_allocator,
 )
 
+# duck-type compatible Dataset for RMAT data
+class RmatDataset:
+    def __init__(self, scale=8, edgefactor=16):
+        self.scale = scale
+        self.edgefactor = edgefactor
+
+    def __str__(self):
+        return f"rmat_{self.scale}_{self.edgefactor}"
+
+    def get_edgelist(self, fetch=False):
+        pass
+    def get_graph(self, fetch=False, create_using=cugraph.Graph, ignore_weights=False):
+        pass
+    def get_path(self):
+        pass
+
+rmat_dataset = pytest.param(RmatDataset(), marks=[pytest.rmat])
+
 fixture_params = gen_fixture_params_product(
-    (directed_datasets + undirected_datasets, "ds"),
+    (directed_datasets + undirected_datasets + [rmat_dataset], "ds"),
     (managed_memory, "mm"),
     (pool_allocator, "pa"))
 
 ###############################################################################
 # Helpers
-def createGraph(csvFileName, graphType=None):
-    """
-    Helper function to create a Graph (directed or undirected) based on
-    csvFileName.
-    """
-    if graphType is None:
-        # There's potential value in verifying that a directed graph can be
-        # created from a undirected dataset, and an undirected from a directed
-        # dataset. (For now?) do not include those combinations to keep
-        # benchmark runtime and complexity lower, and assume tests have
-        # coverage to verify correctness for those combinations.
-        if "directed" in csvFileName.parts:
-            graphType = cugraph.Graph(directed=True)
-        else:
-            graphType = cugraph.Graph()
-
-    gdf = utils.read_csv_file(csvFileName)
-    if len(gdf.columns) == 2:
-        edge_attr = None
-    else:
-        edge_attr = "2"
-
-    return cugraph.from_cudf_edgelist(
-        gdf,
-        source="0", destination="1", edge_attr=edge_attr,
-        create_using=graphType,
-        renumber=True)
+#def createGraph(csvFileName, graphType=None):
+#    """
+#    Helper function to create a Graph (directed or undirected) based on
+#    csvFileName.
+#    """
+#    if graphType is None:
+#        # There's potential value in verifying that a directed graph can be
+#        # created from a undirected dataset, and an undirected from a directed
+#        # dataset. (For now?) do not include those combinations to keep
+#        # benchmark runtime and complexity lower, and assume tests have
+#        # coverage to verify correctness for those combinations.
+#        if "directed" in csvFileName.parts:
+#            graphType = cugraph.Graph(directed=True)
+#        else:
+#            graphType = cugraph.Graph()
+#
+#    gdf = utils.read_csv_file(csvFileName)
+#    if len(gdf.columns) == 2:
+#        edge_attr = None
+#    else:
+#        edge_attr = "2"
+#
+#    return cugraph.from_cudf_edgelist(
+#        gdf,
+#        source="0", destination="1", edge_attr=edge_attr,
+#        create_using=graphType,
+#        renumber=True)
 
 
 # Record the current RMM settings so reinitialize() will be called only when a
@@ -113,9 +131,9 @@ def reinitRMM(managed_mem, pool_alloc):
 # of the benchmark.
 @pytest.fixture(scope="module",
                 params=fixture_params)
-def edgelistCreated(request):
+def edgelist(request):
     """
-    Returns a new edgelist created from a CSV, which is specified as part of
+    Returns a new edgelist created from the dataset obj specified as part of
     the parameterization for this fixture.
     """
     # Since parameterized fixtures do not assign param names to param values,
@@ -124,9 +142,15 @@ def edgelistCreated(request):
     # If the request only contains n params, only the first n names are set.
     setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
 
-    csvFileName = request.param[0]
+    dataset = request.param[0]
     reinitRMM(request.param[1], request.param[2])
-    return utils.read_csv_file(csvFileName)
+
+    if isinstance(dataset, RmatDataset):
+        dataset.scale = request.config.getoption("--scale")
+        dataset.edgefactor = request.config.getoption("--edgefactor")
+
+    yield dataset.get_edgelist(fetch=True)
+    dataset.unload()
 
 
 @pytest.fixture(scope="module",

@@ -116,6 +116,7 @@ class Dataset:
             raise ValueError("must specify either metadata_yaml_file or csv_file")
 
     def __str__(self):
+
         """
         Use the basename of the meta_data_file the instance was constructed with,
         without any extension, as the string repr.
@@ -140,6 +141,14 @@ class Dataset:
             raise RuntimeError(
                 f"The directory {self._dl_path.path.absolute()}" "does not exist"
             )
+
+    def unload(self):
+        """
+        Remove all saved internal objects, forcing them to be re-created when
+        accessed.
+        """
+        self._edgelist = None
+        self._graph = None
 
     def get_edgelist(self, fetch=False):
         """
