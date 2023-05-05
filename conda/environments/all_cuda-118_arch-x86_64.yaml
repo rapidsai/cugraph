@@ -37,8 +37,8 @@ dependencies:
 - networkx>=2.5.1
 - ninja
 - notebook>=0.5.0
-- numba>=0.56.2
-- numpy>=1.21
+- numba>=0.56.4,<0.57
+- numpy>=1.21,<1.24
 - numpydoc
 - nvcc_linux-64=11.8
 - openmpi
