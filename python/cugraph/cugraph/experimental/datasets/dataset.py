@@ -146,9 +146,14 @@ class Dataset:
         """
         Remove all saved internal objects, forcing them to be re-created when
         accessed.
+
+        NOTE: This will cause calls to get_*() to re-read the dataset file from
+        disk from the default download dir, which could have changed since the
+        Dataset instance was created.
         """
         self._edgelist = None
         self._graph = None
+        self._path = None
 
     def get_edgelist(self, fetch=False):
         """
