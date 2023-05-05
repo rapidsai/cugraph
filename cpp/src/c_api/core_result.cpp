@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,8 +95,10 @@ cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
   cugraph_k_core_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_k_core_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->weights_->view());
+  return (internal_pointer->weights_ == nullptr)
+           ? NULL
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->weights_->view());
 }
 
 void cugraph_k_core_result_free(cugraph_k_core_result_t* result)
