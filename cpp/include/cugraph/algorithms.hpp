@@ -1667,7 +1667,7 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 vertex_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
-                                ops::gnn::graph::SamplingAlgoT sampling_algo);
+                                ops::graph::SamplingAlgoT sampling_algo);
 
 /**
  * @brief generate sub-sampled graph as an edge list (COO format) given input graph,
@@ -1697,7 +1697,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_
   vertex_t const* ptr_d_start,
   size_t num_start_vertices,
   size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo);
+  ops::graph::SamplingAlgoT sampling_algo);
 #endif
 
 /**
