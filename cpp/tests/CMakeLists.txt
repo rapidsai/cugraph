@@ -472,10 +472,15 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp)
 
+    ###############################################################################################
+    # - MG LEIDEN tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
+
+
 
     ###############################################################################################
     # - MG MIS tests ------------------------------------------------------------------------------
-    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cpp)
+    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
 
 
 

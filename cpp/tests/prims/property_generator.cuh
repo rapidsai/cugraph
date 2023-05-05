@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#pragma once
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/edge_src_dst_property.hpp>

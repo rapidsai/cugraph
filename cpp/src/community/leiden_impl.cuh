@@ -61,11 +61,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
 
-  graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
-
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
     edge_weight_view);
+
+  graph_t coarse_graph(handle);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_weight(handle);
 
 #ifdef TIMING
@@ -244,8 +244,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                louvain_assignment_for_vertices.begin(),
                                dst_louvain_assignment_cache);
 
-      louvain_assignment_for_vertices.resize(0, handle.get_stream());
-      louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
+      // louvain_assignment_for_vertices.resize(0, handle.get_stream());
+      // louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
@@ -459,22 +459,22 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       if (nr_unique_leiden < current_graph_view.number_of_vertices()) {
         // Create aggregate graph based on refined (leiden) partition
         std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
-        std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) =
+        std::tie(coarse_graph, coarsen_graph_edge_weight, cluster_assignment) =
           coarsen_graph(handle,
                         current_graph_view,
                         current_edge_weight_view,
                         refined_leiden_partition.data(),
                         true);
 
-        current_graph_view = current_graph.view();
+        current_graph_view = coarse_graph.view();
 
         current_edge_weight_view =
           std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
             (*coarsen_graph_edge_weight).view());
 
         // cluster_assignment contains leiden cluster ids of aggregated nodes
-        // After call to relabel, cluster_assignment will louvain cluster ids of the aggregated
-        // nodes
+        // After call to relabel, cluster_assignment will louvain cluster ids
+        // of the aggregated nodes
         relabel<vertex_t, multi_gpu>(
           handle,
           std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
