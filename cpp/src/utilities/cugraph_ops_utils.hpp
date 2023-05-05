@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,10 @@ namespace cugraph {
 namespace detail {
 
 template <typename NodeTypeT, typename EdgeTypeT>
-ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
+ops::graph::fg_csr<EdgeTypeT> get_graph(
   graph_view_t<NodeTypeT, EdgeTypeT, false, false> const& gview)
 {
-  ops::gnn::graph::fg_csr<EdgeTypeT> graph;
+  ops::graph::fg_csr<EdgeTypeT> graph;
   graph.n_nodes   = gview.number_of_vertices();
   graph.n_indices = gview.number_of_edges();
   // FIXME: this is evil and is just temporary until we have a matching type in cugraph-ops
@@ -40,7 +40,7 @@ ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
 }
 
 template <typename NodeTypeT, typename EdgeTypeT>
-std::tuple<ops::gnn::graph::fg_csr<EdgeTypeT>, NodeTypeT> get_graph_and_max_degree(
+std::tuple<ops::graph::fg_csr<EdgeTypeT>, NodeTypeT> get_graph_and_max_degree(
   graph_view_t<NodeTypeT, EdgeTypeT, false, false> const& gview)
 {
   // FIXME this is sufficient for now, but if there is a fast (cached) way
