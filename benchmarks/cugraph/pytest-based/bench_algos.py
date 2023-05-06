@@ -49,26 +49,22 @@ from cugraph_benchmarking.params import (
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
     def __init__(self, scale=4, edgefactor=8, mg=False):
-        self.scale = scale
-        self.edgefactor = edgefactor
+        self._scale = scale
+        self._edgefactor = edgefactor
         self._mg = mg
-        self._edgelist = None
-        self._graph = None
-
-    def unload(self):
         self._edgelist = None
         self._graph = None
 
     def __str__(self):
         mg_str = "mg" if self._mg else "sg"
-        return f"rmat_{mg_str}_{self.scale}_{self.edgefactor}"
+        return f"rmat_{mg_str}_{self._scale}_{self._edgefactor}"
 
     def get_edgelist(self, fetch=False):
         seed = 42
         if self._edgelist is None:
             self._edgelist = rmat(
-                self.scale,
-                (2**self.scale)*self.edgefactor,
+                self._scale,
+                (2**self._scale)*self._edgefactor,
                 0.57,  # from Graph500
                 0.19,  # from Graph500
                 0.19,  # from Graph500
@@ -99,7 +95,16 @@ class RmatDataset:
                     df, source="src", destination="dst", weight="weight")
 
     def get_path(self):
+        """
+        (this is likely not needed for use with pytest-benchmark, just added for
+        API completeness with Dataset.)
+        """
         return str(self)
+
+    def unload(self):
+        self._edgelist = None
+        self._graph = None
+
 
 _rmat_scale = getattr(pytest, "_rmat_scale", 8)
 _rmat_edgefactor = getattr(pytest, "_rmat_edgefactor", 16)
