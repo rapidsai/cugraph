@@ -11,6 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+
+
 def pytest_addoption(parser):
     parser.addoption("--allow-rmm-reinit",
                      action="store_true",
@@ -39,7 +42,6 @@ def pytest_addoption(parser):
                      "is %(default)s.")
 
 
-
 def pytest_sessionstart(session):
     # if the --allow-rmm-reinit option is not given, set (or add to) the CLI
     # "mark expression" (-m) the markers for no managedmem and
@@ -58,3 +60,10 @@ def pytest_sessionstart(session):
             newMarkexpr = f"({currentMarkexpr}) and ({newMarkexpr})"
 
         session.config.option.markexpr = newMarkexpr
+
+    # Set the value of the CLI options for RMAT here since any RmatDataset
+    # objects must be instantiated prior to running test fixtures in order to
+    # have their test ID generated properly.
+    # FIXME: is there a better way to do this?
+    pytest._rmat_scale = session.config.getoption("rmat_scale")
+    pytest._rmat_edgefactor = session.config.getoption("rmat_edgefactor")

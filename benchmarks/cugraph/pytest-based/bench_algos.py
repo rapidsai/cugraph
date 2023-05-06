@@ -30,6 +30,7 @@ except ImportError:
         pass
 
 import rmm
+import dask_cudf
 from pylibcugraph.testing import gen_fixture_params_product
 
 import cugraph
@@ -47,22 +48,25 @@ from cugraph_benchmarking.params import (
 
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
-    def __init__(self, scale=4, edgefactor=8):
+    def __init__(self, scale=4, edgefactor=8, mg=False):
         self.scale = scale
         self.edgefactor = edgefactor
-        self._df = None
+        self._mg = mg
+        self._edgelist = None
         self._graph = None
 
     def unload(self):
-        self._df = None
+        self._edgelist = None
         self._graph = None
 
     def __str__(self):
-        return f"rmat_{self.scale}_{self.edgefactor}"
+        mg_str = "mg" if self._mg else "sg"
+        return f"rmat_{mg_str}_{self.scale}_{self.edgefactor}"
 
     def get_edgelist(self, fetch=False):
-        if self._df is None:
-            self._df = rmat(
+        seed = 42
+        if self._edgelist is None:
+            self._edgelist = rmat(
                 self.scale,
                 (2**self.scale)*self.edgefactor,
                 0.57,  # from Graph500
@@ -72,28 +76,50 @@ class RmatDataset:
                 clip_and_flip=False,
                 scramble_vertex_ids=True,
                 create_using=None,  # return edgelist instead of Graph instance
-                mg=False
+                mg=self._mg
             )
             rng = np.random.default_rng(seed)
-            self._df["weight"] = rng.random(size=len(self._df))
+            if self._mg:
+                self._edgelist["weight"] = ddf.map_partitions(
+                    lambda df: rng.random(size=len(df)))
+            else:
+                self._edgelist["weight"] = rng.random(size=len(self._edgelist))
 
-        return self._df
+        return self._edgelist
 
     def get_graph(self, fetch=False, create_using=cugraph.Graph, ignore_weights=False):
         if self._graph is None:
             df = self.get_edgelist()
             self._graph = cugraph.Graph(directed=True)
-            self._graph.from_cudf_edgelist(
-                df, source="src", destination="dst", weight="weight")
+            if isinstance(df, dask_cudf.DataFrame):
+                self._graph.from_dask_cudf_edgelist(
+                    df, source="src", destination="dst", weight="weight")
+            else:
+                self._graph.from_cudf_edgelist(
+                    df, source="src", destination="dst", weight="weight")
 
     def get_path(self):
         return str(self)
 
-
-rmat_dataset = pytest.param(RmatDataset(), marks=[pytest.rmat])
+_rmat_scale = getattr(pytest, "_rmat_scale", 8)
+_rmat_edgefactor = getattr(pytest, "_rmat_edgefactor", 16)
+rmat_sg_dataset = pytest.param(RmatDataset(scale=_rmat_scale,
+                                           edgefactor=_rmat_edgefactor,
+                                           mg=False),
+                               marks=[pytest.mark.rmat,
+                                      pytest.mark.sg,
+                               ])
+rmat_mg_dataset = pytest.param(RmatDataset(scale=_rmat_scale,
+                                           edgefactor=_rmat_edgefactor,
+                                           mg=True),
+                               marks=[pytest.mark.rmat,
+                                      pytest.mark.mg,
+                               ])
 
 fixture_params = gen_fixture_params_product(
-    (directed_datasets + undirected_datasets + [rmat_dataset], "ds"),
+    (directed_datasets +
+     undirected_datasets +
+     [rmat_sg_dataset, rmat_mg_dataset], "ds"),
     (managed_memory, "mm"),
     (pool_allocator, "pa"))
 
@@ -144,10 +170,6 @@ def edgelist(request):
 
     dataset = request.param[0]
     reinitRMM(request.param[1], request.param[2])
-
-    if isinstance(dataset, RmatDataset):
-        dataset.scale = request.config.getoption("--scale")
-        dataset.edgefactor = request.config.getoption("--edgefactor")
 
     yield dataset.get_edgelist(fetch=True)
     dataset.unload()

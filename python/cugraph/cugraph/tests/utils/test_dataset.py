@@ -246,12 +246,12 @@ def test_unload():
         csv_col_dtypes=["int32", "int32", "float32"],
     )
 
-    # FIXME: a better test would be to check free memory, and assert the memory
-    # use increases after get_*(), then returns to the pre-get_*() level after
-    # unload(). However, cugraph.Graph seems to hold on to references (leak?)
-    # and even when the Graph is deleted and gc run, the memory usage does not
-    # change. For now, just test that the internal members get cleared on
-    # unload() instead.
+    # FIXME: another (better?) test would be to check free memory and assert
+    # the memory use increases after get_*(), then returns to the pre-get_*()
+    # level after unload(). However, that type of test may fail for several
+    # reasons (the device being monitored is accidentally also being used by
+    # another process, and the use of memory pools to name two). Instead, just
+    # test that the internal members get cleared on unload().
     assert ds._edgelist is None
     assert ds._graph is None
 
