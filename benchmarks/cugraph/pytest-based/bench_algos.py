@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import pytest
-
+import numpy as np
 import pytest_benchmark
 # FIXME: Remove this when rapids_pytest_benchmark.gpubenchmark is available
 # everywhere
@@ -36,7 +36,7 @@ from pylibcugraph.testing import gen_fixture_params_product
 import cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
-from cugraph.testing import utils
+from cugraph.testing import utils, mg_utils
 from cugraph.utilities.utils import is_device_version_less_than
 
 from cugraph_benchmarking.params import (
@@ -51,12 +51,13 @@ class RmatDataset:
     def __init__(self, scale=4, edgefactor=8, mg=False):
         self._scale = scale
         self._edgefactor = edgefactor
-        self._mg = mg
         self._edgelist = None
         self._graph = None
 
+        self.mg = mg
+
     def __str__(self):
-        mg_str = "mg" if self._mg else "sg"
+        mg_str = "mg" if self.mg else "sg"
         return f"rmat_{mg_str}_{self._scale}_{self._edgefactor}"
 
     def get_edgelist(self, fetch=False):
@@ -72,27 +73,32 @@ class RmatDataset:
                 clip_and_flip=False,
                 scramble_vertex_ids=True,
                 create_using=None,  # return edgelist instead of Graph instance
-                mg=self._mg
+                mg=self.mg
             )
             rng = np.random.default_rng(seed)
-            if self._mg:
-                self._edgelist["weight"] = ddf.map_partitions(
+            if self.mg:
+                self._edgelist["weight"] = self._edgelist.map_partitions(
                     lambda df: rng.random(size=len(df)))
             else:
                 self._edgelist["weight"] = rng.random(size=len(self._edgelist))
 
         return self._edgelist
 
-    def get_graph(self, fetch=False, create_using=cugraph.Graph, ignore_weights=False):
+    def get_graph(self,
+                  fetch=False,
+                  create_using=cugraph.Graph,
+                  ignore_weights=False):
         if self._graph is None:
             df = self.get_edgelist()
             self._graph = cugraph.Graph(directed=True)
             if isinstance(df, dask_cudf.DataFrame):
                 self._graph.from_dask_cudf_edgelist(
-                    df, source="src", destination="dst", weight="weight")
+                    df, source="src", destination="dst", edge_attr="weight")
             else:
                 self._graph.from_cudf_edgelist(
-                    df, source="src", destination="dst", weight="weight")
+                    df, source="src", destination="dst", edge_attr="weight")
+
+        return self._graph
 
     def get_path(self):
         """
@@ -121,12 +127,13 @@ rmat_mg_dataset = pytest.param(RmatDataset(scale=_rmat_scale,
                                       pytest.mark.mg,
                                ])
 
-fixture_params = gen_fixture_params_product(
-    (directed_datasets +
-     undirected_datasets +
-     [rmat_sg_dataset, rmat_mg_dataset], "ds"),
+rmm_fixture_params = gen_fixture_params_product(
     (managed_memory, "mm"),
     (pool_allocator, "pa"))
+dataset_fixture_params = gen_fixture_params_product(
+    (directed_datasets +
+     undirected_datasets +
+     [rmat_sg_dataset, rmat_mg_dataset], "ds"))
 
 # Record the current RMM settings so reinitialize() will be called only when a
 # change is needed (RMM defaults both values to False). The --allow-rmm-reinit
@@ -142,6 +149,7 @@ def reinitRMM(managed_mem, pool_alloc):
     if (managed_mem != RMM_SETTINGS["managed_mem"]) or \
        (pool_alloc != RMM_SETTINGS["pool_alloc"]):
 
+        print("RMM reinit")
         rmm.reinitialize(
             managed_memory=managed_mem,
             pool_allocator=pool_alloc,
@@ -160,79 +168,64 @@ def reinitRMM(managed_mem, pool_alloc):
 #
 # For benchmarks, the operations performed in fixtures are not measured as part
 # of the benchmark.
+
 @pytest.fixture(scope="module",
-                params=fixture_params)
-def edgelist(request):
-    """
-    Returns a new edgelist created from the dataset obj specified as part of
-    the parameterization for this fixture.
-    """
+                params=rmm_fixture_params)
+def rmm_config(request):
     # Since parameterized fixtures do not assign param names to param values,
     # manually call the helper to do so. Ensure the order of the name list
     # passed to it matches if there are >1 params.
     # If the request only contains n params, only the first n names are set.
-    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
-
-    dataset = request.param[0]
-    reinitRMM(request.param[1], request.param[2])
-
-    yield dataset.get_edgelist(fetch=True)
-    dataset.unload()
+    setFixtureParamNames(request, ["managed_mem", "pool_allocator"])
+    reinitRMM(request.param[0], request.param[1])
 
 
 @pytest.fixture(scope="module",
-                params=fixture_params)
-def graph(request):
-    """
-    Returns a new Graph with, adj list computed, created from the dataset obj
-    specified as part of the parameterization for this fixture.
-    """
-    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
-
+                params=dataset_fixture_params)
+def dataset(request, rmm_config):
+    setFixtureParamNames(request, ["dataset"])
     dataset = request.param[0]
-    reinitRMM(request.param[1], request.param[2])
+    client = cluster = None
+    if hasattr(dataset, "mg") and dataset.mg:
+        (client, cluster) = mg_utils.start_dask_client()
 
-    if isinstance(dataset, RmatDataset):
-        dataset.scale = request.config.getoption("--scale")
-        dataset.edgefactor = request.config.getoption("--edgefactor")
+    yield dataset
 
-    G = dataset.get_graph(fetch=True)
-    G.view_adj_list()
-    yield G
     dataset.unload()
+    if client is not None:
+        mg_utils.stop_dask_client(client, cluster)
 
 
-@pytest.fixture(scope="module",
-                params=fixture_params)
-def graph_transposed(request):
+@pytest.fixture(scope="module")
+def graph(request, dataset):
+    G = dataset.get_graph()
+    # FIXME: MG graph does not have view_adj_list
+    #G.view_adj_list()
+    return G
+
+
+@pytest.fixture(scope="module")
+def transposed_graph(request, dataset):
+    # FIXME: MG graph does not have view_transposed_adj_list
     """
-    Returns a new Graph with, transposed adj list computed, created from the
-    dataset obj specified as part of the parameterization for this fixture.
-    """
-    setFixtureParamNames(request, ["dataset", "managed_mem", "pool_allocator"])
-
-    dataset = request.param[0]
-    reinitRMM(request.param[1], request.param[2])
-
-    if isinstance(dataset, RmatDataset):
-        dataset.scale = request.config.getoption("--scale")
-        dataset.edgefactor = request.config.getoption("--edgefactor")
-
-    G = dataset.get_graph(fetch=True)
+    dataset.unload()
+    G = dataset.get_graph()
     G.view_transposed_adj_list()
     yield G
     dataset.unload()
-
-
+    """
+    G = dataset.get_graph()
+    return G
 
 
 ###############################################################################
 # Benchmarks
 @pytest.mark.ETL
-def bench_create_graph(gpubenchmark, edgelist):
+def bench_create_graph(gpubenchmark, dataset):
+    edgelist = dataset.get_edgelist()
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelist,
-                 source="0", destination="1",
+                 source="src", destination="dst",
                  create_using=cugraph.structure.graph_classes.Graph,
                  renumber=False)
 
@@ -246,21 +239,23 @@ def bench_create_graph(gpubenchmark, edgelist):
     warmup_iterations=10,
     max_time=0.005
 )
-def bench_create_digraph(gpubenchmark, edgelist):
+def bench_create_digraph(gpubenchmark, dataset):
+    edgelist = dataset.get_edgelist()
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelist,
-                 source="0", destination="1",
+                 source="src", destination="dst",
                  create_using=cugraph.Graph(directed=True),
                  renumber=False)
 
 
 @pytest.mark.ETL
-def bench_renumber(gpubenchmark, edgelist):
-    gpubenchmark(NumberMap.renumber, edgelist, "0", "1")
+def bench_renumber(gpubenchmark, dataset):
+    edgelist = dataset.get_edgelist()
+    gpubenchmark(NumberMap.renumber, edgelist, "src", "dst")
 
 
-def bench_pagerank(gpubenchmark, graph_transposed):
-    gpubenchmark(cugraph.pagerank, graph_transposed)
+def bench_pagerank(gpubenchmark, transposed_graph):
+    gpubenchmark(cugraph.pagerank, transposed_graph)
 
 
 def bench_bfs(gpubenchmark, graph):
@@ -288,8 +283,7 @@ def bench_louvain(gpubenchmark, graph):
     gpubenchmark(cugraph.louvain, graph)
 
 
-def bench_weakly_connected_components(gpubenchmark,
-                                      graph):
+def bench_weakly_connected_components(gpubenchmark, graph):
     if graph.is_directed():
         G = graph.to_undirected()
     else:
@@ -305,18 +299,14 @@ def bench_triangle_count(gpubenchmark, graph):
     gpubenchmark(cugraph.triangle_count, graph)
 
 
-def bench_spectralBalancedCutClustering(gpubenchmark,
-                                        graph):
-    gpubenchmark(cugraph.spectralBalancedCutClustering,
-                 graph, 2)
+def bench_spectralBalancedCutClustering(gpubenchmark, graph):
+    gpubenchmark(cugraph.spectralBalancedCutClustering, graph, 2)
 
 
 @pytest.mark.skip(reason="Need to guarantee graph has weights, "
                          "not doing that yet")
-def bench_spectralModularityMaximizationClustering(
-        gpubenchmark, graph):
-    gpubenchmark(cugraph.spectralModularityMaximizationClustering,
-                 graph, 2)
+def bench_spectralModularityMaximizationClustering(gpubenchmark, graph):
+    gpubenchmark(cugraph.spectralModularityMaximizationClustering, graph, 2)
 
 
 def bench_graph_degree(gpubenchmark, graph):
@@ -328,11 +318,8 @@ def bench_graph_degrees(gpubenchmark, graph):
 
 
 def bench_betweenness_centrality(gpubenchmark, graph):
-    gpubenchmark(cugraph.betweenness_centrality,
-                 graph, k=10, random_state=123)
+    gpubenchmark(cugraph.betweenness_centrality, graph, k=10, random_state=123)
 
 
-def bench_edge_betweenness_centrality(gpubenchmark,
-                                      graph):
-    gpubenchmark(cugraph.edge_betweenness_centrality,
-                 graph, k=10, seed=123)
+def bench_edge_betweenness_centrality(gpubenchmark, graph):
+    gpubenchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
