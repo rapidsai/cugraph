@@ -104,7 +104,6 @@ def test_bulk_sampler_remainder():
 
     tld = tempdir_object.name
     recovered_samples = cudf.read_parquet(tld)
-    print(os.listdir(tld))
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()

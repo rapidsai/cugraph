@@ -40,7 +40,6 @@ def test_bulk_sampler_io():
 
     offsets = cudf.DataFrame({"offsets": [0, 0], "batch_id": [0, 1]})
     offsets = dask_cudf.from_cudf(offsets, npartitions=2)
-    print(offsets.npartitions)
 
     tempdir_object = tempfile.TemporaryDirectory()
     write_samples(results, offsets, 1, tempdir_object.name)
