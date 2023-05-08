@@ -200,12 +200,16 @@ class EXPERIMENTAL__BulkSampler:
             sample_fn = cugraph.uniform_neighbor_sample
         else:
             sample_fn = cugraph.dask.uniform_neighbor_sample
-            self.__sample_call_args["_multiple_clients"] = True
-            self.__sample_call_args[
-                "label_to_output_comm_rank"
-            ] = self.__get_label_to_output_comm_rank(min_batch_id, max_batch_id)
-            self.__sample_call_args["label_list"] = cupy.arange(
-                min_batch_id, max_batch_id + 1, dtype="int32"
+            self.__sample_call_args.update(
+                {
+                    "_multiple_clients": True,
+                    "label_to_output_comm_rank": self.__get_label_to_output_comm_rank(
+                        min_batch_id, max_batch_id
+                    ),
+                    "label_list": cupy.arange(
+                        min_batch_id, max_batch_id + 1, dtype="int32"
+                    ),
+                }
             )
 
         samples, offsets = sample_fn(
