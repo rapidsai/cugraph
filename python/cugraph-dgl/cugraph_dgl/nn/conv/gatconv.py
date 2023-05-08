@@ -145,7 +145,7 @@ class GATConv(BaseConv):
             :math:`H` is the number of heads, and :math:`D_{out}` is size of
             output feature.
         """
-        offsets, indices, _ = g.adj_sparse("csc")
+        offsets, indices, _ = g.adj_tensors("csc")
 
         if g.is_block:
             if max_in_degree is None:
