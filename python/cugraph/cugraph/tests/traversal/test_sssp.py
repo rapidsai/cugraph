@@ -143,7 +143,7 @@ def networkx_call(graph_file, source, edgevals=True):
     M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     # Directed NetworkX graph
     edge_attr = "weight" if edgevals else None
-    print(M)
+    
     Gnx = nx.from_pandas_edgelist(
         M,
         source="0",
@@ -229,10 +229,8 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
         input_G_or_matrix = utils.create_obj_from_csv(
             dataset_path, cugraph_input_type, edgevals=True
         )
-        print(input_G_or_matrix)
     else:
         input_G_or_matrix = G
-        print(G.edgelist.edgelist_df)
 
     cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix, source)
 
