@@ -63,8 +63,6 @@ def consolidate_results(df, offsets):
 def convert_to_cudf(cp_arrays):
     cp_src, cp_dst, cp_weight, cp_offsets = cp_arrays
 
-    print(cp_weight)
-
     df = cudf.DataFrame()
     df["src"] = cp_src
     df["dst"] = cp_dst
@@ -185,5 +183,4 @@ def ego_graph(input_graph, n, radius=1, center=True):
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
 
-    print(ddf.compute())
     return ddf, offsets

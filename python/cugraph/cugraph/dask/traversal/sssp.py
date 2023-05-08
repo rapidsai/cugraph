@@ -106,7 +106,7 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
             "'SSSP' requires the input graph to be weighted."
             "'BFS' should be used instead of 'SSSP' for unweighted graphs."
         )
-        raise RuntimeError(err_msg)
+        raise ValueError(err_msg)
 
     client = default_client()
 
