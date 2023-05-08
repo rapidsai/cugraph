@@ -149,7 +149,9 @@ def sssp(
     unreachable will have a distance of infinity denoted by the maximum value
     of the data type and the predecessor set as -1. The source vertex's
     predecessor is also set to -1. Graphs with negative weight cycles are not
-    supported.
+    supported.  Unweighted graphs are also unsupported.
+
+    For finding shortest paths on an unweighted graph, use BFS instead.
 
     Parameters
     ----------
