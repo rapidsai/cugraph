@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,51 +22,10 @@ import cudf
 
 import cugraph
 from cugraph.dask.comms import comms as Comms
-from cugraph.generators import rmat
 import tempfile
+from cugraph.testing.mg_utils import generate_edgelist
 
-import rmm
 
-
-def generate_edgelist(scale,
-                      edgefactor,
-                      seed=None,
-                      unweighted=False,
-):
-    """
-    Returns a dask_cudf DataFrame created using the R-MAT graph generator.
-
-    The resulting graph is weighted with random values of a uniform distribution
-    from the interval [0, 1)
-
-    scale is used to determine the number of vertices to be generated (num_verts
-    = 2^scale), which is also used to determine the data type for the vertex ID
-    values in the DataFrame.
-
-    edgefactor determies the number of edges (num_edges = num_edges*edgefactor)
-
-    seed, if specified, will be used as the seed to the RNG.
-
-    unweighted determines if the resulting edgelist will have randomly-generated
-    weightes ranging in value between [0, 1). If True, an edgelist with only 2
-    columns is returned.
-    """
-    ddf = rmat(
-        scale,
-        (2**scale)*edgefactor,
-        0.57,  # from Graph500
-        0.19,  # from Graph500
-        0.19,  # from Graph500
-        seed or 42,
-        clip_and_flip=False,
-        scramble_vertex_ids=True,
-        create_using=None,  # return edgelist instead of Graph instance
-        mg=True
-    )
-    if not unweighted:
-        rng = np.random.default_rng(seed)
-        ddf["weight"] = ddf.map_partitions(lambda df: rng.random(size=len(df)))
-    return ddf
 
 
 def read_csv(input_csv_file, scale):

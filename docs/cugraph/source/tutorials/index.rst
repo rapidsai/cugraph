@@ -9,3 +9,4 @@ Tutorials
    how_to_guides.md
    cugraph_blogs.rst
    community_resources.md
+   cugraph_notebooks.md
