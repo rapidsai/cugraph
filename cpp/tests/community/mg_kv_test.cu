@@ -170,27 +170,35 @@ class Tests_MGMaximalIndependentSet
       auto& minor_comm = handle_->get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      auto partitions_range_lasts = graph_view.vertex_partition_range_lasts();
+      auto partitions_range_lasts =
+        cugraph::test::to_device(*handle_, graph_view.vertex_partition_range_lasts());
       rmm::device_uvector<vertex_t> gpu_ids(leiden_assignment.size(), handle_->get_stream());
 
-      // thrust::transform(handle_->get_thrust_policy(),
-      //                   leiden_assignment.begin(),
-      //                   leiden_assignment.end(),
-      //                   gpu_ids.begin(),
-      //                   [key_func =
-      //                      cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-      //                        raft::device_span<vertex_t const>(partitions_range_lasts.data(),
-      //                                                          partitions_range_lasts.size()),
-      //                        major_comm_size,
-      //                        minor_comm_size},
-      //                    comm_rank] __device__(auto key) {
-      //                     if (key_func(key) != comm_rank) {
-      //                       printf("--- key %d must not be in GPU-%d\n", key, comm_rank);
-      //                     } else {
-      //                       printf("+++ key %d is on right GPU \n");
-      //                     }
-      //                     return key_func(key);
-      //                   });
+      raft::print_device_vector("partitions_range_lasts:",
+                                partitions_range_lasts.data(),
+                                partitions_range_lasts.size(),
+                                std::cout);
+
+      thrust::transform(handle_->get_thrust_policy(),
+                        leiden_assignment.begin(),
+                        leiden_assignment.end(),
+                        gpu_ids.begin(),
+                        [key_func =
+                           cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+                             raft::device_span<vertex_t const>(partitions_range_lasts.data(),
+                                                               partitions_range_lasts.size()),
+                             major_comm_size,
+                             minor_comm_size},
+                         comm_rank] __device__(auto key) {
+                          if (key_func(key) != comm_rank) {
+                            printf("--- key %d must not be in GPU-%d\n", key, comm_rank);
+                          } else {
+                            printf("+++ key %d is on right GPU \n");
+                          }
+                          return key_func(key);
+                        });
+
+      handle_->sync_stream();
 
       auto h_gpu_ids = cugraph::test::to_host(*handle_, gpu_ids);
 
@@ -322,7 +330,8 @@ class Tests_MGMaximalIndependentSet
       auto& minor_comm = handle_->get_subcomm(cugraph::partition_manager::minor_comm_name());
       auto const minor_comm_size = minor_comm.get_size();
 
-      auto partitions_range_lasts = graph_view.vertex_partition_range_lasts();
+      auto partitions_range_lasts =
+        cugraph::test::to_device(*handle_, graph_view.vertex_partition_range_lasts());
 
       cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
         raft::device_span<vertex_t const>(partitions_range_lasts.data(),
