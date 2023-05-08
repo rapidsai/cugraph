@@ -192,10 +192,10 @@ void transform_e(raft::handle_t const& handle,
       "Invalid input arguments: edge_list is not sorted.");
   }
 
-  std::vector<size_t> edge_partition_offsets(graph_view.number_of_local_edge_partitions(), 0);
+  std::vector<size_t> edge_partition_offsets(graph_view.number_of_local_edge_partitions() + 1, 0);
   if constexpr (GraphViewType::is_multi_gpu) {
     std::vector<vertex_t> h_major_range_lasts(graph_view.number_of_local_edge_partitions());
-    for (int i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
           graph_view.local_edge_partition_view(i));
@@ -207,16 +207,16 @@ void transform_e(raft::handle_t const& handle,
                         h_major_range_lasts.data(),
                         h_major_range_lasts.size(),
                         handle.get_stream());
-    rmm::device_uvector<size_t> d_upper_bounds(d_major_range_lasts.size(), handle.get_stream());
-    thrust::upper_bound(handle.get_thrust_policy(),
+    rmm::device_uvector<size_t> d_lower_bounds(d_major_range_lasts.size(), handle.get_stream());
+    thrust::lower_bound(handle.get_thrust_policy(),
                         major_first,
                         major_first + edge_list.size(),
                         d_major_range_lasts.begin(),
                         d_major_range_lasts.end(),
-                        d_upper_bounds.begin());
+                        d_lower_bounds.begin());
     raft::update_host(edge_partition_offsets.data() + 1,
-                      d_upper_bounds.data(),
-                      d_upper_bounds.size(),
+                      d_lower_bounds.data(),
+                      d_lower_bounds.size(),
                       handle.get_stream());
     handle.sync_stream();
   } else {

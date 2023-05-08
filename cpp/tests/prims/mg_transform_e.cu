@@ -122,14 +122,13 @@ class Tests_MGTransformE
         mg_graph_view,
         std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
-      auto major_first = store_transposed ? dsts.begin() : srcs.begin();
-      auto minor_first = store_transposed ? srcs.begin() : dsts.begin();
-      auto edge_first  = thrust::make_zip_iterator(
+      auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(store_transposed ? dsts.begin() : srcs.begin(),
                            store_transposed ? srcs.begin() : dsts.begin()));
       srcs.resize(thrust::distance(
                     edge_first,
-                    thrust::remove_if(edge_first,
+                    thrust::remove_if(handle_->get_thrust_policy(),
+                                      edge_first,
                                       edge_first + srcs.size(),
                                       [] __device__(thrust::tuple<vertex_t, vertex_t> e) {
                                         return ((thrust::get<0>(e) + thrust::get<1>(e)) % 2) != 0;
