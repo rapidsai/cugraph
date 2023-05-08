@@ -12,10 +12,9 @@
 # limitations under the License.
 
 
-import yaml
 import os
 from pathlib import Path
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from tempfile import TemporaryDirectory
 import gc
 
 import pytest
@@ -33,38 +32,48 @@ from cugraph.experimental import datasets
 pytestmark = pytest.mark.sg
 
 
-# =============================================================================
-# Pytest Setup / Teardown - called for each test function
-# =============================================================================
-def setup_function():
-    # FIXME: this relies on a dataset feature (unload) which itself is being
-    # tested in this module.
+###############################################################################
+# Fixtures
+
+# module fixture - called once for this module
+@pytest.fixture(scope="module")
+def tmpdir():
+    """
+    Create a tmp dir for downloads, etc., run a test, then cleanup when the
+    test is done.
+    """
+    tmpd = TemporaryDirectory()
+    yield tmpd
+    # teardown
+    tmpd.cleanup()
+
+
+# function fixture - called once for each function in this module
+@pytest.fixture(scope="function", autouse=True)
+def setup(tmpdir):
+    """
+    Fixture used for individual test setup and teardown. This ensures each
+    Dataset object starts with the same state and cleans up when the test is
+    done.
+    """
+    # FIXME: this relies on dataset features (unload) which themselves are
+    # being tested in this module.
+    for dataset in ALL_DATASETS:
+        dataset.unload()
+    gc.collect()
+
+    datasets.set_download_dir(tmpdir.name)
+
+    yield
+
+    # teardown
     for dataset in ALL_DATASETS:
         dataset.unload()
     gc.collect()
 
 
-def teardown_function():
-    setup_function()
-
-
-# We use this to create tempfiles that act as config files when we call
-# set_config(). Arguments passed will act as custom download directories
-def create_config(custom_path="custom_storage_location"):
-    config_yaml = """
-                    fetch: False
-                    force: False
-                    download_dir: None
-                    """
-    c = yaml.safe_load(config_yaml)
-    c["download_dir"] = custom_path
-
-    outfile = NamedTemporaryFile()
-    with open(outfile.name, "w") as f:
-        yaml.dump(c, f, sort_keys=False)
-
-    return outfile
-
+###############################################################################
+# Tests
 
 # setting download_dir to None effectively re-initialized the default
 def test_env_var():
@@ -84,15 +93,6 @@ def test_home_dir():
     assert datasets.get_download_dir() == expected_path
 
 
-def test_set_config():
-    cfg = create_config()
-    datasets.set_config(cfg.name)
-
-    assert datasets.get_download_dir() == Path("custom_storage_location").absolute()
-
-    cfg.close()
-
-
 def test_set_download_dir():
     tmpd = TemporaryDirectory()
     datasets.set_download_dir(tmpd.name)
@@ -102,36 +102,12 @@ def test_set_download_dir():
     tmpd.cleanup()
 
 
-@pytest.mark.skip(
-    reason="Timeout errors; see: https://github.com/rapidsai/cugraph/issues/2810"
-)
-def test_load_all():
-    tmpd = TemporaryDirectory()
-    cfg = create_config(custom_path=tmpd.name)
-    datasets.set_config(cfg.name)
-    datasets.load_all()
-
-    for data in datasets.ALL_DATASETS:
-        file_path = Path(tmpd.name) / (
-            data.metadata["name"] + data.metadata["file_type"]
-        )
-        assert file_path.is_file()
-
-    tmpd.cleanup()
-
-
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_fetch(dataset):
-    tmpd = TemporaryDirectory()
-    cfg = create_config(custom_path=tmpd.name)
-    datasets.set_config(cfg.name)
-
     E = dataset.get_edgelist(fetch=True)
 
     assert E is not None
     assert dataset.get_path().is_file()
-
-    tmpd.cleanup()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -173,11 +149,11 @@ def test_weights(dataset):
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset):
-    G = dataset.get_graph()
+    G = dataset.get_graph(fetch=True)
     assert not G.is_directed()
-    G = dataset.get_graph(create_using=Graph)
+    G = dataset.get_graph(fetch=True, create_using=Graph)
     assert not G.is_directed()
-    G = dataset.get_graph(create_using=Graph(directed=True))
+    G = dataset.get_graph(fetch=True, create_using=Graph(directed=True))
     assert G.is_directed()
 
 
@@ -209,7 +185,7 @@ def test_ctor_with_datafile():
             csv_col_dtypes=["int32", "int32", "float32"],
         )
 
-    expected_karate_edgelist = karate.get_edgelist()
+    expected_karate_edgelist = karate.get_edgelist(fetch=True)
 
     # test with file path as string, ensure fetch=True does not break
     ds = datasets.Dataset(
@@ -253,13 +229,13 @@ def test_unload():
     # another process, and the use of memory pools to name two). Instead, just
     # test that the internal members get cleared on unload().
     assert ds._edgelist is None
-    assert ds._graph is None
 
     ds.get_edgelist()
-    ds.get_graph()
     assert ds._edgelist is not None
-    assert ds._graph is not None
-
     ds.unload()
     assert ds._edgelist is None
-    assert ds._graph is None
+
+    ds.get_graph()
+    assert ds._edgelist is not None
+    ds.unload()
+    assert ds._edgelist is None

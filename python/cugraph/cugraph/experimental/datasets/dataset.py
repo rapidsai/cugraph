@@ -82,7 +82,6 @@ class Dataset:
         self._metadata_file = None
         self._dl_path = default_download_dir
         self._edgelist = None
-        self._graph = None
         self._path = None
 
         if metadata_yaml_file is not None and csv_file is not None:
@@ -116,7 +115,6 @@ class Dataset:
             raise ValueError("must specify either metadata_yaml_file or csv_file")
 
     def __str__(self):
-
         """
         Use the basename of the meta_data_file the instance was constructed with,
         without any extension, as the string repr.
@@ -130,30 +128,36 @@ class Dataset:
             return self.get_path().with_suffix("").name
 
     def __download_csv(self, url):
+        """
+        Downloads the .csv file from url to the current download path
+        (self._dl_path), updates self._path with the full path to the
+        downloaded file, and returns the latest value of self._path.
+        """
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
 
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
             df = cudf.read_csv(url)
-            df.to_csv(self._dl_path.path / filename, index=False)
+            self._path = self._dl_path.path / filename
+            df.to_csv(self._path, index=False)
 
         else:
             raise RuntimeError(
                 f"The directory {self._dl_path.path.absolute()}" "does not exist"
             )
+        return self._path
 
     def unload(self):
+
         """
         Remove all saved internal objects, forcing them to be re-created when
         accessed.
 
         NOTE: This will cause calls to get_*() to re-read the dataset file from
-        disk from the default download dir, which could have changed since the
-        Dataset instance was created.
+        disk. The caller should ensure the file on disk has not moved/been
+        deleted/changed.
         """
         self._edgelist = None
-        self._graph = None
-        self._path = None
 
     def get_edgelist(self, fetch=False):
         """
@@ -165,12 +169,11 @@ class Dataset:
             Automatically fetch for the dataset from the 'url' location within
             the YAML file.
         """
-
         if self._edgelist is None:
             full_path = self.get_path()
             if not full_path.is_file():
                 if fetch:
-                    self.__download_csv(self.metadata["url"])
+                    full_path = self.__download_csv(self.metadata["url"])
                 else:
                     raise RuntimeError(
                         f"The datafile {full_path} does not"
@@ -190,7 +193,13 @@ class Dataset:
 
         return self._edgelist
 
-    def get_graph(self, fetch=False, create_using=Graph, ignore_weights=False):
+    def get_graph(
+        self,
+        fetch=False,
+        create_using=Graph,
+        ignore_weights=False,
+        store_transposed=False,
+    ):
         """
         Return a Graph object.
 
@@ -211,17 +220,20 @@ class Dataset:
             dataset does not contain weights, the Graph returned will
             be unweighted regardless of ignore_weights.
         """
+        if store_transposed:
+            raise NotImplementedError("store_transposed=True")
+
         if self._edgelist is None:
             self.get_edgelist(fetch)
 
         if create_using is None:
-            self._graph = Graph()
+            G = Graph()
         elif isinstance(create_using, Graph):
             # what about BFS if trnaposed is True
             attrs = {"directed": create_using.is_directed()}
-            self._graph = type(create_using)(**attrs)
+            G = type(create_using)(**attrs)
         elif type(create_using) is type:
-            self._graph = create_using()
+            G = create_using()
         else:
             raise TypeError(
                 "create_using must be a cugraph.Graph "
@@ -230,15 +242,13 @@ class Dataset:
             )
 
         if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
-            self._graph.from_cudf_edgelist(
+            G.from_cudf_edgelist(
                 self._edgelist, source="src", destination="dst", edge_attr="wgt"
             )
         else:
-            self._graph.from_cudf_edgelist(
-                self._edgelist, source="src", destination="dst"
-            )
+            G.from_cudf_edgelist(self._edgelist, source="src", destination="dst")
 
-        return self._graph
+        return G
 
     def get_path(self):
         """
@@ -276,20 +286,6 @@ def load_all(force=False):
                 if not save_to.is_file() or force:
                     df = cudf.read_csv(meta["url"])
                     df.to_csv(save_to, index=False)
-
-
-def set_config(cfgpath):
-    """
-    Read in a custom config file.
-
-    Parameters
-    ----------
-    cfgfile : String
-        Read the custom config file given its path, and override the default
-    """
-    with open(Path(cfgpath), "r") as file:
-        cfg = yaml.safe_load(file)
-        default_download_dir.path = Path(cfg["download_dir"])
 
 
 def set_download_dir(path):

@@ -34,6 +34,7 @@ import dask_cudf
 from pylibcugraph.testing import gen_fixture_params_product
 
 import cugraph
+import cugraph.dask as dask_cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
 from cugraph.testing import utils, mg_utils
@@ -48,11 +49,10 @@ from cugraph_benchmarking.params import (
 
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
-    def __init__(self, scale=4, edgefactor=8, mg=False):
+    def __init__(self, scale=4, edgefactor=2, mg=False):
         self._scale = scale
         self._edgefactor = edgefactor
         self._edgelist = None
-        self._graph = None
 
         self.mg = mg
 
@@ -87,18 +87,30 @@ class RmatDataset:
     def get_graph(self,
                   fetch=False,
                   create_using=cugraph.Graph,
-                  ignore_weights=False):
-        if self._graph is None:
-            df = self.get_edgelist()
-            self._graph = cugraph.Graph(directed=True)
-            if isinstance(df, dask_cudf.DataFrame):
-                self._graph.from_dask_cudf_edgelist(
-                    df, source="src", destination="dst", edge_attr="weight")
-            else:
-                self._graph.from_cudf_edgelist(
-                    df, source="src", destination="dst", edge_attr="weight")
+                  ignore_weights=False,
+                  store_transposed=False):
+        if isinstance(create_using, cugraph.Graph):
+            # what about BFS if trnaposed is True
+            attrs = {"directed": create_using.is_directed()}
+            G = type(create_using)(**attrs)
+        elif type(create_using) is type:
+            G = create_using()
 
-        return self._graph
+        edge_attr = None if ignore_weights else "weight"
+        df = self.get_edgelist()
+        if isinstance(df, dask_cudf.DataFrame):
+            G.from_dask_cudf_edgelist(df,
+                                      source="src",
+                                      destination="dst",
+                                      edge_attr=edge_attr,
+                                      store_transposed=store_transposed)
+        else:
+            G.from_cudf_edgelist(df,
+                                 source="src",
+                                 destination="dst",
+                                 edge_attr=edge_attr,
+                                 store_transposed=store_transposed)
+        return G
 
     def get_path(self):
         """
@@ -109,11 +121,10 @@ class RmatDataset:
 
     def unload(self):
         self._edgelist = None
-        self._graph = None
 
 
-_rmat_scale = getattr(pytest, "_rmat_scale", 8)
-_rmat_edgefactor = getattr(pytest, "_rmat_edgefactor", 16)
+_rmat_scale = getattr(pytest, "_rmat_scale", 20)  # ~1M vertices
+_rmat_edgefactor = getattr(pytest, "_rmat_edgefactor", 16)  # ~17M edges
 rmat_sg_dataset = pytest.param(RmatDataset(scale=_rmat_scale,
                                            edgefactor=_rmat_edgefactor,
                                            mg=False),
@@ -149,7 +160,6 @@ def reinitRMM(managed_mem, pool_alloc):
     if (managed_mem != RMM_SETTINGS["managed_mem"]) or \
        (pool_alloc != RMM_SETTINGS["pool_alloc"]):
 
-        print("RMM reinit")
         rmm.reinitialize(
             managed_memory=managed_mem,
             pool_allocator=pool_alloc,
@@ -197,6 +207,12 @@ def dataset(request, rmm_config):
 
 
 @pytest.fixture(scope="module")
+def edgelist(request, dataset):
+    df = dataset.get_edgelist()
+    return df
+
+
+@pytest.fixture(scope="module")
 def graph(request, dataset):
     G = dataset.get_graph()
     # FIXME: MG graph does not have view_adj_list
@@ -205,24 +221,40 @@ def graph(request, dataset):
 
 
 @pytest.fixture(scope="module")
+def unweighted_graph(request, dataset):
+    G = dataset.get_graph(ignore_weights=True)
+    # FIXME: MG graph does not have view_adj_list
+    #G.view_adj_list()
+    return G
+
+
+@pytest.fixture(scope="module")
+def directed_graph(request, dataset):
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=True))
+    # FIXME: MG graph does not have view_adj_list
+    #G.view_adj_list()
+    return G
+
+
+@pytest.fixture(scope="module")
 def transposed_graph(request, dataset):
     # FIXME: MG graph does not have view_transposed_adj_list
-    """
-    dataset.unload()
-    G = dataset.get_graph()
-    G.view_transposed_adj_list()
-    yield G
-    dataset.unload()
-    """
-    G = dataset.get_graph()
+    G = dataset.get_graph(store_transposed=True)
     return G
+
+
+###############################################################################
+def is_graph_distributed(graph):
+    """
+    Return True if graph is distributed (for use with cugraph.dask APIs)
+    """
+    return isinstance(graph.edgelist.edgelist_df, dask_cudf.DataFrame)
 
 
 ###############################################################################
 # Benchmarks
 @pytest.mark.ETL
-def bench_create_graph(gpubenchmark, dataset):
-    edgelist = dataset.get_edgelist()
+def bench_create_graph(gpubenchmark, edgelist):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelist,
                  source="src", destination="dst",
@@ -239,8 +271,7 @@ def bench_create_graph(gpubenchmark, dataset):
     warmup_iterations=10,
     max_time=0.005
 )
-def bench_create_digraph(gpubenchmark, dataset):
-    edgelist = dataset.get_edgelist()
+def bench_create_digraph(gpubenchmark, edgelist):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelist,
                  source="src", destination="dst",
@@ -249,41 +280,50 @@ def bench_create_digraph(gpubenchmark, dataset):
 
 
 @pytest.mark.ETL
-def bench_renumber(gpubenchmark, dataset):
-    edgelist = dataset.get_edgelist()
+def bench_renumber(gpubenchmark, edgelist):
     gpubenchmark(NumberMap.renumber, edgelist, "src", "dst")
 
 
 def bench_pagerank(gpubenchmark, transposed_graph):
-    gpubenchmark(cugraph.pagerank, transposed_graph)
+    pagerank = dask_cugraph.pagerank if is_graph_distributed(transposed_graph) \
+               else cugraph.pagerank
+    gpubenchmark(pagerank, transposed_graph)
 
 
 def bench_bfs(gpubenchmark, graph):
+    bfs = dask_cugraph.bfs if is_graph_distributed(graph) else cugraph.bfs
     start = graph.edgelist.edgelist_df["src"][0]
-    gpubenchmark(cugraph.bfs, graph, start)
+    gpubenchmark(bfs, graph, start)
 
 
 def bench_force_atlas2(gpubenchmark, graph):
-    gpubenchmark(cugraph.force_atlas2, graph,
-                 max_iter=50)
+    if is_graph_distributed(graph):
+        pytest.skip("distributed graphs are not supported")
+    gpubenchmark(cugraph.force_atlas2, graph, max_iter=50)
 
 
 def bench_sssp(gpubenchmark, graph):
+    sssp = dask_cugraph.sssp if is_graph_distributed(graph) else cugraph.sssp
     start = graph.edgelist.edgelist_df["src"][0]
-    gpubenchmark(cugraph.sssp, graph, start)
+    gpubenchmark(sssp, graph, start)
 
 
-def bench_jaccard(gpubenchmark, graph):
-    gpubenchmark(cugraph.jaccard, graph)
+def bench_jaccard(gpubenchmark, unweighted_graph):
+    G = unweighted_graph
+    jaccard = dask_cugraph.jaccard if is_graph_distributed(G) else cugraph.jaccard
+    gpubenchmark(jaccard, G)
 
 
 @pytest.mark.skipif(
     is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
 def bench_louvain(gpubenchmark, graph):
-    gpubenchmark(cugraph.louvain, graph)
+    louvain = dask_cugraph.louvain if is_graph_distributed(graph) else cugraph.louvain
+    gpubenchmark(louvain, graph)
 
 
 def bench_weakly_connected_components(gpubenchmark, graph):
+    if is_graph_distributed(graph):
+        pytest.skip("distributed graphs are not supported")
     if graph.is_directed():
         G = graph.to_undirected()
     else:
@@ -291,22 +331,31 @@ def bench_weakly_connected_components(gpubenchmark, graph):
     gpubenchmark(cugraph.weakly_connected_components, G)
 
 
-def bench_overlap(gpubenchmark, graph):
-    gpubenchmark(cugraph.overlap, graph)
+def bench_overlap(gpubenchmark, unweighted_graph):
+    G = unweighted_graph
+    overlap = dask_cugraph.overlap if is_graph_distributed(G) else cugraph.overlap
+    gpubenchmark(overlap, G)
 
 
 def bench_triangle_count(gpubenchmark, graph):
-    gpubenchmark(cugraph.triangle_count, graph)
+    tc = dask_cugraph.triangle_count if is_graph_distributed(graph) \
+         else cugraph.triangle_count
+    gpubenchmark(tc, graph)
 
 
 def bench_spectralBalancedCutClustering(gpubenchmark, graph):
+    if is_graph_distributed(graph):
+        pytest.skip("distributed graphs are not supported")
     gpubenchmark(cugraph.spectralBalancedCutClustering, graph, 2)
 
 
 @pytest.mark.skip(reason="Need to guarantee graph has weights, "
                          "not doing that yet")
 def bench_spectralModularityMaximizationClustering(gpubenchmark, graph):
-    gpubenchmark(cugraph.spectralModularityMaximizationClustering, graph, 2)
+    smmc = dask_cugraph.spectralModularityMaximizationClustering \
+           if is_graph_distributed(graph) \
+           else cugraph.spectralModularityMaximizationClustering
+    gpubenchmark(smmc, graph, 2)
 
 
 def bench_graph_degree(gpubenchmark, graph):
@@ -314,12 +363,23 @@ def bench_graph_degree(gpubenchmark, graph):
 
 
 def bench_graph_degrees(gpubenchmark, graph):
+    if is_graph_distributed(graph):
+        pytest.skip("distributed graphs are not supported")
     gpubenchmark(graph.degrees)
 
 
 def bench_betweenness_centrality(gpubenchmark, graph):
-    gpubenchmark(cugraph.betweenness_centrality, graph, k=10, random_state=123)
+    bc = dask_cugraph.betweenness_centrality if is_graph_distributed(graph) \
+         else cugraph.betweenness_centrality
+    gpubenchmark(bc, graph, k=10, random_state=123)
 
 
 def bench_edge_betweenness_centrality(gpubenchmark, graph):
+    if is_graph_distributed(graph):
+        pytest.skip("distributed graphs are not supported")
     gpubenchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
+
+
+# FIXME:
+# Add benchmark for sampling
+# add benchmark for egonet

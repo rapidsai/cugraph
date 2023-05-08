@@ -27,7 +27,7 @@ def pytest_addoption(parser):
     parser.addoption("--rmat-scale",
                      action="store",
                      type=int,
-                     default=8,
+                     default=20,
                      metavar="scale",
                      help="For use when using synthetic graph data generated using RMAT. "
                      "This results in a graph with 2^scale vertices. Default is "

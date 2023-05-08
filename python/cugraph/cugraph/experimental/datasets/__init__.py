@@ -15,7 +15,6 @@
 from cugraph.experimental.datasets.dataset import (
     Dataset,
     load_all,
-    set_config,
     set_download_dir,
     get_download_dir,
     default_download_dir,
