@@ -340,7 +340,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
 
   CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
                CUGRAPH_INVALID_INPUT,
-               "Invalid input arguments: Edge id type must match edge (src/dst) type",
+               "Invalid input arguments: Edge id type must match edge type",
                *error);
 
   CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->size_ == p_src->size_),
