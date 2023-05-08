@@ -143,7 +143,7 @@ def networkx_call(graph_file, source, edgevals=True):
     M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     # Directed NetworkX graph
     edge_attr = "weight" if edgevals else None
-    
+
     Gnx = nx.from_pandas_edgelist(
         M,
         source="0",
