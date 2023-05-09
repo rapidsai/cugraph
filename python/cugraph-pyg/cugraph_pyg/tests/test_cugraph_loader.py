@@ -63,7 +63,6 @@ def test_cugraph_loader_hetero(karate_gnn):
 
     assert len(samples) == 2
     for sample in samples:
-        print(sample)
         if "type0" in sample:
             for prop in sample["type0"]["prop0"].tolist():
                 assert prop % 31 == 0
