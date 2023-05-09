@@ -153,12 +153,14 @@ struct update_rx_major_local_degree_t {
     if (multi_gpu && (edge_partition.major_hypersparse_first() &&
                       (major >= *(edge_partition.major_hypersparse_first())))) {
       auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-      local_degree               = major_hypersparse_idx
-                                     ? edge_partition.local_degree((*(edge_partition.major_hypersparse_first()) -
+      // FIXME: update this to consider edge mask
+      local_degree = major_hypersparse_idx
+                       ? edge_partition.local_degree((*(edge_partition.major_hypersparse_first()) -
                                                       edge_partition.major_range_first()) +
                                                      *major_hypersparse_idx)
-                                     : edge_t{0};
+                       : edge_t{0};
     } else {
+      // FIXME: update this to consider edge mask
       local_degree =
         edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major));
     }
@@ -196,6 +198,7 @@ struct update_rx_major_local_nbrs_t {
     auto major =
       rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size + local_edge_partition_idx] +
                 offset_in_local_edge_partition];
+    // FIXME: update this to consider edge mask
     vertex_t const* indices{nullptr};
     [[maybe_unused]] edge_t edge_offset{0};
     edge_t local_degree{0};

@@ -281,10 +281,12 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
+    // FIXME: update number_of_edges() to consider edge mask
     rmm::device_uvector<vertex_t> majors(edge_partition.number_of_edges(), handle.get_stream());
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+    // FIXME: update this to consider edge mask
     detail::decompress_edge_partition_to_edgelist<vertex_t,
                                                   edge_t,
                                                   weight_t,
