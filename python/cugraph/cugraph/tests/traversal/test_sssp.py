@@ -143,6 +143,7 @@ def networkx_call(graph_file, source, edgevals=True):
     M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     # Directed NetworkX graph
     edge_attr = "weight" if edgevals else None
+
     Gnx = nx.from_pandas_edgelist(
         M,
         source="0",
@@ -162,7 +163,7 @@ def networkx_call(graph_file, source, edgevals=True):
         nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
 
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=True
+        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
     )
 
     t2 = time.time() - t1
@@ -447,14 +448,3 @@ def test_scipy_api_compat():
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_coo_matrix, indices=[0, 1, 2])
     cugraph.shortest_path(input_coo_matrix, indices=0)
-
-
-@pytest.mark.sg
-def test_sssp_with_no_edgevals():
-    G = datasets.karate.get_graph(ignore_weights=True)
-    warning_msg = (
-        "'SSSP' requires the input graph to be weighted: Unweighted "
-        "graphs will not be supported in the next release."
-    )
-    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
-        cugraph.sssp(G, 1)

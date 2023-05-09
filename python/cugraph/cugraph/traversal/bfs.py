@@ -126,7 +126,7 @@ def bfs(
 ):
     """
     Find the distances and predecessors for a breadth first traversal of a
-    graph.
+    graph.  Unlike SSSP, BFS supports unweighted graphs.
 
     Parameters
     ----------

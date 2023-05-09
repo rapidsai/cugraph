@@ -17,7 +17,7 @@ nccl_version:
   - ">=2.9.9"
 
 gtest_version:
-  - "=1.10.0"
+  - ">=1.13.0"
 
 cuda_profiler_api_version:
   - ">=11.8.86,<12"

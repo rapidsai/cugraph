@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import numpy as np
-import warnings
 
 import cudf
 from cugraph.structure import Graph, MultiGraph
@@ -150,7 +149,9 @@ def sssp(
     unreachable will have a distance of infinity denoted by the maximum value
     of the data type and the predecessor set as -1. The source vertex's
     predecessor is also set to -1. Graphs with negative weight cycles are not
-    supported.
+    supported.  Unweighted graphs are also unsupported.
+
+    For finding shortest paths on an unweighted graph, use BFS instead.
 
     Parameters
     ----------
@@ -217,11 +218,11 @@ def sssp(
     )
 
     if not G.edgelist.weights:
-        warning_msg = (
-            "'SSSP' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release."
+        err_msg = (
+            "'SSSP' requires the input graph to be weighted."
+            "'BFS' should be used instead of 'SSSP' for unweighted graphs."
         )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
+        raise RuntimeError(err_msg)
 
     if not G.has_node(source):
         raise ValueError("Graph does not contain source vertex")
