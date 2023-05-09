@@ -37,7 +37,6 @@ class EXPERIMENTAL__BulkSampler:
         graph,
         seeds_per_call: int = 200_000,
         batches_per_partition=100,
-        rank: int = 0,
         **kwargs,
     ):
         """
@@ -56,9 +55,6 @@ class EXPERIMENTAL__BulkSampler:
             a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
-        rank: int (optional, default=0)
-            The rank of this sampler.  Used to isolate this sampler from
-            others that may be running on other nodes.
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
@@ -80,13 +76,8 @@ class EXPERIMENTAL__BulkSampler:
         self.__graph = graph
         self.__seeds_per_call = seeds_per_call
         self.__batches_per_partition = batches_per_partition
-        self.__rank = rank
         self.__batches = None
         self.__sample_call_args = kwargs
-
-    @property
-    def rank(self) -> int:
-        return self.__rank
 
     @property
     def seeds_per_call(self) -> int:
