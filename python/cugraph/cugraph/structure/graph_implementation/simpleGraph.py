@@ -1047,10 +1047,10 @@ class simpleGraphImpl:
                 weight_col = weight_col.astype("float32")
             if weight_t == "int64":
                 weight_col = weight_col.astype("float64")
-        
+
         if id_col is not None:
-            if src_or_offset_array.dtype == 'int64' and id_col.dtype != 'int64':
-                id_col = id_col.astype('int64')
+            if src_or_offset_array.dtype == "int64" and id_col.dtype != "int64":
+                id_col = id_col.astype("int64")
                 warnings.warn(
                     f"Vertex type is int64 but edge id type is {id_col.dtype}"
                     ", automatically casting edge id type to int64. "

@@ -99,8 +99,8 @@ class simpleDistributedGraphImpl:
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
             edge_ids = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
-            if edata_x[0][src_col_name].dtype == 'int64' and edge_ids.dtype != 'int64':
-                edge_ids = edge_ids.astype('int64')
+            if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
+                edge_ids = edge_ids.astype("int64")
                 warnings.warn(
                     f"Vertex type is int64 but edge id type is {edge_ids.dtype}"
                     ", automatically casting edge id type to int64. "
@@ -238,7 +238,7 @@ class simpleDistributedGraphImpl:
             )
             value_col = None
         else:
-            
+
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
                 source,
