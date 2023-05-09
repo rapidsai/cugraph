@@ -23,7 +23,9 @@ dependencies:
 - doxygen
 - fsspec[http]>=0.6.0
 - gcc_linux-64=11.*
+- gmock>=1.13.0.*
 - graphviz
+- gtest>=1.13.0.*
 - ipython
 - libcudf=23.6.*
 - libcugraphops=23.6.*
