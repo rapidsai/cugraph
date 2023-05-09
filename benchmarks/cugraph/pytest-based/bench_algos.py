@@ -400,5 +400,9 @@ def bench_uniform_neighbor_sample(gpubenchmark, graph):
     gpubenchmark(uns, graph, start_list=start_list, fanout_vals=fanout_vals)
 
 
-# FIXME:
-# add benchmark for egonet
+def bench_egonet(gpubenchmark, graph):
+    egonet = dask_cugraph.ego_graph if is_graph_distributed(graph) \
+             else cugraph.ego_graph
+    n = 1
+    radius = 2
+    gpubenchmark(egonet, graph, n, radius=radius)
