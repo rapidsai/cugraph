@@ -174,7 +174,7 @@ class GATConv(BaseConv):
             output feature.
         """
         bipartite = not isinstance(nfeat, torch.Tensor)
-        offsets, indices, _ = g.adj_sparse("csc")
+        offsets, indices, _ = g.adj_tensors("csc")
 
         if efeat is not None and self.fc_edge is not None:
             efeat = self.fc_edge(efeat)
