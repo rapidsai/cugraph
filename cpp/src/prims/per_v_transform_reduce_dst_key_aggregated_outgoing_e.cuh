@@ -335,7 +335,10 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
       detail::decompress_edge_partition_to_fill_edgelist_majors(
-        handle, edge_partition, tmp_majors.data(), segment_offsets);
+        handle,
+        edge_partition,
+        raft::device_span<vertex_t>(tmp_majors.data(), tmp_majors.size()),
+        segment_offsets);
 
       auto minor_key_first = thrust::make_transform_iterator(
         edge_partition.indices(),

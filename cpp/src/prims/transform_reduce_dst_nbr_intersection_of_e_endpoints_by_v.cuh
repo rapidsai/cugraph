@@ -290,13 +290,15 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     detail::decompress_edge_partition_to_edgelist<vertex_t,
                                                   edge_t,
                                                   weight_t,
-                                                  GraphViewType::is_multi_gpu>(handle,
-                                                                               edge_partition,
-                                                                               std::nullopt,
-                                                                               majors.data(),
-                                                                               minors.data(),
-                                                                               std::nullopt,
-                                                                               segment_offsets);
+                                                  GraphViewType::is_multi_gpu>(
+      handle,
+      edge_partition,
+      std::nullopt,
+      std::nullopt,
+      raft::device_span<vertex_t>(majors.data(), majors.size()),
+      raft::device_span<vertex_t>(minors.data(), minors.size()),
+      std::nullopt,
+      segment_offsets);
 
     auto vertex_pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));

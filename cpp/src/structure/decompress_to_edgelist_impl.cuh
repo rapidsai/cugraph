@@ -92,7 +92,7 @@ decompress_to_edgelist_impl(
 
   size_t cur_size{0};
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {
-    detail::decompress_edge_partition_to_edgelist(
+    detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
       handle,
       edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
         graph_view.local_edge_partition_view(i)),
@@ -101,9 +101,11 @@ decompress_to_edgelist_impl(
             detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
             (*edge_weight_view), i)
         : std::nullopt,
-      edgelist_majors.data() + cur_size,
-      edgelist_minors.data() + cur_size,
-      edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data() + cur_size}
+      std::nullopt,
+      raft::device_span<vertex_t>(edgelist_majors.data() + cur_size, edgelist_edge_counts[i]),
+      raft::device_span<vertex_t>(edgelist_minors.data() + cur_size, edgelist_edge_counts[i]),
+      edgelist_weights ? std::make_optional<raft::device_span<weight_t>>(
+                           (*edgelist_weights).data() + cur_size, edgelist_edge_counts[i])
                        : std::nullopt,
       graph_view.local_edge_partition_segment_offsets(i));
     cur_size += edgelist_edge_counts[i];
@@ -206,7 +208,7 @@ decompress_to_edgelist_impl(
   auto edgelist_weights = edge_weight_view ? std::make_optional<rmm::device_uvector<weight_t>>(
                                                edgelist_majors.size(), handle.get_stream())
                                            : std::nullopt;
-  detail::decompress_edge_partition_to_edgelist(
+  detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
     handle,
     edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
       graph_view.local_edge_partition_view()),
@@ -215,9 +217,12 @@ decompress_to_edgelist_impl(
           detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
           (*edge_weight_view), 0)
       : std::nullopt,
-    edgelist_majors.data(),
-    edgelist_minors.data(),
-    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
+    std::nullopt,
+    raft::device_span<vertex_t>(edgelist_majors.data(), edgelist_majors.size()),
+    raft::device_span<vertex_t>(edgelist_minors.data(), edgelist_minors.size()),
+    edgelist_weights ? std::make_optional<raft::device_span<weight_t>>((*edgelist_weights).data(),
+                                                                       (*edgelist_weights).size())
+                     : std::nullopt,
     graph_view.local_edge_partition_segment_offsets());
 
   if (renumber_map) {

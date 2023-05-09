@@ -164,13 +164,16 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                             ? std::make_optional<rmm::device_uvector<weight_t>>(
                                 edgelist_majors.size(), handle.get_stream())
                             : std::nullopt;
-  detail::decompress_edge_partition_to_edgelist(
+  detail::decompress_edge_partition_to_edgelist<vertex_t, edge_t, weight_t, multi_gpu>(
     handle,
     edge_partition,
     edge_partition_weight_view,
-    edgelist_majors.data(),
-    edgelist_minors.data(),
-    edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
+    std::nullopt,
+    raft::device_span<vertex_t>(edgelist_majors.data(), edgelist_majors.size()),
+    raft::device_span<vertex_t>(edgelist_minors.data(), edgelist_minors.size()),
+    edgelist_weights ? std::make_optional<raft::device_span<weight_t>>((*edgelist_weights).data(),
+                                                                       (*edgelist_weights).size())
+                     : std::nullopt,
     segment_offsets);
 
   auto pair_first =
