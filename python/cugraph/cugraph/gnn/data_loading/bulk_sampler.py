@@ -24,6 +24,7 @@ import cugraph
 import pylibcugraph
 
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
+import logging
 
 
 class EXPERIMENTAL__BulkSampler:
@@ -36,7 +37,8 @@ class EXPERIMENTAL__BulkSampler:
         output_path: str,
         graph,
         seeds_per_call: int = 200_000,
-        batches_per_partition=100,
+        batches_per_partition: int = 100,
+        log_level: int = None,
         **kwargs,
     ):
         """
@@ -55,15 +57,21 @@ class EXPERIMENTAL__BulkSampler:
             a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
+        log_level: int (optional, default=None)
+            Whether to enable logging for this sampler. Supports 3 levels
+            of logging if enabled (INFO, WARNING, ERROR).  If not provided,
+            defaults to WARNING.
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
 
+        self.__logger = logging.getLogger(__name__)
+        self.__logger.setLevel(log_level or logging.WARNING)
+
         max_batches_per_partition = seeds_per_call // batch_size
         if batches_per_partition > max_batches_per_partition:
-            import warnings
 
-            warnings.warn(
+            self.__logger.warning(
                 f"batches_per_partition ({batches_per_partition}) is >"
                 f" seeds_per_call / batch size ({max_batches_per_partition})"
                 "; automatically setting batches_per_partition to "
@@ -163,6 +171,11 @@ class EXPERIMENTAL__BulkSampler:
                 )
 
         if self.size >= self.seeds_per_call:
+            self.__logger.info(
+                f"Number of input seeds ({self.size})"
+                f" is >= seeds per call ({self.seeds_per_call})."
+                " Calling flush() to compute and write minibatches."
+            )
             self.flush()
 
     def flush(self) -> None:
@@ -171,7 +184,6 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
-        self.__batches.reset_index(drop=True)
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
