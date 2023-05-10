@@ -107,6 +107,9 @@ class Graph:
         source="source",
         destination="destination",
         edge_attr=None,
+        weight=None,
+        edge_id=None,
+        edge_type=None,
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
@@ -137,8 +140,21 @@ class Graph:
         destination : str or array-like, optional (default='destination')
             destination column name or array of column names
 
-        edge_attr : str or None, optional (default=None)
-            the weights column name.
+        edge_attr : str or List[str], optional (default=None)
+            Names of the edge attributes.  Can either be a single string
+            representing the weight column name, or a list of length 3
+            holding [weight, edge_id, edge_type].  If this argument is
+            provided, then the weight/edge_id/edge_type arguments must
+            be left empty.
+
+        weight : str, optional (default=None)
+            Name of the weight column in the input dataframe.
+
+        edge_id : str, optional (default=None)
+            Name of the edge id column in the input dataframe.
+
+        edge_type : str, optional (default=None)
+            Name of the edge type column in the input dataframe.
 
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
@@ -176,6 +192,9 @@ class Graph:
             source=source,
             destination=destination,
             edge_attr=edge_attr,
+            weight=weight,
+            edge_id=edge_id,
+            edge_type=edge_type,
             renumber=renumber,
             store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only,
@@ -254,6 +273,9 @@ class Graph:
         source="source",
         destination="destination",
         edge_attr=None,
+        weight=None,
+        edge_id=None,
+        edge_type=None,
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
@@ -280,8 +302,21 @@ class Graph:
         destination : str, optional (default='destination')
             Destination column name or array of column names
 
-        edge_attr : str, optional (default=None)
-            Weights column name
+        edge_attr : str or List[str], optional (default=None)
+            Names of the edge attributes.  Can either be a single string
+            representing the weight column name, or a list of length 3
+            holding [weight, edge_id, edge_type].  If this argument is
+            provided, then the weight/edge_id/edge_type arguments must
+            be left empty.
+
+        weight : str, optional (default=None)
+            Name of the weight column in the input dataframe.
+
+        edge_id : str, optional (default=None)
+            Name of the edge id column in the input dataframe.
+
+        edge_type : str, optional (default=None)
+            Name of the edge type column in the input dataframe.
 
         renumber : bool, optional (default=True)
             If source and destination indices are not in range 0 to V where V
@@ -308,12 +343,15 @@ class Graph:
             raise RuntimeError("Graph already has values")
         self._Impl._simpleDistributedGraphImpl__from_edgelist(
             input_ddf,
-            source,
-            destination,
-            edge_attr,
-            renumber,
-            store_transposed,
-            legacy_renum_only,
+            source=source,
+            destination=destination,
+            edge_attr=edge_attr,
+            weight=weight,
+            edge_id=edge_id,
+            edge_type=edge_type,
+            renumber=renumber,
+            store_transposed=store_transposed,
+            legacy_renum_only=legacy_renum_only,
         )
 
     # Move to Compat Module
@@ -323,6 +361,9 @@ class Graph:
         source="source",
         destination="destination",
         edge_attr=None,
+        weight=None,
+        edge_id=None,
+        edge_type=None,
         renumber=True,
     ):
         """
@@ -334,7 +375,9 @@ class Graph:
         of vertices.  If the input vertices are a single column of integers
         in the range [0, V), renumbering can be disabled and the original
         external vertex ids will be used.
-        If weights are present, edge_attr argument is the weights column name.
+        Weights, edge ids, and edge types can be passed through either the
+        edge_attr argument or individually as separate keyword arguments.
+        All three are optional.
 
         Parameters
         ----------
@@ -347,8 +390,21 @@ class Graph:
         destination : str or array-like, optional (default='destination')
             Destination column name or array of column names
 
-        edge_attr : str or None, optional (default=None)
-            The weights column name
+        edge_attr : str or List[str], optional (default=None)
+            Names of the edge attributes.  Can either be a single string
+            representing the weight column name, or a list of length 3
+            holding [weight, edge_id, edge_type].  If this argument is
+            provided, then the weight/edge_id/edge_type arguments must
+            be left empty.
+
+        weight : str, optional (default=None)
+            Name of the weight column in the input dataframe.
+
+        edge_id : str, optional (default=None)
+            Name of the edge id column in the input dataframe.
+
+        edge_type : str, optional (default=None)
+            Name of the edge type column in the input dataframe.
 
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
@@ -376,6 +432,9 @@ class Graph:
             source=source,
             destination=destination,
             edge_attr=edge_attr,
+            weight=weight,
+            edge_id=edge_id,
+            edge_type=edge_type,
             renumber=renumber,
         )
 
