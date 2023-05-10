@@ -178,8 +178,12 @@ class TransformerConv(BaseConv):
         key = self.lin_key(x[0])
         value = self.lin_value(x[0])
 
-        if self.lin_edge is not None:
-            assert edge_attr is not None
+        if edge_attr is not None:
+            if self.lin_edge is None:
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.edge_dim must be set to accept "
+                    f"edge features."
+                )
             edge_attr = self.lin_edge(edge_attr)
 
         out = TransformerConvAgg(

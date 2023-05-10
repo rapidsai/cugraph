@@ -185,13 +185,22 @@ class GATConv(BaseConv):
         )
 
         if edge_attr is not None:
-            assert self.lin_edge is not None
+            if self.lin_edge is None:
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.edge_dim must be set to accept "
+                    f"edge features."
+                )
             if edge_attr.dim() == 1:
                 edge_attr = edge_attr.view(-1, 1)
             edge_attr = self.lin_edge(edge_attr)
 
         if bipartite:
-            assert hasattr(self, "lin_src")
+            if not hasattr(self, "lin_src"):
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.in_channels must be a pair of "
+                    f"integers to allow bipartite node features, but got "
+                    f"{self.in_channels}."
+                )
             x_src = self.lin_src(x[0])
             x_dst = self.lin_dst(x[1])
 
@@ -208,7 +217,11 @@ class GATConv(BaseConv):
             )
 
         else:
-            assert hasattr(self, "lin")
+            if not hasattr(self, "lin"):
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.in_channels is expected to be an "
+                    f"integer, but got {self.in_channels}."
+                )
             x = self.lin(x)
 
             out = mha_gat_n2n(

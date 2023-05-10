@@ -191,7 +191,11 @@ class GATv2Conv(BaseConv):
         graph = self.get_cugraph(csc, bipartite=bipartite or not self.share_weights)
 
         if edge_attr is not None:
-            assert self.lin_edge is not None
+            if self.lin_edge is None:
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.edge_dim must be set to accept "
+                    f"edge features."
+                )
             if edge_attr.dim() == 1:
                 edge_attr = edge_attr.view(-1, 1)
             edge_attr = self.lin_edge(edge_attr)
