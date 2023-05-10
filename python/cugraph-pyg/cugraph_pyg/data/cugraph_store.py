@@ -904,7 +904,7 @@ class EXPERIMENTAL__CuGraphStore:
                     )
                 idx = idx.cpu()
             elif feature_backend == "numpy":
-                # allow indexing through cupy arrays
+                # allow feature indexing through cupy arrays
                 if isinstance(idx, cupy.ndarray):
                     idx = idx.get()
                 elif isinstance(idx, torch.Tensor):
