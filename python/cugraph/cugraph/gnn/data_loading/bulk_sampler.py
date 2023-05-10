@@ -15,10 +15,15 @@ import os
 
 from typing import Union
 
+import cupy
 import cudf
 import dask_cudf
+import cugraph.dask as dask_cugraph
+
 import cugraph
 import pylibcugraph
+
+from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 
 
 class EXPERIMENTAL__BulkSampler:
@@ -32,7 +37,6 @@ class EXPERIMENTAL__BulkSampler:
         graph,
         seeds_per_call: int = 200_000,
         batches_per_partition=100,
-        rank: int = 0,
         **kwargs,
     ):
         """
@@ -51,9 +55,6 @@ class EXPERIMENTAL__BulkSampler:
             a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
-        rank: int (optional, default=0)
-            The rank of this sampler.  Used to isolate this sampler from
-            others that may be running on other nodes.
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
@@ -75,13 +76,8 @@ class EXPERIMENTAL__BulkSampler:
         self.__graph = graph
         self.__seeds_per_call = seeds_per_call
         self.__batches_per_partition = batches_per_partition
-        self.__rank = rank
         self.__batches = None
         self.__sample_call_args = kwargs
-
-    @property
-    def rank(self) -> int:
-        return self.__rank
 
     @property
     def seeds_per_call(self) -> int:
@@ -195,18 +191,29 @@ class EXPERIMENTAL__BulkSampler:
             sample_fn = cugraph.uniform_neighbor_sample
         else:
             sample_fn = cugraph.dask.uniform_neighbor_sample
-            self.__sample_call_args["_multiple_clients"] = True
+            self.__sample_call_args.update(
+                {
+                    "_multiple_clients": True,
+                    "label_to_output_comm_rank": self.__get_label_to_output_comm_rank(
+                        min_batch_id, max_batch_id
+                    ),
+                    "label_list": cupy.arange(
+                        min_batch_id, max_batch_id + 1, dtype="int32"
+                    ),
+                }
+            )
 
-        samples = sample_fn(
+        samples, offsets = sample_fn(
             self.__graph,
             **self.__sample_call_args,
             start_list=self.__batches[self.start_col_name][batch_id_filter],
             batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
             with_edge_properties=True,
+            return_offsets=True,
         )
 
         self.__batches = self.__batches[~batch_id_filter]
-        self.__write(samples, min_batch_id, npartitions)
+        self.__write(samples, offsets)
 
         if self.size > 0:
             self.flush()
@@ -214,36 +221,19 @@ class EXPERIMENTAL__BulkSampler:
     def __write(
         self,
         samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
-        min_batch_id: int,
-        npartitions: int,
+        offsets: Union[cudf.DataFrame, dask_cudf.DataFrame],
     ) -> None:
-        # Ensure each rank writes to its own partition so there is no conflict
-        outer_partition = f"rank={self.__rank}"
-        outer_partition_path = os.path.join(self.__output_path, outer_partition)
-        os.makedirs(outer_partition_path, exist_ok=True)
+        os.makedirs(self.__output_path, exist_ok=True)
+        write_samples(
+            samples, offsets, self.__batches_per_partition, self.__output_path
+        )
 
-        for partition_k in range(npartitions):
-            ix_partition_start_inclusive = (
-                min_batch_id + partition_k * self.batches_per_partition
-            )
-            ix_partition_end_inclusive = (
-                min_batch_id + (partition_k + 1) * self.batches_per_partition - 1
-            )
-            f = (samples.batch_id >= ix_partition_start_inclusive) & (
-                samples.batch_id <= ix_partition_end_inclusive
-            )
-            if len(samples[f]) == 0:
-                break
+    def __get_label_to_output_comm_rank(self, min_batch_id, max_batch_id):
+        num_workers = dask_cugraph.get_n_workers()
+        num_batches = max_batch_id - min_batch_id + 1
+        z = cupy.zeros(num_batches, dtype="int32")
+        s = cupy.array_split(cupy.arange(num_batches), num_workers)
+        for i, t in enumerate(s):
+            z[t] = i
 
-            ix_partition_end_inclusive = samples[f].batch_id.max()
-            if hasattr(ix_partition_end_inclusive, "compute"):
-                ix_partition_end_inclusive = ix_partition_end_inclusive.compute()
-            ix_partition_end_inclusive = int(ix_partition_end_inclusive)
-
-            inner_path = os.path.join(
-                outer_partition_path,
-                f"batch={ix_partition_start_inclusive}-{ix_partition_end_inclusive}"
-                ".parquet",
-            )
-
-            samples[f].to_parquet(inner_path, index=False)
+        return cudf.Series(z)

@@ -240,6 +240,65 @@ void expensive_check_edgelist(raft::handle_t const& handle,
   }
 }
 
+template <typename vertex_t, bool store_transposed, bool multi_gpu>
+bool check_symmetric(raft::handle_t const& handle,
+                     raft::device_span<vertex_t const> edgelist_srcs,
+                     raft::device_span<vertex_t const> edgelist_dsts)
+{
+  rmm::device_uvector<vertex_t> org_srcs(edgelist_srcs.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> org_dsts(edgelist_dsts.size(), handle.get_stream());
+  thrust::copy(
+    handle.get_thrust_policy(), edgelist_srcs.begin(), edgelist_srcs.end(), org_srcs.begin());
+  thrust::copy(
+    handle.get_thrust_policy(), edgelist_dsts.begin(), edgelist_dsts.end(), org_dsts.begin());
+
+  rmm::device_uvector<vertex_t> symmetrized_srcs(org_srcs.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> symmetrized_dsts(org_dsts.size(), handle.get_stream());
+  thrust::copy(
+    handle.get_thrust_policy(), org_srcs.begin(), org_srcs.end(), symmetrized_srcs.begin());
+  thrust::copy(
+    handle.get_thrust_policy(), org_dsts.begin(), org_dsts.end(), symmetrized_dsts.begin());
+  std::tie(symmetrized_srcs, symmetrized_dsts, std::ignore) =
+    symmetrize_edgelist<vertex_t, float /* dummy */, store_transposed, multi_gpu>(
+      handle, std::move(symmetrized_srcs), std::move(symmetrized_dsts), std::nullopt, true);
+
+  if (org_srcs.size() != symmetrized_srcs.size()) { return false; }
+
+  auto org_edge_first =
+    thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
+  thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
+  auto symmetrized_edge_first = thrust::make_zip_iterator(
+    thrust::make_tuple(symmetrized_srcs.begin(), symmetrized_dsts.begin()));
+  thrust::sort(handle.get_thrust_policy(),
+               symmetrized_edge_first,
+               symmetrized_edge_first + symmetrized_srcs.size());
+
+  return thrust::equal(handle.get_thrust_policy(),
+                       org_edge_first,
+                       org_edge_first + org_srcs.size(),
+                       symmetrized_edge_first);
+}
+
+template <typename vertex_t>
+bool check_no_parallel_edge(raft::handle_t const& handle,
+                            raft::device_span<vertex_t const> edgelist_srcs,
+                            raft::device_span<vertex_t const> edgelist_dsts)
+{
+  rmm::device_uvector<vertex_t> org_srcs(edgelist_srcs.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> org_dsts(edgelist_dsts.size(), handle.get_stream());
+  thrust::copy(
+    handle.get_thrust_policy(), edgelist_srcs.begin(), edgelist_srcs.end(), org_srcs.begin());
+  thrust::copy(
+    handle.get_thrust_policy(), edgelist_dsts.begin(), edgelist_dsts.end(), org_dsts.begin());
+
+  auto org_edge_first =
+    thrust::make_zip_iterator(thrust::make_tuple(org_srcs.begin(), org_dsts.begin()));
+  thrust::sort(handle.get_thrust_policy(), org_edge_first, org_edge_first + org_srcs.size());
+  return thrust::unique(
+           handle.get_thrust_policy(), org_edge_first, org_edge_first + edgelist_srcs.size()) ==
+         (org_edge_first + edgelist_srcs.size());
+}
+
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -294,6 +353,26 @@ create_graph_from_edgelist_impl(
                                                   store_transposed ? edgelist_dsts : edgelist_srcs,
                                                   store_transposed ? edgelist_srcs : edgelist_dsts,
                                                   renumber);
+
+    if (graph_properties.is_symmetric) {
+      CUGRAPH_EXPECTS(
+        (check_symmetric<vertex_t, store_transposed, multi_gpu>(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()))),
+        "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
+        "not symmetric.");
+    }
+
+    if (!graph_properties.is_multigraph) {
+      CUGRAPH_EXPECTS(
+        check_no_parallel_edge(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge list "
+        "has parallel edges.");
+    }
   }
 
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
@@ -823,6 +902,26 @@ create_graph_from_edgelist_impl(
                                                   store_transposed ? edgelist_dsts : edgelist_srcs,
                                                   store_transposed ? edgelist_srcs : edgelist_dsts,
                                                   renumber);
+
+    if (graph_properties.is_symmetric) {
+      CUGRAPH_EXPECTS(
+        (check_symmetric<vertex_t, store_transposed, multi_gpu>(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()))),
+        "Invalid input arguments: graph_properties.is_symmetric is true but the input edge list is "
+        "not symmetric.");
+    }
+
+    if (!graph_properties.is_multigraph) {
+      CUGRAPH_EXPECTS(
+        check_no_parallel_edge(
+          handle,
+          raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+          raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size())),
+        "Invalid input arguments: graph_properties.is_multigraph is false but the input edge list "
+        "has parallel edges.");
+    }
   }
 
   // renumber
