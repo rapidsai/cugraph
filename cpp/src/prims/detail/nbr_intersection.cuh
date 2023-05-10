@@ -1315,7 +1315,7 @@ nbr_intersection(raft::handle_t const& handle,
       thrust::count_if(handle.get_thrust_policy(),
                        nbr_intersection_indices.begin(),
                        nbr_intersection_indices.end(),
-                       detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value}),
+                       detail::is_not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value}),
       handle.get_stream());
     size_t num_copied{0};
     size_t num_scanned{0};
@@ -1330,7 +1330,7 @@ nbr_intersection(raft::handle_t const& handle,
                         nbr_intersection_indices.begin() + num_scanned,
                         nbr_intersection_indices.begin() + num_scanned + this_scan_size,
                         tmp_indices.begin() + num_copied,
-                        detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
+                        detail::is_not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
       num_scanned += this_scan_size;
     }
     nbr_intersection_indices = std::move(tmp_indices);
