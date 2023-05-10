@@ -420,8 +420,6 @@ class EXPERIMENTAL__CuGraphStore:
             {
                 "src": pandas.Series(na_src),
                 "dst": pandas.Series(na_dst),
-                "w": pandas.Series(np.zeros(len(na_src))),
-                "eid": pandas.Series(np.arange(len(na_src))),
                 "etp": pandas.Series(na_etp),
             }
         )
@@ -441,7 +439,7 @@ class EXPERIMENTAL__CuGraphStore:
                 df,
                 source="src",
                 destination="dst",
-                edge_attr=["w", "eid", "etp"],
+                edge_type="etp",
             )
             distributed.get_client().publish_dataset(cugraph_graph=graph)
         else:
@@ -449,7 +447,7 @@ class EXPERIMENTAL__CuGraphStore:
                 df,
                 source="src",
                 destination="dst",
-                edge_attr=["w", "eid", "etp"],
+                edge_type="etp",
             )
 
         return graph
