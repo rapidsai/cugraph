@@ -11,9 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from cugraph.testing.mg_utils import (
     generate_edgelist_rmat,
     get_allocation_counts_dask_persist,
+    get_allocation_counts_dask_lazy,
     sizeof_fmt,
     get_peak_output_ratio_across_workers,
     restart_client,
@@ -118,8 +121,8 @@ def _make_batch_ids(bdf: cudf.DataFrame, batch_size: int, num_workers: int, part
     return bdf
 
 
-@get_allocation_counts_dask_persist(return_allocations=True, logging=True)
-def sample_graph(G, seed=42, batch_size=500, fanout=[5, 5, 5]):
+@get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
+def sample_graph(G, seed=42, batch_size=500, seeds_per_call=200000, fanout=[5, 5, 5]):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -129,6 +132,9 @@ def sample_graph(G, seed=42, batch_size=500, fanout=[5, 5, 5]):
         fanout_vals=fanout,
         with_replacement=False,
         random_state=seed,
+        seeds_per_call=seeds_per_call,
+        batches_per_partition=200_000 // batch_size,
+        log_level = 'INFO'
     )
 
     from dask.distributed import wait, default_client
@@ -162,7 +168,7 @@ def sample_graph(G, seed=42, batch_size=500, fanout=[5, 5, 5]):
     print(results_ddf.compute())
     """
 
-def benchmark_cugraph_bulk_sampling(scale, edgefactor, seed, batch_size, fanout):
+def benchmark_cugraph_bulk_sampling(scale, edgefactor, seed, batch_size, seeds_per_call, fanout):
     """
     Entry point for the benchmark.
     """
@@ -190,7 +196,7 @@ def benchmark_cugraph_bulk_sampling(scale, edgefactor, seed, batch_size, fanout)
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
     print(f'input memory: {input_memory}')
 
-    _, allocation_counts = sample_graph(G, seed, batch_size, fanout)
+    _, allocation_counts = sample_graph(G, seed, batch_size, seeds_per_call, fanout)
     print('allocation counts b:')
     print(allocation_counts.values())
 
@@ -238,48 +244,53 @@ def get_memory_statistics(allocation_counts, input_memory):
 
 # call __main__ function
 if __name__ == "__main__":
+    logging.basicConfig()
+
     client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False)
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    #for scale in [22, 23, 24]:
-    for scale in [16, 22, 24]:
+    for scale in [22, 23, 24]:
         for fanout in [[10,25]]:
             for batch_size in [500, 1000]:
-                print(f'scale: {scale}')
-                print(f'batch size: {batch_size}')
-                print(f'fanout: {fanout}')
+                for seeds_per_call in [500_000, 1_000_000, 2_000_000]:
+                    print(f'scale: {scale}')
+                    print(f'batch size: {batch_size}')
+                    print(f'fanout: {fanout}')
+                    print(f'seeds_per_call: {seeds_per_call}')
 
-                try:
-                    stats_d = {}
-                    (
-                        num_input_edges,
-                        input_to_peak_ratio,
-                        output_to_peak_ratio,
-                        input_memory_per_worker,
-                        peak_allocation_across_workers,
-                    ) = benchmark_cugraph_bulk_sampling(
-                        scale=scale,
-                        edgefactor=16,
-                        seed=123,
-                        batch_size=batch_size,
-                        fanout=fanout,
-                    )
-                    stats_d["scale"] = scale
-                    stats_d["num_input_edges"] = num_input_edges
-                    stats_d["batch_size"] = batch_size
-                    stats_d["fanout"] = fanout
-                    stats_d["input_memory_per_worker"] = sizeof_fmt(input_memory_per_worker)
-                    stats_d["peak_allocation_across_workers"] = sizeof_fmt(
-                        peak_allocation_across_workers
-                    )
-                    stats_d["input_to_peak_ratio"] = input_to_peak_ratio
-                    stats_d["output_to_peak_ratio"] = output_to_peak_ratio
-                    stats_ls.append(stats_d)
-                except Exception as e:
-                    print(e)
-                restart_client(client)
-                sleep(10)
+                    try:
+                        stats_d = {}
+                        (
+                            num_input_edges,
+                            input_to_peak_ratio,
+                            output_to_peak_ratio,
+                            input_memory_per_worker,
+                            peak_allocation_across_workers,
+                        ) = benchmark_cugraph_bulk_sampling(
+                            scale=scale,
+                            edgefactor=16,
+                            seed=123,
+                            batch_size=batch_size,
+                            seeds_per_call=seeds_per_call,
+                            fanout=fanout,
+                        )
+                        stats_d["scale"] = scale
+                        stats_d["num_input_edges"] = num_input_edges
+                        stats_d["batch_size"] = batch_size
+                        stats_d["fanout"] = fanout
+                        stats_d["seeds_per_call"] = seeds_per_call
+                        stats_d["input_memory_per_worker"] = sizeof_fmt(input_memory_per_worker)
+                        stats_d["peak_allocation_across_workers"] = sizeof_fmt(
+                            peak_allocation_across_workers
+                        )
+                        stats_d["input_to_peak_ratio"] = input_to_peak_ratio
+                        stats_d["output_to_peak_ratio"] = output_to_peak_ratio
+                        stats_ls.append(stats_d)
+                    except Exception as e:
+                        print(e)
+                    restart_client(client)
+                    sleep(10)
 
         stats_df = pd.DataFrame(
             stats_ls,

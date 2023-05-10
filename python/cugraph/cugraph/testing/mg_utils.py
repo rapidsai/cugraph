@@ -192,6 +192,15 @@ def persist_dask_object(arg):
 
 # Function to convert bytes into human readable format
 def sizeof_fmt(num, suffix="B"):
+    if isinstance(num, str):
+        if num[-2:] == 'GB':
+            return num[:-2] + 'G'
+        elif num[-2:] == 'MB':
+            return num[:-2] + 'M'
+        elif num[-2:] == 'KB':
+            return num[:-2] + 'K'
+        else:
+            raise ValueError('unknown unit')
     for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
         if abs(num) < 1024.0:
             return "%3.1f%s%s" % (num, unit, suffix)
@@ -222,6 +231,7 @@ def get_allocation_counts_dask_lazy(return_allocations=False, logging=True):
                 worker_id: _parse_allocation_counts(worker_allocations)
                 for worker_id, worker_allocations in allocation_counts.items()
             }
+            
             if logging:
                 _print_allocation_statistics(
                     func, args, kwargs, et - st, allocation_counts
