@@ -119,6 +119,13 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         df[edge_type_n] = edge_types
         df[hop_id_n] = hop_ids
 
+        print(
+            f"sources: {sources}\n"
+            f"destinations: {destinations}\n"
+            f"batch: {batch_ids}\n"
+            f"offset: {offsets}\n"
+        )
+
         if return_offsets:
             offsets_df = cudf.DataFrame(
                 {
@@ -297,6 +304,7 @@ def uniform_neighbor_sample(
         List of output GPUs (by rank) corresponding to batch
         id labels in the label list.  Used to assign each batch
         id to a GPU.
+        Must be in ascending order (i.e. [0, 0, 1, 2]).
 
     random_state: int, optional
         Random seed to use when making sampling calls.
