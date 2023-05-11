@@ -999,7 +999,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
@@ -1078,7 +1078,7 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
