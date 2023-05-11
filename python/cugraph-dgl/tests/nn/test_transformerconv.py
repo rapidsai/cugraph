@@ -10,7 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from itertools import product
+
 import pytest
 
 try:
@@ -24,18 +24,14 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = {
-    "beta": [False, True],
-    "bipartite": [False, True],
-    "concat": [False, True],
-    "idtype_int": [False, True],
-    "num_heads": [1, 2, 3, 4],
-    "to_block": [False, True],
-    "use_edge_feats": [False, True],
-}
 
-
-@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
+@pytest.mark.parametrize("beta", [False, True])
+@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("concat", [False, True])
+@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("num_heads", [1, 2, 3, 4])
+@pytest.mark.parametrize("to_block", [False, True])
+@pytest.mark.parametrize("use_edge_feats", [False, True])
 def test_TransformerConv(
     beta, bipartite, concat, idtype_int, num_heads, to_block, use_edge_feats
 ):

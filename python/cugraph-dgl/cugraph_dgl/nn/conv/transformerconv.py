@@ -133,7 +133,7 @@ class TransformerConv(BaseConv):
             Edge feature tensor. Default: ``None``.
         """
         bipartite = not isinstance(nfeat, torch.Tensor)
-        offsets, indices, _ = g.adj_sparse("csc")
+        offsets, indices, _ = g.adj_tensors("csc")
 
         if bipartite:
             src_feats, dst_feats = nfeat
