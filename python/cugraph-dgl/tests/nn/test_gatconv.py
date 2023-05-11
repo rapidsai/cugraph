@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=too-many-arguments, too-many-locals
-from itertools import product
+
 import pytest
 
 try:
@@ -25,16 +25,12 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options1 = {
-    "bipartite": [False, True],
-    "idtype_int": [False, True],
-    "max_in_degree": [None, 8],
-    "num_heads": [1, 2, 7],
-    "to_block": [False, True],
-}
 
-
-@pytest.mark.parametrize(",".join(options1.keys()), product(*options1.values()))
+@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8])
+@pytest.mark.parametrize("num_heads", [1, 2, 7])
+@pytest.mark.parametrize("to_block", [False, True])
 def test_gatconv_equality(bipartite, idtype_int, max_in_degree, num_heads, to_block):
     GATConv = dgl.nn.GATConv
     CuGraphGATConv = cugraph_dgl.nn.GATConv
@@ -100,19 +96,14 @@ def test_gatconv_equality(bipartite, idtype_int, max_in_degree, num_heads, to_bl
     )
 
 
-options2 = {
-    "bias": [False, True],
-    "bipartite": [False, True],
-    "concat": [False, True],
-    "max_in_degree": [None, 8, 800],
-    "num_heads": [1, 3],
-    "to_block": [False, True],
-    "use_edge_feats": [False, True],
-}
-
-
-@pytest.mark.parametrize(",".join(options2.keys()), product(*options2.values()))
-def test_gatconv(
+@pytest.mark.parametrize("bias", [False, True])
+@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("concat", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8, 800])
+@pytest.mark.parametrize("num_heads", [1, 2, 7])
+@pytest.mark.parametrize("to_block", [False, True])
+@pytest.mark.parametrize("use_edge_feats", [False, True])
+def test_gatconv_edge_feats(
     bias, bipartite, concat, max_in_degree, num_heads, to_block, use_edge_feats
 ):
     from cugraph_dgl.nn import GATConv
