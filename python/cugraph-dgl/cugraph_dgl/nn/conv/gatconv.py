@@ -176,14 +176,21 @@ class GATConv(BaseConv):
         bipartite = not isinstance(nfeat, torch.Tensor)
         offsets, indices, _ = g.adj_tensors("csc")
 
-        if efeat is not None and self.fc_edge is not None:
+        if efeat is not None:
+            if self.fc_edge is None:
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.edge_feats must be set to "
+                    f"accept edge features."
+                )
             efeat = self.fc_edge(efeat)
 
         if bipartite:
-            assert hasattr(self, "fc_src"), (
-                f"Bipartite mode requires {self.__class__.__name__}.in_feats "
-                f"to be a tuple, but got {type(self.in_feats)}."
-            )
+            if not hasattr(self, "fc_src"):
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.in_feats must be a pair of "
+                    f"integers to allow bipartite node features, but got "
+                    f"{self.in_feats}."
+                )
             _graph = BipartiteCSC(
                 offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
             )
@@ -202,10 +209,11 @@ class GATConv(BaseConv):
                 edge_feat=efeat,
             )
         else:
-            assert hasattr(self, "fc"), (
-                f"Non-bipartite mode requires {self.__class__.__name__}.in_feats "
-                f"to be an int, but got {type(self.in_feats)}."
-            )
+            if not hasattr(self, "fc"):
+                raise RuntimeError(
+                    f"{self.__class__.__name__}.in_feats is expected to be an "
+                    f"integer, but got {self.in_feats}."
+                )
             nfeat = self.fc(nfeat)
             # Sampled primitive does not support edge features
             if g.is_block and efeat is None:
