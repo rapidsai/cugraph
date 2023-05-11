@@ -533,6 +533,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
+    # - MG PRIMS TRANSFORM_E tests ---------------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_E_TEST prims/mg_transform_e.cu)
+    target_link_libraries(MG_TRANSFORM_E_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
     # - MG PRIMS COUNT_IF_E tests -----------------------------------------------------------------
     ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
     target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
