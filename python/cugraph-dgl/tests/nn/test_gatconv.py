@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=too-many-arguments, too-many-locals
-from itertools import product
+
 import pytest
 
 try:
@@ -25,42 +25,53 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = {
-    "idtype_int": [False, True],
-    "max_in_degree": [None, 8],
-    "num_heads": [1, 2, 3, 7],
-    "to_block": [False, True],
-}
 
-
-@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
-def test_gatconv_equality(idtype_int, max_in_degree, num_heads, to_block):
+@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8])
+@pytest.mark.parametrize("num_heads", [1, 2, 7])
+@pytest.mark.parametrize("to_block", [False, True])
+def test_gatconv_equality(bipartite, idtype_int, max_in_degree, num_heads, to_block):
     GATConv = dgl.nn.GATConv
     CuGraphGATConv = cugraph_dgl.nn.GATConv
     device = "cuda"
-
-    in_feat, out_feat = 10, 2
-    args = (in_feat, out_feat, num_heads)
-    kwargs = {"bias": False}
     g = create_graph1().to(device)
+
     if idtype_int:
         g = g.int()
+
     if to_block:
         g = dgl.to_block(g)
-    feat = torch.rand(g.num_src_nodes(), in_feat).to(device)
 
-    torch.manual_seed(0)
+    if bipartite:
+        in_feats = (10, 3)
+        nfeat = (
+            torch.rand(g.num_src_nodes(), in_feats[0], device=device),
+            torch.rand(g.num_dst_nodes(), in_feats[1], device=device),
+        )
+    else:
+        in_feats = 10
+        nfeat = torch.rand(g.num_src_nodes(), in_feats, device=device)
+    out_feats = 2
+
+    args = (in_feats, out_feats, num_heads)
+    kwargs = {"bias": False}
+
     conv1 = GATConv(*args, **kwargs, allow_zero_in_degree=True).to(device)
-    out1 = conv1(g, feat)
+    out1 = conv1(g, nfeat)
 
-    torch.manual_seed(0)
     conv2 = CuGraphGATConv(*args, **kwargs).to(device)
-    dim = num_heads * out_feat
+    dim = num_heads * out_feats
     with torch.no_grad():
         conv2.attn_weights.data[:dim] = conv1.attn_l.data.flatten()
         conv2.attn_weights.data[dim:] = conv1.attn_r.data.flatten()
-        conv2.fc.weight.data[:] = conv1.fc.weight.data
-    out2 = conv2(g, feat, max_in_degree=max_in_degree)
+        if bipartite:
+            conv2.fc_src.weight.data = conv1.fc_src.weight.data.detach().clone()
+            conv2.fc_dst.weight.data = conv1.fc_dst.weight.data.detach().clone()
+        else:
+            conv2.fc.weight.data = conv1.fc.weight.data.detach().clone()
+    out2 = conv2(g, nfeat, max_in_degree=max_in_degree)
+
     assert torch.allclose(out1, out2, atol=1e-6)
 
     grad_out1 = torch.rand_like(out1)
@@ -68,9 +79,63 @@ def test_gatconv_equality(idtype_int, max_in_degree, num_heads, to_block):
     out1.backward(grad_out1)
     out2.backward(grad_out2)
 
-    assert torch.allclose(conv1.fc.weight.grad, conv2.fc.weight.grad, atol=1e-6)
+    if bipartite:
+        assert torch.allclose(
+            conv1.fc_src.weight.grad, conv2.fc_src.weight.grad, atol=1e-6
+        )
+        assert torch.allclose(
+            conv1.fc_dst.weight.grad, conv2.fc_dst.weight.grad, atol=1e-6
+        )
+    else:
+        assert torch.allclose(conv1.fc.weight.grad, conv2.fc.weight.grad, atol=1e-6)
+
     assert torch.allclose(
         torch.cat((conv1.attn_l.grad, conv1.attn_r.grad), dim=0),
-        conv2.attn_weights.grad.view(2, num_heads, out_feat),
+        conv2.attn_weights.grad.view(2, num_heads, out_feats),
         atol=1e-6,
     )
+
+
+@pytest.mark.parametrize("bias", [False, True])
+@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("concat", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8, 800])
+@pytest.mark.parametrize("num_heads", [1, 2, 7])
+@pytest.mark.parametrize("to_block", [False, True])
+@pytest.mark.parametrize("use_edge_feats", [False, True])
+def test_gatconv_edge_feats(
+    bias, bipartite, concat, max_in_degree, num_heads, to_block, use_edge_feats
+):
+    from cugraph_dgl.nn import GATConv
+
+    device = "cuda"
+    g = create_graph1().to(device)
+
+    if to_block:
+        g = dgl.to_block(g)
+
+    if bipartite:
+        in_feats = (10, 3)
+        nfeat = (
+            torch.rand(g.num_src_nodes(), in_feats[0], device=device),
+            torch.rand(g.num_dst_nodes(), in_feats[1], device=device),
+        )
+    else:
+        in_feats = 10
+        nfeat = torch.rand(g.num_src_nodes(), in_feats, device=device)
+    out_feats = 2
+
+    if use_edge_feats:
+        edge_feats = 3
+        efeat = torch.rand(g.num_edges(), edge_feats, device=device)
+    else:
+        edge_feats = None
+        efeat = None
+
+    conv = GATConv(
+        in_feats, out_feats, num_heads, concat=concat, edge_feats=edge_feats, bias=bias
+    ).to(device)
+    out = conv(g, nfeat, efeat=efeat, max_in_degree=max_in_degree)
+
+    grad_out = torch.rand_like(out)
+    out.backward(grad_out)

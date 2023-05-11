@@ -253,7 +253,7 @@ size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
