@@ -1193,9 +1193,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeBiasOp Type of the quaternary (or quinary) edge operator to set-up selection bias
+ * @tparam EdgeBiasOp Type of the quinary edge operator to set-up selection bias
  * values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1282,7 +1282,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.

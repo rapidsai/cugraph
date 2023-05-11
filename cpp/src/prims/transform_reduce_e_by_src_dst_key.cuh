@@ -620,7 +620,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeSrcKeyInputWrapper Type of the wrapper for edge source key values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the  quinary edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -710,7 +710,7 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
