@@ -128,13 +128,13 @@ _rmat_edgefactor = getattr(pytest, "_rmat_edgefactor", 16)  # ~17M edges
 rmat_sg_dataset = pytest.param(RmatDataset(scale=_rmat_scale,
                                            edgefactor=_rmat_edgefactor,
                                            mg=False),
-                               marks=[pytest.mark.rmat,
+                               marks=[pytest.mark.rmat_data,
                                       pytest.mark.sg,
                                ])
 rmat_mg_dataset = pytest.param(RmatDataset(scale=_rmat_scale,
                                            edgefactor=_rmat_edgefactor,
                                            mg=True),
-                               marks=[pytest.mark.rmat,
+                               marks=[pytest.mark.rmat_data,
                                       pytest.mark.mg,
                                ])
 

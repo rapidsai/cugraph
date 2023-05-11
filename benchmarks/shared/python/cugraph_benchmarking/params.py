@@ -40,23 +40,23 @@ soc_livejournal = Dataset(
     csv_col_names=["src", "dst"],
     csv_col_dtypes=["int32", "int32"])
 
-# Assume all "real" (.csv file on disk) datasets are too small to be useful for MG.
+# Assume all "file_data" (.csv file on disk) datasets are too small to be useful for MG.
 undirected_datasets = [
     pytest.param(karate,
                  marks=[pytest.mark.tiny,
                         pytest.mark.undirected,
-                        pytest.mark.real,
+                        pytest.mark.file_data,
                         pytest.mark.sg,
                         ]),
     pytest.param(hollywood,
                  marks=[pytest.mark.small,
                         pytest.mark.undirected,
-                        pytest.mark.real,
+                        pytest.mark.file_data,
                         pytest.mark.sg,
                         ]),
     pytest.param(europe_osm,
                  marks=[pytest.mark.undirected,
-                        pytest.mark.real,
+                        pytest.mark.file_data,
                         pytest.mark.sg,
                         ]),
 ]
@@ -65,12 +65,12 @@ directed_datasets = [
     pytest.param(cit_patents,
                  marks=[pytest.mark.small,
                         pytest.mark.directed,
-                        pytest.mark.real,
+                        pytest.mark.file_data,
                         pytest.mark.sg,
                         ]),
     pytest.param(soc_livejournal,
                  marks=[pytest.mark.directed,
-                        pytest.mark.real,
+                        pytest.mark.file_data,
                         pytest.mark.sg,
                         ]),
 ]
