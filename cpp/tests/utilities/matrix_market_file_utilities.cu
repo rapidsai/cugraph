@@ -279,6 +279,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
   size_t nnz{};
 
   FILE* file = fopen(graph_file_full_path.c_str(), "r");
+  std::cout <<"path: " <<  graph_file_full_path << std::endl;
   CUGRAPH_EXPECTS(file != nullptr, "fopen (%s) failure.", graph_file_full_path.c_str());
 
   size_t tmp_m{};

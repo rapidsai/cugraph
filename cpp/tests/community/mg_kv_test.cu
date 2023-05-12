@@ -174,28 +174,38 @@ class Tests_MGMaximalIndependentSet
         cugraph::test::to_device(*handle_, graph_view.vertex_partition_range_lasts());
       rmm::device_uvector<vertex_t> gpu_ids(leiden_assignment.size(), handle_->get_stream());
 
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
       raft::print_device_vector("partitions_range_lasts:",
                                 partitions_range_lasts.data(),
                                 partitions_range_lasts.size(),
                                 std::cout);
 
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "leiden_assignment:", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+
       thrust::transform(handle_->get_thrust_policy(),
                         leiden_assignment.begin(),
                         leiden_assignment.end(),
                         gpu_ids.begin(),
-                        [key_func =
-                           cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
-                             raft::device_span<vertex_t const>(partitions_range_lasts.data(),
-                                                               partitions_range_lasts.size()),
-                             major_comm_size,
-                             minor_comm_size},
-                         comm_rank] __device__(auto key) {
+                        [
+
+                          key_func =
+                            cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t>{
+                              raft::device_span<vertex_t const>(partitions_range_lasts.data(),
+                                                                partitions_range_lasts.size()),
+                              major_comm_size,
+                              minor_comm_size},
+                          comm_rank,
+                          comm_size] __device__(auto key) {
                           if (key_func(key) != comm_rank) {
                             printf("--- key %d must not be in GPU-%d\n", key, comm_rank);
                           } else {
-                            printf("+++ key %d is on right GPU \n");
+                            printf("+++ key %d is on right GPU \n", key);
                           }
                           return key_func(key);
+                          // return key % comm_size;
                         });
 
       handle_->sync_stream();
