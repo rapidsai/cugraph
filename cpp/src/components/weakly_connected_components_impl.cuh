@@ -783,6 +783,8 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  vertex_t* components,
                                  bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
 }
 
