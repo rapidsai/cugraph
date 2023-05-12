@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=too-many-arguments, too-many-locals
-from itertools import product
+
 import pytest
 
 try:
@@ -25,17 +25,13 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = {
-    "idtype_int": [False, True],
-    "max_in_degree": [None, 8],
-    "num_bases": [1, 2, 5],
-    "regularizer": [None, "basis"],
-    "self_loop": [False, True],
-    "to_block": [False, True],
-}
 
-
-@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
+@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8])
+@pytest.mark.parametrize("num_bases", [1, 2, 5])
+@pytest.mark.parametrize("regularizer", [None, "basis"])
+@pytest.mark.parametrize("self_loop", [False, True])
+@pytest.mark.parametrize("to_block", [False, True])
 def test_relgraphconv_equality(
     idtype_int, max_in_degree, num_bases, regularizer, self_loop, to_block
 ):
