@@ -87,8 +87,8 @@ def get_persisted_df_worker_map(dask_df, client):
     return output_map
 
 
-def _chunk_lst(lst, n):
-    return [lst[i::n] for i in range(n)]
+def _chunk_lst(ls, num_parts):
+    return [ls[i::num_parts] for i in range(num_parts)]
 
 
 def persist_dask_df_equal_parts_per_worker(dask_df, client):

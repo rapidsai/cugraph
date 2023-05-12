@@ -316,6 +316,7 @@ class simpleDistributedGraphImpl:
             is_symmetric=not self.properties.directed,
         )
         ddf = ddf.repartition(npartitions=len(workers) * 2)
+        ddf = ddf.map_partitions(lambda df: df.copy())
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         self._number_of_edges = num_edges
