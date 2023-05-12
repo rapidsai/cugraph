@@ -87,33 +87,38 @@ class simpleDistributedGraphImpl:
         num_edges,
     ):
 
+        weights = None
+        edge_ids = None
+        edge_types = None
+
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            values = edata_x[0][simpleDistributedGraphImpl.edgeWeightCol]
-            if values.dtype == "int32":
-                values = values.astype("float32")
-            elif values.dtype == "int64":
-                values = values.astype("float64")
-        else:
-            # Some algos require the graph to be weighted
-            values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+            weights = edata_x[0][simpleDistributedGraphImpl.edgeWeightCol]
+            if weights.dtype == "int32":
+                weights = weights.astype("float32")
+            elif weights.dtype == "int64":
+                weights = weights.astype("float64")
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
-            if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
-                raise ValueError("Must provide both edge id and edge type")
-
-            values_id = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
-            values_etype = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
-        else:
-            values_id, values_etype = None, None
+            edge_ids = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
+            if edata_x[0][src_col_name].dtype == "int64" and edge_ids.dtype != "int64":
+                edge_ids = edge_ids.astype("int64")
+                warnings.warn(
+                    f"Vertex type is int64 but edge id type is {edge_ids.dtype}"
+                    ", automatically casting edge id type to int64. "
+                    "This may cause extra memory usage.  Consider passing"
+                    " a int64 list of edge ids instead."
+                )
+        if simpleDistributedGraphImpl.edgeTypeCol in edata_x[0]:
+            edge_types = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
 
         return MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
             src_array=edata_x[0][src_col_name],
             dst_array=edata_x[0][dst_col_name],
-            weight_array=values,
-            edge_id_array=values_id,
-            edge_type_array=values_etype,
+            weight_array=weights,
+            edge_id_array=edge_ids,
+            edge_type_array=edge_types,
             store_transposed=store_transposed,
             num_edges=num_edges,
             do_expensive_check=False,
@@ -126,6 +131,9 @@ class simpleDistributedGraphImpl:
         source="source",
         destination="destination",
         edge_attr=None,
+        weight=None,
+        edge_id=None,
+        edge_type=None,
         renumber=True,
         store_transposed=False,
         legacy_renum_only=False,
@@ -162,8 +170,13 @@ class simpleDistributedGraphImpl:
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
+            if weight is not None or edge_id is not None or edge_type is not None:
+                raise ValueError(
+                    "If specifying edge_attr, cannot specify weight/edge_id/edge_type"
+                )
             if isinstance(edge_attr, str):
-                edge_attr = [edge_attr]
+                weight = edge_attr
+                edge_attr = [weight]
             if not (set(edge_attr).issubset(set(input_ddf.columns))):
                 raise ValueError(
                     "edge_attr column name not found in input."
@@ -199,21 +212,39 @@ class simpleDistributedGraphImpl:
                         "undirected graph."
                     )
 
+        else:
+            value_col_names = {}
+            if weight is not None:
+                value_col_names[weight] = self.edgeWeightCol
+                self.properties.weighted = True
+            if edge_id is not None:
+                value_col_names[edge_id] = self.edgeIdCol
+            if edge_type is not None:
+                value_col_names[edge_type] = self.edgeTypeCol
+
+            if len(value_col_names.keys()) > 0:
+                input_ddf = input_ddf.rename(columns=value_col_names)
+            value_col_names = list(value_col_names.values())
+
+        ddf_columns += value_col_names
+        input_ddf = input_ddf[ddf_columns]
+
+        if len(value_col_names) == 0:
+            source_col, dest_col = symmetrize(
+                input_ddf,
+                source,
+                destination,
+                multi=self.properties.multi_edge,
+                symmetrize=not self.properties.directed,
+            )
+            value_col = None
+        else:
+
             source_col, dest_col, value_col = symmetrize(
                 input_ddf,
                 source,
                 destination,
                 value_col_names,
-                multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed,
-            )
-
-        else:
-            input_ddf = input_ddf[ddf_columns]
-            source_col, dest_col = symmetrize(
-                input_ddf,
-                source,
-                destination,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed,
             )
@@ -228,11 +259,9 @@ class simpleDistributedGraphImpl:
             # Multi column dask_cudf dataframe
             input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
 
-        if edge_attr is not None:
-            input_ddf[self.edgeWeightCol] = value_col[self.edgeWeightCol]
-            if len(edge_attr) == 3:
-                input_ddf[self.edgeIdCol] = value_col[self.edgeIdCol]
-                input_ddf[self.edgeTypeCol] = value_col[self.edgeTypeCol]
+        if value_col is not None:
+            for vc in value_col_names:
+                input_ddf[vc] = value_col[vc]
 
         self.input_df = input_ddf
 

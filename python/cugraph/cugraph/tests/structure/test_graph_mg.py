@@ -335,3 +335,30 @@ def test_mg_select_random_vertices(
     )
 
     assert len(join) == len(sampled_vertices)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize(
+    "edge_props",
+    [
+        ["edge_id", "edge_type", "weight"],
+        ["edge_id", "edge_type"],
+        ["edge_type", "weight"],
+        ["edge_id"],
+        ["weight"],
+    ],
+)
+def test_graph_creation_edge_properties(dask_client, graph_file, edge_props):
+    df = utils.read_csv_file(graph_file)
+
+    df["edge_id"] = cupy.arange(len(df), dtype="int32")
+    df["edge_type"] = cupy.int32(3)
+    df["weight"] = 0.5
+
+    df = dask_cudf.from_cudf(df, npartitions=2)
+
+    prop_keys = {k: k for k in edge_props}
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(df, source="0", destination="1", **prop_keys)

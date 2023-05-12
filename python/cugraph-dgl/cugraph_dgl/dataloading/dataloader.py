@@ -209,14 +209,12 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
-        rank = self._rank
         bs = BulkSampler(
             output_path=output_dir,
             batch_size=self._batch_size,
             graph=self._cugraph_graph,
             batches_per_partition=self._batches_per_partition,
             seeds_per_call=self._seeds_per_call,
-            rank=rank,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
         )
@@ -226,7 +224,6 @@ class DataLoader(torch.utils.data.DataLoader):
         batch_df = create_batch_df(self.tensorized_indices_ds)
         bs.add_batches(batch_df, start_col_name="start", batch_col_name="batch_id")
         bs.flush()
-        output_dir = output_dir + f"/rank={rank}/"
         self.cugraph_dgl_dataset.set_input_files(input_directory=output_dir)
         self.epoch_number = self.epoch_number + 1
         return super().__iter__()
