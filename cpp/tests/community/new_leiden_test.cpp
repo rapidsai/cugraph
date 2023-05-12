@@ -180,6 +180,9 @@ TEST_P(Tests_Leiden_File64, CheckInt64Int64FloatFloat)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
+#if 0
+// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
+//         to define and not instantiate these.
 TEST_P(Tests_Leiden_Rmat, CheckInt32Int32FloatFloat)
 {
   run_current_test<int32_t, int32_t, float, float>(
@@ -203,6 +206,7 @@ TEST_P(Tests_Leiden_Rmat64, CheckInt64Int64FloatFloat)
   run_current_test<int64_t, int64_t, float, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 // FIXME: Expand testing once we evaluate RMM memory use
 INSTANTIATE_TEST_SUITE_P(

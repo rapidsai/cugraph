@@ -26,7 +26,6 @@ from cugraph.testing.mg_utils import (
     enable_spilling,
 )
 from cugraph.structure.symmetrize import symmetrize_ddf
-
 import cugraph
 import cudf
 from time import sleep
@@ -52,6 +51,7 @@ def construct_graph(dask_dataframe, directed=False, renumber=False):
         dask_dataframe, source="src", destination="dst", renumber=renumber
     )
     return G
+
 
 @get_allocation_counts_dask_persist(return_allocations=True, logging=True)
 def symmetrize_cugraph_df(dask_df, multi=False):
@@ -86,6 +86,8 @@ def benchmark_cugraph_graph_symmetrize(scale, edgefactor, seed, multi):
         input_memory_per_worker,
         peak_allocation_across_workers,
     )
+
+
 
 
 def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber):
@@ -152,13 +154,12 @@ def get_memory_statistics(allocation_counts, input_memory):
     )
 
 
-#call __main__ function
 if __name__ == "__main__":
     client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False)
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    for scale in [22,23,24,25]:
+    for scale in [22, 23, 24, 25]:
         for directed in [True, False]:
             for renumber in [True, False]:
                 try:
