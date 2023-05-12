@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=too-many-arguments, too-many-locals
-from itertools import product
+
 import pytest
 
 try:
@@ -25,15 +25,11 @@ from .common import create_graph1
 torch = import_optional("torch")
 dgl = import_optional("dgl")
 
-options = {
-    "bias": [False, True],
-    "idtype_int": [False, True],
-    "max_in_degree": [None, 8],
-    "to_block": [False, True],
-}
 
-
-@pytest.mark.parametrize(",".join(options.keys()), product(*options.values()))
+@pytest.mark.parametrize("bias", [False, True])
+@pytest.mark.parametrize("idtype_int", [False, True])
+@pytest.mark.parametrize("max_in_degree", [None, 8])
+@pytest.mark.parametrize("to_block", [False, True])
 def test_SAGEConv_equality(bias, idtype_int, max_in_degree, to_block):
     SAGEConv = dgl.nn.SAGEConv
     CuGraphSAGEConv = cugraph_dgl.nn.SAGEConv
