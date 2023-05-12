@@ -215,30 +215,23 @@ def edgelist(request, dataset):
 @pytest.fixture(scope="module")
 def graph(request, dataset):
     G = dataset.get_graph()
-    # FIXME: MG graph does not have view_adj_list
-    #G.view_adj_list()
     return G
 
 
 @pytest.fixture(scope="module")
 def unweighted_graph(request, dataset):
     G = dataset.get_graph(ignore_weights=True)
-    # FIXME: MG graph does not have view_adj_list
-    #G.view_adj_list()
     return G
 
 
 @pytest.fixture(scope="module")
 def directed_graph(request, dataset):
     G = dataset.get_graph(create_using=cugraph.Graph(directed=True))
-    # FIXME: MG graph does not have view_adj_list
-    #G.view_adj_list()
     return G
 
 
 @pytest.fixture(scope="module")
 def transposed_graph(request, dataset):
-    # FIXME: MG graph does not have view_transposed_adj_list
     G = dataset.get_graph(store_transposed=True)
     return G
 

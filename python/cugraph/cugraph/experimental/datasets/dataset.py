@@ -220,9 +220,6 @@ class Dataset:
             dataset does not contain weights, the Graph returned will
             be unweighted regardless of ignore_weights.
         """
-        if store_transposed:
-            raise NotImplementedError("store_transposed=True")
-
         if self._edgelist is None:
             self.get_edgelist(fetch)
 
@@ -243,11 +240,19 @@ class Dataset:
 
         if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
             G.from_cudf_edgelist(
-                self._edgelist, source="src", destination="dst", edge_attr="wgt"
+                self._edgelist,
+                source="src",
+                destination="dst",
+                edge_attr="wgt",
+                store_transposed=store_transposed,
             )
         else:
-            G.from_cudf_edgelist(self._edgelist, source="src", destination="dst")
-
+            G.from_cudf_edgelist(
+                self._edgelist,
+                source="src",
+                destination="dst",
+                store_transposed=store_transposed,
+            )
         return G
 
     def get_path(self):
