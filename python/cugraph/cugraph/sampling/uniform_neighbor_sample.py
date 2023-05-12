@@ -233,13 +233,16 @@ def uniform_neighbor_sample(
         df["sources"] = sources
         df["destinations"] = destinations
 
-        df["indices"] = indices
-        if weight_t == "int32":
-            df["indices"] = indices.astype("int32")
-        elif weight_t == "int64":
-            df["indices"] = indices.astype("int64")
+        if indices is None:
+            df["indices"] = None
         else:
             df["indices"] = indices
+            if weight_t == "int32":
+                df["indices"] = indices.astype("int32")
+            elif weight_t == "int64":
+                df["indices"] = indices.astype("int64")
+            else:
+                df["indices"] = indices
 
     if G.renumbered:
         df = G.unrenumber(df, "sources", preserve_order=True)

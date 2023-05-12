@@ -214,8 +214,8 @@ dependencies:
         packages:
           - c-compiler
           - cxx-compiler
-          - gmock=1.10.0
-          - gtest=1.10.0
+          - gmock>=1.13.0
+          - gtest>=1.13.0
           - libcugraphops=23.6.*
           - libraft-headers=23.6.*
           - libraft=23.6.*
@@ -288,7 +288,7 @@ dependencies:
           - cython>=0.29,<0.30
           - &pylibraft pylibraft==23.6.*
           - &rmm rmm==23.6.*
-          - scikit-build>=0.13.1
+          - scikit-build>=0.13.1,<0.17.2
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
@@ -309,14 +309,14 @@ dependencies:
           - &ucx_py ucx-py==0.32.*
       - output_types: conda
         packages:
-          - &cupy cupy>=9.5.0,<12.0.0a0
+          - &cupy cupy>=12.0.0
           - &dask-core dask-core==2023.3.2
           - libcudf=23.6.*
           - nccl>=2.9.9
           - ucx-proc=*=gpu
       - output_types: pyproject
         packages:
-          - &cupy_pip cupy-cuda11x>=9.5.0,<12.0.0a0
+          - &cupy_pip cupy-cuda11x>=12.0.0
           - pylibcugraph==23.6.*
   python_run_pylibcugraph:
     common:

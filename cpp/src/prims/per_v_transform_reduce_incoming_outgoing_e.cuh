@@ -149,8 +149,7 @@ __global__ void per_v_transform_reduce_e_hypersparse(
             auto e_op_result  = transform_op(i);
             auto minor        = indices[i];
             auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-            reduce_op::atomic_reduce<ReduceOp>(result_value_output.get_iter(minor_offset),
-                                               e_op_result);
+            reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
           });
       } else {
         thrust::for_each(
@@ -259,8 +258,7 @@ __global__ void per_v_transform_reduce_e_low_degree(
             auto e_op_result  = transform_op(i);
             auto minor        = indices[i];
             auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-            reduce_op::atomic_reduce<ReduceOp>(result_value_output.get_iter(minor_offset),
-                                               e_op_result);
+            reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
           });
       } else {
         thrust::for_each(
@@ -356,8 +354,7 @@ __global__ void per_v_transform_reduce_e_mid_degree(
         reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
       } else {
         if constexpr (GraphViewType::is_multi_gpu) {
-          reduce_op::atomic_reduce<ReduceOp>(result_value_output.get_iter(minor_offset),
-                                             e_op_result);
+          reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
         } else {
           reduce_op::atomic_reduce<ReduceOp>(result_value_output + minor_offset, e_op_result);
         }
@@ -446,8 +443,7 @@ __global__ void per_v_transform_reduce_e_high_degree(
         reduced_e_op_result = reduce_op(reduced_e_op_result, e_op_result);
       } else {
         if constexpr (GraphViewType::is_multi_gpu) {
-          reduce_op::atomic_reduce<ReduceOp>(result_value_output.get_iter(minor_offset),
-                                             e_op_result);
+          reduce_op::atomic_reduce<ReduceOp>(result_value_output, minor_offset, e_op_result);
         } else {
           reduce_op::atomic_reduce<ReduceOp>(result_value_output + minor_offset, e_op_result);
         }
@@ -498,19 +494,22 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeSrcValueInputWrapper::value_iterator>>;
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeDstValueInputWrapper::value_iterator>>;
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
@@ -1000,7 +999,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
@@ -1079,7 +1078,7 @@ void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.

@@ -51,11 +51,16 @@ int generic_spectral_test(vertex_t* h_src,
   cugraph_graph_t* graph              = NULL;
   cugraph_clustering_result_t* result = NULL;
 
+  data_type_id_t vertex_tid = INT32;
+  data_type_id_t edge_tid   = INT32;
+  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t edge_id_tid   = INT32;
+  data_type_id_t edge_type_tid = INT32;
+
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -141,6 +146,12 @@ int generic_balanced_cut_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
+  data_type_id_t vertex_tid = INT32;
+  data_type_id_t edge_tid   = INT32;
+  data_type_id_t weight_tid = FLOAT32;
+  data_type_id_t edge_id_tid   = INT32;
+  data_type_id_t edge_type_tid = INT32;
+
   cugraph_resource_handle_t* handle   = NULL;
   cugraph_graph_t* graph              = NULL;
   cugraph_clustering_result_t* result = NULL;
@@ -148,8 +159,7 @@ int generic_balanced_cut_test(vertex_t* h_src,
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &graph, &ret_error);
+  ret_code = create_sg_test_graph(handle, vertex_tid, edge_tid, h_src, h_dst, weight_tid, h_wgt, edge_type_tid, NULL, edge_id_tid, NULL, num_edges, store_transposed, FALSE, FALSE, FALSE, &graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -238,7 +248,7 @@ int test_spectral()
   weight_t expected_edge_cut = 0;
   weight_t expected_ratio_cut = 0;
 
-  // Louvain wants store_transposed = FALSE
+  // spectral clustering wants store_transposed = FALSE
   return generic_spectral_test(h_src,
                                h_dst,
                                h_wgt,
@@ -276,7 +286,7 @@ int test_balanced_cut_unequal_weight()
   weight_t expected_edge_cut = 3.7;
   weight_t expected_ratio_cut = 4.44;
 
-  // Louvain wants store_transposed = FALSE
+  // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
                                    h_dst,
                                    h_wgt,
@@ -314,10 +324,47 @@ int test_balanced_cut_equal_weight()
   weight_t expected_edge_cut = 1;
   weight_t expected_ratio_cut = 0.666667;
 
-  // Louvain wants store_transposed = FALSE
+  // balanced cut clustering wants store_transposed = FALSE
   return generic_balanced_cut_test(h_src,
                                    h_dst,
                                    h_wgt,
+                                   h_result,
+                                   expected_modularity,
+                                   expected_edge_cut,
+                                   expected_ratio_cut,
+                                   num_vertices,
+                                   num_edges,
+                                   num_clusters,
+                                   num_eigenvectors,
+                                   evs_tolerance,
+                                   evs_max_iterations,
+                                   k_means_tolerance,
+                                   k_means_max_iterations,
+                                   FALSE);
+}
+
+int test_balanced_cut_no_weight()
+{
+  size_t num_clusters        = 2;
+  size_t num_eigenvectors    = 2;
+  size_t num_edges           = 14;
+  size_t num_vertices        = 6;
+  double evs_tolerance       = 0.001;
+  int evs_max_iterations     = 100;
+  double k_means_tolerance   = 0.001;
+  int k_means_max_iterations = 100;
+
+  vertex_t h_src[] = { 0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5 };
+  vertex_t h_dst[] = { 1, 2, 0, 2, 0, 1, 3, 2, 4, 5, 3, 5, 3, 4 };
+  vertex_t h_result[]          = { 1, 1, 1, 0, 0, 0 };
+  weight_t expected_modularity = 0.357143;
+  weight_t expected_edge_cut = 1;
+  weight_t expected_ratio_cut = 0.666667;
+
+  // balanced cut clustering wants store_transposed = FALSE
+  return generic_balanced_cut_test(h_src,
+                                   h_dst,
+                                   NULL,
                                    h_result,
                                    expected_modularity,
                                    expected_edge_cut,
@@ -341,5 +388,6 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_spectral);
   result |= RUN_TEST(test_balanced_cut_equal_weight);
   result |= RUN_TEST(test_balanced_cut_unequal_weight);
+  result |= RUN_TEST(test_balanced_cut_no_weight);
   return result;
 }

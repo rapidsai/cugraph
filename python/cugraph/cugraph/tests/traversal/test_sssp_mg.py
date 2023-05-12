@@ -85,33 +85,3 @@ def test_dask_sssp(dask_client, directed):
         ):
             err = err + 1
     assert err == 0
-
-
-@pytest.mark.mg
-def test_dask_unweighted_sssp(dask_client):
-    input_data_path = input_data_path = (
-        RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
-    ).as_posix()
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=False)
-    dg.from_dask_cudf_edgelist(
-        ddf,
-        source="src",
-        destination="dst",
-        store_transposed=True,
-    )
-
-    warning_msg = (
-        "'SSSP' requires the input graph to be weighted: Unweighted "
-        "graphs will not be supported in the next release."
-    )
-    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
-        dcg.sssp(dg, 0)

@@ -257,6 +257,10 @@ ConfigureTest(STREAM_TEST structure/streams.cu)
 ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
+# - Bipartite R-mat graph generation tests --------------------------------------------------------
+ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp)
+
+###################################################################################################
 # - Graph mask tests -----------------------------------------------------------------------------------
 ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
 
@@ -527,6 +531,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG PRIMS TRANSFORM_REDUCE_E tests ---------------------------------------------------------
     ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
     target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
+    # - MG PRIMS TRANSFORM_E tests ---------------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_E_TEST prims/mg_transform_e.cu)
+    target_link_libraries(MG_TRANSFORM_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
     # - MG PRIMS COUNT_IF_E tests -----------------------------------------------------------------
