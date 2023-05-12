@@ -14,6 +14,7 @@
 from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
+from dask.distributed import default_client
 
 
 def symmetrize_df(
@@ -149,6 +150,8 @@ def symmetrize_ddf(
 
     """
     # FIXME: Uncomment out the above (broken) example
+    _client = default_client()
+    workers = _client.scheduler_info()["workers"]
 
     if not isinstance(src_name, list):
         src_name = [src_name]
@@ -165,7 +168,9 @@ def symmetrize_ddf(
         return result
     else:
         vertex_col_name = src_name + dst_name
-        result = _memory_efficient_drop_duplicates(result, vertex_col_name)
+        result = _memory_efficient_drop_duplicates(
+            result, vertex_col_name, len(workers)
+        )
         return result
 
 
@@ -285,18 +290,18 @@ def _add_reverse_edges(df, src_name, dst_name, weight_name):
     return cudf.concat([df, reverse_df], ignore_index=True)
 
 
-def _memory_efficient_drop_duplicates(ddf, vertex_col_name):
+def _memory_efficient_drop_duplicates(ddf, vertex_col_name, num_workers):
     """
     Drop duplicate edges from the input dataframe.
     """
-    input_partitions = ddf.npartitions
-    ddf = ddf.repartition(npartitions=input_partitions * 8)
+    # drop duplicates has a 5x+ overhead
+    ddf = ddf.repartition(npartitions=num_workers * 8)
     ddf = ddf.drop_duplicates(
         subset=[*vertex_col_name],
         ignore_index=True,
         split_out=ddf.npartitions,
         split_every=2,
     )
-    ddf = ddf.repartition(npartitions=input_partitions)
+    ddf = ddf.repartition(npartitions=num_workers * 2)
     ddf = ddf.reset_index(drop=True)
     return ddf

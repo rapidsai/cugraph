@@ -23,7 +23,7 @@ import cupy as cp
 import dask
 from typing import Union
 import numpy as np
-
+import gc
 from pylibcugraph import (
     MGGraph,
     ResourceHandle,
@@ -31,13 +31,17 @@ from pylibcugraph import (
 )
 
 from dask.distributed import wait, default_client
+from cugraph.dask.common.part_utils import (
+    get_persisted_df_worker_map,
+    persist_dask_df_equal_parts_per_worker,
+)
 from cugraph.dask.common.input_utils import get_distributed_data
 from pylibcugraph import (
     get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
     select_random_vertices as pylibcugraph_select_random_vertices,
 )
 import cugraph.dask.comms.comms as Comms
-from distributed import futures_of
+from dask import delayed
 
 
 class simpleDistributedGraphImpl:
@@ -88,29 +92,35 @@ class simpleDistributedGraphImpl:
     ):
 
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
-            values = edata_x[0][simpleDistributedGraphImpl.edgeWeightCol]
+            values = _get_column_from_ls_dfs(
+                edata_x, simpleDistributedGraphImpl.edgeWeightCol
+            )
             if values.dtype == "int32":
                 values = values.astype("float32")
             elif values.dtype == "int64":
                 values = values.astype("float64")
         else:
             # Some algos require the graph to be weighted
-            values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+            len_df = sum([len(e_part) for e_part in edata_x])
+            values = cudf.Series(cupy.ones(len_df, dtype="float32"))
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
             if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
                 raise ValueError("Must provide both edge id and edge type")
-
-            values_id = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
-            values_etype = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
+            values_id = _get_column_from_ls_dfs(
+                edata_x, simpleDistributedGraphImpl.edgeIdCol
+            )
+            values_etype = _get_column_from_ls_dfs(
+                edata_x, simpleDistributedGraphImpl.edgeTypeCol
+            )
         else:
             values_id, values_etype = None, None
 
         return MGGraph(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
             graph_properties=graph_props,
-            src_array=edata_x[0][src_col_name],
-            dst_array=edata_x[0][dst_col_name],
+            src_array=_get_column_from_ls_dfs(edata_x, src_col_name),
+            dst_array=_get_column_from_ls_dfs(edata_x, dst_col_name),
             weight_array=values,
             edge_id_array=values_id,
             edge_type_array=values_etype,
@@ -158,7 +168,10 @@ class simpleDistributedGraphImpl:
                 "and destination parameters"
             )
         ddf_columns = s_col + d_col
-
+        _client = default_client()
+        workers = _client.scheduler_info()["workers"]
+        # Repartition to 2 partitions per GPU for memory efficient process
+        input_ddf = input_ddf.repartition(npartitions=len(workers) * 2)
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
@@ -269,21 +282,18 @@ class simpleDistributedGraphImpl:
             dst_col_name = self.renumber_map.renumbered_dst_col_name
 
         ddf = self.edgelist.edgelist_df
-        _client = default_client()
-        workers = _client.scheduler_info()["workers"]
-        ddf = ddf.repartition(npartitions=len(workers))
-        num_edges = len(ddf)
-        self._number_of_edges = num_edges
-        edge_data = {w: futures_of(ddf.partitions[i]) for i, w in enumerate(workers)}
-        self.edgelist.edgelist_df = ddf
-        del ddf
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
-        self._plc_graph = {
-            w: _client.submit(
-                simpleDistributedGraphImpl._make_plc_graph,
+        ddf = ddf.repartition(npartitions=len(workers) * 2)
+        ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
+        num_edges = len(ddf)
+        self._number_of_edges = num_edges
+        ddf_w_map = get_persisted_df_worker_map(ddf, _client)
+        del ddf
+        delayed_tasks_d = {
+            w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
                 edata,
                 graph_props,
@@ -291,11 +301,17 @@ class simpleDistributedGraphImpl:
                 dst_col_name,
                 store_transposed,
                 num_edges,
-                workers=[w],
             )
-            for w, edata in edge_data.items()
+            for w, edata in ddf_w_map.items()
         }
+        del ddf_w_map
+        self._plc_graph = {
+            w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
+            for w, delayed_task in delayed_tasks_d.items()
+        }
+        del delayed_tasks_d
         wait(self._plc_graph)
+        _client.run(gc.collect)
 
     @property
     def renumbered(self):
@@ -771,7 +787,7 @@ class simpleDistributedGraphImpl:
         ]
 
         wait(cudf_result)
-        ddf = dask_cudf.from_delayed(cudf_result).persist()
+        ddf = dask_cudf.from_delayed(cudf_result)
         wait(ddf)
 
         # Wait until the inactive futures are released
@@ -1099,3 +1115,15 @@ class simpleDistributedGraphImpl:
     @property
     def _npartitions(self) -> int:
         return len(self._plc_graph)
+
+
+def _get_column_from_ls_dfs(lst_df, col_name):
+    """
+    This function concatenates the column
+    and drops it from the input list
+    """
+    output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
+    for df in lst_df:
+        df.drop(columns=[col_name], inplace=True)
+    gc.collect()
+    return output_col

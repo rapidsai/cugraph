@@ -28,11 +28,12 @@ from cugraph.testing.mg_utils import (
 from cugraph.structure.symmetrize import symmetrize_ddf
 
 import cugraph
+import cudf
 from time import sleep
 import pandas as pd
 
 
-@get_allocation_counts_dask_persist(return_allocations=True, logging=True)
+@get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
 def construct_graph(dask_dataframe, directed=False, renumber=False):
     """
     Args:
@@ -94,6 +95,10 @@ def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber
     dask_df = generate_edgelist_rmat(
         scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
     )
+    # We do below to remove the rmat memory overhead
+    # which holds on to GPU memory 
+    dask_df = dask_df.map_partitions(lambda df:df.to_pandas()).persist()
+    dask_df = dask_df.map_partitions(cudf.from_pandas)
     dask_df = dask_df.astype("int64")
     dask_df = dask_df.reset_index(drop=True)
     input_memory = dask_df.memory_usage().sum().compute()
