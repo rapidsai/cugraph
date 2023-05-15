@@ -406,6 +406,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const include_endpoints,
   bool const do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (vertices) {
     return detail::betweenness_centrality(handle,
                                           graph_view,
@@ -437,6 +439,8 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (vertices) {
     return detail::edge_betweenness_centrality(handle,
                                                graph_view,

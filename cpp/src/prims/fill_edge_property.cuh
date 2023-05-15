@@ -79,6 +79,8 @@ void fill_edge_property(raft::handle_t const& handle,
                         edge_property_t<GraphViewType, T>& edge_property_output,
                         bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
