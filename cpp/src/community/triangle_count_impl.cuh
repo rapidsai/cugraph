@@ -156,6 +156,8 @@ void triangle_count(raft::handle_t const& handle,
 
   // 1. Check input arguments.
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(
     graph_view.is_symmetric(),
     "Invalid input arguments: triangle_count currently supports undirected graphs only.");
