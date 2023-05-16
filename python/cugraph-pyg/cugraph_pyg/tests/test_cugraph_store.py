@@ -22,7 +22,6 @@ from cugraph_pyg.data import CuGraphStore
 import cudf
 import cupy
 import numpy as np
-from random import randint
 
 from cugraph.utilities.utils import import_optional, MissingModule
 
@@ -173,7 +172,9 @@ def test_renumber_vertices_basic(single_vertex_graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph_1, rmm_global_pool):
+def test_renumber_vertices_multi_edge_multi_vertex(
+    multi_edge_multi_vertex_graph_1, rmm_global_pool
+):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -209,14 +210,13 @@ def test_renumber_edges(abc_graph, rmm_global_pool):
     )
 
     mock_noi_index = {
-        'A': torch.tensor([0, 1], device='cuda'),
-        'B': torch.tensor([0, 1], device='cuda'),
-        'C': torch.tensor([3, 2, 0], device='cuda')
+        "A": torch.tensor([0, 1], device="cuda"),
+        "B": torch.tensor([0, 1], device="cuda"),
+        "C": torch.tensor([3, 2, 0], device="cuda"),
     }
 
     row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
-        mock_sampling_results,
-        mock_noi_index
+        mock_sampling_results, mock_noi_index
     )
 
     assert len(row_dict) == 3
@@ -227,7 +227,6 @@ def test_renumber_edges(abc_graph, rmm_global_pool):
     assert col_dict[("B", "bc", "C")].tolist() == [0, 1, 2, 1]
     assert row_dict[("B", "ba", "A")].tolist() == [1, 1]
     assert col_dict[("B", "ba", "A")].tolist() == [1, 1]
-
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")

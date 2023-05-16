@@ -24,8 +24,6 @@ import dask_cudf
 import cupy
 import numpy as np
 
-from random import randint
-
 from cugraph.utilities.utils import import_optional, MissingModule
 
 import pytest
@@ -209,7 +207,6 @@ def test_renumber_vertices_multi_edge_multi_vertex(
         assert index["brown"].tolist() == sorted(brown_nodes.tolist())
 
 
-
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_edges(abc_graph, dask_client, rmm_global_pool):
     F, G, N = abc_graph
@@ -227,14 +224,13 @@ def test_renumber_edges(abc_graph, dask_client, rmm_global_pool):
     )
 
     mock_noi_index = {
-        'A': torch.tensor([0, 1], device='cuda'),
-        'B': torch.tensor([0, 1], device='cuda'),
-        'C': torch.tensor([3, 2, 0], device='cuda')
+        "A": torch.tensor([0, 1], device="cuda"),
+        "B": torch.tensor([0, 1], device="cuda"),
+        "C": torch.tensor([3, 2, 0], device="cuda"),
     }
 
     row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
-        mock_sampling_results,
-        mock_noi_index
+        mock_sampling_results, mock_noi_index
     )
 
     assert len(row_dict) == 3
@@ -323,7 +319,9 @@ def test_get_tensor_spec_props(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skip("not implemented")
-def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_client, rmm_global_pool):
+def test_multi_get_tensor_spec_props(
+    multi_edge_multi_vertex_graph_1, dask_client, rmm_global_pool
+):
     raise NotImplementedError("not implemented")
 
 
