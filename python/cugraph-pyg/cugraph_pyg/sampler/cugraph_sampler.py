@@ -130,15 +130,23 @@ def _sampler_output_from_sampling_results(
     # Calculate nodes of interest based on unique nodes in order of appearance
     # Use hop 0 sources since those are the only ones not included in destinations
     # Use torch.concat based on benchmark performance (vs. cudf.concat)
-    nodes_of_interest = cudf.Series(
-        torch.concat(
-            [
-                torch.as_tensor(sampling_results_hop_0.sources.values, device="cuda"),
-                torch.as_tensor(sampling_results.destinations.values, device="cuda"),
-            ]
-        ),
-        name="nodes_of_interest",
-    ).drop_duplicates().sort_index()
+    nodes_of_interest = (
+        cudf.Series(
+            torch.concat(
+                [
+                    torch.as_tensor(
+                        sampling_results_hop_0.sources.values, device="cuda"
+                    ),
+                    torch.as_tensor(
+                        sampling_results.destinations.values, device="cuda"
+                    ),
+                ]
+            ),
+            name="nodes_of_interest",
+        )
+        .drop_duplicates()
+        .sort_index()
+    )
     del sampling_results_hop_0
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
