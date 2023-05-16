@@ -21,7 +21,12 @@ from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.testing.mg_utils import stop_dask_client
 
+import rmm
+from rmm.allocators.torch import rmm_torch_allocator
+from rmm.allocators.cupy import rmm_cupy_allocator
+
 import torch
+import cupy
 import numpy as np
 import cudf
 from cugraph.gnn import FeatureStore
@@ -73,6 +78,12 @@ def dask_client():
     stop_dask_client(dask_client)
     print("\ndask_client fixture: client.close() called")
 
+
+@pytest.fixture(scope="module")
+def rmm_global_pool():
+    rmm.reinitialize(pool_allocator=True)
+    torch.cuda.change_current_allocator(rmm_torch_allocator)
+    cupy.cuda.set_allocator(rmm_cupy_allocator)
 
 @pytest.fixture
 def karate_gnn():
