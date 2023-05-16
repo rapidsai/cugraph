@@ -204,6 +204,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                                   bool normalize,
                                   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::hits(handle,
                       graph_view,
                       hubs,

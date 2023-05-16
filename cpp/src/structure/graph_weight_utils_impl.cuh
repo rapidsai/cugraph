@@ -89,6 +89,8 @@ rmm::device_uvector<weight_t> compute_in_weight_sums(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (store_transposed) {
     return compute_weight_sums<true>(handle, graph_view, edge_weight_view);
   } else {
@@ -106,6 +108,8 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (store_transposed) {
     return compute_weight_sums<false>(handle, graph_view, edge_weight_view);
   } else {
@@ -123,6 +127,8 @@ weight_t compute_max_in_weight_sum(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   auto in_weight_sums = compute_in_weight_sums(handle, graph_view, edge_weight_view);
   auto it =
     thrust::max_element(handle.get_thrust_policy(), in_weight_sums.begin(), in_weight_sums.end());
@@ -147,6 +153,8 @@ weight_t compute_max_out_weight_sum(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   auto out_weight_sums = compute_out_weight_sums(handle, graph_view, edge_weight_view);
   auto it =
     thrust::max_element(handle.get_thrust_policy(), out_weight_sums.begin(), out_weight_sums.end());
@@ -171,6 +179,8 @@ weight_t compute_total_edge_weight(
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   edge_property_view_t<edge_t, weight_t const*> edge_weight_view)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return transform_reduce_e(
     handle,
     graph_view,
