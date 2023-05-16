@@ -51,6 +51,11 @@ def _count_unique_nodes(
         The node type to count the number of unique nodes of.
     node_position: str ('src' or 'dst')
         Whether to examine source or destination nodes.
+
+    Returns
+    -------
+    int
+        The number of unique nodes of the given node type.
     """
     if node_position == "src":
         edge_index = "sources"
