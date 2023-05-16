@@ -193,9 +193,16 @@ def rmm_config(request):
 @pytest.fixture(scope="module",
                 params=dataset_fixture_params)
 def dataset(request, rmm_config):
+    """
+    Fixture which provides a Dataset instance, setting up a Dask cluster and
+    client if necessary for MG, to tests and other fixtures. When all
+    tests/fixtures are done with the Dataset, it has the Dask cluster and
+    client torn down (if MG) and all data loaded is freed.
+    """
     setFixtureParamNames(request, ["dataset"])
     dataset = request.param[0]
     client = cluster = None
+    # For now, only RmatDataset instanaces support MG and have a "mg" attr.
     if hasattr(dataset, "mg") and dataset.mg:
         (client, cluster) = mg_utils.start_dask_client()
 
@@ -246,7 +253,6 @@ def is_graph_distributed(graph):
 
 ###############################################################################
 # Benchmarks
-@pytest.mark.ETL
 def bench_create_graph(gpubenchmark, edgelist):
     gpubenchmark(cugraph.from_cudf_edgelist,
                  edgelist,
@@ -258,7 +264,6 @@ def bench_create_graph(gpubenchmark, edgelist):
 # Creating directed Graphs on small datasets runs in micro-seconds, which
 # results in thousands of rounds before the default threshold is met, so lower
 # the max_time for this benchmark.
-@pytest.mark.ETL
 @pytest.mark.benchmark(
     warmup=True,
     warmup_iterations=10,
@@ -272,7 +277,6 @@ def bench_create_digraph(gpubenchmark, edgelist):
                  renumber=False)
 
 
-@pytest.mark.ETL
 def bench_renumber(gpubenchmark, edgelist):
     gpubenchmark(NumberMap.renumber, edgelist, "src", "dst")
 
