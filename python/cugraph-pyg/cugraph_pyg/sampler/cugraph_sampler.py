@@ -138,18 +138,12 @@ def _sampler_output_from_sampling_results(
             ]
         ),
         name="nodes_of_interest",
-    ).drop_duplicates()
-    nodes_of_interest = (
-        nodes_of_interest.sort_index().reset_index(drop=True).reset_index()
-    )
-    nodes_of_interest = nodes_of_interest.rename(columns={"index": "new_id"}).set_index(
-        "nodes_of_interest"
-    )
+    ).drop_duplicates().sort_index()
     del sampling_results_hop_0
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
     noi_index = graph_store._get_vertex_groups_from_sample(
-        torch.as_tensor(nodes_of_interest.index, device="cuda")
+        torch.as_tensor(nodes_of_interest.values, device="cuda")
     )
     del nodes_of_interest
 
