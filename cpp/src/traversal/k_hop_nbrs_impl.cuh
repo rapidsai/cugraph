@@ -232,6 +232,8 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   size_t k,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::k_hop_nbrs(handle, graph_view, start_vertices, k, do_expensive_check);
 }
 

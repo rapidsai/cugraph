@@ -88,6 +88,8 @@ void core_number(raft::handle_t const& handle,
 {
   // check input arguments.
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "Invalid input argument: core_number currently supports only undirected graphs.");
   CUGRAPH_EXPECTS(!graph_view.is_multigraph(),
