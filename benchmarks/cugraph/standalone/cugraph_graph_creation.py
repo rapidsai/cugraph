@@ -30,6 +30,7 @@ import cugraph
 import cudf
 from time import sleep
 import pandas as pd
+import time
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
@@ -46,11 +47,15 @@ def construct_graph(dask_dataframe, directed=False, renumber=False):
     Returns:
         G:  cugraph.Graph
     """
+    st = time.time()
     G = cugraph.Graph(directed=directed)
     G.from_dask_cudf_edgelist(
         dask_dataframe, source="src", destination="dst", renumber=renumber
     )
-    return G
+    et = time.time()
+    g_creation_time = et - st
+    print(f"Graph creation time = {g_creation_time} s")
+    return G, g_creation_time
 
 
 @get_allocation_counts_dask_persist(return_allocations=True, logging=True)
@@ -58,11 +63,14 @@ def symmetrize_cugraph_df(dask_df, multi=False):
     output_df = symmetrize_ddf(dask_df, "src", "dst", multi=multi)
     return output_df
 
+
 def benchmark_cugraph_graph_symmetrize(scale, edgefactor, seed, multi):
     """
-        Benchmark cugraph graph symmetrization
+    Benchmark cugraph graph symmetrization
     """
-    dask_df = generate_edgelist_rmat(scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True)
+    dask_df = generate_edgelist_rmat(
+        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True
+    )
     dask_df = dask_df.astype("int64")
     dask_df = dask_df.reset_index(drop=True)
     input_memory = dask_df.memory_usage().sum().compute()
@@ -88,18 +96,20 @@ def benchmark_cugraph_graph_symmetrize(scale, edgefactor, seed, multi):
     )
 
 
-
-
 def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber):
     """
     Entry point for the benchmark.
     """
     dask_df = generate_edgelist_rmat(
-        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
+        scale=scale,
+        edgefactor=edgefactor,
+        seed=seed,
+        unweighted=True,
+        mg=True,
     )
     # We do below to remove the rmat memory overhead
-    # which holds on to GPU memory 
-    dask_df = dask_df.map_partitions(lambda df:df.to_pandas()).persist()
+    # which holds on to GPU memory
+    dask_df = dask_df.map_partitions(lambda df: df.to_pandas()).persist()
     dask_df = dask_df.map_partitions(cudf.from_pandas)
     dask_df = dask_df.astype("int64")
     dask_df = dask_df.reset_index(drop=True)
@@ -108,7 +118,7 @@ def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber
     print(
         f"Number of input edges = {num_input_edges:,}, directed = {directed}, renumber = {renumber}"
     )
-    G, allocation_counts = construct_graph(
+    (G, g_creation_time), allocation_counts = construct_graph(
         dask_df, directed=directed, renumber=renumber
     )
     (
@@ -127,6 +137,7 @@ def benchmark_cugraph_graph_creation(scale, edgefactor, seed, directed, renumber
         output_to_peak_ratio,
         input_memory_per_worker,
         peak_allocation_across_workers,
+        g_creation_time,
     )
 
 
@@ -159,7 +170,7 @@ if __name__ == "__main__":
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    for scale in [22, 23, 24, 25]:
+    for scale in [23, 24, 25]:
         for directed in [True, False]:
             for renumber in [True, False]:
                 try:
@@ -170,6 +181,7 @@ if __name__ == "__main__":
                         output_to_peak_ratio,
                         input_memory_per_worker,
                         peak_allocation_across_workers,
+                        g_creation_time,
                     ) = benchmark_cugraph_graph_creation(
                         scale=scale,
                         edgefactor=16,
@@ -181,12 +193,15 @@ if __name__ == "__main__":
                     stats_d["num_input_edges"] = num_input_edges
                     stats_d["directed"] = directed
                     stats_d["renumber"] = renumber
-                    stats_d["input_memory_per_worker"] = sizeof_fmt(input_memory_per_worker)
+                    stats_d["input_memory_per_worker"] = sizeof_fmt(
+                        input_memory_per_worker
+                    )
                     stats_d["peak_allocation_across_workers"] = sizeof_fmt(
                         peak_allocation_across_workers
                     )
                     stats_d["input_to_peak_ratio"] = input_to_peak_ratio
                     stats_d["output_to_peak_ratio"] = output_to_peak_ratio
+                    stats_d["g_creation_time"] = g_creation_time
                     stats_ls.append(stats_d)
                 except Exception as e:
                     print(e)
@@ -194,22 +209,21 @@ if __name__ == "__main__":
                 sleep(10)
 
             print("-" * 40 + f"renumber completed" + "-" * 40)
-
-        stats_df = pd.DataFrame(
+            stats_df = pd.DataFrame(
             stats_ls,
-            columns=[
-                "scale",
-                "num_input_edges",
-                "directed",
-                "renumber",
-                "input_memory_per_worker",
-                "peak_allocation_across_workers",
-                "input_to_peak_ratio",
-                "output_to_peak_ratio",
-            ],
-        )
-        stats_df.to_csv("cugraph_graph_creation_stats.csv")
+                columns=[
+                    "scale",
+                    "num_input_edges",
+                    "directed",
+                    "renumber",
+                    "input_memory_per_worker",
+                    "peak_allocation_across_workers",
+                    "input_to_peak_ratio",
+                    "output_to_peak_ratio",
+                    "g_creation_time",
+                ],
+            )
+            stats_df.to_csv("cugraph_graph_creation_stats.csv")
         print("-" * 40 + f"scale = {scale} completed" + "-" * 40)
-
     # Cleanup Dask Cluster
     stop_dask_client(client, cluster)
