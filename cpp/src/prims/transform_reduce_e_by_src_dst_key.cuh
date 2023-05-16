@@ -620,7 +620,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeSrcKeyInputWrapper Type of the wrapper for edge source key values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the  quinary edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -682,6 +682,8 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
                              typename GraphViewType::vertex_type>::value);
   static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -708,7 +710,7 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -769,6 +771,8 @@ auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
   static_assert(std::is_same<typename EdgeDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
   static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do
