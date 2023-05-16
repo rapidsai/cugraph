@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,11 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import ecg_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
+import cudf
+
+from pylibcugraph import ecg as pylibcugraph_ecg
+from pylibcugraph import ResourceHandle
 
 
 def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
@@ -68,14 +71,24 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
 
     """
 
-    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph, weight)
+    input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
 
-    parts = ecg_wrapper.ecg(input_graph, min_weight, ensemble_size)
+    vertex, partition = pylibcugraph_ecg(
+        resource_handle=ResourceHandle(),
+        graph=input_graph._plc_graph,
+        min_weight=min_weight,
+        ensemble_size=ensemble_size,
+        do_expensive_check=False,
+    )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["partition"] = partition
 
     if input_graph.renumbered:
-        parts = input_graph.unrenumber(parts, "vertex")
+        df = input_graph.unrenumber(df, "vertex")
 
     if isNx is True:
-        return df_score_to_dictionary(parts, "partition")
-    else:
-        return parts
+        df = df_score_to_dictionary(df, "partition")
+
+    return df

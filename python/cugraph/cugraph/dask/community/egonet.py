@@ -66,7 +66,10 @@ def convert_to_cudf(cp_arrays):
     df = cudf.DataFrame()
     df["src"] = cp_src
     df["dst"] = cp_dst
-    df["weight"] = cp_weight
+    if cp_weight is None:
+        df["weight"] = None
+    else:
+        df["weight"] = cp_weight
 
     offsets = cudf.Series(cp_offsets)
 
@@ -80,7 +83,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     Parameters
     ----------
-    input_graph : cugraph.Graph, networkx.Graph
+    input_graph : cugraph.Graph
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
@@ -175,5 +178,9 @@ def ego_graph(input_graph, n, radius=1, center=True):
     )
 
     ddf = ddf.drop(columns="labels")
+
+    if input_graph.renumbered:
+        ddf = input_graph.unrenumber(ddf, "src")
+        ddf = input_graph.unrenumber(ddf, "dst")
 
     return ddf, offsets

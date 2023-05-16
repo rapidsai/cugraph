@@ -97,8 +97,8 @@ void* get_optional_dataframe_buffer_begin(std::byte& optional_dataframe_buffer)
 
 template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
 auto get_optional_dataframe_buffer_begin(
-  std::add_lvalue_reference_t<decltype(
-    allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer)
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<T>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer)
 {
   return get_dataframe_buffer_begin(optional_dataframe_buffer);
 }
@@ -113,8 +113,8 @@ void resize_optional_dataframe_buffer(std::byte& optional_dataframe_buffer,
 
 template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
 void resize_optional_dataframe_buffer(
-  std::add_lvalue_reference_t<decltype(
-    allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer,
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<T>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer,
   size_t new_buffer_size,
   rmm::cuda_stream_view stream_view)
 {
@@ -130,8 +130,8 @@ void shrink_to_fit_optional_dataframe_buffer(std::byte& optional_dataframe_buffe
 
 template <typename T, std::enable_if_t<!std::is_same_v<T, void>>* = nullptr>
 void shrink_to_fit_optional_dataframe_buffer(
-  std::add_lvalue_reference_t<decltype(
-    allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer,
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<T>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_dataframe_buffer,
   rmm::cuda_stream_view stream_view)
 {
   return shrink_to_fit_dataframe_buffer(optional_dataframe_buffer, stream_view);
@@ -740,29 +740,24 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+    edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
-    std::conditional_t<GraphViewType::is_storage_transposed,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
-                       edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+    edge_partition_endpoint_property_device_view_t<
+      vertex_t,
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
   static_assert(!std::is_same_v<output_key_t, void> ||

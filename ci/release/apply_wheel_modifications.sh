@@ -28,3 +28,9 @@ sed -i "s/cudf/cudf${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
 sed -i "s/raft-dask/raft-dask${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
 sed -i "s/pylibcugraph/pylibcugraph${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
 sed -i "s/pylibraft/pylibraft${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
+sed -i "s/ucx-py/ucx-py${CUDA_SUFFIX}/g" python/cugraph/pyproject.toml
+
+if [[ $CUDA_SUFFIX == "-cu12" ]]; then
+    sed -i "s/cupy-cuda11x/cupy-cuda12x/g" python/cugraph/pyproject.toml
+    sed -i "s/numba[<=>\.,0-9]*/numba>=0.57/g" python/cugraph/pyproject.toml
+fi

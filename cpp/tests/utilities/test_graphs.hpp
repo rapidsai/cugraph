@@ -269,6 +269,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                                   b_,
                                                   c_,
                                                   undirected_ ? true : false);
+      if (scramble_vertex_ids_) {
+        std::tie(tmp_src_v, tmp_dst_v) =
+          cugraph::scramble_vertex_ids(handle, std::move(tmp_src_v), std::move(tmp_dst_v), scale_);
+      }
 
       std::optional<rmm::device_uvector<weight_t>> tmp_weights_v{std::nullopt};
       if (weight_partitions) {
@@ -346,6 +350,9 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
                                      partition_vertex_lasts[i] - partition_vertex_firsts[i],
                                      partition_vertex_firsts[i]);
       v_offset += partition_vertex_lasts[i] - partition_vertex_firsts[i];
+    }
+    if (scramble_vertex_ids_) {
+      vertex_v = cugraph::scramble_vertex_ids(handle, std::move(vertex_v), scale_);
     }
 
     translate(handle, vertex_v);

@@ -71,9 +71,7 @@ def input_combo(request):
     )
 
     G = cugraph.Graph(directed=directed)
-    G.from_cudf_edgelist(
-        df, source="src", destination="dst", edge_attr="value", legacy_renum_only=True
-    )
+    G.from_cudf_edgelist(df, source="src", destination="dst", edge_attr="value")
 
     parameters["Graph"] = G
 
@@ -233,7 +231,7 @@ def test_uniform_neighbor_sample_tree(directed):
     )
 
     G = cugraph.Graph(directed=directed)
-    G.from_cudf_edgelist(df, "src", "dst", "value", legacy_renum_only=True)
+    G.from_cudf_edgelist(df, "src", "dst", "value")
 
     #
     # Make sure the old C++ renumbering was skipped because:
@@ -328,7 +326,6 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     sampling_results = uniform_neighbor_sample(
@@ -388,7 +385,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     sampling_results = cugraph.uniform_neighbor_sample(
@@ -442,7 +438,6 @@ def test_uniform_neighbor_sample_empty_start_list():
         source="src",
         destination="dst",
         edge_attr=["w", "eid", "etp"],
-        legacy_renum_only=True,
     )
 
     sampling_results = cugraph.uniform_neighbor_sample(

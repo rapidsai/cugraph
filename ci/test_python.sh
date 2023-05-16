@@ -80,7 +80,7 @@ pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
-  -m "managedmem_on and poolallocator_on and tiny" \
+  -m tiny \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
 popd
@@ -117,13 +117,14 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       --channel pytorch \
       --channel pytorch-nightly \
-      --channel dglteam/label/cu117 \
+      --channel dglteam/label/cu118 \
       --channel nvidia \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-dgl \
-      'dgl>=1.0' \
+      'dgl>=1.1.0.dev0' \
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
@@ -134,7 +135,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     pytest \
       --cache-clear \
       --ignore=mg \
-      --ignore=nn \
       --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph-dgl.xml" \
       --cov-config=../../.coveragerc \
       --cov=cugraph_dgl \
@@ -179,6 +179,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-pyg
 
@@ -198,13 +199,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov-report=term \
       .
     popd
-    
+
     # Reactivate the test environment back
     set +u
     conda deactivate
     conda activate test
     set -u
-    
+
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi

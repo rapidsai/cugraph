@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,16 +66,23 @@ def createGraph(csvFileName, graphType=None):
         else:
             graphType = cugraph.Graph()
 
+    gdf = utils.read_csv_file(csvFileName)
+    if len(gdf.columns) == 2:
+        edge_attr = None
+    else:
+        edge_attr = "2"
+
     return cugraph.from_cudf_edgelist(
-        utils.read_csv_file(csvFileName),
-        source="0", destination="1", edge_attr="2",
+        gdf,
+        source="0", destination="1", edge_attr=edge_attr,
         create_using=graphType,
         renumber=True)
 
 
 # Record the current RMM settings so reinitialize() will be called only when a
-# change is needed (RMM defaults both values to False). This allows the
-# --no-rmm-reinit option to prevent reinitialize() from being called at all
+# change is needed (RMM defaults both values to False). The --allow-rmm-reinit
+# option is required to allow the RMM options to be set by the pytest user
+# directly, in order to prevent reinitialize() from being called more than once
 # (see conftest.py for details).
 RMM_SETTINGS = {"managed_mem": False,
                 "pool_alloc": False}
@@ -208,7 +215,8 @@ def bench_pagerank(gpubenchmark, anyGraphWithTransposedAdjListComputed):
 
 
 def bench_bfs(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, 0)
+    start = anyGraphWithAdjListComputed.edgelist.edgelist_df["src"][0]
+    gpubenchmark(cugraph.bfs, anyGraphWithAdjListComputed, start)
 
 
 def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
@@ -217,7 +225,8 @@ def bench_force_atlas2(gpubenchmark, anyGraphWithAdjListComputed):
 
 
 def bench_sssp(gpubenchmark, anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, 0)
+    start = anyGraphWithAdjListComputed.edgelist.edgelist_df["src"][0]
+    gpubenchmark(cugraph.sssp, anyGraphWithAdjListComputed, start)
 
 
 def bench_jaccard(gpubenchmark, graphWithAdjListComputed):
@@ -232,8 +241,11 @@ def bench_louvain(gpubenchmark, graphWithAdjListComputed):
 
 def bench_weakly_connected_components(gpubenchmark,
                                       anyGraphWithAdjListComputed):
-    gpubenchmark(cugraph.weakly_connected_components,
-                 anyGraphWithAdjListComputed)
+    if anyGraphWithAdjListComputed.is_directed():
+        G = anyGraphWithAdjListComputed.to_undirected()
+    else:
+        G = anyGraphWithAdjListComputed
+    gpubenchmark(cugraph.weakly_connected_components, G)
 
 
 def bench_overlap(gpubenchmark, anyGraphWithAdjListComputed):
@@ -268,7 +280,7 @@ def bench_graph_degrees(gpubenchmark, anyGraphWithAdjListComputed):
 
 def bench_betweenness_centrality(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.betweenness_centrality,
-                 anyGraphWithAdjListComputed, k=10, seed=123)
+                 anyGraphWithAdjListComputed, k=10, random_state=123)
 
 
 def bench_edge_betweenness_centrality(gpubenchmark,

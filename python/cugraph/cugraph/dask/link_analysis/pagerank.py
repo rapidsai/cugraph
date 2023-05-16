@@ -44,21 +44,38 @@ def convert_to_cudf(cp_arrays):
 # shared by other algos
 def ensure_valid_dtype(input_graph, input_df, input_df_name):
     if input_graph.properties.weighted is False:
-        edge_attr_dtype = np.float64
+        # If the graph is not weighted, an artificial weight column
+        # of type 'float32' is added and it must match the user
+        # personalization/nstart values.
+        edge_attr_dtype = np.float32
     else:
         edge_attr_dtype = input_graph.input_df["value"].dtype
 
-    input_df_dtype = input_df["values"].dtype
-    if input_df_dtype != edge_attr_dtype:
+    if "values" in input_df.columns:
+        input_df_values_dtype = input_df["values"].dtype
+        if input_df_values_dtype != edge_attr_dtype:
+            warning_msg = (
+                f"PageRank requires '{input_df_name}' values "
+                "to match the graph's 'edge_attr' type. "
+                f"edge_attr type is: {edge_attr_dtype} and got "
+                f"'{input_df_name}' values of type: "
+                f"{input_df_values_dtype}."
+            )
+            warnings.warn(warning_msg, UserWarning)
+            input_df = input_df.astype({"values": edge_attr_dtype})
+
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    input_df_vertex_dtype = input_df["vertex"].dtype
+    if input_df_vertex_dtype != vertex_dtype:
         warning_msg = (
-            f"PageRank requires '{input_df_name}' values "
-            "to match the graph's 'edge_attr' type. "
-            f"edge_attr type is: {edge_attr_dtype} and got "
-            f"'{input_df_name}' values of type: "
-            f"{input_df_dtype}."
+            f"PageRank requires '{input_df_name}' vertex "
+            "to match the graph's 'vertex' type. "
+            f"input graph's vertex type is: {vertex_dtype} and got "
+            f"'{input_df_name}' vertex of type: "
+            f"{input_df_vertex_dtype}."
         )
         warnings.warn(warning_msg, UserWarning)
-        input_df = input_df.astype({"values": edge_attr_dtype})
+        input_df = input_df.astype({"vertex": vertex_dtype})
 
     return input_df
 
@@ -161,8 +178,10 @@ def pagerank(
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
         (a performance optimization)
+
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
+
         personalization['values'] : cudf.Series
             Personalization values for vertices
 
@@ -170,8 +189,10 @@ def pagerank(
         GPU Dataframe containing the precomputed vertex out weight
         (a performance optimization)
         information.
+
         precomputed_vertex_out_weight['vertex'] : cudf.Series
             Subset of vertices of graph for precomputed_vertex_out_weight
+
         precomputed_vertex_out_weight['sums'] : cudf.Series
             Corresponding precomputed sum of outgoing vertices weight
 
@@ -194,8 +215,10 @@ def pagerank(
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for pagerank.
         (a performance optimization)
+
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
+
         nstart['values'] : cudf.Series
             Pagerank values for vertices
 
@@ -217,6 +240,7 @@ def pagerank(
 
         ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
+
         ddf['pagerank'] : dask_cudf.Series
             Contains the PageRank score
 
@@ -263,6 +287,9 @@ def pagerank(
             precomputed_vertex_out_weight = renumber_vertices(
                 input_graph, precomputed_vertex_out_weight
             )
+        precomputed_vertex_out_weight = ensure_valid_dtype(
+            input_graph, precomputed_vertex_out_weight, "precomputed_vertex_out_weight"
+        )
         precomputed_vertex_out_weight_vertices = precomputed_vertex_out_weight["vertex"]
         precomputed_vertex_out_weight_sums = precomputed_vertex_out_weight["sums"]
 

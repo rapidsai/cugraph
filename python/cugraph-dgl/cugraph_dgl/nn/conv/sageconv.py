@@ -16,16 +16,16 @@ cugraph-ops"""
 from __future__ import annotations
 from typing import Optional
 
+from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
-ops = import_optional("pylibcugraphops")
-ops_autograd = import_optional("pylibcugraphops.torch.autograd")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
-class SAGEConv(nn.Module):
+class SAGEConv(BaseConv):
     r"""An accelerated GraphSAGE layer from `Inductive Representation Learning
     on Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__ that leverages the
     highly-optimized aggregation primitives in cugraph-ops.
@@ -68,6 +68,7 @@ class SAGEConv(nn.Module):
             [-1.1690,  0.1952],
             [-1.1690,  0.1952]], device='cuda:0', grad_fn=<AddmmBackward0>)
     """
+    MAX_IN_DEGREE_MFG = 500
 
     def __init__(
         self,
@@ -121,20 +122,26 @@ class SAGEConv(nn.Module):
         torch.Tensor
             Output node features. Shape: :math:`(|V|, D_{out})`.
         """
-        offsets, indices, _ = g.adj_sparse("csc")
+        offsets, indices, _ = g.adj_tensors("csc")
 
         if g.is_block:
             if max_in_degree is None:
                 max_in_degree = g.in_degrees().max().item()
 
-            _graph = ops.make_mfg_csr(
-                g.dstnodes(), offsets, indices, max_in_degree, g.num_src_nodes()
-            )
+            if max_in_degree < self.MAX_IN_DEGREE_MFG:
+                _graph = ops_torch.SampledCSC(
+                    offsets, indices, max_in_degree, g.num_src_nodes()
+                )
+            else:
+                offsets_fg = self.pad_offsets(offsets, g.num_src_nodes() + 1)
+                _graph = ops_torch.StaticCSC(offsets_fg, indices)
         else:
-            _graph = ops.make_fg_csr(offsets, indices)
+            _graph = ops_torch.StaticCSC(offsets, indices)
 
         feat = self.feat_drop(feat)
-        h = ops_autograd.agg_concat_n2n(feat, _graph, self.aggr)
+        h = ops_torch.operators.agg_concat_n2n(feat, _graph, self.aggr)[
+            : g.num_dst_nodes()
+        ]
         h = self.linear(h)
 
         return h
