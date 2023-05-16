@@ -295,13 +295,10 @@ def _memory_efficient_drop_duplicates(ddf, vertex_col_name, num_workers):
     Drop duplicate edges from the input dataframe.
     """
     # drop duplicates has a 5x+ overhead
-    ddf = ddf.repartition(npartitions=num_workers * 8)
-    ddf = ddf.drop_duplicates(
-        subset=[*vertex_col_name],
-        ignore_index=True,
-        split_out=ddf.npartitions,
-        split_every=2,
-    )
+    # and does not seem to be working as expected
+    # TODO: Triage an MRE
     ddf = ddf.repartition(npartitions=num_workers * 2)
-    ddf = ddf.reset_index(drop=True)
+    ddf = ddf.groupby(by=[*vertex_col_name], as_index=False).min(
+        split_out=num_workers * 2
+    )
     return ddf

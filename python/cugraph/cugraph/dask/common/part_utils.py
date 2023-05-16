@@ -79,11 +79,19 @@ def persist_distributed_data(dask_df, client):
     return parts
 
 
+def _create_empty_dask_df_future(meta_df, client, worker):
+    df_future = client.scatter(meta_df.head(0), workers=[worker])
+    wait(df_future)
+    return [df_future]
+
+
 def get_persisted_df_worker_map(dask_df, client):
-    ddf_keys = dask_df.to_delayed()
+    ddf_keys = futures_of(dask_df)
     output_map = {}
     for w, w_keys in client.has_what().items():
         output_map[w] = [ddf_k for ddf_k in ddf_keys if str(ddf_k.key) in w_keys]
+        if len(output_map[w]) == 0:
+            output_map[w] = _create_empty_dask_df_future(dask_df._meta, client, w)
     return output_map
 
 
@@ -100,8 +108,10 @@ def persist_dask_df_equal_parts_per_worker(dask_df, client):
         persisted_keys.extend(
             client.persist(ddf_k, workers=w, allow_other_workers=False)
         )
-
-    return dask_cudf.from_delayed(persisted_keys, meta=dask_df._meta).persist()
+    dask_df = dask_cudf.from_delayed(persisted_keys, meta=dask_df._meta).persist()
+    wait(dask_df)
+    client.rebalance(dask_df)
+    return dask_df
 
 
 async def _extract_partitions(dask_obj, client=None, batch_enabled=False):

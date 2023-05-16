@@ -15,7 +15,6 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
-import cupy
 import cudf
 import warnings
 import dask_cudf
@@ -320,8 +319,7 @@ class simpleDistributedGraphImpl:
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
         self._number_of_edges = num_edges
-        ddf_w_map = get_persisted_df_worker_map(ddf, _client)
-        del ddf
+        ddf = get_persisted_df_worker_map(ddf, _client)
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
                 Comms.get_session_id(),
@@ -332,15 +330,15 @@ class simpleDistributedGraphImpl:
                 store_transposed,
                 num_edges,
             )
-            for w, edata in ddf_w_map.items()
+            for w, edata in ddf.items()
         }
-        del ddf_w_map
+        del ddf
         self._plc_graph = {
             w: _client.compute(delayed_task, workers=w, allow_other_workers=False)
             for w, delayed_task in delayed_tasks_d.items()
         }
+        wait(list(self._plc_graph.values()))
         del delayed_tasks_d
-        wait(self._plc_graph)
         _client.run(gc.collect)
 
     @property
@@ -817,7 +815,7 @@ class simpleDistributedGraphImpl:
         ]
 
         wait(cudf_result)
-        ddf = dask_cudf.from_delayed(cudf_result)
+        ddf = dask_cudf.from_delayed(cudf_result).persist()
         wait(ddf)
 
         # Wait until the inactive futures are released
@@ -1152,6 +1150,9 @@ def _get_column_from_ls_dfs(lst_df, col_name):
     This function concatenates the column
     and drops it from the input list
     """
+    len_df = sum([len(df) for df in lst_df])
+    if len_df == 0:
+        return lst_df[0][col_name]
     output_col = cudf.concat([df[col_name] for df in lst_df], ignore_index=True)
     for df in lst_df:
         df.drop(columns=[col_name], inplace=True)
