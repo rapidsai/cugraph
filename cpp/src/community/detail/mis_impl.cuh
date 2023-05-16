@@ -16,40 +16,28 @@
  */
 #pragma once
 
+#include <community/mis.hpp>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
-#include <community/detail/mis.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/util/cudart_utils.hpp>
-#include <raft/util/integer_utils.hpp>
-#include <rmm/exec_policy.hpp>
-
 #include <thrust/count.h>
 #include <thrust/distance.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/optional.h>
 #include <thrust/remove.h>
-#include <thrust/sequence.h>
 #include <thrust/set_operations.h>
-#include <thrust/shuffle.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 
 #include <cmath>
-#include <numeric>
-#include <type_traits>
-#include <utility>
 
 namespace cugraph {
 

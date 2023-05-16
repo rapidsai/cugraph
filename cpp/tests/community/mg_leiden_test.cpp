@@ -42,7 +42,7 @@
 struct Leiden_Usecase {
   size_t max_level_{100};
   double resolution_{1};
-  bool check_correctness_{true};
+  bool check_correctness_{false};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,78 +89,24 @@ class Tests_MGLeiden
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
       false);  // crate an SG graph with MG graph vertex IDs
 
+    // FIXME: We need to figure out how to test each iteration of
+    // SG vs MG Leiden, possibly by passing results of refinement phase
+
     weight_t sg_modularity{-1.0};
 
+    auto sg_graph_view = sg_graph.view();
+    auto sg_edge_weight_view =
+      sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
-      auto sg_graph_view = sg_graph.view();
-      auto sg_edge_weight_view =
-        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
-
-
-if (comm_rank == 0) {
-
-    std::tie(std::ignore, sg_modularity) = cugraph::leiden(handle,
-                                                        sg_graph_view,
-                                                        sg_edge_weight_view,
-                                                        // d_sg_cluster_v.data(),
-                                                        100,
-                                                        resolution);
-}
-  /*
-    std::for_each(
-      thrust::make_counting_iterator<size_t>(0),
-      thrust::make_counting_iterator<size_t>(mg_dendrogram.num_levels()),
-      [&mg_graph_view,
-       &mg_dendrogram,
-       &sg_graph,
-       &sg_edge_weights,
-       &sg_modularity,
-       &handle,
-       resolution,
-       comm_rank](size_t i) {
-        rmm::device_uvector<vertex_t> d_mg_aggregate_cluster_v(0, handle.get_stream());
-        std::tie(std::ignore, d_mg_aggregate_cluster_v) =
-          cugraph::test::mg_vertex_property_values_to_sg_vertex_property_values(
-            handle,
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            std::make_tuple(mg_dendrogram.get_level_first_index_nocheck(i),
-                            static_cast<vertex_t>(mg_dendrogram.get_level_first_index_nocheck(i) +
-                                                  mg_dendrogram.get_level_size_nocheck(i))),
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-            raft::device_span<vertex_t const>(mg_dendrogram.get_level_ptr_nocheck(i),
-                                              mg_dendrogram.get_level_size_nocheck(i)));
-
-        if (comm_rank == 0) {
-          auto sg_graph_view = sg_graph.view();
-          auto sg_edge_weight_view =
-            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
-
-          rmm::device_uvector<vertex_t> d_sg_cluster_v(sg_graph_view.number_of_vertices(),
-                                                       handle_->get_stream());
-
-          std::tie(std::ignore, sg_modularity) = cugraph::leiden(handle,
-                                                                  sg_graph_view,
-                                                                  sg_edge_weight_view,
-                                                                  d_sg_cluster_v.data(),
-                                                                  size_t{1},
-                                                                  resolution);
-
-          EXPECT_TRUE(cugraph::test::check_invertible(
-            handle,
-            raft::device_span<vertex_t const>(d_sg_cluster_v.data(), d_sg_cluster_v.size()),
-            raft::device_span<vertex_t const>(d_mg_aggregate_cluster_v.data(),
-                                              d_mg_aggregate_cluster_v.size())))
-            << "(i = " << i << "), sg_modularity = " << sg_modularity;
-
-          std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::coarsen_graph(
-            handle, sg_graph_view, sg_edge_weight_view, d_mg_aggregate_cluster_v.data(), false);
-        }
-      });
-      
-*/
-    if (comm_rank == 0){
-      std::cout << "mg_modularity: "<< mg_modularity << " sg_modularity: " << sg_modularity << std::endl;
+    if (comm_rank == 0) {
+      std::tie(std::ignore, sg_modularity) =
+        cugraph::leiden(handle, sg_graph_view, sg_edge_weight_view, 100, resolution);
+    }
+    if (comm_rank == 0) {
+#if 1
+      std::cout << "mg_modularity: " << mg_modularity << " sg_modularity: " << sg_modularity
+                << std::endl;
+#endif
       EXPECT_NEAR(mg_modularity, sg_modularity, std::max(mg_modularity, sg_modularity) * 1e-3);
     }
   }
@@ -206,10 +152,10 @@ if (comm_rank == 0) {
 
     auto [dendrogram, mg_modularity] =
       cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
-                                                         mg_graph_view,
-                                                         mg_edge_weight_view,
-                                                         leiden_usecase.max_level_,
-                                                         leiden_usecase.resolution_);
+                                                        mg_graph_view,
+                                                        mg_edge_weight_view,
+                                                        leiden_usecase.max_level_,
+                                                        leiden_usecase.resolution_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -237,7 +183,6 @@ if (comm_rank == 0) {
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGLeiden<input_usecase_t>::handle_ = nullptr;
 
-////////////////////////////////////////////////////////////////////////////////
 using Tests_MGLeiden_File = Tests_MGLeiden<cugraph::test::File_Usecase>;
 using Tests_MGLeiden_Rmat = Tests_MGLeiden<cugraph::test::Rmat_Usecase>;
 
@@ -277,13 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
-    // ,
-                      // cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
-
-
-
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_tests_ex1,
@@ -291,12 +230,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx")
-    // ,
-                      // cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
-
-
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_tests_ex2,
@@ -304,33 +238,25 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx")
-    // ,
-                      // cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
+    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
 
+INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
+                         Tests_MGLeiden_Rmat,
+                         ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
-
-
-
-
-// INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
-//                          Tests_MGLeiden_Rmat,
-//                          ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1}),
-//                                             ::testing::Values(cugraph::test::Rmat_Usecase(
-//                                               10, 16, 0.57, 0.19, 0.19, 0, true, false))));
-
-// INSTANTIATE_TEST_SUITE_P(
-//   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
-//                           --gtest_filter to select only the file_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one File_Usecase that differ only in filename
-//                           (to avoid running same benchmarks more than once) */
-//   Tests_MGLeiden_File,
-//   ::testing::Combine(
-//     // disable correctness checks for large graphs
-//     ::testing::Values(Leiden_Usecase{100, 1, true}),
-//     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_MGLeiden_File,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -344,9 +270,9 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(Leiden_Usecase{100, 1, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking (with
+  file64_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking
+                          (with
                           --gtest_filter to select only the file_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
@@ -355,11 +281,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
-
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_as_Skitter, /* note that the test filename can be overridden in benchmarking (with
+  file64_benchmark_test_as_Skitter, /* note that the test filename can be overridden in benchmarking
+                          (with
                           --gtest_filter to select only the file_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
@@ -368,11 +295,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/as-Skitter.mtx"))));
-
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/as-Skitter.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_coPapersDBLP, /* note that the test filename can be overridden in benchmarking (with
+  file64_benchmark_test_coPapersDBLP, /* note that the test filename can be overridden in
+                          benchmarking (with
                           --gtest_filter to select only the file_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
@@ -381,12 +309,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
-
-
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking (with
+  file64_benchmark_test_europe_osm, /* note that the test filename can be overridden in benchmarking
+                          (with
                           --gtest_filter to select only the file_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
@@ -395,10 +323,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_soc_LiveJournal1, /* note that the test filename can be overridden in benchmarking (with
+  file64_benchmark_test_soc_LiveJournal1, /* note that the test filename can be overridden in
+                          benchmarking (with
                           --gtest_filter to select only the file_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
@@ -407,10 +337,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_ljournal_2008, /* note that the test filename can be overridden in benchmarking (with
+  file64_benchmark_test_ljournal_2008, /* note that the test filename can be overridden in
+                          benchmarking (with
                           --gtest_filter to select only the file_benchmark_test with a specific
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
@@ -419,12 +351,7 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
-
-
-
-
-
-
+    ::testing::Values(
+      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
