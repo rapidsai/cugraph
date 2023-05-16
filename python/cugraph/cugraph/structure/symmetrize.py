@@ -297,7 +297,7 @@ def _memory_efficient_drop_duplicates(ddf, vertex_col_name, num_workers):
     # drop duplicates has a 5x+ overhead
     # and does not seem to be working as expected
     # TODO: Triage an MRE
-    ddf = ddf.repartition(npartitions=num_workers * 2)
+    ddf = ddf.reset_index(drop=True).repartition(npartitions=num_workers * 2)
     ddf = ddf.groupby(by=[*vertex_col_name], as_index=False).min(
         split_out=num_workers * 2
     )
