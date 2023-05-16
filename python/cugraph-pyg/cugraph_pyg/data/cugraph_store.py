@@ -40,8 +40,16 @@ NdArray = None if isinstance(cupy, MissingModule) else cupy.ndarray
 DaskCudfSeries = None if isinstance(dask_cudf, MissingModule) else dask_cudf.Series
 
 TensorType = Union[Tensor, NdArray, cudf.Series, DaskCudfSeries]
-NodeType = None if isinstance(torch_geometric, MissingModule) else torch_geometric.typing.NodeType
-EdgeType = None if isinstance(torch_geometric, MissingModule) else torch_geometric.typing.EdgeType
+NodeType = (
+    None
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.typing.NodeType
+)
+EdgeType = (
+    None
+    if isinstance(torch_geometric, MissingModule)
+    else torch_geometric.typing.EdgeType
+)
 
 
 class EdgeLayout(Enum):
@@ -462,18 +470,16 @@ class EXPERIMENTAL__CuGraphStore:
     @property
     def node_types(self) -> List[NodeType]:
         return list(self.__vertex_type_offsets["type"])
-    
+
     @property
     def edge_types(self) -> List[EdgeType]:
         return list(self.__edge_types_to_attrs.keys())
-    
+
     def canonical_edge_type_to_numeric(self, etype: EdgeType) -> int:
-        return np.searchsorted(
-            self.__edge_type_offsets["type"], "__".join(etype)
-        )
-    
+        return np.searchsorted(self.__edge_type_offsets["type"], "__".join(etype))
+
     def numeric_edge_type_to_canonical(self, etype: int) -> EdgeType:
-        return tuple(self.__edge_type_offsets["type"][etype].split('__'))
+        return tuple(self.__edge_type_offsets["type"][etype].split("__"))
 
     @cached_property
     def _is_delayed(self):
@@ -793,9 +799,14 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Create the row entry for this type
                 src_id_table = noi_index[src_type]
-                src_id_map = cudf.Series(cupy.asarray(src_id_table), name='src').reset_index().rename(columns={'index': 'new_id'}).set_index('src')
-                src = src_id_map['new_id'].loc[cupy.asarray(sources)]
-                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device='cuda')
+                src_id_map = (
+                    cudf.Series(cupy.asarray(src_id_table), name="src")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("src")
+                )
+                src = src_id_map["new_id"].loc[cupy.asarray(sources)]
+                row_dict[pyg_can_edge_type] = torch.as_tensor(src.values, device="cuda")
 
                 # Get the de-offsetted destinations
                 destinations = torch.as_tensor(
@@ -808,9 +819,14 @@ class EXPERIMENTAL__CuGraphStore:
 
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
-                dst_id_map = cudf.Series(cupy.asarray(dst_id_table), name='dst').reset_index().rename(columns={'index': 'new_id'}).set_index('dst')
-                dst = dst_id_map['new_id'].loc[cupy.asarray(destinations)]
-                col_dict[pyg_can_edge_type] = torch.as_tensor(dst.values, device='cuda')
+                dst_id_map = (
+                    cudf.Series(cupy.asarray(dst_id_table), name="dst")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("dst")
+                )
+                dst = dst_id_map["new_id"].loc[cupy.asarray(destinations)]
+                col_dict[pyg_can_edge_type] = torch.as_tensor(dst.values, device="cuda")
 
         return row_dict, col_dict
 

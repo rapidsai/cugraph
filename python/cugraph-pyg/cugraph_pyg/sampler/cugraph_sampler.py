@@ -11,13 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 
-
-from typing import Tuple, List, Union, Sequence, Dict
+from typing import Sequence
 
 from cugraph_pyg.data import CuGraphStore
-from cugraph_pyg.data.cugraph_store import TensorType
 
 from cugraph.utilities.utils import import_optional, MissingModule
 import cudf
@@ -55,21 +52,25 @@ def _count_unique_nodes(
     node_position: str ('src' or 'dst')
         Whether to examine source or destination nodes.
     """
-    if node_position == 'src':
-        edge_index = 'sources'
+    if node_position == "src":
+        edge_index = "sources"
         edge_sel = 0
-    elif node_position == 'dst':
-        edge_index = 'destinations'
+    elif node_position == "dst":
+        edge_index = "destinations"
         edge_sel = -1
     else:
         raise ValueError(f"Illegal value {node_position} for node_position")
 
-    etypes = [graph_store.canonical_edge_type_to_numeric(et) for et in graph_store.edge_types if et[edge_sel]==node_type]
+    etypes = [
+        graph_store.canonical_edge_type_to_numeric(et)
+        for et in graph_store.edge_types
+        if et[edge_sel] == node_type
+    ]
     if len(etypes) > 0:
-        f = (sampling_results.edge_type == etypes[0])
+        f = sampling_results.edge_type == etypes[0]
         for et in etypes[1:]:
-            f |= (sampling_results.edge_type == et)
-        
+            f |= sampling_results.edge_type == et
+
         sampling_results_node = sampling_results[f]
     else:
         return 0
@@ -98,43 +99,52 @@ def _sampler_output_from_sampling_results(
     """
 
     # won't be needed once c++ changes ready (#3352)
-    sampling_results = sampling_results.sort_values(by='hop_id')
+    sampling_results = sampling_results.sort_values(by="hop_id")
 
-    hops = torch.arange(sampling_results.hop_id.max() + 1, device='cuda')
-    hops = torch.searchsorted(torch.as_tensor(sampling_results.hop_id.values, device='cuda'), hops)
+    hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
+    hops = torch.searchsorted(
+        torch.as_tensor(sampling_results.hop_id.values, device="cuda"), hops
+    )
 
     num_nodes_per_hop_dict = {}
     num_edges_per_hop_dict = {}
 
     # Fill out hop 0 in num_nodes_per_hop_dict, which is based on src instead of dst
-    sampling_results_hop_0 = sampling_results.iloc[0:(hops[1] if len(hops) > 1 else len(sampling_results))]
+    sampling_results_hop_0 = sampling_results.iloc[
+        0 : (hops[1] if len(hops) > 1 else len(sampling_results))
+    ]
     for node_type in graph_store.node_types:
         if len(graph_store.node_types) == 1:
             num_unique_nodes = sampling_results_hop_0.sources.nunique()
         else:
             num_unique_nodes = _count_unique_nodes(
-                sampling_results_hop_0,
-                graph_store,
-                node_type,
-                'src'
+                sampling_results_hop_0, graph_store, node_type, "src"
             )
 
         if num_unique_nodes > 0:
-            num_nodes_per_hop_dict[node_type] = torch.zeros(len(hops) + 1, dtype=torch.int64)
+            num_nodes_per_hop_dict[node_type] = torch.zeros(
+                len(hops) + 1, dtype=torch.int64
+            )
             num_nodes_per_hop_dict[node_type][0] = num_unique_nodes
 
     # Calculate nodes of interest based on unique nodes in order of appearance
     # Use hop 0 sources since those are the only ones not included in destinations
     # Use torch.concat based on benchmark performance (vs. cudf.concat)
     nodes_of_interest = cudf.Series(
-        torch.concat([
-            torch.as_tensor(sampling_results_hop_0.sources.values, device='cuda'),
-            torch.as_tensor(sampling_results.destinations.values, device='cuda')
-        ]),
-        name='nodes_of_interest'
+        torch.concat(
+            [
+                torch.as_tensor(sampling_results_hop_0.sources.values, device="cuda"),
+                torch.as_tensor(sampling_results.destinations.values, device="cuda"),
+            ]
+        ),
+        name="nodes_of_interest",
     ).drop_duplicates()
-    nodes_of_interest = nodes_of_interest.sort_index().reset_index(drop=True).reset_index()
-    nodes_of_interest = nodes_of_interest.rename(columns={'index':'new_id'}).set_index('nodes_of_interest')
+    nodes_of_interest = (
+        nodes_of_interest.sort_index().reset_index(drop=True).reset_index()
+    )
+    nodes_of_interest = nodes_of_interest.rename(columns={"index": "new_id"}).set_index(
+        "nodes_of_interest"
+    )
     del sampling_results_hop_0
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
@@ -159,37 +169,42 @@ def _sampler_output_from_sampling_results(
                 num_unique_nodes = sampling_results_hop.destinations.nunique()
             else:
                 num_unique_nodes = _count_unique_nodes(
-                    sampling_results_hop,
-                    graph_store,
-                    node_type,
-                    'dst'
+                    sampling_results_hop, graph_store, node_type, "dst"
                 )
 
             if num_unique_nodes > 0:
                 if node_type not in num_nodes_per_hop_dict:
-                    num_nodes_per_hop_dict[node_type] = torch.zeros(len(hops) + 1, dtype=torch.int64)
-                num_nodes_per_hop_dict[node_type][hop+1] = num_unique_nodes
-        
+                    num_nodes_per_hop_dict[node_type] = torch.zeros(
+                        len(hops) + 1, dtype=torch.int64
+                    )
+                num_nodes_per_hop_dict[node_type][hop + 1] = num_unique_nodes
+
         if len(graph_store.edge_types) == 1:
             edge_type = graph_store.edge_types[0]
             if edge_type not in num_edges_per_hop_dict:
-                num_edges_per_hop_dict[edge_type] = torch.zeros(len(hops), dtype=torch.int64)
-            num_edges_per_hop_dict[graph_store.edge_types[0]][hop] = len(sampling_results_hop)
+                num_edges_per_hop_dict[edge_type] = torch.zeros(
+                    len(hops), dtype=torch.int64
+                )
+            num_edges_per_hop_dict[graph_store.edge_types[0]][hop] = len(
+                sampling_results_hop
+            )
         else:
             numeric_etypes, counts = torch.unique(
                 torch.as_tensor(sampling_results_hop.edge_type.values, device="cuda"),
-                return_counts=True
+                return_counts=True,
             )
             numeric_etypes = list(numeric_etypes)
             counts = list(counts)
             for num_etype, count in zip(numeric_etypes, counts):
                 can_etype = graph_store.numeric_edge_type_to_canonical(num_etype)
                 if can_etype not in num_edges_per_hop_dict:
-                    num_edges_per_hop_dict[can_etype] = torch.zeros(len(hops), dtype=torch.int64)
+                    num_edges_per_hop_dict[can_etype] = torch.zeros(
+                        len(hops), dtype=torch.int64
+                    )
                 num_edges_per_hop_dict[can_etype][hop] = count
 
     if HeteroSamplerOutput is None:
-        raise ImportError('Error importing from pyg')
+        raise ImportError("Error importing from pyg")
 
     return HeteroSamplerOutput(
         node=noi_index,
@@ -198,5 +213,5 @@ def _sampler_output_from_sampling_results(
         edge=None,
         num_sampled_nodes=num_nodes_per_hop_dict,
         num_sampled_edges=num_edges_per_hop_dict,
-        metadata=metadata
+        metadata=metadata,
     )

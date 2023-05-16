@@ -85,6 +85,7 @@ def rmm_global_pool():
     torch.cuda.change_current_allocator(rmm_torch_allocator)
     cupy.cuda.set_allocator(rmm_cupy_allocator)
 
+
 @pytest.fixture
 def karate_gnn():
     el = karate.get_edgelist().reset_index(drop=True)
