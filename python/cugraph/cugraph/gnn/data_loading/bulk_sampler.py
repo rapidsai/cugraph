@@ -211,8 +211,6 @@ class EXPERIMENTAL__BulkSampler:
             with_edge_properties=True,
             return_offsets=True,
         )
-        print('samples!')
-        print(samples)
 
         self.__batches = self.__batches[~batch_id_filter]
         self.__write(samples, offsets)
