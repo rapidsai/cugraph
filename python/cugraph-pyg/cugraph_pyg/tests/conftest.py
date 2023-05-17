@@ -21,12 +21,7 @@ from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.testing.mg_utils import stop_dask_client
 
-import rmm
-from rmm.allocators.torch import rmm_torch_allocator
-from rmm.allocators.cupy import rmm_cupy_allocator
-
 import torch
-import cupy
 import numpy as np
 import cudf
 from cugraph.gnn import FeatureStore

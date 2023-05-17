@@ -172,9 +172,7 @@ def test_renumber_vertices_basic(single_vertex_graph):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_renumber_vertices_multi_edge_multi_vertex(
-    multi_edge_multi_vertex_graph_1
-):
+def test_renumber_vertices_multi_edge_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 

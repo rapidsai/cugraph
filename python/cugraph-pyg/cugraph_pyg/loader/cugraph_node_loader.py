@@ -195,7 +195,7 @@ class EXPERIMENTAL__BulkSampleLoader:
                 # 'edge_id':'int64',
                 "edge_type": "int32",
                 "batch_id": "int32",
-                'hop_id':'int32'
+                "hop_id": "int32",
             }
             self.__data = cudf.read_parquet(parquet_path)
             self.__data = self.__data[list(columns.keys())].astype(columns)
