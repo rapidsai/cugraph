@@ -645,14 +645,13 @@ void sort_sampled_tuples(raft::handle_t const& handle,
       if (edge_types) {
         if (hops) {
           thrust::sort_by_key(handle.get_thrust_policy(),
-                              labels->begin(),
-                              labels->end(),
+                              thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                              thrust::make_zip_iterator(labels->end(), hops->end()),
                               thrust::make_zip_iterator(majors.begin(),
                                                         minors.begin(),
                                                         weights->begin(),
                                                         edge_ids->begin(),
-                                                        edge_types->begin(),
-                                                        hops->begin()));
+                                                        edge_types->begin()));
         } else {
           thrust::sort_by_key(handle.get_thrust_policy(),
                               labels->begin(),
@@ -667,10 +666,10 @@ void sort_sampled_tuples(raft::handle_t const& handle,
         if (hops) {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
-            labels->begin(),
-            labels->end(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
             thrust::make_zip_iterator(
-              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin(), hops->begin()));
+              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
@@ -683,14 +682,12 @@ void sort_sampled_tuples(raft::handle_t const& handle,
     } else {
       if (edge_types) {
         if (hops) {
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                              labels->begin(),
-                              labels->end(),
-                              thrust::make_zip_iterator(majors.begin(),
-                                                        minors.begin(),
-                                                        weights->begin(),
-                                                        edge_types->begin(),
-                                                        hops->begin()));
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
@@ -701,11 +698,11 @@ void sort_sampled_tuples(raft::handle_t const& handle,
         }
       } else {
         if (hops) {
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                              labels->begin(),
-                              labels->end(),
-                              thrust::make_zip_iterator(
-                                majors.begin(), minors.begin(), weights->begin(), hops->begin()));
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
@@ -719,14 +716,12 @@ void sort_sampled_tuples(raft::handle_t const& handle,
     if (edge_ids) {
       if (edge_types) {
         if (hops) {
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                              labels->begin(),
-                              labels->end(),
-                              thrust::make_zip_iterator(majors.begin(),
-                                                        minors.begin(),
-                                                        edge_ids->begin(),
-                                                        edge_types->begin(),
-                                                        hops->begin()));
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
@@ -737,11 +732,11 @@ void sort_sampled_tuples(raft::handle_t const& handle,
         }
       } else {
         if (hops) {
-          thrust::sort_by_key(handle.get_thrust_policy(),
-                              labels->begin(),
-                              labels->end(),
-                              thrust::make_zip_iterator(
-                                majors.begin(), minors.begin(), edge_ids->begin(), hops->begin()));
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
@@ -755,10 +750,9 @@ void sort_sampled_tuples(raft::handle_t const& handle,
         if (hops) {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
-            labels->begin(),
-            labels->end(),
-            thrust::make_zip_iterator(
-              majors.begin(), minors.begin(), edge_types->begin(), hops->begin()));
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
         } else {
           thrust::sort_by_key(
             handle.get_thrust_policy(),
@@ -768,11 +762,10 @@ void sort_sampled_tuples(raft::handle_t const& handle,
         }
       } else {
         if (hops) {
-          thrust::sort_by_key(
-            handle.get_thrust_policy(),
-            labels->begin(),
-            labels->end(),
-            thrust::make_zip_iterator(majors.begin(), minors.begin(), hops->begin()));
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                              thrust::make_zip_iterator(labels->end(), hops->end()),
+                              thrust::make_zip_iterator(majors.begin(), minors.begin()));
         } else {
           thrust::sort_by_key(handle.get_thrust_policy(),
                               labels->begin(),
