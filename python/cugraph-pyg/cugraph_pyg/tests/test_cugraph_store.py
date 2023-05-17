@@ -97,7 +97,7 @@ def single_vertex_graph(request):
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.parametrize("edge_index_type", ["numpy", "torch-cpu", "torch-gpu", "cudf"])
-def test_get_edge_index(graph, edge_index_type, rmm_global_pool):
+def test_get_edge_index(graph, edge_index_type):
     F, G, N = graph
     if "torch" in edge_index_type:
         if edge_index_type == "torch-cpu":
@@ -128,7 +128,7 @@ def test_get_edge_index(graph, edge_index_type, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_edge_types(graph, rmm_global_pool):
+def test_edge_types(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -141,7 +141,7 @@ def test_edge_types(graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_subgraph(graph, rmm_global_pool):
+def test_get_subgraph(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -159,7 +159,7 @@ def test_get_subgraph(graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_renumber_vertices_basic(single_vertex_graph, rmm_global_pool):
+def test_renumber_vertices_basic(single_vertex_graph):
     F, G, N = single_vertex_graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -173,7 +173,7 @@ def test_renumber_vertices_basic(single_vertex_graph, rmm_global_pool):
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_multi_edge_multi_vertex(
-    multi_edge_multi_vertex_graph_1, rmm_global_pool
+    multi_edge_multi_vertex_graph_1
 ):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
@@ -194,7 +194,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_renumber_edges(abc_graph, rmm_global_pool):
+def test_renumber_edges(abc_graph):
     F, G, N = abc_graph
 
     graph_store = CuGraphStore(F, G, N)
@@ -230,7 +230,7 @@ def test_renumber_edges(abc_graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_tensor(graph, rmm_global_pool):
+def test_get_tensor(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -251,7 +251,7 @@ def test_get_tensor(graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_multi_get_tensor(graph, rmm_global_pool):
+def test_multi_get_tensor(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -278,7 +278,7 @@ def test_multi_get_tensor(graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_all_tensor_attrs(graph, rmm_global_pool):
+def test_get_all_tensor_attrs(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -318,7 +318,7 @@ def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_tensor_from_tensor_attrs(graph, rmm_global_pool):
+def test_get_tensor_from_tensor_attrs(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -332,7 +332,7 @@ def test_get_tensor_from_tensor_attrs(graph, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_tensor_size(graph, rmm_global_pool):
+def test_get_tensor_size(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -344,7 +344,7 @@ def test_get_tensor_size(graph, rmm_global_pool):
         assert cugraph_store.get_tensor_size(tensor_attr) == torch.Size((sz,))
 
 
-def test_serialize(multi_edge_multi_vertex_no_graph_1, rmm_global_pool):
+def test_serialize(multi_edge_multi_vertex_no_graph_1):
     import pickle
 
     F, G, N = multi_edge_multi_vertex_no_graph_1

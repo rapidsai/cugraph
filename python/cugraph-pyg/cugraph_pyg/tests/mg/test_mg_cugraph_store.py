@@ -100,7 +100,7 @@ def single_vertex_graph(request):
 @pytest.mark.parametrize(
     "edge_index_type", ["numpy", "torch-cpu", "torch-gpu", "cudf", "dask-cudf"]
 )
-def test_get_edge_index(graph, edge_index_type, dask_client, rmm_global_pool):
+def test_get_edge_index(graph, edge_index_type, dask_client):
     F, G, N = graph
     if "torch" in edge_index_type:
         if edge_index_type == "torch-cpu":
@@ -142,7 +142,7 @@ def test_get_edge_index(graph, edge_index_type, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_edge_types(graph, dask_client, rmm_global_pool):
+def test_edge_types(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -155,7 +155,7 @@ def test_edge_types(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_subgraph(graph, dask_client, rmm_global_pool):
+def test_get_subgraph(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -173,7 +173,7 @@ def test_get_subgraph(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_renumber_vertices_basic(single_vertex_graph, dask_client, rmm_global_pool):
+def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     F, G, N = single_vertex_graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -187,7 +187,7 @@ def test_renumber_vertices_basic(single_vertex_graph, dask_client, rmm_global_po
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_multi_edge_multi_vertex(
-    multi_edge_multi_vertex_graph_1, dask_client, rmm_global_pool
+    multi_edge_multi_vertex_graph_1, dask_client
 ):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
@@ -208,7 +208,7 @@ def test_renumber_vertices_multi_edge_multi_vertex(
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_renumber_edges(abc_graph, dask_client, rmm_global_pool):
+def test_renumber_edges(abc_graph, dask_client):
     F, G, N = abc_graph
 
     graph_store = CuGraphStore(F, G, N, multi_gpu=True)
@@ -244,7 +244,7 @@ def test_renumber_edges(abc_graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_tensor(graph, dask_client, rmm_global_pool):
+def test_get_tensor(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -265,7 +265,7 @@ def test_get_tensor(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_multi_get_tensor(graph, dask_client, rmm_global_pool):
+def test_multi_get_tensor(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -292,7 +292,7 @@ def test_multi_get_tensor(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_all_tensor_attrs(graph, dask_client, rmm_global_pool):
+def test_get_all_tensor_attrs(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -314,19 +314,19 @@ def test_get_all_tensor_attrs(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skip("not implemented")
-def test_get_tensor_spec_props(graph, dask_client, rmm_global_pool):
+def test_get_tensor_spec_props(graph, dask_client):
     raise NotImplementedError("not implemented")
 
 
 @pytest.mark.skip("not implemented")
 def test_multi_get_tensor_spec_props(
-    multi_edge_multi_vertex_graph_1, dask_client, rmm_global_pool
+    multi_edge_multi_vertex_graph_1, dask_client
 ):
     raise NotImplementedError("not implemented")
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_tensor_from_tensor_attrs(graph, dask_client, rmm_global_pool):
+def test_get_tensor_from_tensor_attrs(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -340,7 +340,7 @@ def test_get_tensor_from_tensor_attrs(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_get_tensor_size(graph, dask_client, rmm_global_pool):
+def test_get_tensor_size(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
@@ -353,7 +353,7 @@ def test_get_tensor_size(graph, dask_client, rmm_global_pool):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_mg_frame_handle(graph, dask_client, rmm_global_pool):
+def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
     assert isinstance(cugraph_store._EXPERIMENTAL__CuGraphStore__graph._plc_graph, dict)
