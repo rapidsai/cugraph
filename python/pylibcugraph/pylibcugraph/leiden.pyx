@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 # Have cython use python 3 syntax
 # cython: language_level = 3
+
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -30,7 +31,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_hierarchical_clustering_result_t,
-    cugraph_louvain,
+    cugraph_leiden,
     cugraph_hierarchical_clustering_result_get_vertices,
     cugraph_hierarchical_clustering_result_get_clusters,
     cugraph_hierarchical_clustering_result_get_modularity,
@@ -48,14 +49,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def louvain(ResourceHandle resource_handle,
-            _GPUGraph graph,
-            size_t max_level,
-            double resolution,
-            bool_t do_expensive_check):
+def leiden(ResourceHandle resource_handle,
+           _GPUGraph graph,
+           size_t max_level,
+           double resolution,
+           bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
-    Louvain method.
+    Leiden method.
 
     Parameters
     ----------
@@ -67,7 +68,7 @@ def louvain(ResourceHandle resource_handle,
         The input graph.
 
     max_level: size_t
-        This controls the maximum number of levels/iterations of the Louvain
+        This controls the maximum number of levels/iterations of the leiden
         algorithm. When specified the algorithm will terminate after no more
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
@@ -99,7 +100,7 @@ def louvain(ResourceHandle resource_handle,
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
-    >>> (vertices, clusters, modularity) = pylibcugraph.louvain(
+    >>> (vertices, clusters, modularity) = pylibcugraph.Leiden(
                                 resource_handle, G, 100, 1., False)
     >>> vertices
     [0, 1, 2]
@@ -116,14 +117,14 @@ def louvain(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_louvain(c_resource_handle_ptr,
-                                 c_graph_ptr,
-                                 max_level,
-                                 resolution,
-                                 do_expensive_check,
-                                 &result_ptr,
-                                 &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_louvain")
+    error_code = cugraph_leiden(c_resource_handle_ptr,
+                                c_graph_ptr,
+                                max_level,
+                                resolution,
+                                do_expensive_check,
+                                &result_ptr,
+                                &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_leiden")
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
