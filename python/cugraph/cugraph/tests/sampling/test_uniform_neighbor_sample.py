@@ -421,6 +421,58 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
 
 
 @pytest.mark.sg
+def test_uniform_neighbor_sample_hop_id_order():
+    df = cudf.DataFrame({
+        'src': [0, 1, 2, 3, 3, 6],
+        'dst': [2, 3, 4, 5, 6, 7],
+    })
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        df,
+        source='src',
+        destination='dst'
+    )
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        cudf.Series([0, 1], dtype='int64'),
+        fanout_vals=[2, 2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+    )
+
+    assert sorted(sampling_results.hop_id.values_host.tolist()) == sampling_results.hop_id.values_host.tolist()
+
+
+@pytest.mark.sg
+def test_uniform_neighbor_sample_hop_id_order_multi_batch():
+    df = cudf.DataFrame({
+        'src': [0, 1, 2, 3, 3, 6],
+        'dst': [2, 3, 4, 5, 6, 7],
+    })
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        df,
+        source='src',
+        destination='dst'
+    )
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        cudf.Series([0, 1], dtype='int64'),
+        fanout_vals=[2, 2, 2],
+        batch_id_list=cudf.Series([0,1], dtype='int32'),
+        with_replacement=False,
+        with_edge_properties=True,
+    )
+
+    for b in range(2):
+        assert sorted(sampling_results[sampling_results.batch_id==b].hop_id.values_host.tolist()) == sampling_results[sampling_results.batch_id==b].hop_id.values_host.tolist()
+    
+
+@pytest.mark.sg
 def test_uniform_neighbor_sample_empty_start_list():
     df = cudf.DataFrame(
         {
