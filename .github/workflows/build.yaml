@@ -65,7 +65,7 @@ jobs:
       run_script: "ci/build_docs.sh"
   wheel-build-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@manylinux_v2
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@branch-23.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -85,7 +85,7 @@ jobs:
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@manylinux_v2
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@branch-23.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -95,7 +95,7 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-publish-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@manylinux_v2
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@branch-23.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -111,11 +111,12 @@ jobs:
       extra-repo-sha: branch-23.06
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
 
-      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+      before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_${{ '${PIP_CU_VERSION}' }} rapids-download-wheels-from-s3 /local-wheelhouse"
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/cugraph/cugraph-ops/"
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@manylinux_v2
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@branch-23.06
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
