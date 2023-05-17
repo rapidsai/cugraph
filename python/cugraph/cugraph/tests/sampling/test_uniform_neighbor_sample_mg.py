@@ -477,21 +477,22 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_hop_id_order():
-    df = dask_cudf.from_cudf(cudf.DataFrame({
-        'src': [0, 1, 2, 3, 3, 6],
-        'dst': [2, 3, 4, 5, 6, 7],
-    }), npartitions=2)
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 3, 6],
+                "dst": [2, 3, 4, 5, 6, 7],
+            }
+        ),
+        npartitions=2,
+    )
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(
-        df,
-        source='src',
-        destination='dst'
-    )
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst")
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        cudf.Series([0, 1], dtype='int64'),
+        cudf.Series([0, 1], dtype="int64"),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
         with_edge_properties=True,
@@ -499,28 +500,32 @@ def test_uniform_neighbor_sample_hop_id_order():
 
     for p in range(sampling_results.npartitions):
         sampling_results_p = sampling_results.get_partition(p).compute()
-        assert sorted(sampling_results_p.hop_id.values_host.tolist()) == sampling_results_p.hop_id.values_host.tolist()
+        assert (
+            sorted(sampling_results_p.hop_id.values_host.tolist())
+            == sampling_results_p.hop_id.values_host.tolist()
+        )
 
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_hop_id_order_multi_batch():
-    df = dask_cudf.from_cudf(cudf.DataFrame({
-        'src': [0, 1, 2, 3, 3, 6],
-        'dst': [2, 3, 4, 5, 6, 7],
-    }), npartitions=2)
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 3, 6],
+                "dst": [2, 3, 4, 5, 6, 7],
+            }
+        ),
+        npartitions=2,
+    )
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(
-        df,
-        source='src',
-        destination='dst'
-    )
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst")
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        cudf.Series([0, 1], dtype='int64'),
+        cudf.Series([0, 1], dtype="int64"),
         fanout_vals=[2, 2, 2],
-        batch_id_list=cudf.Series([0,1], dtype='int32'),
+        batch_id_list=cudf.Series([0, 1], dtype="int32"),
         with_replacement=False,
         with_edge_properties=True,
     )
@@ -528,8 +533,13 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
     for p in range(sampling_results.npartitions):
         sampling_results_p = sampling_results.get_partition(p)
         for b in range(2):
-            sampling_results_pb = sampling_results_p[sampling_results_p.batch_id==b].compute()
-            assert sorted(sampling_results_pb.hop_id.values_host.tolist()) == sampling_results_pb.hop_id.values_host.tolist()
+            sampling_results_pb = sampling_results_p[
+                sampling_results_p.batch_id == b
+            ].compute()
+            assert (
+                sorted(sampling_results_pb.hop_id.values_host.tolist())
+                == sampling_results_pb.hop_id.values_host.tolist()
+            )
 
 
 @pytest.mark.mg
