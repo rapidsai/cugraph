@@ -79,7 +79,7 @@ def dask_client():
     print("\ndask_client fixture: client.close() called")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def rmm_global_pool():
     rmm.reinitialize(pool_allocator=True)
     torch.cuda.change_current_allocator(rmm_torch_allocator)
