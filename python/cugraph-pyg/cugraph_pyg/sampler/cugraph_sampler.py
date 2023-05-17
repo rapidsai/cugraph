@@ -104,7 +104,7 @@ def _sampler_output_from_sampling_results(
     """
 
     # won't be needed once c++ changes ready (#3352)
-    sampling_results = sampling_results.sort_values(by="hop_id")
+    # sampling_results = sampling_results.sort_values(by="hop_id")
 
     hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
     hops = torch.searchsorted(
