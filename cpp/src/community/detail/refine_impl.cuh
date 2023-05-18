@@ -16,7 +16,7 @@
 #pragma once
 
 #include <community/detail/common_methods.hpp>
-#include <community/detail/mis.hpp>
+#include <community/mis.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -35,6 +35,7 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
+#include <thrust/random.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/sort.h>
@@ -42,8 +43,11 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/random/linear_congruential_engine.h>
+#include <thrust/random/uniform_real_distribution.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
@@ -57,14 +61,18 @@ namespace detail {
 template <typename vertex_t, typename weight_t, typename cluster_value_t>
 struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
-  weight_t gamma{};
+  weight_t resolution{};  // resolution parameter
+  weight_t theta{};       // scaling factor
+  thrust::minstd_rand rng{};
+  thrust::uniform_real_distribution<float> dist{};
   bool debug{};
+
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,
     thrust::tuple<weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t> src_info,
     cluster_value_t keyed_data,
-    weight_t aggregated_weight_to_neighboring_leiden_cluster) const
+    weight_t aggregated_weight_to_neighboring_leiden_cluster)
   {
     // Data associated with src vertex
     auto src_weighted_deg          = thrust::get<0>(src_info);
@@ -84,40 +92,61 @@ struct leiden_key_aggregated_edge_op_t {
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
       dst_leiden_cut_to_louvain >
-      gamma * dst_leiden_volume * (louvain_cluster_volume - dst_leiden_volume);
+      resolution * dst_leiden_volume * (louvain_cluster_volume - dst_leiden_volume);
 
     // E(v, Cr-v) - ||v||* ||Cr-v||/||V(G)||
     // aggregated_weight_to_neighboring_leiden_cluster == E(v, Cr-v)?
 
-    weight_t theta = -1.0;
+    weight_t mod_gain = -1.0;
     // if ((is_src_active > 0) && is_src_well_connected) {
     if (is_src_active > 0) {
       if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
           is_dst_leiden_cluster_well_connected) {
-        theta = aggregated_weight_to_neighboring_leiden_cluster -
-                gamma * src_weighted_deg * dst_leiden_volume / total_edge_weight;
-      
-      int src_id = static_cast<int>(src);
-      int dl_cid = static_cast<int>(neighboring_leiden_cluster);
-      int cut_to_dl = static_cast<int>(aggregated_weight_to_neighboring_leiden_cluster);
-      int s_wdeg = static_cast<int>(src_weighted_deg);
-      int dl_vol = static_cast<int>(dst_leiden_volume);
-      int tew = static_cast<int>(total_edge_weight);
-      float ftheta = static_cast<float>(theta);
+        // thrust::minstd_rand rng;
+        // thrust::uniform_real_distribution<float> dist(0, 1);
+        // float random_number = dist(rng);
+        // if (debug) printf("random_number=%f\n", random_number);
 
-      if(neighboring_leiden_cluster!= dst_leiden_cluster_id){
-        printf ("\n BUG \n");
-      }
-      if(debug) printf("\ntotal_weight = %f  total_weight = %d \n", total_edge_weight, tew);
-      if(debug) printf("\ndst_leiden = %d  vol(dst_leiden)=%d  \n", dl_cid,  dl_vol);
-      if(debug) printf("\n return dst_leiden = %d  theta=%f  \n", dl_cid, ftheta);
+        // rng.discard(static_cast<unsigned>(src));
+        // float random_number = dist(rng);
+        float random_number = 0.5;
 
-      if(debug) printf("\nsrc = %d  dst_leiden = %d cut(src, dst_leiden) = %d wdeg(src)=%d vol(dst_leiden)=%d total_weight=%d \n",
-       src_id, dl_cid, cut_to_dl, s_wdeg, dl_vol, tew);
+        mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
+                   resolution * src_weighted_deg * (dst_leiden_volume - src_weighted_deg) /
+                     total_edge_weight;
+
+        mod_gain = mod_gain > 0.0
+                     ? __expf(static_cast<float>((2.0 * mod_gain) / (theta * total_edge_weight))) *
+                         random_number
+                     : -1.0;
+
+        int src_id      = static_cast<int>(src);
+        int dl_cid      = static_cast<int>(neighboring_leiden_cluster);
+        int cut_to_dl   = static_cast<int>(aggregated_weight_to_neighboring_leiden_cluster);
+        int s_wdeg      = static_cast<int>(src_weighted_deg);
+        int dl_vol      = static_cast<int>(dst_leiden_volume);
+        int tew         = static_cast<int>(total_edge_weight);
+        float fmod_gain = static_cast<float>(mod_gain);
+
+        if (neighboring_leiden_cluster != dst_leiden_cluster_id) { printf("\n BUG \n"); }
+        if (debug) printf("\ntotal_weight = %f  total_weight = %d \n", total_edge_weight, tew);
+        if (debug) printf("\ndst_leiden = %d  vol(dst_leiden)=%d  \n", dl_cid, dl_vol);
+        if (debug) printf("\n return dst_leiden = %d  mod_gain=%f  \n", dl_cid, fmod_gain);
+
+        if (debug)
+          printf(
+            "\nsrc = %d  dst_leiden = %d cut(src, dst_leiden) = %d wdeg(src)=%d vol(dst_leiden)=%d "
+            "total_weight=%d \n",
+            src_id,
+            dl_cid,
+            cut_to_dl,
+            s_wdeg,
+            dl_vol,
+            tew);
       }
     }
 
-    return thrust::make_tuple(theta, neighboring_leiden_cluster);
+    return thrust::make_tuple(mod_gain, neighboring_leiden_cluster);
   }
 };
 
@@ -132,6 +161,7 @@ refine_clustering(
     edge_weight_view,
   weight_t total_edge_weight,
   weight_t resolution,
+  weight_t theta,
   rmm::device_uvector<weight_t> const& weighted_degree_of_vertices,
   rmm::device_uvector<typename GraphViewType::vertex_type>&& louvain_cluster_keys,
   rmm::device_uvector<weight_t>&& louvain_cluster_weights,
@@ -159,9 +189,9 @@ refine_clustering(
   louvain_cluster_weights.resize(0, handle.get_stream());
   louvain_cluster_weights.shrink_to_fit(handle.get_stream());
 
-  bool debug = false;//graph_view.number_of_vertices() < 50;
+  bool debug = false;  // graph_view.number_of_vertices() < 50;
 
-  if(debug) std::cout << (debug? " True": "False") << std::endl;
+  if (debug) std::cout << (debug ? " True" : "False") << std::endl;
   rmm::device_uvector<weight_t> vertex_louvain_cluster_weights(0, handle.get_stream());
   if (GraphViewType::is_multi_gpu) {
     auto& comm                 = handle.get_comms();
@@ -180,30 +210,32 @@ refine_clustering(
                                        louvain_assignment_of_vertices.begin(),
                                        louvain_assignment_of_vertices.end(),
                                        vertex_to_gpu_id_op);
-  #if 1
+#if 1
     auto const comm_rank = comm.get_rank();
     for (int i = 0; i < comm_size; ++i) {
       handle.get_comms().barrier();
       if (comm_rank == i) {
         if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+          if (debug) std::cout << "---------------------------------------------" << std::endl;
         }
-        if(debug) std::cout << "Rank: " << i << std::endl;
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) std::cout << (debug? " True": "False") << std::endl;
-        if(debug) raft::print_device_vector("louvain_assignment_of_vertices",
-                                  louvain_assignment_of_vertices.data(),
-                                  louvain_assignment_of_vertices.size(),
-                                  std::cout);
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("vertex_louvain_cluster_weights",
-                                  vertex_louvain_cluster_weights.data(),
-                                  vertex_louvain_cluster_weights.size(),
-                                  std::cout);
+        if (debug) std::cout << "Rank: " << i << std::endl;
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug) std::cout << (debug ? " True" : "False") << std::endl;
+        if (debug)
+          raft::print_device_vector("louvain_assignment_of_vertices",
+                                    louvain_assignment_of_vertices.data(),
+                                    louvain_assignment_of_vertices.size(),
+                                    std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("vertex_louvain_cluster_weights",
+                                    vertex_louvain_cluster_weights.data(),
+                                    vertex_louvain_cluster_weights.size(),
+                                    std::cout);
       }
       handle.get_comms().barrier();
     }
-  #endif
+#endif
 
   } else {
     vertex_louvain_cluster_weights.resize(louvain_assignment_of_vertices.size(),
@@ -214,19 +246,21 @@ refine_clustering(
                                        vertex_louvain_cluster_weights.begin(),
                                        handle.get_stream());
 
-  if(debug) std::cout << (debug? " True": "False") << std::endl;
-  #if 1
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("louvain_assignment_of_vertices",
-                              louvain_assignment_of_vertices.data(),
-                              louvain_assignment_of_vertices.size(),
-                              std::cout);
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("vertex_louvain_cluster_weights",
-                              vertex_louvain_cluster_weights.data(),
-                              vertex_louvain_cluster_weights.size(),
-                              std::cout);
-  #endif
+    if (debug) std::cout << (debug ? " True" : "False") << std::endl;
+#if 1
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("louvain_assignment_of_vertices",
+                                louvain_assignment_of_vertices.data(),
+                                louvain_assignment_of_vertices.size(),
+                                std::cout);
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("vertex_louvain_cluster_weights",
+                                vertex_louvain_cluster_weights.data(),
+                                vertex_louvain_cluster_weights.size(),
+                                std::cout);
+#endif
   }
   //
   // For each vertex, compute its weighted degree (||v||)
@@ -272,20 +306,20 @@ refine_clustering(
                                                  weighted_degree_of_vertices.end(),
                                                  vertex_louvain_cluster_weights.end()));
 
-  if(debug) std::cout << "Before calling transform to compute  singleton_and_connected_flags" << std::endl;
+  if (debug)
+    std::cout << "Before calling transform to compute  singleton_and_connected_flags" << std::endl;
   thrust::transform(handle.get_thrust_policy(),
                     wcut_deg_and_cluster_vol_triple_begin,
                     wcut_deg_and_cluster_vol_triple_end,
                     singleton_and_connected_flags.begin(),
-                    [gamma = resolution] __device__(auto wcut_wdeg_and_louvain_volume) {
+                    [resolution] __device__(auto wcut_wdeg_and_louvain_volume) {
                       auto wcut           = thrust::get<0>(wcut_wdeg_and_louvain_volume);
                       auto wdeg           = thrust::get<1>(wcut_wdeg_and_louvain_volume);
                       auto louvain_volume = thrust::get<2>(wcut_wdeg_and_louvain_volume);
-                      return wcut > (gamma * wdeg * (louvain_volume - wdeg));
+                      return wcut > (resolution * wdeg * (louvain_volume - wdeg));
                     });
 
-
-#if 1                    
+#if 1
   if (GraphViewType::is_multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_rank = comm.get_rank();
@@ -295,65 +329,70 @@ refine_clustering(
       comm.barrier();
       if (comm_rank == k) {
         if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+          if (debug) std::cout << "---------------------------------------------" << std::endl;
         }
 
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("weighted_cut_of_vertices_to_louvain",
-                                  weighted_cut_of_vertices_to_louvain.data(),
-                                  weighted_cut_of_vertices_to_louvain.size(),
-                                  std::cout);
-      
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("weighted_degree_of_vertices",
-                                  weighted_degree_of_vertices.data(),
-                                  weighted_degree_of_vertices.size(),
-                                  std::cout);
-      
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("vertex_louvain_cluster_weights",
-                                  vertex_louvain_cluster_weights.data(),
-                                  vertex_louvain_cluster_weights.size(),
-                                  std::cout);
-      
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("weighted_cut_of_vertices_to_louvain",
+                                    weighted_cut_of_vertices_to_louvain.data(),
+                                    weighted_cut_of_vertices_to_louvain.size(),
+                                    std::cout);
 
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) std::cout << "Rank: " << comm_rank << std::endl;
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("weighted_degree_of_vertices",
+                                    weighted_degree_of_vertices.data(),
+                                    weighted_degree_of_vertices.size(),
+                                    std::cout);
 
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("singleton_and_connected_flags",
-                                  singleton_and_connected_flags.data(),
-                                  singleton_and_connected_flags.size(),
-                                  std::cout);
-      
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("vertex_louvain_cluster_weights",
+                                    vertex_louvain_cluster_weights.data(),
+                                    vertex_louvain_cluster_weights.size(),
+                                    std::cout);
 
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("singleton_and_connected_flags",
+                                    singleton_and_connected_flags.data(),
+                                    singleton_and_connected_flags.size(),
+                                    std::cout);
       }
       comm.barrier();
     }
   } else {
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("weighted_cut_of_vertices_to_louvain",
-                              weighted_cut_of_vertices_to_louvain.data(),
-                              weighted_cut_of_vertices_to_louvain.size(),
-                              std::cout);
-  
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("weighted_degree_of_vertices",
-                              weighted_degree_of_vertices.data(),
-                              weighted_degree_of_vertices.size(),
-                              std::cout);
-  
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("vertex_louvain_cluster_weights",
-                              vertex_louvain_cluster_weights.data(),
-                              vertex_louvain_cluster_weights.size(),
-                              std::cout);
-  
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("singleton_and_connected_flags",
-                              singleton_and_connected_flags.data(),
-                              singleton_and_connected_flags.size(),
-                              std::cout);                   
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("weighted_cut_of_vertices_to_louvain",
+                                weighted_cut_of_vertices_to_louvain.data(),
+                                weighted_cut_of_vertices_to_louvain.size(),
+                                std::cout);
+
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("weighted_degree_of_vertices",
+                                weighted_degree_of_vertices.data(),
+                                weighted_degree_of_vertices.size(),
+                                std::cout);
+
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("vertex_louvain_cluster_weights",
+                                vertex_louvain_cluster_weights.data(),
+                                vertex_louvain_cluster_weights.size(),
+                                std::cout);
+
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("singleton_and_connected_flags",
+                                singleton_and_connected_flags.data(),
+                                singleton_and_connected_flags.size(),
+                                std::cout);
   }
 #endif
 
@@ -403,7 +442,7 @@ refine_clustering(
     invalid_vertex_id<vertex_t>::value,
     handle.get_stream());
 
-  if(debug) std::cout << (GraphViewType::is_multi_gpu ? "MG-Graph" : "SG-Graph") << std::endl;
+  if (debug) std::cout << (GraphViewType::is_multi_gpu ? "MG-Graph" : "SG-Graph") << std::endl;
 
 #if 1
   if (GraphViewType::is_multi_gpu) {
@@ -415,35 +454,34 @@ refine_clustering(
       handle.get_comms().barrier();
       if (comm_rank == i) {
         if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+          if (debug) std::cout << "---------------------------------------------" << std::endl;
         }
-        if(debug) std::cout << "Rank: " << i << std::endl;
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("leiden_assignment",
-                                  leiden_assignment.data(),
-                                  leiden_assignment.size(),
-                                  std::cout);
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("louvain_assignment_of_vertices",
-                                  louvain_assignment_of_vertices.data(),
-                                  louvain_assignment_of_vertices.size(),
-                                  std::cout);
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug) std::cout << "Rank: " << i << std::endl;
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector(
+            "leiden_assignment", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("louvain_assignment_of_vertices",
+                                    louvain_assignment_of_vertices.data(),
+                                    louvain_assignment_of_vertices.size(),
+                                    std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
       }
       handle.get_comms().barrier();
     }
-  }else{
-
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("leiden_assignment",
-                              leiden_assignment.data(),
-                              leiden_assignment.size(),
-                              std::cout);
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("louvain_assignment_of_vertices",
-                              louvain_assignment_of_vertices.data(),
-                              louvain_assignment_of_vertices.size(),
-                              std::cout);
+  } else {
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector(
+        "leiden_assignment", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("louvain_assignment_of_vertices",
+                                louvain_assignment_of_vertices.data(),
+                                louvain_assignment_of_vertices.size(),
+                                std::cout);
   }
 #endif
 
@@ -454,17 +492,18 @@ refine_clustering(
                        singleton_and_connected_flags.end(),
                        [] __device__(auto flag) { return flag > 0; });
 
-    if(debug) std::cout << "nr_remaining_active_vertices : " << nr_remaining_active_vertices
-              << std::endl;
-    
+    if (debug)
+      std::cout << "nr_remaining_active_vertices : " << nr_remaining_active_vertices << std::endl;
+
     if (GraphViewType::is_multi_gpu) {
       nr_remaining_active_vertices = host_scalar_allreduce(handle.get_comms(),
                                                            nr_remaining_active_vertices,
                                                            raft::comms::op_t::SUM,
                                                            handle.get_stream());
-    if(debug) std::cout << "nr_remaining_active_vertices(MG): " << nr_remaining_active_vertices << std::endl;
+      if (debug)
+        std::cout << "nr_remaining_active_vertices(MG): " << nr_remaining_active_vertices
+                  << std::endl;
     }
-    
 
     if (nr_remaining_active_vertices == 0) { break; }
 
@@ -536,7 +575,6 @@ refine_clustering(
                       thrust::tuple<vertex_t, vertex_t> dst_louvain_leiden,
                       auto wt) {
           weight_t refined_partition_volume_contribution{wt};
-          // weight_t refined_partition_volume_contribution{0};
           weight_t refined_partition_cut_contribution{0};
 
           auto src_louvain = thrust::get<0>(src_louvain_leidn);
@@ -547,7 +585,7 @@ refine_clustering(
 
           if (src_louvain == dst_louvain) {
             if (src_leiden == dst_leiden) {
-              refined_partition_volume_contribution = wt;
+              // refined_partition_volume_contribution = wt;
             } else {
               refined_partition_cut_contribution = wt;
             }
@@ -558,63 +596,65 @@ refine_clustering(
         thrust::make_tuple(weight_t{0}, weight_t{0}),
         reduce_op::plus<thrust::tuple<weight_t, weight_t>>{});
 
-
 #if 1
 
-        if (GraphViewType::is_multi_gpu) {
-          auto& comm           = handle.get_comms();
-          auto const comm_rank = comm.get_rank();
-          auto const comm_size = comm.get_size();
-    
-          for (int k = 0; k < comm_size; k++) {
-            comm.barrier();
-            if (comm_rank == k) {
-              if (comm_rank == 0) {
-                if(debug) std::cout << "---------------------------------------------" << std::endl;
-              }
-              if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              if(debug) std::cout << "Rank: " << comm_rank << std::endl;
-    
-              if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              if(debug) raft::print_device_vector("refined_community_volumes",
-                                        refined_community_volumes.data(),
-                                        refined_community_volumes.size(),
-                                        std::cout);
-              if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              if(debug) raft::print_device_vector("refined_community_cuts",
-                                        refined_community_cuts.data(),
-                                        refined_community_cuts.size(),
-                                        std::cout);
-              if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              if(debug) raft::print_device_vector("leiden_keys_used_in_edge_reduction",
-                                        leiden_keys_used_in_edge_reduction.data(),
-                                        leiden_keys_used_in_edge_reduction.size(),
-                                        std::cout);
-    
-            }
-            comm.barrier();
+    if (GraphViewType::is_multi_gpu) {
+      auto& comm           = handle.get_comms();
+      auto const comm_rank = comm.get_rank();
+      auto const comm_size = comm.get_size();
+
+      for (int k = 0; k < comm_size; k++) {
+        comm.barrier();
+        if (comm_rank == k) {
+          if (comm_rank == 0) {
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
-        } else {
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("refined_community_volumes",
-                                    refined_community_volumes.data(),
-                                    refined_community_volumes.size(),
-                                    std::cout);
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("refined_community_cuts",
-                                    refined_community_cuts.data(),
-                                    refined_community_cuts.size(),
-                                    std::cout);
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("leiden_keys_used_in_edge_reduction",
-                                    leiden_keys_used_in_edge_reduction.data(),
-                                    leiden_keys_used_in_edge_reduction.size(),
-                                    std::cout);
-                              
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector("refined_community_volumes",
+                                      refined_community_volumes.data(),
+                                      refined_community_volumes.size(),
+                                      std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector("refined_community_cuts",
+                                      refined_community_cuts.data(),
+                                      refined_community_cuts.size(),
+                                      std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector("leiden_keys_used_in_edge_reduction",
+                                      leiden_keys_used_in_edge_reduction.data(),
+                                      leiden_keys_used_in_edge_reduction.size(),
+                                      std::cout);
         }
+        comm.barrier();
+      }
+    } else {
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("refined_community_volumes",
+                                  refined_community_volumes.data(),
+                                  refined_community_volumes.size(),
+                                  std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("refined_community_cuts",
+                                  refined_community_cuts.data(),
+                                  refined_community_cuts.size(),
+                                  std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("leiden_keys_used_in_edge_reduction",
+                                  leiden_keys_used_in_edge_reduction.data(),
+                                  leiden_keys_used_in_edge_reduction.size(),
+                                  std::cout);
+    }
 
 #endif
-
 
     //
     // Primitives to decide best (at least good) next clusters for vertices
@@ -648,86 +688,102 @@ refine_clustering(
             detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
               louvain_assignment_of_vertices.data()));
 
-    rmm::device_uvector<vertex_t> louvain_of_leiden_keys_used_in_edge_reduction(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> louvain_of_leiden_keys_used_in_edge_reduction(
+      0, handle.get_stream());
 
+    //------
+    if (GraphViewType::is_multi_gpu) {
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
 
-//------
-if (GraphViewType::is_multi_gpu) {
-  auto& comm                 = handle.get_comms();
-  auto const comm_size       = comm.get_size();
-  auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
-  auto const major_comm_size = major_comm.get_size();
-  auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
-  auto const minor_comm_size = minor_comm.get_size();
+      auto partitions_range_lasts = graph_view.vertex_partition_range_lasts();
+      rmm::device_uvector<vertex_t> d_partitions_range_lasts(partitions_range_lasts.size(),
+                                                             handle.get_stream());
 
-  auto partitions_range_lasts = graph_view.vertex_partition_range_lasts();
-  rmm::device_uvector<vertex_t> d_partitions_range_lasts(partitions_range_lasts.size(),
-                                                         handle.get_stream());
+      raft::update_device(d_partitions_range_lasts.data(),
+                          partitions_range_lasts.data(),
+                          partitions_range_lasts.size(),
+                          handle.get_stream());
 
-  raft::update_device(d_partitions_range_lasts.data(),
-                      partitions_range_lasts.data(),
-                      partitions_range_lasts.size(),
-                      handle.get_stream());
+      cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
+        raft::device_span<vertex_t const>(d_partitions_range_lasts.data(),
+                                          d_partitions_range_lasts.size()),
+        major_comm_size,
+        minor_comm_size};
 
-  cugraph::detail::compute_gpu_id_from_int_vertex_t<vertex_t> vertex_to_gpu_id_op{
-    raft::device_span<vertex_t const>(d_partitions_range_lasts.data(),
-                                      d_partitions_range_lasts.size()),
-    major_comm_size,
-    minor_comm_size};
+      // cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      //   comm_size, major_comm_size, minor_comm_size};
 
-  // cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
-  //   comm_size, major_comm_size, minor_comm_size};
+      louvain_of_leiden_keys_used_in_edge_reduction =
+        cugraph::collect_values_for_keys(handle,
+                                         leiden_to_louvain_map.view(),
+                                         leiden_keys_used_in_edge_reduction.begin(),
+                                         leiden_keys_used_in_edge_reduction.end(),
+                                         vertex_to_gpu_id_op);
+    } else {
+      louvain_of_leiden_keys_used_in_edge_reduction.resize(
+        leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
 
-    louvain_of_leiden_keys_used_in_edge_reduction =
-    cugraph::collect_values_for_keys(handle,
-                                     leiden_to_louvain_map.view(),
-                                     leiden_keys_used_in_edge_reduction.begin(),
-                                     leiden_keys_used_in_edge_reduction.end(),
-                                     vertex_to_gpu_id_op);
-} else {
-    louvain_of_leiden_keys_used_in_edge_reduction.resize(
-      leiden_keys_used_in_edge_reduction.size(), handle.get_stream());
-
-    leiden_to_louvain_map.view().find(
-      leiden_keys_used_in_edge_reduction.begin(),
-      leiden_keys_used_in_edge_reduction.end(),
-      louvain_of_leiden_keys_used_in_edge_reduction.begin(),
-      handle.get_stream());
-}
-//------
+      leiden_to_louvain_map.view().find(leiden_keys_used_in_edge_reduction.begin(),
+                                        leiden_keys_used_in_edge_reduction.end(),
+                                        louvain_of_leiden_keys_used_in_edge_reduction.begin(),
+                                        handle.get_stream());
+    }
+    //------
 
 #if 1
-  if (GraphViewType::is_multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_rank = comm.get_rank();
-    auto const comm_size = comm.get_size();
+    if (GraphViewType::is_multi_gpu) {
+      auto& comm           = handle.get_comms();
+      auto const comm_rank = comm.get_rank();
+      auto const comm_size = comm.get_size();
 
-    for (int k = 0; k < comm_size; k++) {
-      comm.barrier();
-      if (comm_rank == k) {
-        if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+      for (int k = 0; k < comm_size; k++) {
+        comm.barrier();
+        if (comm_rank == k) {
+          if (comm_rank == 0) {
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
+          }
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector("louvain_of_leiden_keys_used_in_edge_reduction",
+                                      louvain_of_leiden_keys_used_in_edge_reduction.data(),
+                                      louvain_of_leiden_keys_used_in_edge_reduction.size(),
+                                      std::cout);
         }
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) std::cout << "Rank: " << comm_rank << std::endl;
-
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("louvain_of_leiden_keys_used_in_edge_reduction",
+        comm.barrier();
+      }
+    } else {
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("louvain_of_leiden_keys_used_in_edge_reduction",
                                   louvain_of_leiden_keys_used_in_edge_reduction.data(),
                                   louvain_of_leiden_keys_used_in_edge_reduction.size(),
                                   std::cout);
-      }
-      comm.barrier();
     }
-  } else {
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("louvain_of_leiden_keys_used_in_edge_reduction",
-                              louvain_of_leiden_keys_used_in_edge_reduction.data(),
-                              louvain_of_leiden_keys_used_in_edge_reduction.size(),
-                              std::cout);                        
-  }
 #endif
 
+    raft::random::RngState rng_state(GraphViewType::is_multi_gpu ? handle.get_comms().get_rank()
+                                                                 : 0);
+    rmm::device_uvector<weight_t> random_numbers(leiden_keys_used_in_edge_reduction.size(),
+                                                 handle.get_stream());
+    cugraph::detail::uniform_random_fill<weight_t>(handle.get_stream(),
+                                                   random_numbers.data(),
+                                                   random_numbers.size(),
+                                                   float{0.0},
+                                                   float{1.0},
+                                                   rng_state);
+
+    if (graph_view.number_of_vertices() < 35) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (graph_view.number_of_vertices() < 35)
+      raft::print_device_vector(
+        "random_numbers", random_numbers.data(), random_numbers.size(), std::cout);
 
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
@@ -737,9 +793,10 @@ if (GraphViewType::is_multi_gpu) {
       thrust::make_tuple(refined_community_volumes.begin(),
                          refined_community_cuts.begin(),
                          leiden_keys_used_in_edge_reduction.begin(),  // redundant
-                         louvain_of_leiden_keys_used_in_edge_reduction.begin()));
+                         louvain_of_leiden_keys_used_in_edge_reduction.begin(),
+                         random_numbers.begin()));
 
-    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
+    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t, weight_t>;
     kv_store_t<vertex_t, value_t, true> leiden_cluster_key_values_map(
       leiden_keys_used_in_edge_reduction.begin(),
       leiden_keys_used_in_edge_reduction.begin() + leiden_keys_used_in_edge_reduction.size(),
@@ -747,13 +804,21 @@ if (GraphViewType::is_multi_gpu) {
       thrust::make_tuple(std::numeric_limits<weight_t>::max(),
                          std::numeric_limits<weight_t>::max(),
                          invalid_vertex_id<vertex_t>::value,
-                         invalid_vertex_id<vertex_t>::value),
+                         invalid_vertex_id<vertex_t>::value,
+                         std::numeric_limits<weight_t>::max()),
       false,
       handle.get_stream());
 
     //
     // Decide best/positive move for each vertex
     //
+
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    thrust::minstd_rand rng(seed);
+    // thrust::random::uniform_real_distribution<float>::uniform_real_distribution dist();
+    thrust::uniform_real_distribution<float> dist(0, 1);
+
+    bool debug_functor = (graph_view.number_of_vertices() < 50);
 
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -767,9 +832,8 @@ if (GraphViewType::is_multi_gpu) {
                                   : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
                                       leiden_assignment.data(), vertex_t{0}),
       leiden_cluster_key_values_map.view(),
-      detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{total_edge_weight,
-                                                                           resolution,
-                                                                           debug},
+      detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
+        total_edge_weight, resolution, theta, rng, dist, debug_functor},
       thrust::make_tuple(weight_t{0}, vertex_t{-1}),
       reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
@@ -805,36 +869,39 @@ if (GraphViewType::is_multi_gpu) {
         comm.barrier();
         if (comm_rank == k) {
           if (comm_rank == 0) {
-            if(debug) std::cout << "---------------------------------------------" << std::endl;
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) std::cout << "Rank: " << comm_rank << std::endl;
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) std::cout << "Rank: " << comm_rank << std::endl;
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("dst",
-                                    std::get<1>(gain_and_dst_output_pairs).data(),
-                                    cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
-                                    std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector("dst",
+                                      std::get<1>(gain_and_dst_output_pairs).data(),
+                                      cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
+                                      std::cout);
 
-          if(debug) raft::print_device_vector("gain",
-                                    std::get<0>(gain_and_dst_output_pairs).data(),
-                                    cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
-                                    std::cout);
-
+          if (debug)
+            raft::print_device_vector("gain",
+                                      std::get<0>(gain_and_dst_output_pairs).data(),
+                                      cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
+                                      std::cout);
         }
         comm.barrier();
       }
     } else {
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("dst",
-                                std::get<1>(gain_and_dst_output_pairs).data(),
-                                cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
-                                std::cout);
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("gain",
-                                std::get<0>(gain_and_dst_output_pairs).data(),
-                                cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
-                                std::cout);                
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("dst",
+                                  std::get<1>(gain_and_dst_output_pairs).data(),
+                                  cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
+                                  std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("gain",
+                                  std::get<0>(gain_and_dst_output_pairs).data(),
+                                  cugraph::size_dataframe_buffer(gain_and_dst_output_pairs),
+                                  std::cout);
     }
 #endif
 
@@ -847,33 +914,33 @@ if (GraphViewType::is_multi_gpu) {
     // Filter out moves with -ve gains
     //
 
-    vertex_t nr_valid_tuples = thrust::count_if(handle.get_thrust_policy(),
-                                                gain_and_dst_first,
-                                                gain_and_dst_last,
-                                                [debug] __device__(auto gain_dst_pair) {
-                                                  vertex_t dst  = thrust::get<1>(gain_dst_pair);
-                                                  weight_t gain = thrust::get<0>(gain_dst_pair);
-                                                  if (gain > POSITIVE_GAIN) {
-                                                    int idst = static_cast<int>(dst);
-                                                    int igain = static_cast<int>(gain);
-                                                    int igain_p = static_cast<int>(gain*100.0);
+    vertex_t nr_valid_tuples =
+      thrust::count_if(handle.get_thrust_policy(),
+                       gain_and_dst_first,
+                       gain_and_dst_last,
+                       [debug] __device__(auto gain_dst_pair) {
+                         vertex_t dst  = thrust::get<1>(gain_dst_pair);
+                         weight_t gain = thrust::get<0>(gain_dst_pair);
+                         if (gain > POSITIVE_GAIN) {
+                           int idst    = static_cast<int>(dst);
+                           int igain   = static_cast<int>(gain);
+                           int igain_p = static_cast<int>(gain * 100.0);
 
-                                                   if(debug) printf("\ndst = %d gain = %d\n gain=%d/100", idst, igain, igain_p);
-                                                  }
-                                                  return (gain > POSITIVE_GAIN) && (dst >= 0);
-                                                });
+                           if (debug)
+                             printf("\ndst = %d gain = %d\n gain=%d/100", idst, igain, igain_p);
+                         }
+                         return (gain > POSITIVE_GAIN) && (dst >= 0);
+                       });
 
-    if(debug) std::cout << "nr_valid_tuples: " << nr_valid_tuples << std::endl;
+    if (debug) std::cout << "nr_valid_tuples: " << nr_valid_tuples << std::endl;
 
     vertex_t total_nr_valid_tuples = nr_valid_tuples;
     if (GraphViewType::is_multi_gpu) {
       total_nr_valid_tuples = host_scalar_allreduce(
         handle.get_comms(), total_nr_valid_tuples, raft::comms::op_t::SUM, handle.get_stream());
 
-    if(debug) std::cout << "total_nr_valid_tuples(MG): " << total_nr_valid_tuples << std::endl;
-
+      if (debug) std::cout << "total_nr_valid_tuples(MG): " << total_nr_valid_tuples << std::endl;
     }
-    
 
     if (total_nr_valid_tuples == 0) {
       cugraph::resize_dataframe_buffer(gain_and_dst_output_pairs, 0, handle.get_stream());
@@ -900,32 +967,31 @@ if (GraphViewType::is_multi_gpu) {
                          thrust::get<0>(gain_and_dst_last.get_iterator_tuple())));
 
     // debug = graph_view.number_of_vertices() < 50;
-    thrust::copy_if(handle.get_thrust_policy(),
-                    edge_begin,
-                    edge_end,
-                    d_src_dst_gain_iterator,
-                    [debug] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-                      vertex_t src  = thrust::get<0>(src_dst_gain);
-                      vertex_t dst  = thrust::get<1>(src_dst_gain);
-                      weight_t gain = thrust::get<2>(src_dst_gain);
+    thrust::copy_if(
+      handle.get_thrust_policy(),
+      edge_begin,
+      edge_end,
+      d_src_dst_gain_iterator,
+      [debug] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
+        vertex_t src  = thrust::get<0>(src_dst_gain);
+        vertex_t dst  = thrust::get<1>(src_dst_gain);
+        weight_t gain = thrust::get<2>(src_dst_gain);
 
-                      if (gain > POSITIVE_GAIN) {
+        if (gain > POSITIVE_GAIN) {
+          int isrc    = static_cast<int>(src);
+          int idst    = static_cast<int>(dst);
+          int igain   = static_cast<int>(gain);
+          int igain_p = static_cast<int>(gain * 100.0);
 
-                        int isrc = static_cast<int>(src);
-                        int idst = static_cast<int>(dst);
-                        int igain = static_cast<int>(gain);
-                        int igain_p = static_cast<int>(gain*100.0);
+          if (debug)
+            printf("=>> src = %d dst = %d gain=%d gain = %d/100\n", isrc, idst, igain, igain_p);
+        }
 
-
-                       if(debug)
-                        printf("=>> src = %d dst = %d gain=%d gain = %d/100\n", isrc, idst, igain, igain_p);
-                      }
-
-                      return (gain > POSITIVE_GAIN) && (dst >= 0);
-                    });
+        return (gain > POSITIVE_GAIN) && (dst >= 0);
+      });
 
 #if 1
-    
+
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_rank = comm.get_rank();
@@ -934,42 +1000,45 @@ if (GraphViewType::is_multi_gpu) {
       for (int k = 0; k < comm_size; k++) {
         comm.barrier();
         if (comm_rank == k && d_srcs.size() > 0) {
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) std::cout << "Rank :" << comm_rank << std::endl;
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) std::cout << "Rank :" << comm_rank << std::endl;
 
           if (comm_rank == 0) {
-            if(debug) std::cout << "---------------------------------------------" << std::endl;
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
 
-          if(debug) std::cout << " d_srcs.size(): " << d_srcs.size() << " d_dsts.size(): " << d_dsts.size()
-                    << " (*d_weights).size(): " << (*d_weights).size() << std::endl;
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("d_srcs", d_srcs.data(), d_srcs.size(), std::cout);
+          if (debug)
+            std::cout << " d_srcs.size(): " << d_srcs.size() << " d_dsts.size(): " << d_dsts.size()
+                      << " (*d_weights).size(): " << (*d_weights).size() << std::endl;
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) raft::print_device_vector("d_srcs", d_srcs.data(), d_srcs.size(), std::cout);
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("d_dsts", d_dsts.data(), d_dsts.size(), std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) raft::print_device_vector("d_dsts", d_dsts.data(), d_dsts.size(), std::cout);
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector(
-            "(*d_weights)", (*d_weights).data(), (*d_weights).size(), std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector(
+              "(*d_weights)", (*d_weights).data(), (*d_weights).size(), std::cout);
 
-          if(debug) std::cout << "------------------" << std::endl;
+          if (debug) std::cout << "------------------" << std::endl;
         }
         comm.barrier();
       }
-    }else{
-      if(debug) std::cout << " d_srcs.size(): " << d_srcs.size() << " d_dsts.size(): " << d_dsts.size()
-      << " (*d_weights).size(): " << (*d_weights).size() << std::endl;
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("d_srcs", d_srcs.data(), d_srcs.size(), std::cout);
+    } else {
+      if (debug)
+        std::cout << " d_srcs.size(): " << d_srcs.size() << " d_dsts.size(): " << d_dsts.size()
+                  << " (*d_weights).size(): " << (*d_weights).size() << std::endl;
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug) raft::print_device_vector("d_srcs", d_srcs.data(), d_srcs.size(), std::cout);
 
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("d_dsts", d_dsts.data(), d_dsts.size(), std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug) raft::print_device_vector("d_dsts", d_dsts.data(), d_dsts.size(), std::cout);
 
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector(
-      "(*d_weights)", (*d_weights).data(), (*d_weights).size(), std::cout);
-      
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "(*d_weights)", (*d_weights).data(), (*d_weights).size(), std::cout);
     }
 #endif
     //
@@ -1003,7 +1072,7 @@ if (GraphViewType::is_multi_gpu) {
                    std::nullopt);
     }
 
-    if(debug) std::cout << "Before create_graph_from_edgelist ... " << std::endl;
+    if (debug) std::cout << "Before create_graph_from_edgelist ... " << std::endl;
     std::tie(decision_graph, coarse_edge_weights, std::ignore, std::ignore, renumber_map) =
       create_graph_from_edgelist<vertex_t,
                                  edge_t,
@@ -1023,10 +1092,9 @@ if (GraphViewType::is_multi_gpu) {
                                             true  // FIXME: set it to false
       );
 
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) std::cout << "Returned from create_graph_from_edgelist" << std::endl;
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug) std::cout << "Returned from create_graph_from_edgelist" << std::endl;
 
-    
     auto decision_graph_view = decision_graph.view();
 
 #if 0  
@@ -1124,11 +1192,14 @@ if (GraphViewType::is_multi_gpu) {
       decision_graph_view,
       coarse_edge_weights ? std::make_optional(coarse_edge_weights->view()) : std::nullopt);
 
-#if 1 
-       
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector(
-      "vertices_in_mis", vertices_in_mis.data(), vertices_in_mis.size(), std::cout);
+    std::cout << "mis size: " << vertices_in_mis.size() << std::endl;
+
+#if 1
+
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector(
+        "vertices_in_mis", vertices_in_mis.data(), vertices_in_mis.size(), std::cout);
 #endif
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
@@ -1149,7 +1220,7 @@ if (GraphViewType::is_multi_gpu) {
       vertices_in_mis.size(),
       false);
 
-  #if 1
+#if 1
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_rank = comm.get_rank();
@@ -1159,30 +1230,34 @@ if (GraphViewType::is_multi_gpu) {
         comm.barrier();
         if (comm_rank == k) {
           if (comm_rank == 0) {
-            if(debug) std::cout << "---------------------------------------------" << std::endl;
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) std::cout << "Rank: " << comm_rank << std::endl;
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector(
-            "numbering_indices", numbering_indices.data(), numbering_indices.size(), std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector(
+              "numbering_indices", numbering_indices.data(), numbering_indices.size(), std::cout);
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector(
-            "*renumber_map", (*renumber_map).data(), (*renumber_map).size(), std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector(
+              "*renumber_map", (*renumber_map).data(), (*renumber_map).size(), std::cout);
         }
         comm.barrier();
       }
-    }else{
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector(
-        "numbering_indices", numbering_indices.data(), numbering_indices.size(), std::cout);
+    } else {
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "numbering_indices", numbering_indices.data(), numbering_indices.size(), std::cout);
 
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector(
-        "*renumber_map", (*renumber_map).data(), (*renumber_map).size(), std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "*renumber_map", (*renumber_map).data(), (*renumber_map).size(), std::cout);
     }
-  #endif
+#endif
 
     numbering_indices.resize(0, handle.get_stream());
     numbering_indices.shrink_to_fit(handle.get_stream());
@@ -1195,7 +1270,7 @@ if (GraphViewType::is_multi_gpu) {
         handle, std::move(vertices_in_mis), graph_view.vertex_partition_range_lasts());
     }
 
-  #if 1
+#if 1
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_rank = comm.get_rank();
@@ -1205,27 +1280,25 @@ if (GraphViewType::is_multi_gpu) {
         comm.barrier();
         if (comm_rank == k) {
           if (comm_rank == 0) {
-            if(debug) std::cout << "---------------------------------------------" << std::endl;
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) std::cout << "Rank: " << comm_rank << std::endl;
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("vertices_in_mis_mapped",
-                                    vertices_in_mis.data(),
-                                    vertices_in_mis.size(),
-                                    std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector(
+              "vertices_in_mis_mapped", vertices_in_mis.data(), vertices_in_mis.size(), std::cout);
         }
         comm.barrier();
       }
-    }else{
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("vertices_in_mis_mapped",
-                                vertices_in_mis.data(),
-                                vertices_in_mis.size(),
-                                std::cout);
+    } else {
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "vertices_in_mis_mapped", vertices_in_mis.data(), vertices_in_mis.size(), std::cout);
     }
-  #endif 
+#endif
 
     //
     // Mark the chosen vertices as non-singleton and update their leiden cluster to dst
@@ -1239,24 +1312,20 @@ if (GraphViewType::is_multi_gpu) {
        leiden_assignment             = leiden_assignment.data(),
        singleton_and_connected_flags = singleton_and_connected_flags.data(),
        v_first = graph_view.local_vertex_partition_range_first()] __device__(vertex_t v) {
-        auto v_offset = v - v_first;
-        auto dst      = *(dst_first + v_offset);
+        auto v_offset                           = v - v_first;
+        auto dst                                = *(dst_first + v_offset);
         singleton_and_connected_flags[v_offset] = false;
         leiden_assignment[v_offset]             = dst;
       });
 
-      
 #if 1
-if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
-  if(debug){
-    
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    raft::print_device_vector("updated_leiden_assignment",
-                            leiden_assignment.data(),
-                            leiden_assignment.size(),
-                            std::cout);
-  }
-  debug = false;
+    if (debug) std::cout << "Print updated leiden assignment" << std::endl;
+    if (debug) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      raft::print_device_vector(
+        "updated_leiden_assignment", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+    }
+    debug = false;
 #endif
 
     //
@@ -1275,7 +1344,6 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
         return dst;
       });
 
-
     cugraph::resize_dataframe_buffer(gain_and_dst_output_pairs, 0, handle.get_stream());
     cugraph::shrink_to_fit_dataframe_buffer(gain_and_dst_output_pairs, handle.get_stream());
 
@@ -1290,7 +1358,7 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
         thrust::unique(handle.get_thrust_policy(), dst_vertices.begin(), dst_vertices.end()))),
       handle.get_stream());
 
-  #if 1
+#if 1
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_rank = comm.get_rank();
@@ -1300,24 +1368,25 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
         handle.get_comms().barrier();
         if (comm_rank == i) {
           if (comm_rank == 0) {
-            if(debug) std::cout << "---------------------------------------------" << std::endl;
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
 
-          if(debug) std::cout << "Rank: " << i << std::endl;
+          if (debug) std::cout << "Rank: " << i << std::endl;
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector(
-            "dst_vertices", dst_vertices.data(), dst_vertices.size(), std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector(
+              "dst_vertices", dst_vertices.data(), dst_vertices.size(), std::cout);
         }
         handle.get_comms().barrier();
       }
     } else {
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector(
-        "dst_vertices", dst_vertices.data(), dst_vertices.size(), std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "dst_vertices", dst_vertices.data(), dst_vertices.size(), std::cout);
     }
-  #endif
-
+#endif
 
     // Shuffle dst vertices to owner GPU, according to vetex partitioning
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -1343,14 +1412,15 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
         handle.get_comms().barrier();
         if (comm_rank == i) {
           if (comm_rank == 0) {
-            if(debug) std::cout << "---------------------------------------------" << std::endl;
+            if (debug) std::cout << "---------------------------------------------" << std::endl;
           }
 
-          if(debug) std::cout << "Rank: " << i << std::endl;
+          if (debug) std::cout << "Rank: " << i << std::endl;
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector(
-            "dst_vertices_shuffled", dst_vertices.data(), dst_vertices.size(), std::cout);
+          if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+          if (debug)
+            raft::print_device_vector(
+              "dst_vertices_shuffled", dst_vertices.data(), dst_vertices.size(), std::cout);
         }
         handle.get_comms().barrier();
       }
@@ -1372,10 +1442,10 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
     dst_vertices.resize(0, handle.get_stream());
     dst_vertices.shrink_to_fit(handle.get_stream());
 
-    if(debug) std::cout << "End of current iteration" << std::endl;
+    if (debug) std::cout << "End of current iteration" << std::endl;
   }
 
-  if(debug) std::cout << "Out of refine while loop" << std::endl;
+  if (debug) std::cout << "Out of refine while loop" << std::endl;
 
   src_louvain_cluster_weight_cache.clear(handle);
   src_cut_to_louvain_cache.clear(handle);
@@ -1422,34 +1492,36 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
     for (int i = 0; i < comm_size; ++i) {
       handle.get_comms().barrier();
       if (comm_rank == i) {
-        if(debug) std::cout << "Rank: " << i << std::endl;
+        if (debug) std::cout << "Rank: " << i << std::endl;
 
         if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+          if (debug) std::cout << "---------------------------------------------" << std::endl;
         }
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("leiden_assignment",
-                                  leiden_assignment.data(),
-                                  leiden_assignment.size(),
-                                  std::cout);
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("louvain_assignment_of_vertices",
-                                  louvain_assignment_of_vertices.data(),
-                                  louvain_assignment_of_vertices.size(),
-                                  std::cout);
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector(
+            "leiden_assignment", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("louvain_assignment_of_vertices",
+                                    louvain_assignment_of_vertices.data(),
+                                    louvain_assignment_of_vertices.size(),
+                                    std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
       }
       handle.get_comms().barrier();
     }
   } else {
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector(
-      "leiden_assignment", leiden_assignment.data(), leiden_assignment.size(), std::cout);
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("louvain_assignment_of_vertices",
-                              louvain_assignment_of_vertices.data(),
-                              louvain_assignment_of_vertices.size(),
-                              std::cout);
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector(
+        "leiden_assignment", leiden_assignment.data(), leiden_assignment.size(), std::cout);
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("louvain_assignment_of_vertices",
+                                louvain_assignment_of_vertices.data(),
+                                louvain_assignment_of_vertices.size(),
+                                std::cout);
   }
 #endif
 
@@ -1484,29 +1556,30 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
       handle.get_comms().barrier();
       if (comm_rank == i) {
         if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+          if (debug) std::cout << "---------------------------------------------" << std::endl;
         }
-        if(debug) std::cout << "Rank: " << i << std::endl;
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) std::cout << "nr_unique_leiden_clusters: " << nr_unique_leiden_clusters
-                  << std::endl;
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("leiden_keys_to_read_louvain",
-                                  leiden_keys_to_read_louvain.data(),
-                                  leiden_keys_to_read_louvain.size(),
-                                  std::cout);
+        if (debug) std::cout << "Rank: " << i << std::endl;
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          std::cout << "nr_unique_leiden_clusters: " << nr_unique_leiden_clusters << std::endl;
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("leiden_keys_to_read_louvain",
+                                    leiden_keys_to_read_louvain.data(),
+                                    leiden_keys_to_read_louvain.size(),
+                                    std::cout);
       }
       handle.get_comms().barrier();
     }
-  }else{
-    if(debug) std::cout << "nr_unique_leiden_clusters: " << nr_unique_leiden_clusters
-    << std::endl;
+  } else {
+    if (debug) std::cout << "nr_unique_leiden_clusters: " << nr_unique_leiden_clusters << std::endl;
 
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("leiden_keys_to_read_louvain",
-                              leiden_keys_to_read_louvain.data(),
-                              leiden_keys_to_read_louvain.size(),
-                              std::cout);
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("leiden_keys_to_read_louvain",
+                                leiden_keys_to_read_louvain.data(),
+                                leiden_keys_to_read_louvain.size(),
+                                std::cout);
   }
 #endif
 
@@ -1545,32 +1618,33 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
                                        leiden_keys_to_read_louvain.end(),
                                        vertex_to_gpu_id_op);
 
-  #if 1
+#if 1
     auto const comm_rank = comm.get_rank();
     for (int i = 0; i < comm_size; ++i) {
       handle.get_comms().barrier();
       if (comm_rank == i) {
         if (comm_rank == 0) {
-          if(debug) std::cout << "---------------------------------------------" << std::endl;
+          if (debug) std::cout << "---------------------------------------------" << std::endl;
         }
-        if(debug) std::cout << "Rank: " << i << std::endl;
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug) std::cout << "Rank: " << i << std::endl;
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-        if(debug) raft::print_device_vector("leiden_keys_to_read_louvain",
-                                  leiden_keys_to_read_louvain.data(),
-                                  leiden_keys_to_read_louvain.size(),
-                                  std::cout);
+        if (debug)
+          raft::print_device_vector("leiden_keys_to_read_louvain",
+                                    leiden_keys_to_read_louvain.data(),
+                                    leiden_keys_to_read_louvain.size(),
+                                    std::cout);
 
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("lovain_of_leiden_cluster_keys",
-                                  lovain_of_leiden_cluster_keys.data(),
-                                  lovain_of_leiden_cluster_keys.size(),
-                                  std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("lovain_of_leiden_cluster_keys",
+                                    lovain_of_leiden_cluster_keys.data(),
+                                    lovain_of_leiden_cluster_keys.size(),
+                                    std::cout);
       }
       handle.get_comms().barrier();
     }
-  #endif
-    
+#endif
 
   } else {
     lovain_of_leiden_cluster_keys.resize(leiden_keys_to_read_louvain.size(), handle.get_stream());
@@ -1582,18 +1656,20 @@ if(debug) std::cout << "Print updated leiden assignment" <<std::endl;
 
 #if 1
 
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-    if(debug) raft::print_device_vector("leiden_keys_to_read_louvain",
-                              leiden_keys_to_read_louvain.data(),
-                              leiden_keys_to_read_louvain.size(),
-                              std::cout);
+    if (debug)
+      raft::print_device_vector("leiden_keys_to_read_louvain",
+                                leiden_keys_to_read_louvain.data(),
+                                leiden_keys_to_read_louvain.size(),
+                                std::cout);
 
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("lovain_of_leiden_cluster_keys",
-                              lovain_of_leiden_cluster_keys.data(),
-                              lovain_of_leiden_cluster_keys.size(),
-                              std::cout);
+    if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    if (debug)
+      raft::print_device_vector("lovain_of_leiden_cluster_keys",
+                                lovain_of_leiden_cluster_keys.data(),
+                                lovain_of_leiden_cluster_keys.size(),
+                                std::cout);
 #endif
   }
   return std::make_tuple(std::move(leiden_assignment),

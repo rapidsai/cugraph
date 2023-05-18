@@ -36,6 +36,7 @@ refine_clustering(
     edge_weight_view,
   weight_t total_edge_weight,
   weight_t resolution,
+  weight_t theta,
   rmm::device_uvector<weight_t> const& vertex_weights_v,
   rmm::device_uvector<typename graph_view_t::vertex_type>&& cluster_keys_v,
   rmm::device_uvector<weight_t>&& cluster_weights_v,

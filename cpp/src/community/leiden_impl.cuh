@@ -54,7 +54,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0)
 {
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>;
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
@@ -73,7 +74,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 #endif
 
 #if 1
-bool debug = false; //current_graph_view.number_of_vertices() < 50;
+  bool debug = false;  // current_graph_view.number_of_vertices() < 50;
 #endif
 
   weight_t best_modularity = weight_t{-1.0};
@@ -82,21 +83,22 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
 
   rmm::device_uvector<vertex_t> louvain_of_refined_graph(0, handle.get_stream());  // #V
 
-  if(debug)  std::cout << "Before outer while loop" << std::endl;
+  if (debug) std::cout << "Before outer while loop" << std::endl;
 
   while (dendrogram->num_levels() < max_level) {
     //
     //  Initialize every cluster to reference each vertex to itself
     //
 
-    if(debug)  std::cout << "current_graph_view.local_vertex_partition_range_size(): "
-      << current_graph_view.local_vertex_partition_range_size() <<std::endl;
+    if (debug)
+      std::cout << "current_graph_view.local_vertex_partition_range_size(): "
+                << current_graph_view.local_vertex_partition_range_size() << std::endl;
 
     dendrogram->add_level(current_graph_view.local_vertex_partition_range_first(),
                           current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
 
-    if(debug)  std::cout << "dendrogram->num_levels(): " << dendrogram->num_levels() <<std::endl;                          
+    if (debug) std::cout << "dendrogram->num_levels(): " << dendrogram->num_levels() << std::endl;
 
 //
 //  Compute the vertex and cluster weights, these are different for each
@@ -151,12 +153,13 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                  handle.get_stream());
 
 #if 1
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("louvain_of_refined_graph (else)",
-                              louvain_of_refined_graph.data(),
-                              louvain_of_refined_graph.size(),
-                              std::cout);
-#endif     
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector("louvain_of_refined_graph (else)",
+                                  louvain_of_refined_graph.data(),
+                                  louvain_of_refined_graph.size(),
+                                  std::cout);
+#endif
 
       thrust::sort_by_key(handle.get_thrust_policy(),
                           louvain_of_refined_graph.begin(),
@@ -172,7 +175,9 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
       cluster_keys.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
       cluster_weights.resize(num_unique_louvain_clusters_in_refined_partition, handle.get_stream());
 
-      if(debug)  std::cout << "num_unique_louvain_clusters_in_refined_partition: " << num_unique_louvain_clusters_in_refined_partition << std::endl;
+      if (debug)
+        std::cout << "num_unique_louvain_clusters_in_refined_partition: "
+                  << num_unique_louvain_clusters_in_refined_partition << std::endl;
       thrust::reduce_by_key(handle.get_thrust_policy(),
                             louvain_of_refined_graph.begin(),
                             louvain_of_refined_graph.end(),
@@ -180,21 +185,17 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                             cluster_keys.begin(),
                             cluster_weights.begin());
 
-
 #if 1
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("cluster_keys",
-                                cluster_keys.data(),
-                                cluster_keys.size(),
-                                std::cout);
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
 
-                                                      
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("cluster_weights",
-                              cluster_weights.data(),
-                              cluster_weights.size(),
-                              std::cout);
-       
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
+
 #endif
 
       louvain_of_refined_graph.resize(0, handle.get_stream());
@@ -297,14 +298,13 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                                                 resolution);
     weight_t cur_Q = new_Q - 1;
 
-
     // To avoid the potential of having two vertices swap cluster_keys
     // we will only allow vertices to move up (true) or down (false)
     // during each iteration of the loop
     bool up_down = true;
     // bool no_movement = true;
     int loop_counter = 0;
-    if(debug)  std::cout << "level: " << dendrogram->num_levels() << std::endl;
+    if (debug) std::cout << "level: " << dendrogram->num_levels() << std::endl;
     while (new_Q > (cur_Q + 1e-4)) {
       cur_Q = new_Q;
       loop_counter++;
@@ -326,22 +326,18 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
       // IMPORTANT NOTE: Need to think which vertices are considered first
       //
 
-
 #if 1
-      if(debug)  std::cout << "Before update_clustering_by_delta_modularity .." <<std::endl; 
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("cluster_keys",
-                                cluster_keys.data(),
-                                cluster_keys.size(),
-                                std::cout);
+      if (debug) std::cout << "Before update_clustering_by_delta_modularity .." << std::endl;
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
 
-                                                      
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("cluster_weights",
-                              cluster_weights.data(),
-                              cluster_weights.size(),
-                              std::cout);
-       
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
+
 #endif
 
       louvain_assignment_for_vertices =
@@ -377,67 +373,56 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                                                 louvain_assignment_for_vertices,
                                                 src_louvain_assignment_cache);
 
-
 #if 1
-      if(debug)  std::cout << "After compute_cluster_keys_and_values .." <<std::endl; 
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("cluster_keys",
-                                cluster_keys.data(),
-                                cluster_keys.size(),
-                                std::cout);
+      if (debug) std::cout << "After compute_cluster_keys_and_values .." << std::endl;
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
 
-                                                      
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("cluster_weights",
-                              cluster_weights.data(),
-                              cluster_weights.size(),
-                              std::cout);
-       
+      if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (debug)
+        raft::print_device_vector(
+          "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
+
 #endif
 
-  
-  #if 1                    
-    if (graph_view_t::is_multi_gpu) {
-      auto& comm           = handle.get_comms();
-      auto const comm_rank = comm.get_rank();
-      auto const comm_size = comm.get_size();
-  
-      for (int k = 0; k < comm_size; k++) {
-        comm.barrier();
-        if (comm_rank == k) {
-          if (comm_rank == 0) {
-            if(debug)  std::cout << "---------------------------------------------" << std::endl;
-          }
-          if(debug)  std::cout << "Rank: " << comm_rank << std::endl;
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("cluster_keys",
-                                    cluster_keys.data(),
-                                    cluster_keys.size(),
-                                    std::cout);
-        
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("cluster_weights",
-                                    cluster_weights.data(),
-                                    cluster_weights.size(),
-                                    std::cout);
-        }
-        comm.barrier();
-      }
-    } else {
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("cluster_keys",
-                                cluster_keys.data(),
-                                cluster_keys.size(),
-                                std::cout);
-      if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      if(debug) raft::print_device_vector("cluster_weights",
-                                cluster_weights.data(),
-                                cluster_weights.size(),
-                                std::cout);
-                
-    }
-  #endif
+#if 1
+      if (graph_view_t::is_multi_gpu) {
+        auto& comm           = handle.get_comms();
+        auto const comm_rank = comm.get_rank();
+        auto const comm_size = comm.get_size();
 
+        for (int k = 0; k < comm_size; k++) {
+          comm.barrier();
+          if (comm_rank == k) {
+            if (comm_rank == 0) {
+              if (debug) std::cout << "---------------------------------------------" << std::endl;
+            }
+            if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+            if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+            if (debug)
+              raft::print_device_vector(
+                "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
+
+            if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+            if (debug)
+              raft::print_device_vector(
+                "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
+          }
+          comm.barrier();
+        }
+      } else {
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector(
+            "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector(
+            "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
+      }
+#endif
 
       up_down = !up_down;
 
@@ -458,7 +443,9 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                    handle.get_stream());
         // no_movement = false;
       }
-      if(debug)  std::cout << "level: " << dendrogram->num_levels() << ", cur_Q: " << cur_Q << " ("<<loop_counter <<")"<<  std::endl;
+      if (debug)
+        std::cout << "level: " << dendrogram->num_levels() << ", cur_Q: " << cur_Q << " ("
+                  << loop_counter << ")" << std::endl;
     }
 
 #ifdef TIMING
@@ -492,7 +479,8 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
 
     copied_louvain_partition.resize(nr_unique_louvain_clusters, handle.get_stream());
 
-    if(debug)  std::cout << "nr_unique_louvain_clusters: " << nr_unique_louvain_clusters << std::endl;
+    if (debug)
+      std::cout << "nr_unique_louvain_clusters: " << nr_unique_louvain_clusters << std::endl;
     if constexpr (graph_view_t::is_multi_gpu) {
       copied_louvain_partition =
         cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
@@ -514,10 +502,9 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                                                          nr_unique_louvain_clusters,
                                                          raft::comms::op_t::SUM,
                                                          handle.get_stream());
-      if(debug)  std::cout << "nr_unique_louvain_clusters(MG): " << nr_unique_louvain_clusters << std::endl;
+      if (debug)
+        std::cout << "nr_unique_louvain_clusters(MG): " << nr_unique_louvain_clusters << std::endl;
     }
-
-    
 
     terminate =
       terminate || (nr_unique_louvain_clusters == current_graph_view.number_of_vertices());
@@ -545,52 +532,44 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                                  dst_louvain_assignment_cache);
       }
 
-      if(debug)  std::cout << "Call refine clustering " << std::endl;
+      if (debug) std::cout << "Call refine clustering " << std::endl;
 
+#if 1
+      if (graph_view_t::is_multi_gpu) {
+        auto& comm           = handle.get_comms();
+        auto const comm_rank = comm.get_rank();
+        auto const comm_size = comm.get_size();
 
-#if 1                    
-  if (graph_view_t::is_multi_gpu) {
-    auto& comm           = handle.get_comms();
-    auto const comm_rank = comm.get_rank();
-    auto const comm_size = comm.get_size();
+        for (int k = 0; k < comm_size; k++) {
+          comm.barrier();
+          if (comm_rank == k) {
+            if (comm_rank == 0) {
+              if (debug) std::cout << "---------------------------------------------" << std::endl;
+            }
+            if (debug) std::cout << "Rank: " << comm_rank << std::endl;
+            if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+            if (debug)
+              raft::print_device_vector(
+                "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
 
-    for (int k = 0; k < comm_size; k++) {
-      comm.barrier();
-      if (comm_rank == k) {
-        if (comm_rank == 0) {
-          if(debug)  std::cout << "---------------------------------------------" << std::endl;
+            if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+            if (debug)
+              raft::print_device_vector(
+                "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
+          }
+          comm.barrier();
         }
-        if(debug)  std::cout << "Rank: " << comm_rank << std::endl;
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("cluster_keys",
-                                  cluster_keys.data(),
-                                  cluster_keys.size(),
-                                  std::cout);
-      
-        if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        if(debug) raft::print_device_vector("cluster_weights",
-                                  cluster_weights.data(),
-                                  cluster_weights.size(),
-                                  std::cout);
+      } else {
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector(
+            "cluster_keys", cluster_keys.data(), cluster_keys.size(), std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector(
+            "cluster_weights", cluster_weights.data(), cluster_weights.size(), std::cout);
       }
-      comm.barrier();
-    }
-  } else {
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("cluster_keys",
-                              cluster_keys.data(),
-                              cluster_keys.size(),
-                              std::cout);
-    if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    if(debug) raft::print_device_vector("cluster_weights",
-                              cluster_weights.data(),
-                              cluster_weights.size(),
-                              std::cout);
-              
-  }
 #endif
-
-
 
       std::tie(refined_leiden_partition, leiden_to_louvain_map) =
         detail::refine_clustering(handle,
@@ -598,6 +577,7 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                                   current_edge_weight_view,
                                   total_edge_weight,
                                   resolution,
+                                  theta,
                                   vertex_weights,
                                   std::move(cluster_keys),
                                   std::move(cluster_weights),
@@ -623,11 +603,11 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
 
     if (!terminate) {
       auto nr_unique_leiden = static_cast<vertex_t>(leiden_to_louvain_map.first.size());
-      if(debug)  std::cout << "nr_unique_leiden : " << nr_unique_leiden << std::endl;
+      if (debug) std::cout << "nr_unique_leiden : " << nr_unique_leiden << std::endl;
       if (graph_view_t::is_multi_gpu) {
         nr_unique_leiden = host_scalar_allreduce(
           handle.get_comms(), nr_unique_leiden, raft::comms::op_t::SUM, handle.get_stream());
-      if(debug)  std::cout << "nr_unique_leiden(MG): " << nr_unique_leiden << std::endl;
+        if (debug) std::cout << "nr_unique_leiden(MG): " << nr_unique_leiden << std::endl;
       }
       terminate = terminate || (nr_unique_leiden == current_graph_view.number_of_vertices());
 
@@ -647,24 +627,26 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
           std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
             (*coarsen_graph_edge_weight).view());
 
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("leiden_to_louvain_map.first",
+                                    leiden_to_louvain_map.first.data(),
+                                    leiden_to_louvain_map.first.size(),
+                                    std::cout);
 
-            if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-            if(debug) raft::print_device_vector("leiden_to_louvain_map.first",
-                                      leiden_to_louvain_map.first.data(),
-                                      leiden_to_louvain_map.first.size(),
-                                      std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("leiden_to_louvain_map.second",
+                                    leiden_to_louvain_map.second.data(),
+                                    leiden_to_louvain_map.second.size(),
+                                    std::cout);
 
-            if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-            if(debug) raft::print_device_vector("leiden_to_louvain_map.second",
-                                      leiden_to_louvain_map.second.data(),
-                                      leiden_to_louvain_map.second.size(),
-                                      std::cout);
-                                      
-            if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-            if(debug) raft::print_device_vector("(*cluster_assignment)",
-                                      (*cluster_assignment).data(),
-                                      (*cluster_assignment).size(),
-                                      std::cout);
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("(*cluster_assignment)",
+                                    (*cluster_assignment).data(),
+                                    (*cluster_assignment).size(),
+                                    std::cout);
 
         // cluster_assignment contains leiden cluster ids of aggregated nodes
         // After call to relabel, cluster_assignment will louvain cluster ids
@@ -678,16 +660,20 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
           (*cluster_assignment).size(),
           false);
 
-          if(debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
-          if(debug) raft::print_device_vector("(*cluster_assignment(after relabel))",
+        if (debug) RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (debug)
+          raft::print_device_vector("(*cluster_assignment(after relabel))",
                                     (*cluster_assignment).data(),
                                     (*cluster_assignment).size(),
                                     std::cout);
 
-        if(debug)  std::cout << "current_graph_view.local_vertex_partition_range_size(): "<<current_graph_view.local_vertex_partition_range_size() <<std::endl;
+        if (debug)
+          std::cout << "current_graph_view.local_vertex_partition_range_size(): "
+                    << current_graph_view.local_vertex_partition_range_size() << std::endl;
 
-        if(debug)  std::cout << "(*cluster_assignment).size(): " << (*cluster_assignment).size() << std::endl;
-
+        if (debug)
+          std::cout << "(*cluster_assignment).size(): " << (*cluster_assignment).size()
+                    << std::endl;
 
         louvain_of_refined_graph.resize(current_graph_view.local_vertex_partition_range_size(),
                                         handle.get_stream());
@@ -696,7 +682,7 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
                    (*cluster_assignment).begin(),
                    (*cluster_assignment).size(),
                    handle.get_stream());
-        if(debug)  std::cout << "Graph coarsen " << std::endl;
+        std::cout << "Graph coarsen " << std::endl;
       }
     }
 
@@ -722,12 +708,12 @@ bool debug = false; //current_graph_view.number_of_vertices() < 50;
 
     if (terminate) { break; }
 
-    if(debug)  std::cout << "start over..." << std::endl;
+    if (debug) std::cout << "start over..." << std::endl;
 
 #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
-  } //end of outer while
+  }  // end of outer while
 
 #ifdef TIMING
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
@@ -763,9 +749,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0)
 {
-  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
+  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -784,7 +771,8 @@ std::pair<size_t, weight_t> leiden(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
   size_t max_level,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0)
 {
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
@@ -793,7 +781,7 @@ std::pair<size_t, weight_t> leiden(
   weight_t modularity;
 
   std::tie(dendrogram, modularity) =
-    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
+    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 

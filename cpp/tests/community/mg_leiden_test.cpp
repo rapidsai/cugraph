@@ -41,7 +41,8 @@
 //
 struct Leiden_Usecase {
   size_t max_level_{100};
-  double resolution_{1};
+  double resolution_{0.5};
+  double theta_{0.7};
   bool check_correctness_{false};
 };
 
@@ -73,6 +74,7 @@ class Tests_MGLeiden
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
     cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
     weight_t resolution,
+    weight_t theta,
     weight_t mg_modularity)
   {
     auto& comm           = handle.get_comms();
@@ -100,7 +102,7 @@ class Tests_MGLeiden
 
     if (comm_rank == 0) {
       std::tie(std::ignore, sg_modularity) =
-        cugraph::leiden(handle, sg_graph_view, sg_edge_weight_view, 100, resolution);
+        cugraph::leiden(handle, sg_graph_view, sg_edge_weight_view, 100, resolution, theta);
     }
     if (comm_rank == 0) {
 #if 1
@@ -155,7 +157,8 @@ class Tests_MGLeiden
                                                         mg_graph_view,
                                                         mg_edge_weight_view,
                                                         leiden_usecase.max_level_,
-                                                        leiden_usecase.resolution_);
+                                                        leiden_usecase.resolution_,
+                                                        leiden_usecase.theta_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -172,6 +175,7 @@ class Tests_MGLeiden
                                                      mg_edge_weight_view,
                                                      *dendrogram,
                                                      leiden_usecase.resolution_,
+                                                     leiden_usecase.theta_,
                                                      mg_modularity);
     }
   }
@@ -221,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -229,7 +233,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -237,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
@@ -255,7 +259,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -267,7 +271,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -280,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
 
@@ -294,7 +298,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/as-Skitter.mtx"))));
 
@@ -308,7 +312,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
 
@@ -322,7 +326,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
 
@@ -336,7 +340,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
 
@@ -350,7 +354,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
 

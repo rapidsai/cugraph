@@ -39,27 +39,59 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/random/linear_congruential_engine.h>
+#include <thrust/random/uniform_real_distribution.h>
+
 #include <chrono>
 #include <iostream>
 #include <random>
 
 #include <gtest/gtest.h>
 
-template <typename vertex_t, typename result_t>
-struct e_op_t {
-  __device__ result_t operator()(vertex_t src,
-                                 vertex_t dst,
-                                 result_t src_property,
-                                 result_t dst_property,
-                                 thrust::nullopt_t) const
+template <typename weight_t>
+struct random_op_t{
+  thrust::minstd_rand rng{};
+  thrust::uniform_real_distribution<weight_t> dist{};
+
+  __device__ weight_t operator()(auto x)
   {
-    if (src_property < dst_property) {
-      return src_property;
-    } else {
-      return dst_property;
-    }
+    rng.discard(x);
+    weight_t random_number = dist(rng);
+    printf("%f\n", random_number);
+    return static_cast<weight_t>(random_number);
   }
 };
+
+// S1, S2, S3, and M are all constants, and z is part of the
+// private per-thread generator state.
+
+unsigned TausStep(unsigned& z, int S1, int S2, int S3, unsigned M)
+{
+  unsigned b = (((z << S1) ^ z) >> S2);
+  return z   = (((z & M) << S3) ^ b);
+}
+
+// A and C are constants
+
+unsigned LCGStep(unsigned& z, unsigned A, unsigned C) { return z = (A * z + C); }
+
+unsigned z1, z2, z3, z4;
+float HybridTaus()
+{
+  // Combined period is lcm(p1,p2,p3,p4)~ 2^121
+  return 2.3283064365387e-10 * (
+                                 // Periods
+                                 TausStep(z1, 13, 19, 12, 4294967294UL) ^
+                                 // p1=2^31-1
+                                 TausStep(z2, 2, 25, 4, 4294967288UL) ^
+                                 // p2=2^30-1
+                                 TausStep(z3, 3, 11, 17, 4294967280UL) ^
+                                 // p3=2^28-1
+                                 LCGStep(z4, 1664525, 1013904223UL)
+                                 // p4=2^32
+                               );
+}
 
 struct MaximalIndependentSet_Usecase {
   size_t select_count{std::numeric_limits<size_t>::max()};
@@ -86,6 +118,16 @@ class Tests_MGMaximalIndependentSet
     auto const comm_rank = handle_->get_comms().get_rank();
     auto const comm_size = handle_->get_comms().get_size();
 
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    thrust::minstd_rand rng(seed);
+    thrust::uniform_real_distribution<float> dist(0, 1);
+
+    thrust::for_each(handle_->get_thrust_policy(),
+                     thrust::make_counting_iterator(0),
+                     thrust::make_counting_iterator(10),
+                     random_op_t<weight_t>{rng, dist});
+
+#if 0
     HighResTimer hr_timer{};
 
     if (cugraph::test::g_perf) {
@@ -110,8 +152,6 @@ class Tests_MGMaximalIndependentSet
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     constexpr bool multi_gpu = true;
-    //--
-
     rmm::device_uvector<vertex_t> leiden_assignment = rmm::device_uvector<vertex_t>(
       graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
@@ -384,6 +424,7 @@ class Tests_MGMaximalIndependentSet
         handle_->get_comms().barrier();
       }
     }
+#endif
 
     //--
     /*
