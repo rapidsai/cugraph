@@ -8,7 +8,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/vertex_partition_device_view.cuh>
 #include <thrust/copy.h>
 #include <thrust/iterator/discard_iterator.h>
 
@@ -16,6 +18,8 @@
 #include <tuple>
 
 namespace cugraph {
+namespace detail {
+
 template <typename vertex_t>
 struct extract_one_core_t {
   __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
@@ -101,6 +105,17 @@ trim(raft::handle_t const& handle,
     raft::device_span<vertex_t const>{out_one_core_flags.data(), out_one_core_flags.size()},
     do_expensive_check);
 
+    std::vector<vertex_t*> major_ptrs(out_one_core_flags.size());
+    std::vector<vertex_t*> minor_ptrs(major_ptrs.size());
+
+    unrenumber_local_int_edges<vertex_t, false, multi_gpu>(
+      handle,
+      major_ptrs,
+      minor_ptrs,
+      major_ptrs.size(),
+      (*renumber_map_out).data(),
+      (*renumber_map_out).size());
+
 
     
     // in degree 1 core
@@ -151,7 +166,21 @@ trim(raft::handle_t const& handle,
     raft::device_span<size_t const>{d_subgraph_offsets_in.data(), d_subgraph_offsets_in.size()},
     raft::device_span<vertex_t const>{subgraph_in.data(), subgraph_in.size()},
     do_expensive_check);
-    
+ 
+    std::vector<vertex_t*> major_ptrs_in(in_one_core_flags.size());
+    std::vector<vertex_t*> minor_ptrs_in(major_ptrs_in.size());
+
+    unrenumber_local_int_edges<vertex_t, false, multi_gpu>(
+      handle,
+      major_ptrs_in,
+      minor_ptrs_in,
+      major_ptrs_in.size(),
+      (*renumber_map_in).data(),
+      (*renumber_map_in).size());
+
+   
     return  std::make_tuple(std::move(src_), std::move(dst_), std::move(wgt_));
+}
+
 }
 }
