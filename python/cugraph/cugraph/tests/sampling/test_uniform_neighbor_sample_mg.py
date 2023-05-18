@@ -324,6 +324,8 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
+    if len(dask_client.scheduler_info()["workers"]) <= 1:
+        pytest.skip("Test only valid for MG environments")
     edgelist_df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
