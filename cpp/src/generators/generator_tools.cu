@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,10 +43,10 @@ template <typename T>
 rmm::device_uvector<T> append_all(raft::handle_t const& handle,
                                   std::vector<rmm::device_uvector<T>>&& input)
 {
-  size_t size{0};
-  // for (size_t i = 0; i < input.size(); ++i) size += input[i].size();
-  for (auto& element : input)
-    size += element.size();
+  auto size = std::transform_reduce(
+    input.begin(), input.end(), size_t{0}, std::plus<size_t>{}, [](auto const& element) {
+      return element.size();
+    });
 
   rmm::device_uvector<T> output(size, handle.get_stream());
   auto output_iter = output.begin();
@@ -56,36 +56,43 @@ rmm::device_uvector<T> append_all(raft::handle_t const& handle,
     output_iter += element.size();
   }
 
-  /*
-for (size_t i = 0; i < input.size(); ++i) {
-  raft::copy(output_iter, input[i].begin(), input[i].size(), handle.get_stream());
-  output_iter += input[i].size();
-}
-  */
-
   return output;
 }
 
 }  // namespace detail
 
 template <typename vertex_t>
-void scramble_vertex_ids(raft::handle_t const& handle,
-                         rmm::device_uvector<vertex_t>& d_src_v,
-                         rmm::device_uvector<vertex_t>& d_dst_v,
-                         vertex_t vertex_id_offset,
-                         uint64_t seed)
+rmm::device_uvector<vertex_t> scramble_vertex_ids(raft::handle_t const& handle,
+                                                  rmm::device_uvector<vertex_t>&& vertices,
+                                                  size_t lgN)
 {
-  vertex_t scale = 1 + raft::log2(d_src_v.size());
+  thrust::transform(handle.get_thrust_policy(),
+                    vertices.begin(),
+                    vertices.end(),
+                    vertices.begin(),
+                    [lgN] __device__(auto v) { return detail::scramble(v, lgN); });
 
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(d_src_v.begin(), d_dst_v.begin()));
+  return std::move(vertices);
+}
+
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> scramble_vertex_ids(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& srcs,
+  rmm::device_uvector<vertex_t>&& dsts,
+  size_t lgN)
+{
+  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(srcs.begin(), dsts.begin()));
   thrust::transform(handle.get_thrust_policy(),
                     pair_first,
-                    pair_first + d_src_v.size(),
+                    pair_first + srcs.size(),
                     pair_first,
-                    [scale] __device__(auto pair) {
-                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), scale),
-                                                detail::scramble(thrust::get<1>(pair), scale));
+                    [lgN] __device__(auto pair) {
+                      return thrust::make_tuple(detail::scramble(thrust::get<0>(pair), lgN),
+                                                detail::scramble(thrust::get<1>(pair), lgN));
                     });
+
+  return std::make_tuple(std::move(srcs), std::move(dsts));
 }
 
 template <typename vertex_t, typename weight_t>
@@ -250,17 +257,25 @@ symmetrize_edgelist_from_triangular(
                          optional_d_weights_v ? std::move(optional_d_weights_v) : std::nullopt);
 }
 
-template void scramble_vertex_ids(raft::handle_t const& handle,
-                                  rmm::device_uvector<int32_t>& d_src_v,
-                                  rmm::device_uvector<int32_t>& d_dst_v,
-                                  int32_t vertex_id_offset,
-                                  uint64_t seed);
+template rmm::device_uvector<int32_t> scramble_vertex_ids(raft::handle_t const& handle,
+                                                          rmm::device_uvector<int32_t>&& vertices,
+                                                          size_t lgN);
 
-template void scramble_vertex_ids(raft::handle_t const& handle,
-                                  rmm::device_uvector<int64_t>& d_src_v,
-                                  rmm::device_uvector<int64_t>& d_dst_v,
-                                  int64_t vertex_id_offset,
-                                  uint64_t seed);
+template rmm::device_uvector<int64_t> scramble_vertex_ids(raft::handle_t const& handle,
+                                                          rmm::device_uvector<int64_t>&& vertices,
+                                                          size_t lgN);
+
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>> scramble_vertex_ids(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& srcs,
+  rmm::device_uvector<int32_t>&& dsts,
+  size_t lgN);
+
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> scramble_vertex_ids(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& srcs,
+  rmm::device_uvector<int64_t>&& dsts,
+  size_t lgN);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,

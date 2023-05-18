@@ -13,9 +13,11 @@
 from .gatconv import GATConv
 from .relgraphconv import RelGraphConv
 from .sageconv import SAGEConv
+from .transformerconv import TransformerConv
 
 __all__ = [
     "GATConv",
     "RelGraphConv",
     "SAGEConv",
+    "TransformerConv",
 ]

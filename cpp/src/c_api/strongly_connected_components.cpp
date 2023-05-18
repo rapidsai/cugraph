@@ -58,7 +58,10 @@ struct scc_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else if constexpr (multi_gpu) {
-      unsupported();
+      error_code_ = CUGRAPH_NOT_IMPLEMENTED;
+      error_->error_message_ =
+        "strongly connected components not currently implemented for multi-GPU";
+
     } else if constexpr (!std::is_same_v<vertex_t, edge_t>) {
       unsupported();
     } else if constexpr (std::is_same_v<weight_t, double>) {

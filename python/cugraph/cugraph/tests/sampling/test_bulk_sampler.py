@@ -23,7 +23,6 @@ import os
 
 
 @pytest.mark.sg
-@pytest.mark.skip("work in progress")
 def test_bulk_sampler_simple():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -56,7 +55,7 @@ def test_bulk_sampler_simple():
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
     bs.flush()
 
-    recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
+    recovered_samples = cudf.read_parquet(tempdir_object.name)
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -103,9 +102,8 @@ def test_bulk_sampler_remainder():
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
     bs.flush()
 
-    tld = os.path.join(tempdir_object.name, "rank=0")
+    tld = tempdir_object.name
     recovered_samples = cudf.read_parquet(tld)
-    print(os.listdir(tld))
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -123,7 +121,6 @@ def test_bulk_sampler_remainder():
 
 
 @pytest.mark.sg
-@pytest.mark.skip("work in progress")
 def test_bulk_sampler_large_batch_size():
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -156,7 +153,7 @@ def test_bulk_sampler_large_batch_size():
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
     bs.flush()
 
-    recovered_samples = cudf.read_parquet(os.path.join(tempdir_object.name, "rank=0"))
+    recovered_samples = cudf.read_parquet(tempdir_object.name)
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
