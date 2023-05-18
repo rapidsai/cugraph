@@ -43,11 +43,6 @@ def create_cugraph_graph_from_edges_dict(
 
     if has_multiple_etypes:
         edges_df["wgt"] = np.float32(0)
-    else:
-        # TODO: remove
-        # after bulk sampler bug is resolved
-        edges_df["wgt"] = np.float32(0)
-        edges_df["etp"] = np.int32(0)
 
     G = cugraph.MultiGraph(directed=True)
     if isinstance(edges_df, dask_cudf.DataFrame):
@@ -56,17 +51,21 @@ def create_cugraph_graph_from_edges_dict(
         g_creation_f = G.from_cudf_edgelist
 
     if has_multiple_etypes:
-        edge_attr = ["_EDGE_ID_", "wgt", "etp"]
+        edge_id = "_EDGE_ID_"
+        edge_wgt = "wgt"
+        edge_etp = "etp"
     else:
-        # TODO , swap to just _EDGE_ID_
-        # after bug sampler bug is resolved
-        edge_attr = ["_EDGE_ID_", "wgt", "etp"]
+        edge_id = "_EDGE_ID_"
+        edge_wgt = None
+        edge_etp = None
 
     g_creation_f(
         edges_df,
         source="_SRC_",
         destination="_DST_",
-        edge_attr=edge_attr,
+        weight=edge_wgt,
+        edge_id=edge_id,
+        edge_type=edge_etp,
         renumber=True,
     )
     return G
