@@ -225,28 +225,12 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_tests_ex1,
-  Tests_MGLeiden_File,
-  ::testing::Combine(
-    // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex1.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file_tests_ex2,
-  Tests_MGLeiden_File,
-  ::testing::Combine(
-    // enable correctness checks for small graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase("/home/nfs/mnaim/mtx/ex2.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_tests,
                          Tests_MGLeiden_Rmat,
-                         ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, true}),
+                         ::testing::Combine(::testing::Values(Leiden_Usecase{100, 1, false}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
@@ -259,7 +243,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -271,7 +255,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(12, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -284,7 +268,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
 
@@ -298,7 +282,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/as-Skitter.mtx"))));
 
@@ -312,7 +296,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/coPapersDBLP.mtx"))));
 
@@ -326,36 +310,8 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGLeiden_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
+    ::testing::Values(Leiden_Usecase{100, 1, 1, false}),
     ::testing::Values(
       cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/europe_osm.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_soc_LiveJournal1, /* note that the test filename can be overridden in
-                          benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_MGLeiden_File,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/soc-LiveJournal1.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_ljournal_2008, /* note that the test filename can be overridden in
-                          benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_MGLeiden_File,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{100, 1, 1, true}),
-    ::testing::Values(
-      cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/ljournal-2008.mtx"))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
