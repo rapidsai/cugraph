@@ -66,6 +66,25 @@ class edge_partition_edge_property_device_view_t {
   template <typename Iter = ValueIterator>
   __device__ std::enable_if_t<
     !std::is_const_v<std::remove_reference_t<typename std::iterator_traits<Iter>::reference>>,
+    void>
+  set(edge_t offset, value_t val) const
+  {
+    if constexpr (cugraph::has_packed_bool_element<ValueIterator, value_t>()) {
+      static_assert(std::is_arithmetic_v<value_t>, "unimplemented for thrust::tuple types.");
+      auto mask = cugraph::packed_bool_mask(offset);
+      if (val) {
+        atomicOr(value_first_ + cugraph::packed_bool_offset(offset), mask);
+      } else {
+        atomicAnd(value_first_ + cugraph::packed_bool_offset(offset), ~mask);
+      }
+    } else {
+      *(value_first_ + offset) = val;
+    }
+  }
+
+  template <typename Iter = ValueIterator>
+  __device__ std::enable_if_t<
+    !std::is_const_v<std::remove_reference_t<typename std::iterator_traits<Iter>::reference>>,
     value_t>
   atomic_and(edge_t offset, value_t val) const
   {
