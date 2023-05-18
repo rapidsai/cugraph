@@ -760,7 +760,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level    = 100,
-  weight_t resolution = weight_t{1});
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
 
 /**
  * @brief      Leiden implementation
@@ -804,7 +805,8 @@ std::pair<size_t, weight_t> leiden(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,  // FIXME: Use (device_)span instead
   size_t max_level    = 100,
-  weight_t resolution = weight_t{1});
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -2032,6 +2034,13 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   raft::device_span<vertex_t const> start_vertices,
   size_t k,
   bool do_expensive_check = false);
+
+// FIXME: Write doc string
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> compute_mis(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
 
 }  // namespace cugraph
 

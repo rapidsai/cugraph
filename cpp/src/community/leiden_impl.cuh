@@ -54,18 +54,19 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0)
 {
   using graph_t      = cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>;
   using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
 
-  graph_t current_graph(handle);
   graph_view_t current_graph_view(graph_view);
-
   std::optional<edge_property_view_t<edge_t, weight_t const*>> current_edge_weight_view(
     edge_weight_view);
+
+  graph_t coarse_graph(handle);
   std::optional<edge_property_t<graph_view_t, weight_t>> coarsen_graph_edge_weight(handle);
 
 #ifdef TIMING
@@ -82,6 +83,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     //
     //  Initialize every cluster to reference each vertex to itself
     //
+
     dendrogram->add_level(current_graph_view.local_vertex_partition_range_first(),
                           current_graph_view.local_vertex_partition_range_size(),
                           handle.get_stream());
@@ -207,8 +209,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
       update_edge_src_property(
         handle, current_graph_view, vertex_weights.begin(), src_vertex_weights_cache);
-      vertex_weights.resize(0, handle.get_stream());
-      vertex_weights.shrink_to_fit(handle.get_stream());
     }
 
 #ifdef TIMING
@@ -243,9 +243,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
                                dst_louvain_assignment_cache);
-
-      louvain_assignment_for_vertices.resize(0, handle.get_stream());
-      louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
@@ -262,8 +259,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     // To avoid the potential of having two vertices swap cluster_keys
     // we will only allow vertices to move up (true) or down (false)
     // during each iteration of the loop
-    bool up_down     = true;
-    bool no_movement = true;
+    bool up_down = true;
     while (new_Q > (cur_Q + 1e-4)) {
       cur_Q = new_Q;
 
@@ -334,7 +330,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                    louvain_assignment_for_vertices.begin(),
                    louvain_assignment_for_vertices.size(),
                    handle.get_stream());
-        no_movement = false;
       }
     }
 
@@ -342,13 +337,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
 
-    bool terminate = no_movement || (cur_Q <= best_modularity);
+    bool terminate = (cur_Q <= best_modularity);
+    if (!terminate) { best_modularity = cur_Q; }
 
 #ifdef TIMING
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
 #endif
-
-    if (!terminate) { best_modularity = cur_Q; }
 
     // Count number of unique louvain clusters
 
@@ -425,6 +419,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                   current_edge_weight_view,
                                   total_edge_weight,
                                   resolution,
+                                  theta,
                                   vertex_weights,
                                   std::move(cluster_keys),
                                   std::move(cluster_weights),
@@ -454,27 +449,28 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         nr_unique_leiden = host_scalar_allreduce(
           handle.get_comms(), nr_unique_leiden, raft::comms::op_t::SUM, handle.get_stream());
       }
+
       terminate = terminate || (nr_unique_leiden == current_graph_view.number_of_vertices());
 
       if (nr_unique_leiden < current_graph_view.number_of_vertices()) {
         // Create aggregate graph based on refined (leiden) partition
         std::optional<rmm::device_uvector<vertex_t>> cluster_assignment{std::nullopt};
-        std::tie(current_graph, coarsen_graph_edge_weight, cluster_assignment) =
+        std::tie(coarse_graph, coarsen_graph_edge_weight, cluster_assignment) =
           coarsen_graph(handle,
                         current_graph_view,
                         current_edge_weight_view,
                         refined_leiden_partition.data(),
                         true);
 
-        current_graph_view = current_graph.view();
+        current_graph_view = coarse_graph.view();
 
         current_edge_weight_view =
           std::make_optional<edge_property_view_t<edge_t, weight_t const*>>(
             (*coarsen_graph_edge_weight).view());
 
         // cluster_assignment contains leiden cluster ids of aggregated nodes
-        // After call to relabel, cluster_assignment will louvain cluster ids of the aggregated
-        // nodes
+        // After call to relabel, cluster_assignment will louvain cluster ids
+        // of the aggregated nodes
         relabel<vertex_t, multi_gpu>(
           handle,
           std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
@@ -519,7 +515,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 #ifdef TIMING
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
-  }
+  }  // end of outer while
 
 #ifdef TIMING
   detail::timer_display<graph_view_t::is_multi_gpu>(handle, hr_timer, std::cout);
@@ -555,11 +551,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
+  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -580,7 +577,8 @@ std::pair<size_t, weight_t> leiden(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
   size_t max_level,
-  weight_t resolution)
+  weight_t resolution,
+  weight_t theta = 1.0)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
@@ -591,7 +589,7 @@ std::pair<size_t, weight_t> leiden(
   weight_t modularity;
 
   std::tie(dendrogram, modularity) =
-    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
+    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 
