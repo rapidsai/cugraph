@@ -208,6 +208,8 @@ void katz_centrality(raft::handle_t const& handle,
                      bool normalize,
                      bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   detail::katz_centrality(handle,
                           graph_view,
                           edge_weight_view,

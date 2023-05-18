@@ -293,6 +293,102 @@ int test_create_sg_graph_csr()
   return test_ret_value;
 }
 
+int test_create_sg_graph_symmetric_error()
+{
+  int test_ret_value = 0;
+
+  typedef int32_t vertex_t;
+  typedef int32_t edge_t;
+  typedef float weight_t;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error;
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[] = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+
+  cugraph_resource_handle_t* handle = NULL;
+  cugraph_graph_t* graph            = NULL;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = TRUE;
+  properties.is_multigraph = FALSE;
+
+  data_type_id_t vertex_tid = INT32;
+  data_type_id_t edge_tid   = INT32;
+  data_type_id_t weight_tid = FLOAT32;
+
+  handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
+
+  cugraph_type_erased_device_array_t* src;
+  cugraph_type_erased_device_array_t* dst;
+  cugraph_type_erased_device_array_t* wgt;
+  cugraph_type_erased_device_array_view_t* src_view;
+  cugraph_type_erased_device_array_view_t* dst_view;
+  cugraph_type_erased_device_array_view_t* wgt_view;
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &src, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+  ret_code =
+    cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
+
+  src_view = cugraph_type_erased_device_array_view(src);
+  dst_view = cugraph_type_erased_device_array_view(dst);
+  wgt_view = cugraph_type_erased_device_array_view(wgt);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, src_view, (byte_t*)h_src, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, dst_view, (byte_t*)h_dst, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, wgt_view, (byte_t*)h_wgt, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
+
+  ret_code = cugraph_sg_graph_create(handle,
+                                     &properties,
+                                     src_view,
+                                     dst_view,
+                                     wgt_view,
+                                     NULL,
+                                     NULL,
+                                     FALSE,
+                                     FALSE,
+                                     TRUE,
+                                     &graph,
+                                     &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "graph creation succeeded but should have failed.");
+
+  if (ret_code == CUGRAPH_SUCCESS) cugraph_sg_graph_free(graph);
+
+  cugraph_type_erased_device_array_view_free(wgt_view);
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(wgt);
+  cugraph_type_erased_device_array_free(dst);
+  cugraph_type_erased_device_array_free(src);
+
+  cugraph_free_resource_handle(handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -300,5 +396,6 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_TEST(test_create_sg_graph_simple);
   result |= RUN_TEST(test_create_sg_graph_csr);
+  result |= RUN_TEST(test_create_sg_graph_symmetric_error);
   return result;
 }

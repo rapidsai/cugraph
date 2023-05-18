@@ -98,6 +98,8 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
   static_assert(!std::is_same_v<e_op_result_t, void>);
   using payload_t = typename e_op_result_t::value_type;
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   auto value_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
   std::tie(std::ignore, value_buffer) =
     detail::extract_transform_v_frontier_e<false, void, payload_t>(handle,

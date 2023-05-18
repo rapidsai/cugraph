@@ -39,7 +39,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids_;
   bool_t renumber_;
-  bool_t check_;
+  bool_t do_expensive_check_;
   cugraph_data_type_id_t edge_type_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
@@ -51,7 +51,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids,
                        cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids,
                        bool_t renumber,
-                       bool_t check,
+                       bool_t do_expensive_check,
                        cugraph_data_type_id_t edge_type)
     : abstract_functor(),
       properties_(properties),
@@ -62,7 +62,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       edge_ids_(edge_ids),
       edge_type_ids_(edge_type_ids),
       renumber_(renumber),
-      check_(check),
+      do_expensive_check_(do_expensive_check),
       edge_type_(edge_type)
   {
   }
@@ -78,7 +78,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      if (check_) {
+      if (do_expensive_check_) {
         // FIXME:  Need an implementation here.
       }
 
@@ -177,7 +177,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           std::move(edgelist_edge_types),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
-          check_);
+          do_expensive_check_);
 
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
@@ -221,7 +221,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids_;
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids_;
   bool_t renumber_;
-  bool_t check_;
+  bool_t do_expensive_check_;
   cugraph::c_api::cugraph_graph_t* result_{};
 
   create_graph_csr_functor(
@@ -233,7 +233,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
     cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_ids,
     cugraph::c_api::cugraph_type_erased_device_array_view_t const* edge_type_ids,
     bool_t renumber,
-    bool_t check)
+    bool_t do_expensive_check)
     : abstract_functor(),
       properties_(properties),
       handle_(handle),
@@ -243,7 +243,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       edge_ids_(edge_ids),
       edge_type_ids_(edge_type_ids),
       renumber_(renumber),
-      check_(check)
+      do_expensive_check_(do_expensive_check)
   {
   }
 
@@ -258,7 +258,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
     if constexpr (multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      if (check_) {
+      if (do_expensive_check_) {
         // FIXME:  Need an implementation here.
       }
 
@@ -362,7 +362,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
           std::move(edgelist_edge_types),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
-          check_);
+          do_expensive_check_);
 
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
@@ -462,7 +462,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
-  bool_t check,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
 {
@@ -513,26 +513,19 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
     weight_type = cugraph_data_type_id_t::FLOAT32;
   }
 
-  // FIXME:  The combination of edge_ids != nullptr, edge_type_ids == nullptr
-  //         logically should be valid, but the code will currently break if
-  //         that is that is specified
-  CAPI_EXPECTS(
-    (edge_type_ids == nullptr && edge_ids == nullptr) ||
-      (edge_type_ids != nullptr && edge_ids != nullptr),
-    CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: either none or both of edge ids and edge types must be provided.",
-    *error);
-
-  CAPI_EXPECTS(
-    (edge_type_ids == nullptr && edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
-    CUGRAPH_INVALID_INPUT,
-    "Invalid input arguments: Edge id type must match edge (src/dst) type",
-    *error);
-
-  CAPI_EXPECTS((edge_type_ids == nullptr && edge_ids == nullptr) ||
-                 (p_edge_ids->size_ == p_src->size_ && p_edge_type_ids->size_ == p_dst->size_),
+  CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
                CUGRAPH_INVALID_INPUT,
-               "Invalid input arguments: src size != edge prop size",
+               "Invalid input arguments: Edge id type must match edge type",
+               *error);
+
+  CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->size_ == p_src->size_),
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input arguments: src size != edge id prop size",
+               *error);
+
+  CAPI_EXPECTS((edge_type_ids == nullptr) || (p_edge_type_ids->size_ == p_src->size_),
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input arguments: src size != edge type prop size",
                *error);
 
   cugraph_data_type_id_t edge_type_id_type = cugraph_data_type_id_t::INT32;
@@ -546,7 +539,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                                  p_edge_ids,
                                  p_edge_type_ids,
                                  renumber,
-                                 check,
+                                 do_expensive_check,
                                  edge_type);
 
   try {
@@ -582,7 +575,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
-  bool_t check,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error)
 {
@@ -644,7 +637,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
                                      p_edge_ids,
                                      p_edge_type_ids,
                                      renumber,
-                                     check);
+                                     do_expensive_check);
 
   try {
     cugraph::c_api::vertex_dispatcher(p_indices->type_,

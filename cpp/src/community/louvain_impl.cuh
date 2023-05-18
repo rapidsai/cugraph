@@ -293,6 +293,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   size_t max_level,
   weight_t resolution)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
   return detail::louvain(handle, graph_view, edge_weight_view, max_level, resolution);
 }
@@ -303,6 +305,8 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         Dendrogram<vertex_t> const& dendrogram,
                         vertex_t* clustering)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }
 
@@ -315,6 +319,8 @@ std::pair<size_t, weight_t> louvain(
   size_t max_level,
   weight_t resolution)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
 

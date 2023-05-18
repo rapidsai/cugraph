@@ -362,7 +362,7 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
     ret_code =
-      cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &idx, ret_error);
+      cugraph_type_erased_device_array_create(handle, num_edges, edge_tid, &idx, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "idx create failed.");
   } else {
     ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &src, ret_error);
@@ -372,7 +372,7 @@ extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_
     ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &dst, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
 
-    ret_code = cugraph_type_erased_device_array_create(handle, 0, weight_tid, &idx, ret_error);
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, edge_tid, &idx, ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
   }
 
