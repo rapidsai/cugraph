@@ -41,9 +41,6 @@ def create_cugraph_graph_from_edges_dict(
         edges_df = cudf.concat(edges_dfs, ignore_index=True)
     del edges_dfs
 
-    if has_multiple_etypes:
-        edges_df["wgt"] = np.float32(0)
-
     G = cugraph.MultiGraph(directed=True)
     if isinstance(edges_df, dask_cudf.DataFrame):
         g_creation_f = G.from_dask_cudf_edgelist
@@ -51,20 +48,16 @@ def create_cugraph_graph_from_edges_dict(
         g_creation_f = G.from_cudf_edgelist
 
     if has_multiple_etypes:
-        edge_id = "_EDGE_ID_"
-        edge_wgt = "wgt"
         edge_etp = "etp"
     else:
-        edge_id = "_EDGE_ID_"
-        edge_wgt = None
         edge_etp = None
 
     g_creation_f(
         edges_df,
         source="_SRC_",
         destination="_DST_",
-        weight=edge_wgt,
-        edge_id=edge_id,
+        weight=None,
+        edge_id="_EDGE_ID_",
         edge_type=edge_etp,
         renumber=True,
     )
