@@ -34,9 +34,9 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    # start_dask_client will check for the SCHEDULER_FILE and DASK_NUM_WORKERS
-    # env vars and use them when creating a client if set. start_dask_client
-    # will also initialize the Comms singleton.
+    # start_dask_client will check for the SCHEDULER_FILE and
+    # DASK_WORKER_DEVICES env vars and use them when creating a client if
+    # set. start_dask_client will also initialize the Comms singleton.
     dask_client, dask_cluster = start_dask_client()
 
     yield dask_client
