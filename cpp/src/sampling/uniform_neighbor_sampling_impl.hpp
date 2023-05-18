@@ -351,6 +351,8 @@ uniform_neighbor_sample(
   bool with_replacement,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::uniform_neighbor_sample_impl(handle,
                                               graph_view,
                                               edge_weight_view,

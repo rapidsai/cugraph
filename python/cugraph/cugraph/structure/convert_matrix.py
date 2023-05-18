@@ -77,12 +77,22 @@ def from_edgelist(
 
     if df_type is cudf.DataFrame:
         return from_cudf_edgelist(
-            df, source, destination, edge_attr, create_using, renumber
+            df,
+            source,
+            destination,
+            edge_attr=edge_attr,
+            create_using=create_using,
+            renumber=renumber,
         )
 
     elif (pd is not None) and (df_type is pd.DataFrame):
         return from_pandas_edgelist(
-            df, source, destination, edge_attr, create_using, renumber
+            df,
+            source,
+            destination,
+            edge_attr=edge_attr,
+            create_using=create_using,
+            renumber=renumber,
         )
 
     elif df_type is dask_cudf.core.DataFrame:
@@ -99,7 +109,9 @@ def from_edgelist(
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-        G.from_dask_cudf_edgelist(df, source, destination, edge_attr, renumber)
+        G.from_dask_cudf_edgelist(
+            df, source, destination, edge_attr=edge_attr, renumber=renumber
+        )
         return G
 
     else:

@@ -131,6 +131,8 @@ extract_induced_subgraphs(
 #endif
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     size_t should_be_zero{std::numeric_limits<size_t>::max()};
     size_t num_aggregate_subgraph_vertices{};

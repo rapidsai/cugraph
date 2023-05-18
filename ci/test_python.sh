@@ -124,7 +124,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       pylibcugraphops \
       cugraph \
       cugraph-dgl \
-      'dgl>=1.0' \
+      'dgl>=1.1.0.dev0' \
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
@@ -179,6 +179,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-pyg
 

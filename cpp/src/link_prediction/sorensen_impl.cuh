@@ -53,6 +53,8 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (!edge_weight_view)
     return detail::similarity(handle,
                               graph_view,

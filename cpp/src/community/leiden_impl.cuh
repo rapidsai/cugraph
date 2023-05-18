@@ -561,6 +561,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   weight_t resolution,
   weight_t theta = 1.0)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
 }
 
@@ -570,6 +572,8 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         Dendrogram<vertex_t> const& dendrogram,
                         vertex_t* clustering)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }
 
@@ -583,6 +587,8 @@ std::pair<size_t, weight_t> leiden(
   weight_t resolution,
   weight_t theta = 1.0)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted");
   detail::check_clustering(graph_view, clustering);
 

@@ -119,6 +119,13 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         df[edge_type_n] = edge_types
         df[hop_id_n] = hop_ids
 
+        print(
+            f"sources: {sources}\n"
+            f"destinations: {destinations}\n"
+            f"batch: {batch_ids}\n"
+            f"offset: {offsets}\n"
+        )
+
         if return_offsets:
             offsets_df = cudf.DataFrame(
                 {
@@ -141,10 +148,11 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         df[dst_n] = cupy_destinations
         df[indices_n] = cupy_indices
 
-        if weight_t == "int32":
-            df.indices = df.indices.astype("int32")
-        elif weight_t == "int64":
-            df.indices = df.indices.astype("int64")
+        if cupy_indices is not None:
+            if weight_t == "int32":
+                df.indices = df.indices.astype("int32")
+            elif weight_t == "int64":
+                df.indices = df.indices.astype("int64")
 
         return df
 
@@ -296,6 +304,7 @@ def uniform_neighbor_sample(
         List of output GPUs (by rank) corresponding to batch
         id labels in the label list.  Used to assign each batch
         id to a GPU.
+        Must be in ascending order (i.e. [0, 0, 1, 2]).
 
     random_state: int, optional
         Random seed to use when making sampling calls.
