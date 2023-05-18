@@ -63,9 +63,6 @@ struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};  // resolution parameter
   weight_t theta{};       // scaling factor
-  thrust::minstd_rand rng{};
-  thrust::uniform_real_distribution<float> dist{};
-  bool debug{};
 
   __device__ auto operator()(
     vertex_t src,
@@ -99,18 +96,9 @@ struct leiden_key_aggregated_edge_op_t {
     // aggregated_weight_to_neighboring_leiden_cluster == E(v, Cr-v)?
 
     weight_t mod_gain = -1.0;
-    // if ((is_src_active > 0) && is_src_well_connected) {
     if (is_src_active > 0) {
       if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
           is_dst_leiden_cluster_well_connected) {
-        // thrust::minstd_rand rng;
-        // thrust::uniform_real_distribution<float> dist(0, 1);
-        // float random_number = dist(rng);
-        // if (debug) printf("random_number=%f\n", random_number);
-
-        // rng.discard(static_cast<unsigned>(src));
-        // float random_number = dist(rng);
-
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
                    resolution * src_weighted_deg * (dst_leiden_volume - src_weighted_deg) /
                      total_edge_weight;
@@ -119,30 +107,6 @@ struct leiden_key_aggregated_edge_op_t {
                      ? __expf(static_cast<float>((2.0 * mod_gain) / (theta * total_edge_weight))) *
                          random_number
                      : -1.0;
-
-        int src_id      = static_cast<int>(src);
-        int dl_cid      = static_cast<int>(neighboring_leiden_cluster);
-        int cut_to_dl   = static_cast<int>(aggregated_weight_to_neighboring_leiden_cluster);
-        int s_wdeg      = static_cast<int>(src_weighted_deg);
-        int dl_vol      = static_cast<int>(dst_leiden_volume);
-        int tew         = static_cast<int>(total_edge_weight);
-        float fmod_gain = static_cast<float>(mod_gain);
-
-        if (neighboring_leiden_cluster != dst_leiden_cluster_id) { printf("\n BUG \n"); }
-
-        if (debug) {
-          printf("\ndst_leiden = %d  vol(dst_leiden)=%d  \n", dl_cid, dl_vol);
-          printf(
-            "\nsrc = %d  dst_leiden = %d cut(src, dst_leiden) = %d wdeg(src)=%d vol(dst_leiden)=%d "
-            "total_weight=%d \n",
-            src_id,
-            dl_cid,
-            cut_to_dl,
-            s_wdeg,
-            dl_vol,
-            tew);
-          printf("\n return dst_leiden = %d  mod_gain=%f  \n", dl_cid, fmod_gain);
-        }
       }
     }
 
@@ -535,10 +499,6 @@ refine_clustering(
     // Decide best/positive move for each vertex
     //
 
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    thrust::minstd_rand rng(seed);
-    thrust::uniform_real_distribution<float> dist(0, 1);
-
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -552,7 +512,7 @@ refine_clustering(
                                       leiden_assignment.data(), vertex_t{0}),
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
-        total_edge_weight, resolution, theta, rng, dist, (graph_view.number_of_vertices() < 50)},
+        total_edge_weight, resolution, theta},
       thrust::make_tuple(weight_t{0}, vertex_t{-1}),
       reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
@@ -587,24 +547,14 @@ refine_clustering(
     // Filter out moves with -ve gains
     //
 
-    vertex_t nr_valid_tuples = thrust::count_if(
-      handle.get_thrust_policy(),
-      gain_and_dst_first,
-      gain_and_dst_last,
-      [debug = graph_view.number_of_vertices() < 35] __device__(auto gain_dst_pair) {
-        vertex_t dst  = thrust::get<1>(gain_dst_pair);
-        weight_t gain = thrust::get<0>(gain_dst_pair);
-#if 1
-        if (gain > POSITIVE_GAIN) {
-          int idst    = static_cast<int>(dst);
-          int igain   = static_cast<int>(gain);
-          int igain_p = static_cast<int>(gain * 100.0);
-
-          if (debug) printf("\ndst = %d gain = %d\n gain=%d/100", idst, igain, igain_p);
-        }
-#endif
-        return (gain > POSITIVE_GAIN) && (dst >= 0);
-      });
+    vertex_t nr_valid_tuples = thrust::count_if(handle.get_thrust_policy(),
+                                                gain_and_dst_first,
+                                                gain_and_dst_last,
+                                                [] __device__(auto gain_dst_pair) {
+                                                  vertex_t dst  = thrust::get<1>(gain_dst_pair);
+                                                  weight_t gain = thrust::get<0>(gain_dst_pair);
+                                                  return (gain > POSITIVE_GAIN) && (dst >= 0);
+                                                });
 
     vertex_t total_nr_valid_tuples = nr_valid_tuples;
     if (GraphViewType::is_multi_gpu) {
@@ -636,31 +586,17 @@ refine_clustering(
                          thrust::get<1>(gain_and_dst_last.get_iterator_tuple()),
                          thrust::get<0>(gain_and_dst_last.get_iterator_tuple())));
 
-    thrust::copy_if(
-      handle.get_thrust_policy(),
-      edge_begin,
-      edge_end,
-      d_src_dst_gain_iterator,
-      [debug = (graph_view.number_of_vertices() < 35)] __device__(
-        thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-        vertex_t src  = thrust::get<0>(src_dst_gain);
-        vertex_t dst  = thrust::get<1>(src_dst_gain);
-        weight_t gain = thrust::get<2>(src_dst_gain);
+    thrust::copy_if(handle.get_thrust_policy(),
+                    edge_begin,
+                    edge_end,
+                    d_src_dst_gain_iterator,
+                    [] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
+                      vertex_t src  = thrust::get<0>(src_dst_gain);
+                      vertex_t dst  = thrust::get<1>(src_dst_gain);
+                      weight_t gain = thrust::get<2>(src_dst_gain);
 
-#if 1
-        if (gain > POSITIVE_GAIN) {
-          int isrc    = static_cast<int>(src);
-          int idst    = static_cast<int>(dst);
-          int igain   = static_cast<int>(gain);
-          int igain_p = static_cast<int>(gain * 100.0);
-
-          if (debug)
-            printf("=>> src = %d dst = %d gain=%d gain = %d/100\n", isrc, idst, igain, igain_p);
-        }
-#endif
-
-        return (gain > POSITIVE_GAIN) && (dst >= 0);
-      });
+                      return (gain > POSITIVE_GAIN) && (dst >= 0);
+                    });
 
     //
     // Create decision graph from edgelist
@@ -721,16 +657,6 @@ refine_clustering(
       handle,
       decision_graph_view,
       coarse_edge_weights ? std::make_optional(coarse_edge_weights->view()) : std::nullopt);
-
-    std::cout << "mis size: " << vertices_in_mis.size() << std::endl;
-
-#if 1
-    if (graph_view.number_of_vertices() < 35) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      raft::print_device_vector(
-        "vertices_in_mis", vertices_in_mis.data(), vertices_in_mis.size(), std::cout);
-    }
-#endif
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
     detail::sequence_fill(handle.get_stream(),
