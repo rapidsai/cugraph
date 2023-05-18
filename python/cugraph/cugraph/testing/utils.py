@@ -131,7 +131,6 @@ CUGRAPH_DIR_INPUT_TYPES = [
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
-    print("Reading " + str(csv_file) + "...")
     if read_weights:
         if read_weights_in_sp is True:
             df = pd.read_csv(

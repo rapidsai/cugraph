@@ -35,6 +35,9 @@ def start_dask_client(
     device_memory_limit=0.8,
 ):
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
+    dask_num_workers = os.getenv("DASK_NUM_WORKERS")
+    dask_local_directory = os.getenv("DASK_LOCAL_DIRECTORY")
+
     cluster = None
     client = None
     tempdir_object = None
@@ -58,22 +61,44 @@ def start_dask_client(
 
         initialize()
         client = Client(scheduler_file=dask_scheduler_file)
-        print("\ndask_client created using " f"{dask_scheduler_file}")
+        print("\nDask client created using " f"{dask_scheduler_file}")
     else:
-        # The tempdir created by tempdir_object should be cleaned up once
-        # tempdir_object goes out-of-scope and is deleted.
-        tempdir_object = tempfile.TemporaryDirectory()
+        # The DASK_NUM_WORKERS env var takes precedence over the
+        # dask_worker_devices arg.
+        if dask_num_workers is not None:
+            num_workers = int(dask_num_workers)
+            visible_devices = ",".join([str(i) for i in range(1, num_workers + 1)])
+        else:
+            visible_devices = dask_worker_devices
+            if visible_devices is None:
+                num_workers = len(get_visible_devices())
+            else:
+                # FIXME: this assumes a properly formatted string with commas
+                num_workers = len(visible_devices.split(","))
+
+        if dask_local_directory is None:
+            # The tempdir created by tempdir_object should be cleaned up once
+            # tempdir_object is deleted.
+            tempdir_object = tempfile.TemporaryDirectory()
+            local_directory = tempdir_object.name
+        else:
+            local_directory = dask_local_directory
+
         cluster = LocalCUDACluster(
-            local_directory=tempdir_object.name,
+            local_directory=local_directory,
             protocol=protocol,
             rmm_pool_size=rmm_pool_size,
-            CUDA_VISIBLE_DEVICES=dask_worker_devices,
+            CUDA_VISIBLE_DEVICES=visible_devices,
             jit_unspill=jit_unspill,
             device_memory_limit=device_memory_limit,
         )
         client = Client(cluster)
-        client.wait_for_workers(len(get_visible_devices()))
-        print("\ndask_client created using LocalCUDACluster")
+        client.wait_for_workers(num_workers)
+        # Add a reference to tempdir_object to the client to prevent it from
+        # being deleted when this function returns. This will be deleted in
+        # stop_dask_client()
+        client.tempdir_object = tempdir_object
+        print("\nDask client created using LocalCUDACluster")
 
     Comms.initialize(p2p=True)
 
@@ -85,7 +110,11 @@ def stop_dask_client(client, cluster=None):
     client.close()
     if cluster:
         cluster.close()
-    print("\ndask_client closed.")
+    # Remove a TemporaryDirectory object that may have been assigned to the
+    # client, which should remove it and all the contents from disk.
+    if hasattr(client, "tempdir_object"):
+        del client.tempdir_object
+    print("\nDask client closed.")
 
 
 def restart_client(client):
