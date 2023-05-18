@@ -43,11 +43,11 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
+  raft::random::RngState& rng_state)
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
@@ -91,8 +91,6 @@ rmm::device_uvector<vertex_t> compute_mis(
 
   out_degrees.resize(0, handle.get_stream());
   out_degrees.shrink_to_fit(handle.get_stream());
-
-  raft::random::RngState rng_state(multi_gpu ? handle.get_comms().get_rank() : 0);
 
   size_t loop_counter = 0;
   while (true) {
@@ -172,7 +170,6 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     //
     // Find maximum rank outgoing neighbor for each vertex
-    // (In case of Leiden decision graph, each vertex has at most one outgoing edge)
     //
 
     rmm::device_uvector<vertex_t> max_outgoing_ranks(local_vtx_partitoin_size, handle.get_stream());
@@ -314,13 +311,13 @@ rmm::device_uvector<vertex_t> compute_mis(
 }
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
+  raft::random::RngState& rng_state)
 {
-  return detail::compute_mis(handle, graph_view, edge_weight_view);
+  return detail::compute_mis(handle, graph_view, rng_state);
 }
 
 }  // namespace cugraph

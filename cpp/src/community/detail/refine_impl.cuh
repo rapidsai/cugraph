@@ -63,7 +63,8 @@ struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};  // resolution parameter
   weight_t theta{};       // scaling factor
-
+  thrust::minstd_rand rng{};
+  thrust::uniform_real_distribution<weight_t> dist{};
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,
@@ -86,6 +87,9 @@ struct leiden_key_aggregated_edge_op_t {
     auto dst_leiden_cluster_id         = thrust::get<2>(keyed_data);
     auto louvain_of_dst_leiden_cluster = thrust::get<3>(keyed_data);
     auto random_number                 = thrust::get<4>(keyed_data);
+
+    // rng.discard(src);
+    // weight_t random_number = dist(rng);
 
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
@@ -499,6 +503,10 @@ refine_clustering(
     // Decide best/positive move for each vertex
     //
 
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    thrust::minstd_rand rng(seed);
+    thrust::uniform_real_distribution<weight_t> dist(0, 1);
+
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
@@ -512,7 +520,7 @@ refine_clustering(
                                       leiden_assignment.data(), vertex_t{0}),
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
-        total_edge_weight, resolution, theta},
+        total_edge_weight, resolution, theta, rng, dist},
       thrust::make_tuple(weight_t{0}, vertex_t{-1}),
       reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
@@ -653,10 +661,8 @@ refine_clustering(
     // Determine a set of moves using MIS of the decision_graph
     //
 
-    auto vertices_in_mis = compute_mis<vertex_t, edge_t, weight_t, multi_gpu>(
-      handle,
-      decision_graph_view,
-      coarse_edge_weights ? std::make_optional(coarse_edge_weights->view()) : std::nullopt);
+    auto vertices_in_mis =
+      compute_mis<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
     detail::sequence_fill(handle.get_stream(),

@@ -37,6 +37,8 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
+#include <raft/random/rng_state.hpp>
+
 #include <chrono>
 #include <iostream>
 #include <random>
@@ -75,8 +77,10 @@ class Tests_MGMaximalIndependentSet
       hr_timer.start("MG Construct graph");
     }
 
+    constexpr bool multi_gpu = true;
+
     auto [mg_graph, mg_edge_weights, mg_renumber_map] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, multi_gpu>(
         *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
@@ -90,8 +94,9 @@ class Tests_MGMaximalIndependentSet
     auto mg_edge_weight_view =
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
+    raft::random::RngState rng_state(multi_gpu ? handle_->get_comms().get_rank() : 0);
     auto d_mis =
-      cugraph::compute_mis<vertex_t, edge_t, weight_t, true>(*handle_, mg_graph_view, std::nullopt);
+      cugraph::compute_mis<vertex_t, edge_t, multi_gpu>(*handle_, mg_graph_view, rng_state);
 
     // Test MIS
     if (mis_usecase.check_correctness) {
@@ -109,8 +114,6 @@ class Tests_MGMaximalIndependentSet
       });
 
       // If a vertex is included in MIS, then none of its neighbor should be
-
-      auto multi_gpu = true;
 
       vertex_t local_vtx_partitoin_size = mg_graph_view.local_vertex_partition_range_size();
       rmm::device_uvector<vertex_t> d_total_outgoing_nbrs_included_mis(local_vtx_partitoin_size,
@@ -142,7 +145,7 @@ class Tests_MGMaximalIndependentSet
       cugraph::edge_src_property_t<GraphViewType, vertex_t> src_inclusion_cache(*handle_);
       cugraph::edge_dst_property_t<GraphViewType, vertex_t> dst_inclusion_cache(*handle_);
 
-      if (multi_gpu) {
+      if constexpr (multi_gpu) {
         src_inclusion_cache =
           cugraph::edge_src_property_t<GraphViewType, vertex_t>(*handle_, mg_graph_view);
         dst_inclusion_cache =

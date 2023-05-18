@@ -2035,12 +2035,23 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   size_t k,
   bool do_expensive_check = false);
 
-// FIXME: Write doc string
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+/*
+ * @brief Find a Maximal Independent Set
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @return A device vector containing vertices found in the maximal independent set
+ */
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
+  raft::random::RngState& rng_state);
 
 }  // namespace cugraph
 
