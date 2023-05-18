@@ -88,6 +88,7 @@ struct leiden_key_aggregated_edge_op_t {
     auto dst_leiden_cut_to_louvain     = thrust::get<1>(keyed_data);
     auto dst_leiden_cluster_id         = thrust::get<2>(keyed_data);
     auto louvain_of_dst_leiden_cluster = thrust::get<3>(keyed_data);
+    auto random_number                 = thrust::get<4>(keyed_data);
 
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
@@ -109,7 +110,6 @@ struct leiden_key_aggregated_edge_op_t {
 
         // rng.discard(static_cast<unsigned>(src));
         // float random_number = dist(rng);
-        float random_number = 0.5;
 
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
                    resolution * src_weighted_deg * (dst_leiden_volume - src_weighted_deg) /
@@ -411,11 +411,7 @@ refine_clustering(
           auto dst_leiden  = thrust::get<1>(dst_louvain_leiden);
 
           if (src_louvain == dst_louvain) {
-            if (src_leiden == dst_leiden) {
-              // refined_partition_volume_contribution = wt;
-            } else {
-              refined_partition_cut_contribution = wt;
-            }
+            if (src_leiden != dst_leiden) { refined_partition_cut_contribution = wt; }
           }
           return thrust::make_tuple(refined_partition_volume_contribution,
                                     refined_partition_cut_contribution);
@@ -541,7 +537,6 @@ refine_clustering(
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     thrust::minstd_rand rng(seed);
-    // thrust::random::uniform_real_distribution<float>::uniform_real_distribution dist();
     thrust::uniform_real_distribution<float> dist(0, 1);
 
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
@@ -714,8 +709,7 @@ refine_clustering(
                                             std::nullopt,
                                             cugraph::graph_properties_t{false, false},
                                             true,
-                                            true  // FIXME: set it to false
-      );
+                                            false);
 
     auto decision_graph_view = decision_graph.view();
 
@@ -847,9 +841,6 @@ refine_clustering(
 
   src_louvain_cluster_weight_cache.clear(handle);
   src_cut_to_louvain_cache.clear(handle);
-
-  // louvain_assignment_of_vertices.resize(0, handle.get_stream());
-  // louvain_assignment_of_vertices.shrink_to_fit(handle.get_stream());
 
   singleton_and_connected_flags.resize(0, handle.get_stream());
   singleton_and_connected_flags.shrink_to_fit(handle.get_stream());

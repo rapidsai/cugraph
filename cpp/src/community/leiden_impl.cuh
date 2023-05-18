@@ -209,8 +209,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
       update_edge_src_property(
         handle, current_graph_view, vertex_weights.begin(), src_vertex_weights_cache);
-      // vertex_weights.resize(0, handle.get_stream());
-      // vertex_weights.shrink_to_fit(handle.get_stream());
     }
 
 #ifdef TIMING
@@ -245,9 +243,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
                                dst_louvain_assignment_cache);
-
-      // louvain_assignment_for_vertices.resize(0, handle.get_stream());
-      // louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
@@ -265,7 +260,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     // we will only allow vertices to move up (true) or down (false)
     // during each iteration of the loop
     bool up_down = true;
-
     while (new_Q > (cur_Q + 1e-4)) {
       cur_Q = new_Q;
 
@@ -336,7 +330,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                    louvain_assignment_for_vertices.begin(),
                    louvain_assignment_for_vertices.size(),
                    handle.get_stream());
-        // no_movement = false;
       }
     }
 
@@ -344,7 +337,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
 #endif
 
-    bool terminate = /*no_movement ||*/ (cur_Q <= best_modularity);
+    bool terminate = (cur_Q <= best_modularity);
     if (!terminate) { best_modularity = cur_Q; }
 
 #ifdef TIMING
