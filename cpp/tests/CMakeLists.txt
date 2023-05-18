@@ -364,11 +364,6 @@ ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 
 ###################################################################################################
-# - TRIM tests -----------------------------------------------------------------------------
-ConfigureTest(TRIM_TEST cores/trim_test.cpp)
-
-
-###################################################################################################
 # - Triangle Count tests --------------------------------------------------------------------------
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
