@@ -105,10 +105,6 @@ class Tests_MGLeiden
         cugraph::leiden(handle, sg_graph_view, sg_edge_weight_view, 100, resolution, theta);
     }
     if (comm_rank == 0) {
-#if 1
-      std::cout << "mg_modularity: " << mg_modularity << " sg_modularity: " << sg_modularity
-                << std::endl;
-#endif
       EXPECT_NEAR(mg_modularity, sg_modularity, std::max(mg_modularity, sg_modularity) * 1e-3);
     }
   }
