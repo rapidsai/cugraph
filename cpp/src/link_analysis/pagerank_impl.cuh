@@ -362,6 +362,8 @@ void pagerank(raft::handle_t const& handle,
               bool has_initial_guess,
               bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   detail::pagerank(handle,
                    graph_view,
                    edge_weight_view,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,20 +36,35 @@ void fill_edge_major_property(raft::handle_t const& handle,
                               T input,
                               EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
+  static_assert(std::is_same_v<T, typename EdgeMajorPropertyOutputWrapper::value_type>);
+
   auto keys         = edge_major_property_output.keys();
   auto value_firsts = edge_major_property_output.value_firsts();
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-    size_t buffer_size{0};
+    size_t num_buffer_elements{0};
     if (keys) {
-      buffer_size = (*keys)[i].size();
+      num_buffer_elements = (*keys)[i].size();
     } else {
       if constexpr (GraphViewType::is_storage_transposed) {
-        buffer_size = static_cast<size_t>(graph_view.local_edge_partition_dst_range_size(i));
+        num_buffer_elements =
+          static_cast<size_t>(graph_view.local_edge_partition_dst_range_size(i));
       } else {
-        buffer_size = static_cast<size_t>(graph_view.local_edge_partition_src_range_size(i));
+        num_buffer_elements =
+          static_cast<size_t>(graph_view.local_edge_partition_src_range_size(i));
       }
     }
-    thrust::fill_n(handle.get_thrust_policy(), value_firsts[i], buffer_size, input);
+    if constexpr (cugraph::has_packed_bool_element<
+                    std::remove_reference_t<decltype(value_firsts[i])>,
+                    T>()) {
+      static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
+      auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
+      thrust::fill_n(handle.get_thrust_policy(),
+                     value_firsts[i],
+                     packed_bool_size(num_buffer_elements),
+                     packed_input);
+    } else {
+      thrust::fill_n(handle.get_thrust_policy(), value_firsts[i], num_buffer_elements, input);
+    }
   }
 }
 
@@ -59,19 +74,28 @@ void fill_edge_minor_property(raft::handle_t const& handle,
                               T input,
                               EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
+  static_assert(std::is_same_v<T, typename EdgeMinorPropertyOutputWrapper::value_type>);
+
   auto keys = edge_minor_property_output.keys();
-  size_t buffer_size{0};
+  size_t num_buffer_elements{0};
   if (keys) {
-    buffer_size = (*keys).size();
+    num_buffer_elements = (*keys).size();
   } else {
     if constexpr (GraphViewType::is_storage_transposed) {
-      buffer_size = static_cast<size_t>(graph_view.local_edge_partition_src_range_size());
+      num_buffer_elements = static_cast<size_t>(graph_view.local_edge_partition_src_range_size());
     } else {
-      buffer_size = static_cast<size_t>(graph_view.local_edge_partition_dst_range_size());
+      num_buffer_elements = static_cast<size_t>(graph_view.local_edge_partition_dst_range_size());
     }
   }
-  thrust::fill_n(
-    handle.get_thrust_policy(), edge_minor_property_output.value_first(), buffer_size, input);
+  auto value_first = edge_minor_property_output.value_first();
+  if constexpr (cugraph::has_packed_bool_element<decltype(value_first), T>()) {
+    static_assert(std::is_arithmetic_v<T>, "unimplemented for thrust::tuple types.");
+    auto packed_input = input ? packed_bool_full_mask() : packed_bool_empty_mask();
+    thrust::fill_n(
+      handle.get_thrust_policy(), value_first, packed_bool_size(num_buffer_elements), packed_input);
+  } else {
+    thrust::fill_n(handle.get_thrust_policy(), value_first, num_buffer_elements, input);
+  }
 }
 
 }  // namespace detail
@@ -99,6 +123,8 @@ void fill_edge_src_property(raft::handle_t const& handle,
                             edge_src_property_t<GraphViewType, T>& edge_src_property_output,
                             bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -135,6 +161,8 @@ void fill_edge_dst_property(raft::handle_t const& handle,
                             edge_dst_property_t<GraphViewType, T>& edge_dst_property_output,
                             bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }

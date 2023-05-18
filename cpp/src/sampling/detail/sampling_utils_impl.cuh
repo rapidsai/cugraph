@@ -627,6 +627,157 @@ sample_edges(raft::handle_t const& handle,
 }
 
 template <typename vertex_t,
+          typename weight_t,
+          typename edge_t,
+          typename edge_type_t,
+          typename label_t>
+void sort_sampled_tuples(raft::handle_t const& handle,
+                         rmm::device_uvector<vertex_t>& majors,
+                         rmm::device_uvector<vertex_t>& minors,
+                         std::optional<rmm::device_uvector<weight_t>>& weights,
+                         std::optional<rmm::device_uvector<edge_t>>& edge_ids,
+                         std::optional<rmm::device_uvector<edge_type_t>>& edge_types,
+                         std::optional<rmm::device_uvector<int32_t>>& hops,
+                         std::optional<rmm::device_uvector<label_t>>& labels)
+{
+  if (weights) {
+    if (edge_ids) {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                              thrust::make_zip_iterator(labels->end(), hops->end()),
+                              thrust::make_zip_iterator(majors.begin(),
+                                                        minors.begin(),
+                                                        weights->begin(),
+                                                        edge_ids->begin(),
+                                                        edge_types->begin()));
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              labels->begin(),
+                              labels->end(),
+                              thrust::make_zip_iterator(majors.begin(),
+                                                        minors.begin(),
+                                                        weights->begin(),
+                                                        edge_ids->begin(),
+                                                        edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
+        }
+      }
+    } else {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
+        }
+      }
+    }
+  } else {
+    if (edge_ids) {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
+        }
+      }
+    } else {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                              thrust::make_zip_iterator(labels->end(), hops->end()),
+                              thrust::make_zip_iterator(majors.begin(), minors.begin()));
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              labels->begin(),
+                              labels->end(),
+                              thrust::make_zip_iterator(majors.begin(), minors.begin()));
+        }
+      }
+    }
+  }
+}
+
+template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
@@ -654,151 +805,7 @@ shuffle_and_organize_output(
   std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
 
   if (labels) {
-    if (weights) {
-      if (edge_ids) {
-        if (edge_types) {
-          if (hops) {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(majors.begin(),
-                                                          minors.begin(),
-                                                          weights->begin(),
-                                                          edge_ids->begin(),
-                                                          edge_types->begin(),
-                                                          hops->begin()));
-          } else {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(majors.begin(),
-                                                          minors.begin(),
-                                                          weights->begin(),
-                                                          edge_ids->begin(),
-                                                          edge_types->begin()));
-          }
-        } else {
-          if (hops) {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(majors.begin(),
-                                                          minors.begin(),
-                                                          weights->begin(),
-                                                          edge_ids->begin(),
-                                                          hops->begin()));
-          } else {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(
-                majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
-          }
-        }
-      } else {
-        if (edge_types) {
-          if (hops) {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(majors.begin(),
-                                                          minors.begin(),
-                                                          weights->begin(),
-                                                          edge_types->begin(),
-                                                          hops->begin()));
-          } else {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(
-                majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
-          }
-        } else {
-          if (hops) {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(
-                                  majors.begin(), minors.begin(), weights->begin(), hops->begin()));
-          } else {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
-          }
-        }
-      }
-    } else {
-      if (edge_ids) {
-        if (edge_types) {
-          if (hops) {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(majors.begin(),
-                                                          minors.begin(),
-                                                          edge_ids->begin(),
-                                                          edge_types->begin(),
-                                                          hops->begin()));
-          } else {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(
-                majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
-          }
-        } else {
-          if (hops) {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(
-                majors.begin(), minors.begin(), edge_ids->begin(), hops->begin()));
-          } else {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
-          }
-        }
-      } else {
-        if (edge_types) {
-          if (hops) {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(
-                majors.begin(), minors.begin(), edge_types->begin(), hops->begin()));
-          } else {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
-          }
-        } else {
-          if (hops) {
-            thrust::sort_by_key(
-              handle.get_thrust_policy(),
-              labels->begin(),
-              labels->end(),
-              thrust::make_zip_iterator(majors.begin(), minors.begin(), hops->begin()));
-          } else {
-            thrust::sort_by_key(handle.get_thrust_policy(),
-                                labels->begin(),
-                                labels->end(),
-                                thrust::make_zip_iterator(majors.begin(), minors.begin()));
-          }
-        }
-      }
-    }
+    sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, labels);
 
     if (label_to_output_comm_rank) {
       CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
@@ -1030,6 +1037,8 @@ shuffle_and_organize_output(
           }
         }
       }
+
+      sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, labels);
     }
 
     size_t num_unique_labels =

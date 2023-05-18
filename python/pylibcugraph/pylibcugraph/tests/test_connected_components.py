@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -446,7 +446,7 @@ def test_invalid_input_wcc():
     sp_indices = scipy_csr.indices  # unsupported
 
     resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_symmetric=True, is_multigraph=False)
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
     with pytest.raises(TypeError):
         pylibcugraph.weakly_connected_components(
             resource_handle, None, sp_offsets, sp_indices, None, False
