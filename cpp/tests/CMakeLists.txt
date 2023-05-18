@@ -217,7 +217,6 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
 ###################################################################################################
 # - LEIDEN tests ---------------------------------------------------------------------------------
-ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 ConfigureTest(NEW_LEIDEN_TEST community/new_leiden_test.cpp)
 
 ###################################################################################################
