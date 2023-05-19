@@ -257,6 +257,8 @@ decompress_to_edgelist(
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return decompress_to_edgelist_impl(
     handle, graph_view, edge_weight_view, renumber_map, do_expensive_check);
 }

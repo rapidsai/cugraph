@@ -14,7 +14,6 @@
 
 set(cython_sources
     ktruss_subgraph_wrapper.pyx
-    leiden_wrapper.pyx
 )
 
 set(linked_libraries cugraph::cugraph)

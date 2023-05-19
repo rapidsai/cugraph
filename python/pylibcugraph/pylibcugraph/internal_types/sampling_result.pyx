@@ -85,6 +85,10 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_edge_weight(self.c_sample_result_ptr)
         )
+
+        if device_array_view_ptr is NULL:
+            return None
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -98,6 +102,10 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_edge_id(self.c_sample_result_ptr)
         )
+
+        if device_array_view_ptr is NULL:
+            return None
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
 
@@ -108,6 +116,10 @@ cdef class SamplingResult:
         cdef cugraph_type_erased_device_array_view_t* device_array_view_ptr = (
             cugraph_sample_result_get_edge_type(self.c_sample_result_ptr)
         )
+
+        if device_array_view_ptr is NULL:
+            return None
+
         return create_cupy_array_view_for_device_ptr(device_array_view_ptr,
                                                      self)
     

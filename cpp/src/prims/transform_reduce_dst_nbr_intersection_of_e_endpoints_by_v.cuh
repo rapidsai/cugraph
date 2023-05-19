@@ -255,6 +255,8 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       typename EdgeDstValueInputWrapper::value_iterator,
       typename EdgeDstValueInputWrapper::value_type>>;
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do.
   }

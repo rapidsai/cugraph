@@ -285,6 +285,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       edge_t,
       typename EdgeValueInputWrapper::value_iterator>>;
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) { /* currently, nothing to do */
   }
 

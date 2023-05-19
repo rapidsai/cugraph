@@ -213,7 +213,6 @@ set(CUGRAPH_SOURCES
     src/community/leiden_sg.cu
     src/community/leiden_mg.cu
     src/community/legacy/louvain.cu
-    src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/egonet_sg.cu

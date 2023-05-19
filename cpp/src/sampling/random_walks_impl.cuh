@@ -432,6 +432,8 @@ uniform_random_walks(raft::handle_t const& handle,
                      size_t max_length,
                      uint64_t seed)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::random_walk_impl(handle,
                                   graph_view,
                                   edge_weight_view,
@@ -450,6 +452,8 @@ biased_random_walks(raft::handle_t const& handle,
                     size_t max_length,
                     uint64_t seed)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::random_walk_impl(
     handle,
     graph_view,
@@ -470,6 +474,8 @@ node2vec_random_walks(raft::handle_t const& handle,
                       weight_t q,
                       uint64_t seed)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::random_walk_impl(
     handle,
     graph_view,

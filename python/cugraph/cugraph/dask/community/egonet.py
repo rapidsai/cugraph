@@ -66,7 +66,10 @@ def convert_to_cudf(cp_arrays):
     df = cudf.DataFrame()
     df["src"] = cp_src
     df["dst"] = cp_dst
-    df["weight"] = cp_weight
+    if cp_weight is None:
+        df["weight"] = None
+    else:
+        df["weight"] = cp_weight
 
     offsets = cudf.Series(cp_offsets)
 
