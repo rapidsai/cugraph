@@ -63,8 +63,8 @@ struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};  // resolution parameter
   weight_t theta{};       // scaling factor
-  thrust::minstd_rand rng{};
-  thrust::uniform_real_distribution<weight_t> dist{};
+  mutable thrust::minstd_rand rng{};
+  mutable thrust::uniform_real_distribution<weight_t> dist{};
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,
@@ -86,10 +86,9 @@ struct leiden_key_aggregated_edge_op_t {
     auto dst_leiden_cut_to_louvain     = thrust::get<1>(keyed_data);
     auto dst_leiden_cluster_id         = thrust::get<2>(keyed_data);
     auto louvain_of_dst_leiden_cluster = thrust::get<3>(keyed_data);
-    auto random_number                 = thrust::get<4>(keyed_data);
 
-    // rng.discard(src);
-    // weight_t random_number = dist(rng);
+    rng.discard(src);
+    weight_t random_number = dist(rng);
 
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
@@ -466,14 +465,6 @@ refine_clustering(
 
     raft::random::RngState rng_state(GraphViewType::is_multi_gpu ? handle.get_comms().get_rank()
                                                                  : 0);
-    rmm::device_uvector<weight_t> random_numbers(leiden_keys_used_in_edge_reduction.size(),
-                                                 handle.get_stream());
-    cugraph::detail::uniform_random_fill<weight_t>(handle.get_stream(),
-                                                   random_numbers.data(),
-                                                   random_numbers.size(),
-                                                   float{0.0},
-                                                   float{1.0},
-                                                   rng_state);
 
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
@@ -483,10 +474,9 @@ refine_clustering(
       thrust::make_tuple(refined_community_volumes.begin(),
                          refined_community_cuts.begin(),
                          leiden_keys_used_in_edge_reduction.begin(),  // redundant
-                         louvain_of_leiden_keys_used_in_edge_reduction.begin(),
-                         random_numbers.begin()));
+                         louvain_of_leiden_keys_used_in_edge_reduction.begin()));
 
-    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t, weight_t>;
+    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
     kv_store_t<vertex_t, value_t, true> leiden_cluster_key_values_map(
       leiden_keys_used_in_edge_reduction.begin(),
       leiden_keys_used_in_edge_reduction.begin() + leiden_keys_used_in_edge_reduction.size(),
@@ -494,8 +484,7 @@ refine_clustering(
       thrust::make_tuple(std::numeric_limits<weight_t>::max(),
                          std::numeric_limits<weight_t>::max(),
                          invalid_vertex_id<vertex_t>::value,
-                         invalid_vertex_id<vertex_t>::value,
-                         std::numeric_limits<weight_t>::max()),
+                         invalid_vertex_id<vertex_t>::value),
       false,
       handle.get_stream());
 
