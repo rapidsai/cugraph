@@ -195,14 +195,14 @@ def persist_dask_object(arg):
 # Function to convert bytes into human readable format
 def sizeof_fmt(num, suffix="B"):
     if isinstance(num, str):
-        if num[-2:] == 'GB':
-            return num[:-2] + 'G'
-        elif num[-2:] == 'MB':
-            return num[:-2] + 'M'
-        elif num[-2:] == 'KB':
-            return num[:-2] + 'K'
+        if num[-2:] == "GB":
+            return num[:-2] + "G"
+        elif num[-2:] == "MB":
+            return num[:-2] + "M"
+        elif num[-2:] == "KB":
+            return num[:-2] + "K"
         else:
-            raise ValueError('unknown unit')
+            raise ValueError("unknown unit")
     for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
         if abs(num) < 1024.0:
             return "%3.1f%s%s" % (num, unit, suffix)

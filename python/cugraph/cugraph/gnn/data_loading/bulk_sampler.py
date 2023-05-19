@@ -206,9 +206,9 @@ class EXPERIMENTAL__BulkSampler:
 
         end_time_calc_batches = time.perf_counter()
         self.__logger.info(
-            f'Calculated batches to sample; min = {min_batch_id}'
-            f' and max = {max_batch_id};'
-            f' took {end_time_calc_batches - start_time_calc_batches:.4f} s'
+            f"Calculated batches to sample; min = {min_batch_id}"
+            f" and max = {max_batch_id};"
+            f" took {end_time_calc_batches - start_time_calc_batches:.4f} s"
         )
 
         if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph):
@@ -228,7 +228,7 @@ class EXPERIMENTAL__BulkSampler:
             )
 
         start_time_sample_call = time.perf_counter()
-        
+
         # Call uniform neighbor sample
         samples, offsets = sample_fn(
             self.__graph,
@@ -242,22 +242,22 @@ class EXPERIMENTAL__BulkSampler:
         end_time_sample_call = time.perf_counter()
         sample_runtime = end_time_sample_call - start_time_sample_call
         self.__logger.info(
-            f'Called uniform neighbor sample, took {sample_runtime:.4f} s'
-            f' ({(sample_runtime) / (max_batch_id - min_batch_id):.4f} s'
-            ' per batch)'
+            f"Called uniform neighbor sample, took {sample_runtime:.4f} s"
+            f" ({(sample_runtime) / (max_batch_id - min_batch_id):.4f} s"
+            " per batch)"
         )
 
         start_time_filter_batches = time.perf_counter()
 
         # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
-        if hasattr(self.__batches, 'compute'):
+        if hasattr(self.__batches, "compute"):
             self.__batches = self.__batches.persist()
 
         end_time_filter_batches = time.perf_counter()
         self.__logger.info(
-            'Filtered batches, took '
-            f'{end_time_filter_batches - start_time_filter_batches} s'
+            "Filtered batches, took "
+            f"{end_time_filter_batches - start_time_filter_batches} s"
         )
 
         start_time_write = time.perf_counter()
@@ -268,15 +268,15 @@ class EXPERIMENTAL__BulkSampler:
         end_time_write = time.perf_counter()
         write_runtime = end_time_write - start_time_write
         self.__logger.info(
-            f'Wrote samples to parquet, took {write_runtime} seconds'
-            f' ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s'
-            ' per batch)'
+            f"Wrote samples to parquet, took {write_runtime} seconds"
+            f" ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s"
+            " per batch)"
         )
 
         if self.size > 0:
             self.__logger.info(
-                f'There are still {self.size} samples remaining, '
-                'calling flush() again...'
+                f"There are still {self.size} samples remaining, "
+                "calling flush() again..."
             )
             self.flush()
 
