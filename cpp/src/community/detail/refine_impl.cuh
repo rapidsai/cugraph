@@ -30,7 +30,6 @@
 #include <utilities/collect_comm.cuh>
 
 #include <raft/random/rng_device.cuh>
-#include <raft/random/rng_state.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
@@ -133,6 +132,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
                      rmm::device_uvector<typename GraphViewType::vertex_type>>>
 refine_clustering(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   GraphViewType const& graph_view,
   std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
     edge_weight_view,

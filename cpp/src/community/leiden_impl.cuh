@@ -51,6 +51,7 @@ template <typename vertex_t,
           bool store_transposed = false>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -415,6 +416,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
       std::tie(refined_leiden_partition, leiden_to_louvain_map) =
         detail::refine_clustering(handle,
+                                  rng_state,
                                   current_graph_view,
                                   current_edge_weight_view,
                                   total_edge_weight,
@@ -548,6 +550,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -556,7 +559,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
+  return detail::leiden(
+    handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -573,6 +577,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
@@ -589,7 +594,7 @@ std::pair<size_t, weight_t> leiden(
   weight_t modularity;
 
   std::tie(dendrogram, modularity) =
-    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
+    detail::leiden(handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 

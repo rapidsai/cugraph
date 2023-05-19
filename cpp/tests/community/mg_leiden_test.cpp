@@ -32,6 +32,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/sequence.h>
 
+#include <chrono>
 #include <gtest/gtest.h>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,6 +71,7 @@ class Tests_MGLeiden
   template <typename vertex_t, typename edge_t, typename weight_t>
   void compare_sg_results(
     raft::handle_t const& handle,
+    raft::random::RngState& rng_state,
     cugraph::graph_view_t<vertex_t, edge_t, false, true> const& mg_graph_view,
     std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> mg_edge_weight_view,
     cugraph::Dendrogram<vertex_t> const& mg_dendrogram,
@@ -101,8 +103,8 @@ class Tests_MGLeiden
       sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
     if (comm_rank == 0) {
-      std::tie(std::ignore, sg_modularity) =
-        cugraph::leiden(handle, sg_graph_view, sg_edge_weight_view, 100, resolution, theta);
+      std::tie(std::ignore, sg_modularity) = cugraph::leiden(
+        handle, rng_state, sg_graph_view, sg_edge_weight_view, 100, resolution, theta);
     }
     if (comm_rank == 0) {
       EXPECT_NEAR(mg_modularity, sg_modularity, std::max(mg_modularity, sg_modularity) * 1e-3);
@@ -148,8 +150,12 @@ class Tests_MGLeiden
       hr_timer.start("MG Leiden");
     }
 
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    raft::random::RngState rng_state(seed);
+
     auto [dendrogram, mg_modularity] =
       cugraph::leiden<vertex_t, edge_t, weight_t, true>(*handle_,
+                                                        rng_state,
                                                         mg_graph_view,
                                                         mg_edge_weight_view,
                                                         leiden_usecase.max_level_,
@@ -167,6 +173,7 @@ class Tests_MGLeiden
       SCOPED_TRACE("compare modularity input");
 
       compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
+                                                     rng_state,
                                                      mg_graph_view,
                                                      mg_edge_weight_view,
                                                      *dendrogram,
