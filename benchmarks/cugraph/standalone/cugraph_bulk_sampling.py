@@ -463,6 +463,14 @@ def get_args():
         required=False,
         default='500000,1000000,2000000',
     )
+    
+    parser.add_argument(
+        '--reverse_edges',
+        action='store_true',
+        help='Whether to reverse the edges for DGL (defaults to False).  Should be True for DGL, False for PyG.',
+        required=False,
+        default=False,
+    )
 
     parser.add_argument(
         '--dask_worker_devices',
@@ -529,7 +537,7 @@ if __name__ == "__main__":
                             seeds_per_call=seeds_per_call,
                             fanout=fanout,
                             dataset_dir=args.dataset_root,
-                            reverse_edges=False,
+                            reverse_edges=args.reverse_edges,
                             replication_factor=replication_factor
                         )
                         stats_d["dataset"] = dataset
