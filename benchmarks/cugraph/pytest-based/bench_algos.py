@@ -151,12 +151,18 @@ dataset_fixture_params = gen_fixture_params_product(
 # option is required to allow the RMM options to be set by the pytest user
 # directly, in order to prevent reinitialize() from being called more than once
 # (see conftest.py for details).
+# The defaults for managed_mem (False) and pool_alloc (True) are set in
+# conftest.py
 RMM_SETTINGS = {"managed_mem": False,
                 "pool_alloc": False}
 
-
+# FIXME: this only changes the RMM config in a SG environment. The dask config
+# that applies to RMM in an MG environment is not changed by this!
 def reinitRMM(managed_mem, pool_alloc):
-
+    """
+    Reinitializes RMM to the value of managed_mem and pool_alloc, but only if
+    those values are different that the current configuration.
+    """
     if (managed_mem != RMM_SETTINGS["managed_mem"]) or \
        (pool_alloc != RMM_SETTINGS["pool_alloc"]):
 
@@ -193,6 +199,7 @@ def rmm_config(request):
 @pytest.fixture(scope="module",
                 params=dataset_fixture_params)
 def dataset(request, rmm_config):
+
     """
     Fixture which provides a Dataset instance, setting up a Dask cluster and
     client if necessary for MG, to tests and other fixtures. When all

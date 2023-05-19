@@ -47,6 +47,13 @@ def pytest_sessionstart(session):
     # "mark expression" (-m) the markers for no managedmem and
     # poolallocator. This will result in the RMM reinit() function to be called
     # only once in the running process (the typical use case).
+    #
+    # FIXME: consider making the RMM config options set using a CLI option
+    # instead of by markers. This would mean only one RMM config can be used
+    # per test session, which could eliminate problems related to calling RMM
+    # reinit multiple times in the same process. This would not be a major
+    # change to the benchmark UX since the user is discouraged from doing a
+    # reinit multiple times anyway (hence the --allow-rmm-reinit flag).
     if session.config.getoption("allow_rmm_reinit") is False:
         currentMarkexpr = session.config.getoption("markexpr")
 
