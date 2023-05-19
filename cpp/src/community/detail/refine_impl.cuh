@@ -29,6 +29,9 @@
 #include <prims/update_edge_src_dst_property.cuh>
 #include <utilities/collect_comm.cuh>
 
+#include <raft/random/rng_device.cuh>
+#include <raft/random/rng_state.hpp>
+
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -36,8 +39,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
 #include <thrust/random.h>
-#include <thrust/random/linear_congruential_engine.h>
-#include <thrust/random/uniform_real_distribution.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/sort.h>
@@ -63,8 +64,7 @@ struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};  // resolution parameter
   weight_t theta{};       // scaling factor
-  mutable thrust::minstd_rand rng{};
-  mutable thrust::uniform_real_distribution<weight_t> dist{};
+  raft::random::DeviceState<raft::random::PCGenerator> device_state{};
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,
@@ -87,9 +87,6 @@ struct leiden_key_aggregated_edge_op_t {
     auto dst_leiden_cluster_id         = thrust::get<2>(keyed_data);
     auto louvain_of_dst_leiden_cluster = thrust::get<3>(keyed_data);
 
-    rng.discard(src);
-    weight_t random_number = dist(rng);
-
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
       dst_leiden_cut_to_louvain >
@@ -105,6 +102,19 @@ struct leiden_key_aggregated_edge_op_t {
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
                    resolution * src_weighted_deg * (dst_leiden_volume - src_weighted_deg) /
                      total_edge_weight;
+
+        weight_t random_number{0.0};
+        if (mod_gain > 0.0) {
+          auto flat_id = uint64_t{threadIdx.x + blockIdx.x * blockDim.x};
+          raft::random::PCGenerator gen(device_state, flat_id);
+
+          raft::random::UniformDistParams<weight_t> int_params{};
+          int_params.start = weight_t{0.0};
+          int_params.end   = weight_t{1.0};
+
+          raft::random::custom_next(gen, &random_number, int_params, 0, 0);
+          printf("=> %f \n", random_number);
+        }
 
         mod_gain = mod_gain > 0.0
                      ? __expf(static_cast<float>((2.0 * mod_gain) / (theta * total_edge_weight))) *
@@ -463,9 +473,6 @@ refine_clustering(
                                         handle.get_stream());
     }
 
-    raft::random::RngState rng_state(GraphViewType::is_multi_gpu ? handle.get_comms().get_rank()
-                                                                 : 0);
-
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
     // leiden(Cr) // f(Cr)
@@ -491,10 +498,9 @@ refine_clustering(
     //
     // Decide best/positive move for each vertex
     //
-
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    thrust::minstd_rand rng(seed);
-    thrust::uniform_real_distribution<weight_t> dist(0, 1);
+    raft::random::RngState rng_state(seed);
+    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
 
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -509,7 +515,7 @@ refine_clustering(
                                       leiden_assignment.data(), vertex_t{0}),
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
-        total_edge_weight, resolution, theta, rng, dist},
+        total_edge_weight, resolution, theta, device_state},
       thrust::make_tuple(weight_t{0}, vertex_t{-1}),
       reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
