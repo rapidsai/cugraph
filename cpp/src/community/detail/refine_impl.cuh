@@ -106,13 +106,10 @@ struct leiden_key_aggregated_edge_op_t {
         if (mod_gain > 0.0) {
           auto flat_id = uint64_t{threadIdx.x + blockIdx.x * blockDim.x};
           raft::random::PCGenerator gen(device_state, flat_id);
-
           raft::random::UniformDistParams<weight_t> int_params{};
           int_params.start = weight_t{0.0};
           int_params.end   = weight_t{1.0};
-
           raft::random::custom_next(gen, &random_number, int_params, 0, 0);
-          printf("=> %f \n", random_number);
         }
 
         mod_gain = mod_gain > 0.0
