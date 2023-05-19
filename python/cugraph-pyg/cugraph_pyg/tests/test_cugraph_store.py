@@ -29,6 +29,7 @@ import pytest
 
 
 torch = import_optional("torch")
+torch_geometric = import_optional("torch_geometric")
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
@@ -136,7 +137,10 @@ def test_edge_types(graph):
     assert eta.keys() == G.keys()
 
     for attr_name, attr_repr in eta.items():
-        assert len(G[attr_name][0]) == attr_repr.size[-1]
+        src_size = N[attr_name[0]]
+        dst_size = N[attr_name[-1]]
+        assert src_size == attr_repr.size[0]
+        assert dst_size == attr_repr.size[-1]
         assert attr_name == attr_repr.edge_type
 
 
@@ -249,6 +253,17 @@ def test_get_tensor(graph):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_get_tensor_empty_idx(karate_gnn):
+    F, G, N = karate_gnn
+    cugraph_store = CuGraphStore(F, G, N)
+
+    t = cugraph_store.get_tensor(
+        CuGraphTensorAttr(group_name="type0", attr_name="prop0", index=None)
+    )
+    assert t.tolist() == (torch.arange(17, dtype=torch.float32) * 31).tolist()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_multi_get_tensor(graph):
     F, G, N = graph
     cugraph_store = CuGraphStore(F, G, N)
@@ -342,6 +357,22 @@ def test_get_tensor_size(graph):
         assert cugraph_store.get_tensor_size(tensor_attr) == torch.Size((sz,))
 
 
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch_geometric, MissingModule), reason="pyg not available"
+)
+def test_get_input_nodes(karate_gnn):
+    F, G, N = karate_gnn
+    cugraph_store = CuGraphStore(F, G, N)
+
+    node_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
+        (cugraph_store, cugraph_store), "type0"
+    )
+
+    assert node_type == "type0"
+    assert input_nodes.tolist() == torch.arange(17, dtype=torch.int32).tolist()
+
+
 def test_serialize(multi_edge_multi_vertex_no_graph_1):
     import pickle
 
@@ -353,8 +384,9 @@ def test_serialize(multi_edge_multi_vertex_no_graph_1):
     for tensor_attr in cugraph_store.get_all_tensor_attrs():
         sz = cugraph_store.get_tensor_size(tensor_attr)[0]
         tensor_attr.index = np.arange(sz)
-        assert cugraph_store.get_tensor(tensor_attr) == cugraph_store_copy.get_tensor(
-            tensor_attr
+        assert (
+            cugraph_store.get_tensor(tensor_attr).tolist()
+            == cugraph_store_copy.get_tensor(tensor_attr).tolist()
         )
 
     # Currently does not store edgelist properly for SG
