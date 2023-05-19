@@ -12,10 +12,12 @@
 # limitations under the License.
 
 import logging
+import warnings
+import argparse
 
 from cugraph.testing.mg_utils import (
     generate_edgelist_rmat,
-    get_allocation_counts_dask_persist,
+    # get_allocation_counts_dask_persist,
     get_allocation_counts_dask_lazy,
     sizeof_fmt,
     get_peak_output_ratio_across_workers,
@@ -31,19 +33,25 @@ from cugraph.testing.mg_utils import (
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.experimental.gnn import BulkSampler
 
-from cugraph.dask import uniform_neighbor_sample
-
 import cugraph
 
+from datetime import datetime
+
+import json
+import re
+import os
+import gc
 from time import sleep
 from math import ceil
 
 import pandas as pd
+import numpy as np
 import cudf
 import dask_cudf
+import dask.dataframe as ddf
 import cupy
 
-from typing import Optional, Union
+from typing import Optional, Union, List, Dict
 
 
 def construct_graph(dask_dataframe):
@@ -121,13 +129,32 @@ def _make_batch_ids(bdf: cudf.DataFrame, batch_size: int, num_workers: int, part
     return bdf
 
 
+def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[str, int], partition_info: Optional[Union[dict, str]] = None):
+    # Required by dask; need to skip dummy partitions.
+    if partition_info is None:
+        return cudf.DataFrame({
+            'batch': cudf.Series(dtype='int32'),
+            'start': cudf.Series(dtype='int64')
+        })
+    
+    if replication_factor > 1:
+        for r in range(1, replication_factor):
+            df_replicated = df
+            for col, offset in col_offsets.items():
+                df_replicated[col] += offset * r
+        
+            df = cudf.concat([df, df_replicated], ignore_index=True)
+    
+    return df
+
+
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
-def sample_graph(G, seed=42, batch_size=500, seeds_per_call=200000, fanout=[5, 5, 5]):
+def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, fanout=[5, 5, 5]):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
         batch_size=batch_size,
-        output_path='/tmp/samples',
+        output_path=output_path,
         graph=G,
         fanout_vals=fanout,
         with_replacement=False,
@@ -141,62 +168,205 @@ def sample_graph(G, seed=42, batch_size=500, seeds_per_call=200000, fanout=[5, 5
     n_workers = len(default_client().scheduler_info()['workers'])
 
     meta = cudf.DataFrame({
-        'start': cudf.Series(dtype='int64'),
+        'node': cudf.Series(dtype='int64'),
         'batch': cudf.Series(dtype='int32')
     })
 
     
-    batch_df = dask_cudf.concat([G.edgelist.edgelist_df['src'], G.edgelist.edgelist_df['dst']]).unique().rename('start').to_frame().reset_index(drop=True).persist()
-    batch_df = batch_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta).persist()
+    batch_df = label_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta).persist()
+    del label_df
     print('created batches')
     
 
-    sampler.add_batches(batch_df, start_col_name='start', batch_col_name='batch')
+    sampler.add_batches(batch_df, start_col_name='node', batch_col_name='batch')
     sampler.flush()
     print('flushed all batches')
-    
-    """    
-    results_ddf = uniform_neighbor_sample(
-        G,
-        batch_df.start,
-        fanout_vals=[10,25],
-        batch_id_list=batch_df.batch,
-        with_replacement=False,
-        with_edge_properties=True,
-        random_state=seed
-    )
-    print(results_ddf.compute())
-    """
 
-def benchmark_cugraph_bulk_sampling(scale, edgefactor, seed, batch_size, seeds_per_call, fanout):
+
+def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1):
+    path = os.path.join(dataset_dir, dataset)
+    parquet_path = os.path.join(path, 'parquet')
+
+    with open(os.path.join(path, 'meta.json')) as meta_file:
+        meta = json.load(meta_file)
+    
+    # cuGraph-PyG assigns offsets based on lexicographic order
+    node_offsets = {}
+    node_offsets_replicated = {}
+    count = 0
+    count_replicated = 0
+    for node_type in sorted(meta['num_nodes'].keys()):
+        node_offsets[node_type] = count
+        node_offsets_replicated[node_type] = count_replicated
+
+        count += meta['num_nodes'][node_type]
+        count_replicated += meta['num_nodes'][node_type] * replication_factor
+
+    edge_index_dict = {}
+    for edge_type in os.listdir(parquet_path):
+        if re.match(r'[a-z]+__[a-z]+__[a-z]+', edge_type):
+            print(f'Loading edge index for edge type {edge_type}')
+
+            can_edge_type = tuple(edge_type.split('__'))
+            edge_index_dict[can_edge_type] = dask_cudf.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
+
+            edge_index_dict[can_edge_type]['src'] += node_offsets_replicated[can_edge_type[0]]
+            edge_index_dict[can_edge_type]['dst'] += node_offsets_replicated[can_edge_type[-1]]
+            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+
+            if replication_factor > 1:
+                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].map_partitions(
+                    _replicate_df,
+                    replication_factor,
+                    {
+                        'src': node_offsets[can_edge_type[0]],
+                        'dst': node_offsets[can_edge_type[2]],
+                    },
+                    meta=cudf.DataFrame({'src':cudf.Series(dtype='int64'), 'dst':cudf.Series(dtype='int64')})
+                ).persist()
+            
+            gc.collect()
+
+            if reverse_edges:
+                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename({'src':'dst','dst':'src'}).persist()
+    
+    # cuGraph-PyG assigns numeric edge type ids based on lexicographic order
+    for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
+        edge_index_dict[can_edge_type]['etp'] = cupy.int32(num_edge_type)
+    
+    all_edges_df = dask_cudf.concat(
+        list(edge_index_dict.values())
+    ).persist()
+
+    del edge_index_dict
+    gc.collect()
+
+    node_labels = {}
+    for node_type, offset in node_offsets_replicated.items():
+        print(f'Loading node labels for node type {node_type} (offset={offset})')
+        node_label_path = os.path.join(os.path.join(parquet_path, node_type), 'node_label.parquet')
+        if os.path.exists(node_label_path):
+            node_labels[node_type] = dask_cudf.read_parquet(node_label_path).drop('label',axis=1).persist()
+            node_labels[node_type]['node'] += offset
+            node_labels[node_type] = node_labels[node_type].persist()
+
+            if replication_factor > 1:
+                node_labels[node_type] = node_labels[node_type].map_partitions(
+                    _replicate_df,
+                    replication_factor,
+                    {
+                        'node': node_offsets[node_type]
+                    },
+                    meta=cudf.DataFrame({'node':cudf.Series(dtype='int64')})
+                ).persist()
+
+            gc.collect()
+    
+    node_labels_df = dask_cudf.concat(
+        list(node_labels.values())
+    ).persist()
+    
+    del node_labels
+    gc.collect()
+
+    return all_edges_df, node_labels_df
+    
+
+def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seeds_per_call, fanout, reverse_edges=True, dataset_dir='.', replication_factor=1, num_labels=256, labeled_percentage=0.001):
     """
     Entry point for the benchmark.
+
+    Parameters
+    ----------
+    dataset: str
+        The dataset to sample.  Can be rmat_{scale}_{edgefactor}, or the name of an ogb dataset.
+    output_path: str
+        The output path, where samples and metadata will be stored.
+    seed: int
+        The random seed.
+    batch_size: int
+        The batch size (number of input seeds in a single sampling batch).
+    seeds_per_call: int
+        The number of input seeds in a single sampling call.
+    fanout: list[int]
+        The fanout.
+    reverse_edges: bool
+        Whether to reverse edges when constructing the graph.
+    dataset_dir: str
+        The directory where datasets are stored (only for ogb datasets)
+    replication_factor: int
+        The number of times to replicate the dataset.
+    num_labels: int
+        The number of random labels to generate (only for rmat datasets)
+    labeled_percentage: float
+        The percentage of the data that is labeled (only for rmat datasets)
+        Defaults to 0.001 to match papers100M
     """
-    dask_df = generate_edgelist_rmat(
-        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
-    )
-    dask_df = dask_df.astype("int64")
-    dask_df = dask_df.reset_index(drop=True)
+    if dataset[0:5] == 'rmat':
+        dataset = dataset.split('_')
+        scale = int(dataset[1])
+        edgefactor = int(dataset[2])
+
+        dask_edgelist_df = generate_edgelist_rmat(
+            scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
+        )
+        dask_edgelist_df = dask_edgelist_df.astype("int64")
+        dask_edgelist_df = dask_edgelist_df.reset_index(drop=True)
 
 
-    dask_df = renumber_ddf(dask_df).persist()
-    dask_df = symmetrize_ddf(dask_df).persist()
-    dask_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
+        dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
+        dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
+        dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
+        
+        # generator = np.random.default_rng(seed=seed)
+        num_labeled_nodes = int(2**(scale+1) * labeled_percentage)
+        label_df = pd.DataFrame({
+            'node': np.arange(num_labeled_nodes),
+            # 'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
+        })
+        
+        dask_label_df = ddf.from_pandas(label_df)
+        del label_df
+        gc.collect()
 
-    num_input_edges = len(dask_df)
+        dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
+
+    else:
+        dask_edgelist_df, dask_label_df = load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor)
+
+    num_input_edges = len(dask_edgelist_df)
     print(
         f"Number of input edges = {num_input_edges:,}"
     )
 
     G = construct_graph(
-        dask_df
+        dask_edgelist_df
     )
     print('constructed graph')
 
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
     print(f'input memory: {input_memory}')
 
-    _, allocation_counts = sample_graph(G, seed, batch_size, seeds_per_call, fanout)
+    now = datetime.now()
+    timestring = datetime.strftime(now, '%Y-%m-%d-%H:%M:%S')
+    output_subdir = os.path.join(output_path, f'{dataset}[{replication_factor}]_b{batch_size}_f{fanout}_{timestring}')
+    os.makedirs(output_subdir)
+
+    output_sample_path = os.path.join(output_subdir, 'samples')
+    os.makedirs(output_sample_path)
+
+    output_meta = {
+        'dataset': dataset,
+        'seed': seed,
+        'batch_size': batch_size,
+        'seeds_per_call': seeds_per_call,
+        'fanout': fanout,
+        'replication_factor': replication_factor,
+    }
+    with open(os.path.join(output_subdir, 'output_meta.json'), 'w') as f:
+        json.dump(output_meta, f)
+
+    _, allocation_counts = sample_graph(G, dask_label_df, output_sample_path, seed, batch_size, seeds_per_call, fanout)
     print('allocation counts b:')
     print(allocation_counts.values())
 
@@ -242,22 +412,106 @@ def get_memory_statistics(allocation_counts, input_memory):
         peak_allocation_across_workers,
     )
 
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        '--output_root',
+        type=str,
+        help='The output root directory.  File/folder names are auto-generated.',
+        required=True,
+    )
+
+    parser.add_argument(
+        '--dataset_root',
+        type=str,
+        help='The dataset root directory containing ogb datasets.',
+        required=True,
+    )
+
+    parser.add_argument(
+        '--datasets',
+        type=str,
+        help=(
+            'Comma separated list of datasets; can specify ogb or rmat (i.e. ogb_papers100M[2],rmat_22_16).'
+            ' For ogb datasets, can provide replication factor using brackets.'
+        ),
+        required=True,
+    )
+
+    parser.add_argument(
+        '--fanouts',
+        type=str,
+        help='Comma separated list of fanouts (i.e. 10_25,5_5_5)',
+        required=False,
+        default='10_25',
+    )
+
+    parser.add_argument(
+        '--batch_sizes',
+        type=str,
+        help='Comma separated list of batch sizes (i.e. 500,1000)',
+        required=False,
+        default='500,1000'
+    )
+
+    parser.add_argument(
+        '--seeds_per_call_opts',
+        type=str,
+        help='Comma separated list of seeds per call (i.e. 1000000,2000000)',
+        required=False,
+        default='500000,1000000,2000000',
+    )
+
+    parser.add_argument(
+        '--dask_worker_devices',
+        type=str,
+        help='Comma separated list of dask worker devices',
+        required=False,
+        default=[0,1]
+    )
+
+    parser.add_argument(
+        '--random_seed',
+        type=int,
+        help='Random seed',
+        required=False,
+        default=62
+    )
+
+    return parser.parse_args()
+
+
 # call __main__ function
 if __name__ == "__main__":
     logging.basicConfig()
 
-    client, cluster = start_dask_client(dask_worker_devices=[1], jit_unspill=False)
+    args = get_args()
+    fanouts = [[int(f) for f in fanout.split('_')] for fanout in args.fanouts.split(',')]
+    datasets = args.datasets.split(',')
+    batch_sizes = [int(b) for b in args.batch_sizes.split(',')]
+    seeds_per_call_opts = [int(s) for s in args.seeds_per_call_opts.split(',')]
+    dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(',')]
+
+    client, cluster = start_dask_client(dask_worker_devices=dask_worker_devices, jit_unspill=False, rmm_pool_size=28e9, rmm_async=True)
     enable_spilling()
     stats_ls = []
     client.run(enable_spilling)
-    for scale in [22, 23, 24]:
-        for fanout in [[10,25]]:
-            for batch_size in [500, 1000]:
-                for seeds_per_call in [500_000, 1_000_000, 2_000_000]:
-                    print(f'scale: {scale}')
+    for dataset in datasets:
+        for fanout in fanouts:
+            for batch_size in batch_sizes:
+                for seeds_per_call in seeds_per_call_opts:
+                    print(f'dataset: {dataset}')
                     print(f'batch size: {batch_size}')
                     print(f'fanout: {fanout}')
                     print(f'seeds_per_call: {seeds_per_call}')
+
+                    if re.match(r'([A-z]|[0-9])+\[[0-9]+\]', dataset):
+                        replication_factor = int(dataset[-2])
+                        dataset = dataset[:-3]
+                    else:
+                        replication_factor = 1
 
                     try:
                         stats_d = {}
@@ -268,14 +522,17 @@ if __name__ == "__main__":
                             input_memory_per_worker,
                             peak_allocation_across_workers,
                         ) = benchmark_cugraph_bulk_sampling(
-                            scale=scale,
-                            edgefactor=16,
-                            seed=123,
+                            dataset=dataset,
+                            output_path=args.output_root,
+                            seed=args.random_seed,
                             batch_size=batch_size,
                             seeds_per_call=seeds_per_call,
                             fanout=fanout,
+                            dataset_dir=args.dataset_root,
+                            reverse_edges=False,
+                            replication_factor=replication_factor
                         )
-                        stats_d["scale"] = scale
+                        stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
                         stats_d["batch_size"] = batch_size
                         stats_d["fanout"] = fanout
@@ -288,6 +545,7 @@ if __name__ == "__main__":
                         stats_d["output_to_peak_ratio"] = output_to_peak_ratio
                         stats_ls.append(stats_d)
                     except Exception as e:
+                        warnings.warn('An Exception Occurred!')
                         print(e)
                     restart_client(client)
                     sleep(10)
@@ -295,7 +553,7 @@ if __name__ == "__main__":
         stats_df = pd.DataFrame(
             stats_ls,
             columns=[
-                "scale",
+                "dataset",
                 "num_input_edges",
                 "directed",
                 "renumber",
@@ -306,7 +564,7 @@ if __name__ == "__main__":
             ],
         )
         stats_df.to_csv("cugraph_graph_creation_stats.csv")
-        print("-" * 40 + f"scale = {scale} completed" + "-" * 40)
+        print("-" * 40 + f"dataset = {dataset} completed" + "-" * 40)
 
     # Cleanup Dask Cluster
     stop_dask_client(client, cluster)

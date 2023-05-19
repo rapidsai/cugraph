@@ -29,6 +29,7 @@ import numpy as np
 
 def start_dask_client(
     protocol=None,
+    rmm_async=False,
     rmm_pool_size=None,
     dask_worker_devices=None,
     jit_unspill=False,
@@ -67,6 +68,7 @@ def start_dask_client(
             local_directory=tempdir_object.name,
             protocol=protocol,
             rmm_pool_size=rmm_pool_size,
+            rmm_async=rmm_async,
             CUDA_VISIBLE_DEVICES=dask_worker_devices,
             jit_unspill=jit_unspill,
             device_memory_limit=device_memory_limit,
@@ -227,11 +229,6 @@ def get_allocation_counts_dask_lazy(return_allocations=False, logging=True):
             return_val = func(*args, **kwargs)
             et = time.time()
             allocation_counts = client.run(_get_allocation_counts)
-            allocation_counts = {
-                worker_id: _parse_allocation_counts(worker_allocations)
-                for worker_id, worker_allocations in allocation_counts.items()
-            }
-            
             if logging:
                 _print_allocation_statistics(
                     func, args, kwargs, et - st, allocation_counts

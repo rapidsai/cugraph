@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
@@ -25,8 +26,6 @@
 #include <raft/core/handle.hpp>
 #include <raft/core/host_span.hpp>
 #include <rmm/device_uvector.hpp>
-
-#include <cugraph/graph_mask.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -447,6 +446,7 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   edge_t number_of_local_edge_partition_edges(size_t partition_idx) const
   {
+    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
     return edge_partition_number_of_edges_[partition_idx];
   }
 
@@ -589,6 +589,8 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   edge_partition_view_t<vertex_t, edge_t, true> local_edge_partition_view(
     size_t partition_idx) const
   {
+    CUGRAPH_EXPECTS(!has_edge_mask(), "unimplemented.");
+
     vertex_t major_range_first{};
     vertex_t major_range_last{};
     vertex_t minor_range_first{};
@@ -737,6 +739,15 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return local_sorted_unique_edge_dst_vertex_partition_offsets_;
   }
 
+  void attach_edge_mask(edge_property_view_t<edge_t, uint32_t const*, bool> edge_mask_view)
+  {
+    edge_mask_view_ = edge_mask_view;
+  }
+
+  void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
+
+  bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+
  private:
   std::vector<edge_t const*> edge_partition_offsets_{};
   std::vector<vertex_t const*> edge_partition_indices_{};
@@ -782,6 +793,8 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
                      std::optional<raft::host_span<vertex_t const>>,
                      std::optional<std::byte> /* dummy */>
     local_sorted_unique_edge_dst_vertex_partition_offsets_{std::nullopt};
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
 
 // single-GPU version
@@ -1008,12 +1021,23 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
     return std::nullopt;
   }
 
+  void attach_edge_mask(edge_property_view_t<edge_t, uint32_t const*, bool> edge_mask_view)
+  {
+    edge_mask_view_ = edge_mask_view;
+  }
+
+  void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
+
+  bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+
  private:
   edge_t const* offsets_{nullptr};
   vertex_t const* indices_{nullptr};
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view_{std::nullopt};
 };
 
 }  // namespace cugraph
