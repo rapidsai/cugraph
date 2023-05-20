@@ -46,10 +46,6 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
 

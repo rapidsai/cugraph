@@ -34,6 +34,9 @@ from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_induced_subgraph_result_t,
 )
 
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t,
+)
 
 cdef extern from "cugraph_c/community_algorithms.h":
     ###########################################################################
@@ -139,6 +142,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
     cdef cugraph_error_code_t \
         cugraph_leiden(
             const cugraph_resource_handle_t* handle,
+            cugraph_rng_state_t* rng_state,
             cugraph_graph_t* graph,
             size_t max_level,
             double resolution,
