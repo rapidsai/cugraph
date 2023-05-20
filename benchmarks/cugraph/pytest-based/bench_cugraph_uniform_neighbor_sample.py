@@ -107,10 +107,8 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated, return a
     tuple containing (graph_obj, num_verts, client, cluster)
     """
-    n_devices = os.getenv("DASK_NUM_WORKERS", 4)
-    n_devices = int(n_devices)
     # range starts at 1 to let let 0 be used by benchmark/client process
-    visible_devices = ",".join([str(i) for i in range(1, n_devices+1)])
+    visible_devices = os.getenv("DASK_WORKER_DEVICES", "1,2,3,4")
 
     (client, cluster) = start_dask_client(
         # enable_tcp_over_ucx=True,

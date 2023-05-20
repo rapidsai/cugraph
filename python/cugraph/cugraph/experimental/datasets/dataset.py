@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -70,31 +70,94 @@ class Dataset:
         properties
     """
 
-    def __init__(self, meta_data_file_name):
-        with open(meta_data_file_name, "r") as file:
-            self.metadata = yaml.safe_load(file)
-
+    def __init__(
+        self,
+        metadata_yaml_file=None,
+        csv_file=None,
+        csv_header=None,
+        csv_delim=" ",
+        csv_col_names=None,
+        csv_col_dtypes=None,
+    ):
+        self._metadata_file = None
         self._dl_path = default_download_dir
         self._edgelist = None
-        self._graph = None
         self._path = None
+
+        if metadata_yaml_file is not None and csv_file is not None:
+            raise ValueError("cannot specify both metadata_yaml_file and csv_file")
+
+        elif metadata_yaml_file is not None:
+            with open(metadata_yaml_file, "r") as file:
+                self.metadata = yaml.safe_load(file)
+                self._metadata_file = Path(metadata_yaml_file)
+
+        elif csv_file is not None:
+            if csv_col_names is None or csv_col_dtypes is None:
+                raise ValueError(
+                    "csv_col_names and csv_col_dtypes must both be "
+                    "not None when csv_file is specified."
+                )
+            self._path = Path(csv_file)
+            if self._path.exists() is False:
+                raise FileNotFoundError(csv_file)
+            self.metadata = {
+                "name": self._path.with_suffix("").name,
+                "file_type": ".csv",
+                "url": None,
+                "header": csv_header,
+                "delim": csv_delim,
+                "col_names": csv_col_names,
+                "col_types": csv_col_dtypes,
+            }
+
+        else:
+            raise ValueError("must specify either metadata_yaml_file or csv_file")
+
+    def __str__(self):
         """
-        self._path = self._dl_path.path / (self.metadata['name'] +
-                                           self.metadata['file_type'])
+        Use the basename of the meta_data_file the instance was constructed with,
+        without any extension, as the string repr.
         """
+        # The metadata file is likely to have a more descriptive file name, so
+        # use that one first if present.
+        # FIXME: this may need to provide a more unique or descriptive string repr
+        if self._metadata_file is not None:
+            return self._metadata_file.with_suffix("").name
+        else:
+            return self.get_path().with_suffix("").name
 
     def __download_csv(self, url):
+        """
+        Downloads the .csv file from url to the current download path
+        (self._dl_path), updates self._path with the full path to the
+        downloaded file, and returns the latest value of self._path.
+        """
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
 
         filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
             df = cudf.read_csv(url)
-            df.to_csv(self._dl_path.path / filename, index=False)
+            self._path = self._dl_path.path / filename
+            df.to_csv(self._path, index=False)
 
         else:
             raise RuntimeError(
                 f"The directory {self._dl_path.path.absolute()}" "does not exist"
             )
+        return self._path
+
+    def unload(self):
+
+        """
+        Remove all saved internal objects, forcing them to be re-created when
+        accessed.
+
+        NOTE: This will cause calls to get_*() to re-read the dataset file from
+        disk. The caller should ensure the file on disk has not moved/been
+        deleted/changed.
+        """
+        self._edgelist = None
 
     def get_edgelist(self, fetch=False):
         """
@@ -106,12 +169,11 @@ class Dataset:
             Automatically fetch for the dataset from the 'url' location within
             the YAML file.
         """
-
         if self._edgelist is None:
             full_path = self.get_path()
             if not full_path.is_file():
                 if fetch:
-                    self.__download_csv(self.metadata["url"])
+                    full_path = self.__download_csv(self.metadata["url"])
                 else:
                     raise RuntimeError(
                         f"The datafile {full_path} does not"
@@ -131,7 +193,13 @@ class Dataset:
 
         return self._edgelist
 
-    def get_graph(self, fetch=False, create_using=Graph, ignore_weights=False):
+    def get_graph(
+        self,
+        fetch=False,
+        create_using=Graph,
+        ignore_weights=False,
+        store_transposed=False,
+    ):
         """
         Return a Graph object.
 
@@ -156,13 +224,13 @@ class Dataset:
             self.get_edgelist(fetch)
 
         if create_using is None:
-            self._graph = Graph()
+            G = Graph()
         elif isinstance(create_using, Graph):
             # what about BFS if trnaposed is True
             attrs = {"directed": create_using.is_directed()}
-            self._graph = type(create_using)(**attrs)
+            G = type(create_using)(**attrs)
         elif type(create_using) is type:
-            self._graph = create_using()
+            G = create_using()
         else:
             raise TypeError(
                 "create_using must be a cugraph.Graph "
@@ -171,23 +239,30 @@ class Dataset:
             )
 
         if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
-            self._graph.from_cudf_edgelist(
-                self._edgelist, source="src", destination="dst", edge_attr="wgt"
+            G.from_cudf_edgelist(
+                self._edgelist,
+                source="src",
+                destination="dst",
+                edge_attr="wgt",
+                store_transposed=store_transposed,
             )
         else:
-            self._graph.from_cudf_edgelist(
-                self._edgelist, source="src", destination="dst"
+            G.from_cudf_edgelist(
+                self._edgelist,
+                source="src",
+                destination="dst",
+                store_transposed=store_transposed,
             )
-
-        return self._graph
+        return G
 
     def get_path(self):
         """
         Returns the location of the stored dataset file
         """
-        self._path = self._dl_path.path / (
-            self.metadata["name"] + self.metadata["file_type"]
-        )
+        if self._path is None:
+            self._path = self._dl_path.path / (
+                self.metadata["name"] + self.metadata["file_type"]
+            )
 
         return self._path.absolute()
 
@@ -216,20 +291,6 @@ def load_all(force=False):
                 if not save_to.is_file() or force:
                     df = cudf.read_csv(meta["url"])
                     df.to_csv(save_to, index=False)
-
-
-def set_config(cfgpath):
-    """
-    Read in a custom config file.
-
-    Parameters
-    ----------
-    cfgfile : String
-        Read the custom config file given its path, and override the default
-    """
-    with open(Path(cfgpath), "r") as file:
-        cfg = yaml.safe_load(file)
-        default_download_dir.path = Path(cfg["download_dir"])
 
 
 def set_download_dir(path):
