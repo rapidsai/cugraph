@@ -2022,7 +2022,7 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
  */
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> compute_mis(
+rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::random::RngState& rng_state);

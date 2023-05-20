@@ -650,7 +650,7 @@ refine_clustering(
     //
 
     auto vertices_in_mis =
-      compute_mis<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
+      maximal_independent_set<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
     detail::sequence_fill(handle.get_stream(),
