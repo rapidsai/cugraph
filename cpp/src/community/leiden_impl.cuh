@@ -493,12 +493,36 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     }
 
     // Relabel dendrogram
+    vertex_t local_cluster_id_first{0};
+    if constexpr (multi_gpu) {
+      auto unique_cluster_range_lasts = cugraph::partition_manager::compute_partition_range_lasts(
+        handle, static_cast<vertex_t>(copied_louvain_partition.size()));
+
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+      auto const comm_rank = comm.get_rank();
+      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto const major_comm_rank = major_comm.get_rank();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      auto const minor_comm_rank = minor_comm.get_rank();
+
+      auto vertex_partition_id =
+        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+
+      local_cluster_id_first = vertex_partition_id == 0
+                                 ? vertex_t{0}
+                                 : unique_cluster_range_lasts[vertex_partition_id - 1];
+    }
+
     rmm::device_uvector<vertex_t> numbering_indices(copied_louvain_partition.size(),
                                                     handle.get_stream());
     detail::sequence_fill(handle.get_stream(),
                           numbering_indices.data(),
                           numbering_indices.size(),
-                          current_graph_view.local_vertex_partition_range_first());
+                          local_cluster_id_first);
 
     relabel<vertex_t, multi_gpu>(
       handle,
