@@ -53,7 +53,7 @@ sphinx-build -b text source _text
 popd
 
 
-if [[ "${RAPIDS_BUILD_TYPE}" == "branch" ]]; then
+if [[ "${RAPIDS_BUILD_TYPE}" != "pull-request" ]]; then
   rapids-logger "Upload Docs to S3"
   aws s3 sync --no-progress --delete docs/cugraph/_html "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/html"
   aws s3 sync --no-progress --delete docs/cugraph/_text "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/txt"
