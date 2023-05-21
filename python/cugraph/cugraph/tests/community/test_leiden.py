@@ -120,7 +120,6 @@ def input_and_expected_output(request):
 
     G = cugraph.Graph()
 
-    # Done in the test
     if input_type == "COO":
         # Create graph from an edgelist
         df = cudf.DataFrame()
