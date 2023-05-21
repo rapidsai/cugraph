@@ -29,6 +29,8 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <raft/core/handle.hpp>
+
 #include <optional>
 
 namespace {
@@ -36,7 +38,7 @@ namespace {
 struct leiden_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
-  cugraph::c_api::cugraph_graph_t* graph_;
+  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   size_t max_level_;
   double resolution_;
   bool do_expensive_check_;
@@ -68,10 +70,6 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
-    } else if constexpr (multi_gpu) {
-      error_code_            = CUGRAPH_NOT_IMPLEMENTED;
-      error_->error_message_ = "leiden not currently implemented for multi-GPU";
-
     } else {
       // leiden expects store_transposed == false
       if constexpr (store_transposed) {
