@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from cugraph import Graph
 
 
-
 def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
@@ -45,11 +44,7 @@ def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
 
 
 def _call_plc_leiden(
-    sID: bytes,
-    mg_graph_x,
-    max_iter: int,
-    resolution: int,
-    do_expensive_check: bool
+    sID: bytes, mg_graph_x, max_iter: int, resolution: int, do_expensive_check: bool
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_leiden(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -138,9 +133,7 @@ def leiden(
 
     wait(result)
 
-    part_mod_score = [
-        client.submit(convert_to_cudf, r) for r in result
-    ]
+    part_mod_score = [client.submit(convert_to_cudf, r) for r in result]
     wait(part_mod_score)
 
     vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
@@ -157,15 +150,13 @@ def leiden(
         [r[0] for r in part_mod_score], meta=empty_df, verify_meta=False
     ).persist()
 
-
     mod_score = dask.array.from_delayed(
         part_mod_score[0][1], shape=(1,), dtype=float
     ).compute()
 
-
     wait(ddf)
     wait(mod_score)
-   
+
     wait([r.release() for r in part_mod_score])
 
     if input_graph.renumbered:
