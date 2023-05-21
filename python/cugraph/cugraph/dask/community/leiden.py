@@ -16,23 +16,31 @@
 from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
+import dask
+from dask import delayed
 import cudf
 import operator as op
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import leiden as pylibcugraph_leiden
-from typing import Tuple
+import numpy
+from typing import Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cugraph import Graph
 
 
-def convert_to_cudf(cupy_vertex, cupy_partition):
+
+def convert_to_cudf(result):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
+    cupy_vertex, cupy_partition, modularity = result
     df = cudf.DataFrame()
     df["vertex"] = cupy_vertex
     df["partition"] = cupy_partition
 
-    return df
+    return df, modularity
 
 
 def _call_plc_leiden(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
@@ -46,14 +54,11 @@ def _call_plc_leiden(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
 
 
 def leiden(
-    input_graph, max_iter: int = 100, resolution: int = 1.0
+    input_graph: Graph, max_iter: int = 100, resolution: int = 1.0
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     Leiden method
-
-    # FIXME: check if it is still the current implementation
-    It uses the Leiden method described in:
 
     Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
     guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
@@ -98,14 +103,14 @@ def leiden(
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> parts = cugraph.leiden(G)
+    >>> parts, modularity_score = cugraph.leiden(G)
 
     """
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-    # Initialize dask client
+    # Return a client if one has started
     client = default_client()
 
     do_expensive_check = False
@@ -126,33 +131,35 @@ def leiden(
 
     wait(result)
 
-    # futures is a list of Futures containing tuples of (DataFrame, mod_score),
-    # unpack using separate calls to client.submit with a callable to get
-    # individual items.
-    # FIXME: look into an alternate way (not returning a tuples, accessing
-    # tuples differently, etc.) since multiple client.submit() calls may not be
-    # optimal.
-    # FIXME: Optimize the job submission
-    result_vertex = [client.submit(op.getitem, f, 0) for f in result]
-    result_partition = [client.submit(op.getitem, f, 1) for f in result]
-    mod_score = [client.submit(op.getitem, f, 2) for f in result]
-
-    cudf_result = [
-        client.submit(convert_to_cudf, cp_vertex_arrays, cp_partition_arrays)
-        for cp_vertex_arrays, cp_partition_arrays in zip(
-            result_vertex, result_partition
-        )
+    part_mod_score = [
+        client.submit(convert_to_cudf, r) for r in result
     ]
+    wait(part_mod_score)
 
-    wait(cudf_result)
-    # Each worker should have computed the same mod_score
-    mod_score = mod_score[0].result()
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    empty_df = cudf.DataFrame(
+        {
+            "vertex": numpy.empty(shape=0, dtype=vertex_dtype),
+            "partition": numpy.empty(shape=0, dtype="int32"),
+        }
+    )
 
-    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    part_mod_score = [delayed(lambda x: x, nout=2)(r) for r in part_mod_score]
+
+    ddf = dask_cudf.from_delayed(
+        [r[0] for r in part_mod_score], meta=empty_df, verify_meta=False
+    ).persist()
+
+
+    mod_score = dask.array.from_delayed(
+        part_mod_score[0][1], shape=(1,), dtype=float
+    ).compute()
+
+
     wait(ddf)
-
-    # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait(mod_score)
+   
+    wait([r.release() for r in part_mod_score])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
