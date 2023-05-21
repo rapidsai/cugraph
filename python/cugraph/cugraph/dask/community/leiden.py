@@ -24,6 +24,7 @@ import operator as op
 from pylibcugraph import ResourceHandle
 from pylibcugraph import leiden as pylibcugraph_leiden
 import numpy
+import cupy as cp
 from typing import Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
 
 
-def convert_to_cudf(result):
+def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
@@ -43,7 +44,13 @@ def convert_to_cudf(result):
     return df, modularity
 
 
-def _call_plc_leiden(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
+def _call_plc_leiden(
+    sID: bytes,
+    mg_graph_x,
+    max_iter: int,
+    resolution: int,
+    do_expensive_check: bool
+) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_leiden(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
