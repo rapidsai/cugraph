@@ -217,7 +217,7 @@ def sssp(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
 
-    if not G.edgelist.weights:
+    if not G.weighted:
         err_msg = (
             "'SSSP' requires the input graph to be weighted."
             "'BFS' should be used instead of 'SSSP' for unweighted graphs."
