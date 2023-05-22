@@ -491,3 +491,18 @@ def test_sssp_csr_graph(graph_file):
 
     assert len(distance_diffs) == 0
     assert len(predecessor_diffs) == 0
+
+
+@pytest.mark.sg
+def test_sssp_unweighted_graph():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    error_msg = (
+        "'SSSP' requires the input graph to be weighted."
+        "'BFS' should be used instead of 'SSSP' for unweighted graphs."
+    )
+
+    with pytest.raises(RuntimeError, match=error_msg):
+        result = cugraph.sssp(G, 1)
+
