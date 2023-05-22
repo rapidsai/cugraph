@@ -43,7 +43,12 @@ def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
 
 
 def _call_plc_leiden(
-    sID: bytes, mg_graph_x, max_iter: int, resolution: int, random_state: int, do_expensive_check: bool
+    sID: bytes,
+    mg_graph_x,
+    max_iter: int,
+    resolution: int,
+    random_state: int,
+    do_expensive_check: bool,
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_leiden(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
