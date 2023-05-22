@@ -504,5 +504,4 @@ def test_sssp_unweighted_graph():
     )
 
     with pytest.raises(RuntimeError, match=error_msg):
-        result = cugraph.sssp(G, 1)
-
+        cugraph.sssp(G, 1)
