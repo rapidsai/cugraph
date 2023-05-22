@@ -19,7 +19,6 @@ import dask_cudf
 import dask
 from dask import delayed
 import cudf
-import operator as op
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import leiden as pylibcugraph_leiden
