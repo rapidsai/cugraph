@@ -118,7 +118,8 @@ def leiden(
 
     do_expensive_check = False
 
-    # FIXME: random_state was set to 'None' by default
+    # FIXME: random_state is hardcoded to 'None'. Should it be
+    # exposed ?
     result = [
         client.submit(
             _call_plc_leiden,
