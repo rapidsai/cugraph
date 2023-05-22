@@ -61,9 +61,32 @@ Running the example in these notebooks requires:
 * CUDA 11.4+
 * NVIDIA driver 450.51+
 
+
+
+## Notebooks outside the algorithm subdirectory are specified here along with what they need to run
+They are not currently tested daily due to run constraints so we will keep track of special
+and the latest fixes/tests
+
+|Notebook              |Location                 |Environment       |Extra Dependencies|Notes                                        |
+|----------------------|-------------------------|------------------|------------------|---------------------------------------------|
+|batch_betweenness     |N/A                      |                  |                  |removed due to missing batch algorithm 23.0  |
+|mg_louvain            |demo                     |cugraph conda     |None              |fixed in PR #3558/23.06                      |
+|mg_pagerank           |demo                     |cugraph conda     |None              |fixed in PR #3558/23.06                      |
+|mg_property_graph     |demo                     |cugraph conda     |None              |fixed in PR #3558/23.06                      |
+|uvm                   |demo                     |cugraph conda     |None              |fixed in PR/23.06                            |
+|CostMatrix            |applications             |cugraph conda     |None              |fixed in PR #3551/23.06                      |
+|gen_550M              |applications             |cugraph conda     |None              |tested and documented  PR #3551/23.06        |
+|multi_gpu_pagerank    |contrib/community/cugraph|cugraph conda     |None              |fixed notebook-contrib PR #374/23.06         |
+|bfs_benchmark         |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
+|louvain_benchmark     |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
+|pagerank_benchmark    |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
+|sssp_benchmark        |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
+
+
+
 #### Copyright
 
-Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
