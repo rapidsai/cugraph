@@ -11,30 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import pytest
 
-from dask.distributed import Client
-from cugraph.dask.comms import comms as Comms
-from cugraph.testing.mg_utils import stop_dask_client, start_dask_client
+from cugraph.testing.mg_utils import (
+    start_dask_client,
+    stop_dask_client,
+)
 
 
 @pytest.fixture(scope="module")
 def dask_client():
-    dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
-
-    if dask_scheduler_file is not None:
-        dask_client = Client(scheduler_file=dask_scheduler_file)
-        dask_cluster = None
-    else:
-        dask_client, dask_cluster = start_dask_client(
-            dask_worker_devices="0", protocol="tcp"
-        )
-
-    if not Comms.is_initialized():
-        Comms.initialize(p2p=True)
+    # start_dask_client will check for the SCHEDULER_FILE and
+    # DASK_WORKER_DEVICES env vars and use them when creating a client if
+    # set. start_dask_client will also initialize the Comms singleton.
+    dask_client, dask_cluster = start_dask_client(
+        dask_worker_devices="0", protocol="tcp"
+    )
 
     yield dask_client
 
     stop_dask_client(dask_client, dask_cluster)
-    print("\ndask_client fixture: client.close() called")
