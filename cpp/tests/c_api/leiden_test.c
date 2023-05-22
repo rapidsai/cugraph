@@ -55,8 +55,7 @@ int generic_leiden_test(vertex_t* h_src,
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
-  int rank = cugraph_resource_handle_get_rank(p_handle);
-  ret_code = cugraph_rng_state_create(p_handle, rank, &p_rng_state, &ret_error);
+  ret_code = cugraph_rng_state_create(p_handle, 0, &p_rng_state, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
