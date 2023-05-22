@@ -43,11 +43,11 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> compute_mis(
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
+  raft::random::RngState& rng_state)
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
@@ -78,21 +78,16 @@ rmm::device_uvector<vertex_t> compute_mis(
   thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, ranks.begin());
 
   // Set ranks of zero out-degree vetices to std::numeric_limits<vertex_t>::lowest()
-  thrust::for_each(
+  thrust::transform_if(
     handle.get_thrust_policy(),
-    vertex_begin,
-    vertex_end,
-    [out_degrees = raft::device_span<edge_t const>(out_degrees.data(), out_degrees.size()),
-     ranks       = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-     v_first     = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-      auto v_offset = v - v_first;
-      if (out_degrees[v_offset] == 0) { ranks[v_offset] = std::numeric_limits<vertex_t>::lowest(); }
-    });
+    out_degrees.begin(),
+    out_degrees.end(),
+    ranks.begin(),
+    [] __device__(auto) { return std::numeric_limits<vertex_t>::lowest(); },
+    [] __device__(auto deg) { return deg == 0; });
 
   out_degrees.resize(0, handle.get_stream());
   out_degrees.shrink_to_fit(handle.get_stream());
-
-  raft::random::RngState rng_state(multi_gpu ? handle.get_comms().get_rank() : 0);
 
   size_t loop_counter = 0;
   while (true) {
@@ -119,7 +114,8 @@ rmm::device_uvector<vertex_t> compute_mis(
                                                                 nr_remaining_vertices_to_check),
                                           nr_remaining_vertices_to_check);
 
-    // FIXME: (nr_remaining_vertices_to_check < 1024)? avoid calling select_random_vertices
+    // FIXME: Can we improve performance here?
+    // FIXME: if(nr_remaining_vertices_to_check < 1024), may avoid calling select_random_vertices
     auto d_sampled_vertices =
       cugraph::select_random_vertices(handle,
                                       graph_view,
@@ -172,7 +168,6 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     //
     // Find maximum rank outgoing neighbor for each vertex
-    // (In case of Leiden decision graph, each vertex has at most one outgoing edge)
     //
 
     rmm::device_uvector<vertex_t> max_outgoing_ranks(local_vtx_partitoin_size, handle.get_stream());
@@ -314,13 +309,13 @@ rmm::device_uvector<vertex_t> compute_mis(
 }
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> compute_mis(
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
+  raft::random::RngState& rng_state)
 {
-  return detail::compute_mis(handle, graph_view, edge_weight_view);
+  return detail::maximal_independent_set(handle, graph_view, rng_state);
 }
 
 }  // namespace cugraph

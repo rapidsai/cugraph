@@ -136,9 +136,11 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
     size_t level;
     weight_t modularity;
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    raft::random::RngState rng_state(seed);
 
     std::tie(level, modularity) = cugraph::leiden(
-      handle, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
+      handle, rng_state, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
 
     float compare_modularity = static_cast<float>(modularity);
 
@@ -238,21 +240,5 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Leiden_Usecase{}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-
-INSTANTIATE_TEST_SUITE_P(
-  file64_benchmark_test_hollywood, /* note that the test filename can be overridden in benchmarking (with
-                          --gtest_filter to select only the file_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one File_Usecase that differ only in filename
-                          (to avoid running same benchmarks more than once) */
-  Tests_Leiden_File64,
-  ::testing::Combine(
-    // disable correctness checks for large graphs
-    ::testing::Values(Leiden_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("/raid/charlesh/datasets/test/datasets/hollywood.mtx"))));
-
-
-
 
 CUGRAPH_TEST_PROGRAM_MAIN()

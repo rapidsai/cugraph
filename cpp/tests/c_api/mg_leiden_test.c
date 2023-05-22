@@ -44,13 +44,20 @@ int generic_leiden_test(const cugraph_resource_handle_t* p_handle,
   cugraph_graph_t* p_graph                           = NULL;
   cugraph_hierarchical_clustering_result_t* p_result = NULL;
 
+  int rank = cugraph_resource_handle_get_rank(p_handle);
+  cugraph_rng_state_t* rng_state;
+  ret_code = cugraph_rng_state_create(p_handle, rank, &rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
   ret_code = create_mg_test_graph(
     p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_leiden(p_handle, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_leiden(
+    p_handle, rng_state, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
 
 #if 1
   TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_leiden should have failed");

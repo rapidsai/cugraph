@@ -29,6 +29,8 @@
 #include <prims/update_edge_src_dst_property.cuh>
 #include <utilities/collect_comm.cuh>
 
+#include <raft/random/rng_device.cuh>
+
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
@@ -36,8 +38,6 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
 #include <thrust/random.h>
-#include <thrust/random/linear_congruential_engine.h>
-#include <thrust/random/uniform_real_distribution.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/sort.h>
@@ -45,10 +45,6 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
-
-#include <algorithm>
-#include <chrono>
-#include <cmath>
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
@@ -63,10 +59,7 @@ struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};  // resolution parameter
   weight_t theta{};       // scaling factor
-  thrust::minstd_rand rng{};
-  thrust::uniform_real_distribution<float> dist{};
-  bool debug{};
-
+  raft::random::DeviceState<raft::random::PCGenerator> device_state{};
   __device__ auto operator()(
     vertex_t src,
     vertex_t neighboring_leiden_cluster,
@@ -88,7 +81,6 @@ struct leiden_key_aggregated_edge_op_t {
     auto dst_leiden_cut_to_louvain     = thrust::get<1>(keyed_data);
     auto dst_leiden_cluster_id         = thrust::get<2>(keyed_data);
     auto louvain_of_dst_leiden_cluster = thrust::get<3>(keyed_data);
-    auto random_number                 = thrust::get<4>(keyed_data);
 
     // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
     bool is_dst_leiden_cluster_well_connected =
@@ -99,50 +91,27 @@ struct leiden_key_aggregated_edge_op_t {
     // aggregated_weight_to_neighboring_leiden_cluster == E(v, Cr-v)?
 
     weight_t mod_gain = -1.0;
-    // if ((is_src_active > 0) && is_src_well_connected) {
     if (is_src_active > 0) {
       if ((louvain_of_dst_leiden_cluster == src_louvain_cluster) &&
           is_dst_leiden_cluster_well_connected) {
-        // thrust::minstd_rand rng;
-        // thrust::uniform_real_distribution<float> dist(0, 1);
-        // float random_number = dist(rng);
-        // if (debug) printf("random_number=%f\n", random_number);
-
-        // rng.discard(static_cast<unsigned>(src));
-        // float random_number = dist(rng);
-
         mod_gain = aggregated_weight_to_neighboring_leiden_cluster -
                    resolution * src_weighted_deg * (dst_leiden_volume - src_weighted_deg) /
                      total_edge_weight;
+
+        weight_t random_number{0.0};
+        if (mod_gain > 0.0) {
+          auto flat_id = uint64_t{threadIdx.x + blockIdx.x * blockDim.x};
+          raft::random::PCGenerator gen(device_state, flat_id);
+          raft::random::UniformDistParams<weight_t> int_params{};
+          int_params.start = weight_t{0.0};
+          int_params.end   = weight_t{1.0};
+          raft::random::custom_next(gen, &random_number, int_params, 0, 0);
+        }
 
         mod_gain = mod_gain > 0.0
                      ? __expf(static_cast<float>((2.0 * mod_gain) / (theta * total_edge_weight))) *
                          random_number
                      : -1.0;
-
-        int src_id      = static_cast<int>(src);
-        int dl_cid      = static_cast<int>(neighboring_leiden_cluster);
-        int cut_to_dl   = static_cast<int>(aggregated_weight_to_neighboring_leiden_cluster);
-        int s_wdeg      = static_cast<int>(src_weighted_deg);
-        int dl_vol      = static_cast<int>(dst_leiden_volume);
-        int tew         = static_cast<int>(total_edge_weight);
-        float fmod_gain = static_cast<float>(mod_gain);
-
-        if (neighboring_leiden_cluster != dst_leiden_cluster_id) { printf("\n BUG \n"); }
-
-        if (debug) {
-          printf("\ndst_leiden = %d  vol(dst_leiden)=%d  \n", dl_cid, dl_vol);
-          printf(
-            "\nsrc = %d  dst_leiden = %d cut(src, dst_leiden) = %d wdeg(src)=%d vol(dst_leiden)=%d "
-            "total_weight=%d \n",
-            src_id,
-            dl_cid,
-            cut_to_dl,
-            s_wdeg,
-            dl_vol,
-            tew);
-          printf("\n return dst_leiden = %d  mod_gain=%f  \n", dl_cid, fmod_gain);
-        }
       }
     }
 
@@ -156,6 +125,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
                      rmm::device_uvector<typename GraphViewType::vertex_type>>>
 refine_clustering(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   GraphViewType const& graph_view,
   std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
     edge_weight_view,
@@ -496,17 +466,6 @@ refine_clustering(
                                         handle.get_stream());
     }
 
-    raft::random::RngState rng_state(GraphViewType::is_multi_gpu ? handle.get_comms().get_rank()
-                                                                 : 0);
-    rmm::device_uvector<weight_t> random_numbers(leiden_keys_used_in_edge_reduction.size(),
-                                                 handle.get_stream());
-    cugraph::detail::uniform_random_fill<weight_t>(handle.get_stream(),
-                                                   random_numbers.data(),
-                                                   random_numbers.size(),
-                                                   float{0.0},
-                                                   float{1.0},
-                                                   rng_state);
-
     // ||Cr|| //f(Cr)
     // E(Cr, louvain(v) - Cr) //f(Cr)
     // leiden(Cr) // f(Cr)
@@ -515,10 +474,9 @@ refine_clustering(
       thrust::make_tuple(refined_community_volumes.begin(),
                          refined_community_cuts.begin(),
                          leiden_keys_used_in_edge_reduction.begin(),  // redundant
-                         louvain_of_leiden_keys_used_in_edge_reduction.begin(),
-                         random_numbers.begin()));
+                         louvain_of_leiden_keys_used_in_edge_reduction.begin()));
 
-    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t, weight_t>;
+    using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
     kv_store_t<vertex_t, value_t, true> leiden_cluster_key_values_map(
       leiden_keys_used_in_edge_reduction.begin(),
       leiden_keys_used_in_edge_reduction.begin() + leiden_keys_used_in_edge_reduction.size(),
@@ -526,18 +484,16 @@ refine_clustering(
       thrust::make_tuple(std::numeric_limits<weight_t>::max(),
                          std::numeric_limits<weight_t>::max(),
                          invalid_vertex_id<vertex_t>::value,
-                         invalid_vertex_id<vertex_t>::value,
-                         std::numeric_limits<weight_t>::max()),
+                         invalid_vertex_id<vertex_t>::value),
       false,
       handle.get_stream());
 
     //
     // Decide best/positive move for each vertex
     //
-
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    thrust::minstd_rand rng(seed);
-    thrust::uniform_real_distribution<float> dist(0, 1);
+    raft::random::RngState rng_state(seed);
+    raft::random::DeviceState<raft::random::PCGenerator> device_state(rng_state);
 
     auto gain_and_dst_output_pairs = allocate_dataframe_buffer<thrust::tuple<weight_t, vertex_t>>(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
@@ -552,7 +508,7 @@ refine_clustering(
                                       leiden_assignment.data(), vertex_t{0}),
       leiden_cluster_key_values_map.view(),
       detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{
-        total_edge_weight, resolution, theta, rng, dist, (graph_view.number_of_vertices() < 50)},
+        total_edge_weight, resolution, theta, device_state},
       thrust::make_tuple(weight_t{0}, vertex_t{-1}),
       reduce_op::maximum<thrust::tuple<weight_t, vertex_t>>(),
       cugraph::get_dataframe_buffer_begin(gain_and_dst_output_pairs));
@@ -587,24 +543,14 @@ refine_clustering(
     // Filter out moves with -ve gains
     //
 
-    vertex_t nr_valid_tuples = thrust::count_if(
-      handle.get_thrust_policy(),
-      gain_and_dst_first,
-      gain_and_dst_last,
-      [debug = graph_view.number_of_vertices() < 35] __device__(auto gain_dst_pair) {
-        vertex_t dst  = thrust::get<1>(gain_dst_pair);
-        weight_t gain = thrust::get<0>(gain_dst_pair);
-#if 1
-        if (gain > POSITIVE_GAIN) {
-          int idst    = static_cast<int>(dst);
-          int igain   = static_cast<int>(gain);
-          int igain_p = static_cast<int>(gain * 100.0);
-
-          if (debug) printf("\ndst = %d gain = %d\n gain=%d/100", idst, igain, igain_p);
-        }
-#endif
-        return (gain > POSITIVE_GAIN) && (dst >= 0);
-      });
+    vertex_t nr_valid_tuples = thrust::count_if(handle.get_thrust_policy(),
+                                                gain_and_dst_first,
+                                                gain_and_dst_last,
+                                                [] __device__(auto gain_dst_pair) {
+                                                  vertex_t dst  = thrust::get<1>(gain_dst_pair);
+                                                  weight_t gain = thrust::get<0>(gain_dst_pair);
+                                                  return (gain > POSITIVE_GAIN) && (dst >= 0);
+                                                });
 
     vertex_t total_nr_valid_tuples = nr_valid_tuples;
     if (GraphViewType::is_multi_gpu) {
@@ -636,31 +582,17 @@ refine_clustering(
                          thrust::get<1>(gain_and_dst_last.get_iterator_tuple()),
                          thrust::get<0>(gain_and_dst_last.get_iterator_tuple())));
 
-    thrust::copy_if(
-      handle.get_thrust_policy(),
-      edge_begin,
-      edge_end,
-      d_src_dst_gain_iterator,
-      [debug = (graph_view.number_of_vertices() < 35)] __device__(
-        thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
-        vertex_t src  = thrust::get<0>(src_dst_gain);
-        vertex_t dst  = thrust::get<1>(src_dst_gain);
-        weight_t gain = thrust::get<2>(src_dst_gain);
+    thrust::copy_if(handle.get_thrust_policy(),
+                    edge_begin,
+                    edge_end,
+                    d_src_dst_gain_iterator,
+                    [] __device__(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_gain) {
+                      vertex_t src  = thrust::get<0>(src_dst_gain);
+                      vertex_t dst  = thrust::get<1>(src_dst_gain);
+                      weight_t gain = thrust::get<2>(src_dst_gain);
 
-#if 1
-        if (gain > POSITIVE_GAIN) {
-          int isrc    = static_cast<int>(src);
-          int idst    = static_cast<int>(dst);
-          int igain   = static_cast<int>(gain);
-          int igain_p = static_cast<int>(gain * 100.0);
-
-          if (debug)
-            printf("=>> src = %d dst = %d gain=%d gain = %d/100\n", isrc, idst, igain, igain_p);
-        }
-#endif
-
-        return (gain > POSITIVE_GAIN) && (dst >= 0);
-      });
+                      return (gain > POSITIVE_GAIN) && (dst >= 0);
+                    });
 
     //
     // Create decision graph from edgelist
@@ -717,20 +649,8 @@ refine_clustering(
     // Determine a set of moves using MIS of the decision_graph
     //
 
-    auto vertices_in_mis = compute_mis<vertex_t, edge_t, weight_t, multi_gpu>(
-      handle,
-      decision_graph_view,
-      coarse_edge_weights ? std::make_optional(coarse_edge_weights->view()) : std::nullopt);
-
-    std::cout << "mis size: " << vertices_in_mis.size() << std::endl;
-
-#if 1
-    if (graph_view.number_of_vertices() < 35) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());
-      raft::print_device_vector(
-        "vertices_in_mis", vertices_in_mis.data(), vertices_in_mis.size(), std::cout);
-    }
-#endif
+    auto vertices_in_mis =
+      maximal_independent_set<vertex_t, edge_t, multi_gpu>(handle, decision_graph_view, rng_state);
 
     rmm::device_uvector<vertex_t> numbering_indices((*renumber_map).size(), handle.get_stream());
     detail::sequence_fill(handle.get_stream(),

@@ -19,6 +19,7 @@
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
+#include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
@@ -130,6 +131,7 @@ cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
  * @return error code
  */
 cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
+                                    cugraph_rng_state_t* rng_state,
                                     cugraph_graph_t* graph,
                                     size_t max_level,
                                     double resolution,

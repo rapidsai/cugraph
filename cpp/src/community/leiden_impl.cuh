@@ -51,6 +51,7 @@ template <typename vertex_t,
           bool store_transposed = false>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -415,6 +416,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
       std::tie(refined_leiden_partition, leiden_to_louvain_map) =
         detail::refine_clustering(handle,
+                                  rng_state,
                                   current_graph_view,
                                   current_edge_weight_view,
                                   total_edge_weight,
@@ -491,12 +493,36 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     }
 
     // Relabel dendrogram
+    vertex_t local_cluster_id_first{0};
+    if constexpr (multi_gpu) {
+      auto unique_cluster_range_lasts = cugraph::partition_manager::compute_partition_range_lasts(
+        handle, static_cast<vertex_t>(copied_louvain_partition.size()));
+
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+      auto const comm_rank = comm.get_rank();
+      auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+      auto const major_comm_size = major_comm.get_size();
+      auto const major_comm_rank = major_comm.get_rank();
+      auto& minor_comm = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+      auto const minor_comm_size = minor_comm.get_size();
+      auto const minor_comm_rank = minor_comm.get_rank();
+
+      auto vertex_partition_id =
+        partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+          major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank);
+
+      local_cluster_id_first = vertex_partition_id == 0
+                                 ? vertex_t{0}
+                                 : unique_cluster_range_lasts[vertex_partition_id - 1];
+    }
+
     rmm::device_uvector<vertex_t> numbering_indices(copied_louvain_partition.size(),
                                                     handle.get_stream());
     detail::sequence_fill(handle.get_stream(),
                           numbering_indices.data(),
                           numbering_indices.size(),
-                          current_graph_view.local_vertex_partition_range_first());
+                          local_cluster_id_first);
 
     relabel<vertex_t, multi_gpu>(
       handle,
@@ -548,6 +574,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
@@ -556,7 +583,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
+  return detail::leiden(
+    handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -573,6 +601,7 @@ void flatten_dendrogram(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,
@@ -589,7 +618,7 @@ std::pair<size_t, weight_t> leiden(
   weight_t modularity;
 
   std::tie(dendrogram, modularity) =
-    detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution, theta);
+    detail::leiden(handle, rng_state, graph_view, edge_weight_view, max_level, resolution, theta);
 
   detail::flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
 
