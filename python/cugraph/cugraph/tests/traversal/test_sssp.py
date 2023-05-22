@@ -474,7 +474,6 @@ def test_sssp_csr_graph(graph_file):
 
     G_csr.from_cudf_adjlist(offsets, indices, weights)
 
-
     result_csr = cugraph.sssp(G_csr, source)
     result_coo = cugraph.sssp(G_coo, source)
 
@@ -486,7 +485,7 @@ def test_sssp_csr_graph(graph_file):
     )
     result_sssp["distance_csr"] = result_csr["distance"]
     result_sssp["predecessor_csr"] = result_csr["predecessor"]
-    
+
     distance_diffs = result_sssp.query("distance_csr != distance_coo")
     predecessor_diffs = result_sssp.query("predecessor_csr != predecessor_coo")
 
