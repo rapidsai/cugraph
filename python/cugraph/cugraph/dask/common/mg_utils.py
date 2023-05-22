@@ -13,11 +13,8 @@
 
 import os
 
-import rmm
 import numba.cuda
 
-from dask_cuda import LocalCUDACluster
-from dask.distributed import Client
 
 # FIXME: this raft import breaks the library if ucx-py is
 # not available. They are necessary only when doing MG work.
@@ -32,11 +29,6 @@ except ImportError as err:
         default_client = MissingUCXPy()
     else:
         raise
-# FIXME: cugraph/__init__.py also imports the comms module, but
-# depending on the import environment, cugraph/comms/__init__.py
-# may be imported instead. The following imports the comms.py
-# module directly
-from cugraph.dask.comms import comms as Comms
 
 
 # FIXME: We currently look for the default client from dask, as such is the
@@ -76,42 +68,3 @@ def get_visible_devices():
     else:
         visible_devices = _visible_devices.strip().split(",")
     return visible_devices
-
-
-def setup_local_dask_cluster(p2p=True):
-    """
-    Performs steps to setup a Dask cluster using LocalCUDACluster and returns
-    the LocalCUDACluster and corresponding client instance.
-    """
-    cluster = LocalCUDACluster()
-    client = Client(cluster)
-    client.wait_for_workers(len(get_visible_devices()))
-    Comms.initialize(p2p=p2p)
-
-    return (cluster, client)
-
-
-def teardown_local_dask_cluster(cluster, client):
-    """
-    Performs steps to destroy a Dask cluster and a corresponding client
-    instance.
-    """
-    Comms.destroy()
-    client.close()
-    cluster.close()
-
-
-def start_dask_client():
-    n_devices = os.getenv("DASK_NUM_WORKERS", 2)
-    n_devices = int(n_devices)
-
-    visible_devices = ",".join([str(i) for i in range(1, n_devices + 1)])
-
-    cluster = LocalCUDACluster(
-        protocol="ucx", rmm_pool_size="25GB", CUDA_VISIBLE_DEVICES=visible_devices
-    )
-    client = Client(cluster)
-    Comms.initialize(p2p=True)
-    rmm.reinitialize(pool_allocator=True)
-
-    return cluster, client

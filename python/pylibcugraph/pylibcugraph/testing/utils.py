@@ -36,17 +36,17 @@ def gen_fixture_params(*param_values):
     combination passed in, or a callable that accepts a list of values and
     returns a string.
 
-    gen_fixture_params( (pytest.param(True, marks=[pytest.mark.A_good], id="A=True"),
-                         pytest.param(False, marks=[pytest.mark.B_bad], id="B=False")),
-                        (pytest.param(False, marks=[pytest.mark.A_bad], id="A=False"),
-                         pytest.param(True, marks=[pytest.mark.B_good], id="B=True")),
+    gen_fixture_params( (pytest.param(True, marks=[pytest.mark.A_good], id="A:True"),
+                         pytest.param(False, marks=[pytest.mark.B_bad], id="B:False")),
+                        (pytest.param(False, marks=[pytest.mark.A_bad], id="A:False"),
+                         pytest.param(True, marks=[pytest.mark.B_good], id="B:True")),
                        )
 
 
     results in fixture param combinations:
 
-    True, False  - marks=[A_good, B_bad]  - id="A=True,B=False"
-    False, False - marks=[A_bad, B_bad]   - id="A=False,B=True"
+    True, False  - marks=[A_good, B_bad]  - id="A:True-B:False"
+    False, False - marks=[A_bad, B_bad]   - id="A:False-B:True"
     """
     fixture_params = []
     param_type = pytest.param().__class__  #
@@ -89,10 +89,10 @@ def gen_fixture_params_product(*args):
 
     results in fixture param combinations:
 
-    True, True   - marks=[A_good, B_good] - id="A=True,B=True"
-    True, False  - marks=[A_good, B_bad]  - id="A=True,B=False"
-    False, True  - marks=[A_bad, B_good]  - id="A=False,B=True"
-    False, False - marks=[A_bad, B_bad]   - id="A=False,B=False"
+    True, True   - marks=[A_good, B_good] - id="A:True-B:True"
+    True, False  - marks=[A_good, B_bad]  - id="A:True-B:False"
+    False, True  - marks=[A_bad, B_good]  - id="A:False-B:True"
+    False, False - marks=[A_bad, B_bad]   - id="A:False-B:False"
 
     Simply using itertools.product on the lists would result in a list of
     sublists of individual param objects (ie. not "merged"), which would not be
@@ -124,9 +124,9 @@ def gen_fixture_params_product(*args):
         for (p, paramId) in zip(paramCombo, ids):
             # Assume paramId is either a string or a callable
             if isinstance(paramId, str):
-                id_strings.append("%s=%s" % (paramId, p.values[0]))
+                id_strings.append("%s:%s" % (paramId, p.values[0]))
             else:
                 id_strings.append(paramId(p.values[0]))
-        comboid = ",".join(id_strings)
+        comboid = "-".join(id_strings)
         retList.append(pytest.param(values, marks=marks, id=comboid))
     return retList

@@ -545,7 +545,8 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
 @pytest.mark.mg
 @pytest.mark.parametrize("with_replacement", [True, False])
 @pytest.mark.skipif(
-    int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
+    len(os.getenv("DASK_WORKER_DEVICES", "0").split(",")) < 2,
+    reason="too few workers to test",
 )
 def test_uniform_neighbor_edge_properties_sample_small_start_list(
     dask_client, with_replacement
