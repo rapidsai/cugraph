@@ -216,8 +216,8 @@ def sssp(
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
-
-    if not G.is_weighted:
+    
+    if not G.is_weighted():
         err_msg = (
             "'SSSP' requires the input graph to be weighted."
             "'BFS' should be used instead of 'SSSP' for unweighted graphs."
