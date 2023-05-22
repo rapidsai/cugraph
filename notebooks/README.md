@@ -63,24 +63,25 @@ Running the example in these notebooks requires:
 
 
 
-## Notebooks outside the algorithm subdirectory are specified here along with what they need to run
-They are not currently tested daily due to run constraints so we will keep track of special
-and the latest fixes/tests
+## Notebooks not tested as part of the cuGraph continous integration system are tracked here along with requirements to run them.
+The following table keeps track of the latest fixes and version testing as well as any special environment and dependencies needed to run them. 
+
+If any notebook doesn't run as detailed here, please file an issue in [cuGraph](https://github.com/rapidsai/cugraph/issues)
 
 |Notebook              |Location                 |Environment       |Extra Dependencies|Notes                                        |
 |----------------------|-------------------------|------------------|------------------|---------------------------------------------|
-|batch_betweenness     |N/A                      |                  |                  |removed due to missing batch algorithm 23.0  |
-|mg_louvain            |demo                     |cugraph conda     |None              |fixed in PR #3558/23.06                      |
-|mg_pagerank           |demo                     |cugraph conda     |None              |fixed in PR #3558/23.06                      |
-|mg_property_graph     |demo                     |cugraph conda     |None              |fixed in PR #3558/23.06                      |
-|uvm                   |demo                     |cugraph conda     |None              |fixed in PR/23.06                            |
-|CostMatrix            |applications             |cugraph conda     |None              |fixed in PR #3551/23.06                      |
-|gen_550M              |applications             |cugraph conda     |None              |tested and documented  PR #3551/23.06        |
-|multi_gpu_pagerank    |contrib/community/cugraph|cugraph conda     |None              |fixed notebook-contrib PR #374/23.06         |
-|bfs_benchmark         |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
-|louvain_benchmark     |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
-|pagerank_benchmark    |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
-|sssp_benchmark        |cugraph_benchmark        |cugraph conda     |None              |fixed in PR #3561/23.06                      |
+|batch_betweenness     |N/A                      |                  |                  |removed due to missing batch algorithm 23.06 |
+|[MultiGPU Louvain](demo/mg_louvain.ipynb)            |demo                     |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3558/23.06                      |
+|[MultiGPU Pagerank](demo/mg_pagerank.ipynb)           |demo                     |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3558/23.06                      |
+|[MultiGPU Property Graph](demo/mg_property_graph.ipynb)     |demo                     |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3558/23.06                      |
+|[Managed Memory Pagerank](demo/uvm.ipynb)                   |demo                     |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR/23.06                            |
+|[Cost Matrix simulating all Points shortest Path](applications/CostMatrix.ipynb)            |applications             |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3551/23.06                      |
+|[Generating Transaction data using RMAT](applications/gen_550M.ipynb)              |applications             |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |tested and documented  PR #3551/23.06        |
+|[MultiGPU tutorial with Pagerank](https://github.com/rapidsai-community/notebooks-contrib/blob/main/community_tutorials_and_guides/cugraph/multi_gpu_pagerank.ipynb)    |contrib/community/cugraph|[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed notebook-contrib PR #374/23.06         |
+|[Breadth first search benchmark](cugraph_benchmarks/bfs_benchmark.ipynb)         |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
+|[Louvain benchmark](cugraph_benchmarks/louvain_benchmark.ipynb)     |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
+|[Pagerank benchmark](cugraph_benchmarks/pagerank_benchmark.ipynb)    |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
+|[sssp_benchmark](sssp_benchmarks/bfs_benchmark.ipynb)        |cugraph_benchmark        |[cugraph conda](https://github.com/rapidsai/cugraph/blob/branch-23.06/conda/environments/all_cuda-118_arch-x86_64.yaml)     |None              |fixed in PR #3561/23.06                      |
 
 
 
