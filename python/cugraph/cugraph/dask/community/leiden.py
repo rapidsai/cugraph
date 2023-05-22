@@ -44,10 +44,11 @@ def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
 
 
 def _call_plc_leiden(
-    sID: bytes, mg_graph_x, max_iter: int, resolution: int, do_expensive_check: bool
+    sID: bytes, mg_graph_x, max_iter: int, resolution: int, random_state: int, do_expensive_check: bool
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_leiden(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        random_state=random_state,
         graph=mg_graph_x,
         max_level=max_iter,
         resolution=resolution,
@@ -117,6 +118,7 @@ def leiden(
 
     do_expensive_check = False
 
+    # FIXME: random_state was set to 'None' by default
     result = [
         client.submit(
             _call_plc_leiden,
@@ -124,6 +126,7 @@ def leiden(
             input_graph._plc_graph[w],
             max_iter,
             resolution,
+            None,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
