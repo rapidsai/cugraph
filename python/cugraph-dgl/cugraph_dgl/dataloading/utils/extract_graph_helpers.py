@@ -25,8 +25,13 @@ def create_cugraph_graph_from_edges_dict(
 ):
     if edge_dir == "in":
         edges_dict = {k: reverse_edges(df) for k, df in edges_dict.items()}
-    # TODO: Potentially skip this for memory efficiencies
-    edges_dict = {k: add_etype_id(df, etype_id_dict[k]) for k, df in edges_dict.items()}
+    if len(edges_dict) > 1:
+        has_multiple_etypes = True
+        edges_dict = {
+            k: add_etype_id(df, etype_id_dict[k]) for k, df in edges_dict.items()
+        }
+    else:
+        has_multiple_etypes = False
 
     edges_dfs = list(edges_dict.values())
     del edges_dict
@@ -36,24 +41,26 @@ def create_cugraph_graph_from_edges_dict(
         edges_df = cudf.concat(edges_dfs, ignore_index=True)
     del edges_dfs
 
-    edges_df["wgt"] = np.float32(0)
     G = cugraph.MultiGraph(directed=True)
     if isinstance(edges_df, dask_cudf.DataFrame):
-        G.from_dask_cudf_edgelist(
-            edges_df,
-            source="_SRC_",
-            destination="_DST_",
-            edge_attr=["wgt", "_EDGE_ID_", "etp"],
-            renumber=True,
-        )
+        g_creation_f = G.from_dask_cudf_edgelist
     else:
-        G.from_cudf_edgelist(
-            edges_df,
-            source="_SRC_",
-            destination="_DST_",
-            edge_attr=["wgt", "_EDGE_ID_", "etp"],
-            renumber=True,
-        )
+        g_creation_f = G.from_cudf_edgelist
+
+    if has_multiple_etypes:
+        edge_etp = "etp"
+    else:
+        edge_etp = None
+
+    g_creation_f(
+        edges_df,
+        source="_SRC_",
+        destination="_DST_",
+        weight=None,
+        edge_id="_EDGE_ID_",
+        edge_type=edge_etp,
+        renumber=True,
+    )
     return G
 
 
