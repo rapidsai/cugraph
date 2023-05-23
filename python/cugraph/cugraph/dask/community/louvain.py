@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
+
 from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
