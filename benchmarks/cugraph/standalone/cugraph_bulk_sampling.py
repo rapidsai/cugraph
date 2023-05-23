@@ -41,7 +41,7 @@ import json
 import re
 import os
 import gc
-from time import sleep
+from time import sleep, perf_counter
 from math import ceil
 
 import pandas as pd
@@ -178,9 +178,12 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
     print('created batches')
     
 
+    start_time = perf_counter()
     sampler.add_batches(batch_df, start_col_name='node', batch_col_name='batch')
     sampler.flush()
+    end_time = perf_counter()
     print('flushed all batches')
+    return (end_time - start_time)
 
 
 def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1):
@@ -355,18 +358,21 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
     output_sample_path = os.path.join(output_subdir, 'samples')
     os.makedirs(output_sample_path)
 
+    execution_time, allocation_counts = sample_graph(G, dask_label_df, output_sample_path, seed, batch_size, seeds_per_call, fanout)
+
     output_meta = {
         'dataset': dataset,
+        'dataset_dir': dataset_dir,
         'seed': seed,
         'batch_size': batch_size,
         'seeds_per_call': seeds_per_call,
         'fanout': fanout,
         'replication_factor': replication_factor,
+        'execution_time': execution_time,
     }
     with open(os.path.join(output_subdir, 'output_meta.json'), 'w') as f:
         json.dump(output_meta, f)
 
-    _, allocation_counts = sample_graph(G, dask_label_df, output_sample_path, seed, batch_size, seeds_per_call, fanout)
     print('allocation counts b:')
     print(allocation_counts.values())
 
