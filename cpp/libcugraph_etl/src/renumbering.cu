@@ -748,10 +748,8 @@ struct renumber_functor {
              cudf::table_view const& dst_view)
   {
     return std::make_tuple(
-      std::unique_ptr<cudf::column>(new cudf::column(
-        cudf::data_type(cudf::type_id::INT32), 0, rmm::device_buffer{0, cudaStream_t{0}})),
-      std::unique_ptr<cudf::column>(new cudf::column(
-        cudf::data_type(cudf::type_id::INT32), 0, rmm::device_buffer{0, cudaStream_t{0}})),
+      cudf::make_empty_column(cudf::type_id::INT32),
+      cudf::make_empty_column(cudf::type_id::INT32),
       std::make_unique<cudf::table>(std::vector<std::unique_ptr<cudf::column>>{}));
   }
 
@@ -960,14 +958,18 @@ struct renumber_functor {
     std::vector<std::unique_ptr<cudf::column>> renumber_table_vectors;
 
     auto offset_col_1 =
-      std::unique_ptr<cudf::column>(new cudf::column(cudf::data_type(cudf::type_id::INT32),
-                                                     key_value_count + 1,
-                                                     std::move(out_col1_offsets.release())));
+      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+                                     key_value_count + 1,
+                                     std::move(out_col1_offsets.release()),
+                                     rmm::device_buffer{},
+                                     0);
 
     auto str_col_1 =
-      std::unique_ptr<cudf::column>(new cudf::column(cudf::data_type(cudf::type_id::INT8),
-                                                     hist_insert_counter[0],
-                                                     std::move(unrenumber_col1_chars)));
+      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT8),
+                                     hist_insert_counter[0],
+                                     std::move(unrenumber_col1_chars),
+                                     rmm::device_buffer{},
+                                     0);
 
     renumber_table_vectors.push_back(
       cudf::make_strings_column(size_type(key_value_count),
@@ -977,14 +979,18 @@ struct renumber_functor {
                                 rmm::device_buffer(size_type(0), exec_strm)));
 
     auto offset_col_2 =
-      std::unique_ptr<cudf::column>(new cudf::column(cudf::data_type(cudf::type_id::INT32),
-                                                     key_value_count + 1,
-                                                     std::move(out_col2_offsets.release())));
+      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+                                     key_value_count + 1,
+                                     std::move(out_col2_offsets.release()),
+                                     rmm::device_buffer{},
+                                     0);
 
     auto str_col_2 =
-      std::unique_ptr<cudf::column>(new cudf::column(cudf::data_type(cudf::type_id::INT8),
-                                                     hist_insert_counter[1],
-                                                     std::move(unrenumber_col2_chars)));
+      std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT8),
+                                     hist_insert_counter[1],
+                                     std::move(unrenumber_col2_chars),
+                                     rmm::device_buffer{},
+                                     0);
 
     renumber_table_vectors.push_back(
       cudf::make_strings_column(size_type(key_value_count),
@@ -1036,11 +1042,17 @@ struct renumber_functor {
       reinterpret_cast<Dtype*>(dst_buffer.data()));
 
     std::vector<std::unique_ptr<cudf::column>> cols_vector;
-    cols_vector.push_back(std::unique_ptr<cudf::column>(
-      new cudf::column(cudf::data_type(cudf::type_id::INT32), num_rows, std::move(src_buffer))));
+    cols_vector.push_back(std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+                                                         num_rows,
+                                                         std::move(src_buffer),
+                                                         rmm::device_buffer{},
+                                                         0));
 
-    cols_vector.push_back(std::unique_ptr<cudf::column>(
-      new cudf::column(cudf::data_type(cudf::type_id::INT32), num_rows, std::move(dst_buffer))));
+    cols_vector.push_back(std::make_unique<cudf::column>(cudf::data_type(cudf::type_id::INT32),
+                                                         num_rows,
+                                                         std::move(dst_buffer),
+                                                         rmm::device_buffer{},
+                                                         0));
 
     RAFT_CHECK_CUDA(cudaDeviceSynchronize());
 
