@@ -47,12 +47,20 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
 )
+from pylibcugraph._cugraph_c.random cimport (
+    cugraph_rng_state_t
+)
+from pylibcugraph.random cimport (
+    CuGraphRandomState
+)
 
 
 def leiden(ResourceHandle resource_handle,
+           random_state,
            _GPUGraph graph,
            size_t max_level,
            double resolution,
+           double theta,
            bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -63,6 +71,11 @@ def leiden(ResourceHandle resource_handle,
     resource_handle : ResourceHandle
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
+
+    random_state : int , optional
+        Random state to use when generating samples. Optional argument,
+        defaults to a hash of process id, time, and hostname.
+        (See pylibcugraph.random.CuGraphRandomState)
 
     graph : SGGraph or MGGraph
         The input graph.
@@ -78,6 +91,11 @@ def leiden(ResourceHandle resource_handle,
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
         Defaults to 1.
+
+    theta: double
+        Called theta in the Leiden algorithm, this is used to scale
+        modularity gain in Leiden refinement phase, to compute
+        the probability of joining a random leiden community.
 
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
@@ -117,10 +135,16 @@ def leiden(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    cg_rng_state = CuGraphRandomState(resource_handle, random_state)
+
+    cdef cugraph_rng_state_t* rng_state_ptr = cg_rng_state.rng_state_ptr
+
     error_code = cugraph_leiden(c_resource_handle_ptr,
+                                rng_state_ptr,
                                 c_graph_ptr,
                                 max_level,
                                 resolution,
+                                theta,
                                 do_expensive_check,
                                 &result_ptr,
                                 &error_ptr)
