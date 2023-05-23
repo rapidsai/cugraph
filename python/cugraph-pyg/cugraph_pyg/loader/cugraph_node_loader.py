@@ -49,7 +49,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         shuffle: bool = False,
         edge_types: Sequence[Tuple[str]] = None,
         directory: Union[str, tempfile.TemporaryDirectory] = None,
-        input_files: List[str]=None,
+        input_files: List[str] = None,
         starting_batch_id: int = 0,
         batches_per_partition: int = 100,
         # Sampler args
