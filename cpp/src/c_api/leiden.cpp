@@ -130,6 +130,7 @@ extern "C" cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* 
                                                cugraph_graph_t* graph,
                                                size_t max_level,
                                                double resolution,
+                                               double theta,
                                                bool_t do_expensive_check,
                                                cugraph_hierarchical_clustering_result_t** result,
                                                cugraph_error_t** error)

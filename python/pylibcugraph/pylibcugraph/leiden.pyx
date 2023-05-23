@@ -60,6 +60,7 @@ def leiden(ResourceHandle resource_handle,
            _GPUGraph graph,
            size_t max_level,
            double resolution,
+           double theta,
            bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -90,6 +91,11 @@ def leiden(ResourceHandle resource_handle,
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
         Defaults to 1.
+
+    theta: double
+        Called theta in the Leiden algorithm, this is used to scale
+        modularity gain in Leiden refinement phase, to compute
+        the probability of joining a random leiden community.
 
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
@@ -138,6 +144,7 @@ def leiden(ResourceHandle resource_handle,
                                 c_graph_ptr,
                                 max_level,
                                 resolution,
+                                theta,
                                 do_expensive_check,
                                 &result_ptr,
                                 &error_ptr)
