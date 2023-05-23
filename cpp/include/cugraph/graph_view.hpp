@@ -748,6 +748,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
 
   bool has_edge_mask() const { return edge_mask_view_.has_value(); }
 
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
+  {
+    return edge_mask_view_;
+  }
+
  private:
   std::vector<edge_t const*> edge_partition_offsets_{};
   std::vector<vertex_t const*> edge_partition_indices_{};
@@ -1029,6 +1034,11 @@ class graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu, std::enable_if
   void clear_edge_mask() { edge_mask_view_ = std::nullopt; }
 
   bool has_edge_mask() const { return edge_mask_view_.has_value(); }
+
+  std::optional<edge_property_view_t<edge_t, uint32_t const*, bool>> edge_mask_view() const
+  {
+    return edge_mask_view_;
+  }
 
  private:
   edge_t const* offsets_{nullptr};
