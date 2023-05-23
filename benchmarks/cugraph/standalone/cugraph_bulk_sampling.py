@@ -149,7 +149,7 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
-def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, fanout=[5, 5, 5]):
+def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5]):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -160,7 +160,7 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         with_replacement=False,
         random_state=seed,
         seeds_per_call=seeds_per_call,
-        batches_per_partition=200_000 // batch_size,
+        batches_per_partition=batches_per_partition,
         log_level = 'INFO'
     )
 
@@ -358,7 +358,17 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
     output_sample_path = os.path.join(output_subdir, 'samples')
     os.makedirs(output_sample_path)
 
-    execution_time, allocation_counts = sample_graph(G, dask_label_df, output_sample_path, seed, batch_size, seeds_per_call, fanout)
+    batches_per_partition = 200_000 // batch_size
+    execution_time, allocation_counts = sample_graph(
+        G,
+        dask_label_df,
+        output_sample_path,
+        seed=seed,
+        batch_size=batch_size,
+        seeds_per_call=seeds_per_call,
+        batches_per_partition=batches_per_partition,
+        fanout=fanout
+    )
 
     output_meta = {
         'dataset': dataset,
@@ -366,8 +376,10 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         'seed': seed,
         'batch_size': batch_size,
         'seeds_per_call': seeds_per_call,
+        'batches_per_partition': batches_per_partition,
         'fanout': fanout,
         'replication_factor': replication_factor,
+        'num_sampling_gpus': len(G._plc_graph),
         'execution_time': execution_time,
     }
     with open(os.path.join(output_subdir, 'output_meta.json'), 'w') as f:

@@ -22,6 +22,7 @@ import torch
 import numpy as np
 
 from torch_geometric.nn import CuGraphSAGEConv
+from torch_geometric.nn import to_hetero
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -49,21 +50,38 @@ class CuGraphSAGE(nn.Module):
         super().__init__()
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(CuGraphSAGEConv(in_channels, hidden_channels))
-        for _ in range(num_layers - 1):
-            conv = CuGraphSAGEConv(hidden_channels, hidden_channels)
+        self.convs.append(CuGraphSAGEConv(in_channels, hidden_channels, aggr='mean'))
+        for _ in range(num_layers - 2):
+            conv = CuGraphSAGEConv(hidden_channels, hidden_channels, aggr='mean')
             self.convs.append(conv)
+        
+        self.convs.append(CuGraphSAGEConv(hidden_channels, out_channels, aggr='mean'))
 
-        self.lin = nn.Linear(hidden_channels, out_channels)
+    def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
+        if len(num_sampled_nodes) != len(self.convs) + 1:
+            raise KeyError("Num sampled nodes length did not match # layers")
+        if len(num_sampled_edges) != len(self.convs):
+            raise KeyError("Num sampled edges did not match # layers")
 
-    def forward(self, x, edge, size):
-        edge_csc = CuGraphSAGEConv.to_csc(edge, (size[0], size[0]))
         for conv in self.convs:
-            x = conv(x, edge_csc)[: size[1]]
+            if not edge.is_cuda:
+                edge = edge.cuda()
+
+            edge_csc = CuGraphSAGEConv.to_csc(edge[-num_sampled_edges[-1]:], (num_sampled_nodes[-2], num_sampled_nodes[-1]))
+            edge = edge[:-num_sampled_edges[-1]]
+            num_sampled_edges = num_sampled_edges[:-1]
+            num_sampled_nodes = num_sampled_nodes[:-1]
+
+            if not x.is_cuda:
+                x = x.cuda()
+            if x.dtype != torch.float32:
+                x = x.to(torch.float32)
+
+            x = conv(x, edge_csc)
             x = F.relu(x)
             x = F.dropout(x, p=0.5)
 
-        return self.lin(x)
+        return x
 
 
 def init_pytorch_worker(device_id: int) -> None:
@@ -88,7 +106,7 @@ def init_pytorch_worker(device_id: int) -> None:
 def train_native(device:int, features_device:Union[str, int] = "cpu", num_epochs=1) -> None:
     pass
 
-def train(device: int, meta: dict, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
+def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
     """
     Parameters
     ----------
@@ -103,25 +121,32 @@ def train(device: int, meta: dict, features_device: Union[str, int] = "cpu", num
     import cudf
     import cugraph
     from cugraph_pyg.data import CuGraphStore
-    from cugraph_pyg.loader import CuGraphNeighborLoader
+    from cugraph_pyg.loader import BulkSampleLoader
 
-    dataset_path = os.path.join(meta['dataset_dir'], meta['dataset'])
+    with open(os.path.join(bulk_samples_dir, 'output_meta.json'), 'r') as f:
+        output_meta = json.load(f)
+
+    dataset_path = os.path.join(output_meta['dataset_dir'], output_meta['dataset'])
     with open(os.path.join(dataset_path, 'meta.json'), 'r') as f:
         input_meta = json.load(f)
 
-    replication_factor = meta['replication_factor']
+    replication_factor = output_meta['replication_factor']
     G = {tuple(edge_type.split('__')): t * replication_factor for edge_type, t in input_meta['num_edges'].items()}
     N = {node_type: t * replication_factor for node_type, t in input_meta['num_nodes'].items()}
 
     fs = cugraph.gnn.FeatureStore(backend="torch")
 
+    num_input_features = 0
+    num_output_features = 0
     for node_type in os.listdir(dataset_path, 'npy'):
-        feature_data = load_disk_features(meta, node_type, replication_factor=replication_factor)
+        feature_data = load_disk_features(output_meta, node_type, replication_factor=replication_factor)
         fs.add_data(
             torch.as_tensor(feature_data, device=features_device),
             node_type,
             "x",
         )
+        if feature_data.shape[1] > num_input_features:
+            num_input_features = feature_data.shape[1]
 
         label_path = os.path.join(dataset_path, 'parquet', node_type, 'node_label.parquet')
         if os.path.exists(label_path):
@@ -134,14 +159,16 @@ def train(device: int, meta: dict, features_device: Union[str, int] = "cpu", num
             gc.collect()
 
             fs.add_data(torch.as_tensor(node_label, device=device), node_type, 'y')
+            if len(node_label) > num_output_features:
+                num_output_features = len(node_label)
 
-    cugraph_store = CuGraphStore(fs, G, N)
-
-    model = (
-        CuGraphSAGE(in_channels=128, hidden_channels=64, out_channels=349, num_layers=3)
+    model = to_hetero(
+        CuGraphSAGE(in_channels=num_input_features, hidden_channels=64, out_channels=num_output_features, num_layers=len(output_meta['fanout']))
         .to(torch.float32)
         .to(device)
     )
+    
+    cugraph_store = CuGraphStore(fs, G, N)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
@@ -149,32 +176,33 @@ def train(device: int, meta: dict, features_device: Union[str, int] = "cpu", num
         start_time_train = time.perf_counter_ns()
         model.train()
 
-        cugraph_bulk_loader = CuGraphNeighborLoader(
-            cugraph_store, train_nodes, batch_size=500, num_neighbors=[10, 25]
+        cugraph_loader = BulkSampleLoader(
+            cugraph_store,
+            cugraph_store,
+            input_nodes=None,
+            directory=os.path.join(bulk_samples_dir, 'samples'),
         )
 
         total_loss = 0
         num_batches = 0
 
-        # This context manager will handle different # batches per rank
-        # barrier() cannot do this since the number of ops per rank is
-        # different.  It essentially acts like barrier would if the
-        # number of ops per rank was the same.
         for epoch in range(num_epochs):
-            for iter_i, hetero_data in enumerate(cugraph_bulk_loader):
+            for iter_i, hetero_data in enumerate(cugraph_loader):
                 num_batches += 1
                 if iter_i % 20 == 0:
                     print(f"iteration {iter_i}")
 
                 # train
-                train_mask = hetero_data.train_dict["paper"]
-                y_true = hetero_data.y_dict["paper"]
+                train_mask = hetero_data.train_dict
+                y_true = hetero_data.y_dict
 
                 y_pred = model(
-                    hetero_data.x_dict["paper"].to(device).to(torch.float32),
-                    hetero_data.edge_index_dict[("paper", "cites", "paper")].to(device),
-                    (len(y_true), len(y_true)),
+                    hetero_data.x_dict,
+                    hetero_data.edge_index_dict,
+                    hetero_data.num_sampled_nodes,
                 )
+
+                print('y pred: ', y_pred)
 
                 y_true = F.one_hot(
                     y_true[train_mask].to(torch.int64), num_classes=349
@@ -229,6 +257,13 @@ def parse_args():
         required=False,
     )
 
+    parser.add_argument(
+        "--sample_dir",
+        type=str,
+        help="Directory with stored bulk samples",
+        required=True,
+    )
+
     return parser.parse_args()
 
 
@@ -240,7 +275,7 @@ def main():
     except ValueError:
         features_device = args.features_device
 
-    train(args.device, features_device, args.num_epochs)
+    train(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
 
 
 if __name__ == "__main__":
