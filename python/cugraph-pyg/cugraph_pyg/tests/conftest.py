@@ -232,3 +232,37 @@ def multi_edge_multi_vertex_no_graph_1():
     F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
 
     return F, G, N
+
+
+@pytest.fixture
+def abc_graph():
+    N = {
+        "A": 2,  # 0, 1
+        "B": 3,  # 2, 3, 4
+        "C": 4,  # 5, 6, 7, 8
+    }
+
+    G = {
+        # (0->2, 0->3, 1->3)
+        ("A", "ab", "B"): [
+            torch.tensor([0, 0, 1], dtype=torch.int64),
+            torch.tensor([0, 1, 1], dtype=torch.int64),
+        ],
+        # (2->0, 2->1, 3->1, 4->0)
+        ("B", "ba", "A"): [
+            torch.tensor([0, 0, 1, 2], dtype=torch.int64),
+            torch.tensor([0, 1, 1, 0], dtype=torch.int64),
+        ],
+        # (2->6, 2->8, 3->5, 3->7, 4->5, 4->8)
+        ("B", "bc", "C"): [
+            torch.tensor([0, 0, 1, 1, 2, 2], dtype=torch.int64),
+            torch.tensor([1, 3, 0, 2, 0, 3], dtype=torch.int64),
+        ],
+    }
+
+    F = FeatureStore()
+    F.add_data(
+        torch.tensor([3.2, 2.1], dtype=torch.float32), type_name="A", feat_name="prop1"
+    )
+
+    return F, G, N

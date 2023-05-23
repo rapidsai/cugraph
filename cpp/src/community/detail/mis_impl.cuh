@@ -16,48 +16,38 @@
  */
 #pragma once
 
+#include <community/mis.hpp>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
-#include <community/detail/mis.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <raft/util/cudart_utils.hpp>
-#include <raft/util/integer_utils.hpp>
-#include <rmm/exec_policy.hpp>
-
 #include <thrust/count.h>
 #include <thrust/distance.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
-#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/merge.h>
 #include <thrust/optional.h>
 #include <thrust/remove.h>
-#include <thrust/sequence.h>
-#include <thrust/shuffle.h>
+#include <thrust/set_operations.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 
 #include <cmath>
-#include <numeric>
-#include <type_traits>
-#include <utility>
 
 namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<vertex_t> compute_mis(
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
+  raft::random::RngState& rng_state)
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
@@ -88,24 +78,16 @@ rmm::device_uvector<vertex_t> compute_mis(
   thrust::copy(handle.get_thrust_policy(), vertex_begin, vertex_end, ranks.begin());
 
   // Set ranks of zero out-degree vetices to std::numeric_limits<vertex_t>::lowest()
-  thrust::for_each(
+  thrust::transform_if(
     handle.get_thrust_policy(),
-    vertex_begin,
-    vertex_end,
-    [out_degrees = raft::device_span<edge_t const>(out_degrees.data(), out_degrees.size()),
-     ranks       = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
-     v_first     = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
-      auto v_offset = v - v_first;
-      if (out_degrees[v_offset] == 0) { ranks[v_offset] = std::numeric_limits<vertex_t>::lowest(); }
-    });
+    out_degrees.begin(),
+    out_degrees.end(),
+    ranks.begin(),
+    [] __device__(auto) { return std::numeric_limits<vertex_t>::lowest(); },
+    [] __device__(auto deg) { return deg == 0; });
 
   out_degrees.resize(0, handle.get_stream());
   out_degrees.shrink_to_fit(handle.get_stream());
-
-  thrust::default_random_engine g;
-  size_t seed = 0;
-  if constexpr (multi_gpu) { seed = handle.get_comms().get_rank(); }
-  g.seed(seed);
 
   size_t loop_counter = 0;
   while (true) {
@@ -117,22 +99,48 @@ rmm::device_uvector<vertex_t> compute_mis(
     thrust::copy(handle.get_thrust_policy(), ranks.begin(), ranks.end(), temporary_ranks.begin());
 
     // Select a random set of candidate vertices
-    // FIXME: use common utility function to select a subset of remaining vertices
-    // and for MG extension, select from disributed array remaining vertices
-    thrust::shuffle(
-      handle.get_thrust_policy(), remaining_vertices.begin(), remaining_vertices.end(), g);
 
-    vertex_t nr_candidates =
-      (remaining_vertices.size() < 1024)
-        ? remaining_vertices.size()
-        : std::min(static_cast<vertex_t>((0.50 + 0.25 * loop_counter) * remaining_vertices.size()),
-                   static_cast<vertex_t>(remaining_vertices.size()));
+    vertex_t nr_remaining_vertices_to_check = remaining_vertices.size();
+    if (multi_gpu) {
+      nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
+                                                             nr_remaining_vertices_to_check,
+                                                             raft::comms::op_t::SUM,
+                                                             handle.get_stream());
+    }
+
+    vertex_t nr_candidates = (nr_remaining_vertices_to_check < 1024)
+                               ? nr_remaining_vertices_to_check
+                               : std::min(static_cast<vertex_t>((0.50 + 0.25 * loop_counter) *
+                                                                nr_remaining_vertices_to_check),
+                                          nr_remaining_vertices_to_check);
+
+    // FIXME: Can we improve performance here?
+    // FIXME: if(nr_remaining_vertices_to_check < 1024), may avoid calling select_random_vertices
+    auto d_sampled_vertices =
+      cugraph::select_random_vertices(handle,
+                                      graph_view,
+                                      std::make_optional(raft::device_span<vertex_t const>{
+                                        remaining_vertices.data(), remaining_vertices.size()}),
+                                      rng_state,
+                                      nr_candidates,
+                                      false,
+                                      true);
+
+    rmm::device_uvector<vertex_t> non_candidate_vertices(
+      remaining_vertices.size() - d_sampled_vertices.size(), handle.get_stream());
+
+    thrust::set_difference(handle.get_thrust_policy(),
+                           remaining_vertices.begin(),
+                           remaining_vertices.end(),
+                           d_sampled_vertices.begin(),
+                           d_sampled_vertices.end(),
+                           non_candidate_vertices.begin());
 
     // Set temporary ranks of non-candidate vertices to std::numeric_limits<vertex_t>::lowest()
     thrust::for_each(
       handle.get_thrust_policy(),
-      remaining_vertices.begin(),
-      remaining_vertices.end() - nr_candidates,
+      non_candidate_vertices.begin(),
+      non_candidate_vertices.end(),
       [temporary_ranks =
          raft::device_span<vertex_t>(temporary_ranks.data(), temporary_ranks.size()),
        v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
@@ -160,7 +168,6 @@ rmm::device_uvector<vertex_t> compute_mis(
 
     //
     // Find maximum rank outgoing neighbor for each vertex
-    // (In case of Leiden decision graph, each vertex has at most one outgoing edge)
     //
 
     rmm::device_uvector<vertex_t> max_outgoing_ranks(local_vtx_partitoin_size, handle.get_stream());
@@ -224,8 +231,8 @@ rmm::device_uvector<vertex_t> compute_mis(
     //
     auto last = thrust::remove_if(
       handle.get_thrust_policy(),
-      remaining_vertices.end() - nr_candidates,
-      remaining_vertices.end(),
+      d_sampled_vertices.begin(),
+      d_sampled_vertices.end(),
       [max_rank_neighbor_first = max_outgoing_ranks.begin(),
        ranks                   = raft::device_span<vertex_t>(ranks.data(), ranks.size()),
        v_first = graph_view.local_vertex_partition_range_first()] __device__(auto v) {
@@ -252,11 +259,23 @@ rmm::device_uvector<vertex_t> compute_mis(
     max_outgoing_ranks.resize(0, handle.get_stream());
     max_outgoing_ranks.shrink_to_fit(handle.get_stream());
 
-    remaining_vertices.resize(thrust::distance(remaining_vertices.begin(), last),
+    d_sampled_vertices.resize(thrust::distance(d_sampled_vertices.begin(), last),
+                              handle.get_stream());
+    d_sampled_vertices.shrink_to_fit(handle.get_stream());
+
+    remaining_vertices.resize(non_candidate_vertices.size() + d_sampled_vertices.size(),
                               handle.get_stream());
     remaining_vertices.shrink_to_fit(handle.get_stream());
 
-    vertex_t nr_remaining_vertices_to_check = remaining_vertices.size();
+    // merge non-candidate and remaining candidate vertices
+    thrust::merge(handle.get_thrust_policy(),
+                  non_candidate_vertices.begin(),
+                  non_candidate_vertices.end(),
+                  d_sampled_vertices.begin(),
+                  d_sampled_vertices.end(),
+                  remaining_vertices.begin());
+
+    nr_remaining_vertices_to_check = remaining_vertices.size();
     if (multi_gpu) {
       nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
                                                              nr_remaining_vertices_to_check,
@@ -289,4 +308,14 @@ rmm::device_uvector<vertex_t> compute_mis(
   return mis;
 }
 }  // namespace detail
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state)
+{
+  return detail::maximal_independent_set(handle, graph_view, rng_state);
+}
+
 }  // namespace cugraph

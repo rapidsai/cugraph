@@ -220,6 +220,11 @@ def run_workflow(rank, devices, scheduler_address):
 
 
 if __name__ == "__main__":
+    # Load dummy first
+    # because new environments
+    # require dataset download
+    _ = load_dgl_dataset()
+    del _
     dask_worker_devices = [5, 6]
     scheduler_address = setup_cluster(dask_worker_devices)
 
