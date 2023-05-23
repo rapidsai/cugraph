@@ -136,9 +136,11 @@ class Tests_Leiden : public ::testing::TestWithParam<std::tuple<Leiden_Usecase, 
     rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
     size_t level;
     weight_t modularity;
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    raft::random::RngState rng_state(seed);
 
     std::tie(level, modularity) = cugraph::leiden(
-      handle, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
+      handle, rng_state, graph_view, edge_weight_view, clustering_v.data(), max_level, resolution);
 
     float compare_modularity = static_cast<float>(modularity);
 
