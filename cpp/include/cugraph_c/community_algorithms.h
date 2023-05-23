@@ -19,6 +19,7 @@
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/graph_functions.h>
+#include <cugraph_c/random.h>
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
@@ -117,11 +118,16 @@ cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
+ * @param [in/out] rng_state State of the random number generator, updated with each call
  * @param [in]  max_level    Maximum level in hierarchy
  * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.
  *                           This changes the size of the communities.  Higher resolutions
  *                           lead to more smaller communities, lower resolutions lead to
  *                           fewer larger communities.
+ * @param[in]  theta         (optional) The value of the parameter to scale modularity
+ *                           gain in Leiden refinement phase. It is used to compute
+ *                           the probability of joining a random leiden community.
+ *                           Called theta in the Leiden algorithm.
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
  * @param [out] result       Output from the Leiden call
@@ -130,9 +136,11 @@ cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
  * @return error code
  */
 cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
+                                    cugraph_rng_state_t* rng_state,
                                     cugraph_graph_t* graph,
                                     size_t max_level,
                                     double resolution,
+                                    double theta,
                                     bool_t do_expensive_check,
                                     cugraph_hierarchical_clustering_result_t** result,
                                     cugraph_error_t** error);
