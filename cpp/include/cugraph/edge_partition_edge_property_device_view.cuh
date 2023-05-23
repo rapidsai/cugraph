@@ -44,7 +44,7 @@ class edge_partition_edge_property_device_view_t {
   edge_partition_edge_property_device_view_t() = default;
 
   edge_partition_edge_property_device_view_t(
-    edge_property_view_t<edge_t, ValueIterator> const& view, size_t partition_idx)
+    edge_property_view_t<edge_t, ValueIterator, value_t> const& view, size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx])
   {
     value_first_ = view.value_firsts()[partition_idx];
