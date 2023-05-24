@@ -76,7 +76,9 @@ def input_expected_output(input_combo):
     directed = input_combo["directed"]
     seeds = input_combo["seeds"]
     radius = input_combo["radius"]
-    G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
+    G = utils.generate_cugraph_graph_from_file(
+        input_data_path, directed=directed, edgevals=True
+    )
 
     sg_cugraph_ego_graphs = cugraph.batched_ego_graphs(G, seeds=seeds, radius=radius)
 
@@ -101,7 +103,6 @@ def input_expected_output(input_combo):
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
         store_transposed=True,
     )
 

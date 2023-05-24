@@ -138,8 +138,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, false, renumber);
 
@@ -157,7 +157,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     const int hash_bin_count = 5;
 
     auto mg_vertex_prop = cugraph::test::generate<vertex_t, property_t>::vertex_property(
-      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+      *handle_, *mg_renumber_map, hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<vertex_t, property_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
     auto mg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
@@ -174,7 +174,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       [mg_renumber_map_labels = (*d_mg_renumber_map_labels).data(),
+                       [mg_renumber_map_labels = (*mg_renumber_map).data(),
                         local_vertex_partition_range_first =
                           mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
                          return thrust::make_tuple(
@@ -241,14 +241,14 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
           *handle_,
           mg_new_frontier_key_buffer.begin(),
           mg_new_frontier_key_buffer.size(),
-          (*d_mg_renumber_map_labels).data(),
+          (*mg_renumber_map).data(),
           mg_graph_view.vertex_partition_range_lasts());
       } else {
         cugraph::unrenumber_int_vertices<vertex_t, true>(
           *handle_,
           std::get<0>(mg_new_frontier_key_buffer).begin(),
           std::get<0>(mg_new_frontier_key_buffer).size(),
-          (*d_mg_renumber_map_labels).data(),
+          (*mg_renumber_map).data(),
           mg_graph_view.vertex_partition_range_lasts());
       }
 
@@ -282,6 +282,15 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         }
       }
 
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
+
       if (handle_->get_comms().get_rank() == int{0}) {
         if constexpr (std::is_same_v<payload_t, void>) {
           thrust::sort(handle_->get_thrust_policy(),
@@ -294,11 +303,6 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             cugraph::get_dataframe_buffer_end(mg_aggregate_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_begin(mg_aggregate_payload_buffer));
         }
-
-        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore, std::ignore) =
-          cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-            *handle_, input_usecase, false, false);
 
         auto sg_graph_view = sg_graph.view();
 
@@ -535,12 +539,11 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -549,8 +552,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -199,6 +199,9 @@ using Tests_Node2VecRandomWalks_File =
 using Tests_Node2VecRandomWalks_Rmat =
   Tests_RandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 
+#if 0
+// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
+//         to define and not instantiate these.
 TEST_P(Tests_UniformRandomWalks_File, Initialize_i32_i32_f)
 {
   run_current_test<int32_t, int32_t, float>(
@@ -210,6 +213,7 @@ TEST_P(Tests_UniformRandomWalks_Rmat, Initialize_i32_i32_f)
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 TEST_P(Tests_BiasedRandomWalks_File, Initialize_i32_i32_f)
 {
@@ -279,44 +283,44 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
                                        UniformRandomWalks_Usecase{true, 0, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_UniformRandomWalks_Rmat,
   ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 #endif
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_BiasedRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
-                                       BiasedRandomWalks_Usecase{true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
+                      BiasedRandomWalks_Usecase{true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_BiasedRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(BiasedRandomWalks_Usecase{true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Node2VecRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{8, 4, false, 0, true},
-                                       Node2VecRandomWalks_Usecase{8, 4, true, 0, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(Node2VecRandomWalks_Usecase{8, 4, false, 0, true},
+                      Node2VecRandomWalks_Usecase{8, 4, true, 0, true}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
   Tests_Node2VecRandomWalks_Rmat,
-  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{8, 4, true, 0, false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+  ::testing::Combine(
+    ::testing::Values(Node2VecRandomWalks_Usecase{8, 4, true, 0, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

@@ -47,6 +47,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
@@ -283,6 +284,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
       typename EdgeValueInputWrapper::value_iterator>>;
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) { /* currently, nothing to do */
   }
@@ -748,8 +751,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_values.begin()));
     auto major_value_map_device_view =
       (GraphViewType::is_multi_gpu && edge_src_value_input.keys())
-        ? thrust::make_optional<detail::kv_binary_search_store_device_view_t<decltype(
-            multi_gpu_major_value_map_ptr->view())>>(multi_gpu_major_value_map_ptr->view())
+        ? thrust::make_optional<detail::kv_binary_search_store_device_view_t<
+            decltype(multi_gpu_major_value_map_ptr->view())>>(multi_gpu_major_value_map_ptr->view())
         : thrust::nullopt;
     std::conditional_t<KVStoreViewType::binary_search,
                        detail::kv_binary_search_store_device_view_t<KVStoreViewType>,

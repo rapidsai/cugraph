@@ -54,10 +54,10 @@ outputs:
         - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cudf ={{ minor_version }}
         - cugraph ={{ minor_version }}
-        - cupy >=9.5.0,<12.0.0a0
+        - cupy >=12.0.0
         - dask-cuda ={{ minor_version }}
         - dask-cudf ={{ minor_version }}
-        - distributed >=2023.1.1
+        - distributed ==2023.3.2.1
         - numpy
         - python x.x
         - thriftpy2 >=0.4.15

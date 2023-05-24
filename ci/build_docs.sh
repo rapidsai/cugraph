@@ -19,7 +19,7 @@ rapids-print-env
 rapids-logger "Downloading artifacts from previous jobs"
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
-VERSION_NUMBER=$(rapids-get-rapids-version-from-git)
+VERSION_NUMBER="23.06"
 
 rapids-mamba-retry install \
   --channel "${CPP_CHANNEL}" \
@@ -45,12 +45,15 @@ popd
 
 rapids-logger "Build Sphinx docs"
 pushd docs/cugraph
+# Ensure cugraph is importable, since sphinx does not report details about this
+# type of failure well.
+python -c "import cugraph; print(f'Using cugraph: {cugraph}')"
 sphinx-build -b dirhtml source _html
 sphinx-build -b text source _text
 popd
 
 
-if [[ "${RAPIDS_BUILD_TYPE}" == "branch" ]]; then
+if [[ "${RAPIDS_BUILD_TYPE}" != "pull-request" ]]; then
   rapids-logger "Upload Docs to S3"
   aws s3 sync --no-progress --delete docs/cugraph/_html "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/html"
   aws s3 sync --no-progress --delete docs/cugraph/_text "s3://rapidsai-docs/cugraph/${VERSION_NUMBER}/txt"

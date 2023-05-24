@@ -78,16 +78,15 @@ int generic_wcc_test(vertex_t* h_src,
     component_check[i] = num_vertices;
   }
 
-  vertex_t num_errors = 0;
-  for (vertex_t i = 0; i < num_vertices; ++i) {
-    if (component_check[h_components[i]] == num_vertices) {
-      component_check[h_components[i]] = h_result[h_vertices[i]];
-    } else if (component_check[h_components[i]] != h_result[h_vertices[i]]) {
-      ++num_errors;
+  for (vertex_t i = 0 ; i < num_vertices; ++i) {
+    if (component_check[h_result[h_vertices[i]]] == num_vertices) {
+      component_check[h_result[h_vertices[i]]] = h_components[i];
     }
   }
 
-  TEST_ASSERT(test_ret_value, num_errors == 0, "weakly connected components results don't match");
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value, h_components[i] == component_check[h_result[h_vertices[i]]], "component results don't match");
+  }
 
   cugraph_type_erased_device_array_view_free(components);
   cugraph_type_erased_device_array_view_free(vertices);

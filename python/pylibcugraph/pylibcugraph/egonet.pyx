@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -153,10 +153,16 @@ def ego_graph(ResourceHandle resource_handle,
     # for perfomance improvement
     cupy_sources = copy_to_cupy_array(
         c_resource_handle_ptr, sources_ptr)
+    
     cupy_destinations = copy_to_cupy_array(
         c_resource_handle_ptr, destinations_ptr)
-    cupy_edge_weights = copy_to_cupy_array(
-        c_resource_handle_ptr, edge_weights_ptr)
+    
+    if edge_weights_ptr is not NULL:
+        cupy_edge_weights = copy_to_cupy_array(
+            c_resource_handle_ptr, edge_weights_ptr)
+    else:
+        cupy_edge_weights = None
+
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
 

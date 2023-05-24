@@ -44,6 +44,7 @@
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -107,7 +108,7 @@ class Tests_MGTransformReduceE
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of reduce_if_v primitive and thrust reduce on a single GPU
+  // Compare the results of transform_reduce_e primitive
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
@@ -126,8 +127,8 @@ class Tests_MGTransformReduceE
     }
 
     cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
-    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
-    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
+    std::optional<rmm::device_uvector<vertex_t>> mg_renumber_map{std::nullopt};
+    std::tie(mg_graph, std::ignore, mg_renumber_map) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
 
@@ -148,7 +149,7 @@ class Tests_MGTransformReduceE
     auto property_initial_value =
       cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
     auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
-      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+      *handle_, *mg_renumber_map, hash_bin_count);
     auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
       *handle_, mg_graph_view, mg_vertex_prop);
     auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
@@ -186,38 +187,45 @@ class Tests_MGTransformReduceE
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore, std::ignore) =
-        cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          *handle_, input_usecase, true, false);
-
-      auto sg_graph_view = sg_graph.view();
-
-      auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+      std::tie(sg_graph, std::ignore, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
         *handle_,
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count);
-      auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
-        *handle_, sg_graph_view, sg_vertex_prop);
-      auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
-        *handle_, sg_graph_view, sg_vertex_prop);
+        mg_graph_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>((*mg_renumber_map).data(),
+                                                              (*mg_renumber_map).size()),
+        false);
 
-      auto expected_result = transform_reduce_e(
-        *handle_,
-        sg_graph_view,
-        sg_src_prop.view(),
-        sg_dst_prop.view(),
-        cugraph::edge_dummy_property_t{}.view(),
-        [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
-          if (src_property < dst_property) {
-            return src_property;
-          } else {
-            return dst_property;
-          }
-        },
-        property_initial_value);
-      result_compare<result_t> compare{};
-      ASSERT_TRUE(compare(expected_result, result));
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_graph_view = sg_graph.view();
+
+        auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+          *handle_,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+          hash_bin_count);
+        auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+        auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+
+        auto expected_result = transform_reduce_e(
+          *handle_,
+          sg_graph_view,
+          sg_src_prop.view(),
+          sg_dst_prop.view(),
+          cugraph::edge_dummy_property_t{}.view(),
+          [] __device__(
+            auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
+            if (src_property < dst_property) {
+              return src_property;
+            } else {
+              return dst_property;
+            }
+          },
+          property_initial_value);
+        result_compare<result_t> compare{};
+        ASSERT_TRUE(compare(expected_result, result));
+      }
     }
   }
 
@@ -363,12 +371,11 @@ INSTANTIATE_TEST_SUITE_P(
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_small_test,
-  Tests_MGTransformReduceE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(rmat_small_test,
+                         Tests_MGTransformReduceE_Rmat,
+                         ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+                                            ::testing::Values(cugraph::test::Rmat_Usecase(
+                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -377,8 +384,8 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGTransformReduceE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

@@ -18,7 +18,8 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
-#include <c_api/heirarchical_clustering_result.hpp>
+#include <c_api/graph_helper.hpp>
+#include <c_api/hierarchical_clustering_result.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
@@ -37,7 +38,7 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   size_t max_level_;
   double resolution_;
   bool do_expensive_check_;
-  cugraph::c_api::cugraph_heirarchical_clustering_result_t* result_{};
+  cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
 
   leiden_functor(::cugraph_resource_handle_t const* handle,
                  ::cugraph_graph_t* graph,
@@ -63,6 +64,10 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
   {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
+    } else if constexpr (multi_gpu) {
+      error_code_            = CUGRAPH_NOT_IMPLEMENTED;
+      error_->error_message_ = "leiden not currently implemented for multi-GPU";
+
     } else {
       // leiden expects store_transposed == false
       if constexpr (store_transposed) {
@@ -86,26 +91,31 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-#if 0
-      auto [level, modularity] = cugraph::leiden(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        clusters.data(),
-        max_level_,
-        static_cast<weight_t>(resolution_));
+      // FIXME: Revisit the constant edge property idea.  We could consider an alternate
+      // implementation (perhaps involving the thrust::constant_iterator), or we
+      // could add support in Leiden for std::nullopt as the edge weights behaving
+      // as desired and only instantiating a real edge_property_view_t for the
+      // coarsened graphs.
+      auto [level, modularity] =
+        cugraph::leiden(handle_,
+                        graph_view,
+                        (edge_weights != nullptr)
+                          ? std::make_optional(edge_weights->view())
+                          : std::make_optional(cugraph::c_api::create_constant_edge_property(
+                                                 handle_, graph_view, weight_t{1})
+                                                 .view()),
+                        clusters.data(),
+                        max_level_,
+                        static_cast<weight_t>(resolution_));
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
-      result_ = new cugraph::c_api::cugraph_heirarchical_clustering_result_t{
+      result_ = new cugraph::c_api::cugraph_hierarchical_clustering_result_t{
         modularity,
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
-#else
-      CUGRAPH_FAIL("NOT IMPLEMENTED YET");
-#endif
     }
   }
 };
@@ -117,7 +127,7 @@ extern "C" cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* 
                                                size_t max_level,
                                                double resolution,
                                                bool_t do_expensive_check,
-                                               cugraph_heirarchical_clustering_result_t** result,
+                                               cugraph_hierarchical_clustering_result_t** result,
                                                cugraph_error_t** error)
 {
   leiden_functor functor(handle, graph, max_level, resolution, do_expensive_check);

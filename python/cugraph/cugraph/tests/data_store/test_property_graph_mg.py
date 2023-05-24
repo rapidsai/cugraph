@@ -595,22 +595,23 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
 
 
 @pytest.mark.mg
-def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_simple_MGPropertyGraph):
+@pytest.mark.parametrize("as_pg_first", [False, True])
+def test_extract_subgraph_nonrenumbered_noedgedata(
+    dataset2_simple_MGPropertyGraph, as_pg_first
+):
     """
-    Ensure a subgraph can be extracted that contains no edge_data.  Also ensure
-    renumber cannot be False since that is currently not allowed for MG.
+    Ensure a subgraph can be extracted that contains no edge_data.
     """
     from cugraph import Graph
 
     (pG, data) = dataset2_simple_MGPropertyGraph
 
-    # renumber=False is currently not allowed for MG.
-    with pytest.raises(ValueError):
-        G = pG.extract_subgraph(
-            create_using=Graph(directed=True), renumber_graph=False, add_edge_data=False
+    if as_pg_first:
+        G = pG.extract_subgraph(create_using=pG).extract_subgraph(
+            create_using=Graph(directed=True), add_edge_data=False
         )
-
-    G = pG.extract_subgraph(create_using=Graph(directed=True), add_edge_data=False)
+    else:
+        G = pG.extract_subgraph(create_using=Graph(directed=True), add_edge_data=False)
 
     actual_edgelist = G.edgelist.edgelist_df.compute()
 
@@ -1474,6 +1475,37 @@ def test_types_from_numerals(dask_client):
         "pig",
         "pig",
     ]
+
+
+@pytest.mark.mg
+def test_renumber_by_type_only_default_type(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    pG = MGPropertyGraph()
+    df = cudf.DataFrame(
+        {
+            "src": cp.array([0, 0, 1, 2, 2, 3], dtype="int32"),
+            "dst": cp.array([1, 2, 4, 3, 4, 1], dtype="int32"),
+        }
+    )
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
+    pG.add_edge_data(ddf, vertex_col_names=["src", "dst"])
+
+    df2 = cudf.DataFrame(
+        {
+            "prop1": [100, 200, 300, 400, 500],
+            "prop2": [5, 4, 3, 2, 1],
+            "id": cp.array([0, 1, 2, 3, 4], dtype="int32"),
+        }
+    )
+    ddf2 = dask_cudf.from_cudf(df2, npartitions=2)
+    pG.add_vertex_data(ddf2, vertex_col_name="id")
+    pG.renumber_vertices_by_type()
+    got = pG.get_vertex_data().compute()
+    assert got[pG.vertex_col_name].to_arrow().to_pylist() == list(range(len(got)))
+    pG.renumber_edges_by_type()
+    got = pG.get_edge_data().compute()
+    assert got[pG.edge_id_col_name].to_arrow().to_pylist() == list(range(len(got)))
 
 
 # =============================================================================

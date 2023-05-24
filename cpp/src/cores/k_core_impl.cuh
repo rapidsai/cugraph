@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,8 @@ k_core(raft::handle_t const& handle,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   rmm::device_uvector<edge_t> computed_core_numbers(0, handle.get_stream());
 
   if (!core_numbers) {

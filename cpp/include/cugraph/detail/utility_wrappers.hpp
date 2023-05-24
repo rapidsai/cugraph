@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <raft/core/device_span.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
@@ -144,6 +145,34 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_vertices,
   rmm::device_uvector<edge_t>&& d_out_degs);
+
+/**
+ * @brief Check if device span is sorted
+ *
+ * @tparam data_t type of data in span
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param span The span of data to check
+ * @return true if sorted, false if not sorted
+ */
+template <typename data_t>
+bool is_sorted(raft::handle_t const& handle, raft::device_span<data_t> span);
+
+/**
+ * @brief Check if two device spans are equal.  Returns true if every element in the spans are
+ * equal.
+ *
+ * @tparam data_t type of data in span
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param span1 The span of data to compare
+ * @param span2 The span of data to compare
+ * @return true if equal, false if not equal
+ */
+template <typename data_t>
+bool is_equal(raft::handle_t const& handle,
+              raft::device_span<data_t> span1,
+              raft::device_span<data_t> span2);
 
 }  // namespace detail
 }  // namespace cugraph

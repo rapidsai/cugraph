@@ -6,4 +6,6 @@ Basics
 .. toctree::
    :maxdepth: 2
 
-   cugraph_toc.md
+   cugraph_intro
+   nx_transition
+   cugraph_cascading

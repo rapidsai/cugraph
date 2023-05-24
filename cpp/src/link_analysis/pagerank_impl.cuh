@@ -93,6 +93,10 @@ void pagerank(
                   "Invalid input argument: if personalization_vertices.has_value() is true, "
                   "personalization_values.has_value() and personalization_vector_size.has_value() "
                   "should be true as well.");
+  CUGRAPH_EXPECTS(
+    (personalization_vertices.has_value() == false) || (aggregate_personalization_vector_size > 0),
+    "Invalid input argument: if personalization_vertices.has_value() is true, the input "
+    "personalization vector size should not be 0.");
   CUGRAPH_EXPECTS((alpha >= 0.0) && (alpha <= 1.0),
                   "Invalid input argument: alpha should be in [0.0, 1.0].");
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
@@ -127,6 +131,19 @@ void pagerank(
         handle, pull_graph_view, pageranks, [] __device__(auto, auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
+    }
+
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto num_gpus_with_valid_personalization_vector =
+        host_scalar_allreduce(handle.get_comms(),
+                              personalization_vertices ? int{1} : int{0},
+                              raft::comms::op_t::SUM,
+                              handle.get_stream());
+      CUGRAPH_EXPECTS(
+        (num_gpus_with_valid_personalization_vector == 0) ||
+          (num_gpus_with_valid_personalization_vector == handle.get_comms().get_size()),
+        "Invalid input argument: personalization vectors should be provided in either no ranks or "
+        "all ranks.");
     }
 
     if (aggregate_personalization_vector_size > 0) {
@@ -345,6 +362,8 @@ void pagerank(raft::handle_t const& handle,
               bool has_initial_guess,
               bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   detail::pagerank(handle,
                    graph_view,
                    edge_weight_view,

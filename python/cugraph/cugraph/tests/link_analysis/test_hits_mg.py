@@ -96,7 +96,6 @@ def input_expected_output(input_combo):
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
         store_transposed=True,
     )
 
@@ -158,7 +157,7 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_hots_transposed_false(dask_client):
+def test_dask_hits_transposed_false(dask_client):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
 
     chunksize = dcg.get_chunksize(input_data_path)
@@ -172,9 +171,7 @@ def test_dask_hots_transposed_false(dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False
-    )
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
 
     warning_msg = (
         "HITS expects the 'store_transposed' "
