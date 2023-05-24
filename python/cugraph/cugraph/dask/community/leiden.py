@@ -50,6 +50,7 @@ def _call_plc_leiden(
     max_iter: int,
     resolution: int,
     random_state: int,
+    theta: int,
     do_expensive_check: bool,
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_leiden(
@@ -58,6 +59,7 @@ def _call_plc_leiden(
         graph=mg_graph_x,
         max_level=max_iter,
         resolution=resolution,
+        theta=theta,
         do_expensive_check=do_expensive_check,
     )
 
@@ -67,6 +69,7 @@ def leiden(
     max_iter: int = 100,
     resolution: int = 1.0,
     random_state: int = None,
+    theta: int = 1.0,
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -99,6 +102,11 @@ def leiden(
     random_state: int, optional(default=None)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
+    
+    theta: float, optional (default=1.0)
+        Called theta in the Leiden algorithm, this is used to scale
+        modularity gain in Leiden refinement phase, to compute
+        the probability of joining a random leiden community.
 
     Returns
     -------
@@ -139,6 +147,7 @@ def leiden(
             max_iter,
             resolution,
             random_state,
+            theta,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
