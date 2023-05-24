@@ -210,6 +210,7 @@ def test_leiden(graph_file):
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
+    # Leiden modularity score is smaller than Louvain's
     assert leiden_mod >= (0.75 * louvain_mod)
 
 
@@ -227,6 +228,7 @@ def test_leiden_nx(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
+    # Leiden modularity score is smaller than Louvain's
     assert leiden_mod >= (0.75 * louvain_mod)
 
 
