@@ -102,7 +102,7 @@ def leiden(
     random_state: int, optional(default=None)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
-    
+
     theta: float, optional (default=1.0)
         Called theta in the Leiden algorithm, this is used to scale
         modularity gain in Leiden refinement phase, to compute
