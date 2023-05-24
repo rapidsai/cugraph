@@ -66,7 +66,7 @@ def leiden(
     input_graph: Graph,
     max_iter: int = 100,
     resolution: int = 1.0,
-    random_state: int = None
+    random_state: int = None,
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
@@ -95,7 +95,7 @@ def leiden(
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
         Defaults to 1.
-    
+
     random_state: int, optional(default=None)
         Random state to use when generating samples.  Optional argument,
         defaults to a hash of process id, time, and hostname.
