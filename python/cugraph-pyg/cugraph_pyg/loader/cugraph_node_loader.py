@@ -44,13 +44,14 @@ class EXPERIMENTAL__BulkSampleLoader:
         self,
         feature_store: CuGraphStore,
         graph_store: CuGraphStore,
-        input_nodes: Union[InputNodes, int] = None,
+        input_nodes: InputNodes = None,
         batch_size: int = 0,
-        shuffle=False,
+        shuffle: bool = False,
         edge_types: Sequence[Tuple[str]] = None,
-        directory=None,
-        starting_batch_id=0,
-        batches_per_partition=100,
+        directory: Union[str, tempfile.TemporaryDirectory] = None,
+        input_files: List[str] = None,
+        starting_batch_id: int = 0,
+        batches_per_partition: int = 100,
         # Sampler args
         num_neighbors: Union[List[int], Dict[Tuple[str, str, str], List[int]]] = None,
         replace: bool = True,
@@ -69,9 +70,9 @@ class EXPERIMENTAL__BulkSampleLoader:
         graph_store: CuGraphStore
             The graph store containing the graph structure.
 
-        input_nodes: Union[InputNodes, int]
+        input_nodes: InputNodes
             The input nodes associated with this sampler.
-            If this is an integer N, this loader will load N batches
+            If None, this loader will load batches
             from disk rather than performing sampling in memory.
 
         batch_size: int
@@ -92,10 +93,13 @@ class EXPERIMENTAL__BulkSampleLoader:
             The path of the directory to write samples to.
             Defaults to a new generated temporary directory.
 
+        input_files: List[str] (optional, default=None)
+            The input files to read from the directory containing
+            samples.  This argument is only used when loading
+            alread-sampled batches from disk.
+
         starting_batch_id: int (optional, default=0)
             The starting id for each batch.  Defaults to 0.
-            Generally used when loading previously-sampled
-            batches from disk.
 
         batches_per_partition: int (optional, default=100)
             The number of batches in each output partition.
@@ -121,11 +125,17 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
-        if isinstance(input_nodes, int):
+        if input_nodes is None:
             # Will be loading from disk
             self.__num_batches = input_nodes
             self.__directory = directory
-            iter(os.listdir(self.__directory))
+            if input_files is None:
+                if isinstance(self.__directory, str):
+                    self.__input_files = iter(os.listdir(self.__directory))
+                else:
+                    self.__input_files = iter(os.listdir(self.__directory.name))
+            else:
+                self.__input_files = iter(input_files)
             return
 
         input_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
@@ -201,7 +211,13 @@ class EXPERIMENTAL__BulkSampleLoader:
             )
 
             # Will raise StopIteration if there are no files left
-            fname = next(self.__input_files)
+            try:
+                fname = next(self.__input_files)
+            except StopIteration as ex:
+                # Won't delete a non-temp dir (since it would just be deleting a string)
+                del self.__directory
+                self.__directory = None
+                raise StopIteration(ex)
 
             m = self.__ex_parquet_file.match(fname)
             if m is None:
@@ -234,12 +250,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         )
 
         # Get ready for next iteration
-        # If there is no next iteration, make sure results are deleted
         self.__next_batch += 1
-        if self.__next_batch >= self.__num_batches + self.__starting_batch_id:
-            # Won't delete a non-temp dir (since it would just be deleting a string)
-            del self.__directory
-            self.__directory = None
 
         # Get and return the sampled subgraph
         if isinstance(torch_geometric, MissingModule):
