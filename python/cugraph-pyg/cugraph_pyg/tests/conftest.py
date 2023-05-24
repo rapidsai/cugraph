@@ -23,7 +23,6 @@ from cugraph.testing.mg_utils import stop_dask_client
 
 import torch
 import numpy as np
-import cudf
 from cugraph.gnn import FeatureStore
 from cugraph.experimental.datasets import karate
 
