@@ -38,19 +38,27 @@ def _count_unique_nodes(
     node_position: str,
 ) -> int:
     """
-    Counts the number of unique nodes of a given node type.
+        Counts the number of unique nodes of a given node type.
 
-    Parameters
-    ----------
-    sampling_results: cudf.DataFrame
-        The dataframe containing sampling results or filtered sampling results
-        (i.e. sampling results for hop 2)
-    graph_store: CuGraphStore
-        The graph store containing the structure of the sampled graph.
-    node_type: str
-        The node type to count the number of unique nodes of.
-    node_position: str ('src' or 'dst')
-        Whether to examine source or destination nodes.
+        Parameters
+        ----------
+        sampling_results: cudf.DataFrame
+            The dataframe containing sampling results or filtered sampling results
+            (i.e. sampling results for hop 2)
+        graph_store: CuGraphStore
+            The graph store containing the structure of the sampled graph.
+        node_type: str
+            The node type to count the number of unique nodes of.
+        node_position: str ('src' or 'dst')
+            Whether to examine source or destination nodes.
+    <<<<<<< HEAD
+    =======
+
+        Returns
+        -------
+        int
+            The number of unique nodes of the given node type.
+    >>>>>>> 64690fe39e5f2ae5559ebfac7c9d3ee49e96afe6
     """
     if node_position == "src":
         edge_index = "sources"
@@ -98,9 +106,6 @@ def _sampler_output_from_sampling_results(
     HeteroSamplerOutput
     """
 
-    # won't be needed once c++ changes ready (#3352)
-    sampling_results = sampling_results.sort_values(by="hop_id")
-
     hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
     hops = torch.searchsorted(
         torch.as_tensor(sampling_results.hop_id.values, device="cuda"), hops
@@ -130,26 +135,28 @@ def _sampler_output_from_sampling_results(
     # Calculate nodes of interest based on unique nodes in order of appearance
     # Use hop 0 sources since those are the only ones not included in destinations
     # Use torch.concat based on benchmark performance (vs. cudf.concat)
-    nodes_of_interest = cudf.Series(
-        torch.concat(
-            [
-                torch.as_tensor(sampling_results_hop_0.sources.values, device="cuda"),
-                torch.as_tensor(sampling_results.destinations.values, device="cuda"),
-            ]
-        ),
-        name="nodes_of_interest",
-    ).drop_duplicates()
     nodes_of_interest = (
-        nodes_of_interest.sort_index().reset_index(drop=True).reset_index()
-    )
-    nodes_of_interest = nodes_of_interest.rename(columns={"index": "new_id"}).set_index(
-        "nodes_of_interest"
+        cudf.Series(
+            torch.concat(
+                [
+                    torch.as_tensor(
+                        sampling_results_hop_0.sources.values, device="cuda"
+                    ),
+                    torch.as_tensor(
+                        sampling_results.destinations.values, device="cuda"
+                    ),
+                ]
+            ),
+            name="nodes_of_interest",
+        )
+        .drop_duplicates()
+        .sort_index()
     )
     del sampling_results_hop_0
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
     noi_index = graph_store._get_vertex_groups_from_sample(
-        torch.as_tensor(nodes_of_interest.index, device="cuda")
+        torch.as_tensor(nodes_of_interest.values, device="cuda")
     )
     del nodes_of_interest
 

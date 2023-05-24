@@ -29,7 +29,7 @@ torch = import_optional("torch")
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_neighbor_sample(rmm_global_pool, basic_graph_1):
+def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -79,7 +79,7 @@ def test_neighbor_sample(rmm_global_pool, basic_graph_1):
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_neighbor_sample_multi_vertex(rmm_global_pool, multi_edge_multi_vertex_graph_1):
+def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
 
@@ -130,7 +130,7 @@ def test_neighbor_sample_multi_vertex(rmm_global_pool, multi_edge_multi_vertex_g
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_neighbor_sample_mock_sampling_results(rmm_global_pool):
+def test_neighbor_sample_mock_sampling_results():
     N = {
         "A": 2,  # 0, 1
         "B": 3,  # 2, 3, 4

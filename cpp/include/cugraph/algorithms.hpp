@@ -678,47 +678,6 @@ void flatten_dendrogram(raft::handle_t const& handle,
                         typename graph_view_t::vertex_type* clustering);
 
 /**
- * @brief      Legacy Leiden implementation
- *
- * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
- * to the Louvain method.
- *
- * Computed using the Leiden method described in:
- *
- *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
- *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
- *    doi: 10.1038/s41598-019-41695-z
- *
- * @throws cugraph::logic_error when an error occurs.
- *
- * @tparam vertex_t                  Type of vertex identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam edge_t                    Type of edge identifiers.
- *                                   Supported value : int (signed, 32-bit)
- * @tparam weight_t                  Type of edge weights. Supported values : float or double.
- *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph                 input graph object (CSR)
- * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
- * @param[in]  resolution            (optional) The value of the resolution parameter to use.
- *                                   Called gamma in the modularity formula, this changes the size
- *                                   of the communities.  Higher resolutions lead to more smaller
- *                                   communities, lower resolutions lead to fewer larger
- * communities. (default 1)
- *
- * @return                           a pair containing:
- *                                     1) number of levels of the returned clustering
- *                                     2) modularity of the returned clustering
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
-                                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-                                   vertex_t* clustering,
-                                   size_t max_level    = 100,
-                                   weight_t resolution = weight_t{1});
-
-/**
  * @brief      Leiden implementation
  *
  * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
@@ -738,7 +697,9 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
  *                                   Supported value : int (signed, 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
  * @param graph_view Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
  * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
@@ -748,6 +709,10 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
  * communities. (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. It is used to compute
+ *                                    the probability of joining a random leiden community.
+ *                                    Called theta in the Leiden algorithm.
  *
  * @return                           a pair containing:
  *                                     1) unique pointer to dendrogram
@@ -757,10 +722,12 @@ std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level    = 100,
-  weight_t resolution = weight_t{1});
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
 
 /**
  * @brief      Leiden implementation
@@ -782,7 +749,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
  *                                   Supported value : int (signed, 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
  * @param graph_view Graph view object.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
  * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
@@ -792,6 +761,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
  * communities. (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. It is used to compute
+ *                                    the probability of joining a random leiden community.
+ *                                    Called theta in the Leiden algorithm.
+ * communities. (default 1)
  *
  * @return                           a pair containing:
  *                                     1) number of levels of the returned clustering
@@ -800,11 +774,13 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::pair<size_t, weight_t> leiden(
   raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   vertex_t* clustering,  // FIXME: Use (device_)span instead
   size_t max_level    = 100,
-  weight_t resolution = weight_t{1});
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -2032,6 +2008,25 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   raft::device_span<vertex_t const> start_vertices,
   size_t k,
   bool do_expensive_check = false);
+
+/*
+ * @brief Find a Maximal Independent Set
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @return A device vector containing vertices found in the maximal independent set
+ */
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state);
 
 }  // namespace cugraph
 

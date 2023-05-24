@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
+from dask.distributed import default_client
 
 
 def symmetrize_df(
@@ -77,13 +78,7 @@ def symmetrize_df(
         weight_name = [weight_name]
 
     if symmetrize:
-        if weight_name:
-            df2 = df[[*dst_name, *src_name, *weight_name]]
-            df2.columns = [*src_name, *dst_name, *weight_name]
-        else:
-            df2 = df[[*dst_name, *src_name]]
-            df2.columns = [*src_name, *dst_name]
-        result = cudf.concat([df, df2]).reset_index(drop=True)
+        result = _add_reverse_edges(df, src_name, dst_name, weight_name)
     else:
         result = df
     if multi:
@@ -155,6 +150,8 @@ def symmetrize_ddf(
 
     """
     # FIXME: Uncomment out the above (broken) example
+    _client = default_client()
+    workers = _client.scheduler_info()["workers"]
 
     if not isinstance(src_name, list):
         src_name = [src_name]
@@ -164,29 +161,16 @@ def symmetrize_ddf(
         weight_name = [weight_name]
 
     if symmetrize:
-        if weight_name:
-            ddf2 = ddf[[*dst_name, *src_name, *weight_name]]
-            ddf2.columns = [*src_name, *dst_name, *weight_name]
-        else:
-            ddf2 = ddf[[*dst_name, *src_name]]
-            ddf2.columns = [*src_name, *dst_name]
-        result = dask_cudf.concat([ddf, ddf2]).reset_index(drop=True)
+        result = ddf.map_partitions(_add_reverse_edges, src_name, dst_name, weight_name)
     else:
         result = ddf
     if multi:
-        # The concat call doubles the number of partitions therefore,
-        # repartition the result so that the number of partitions equals
-        # the number of workers
-        result = result.repartition(npartitions=ddf.npartitions)
         return result
     else:
         vertex_col_name = src_name + dst_name
-        result = (
-            result.groupby(by=[*vertex_col_name])
-            .min(split_out=ddf.npartitions)
-            .reset_index()
+        result = _memory_efficient_drop_duplicates(
+            result, vertex_col_name, len(workers)
         )
-
         return result
 
 
@@ -283,3 +267,38 @@ def symmetrize(
             )
 
     return output_df[source_col_name], output_df[dest_col_name]
+
+
+def _add_reverse_edges(df, src_name, dst_name, weight_name):
+    """
+    Add reverse edges to the input dataframe.
+    args:
+        df: cudf.DataFrame or dask_cudf.DataFrame
+        src_name: str
+            source column name
+        dst_name: str
+            destination column name
+        weight_name: str
+            weight column name
+    """
+    if weight_name:
+        reverse_df = df[[*dst_name, *src_name, *weight_name]]
+        reverse_df.columns = [*src_name, *dst_name, *weight_name]
+    else:
+        reverse_df = df[[*dst_name, *src_name]]
+        reverse_df.columns = [*src_name, *dst_name]
+    return cudf.concat([df, reverse_df], ignore_index=True)
+
+
+def _memory_efficient_drop_duplicates(ddf, vertex_col_name, num_workers):
+    """
+    Drop duplicate edges from the input dataframe.
+    """
+    # drop duplicates has a 5x+ overhead
+    # and does not seem to be working as expected
+    # TODO: Triage an MRE
+    ddf = ddf.reset_index(drop=True).repartition(npartitions=num_workers * 2)
+    ddf = ddf.groupby(by=[*vertex_col_name], as_index=False).min(
+        split_out=num_workers * 2
+    )
+    return ddf
