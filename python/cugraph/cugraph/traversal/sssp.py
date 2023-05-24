@@ -135,7 +135,7 @@ def sssp(
     overwrite=None,
     indices=None,
     cutoff=None,
-    nx_weight_attr="weight",
+    edge_attr="weight",
 ):
     """
     Compute the distance and predecessors for shortest paths from the specified
@@ -158,11 +158,12 @@ def sssp(
         The current implementation only supports weighted graphs.
     source : int
         Index of the source vertex.
-    cutoff : double, optional (default = None)
+    cutoff : double, optional (default=None)
         Maximum edge weight sum considered by the algorithm
-    nx_weight_attr : string
-        when G is a NetworkX type, allows to specify name of edge weight
-        attribute; uses Nx convention by default
+    edge_attr : str, optional (default='weight')
+        The name of the edge attribute that represents the weight of an edge.
+        This currently applies only when G is a NetworkX Graph.
+        Default value is 'weight', which follows NetworkX convention.
 
     Returns
     -------
@@ -212,7 +213,7 @@ def sssp(
     )
 
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr=nx_weight_attr, matrix_graph_type=Graph(directed=directed)
+        G, nx_weight_attr=edge_attr, matrix_graph_type=Graph(directed=directed)
     )
 
     if not G.edgelist.weights:
