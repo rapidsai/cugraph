@@ -133,23 +133,21 @@ def _sampler_output_from_sampling_results(
     # Use hop 0 sources since those are the only ones not included in destinations
     # Use torch.concat based on benchmark performance (vs. cudf.concat)
     nodes_of_interest = (
-        cudf.Series(
-            torch.concat(
-                [
-                    torch.as_tensor(
-                        sampling_results_hop_0.sources.values, device="cuda"
-                    ),
-                    torch.as_tensor(
-                        sampling_results.destinations.values, device="cuda"
-                    ),
-                ]
-            ),
-            name="nodes_of_interest",
-        )
+        cudf.concat([
+            sampling_results_hop_0.sources,
+            sampling_results.destinations,
+        ])
         .drop_duplicates()
         .sort_index()
     )
-    del sampling_results_hop_0
+    nodes_of_interest.name = "nodes_of_interest"
+    # del sampling_results_hop_0
+
+    print(hops)
+    print(sampling_results_hop_0.destinations.sort_values())
+    print(sampling_results.sources.loc[sampling_results.hop_id==1].sort_values())
+    print((sampling_results.sources.loc[sampling_results.hop_id==1].isin(sampling_results[sampling_results.hop_id==0].destinations)).sum())
+    assert len(nodes_of_interest) == cudf.concat([sampling_results.sources, sampling_results.destinations]).nunique()
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
     noi_index = graph_store._get_vertex_groups_from_sample(

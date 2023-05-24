@@ -788,17 +788,27 @@ class EXPERIMENTAL__CuGraphStore:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
 
+            dst_id_table = noi_index[dst_type]
+            dst_id_map = (
+                    cudf.Series(cupy.asarray(dst_id_table), name="dst")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("dst")
+                )
+            dst = dst_id_map["new_id"].loc[sampling_results.destinations]
+            col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+
             sources = torch.as_tensor(sampling_results.sources.values, device="cuda")
             src_id_table = noi_index[src_type]
-            src = torch.searchsorted(src_id_table, sources)
-            row_dict[t_pyg_type] = src
-
-            destinations = torch.as_tensor(
-                sampling_results.destinations.values, device="cuda"
-            )
-            dst_id_table = noi_index[dst_type]
-            dst = torch.searchsorted(dst_id_table, destinations)
-            col_dict[t_pyg_type] = dst
+            src_id_map = (
+                    cudf.Series(cupy.asarray(src_id_table), name="src")
+                    .reset_index()
+                    .rename(columns={"index": "new_id"})
+                    .set_index("src")
+                )
+            src = src_id_map["new_id"].loc[sampling_results.sources]
+            row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
+            
         else:
             # This will retrieve the single string representation.
             # It needs to be converted to a tuple in the for loop below.
