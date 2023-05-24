@@ -246,6 +246,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Pull the next set of sampling results out of the dataframe in memory
         f = (self.__data["batch_id"] == self.__next_batch)
         print('batch:', self.__next_batch)
+        print(self.__data.loc[f])
 
         sampler_output = _sampler_output_from_sampling_results(
             self.__data.loc[f], self.__graph_store

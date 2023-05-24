@@ -79,7 +79,7 @@ def karate_gnn():
     el = karate.get_edgelist().reset_index(drop=True)
     el.src = el.src.astype("int64")
     el.dst = el.dst.astype("int64")
-    all_vertices = np.array_split(cudf.concat([el.src, el.dst]).unique().values_host, 2)
+    all_vertices = np.array_split(np.arange(34), 2)
 
     F = FeatureStore(backend="torch")
     F.add_data(
@@ -97,22 +97,23 @@ def karate_gnn():
         "type0": len(all_vertices[0]),
         "type1": len(all_vertices[1]),
     }
+    print('all_vertices:', all_vertices)
 
     offsets = {"type0": 0, "type1": N["type0"]}
 
     G = {
         ("type0", "et01", "type1"): el[
             el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[1])
-        ],
+        ].reset_index(drop=True),
         ("type1", "et10", "type0"): el[
             el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[0])
-        ],
+        ].reset_index(drop=True),
         ("type0", "et00", "type0"): el[
             el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[0])
         ],
         ("type1", "et11", "type1"): el[
             el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[1])
-        ],
+        ].reset_index(drop=True),
     }
 
     G = {
@@ -122,6 +123,10 @@ def karate_gnn():
         )
         for (src_type, edge_type, dst_type), elx in G.items()
     }
+
+    print('offset:', offsets)
+    print('G:', G)
+    
 
     return F, G, N
 
