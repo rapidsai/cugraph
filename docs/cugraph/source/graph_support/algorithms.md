@@ -20,9 +20,9 @@ _Italic_ algorithms are planned for future releases.
 
 Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called MNMG).
 
-| Category          | Algorithm                          | Scale               | Notes                                                           |
+| Category          | Notebooks                          | Scale               | Notes                                                           |
 | ----------------- | ---------------------------------- | ------------------- | --------------------------------------------------------------- |
-| [Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Centrality.ipynb)        |                                    |                     |                                                                 |
+| [Centrality](./algorithms/Centrality.md)        | [Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Centrality.ipynb)                                   |                     |                                                                 |
 |                   | [Katz](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Katz.ipynb)                               | __Multi-GPU__ |                                                                 |
 |                   | [Betweenness Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Betweenness.ipynb)             | Single-GPU          | MG planned for 23.02                                            |
 |                   | [Edge Betweenness Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Betweenness.ipynb)        | Single-GPU          | MG planned for 23.02                                            |
