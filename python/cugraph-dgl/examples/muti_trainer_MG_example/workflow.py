@@ -16,6 +16,7 @@ import torch
 import time
 from distributed import Client, Event as Dask_Event
 import tempfile
+from cugraph.dask.comms import comms as Comms
 
 
 def enable_spilling():
@@ -218,6 +219,9 @@ def run_workflow(rank, devices, scheduler_address):
         client.unpublish_dataset("valid_idx")
         client.unpublish_dataset("test_idx")
         event.clear()
+    print("Workflow completed")
+    print("---" * 10)
+    Comms.destroy()
 
 
 if __name__ == "__main__":
@@ -228,6 +232,7 @@ if __name__ == "__main__":
     del _
     dask_worker_devices = [5, 6]
     cluster = setup_cluster(dask_worker_devices)
+
     trainer_devices = [0, 1, 2]
     import torch.multiprocessing as mp
 
@@ -236,3 +241,5 @@ if __name__ == "__main__":
         args=(trainer_devices, cluster.scheduler_address),
         nprocs=len(trainer_devices),
     )
+    Comms.destroy()
+    cluster.close()

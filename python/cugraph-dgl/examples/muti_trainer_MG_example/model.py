@@ -19,7 +19,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchmetrics.functional as MF
-from dgl.nn import SAGEConv
+from cugraph_dgl.nn import SAGEConv
 import tqdm
 
 
