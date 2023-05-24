@@ -22,7 +22,7 @@ import torch
 import numpy as np
 
 from torch_geometric.nn import CuGraphSAGEConv
-from torch_geometric.nn import to_hetero
+from torch_geometric.utils.trim_to_layer import TrimToLayer
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -57,25 +57,37 @@ class CuGraphSAGE(nn.Module):
         
         self.convs.append(CuGraphSAGEConv(hidden_channels, out_channels, aggr='mean'))
 
+        self._trim = TrimToLayer()
+
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
-        if len(num_sampled_nodes) != len(self.convs) + 1:
-            raise KeyError("Num sampled nodes length did not match # layers")
-        if len(num_sampled_edges) != len(self.convs):
-            raise KeyError("Num sampled edges did not match # layers")
+        print(num_sampled_nodes)
+        print(num_sampled_edges)
 
-        for conv in self.convs:
-            if not edge.is_cuda:
-                edge = edge.cuda()
+        for i, conv in enumerate(self.convs):
+            edge = edge.cuda()
+            x = x.cuda().to(torch.float32)
 
-            edge_csc = CuGraphSAGEConv.to_csc(edge[-num_sampled_edges[-1]:], (num_sampled_nodes[-2], num_sampled_nodes[-1]))
-            edge = edge[:-num_sampled_edges[-1]]
-            num_sampled_edges = num_sampled_edges[:-1]
-            num_sampled_nodes = num_sampled_nodes[:-1]
+            _, edge, _ = self._trim(
+                i,
+                num_sampled_nodes,
+                num_sampled_edges,
+                x,
+                edge,
+                None
+            )
+            print(edge.shape)
+            print(edge)
+            
+            s = len(edge.unique())
+            edge_csc = CuGraphSAGEConv.to_csc(edge, (s, s))
 
-            if not x.is_cuda:
-                x = x.cuda()
-            if x.dtype != torch.float32:
-                x = x.to(torch.float32)
+            print('x shape', x.shape)
+            print('s: ', s)
+            x = x[:s]
+
+            print(x.shape)
+            print(edge.shape)
+            print('----------------')
 
             x = conv(x, edge_csc)
             x = F.relu(x)
@@ -90,17 +102,19 @@ def init_pytorch_worker(device_id: int) -> None:
 
     rmm.reinitialize(
         devices=[device_id],
-        pool_allocator=True,
+        pool_allocator=False,
     )
 
-    cupy.cuda.Device(device_id).use()
-    torch.cuda.set_device(device_id)
 
     from rmm.allocators.torch import rmm_torch_allocator
     torch.cuda.change_current_allocator(rmm_torch_allocator)
 
     from rmm.allocators.cupy import rmm_cupy_allocator
     cupy.cuda.set_allocator(rmm_cupy_allocator)
+
+    cupy.cuda.Device(device_id).use()
+    torch.cuda.set_device(device_id)
+
 
 
 def train_native(device:int, features_device:Union[str, int] = "cpu", num_epochs=1) -> None:
@@ -138,7 +152,7 @@ def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] =
 
     num_input_features = 0
     num_output_features = 0
-    for node_type in os.listdir(dataset_path, 'npy'):
+    for node_type in os.listdir(os.path.join(dataset_path, 'npy')):
         feature_data = load_disk_features(output_meta, node_type, replication_factor=replication_factor)
         fs.add_data(
             torch.as_tensor(feature_data, device=features_device),
@@ -151,24 +165,32 @@ def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] =
         label_path = os.path.join(dataset_path, 'parquet', node_type, 'node_label.parquet')
         if os.path.exists(label_path):
             node_label = cudf.read_parquet(label_path)
-            node_label_tensor = torch.full(N[node_type], -1, dtype=torch.float32)
+            node_label_tensor = torch.full((N[node_type],), -1, dtype=torch.float32, device='cuda')
             node_label_tensor[torch.as_tensor(node_label.node.values, device='cuda')] = \
                 torch.as_tensor(node_label.label.values, device='cuda')
             
             del node_label
             gc.collect()
 
-            fs.add_data(torch.as_tensor(node_label, device=device), node_type, 'y')
-            if len(node_label) > num_output_features:
-                num_output_features = len(node_label)
+            fs.add_data((node_label_tensor > -1), node_type, 'train')
+            fs.add_data(node_label_tensor, node_type, 'y')
+            num_classes = int(node_label_tensor.max()) + 1
+            if num_classes > num_output_features:
+                num_output_features = num_classes
+    print('done loading data')
 
-    model = to_hetero(
-        CuGraphSAGE(in_channels=num_input_features, hidden_channels=64, out_channels=num_output_features, num_layers=len(output_meta['fanout']))
-        .to(torch.float32)
-        .to(device)
-    )
+    print(num_input_features, num_output_features, len(output_meta['fanout']))
+    
+    model = CuGraphSAGE(
+            in_channels=num_input_features,
+            hidden_channels=64,
+            out_channels=num_output_features,
+            num_layers=len(output_meta['fanout'])
+    ).to(torch.float32).to(device)
+    print('done creating model')
     
     cugraph_store = CuGraphStore(fs, G, N)
+    print('done creating store')
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
@@ -182,33 +204,44 @@ def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] =
             input_nodes=None,
             directory=os.path.join(bulk_samples_dir, 'samples'),
         )
+        print('done creating loader')
 
         total_loss = 0
         num_batches = 0
 
         for epoch in range(num_epochs):
-            for iter_i, hetero_data in enumerate(cugraph_loader):
+            t = time.perf_counter()
+            for iter_i, data in enumerate(cugraph_loader):
+                print(time.perf_counter() - t)
+                print(len(data.edge_index_dict['paper','cites','paper'][0].unique()))
+                print(len(data.edge_index_dict['paper','cites','paper'][1].unique()))
+                print('*********************************************************')
+                data = data.to_homogeneous()
+
                 num_batches += 1
                 if iter_i % 20 == 0:
                     print(f"iteration {iter_i}")
 
                 # train
-                train_mask = hetero_data.train_dict
-                y_true = hetero_data.y_dict
+                y_true = data.y
 
                 y_pred = model(
-                    hetero_data.x_dict,
-                    hetero_data.edge_index_dict,
-                    hetero_data.num_sampled_nodes,
+                    data.x,
+                    data.edge_index,
+                    data.num_sampled_nodes,
+                    data.num_sampled_edges,
                 )
 
-                print('y pred: ', y_pred)
+                if y_pred.shape[0] > len(y_true):
+                    raise ValueError(f"illegal shape: {y_pred.shape}; {y_true.shape}")
+
+                y_true = y_true[:y_pred.shape[0]]
 
                 y_true = F.one_hot(
-                    y_true[train_mask].to(torch.int64), num_classes=349
+                    y_true.to(torch.int64), num_classes=y_pred.shape[1]
                 ).to(torch.float32)
-
-                y_pred = y_pred[train_mask]
+                print('shape: ', y_true.shape)
+                """
 
                 loss = F.cross_entropy(y_pred, y_true)
 
@@ -216,12 +249,15 @@ def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] =
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
+                
 
                 del y_true
                 del y_pred
                 del loss
-                del hetero_data
+                del data
                 gc.collect()
+                """
+                t = time.perf_counter()
 
             end_time_train = time.perf_counter_ns()
             print(

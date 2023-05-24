@@ -213,6 +213,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             # Will raise StopIteration if there are no files left
             try:
                 fname = next(self.__input_files)
+                print('fname:', fname)
             except StopIteration as ex:
                 # Won't delete a non-temp dir (since it would just be deleting a string)
                 del self.__directory
@@ -243,10 +244,11 @@ class EXPERIMENTAL__BulkSampleLoader:
             self.__data = self.__data[list(columns.keys())].astype(columns)
 
         # Pull the next set of sampling results out of the dataframe in memory
-        f = self.__data["batch_id"] == self.__next_batch
+        f = (self.__data["batch_id"] == self.__next_batch)
+        print('batch:', self.__next_batch)
 
         sampler_output = _sampler_output_from_sampling_results(
-            self.__data[f], self.__graph_store
+            self.__data.loc[f], self.__graph_store
         )
 
         # Get ready for next iteration
@@ -272,6 +274,9 @@ class EXPERIMENTAL__BulkSampleLoader:
                 sampler_output.col,
                 sampler_output.edge,
             )
+
+            out.set_value_dict('num_sampled_nodes', sampler_output.num_sampled_nodes)
+            out.set_value_dict('num_sampled_edges', sampler_output.num_sampled_edges)
 
             return out
 

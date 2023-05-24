@@ -696,7 +696,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         vtypes = cudf.Series(self.__vertex_type_offsets["type"])
         if len(vtypes) == 1:
-            noi_index[vtypes[0]] = nodes_of_interest
+            noi_index[vtypes.iloc[0]] = nodes_of_interest
         else:
             noi_type_indices = torch.searchsorted(
                 torch.as_tensor(self.__vertex_type_offsets["stop"], device="cuda"),
