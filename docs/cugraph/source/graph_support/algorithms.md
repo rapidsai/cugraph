@@ -55,11 +55,11 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | [Pagerank](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/Pagerank.ipynb)                           | __Multi-GPU__ | [C++ README](cpp/src/centrality/README.md#Pagerank)                |
 |                   | [Personal Pagerank]()                  | __Multi-GPU__ | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank)   |
 |                   | [HITS](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/HITS.ipynb)                               | __Multi-GPU__ |                                                                 |
-| Link Prediction   |                                    |                     |                                                                 |
+| [Link Prediction](./algorithms/Similarity.md)   |                                    |                     |                                                                 |
 |                   | [Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb)                 | **Multi-GPU**      | MG as of 22.12<br />Directed graph only                         |
 |                   | [Weighted Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb)        | Single-GPU          |                                                                 |
 |                   | [Overlap Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Overlap-Similarity.ipynb)                 | **Multi-GPU** | MG as of 22.12                                                  |
-|                   | [Sorensen Coefficient](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Sorensen-Similarity.ipynb)               | **Multi-GPU** | MG as of 22.12                                                  |
+|                   | Sorensen Coefficient - Coming Soon| **Multi-GPU** | MG as of 22.12                                                  |
 |                   | _Local Clustering Coefficient_   | ---                 |                                                                 |
 | Sampling          |                                    |                     |                                                                 |
 |                   | [Uniform Random Walks RW](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/sampling/RandomWalk.ipynb)          | **Multi-GPU** |                                                                 |
