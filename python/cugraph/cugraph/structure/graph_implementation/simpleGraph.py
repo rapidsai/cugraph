@@ -1198,9 +1198,13 @@ class simpleGraphImpl:
                 else:
                     return df[df.columns[0]]
             else:
-                return cudf.concat(
-                    [df[simpleGraphImpl.srcCol], df[simpleGraphImpl.dstCol]]
-                ).unique().sort_values()
+                return (
+                    cudf.concat(
+                        [df[simpleGraphImpl.srcCol], df[simpleGraphImpl.dstCol]]
+                    )
+                    .unique()
+                    .sort_values()
+                )
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
 
