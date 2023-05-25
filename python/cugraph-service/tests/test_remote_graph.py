@@ -394,7 +394,7 @@ def test_extract_subgraph(
 
     expected_vertex_ids = cudf.concat(
         [sg.edgelist.edgelist_df["src"], sg.edgelist.edgelist_df["dst"]]
-    ).unique()
+    ).unique().sort_values()
     if renumber:
         expected_vertex_ids = sg.unrenumber(
             cudf.DataFrame({"v": expected_vertex_ids}), "v"

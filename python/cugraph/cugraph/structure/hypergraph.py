@@ -325,7 +325,7 @@ def _create_entity_nodes(
 
     for key, col in events[columns].items():
         cat = categories.get(key, key)
-        col = col.unique()
+        col = col.unique().sort_values()
         col = col.nans_to_nulls().dropna() if dropna else col
         if len(col) == 0:
             continue

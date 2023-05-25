@@ -530,11 +530,11 @@ class EXPERIMENTAL__PropertyGraph:
         if vert_sers:
             if self.__series_type is cudf.Series:
                 return self.__series_type(
-                    cudf.concat(vert_sers, ignore_index=True).unique()
+                    cudf.concat(vert_sers, ignore_index=True).unique().sort_values()
                 )
             else:
                 return self.__series_type(
-                    pd.concat(vert_sers, ignore_index=True).unique()
+                    pd.concat(vert_sers, ignore_index=True).unique().sort_values()
                 )
         return self.__series_type()
 
