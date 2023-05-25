@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,9 +26,7 @@ from numba import cuda
 pascal = False
 
 device = cuda.get_current_device()
-# check for the attribute using both pre and post numba 0.53 names
-cc = getattr(device, 'COMPUTE_CAPABILITY', None) or \
-     getattr(device, 'compute_capability')
+cc = device.compute_capability
 if (cc[0] < 7):
     pascal = True
 
