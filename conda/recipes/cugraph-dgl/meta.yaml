@@ -23,7 +23,7 @@ requirements:
     - python x.x
   run:
     - cugraph ={{ version }}
-    - dgl >=1.1.0.dev0
+    - dgl >=1.1.0.cu*
     - numba >=0.56.2
     - numpy
     - python x.x
