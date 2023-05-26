@@ -228,8 +228,7 @@ if __name__ == "__main__":
     # Load dummy first
     # because new environments
     # require dataset download
-    _ = load_dgl_dataset()
-    del _
+    load_dgl_dataset()
     dask_worker_devices = [5, 6]
     cluster = setup_cluster(dask_worker_devices)
 
