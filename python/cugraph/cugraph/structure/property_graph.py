@@ -534,9 +534,7 @@ class EXPERIMENTAL__PropertyGraph:
                 )
             else:
                 x = pd.Series(pd.concat(vert_sers, ignore_index=True).unique())
-                return self.__series_type(
-                    x.sort_values()
-                )
+                return self.__series_type(x.sort_values())
         return self.__series_type()
 
     def vertices_ids(self):
