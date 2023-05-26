@@ -488,7 +488,7 @@ class EXPERIMENTAL__PropertyGraph:
     def get_vertices(self, selection=None):
         """
         Return a Series containing the unique vertex IDs contained in both
-        the vertex and edge property data.
+        the vertex and edge property data in ascending order.
         Selection is not yet supported.
 
         Parameters
@@ -533,8 +533,9 @@ class EXPERIMENTAL__PropertyGraph:
                     cudf.concat(vert_sers, ignore_index=True).unique().sort_values()
                 )
             else:
+                x = pd.Series(pd.concat(vert_sers, ignore_index=True).unique())
                 return self.__series_type(
-                    pd.concat(vert_sers, ignore_index=True).unique().sort_values()
+                    x.sort_values()
                 )
         return self.__series_type()
 

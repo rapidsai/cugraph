@@ -397,7 +397,7 @@ class simpleGraphImpl:
             df[dst] : cudf.Series
                 contains the destination index for each edge
 
-            df[weight] : cusd.Series
+            df[weight] : cudf.Series
                 Column is only present for weighted Graph,
                 then containing the weight value for each edge
         """
@@ -1185,7 +1185,8 @@ class simpleGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series.
+        Returns all the nodes in the graph as a cudf.Series, in order of appearance
+        in the edgelist (source column first, then destination column).
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
@@ -1203,7 +1204,6 @@ class simpleGraphImpl:
                         [df[simpleGraphImpl.srcCol], df[simpleGraphImpl.dstCol]]
                     )
                     .unique()
-                    .sort_values()
                 )
         if self.adjlist is not None:
             return cudf.Series(np.arange(0, self.number_of_nodes()))
