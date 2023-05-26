@@ -17,4 +17,4 @@ from .algorithms import *
 from .classes import *
 from .convert import *
 
-__version__ = "23.06.00"
+__version__ = "23.08.00"
