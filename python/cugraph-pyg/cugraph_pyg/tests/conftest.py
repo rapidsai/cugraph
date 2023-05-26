@@ -23,7 +23,6 @@ from cugraph.testing.mg_utils import stop_dask_client
 
 import torch
 import numpy as np
-import cudf
 from cugraph.gnn import FeatureStore
 from cugraph.experimental.datasets import karate
 
@@ -79,7 +78,7 @@ def karate_gnn():
     el = karate.get_edgelist().reset_index(drop=True)
     el.src = el.src.astype("int64")
     el.dst = el.dst.astype("int64")
-    all_vertices = np.array_split(cudf.concat([el.src, el.dst]).unique().values_host, 2)
+    all_vertices = np.array_split(np.arange(34), 2)
 
     F = FeatureStore(backend="torch")
     F.add_data(
@@ -103,16 +102,16 @@ def karate_gnn():
     G = {
         ("type0", "et01", "type1"): el[
             el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[1])
-        ],
+        ].reset_index(drop=True),
         ("type1", "et10", "type0"): el[
             el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[0])
-        ],
+        ].reset_index(drop=True),
         ("type0", "et00", "type0"): el[
             el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[0])
         ],
         ("type1", "et11", "type1"): el[
             el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[1])
-        ],
+        ].reset_index(drop=True),
     }
 
     G = {
