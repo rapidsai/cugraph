@@ -35,7 +35,7 @@ dependencies = [
     "dask-cudf==23.6.*",
     "dask==2023.3.2",
     "distributed==2023.3.2.1",
-    "numba>=0.56.4,<0.57",
+    "numba>=0.57",
     "pylibcugraph==23.6.*",
     "raft-dask==23.6.*",
     "rmm==23.6.*",

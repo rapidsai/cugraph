@@ -1134,14 +1134,8 @@ class simpleGraphImpl:
         """
         Returns True if the graph contains the node n.
         """
-        if self.properties.renumbered:
-            tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
-            return tmp[0] is not cudf.NA and tmp[0] >= 0
-        else:
-            df = self.edgelist.edgelist_df[
-                [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
-            ]
-            return (df == n).any().any()
+
+        return (self.nodes() == n).any().any()
 
     def has_edge(self, u, v):
         """
