@@ -24,7 +24,7 @@ requirements:
   run:
     - cugraph ={{ version }}
     - dgl >=0.9.1
-    - numba >=0.56.2
+    - numba >=0.57
     - numpy
     - python x.x
     - pytorch
