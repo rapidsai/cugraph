@@ -381,6 +381,18 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 
 @pytest.mark.sg
+def test_sssp_networkx_edge_attr():
+    G = nx.Graph()
+    G.add_edge(0, 1, other=10)
+    G.add_edge(1, 2, other=20)
+    df = cugraph.sssp(G, 0, edge_attr="other")
+    df = df.set_index("vertex")
+    assert df.loc[0, "distance"] == 0
+    assert df.loc[1, "distance"] == 10
+    assert df.loc[2, "distance"] == 30
+
+
+@pytest.mark.sg
 def test_scipy_api_compat():
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()
