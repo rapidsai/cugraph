@@ -23,7 +23,6 @@ from cugraph.testing.mg_utils import stop_dask_client
 
 import torch
 import numpy as np
-import cudf
 from cugraph.gnn import FeatureStore
 from cugraph.experimental.datasets import karate
 
@@ -79,7 +78,7 @@ def karate_gnn():
     el = karate.get_edgelist().reset_index(drop=True)
     el.src = el.src.astype("int64")
     el.dst = el.dst.astype("int64")
-    all_vertices = np.array_split(cudf.concat([el.src, el.dst]).unique().values_host, 2)
+    all_vertices = np.array_split(np.arange(34), 2)
 
     F = FeatureStore(backend="torch")
     F.add_data(
@@ -103,16 +102,16 @@ def karate_gnn():
     G = {
         ("type0", "et01", "type1"): el[
             el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[1])
-        ],
+        ].reset_index(drop=True),
         ("type1", "et10", "type0"): el[
             el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[0])
-        ],
+        ].reset_index(drop=True),
         ("type0", "et00", "type0"): el[
             el.src.isin(all_vertices[0]) & el.dst.isin(all_vertices[0])
         ],
         ("type1", "et11", "type1"): el[
             el.src.isin(all_vertices[1]) & el.dst.isin(all_vertices[1])
-        ],
+        ].reset_index(drop=True),
     }
 
     G = {
@@ -230,5 +229,39 @@ def multi_edge_multi_vertex_no_graph_1():
     F.add_data(np.array([5, 4, 3]), type_name="brown", feat_name="prop2")
 
     F.add_data(np.array([2, 1]), type_name="black", feat_name="prop2")
+
+    return F, G, N
+
+
+@pytest.fixture
+def abc_graph():
+    N = {
+        "A": 2,  # 0, 1
+        "B": 3,  # 2, 3, 4
+        "C": 4,  # 5, 6, 7, 8
+    }
+
+    G = {
+        # (0->2, 0->3, 1->3)
+        ("A", "ab", "B"): [
+            torch.tensor([0, 0, 1], dtype=torch.int64),
+            torch.tensor([0, 1, 1], dtype=torch.int64),
+        ],
+        # (2->0, 2->1, 3->1, 4->0)
+        ("B", "ba", "A"): [
+            torch.tensor([0, 0, 1, 2], dtype=torch.int64),
+            torch.tensor([0, 1, 1, 0], dtype=torch.int64),
+        ],
+        # (2->6, 2->8, 3->5, 3->7, 4->5, 4->8)
+        ("B", "bc", "C"): [
+            torch.tensor([0, 0, 1, 1, 2, 2], dtype=torch.int64),
+            torch.tensor([1, 3, 0, 2, 0, 3], dtype=torch.int64),
+        ],
+    }
+
+    F = FeatureStore()
+    F.add_data(
+        torch.tensor([3.2, 2.1], dtype=torch.float32), type_name="A", feat_name="prop1"
+    )
 
     return F, G, N
