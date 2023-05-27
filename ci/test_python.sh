@@ -64,8 +64,9 @@ popd
 
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
+export DASK_WORKER_DEVICES="0"
 pytest \
-  -m sg \
+  -v \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --cov-config=../../.coveragerc \
