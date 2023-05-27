@@ -28,6 +28,7 @@ dependencies = [
     "dask==2023.3.2",
     "distributed==2023.3.2.1",
     "numpy>=1.21",
+    "numba>=0.57",
     "rmm==23.6.*",
     "thriftpy2",
     "ucx-py==0.32.*",

@@ -356,6 +356,7 @@ dependencies:
           - *dask_cuda
           - *dask_cudf
           - *distributed
+          - *numba
           - *numpy
           - *rmm
           - *thrift

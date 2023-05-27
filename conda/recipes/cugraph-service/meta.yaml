@@ -58,6 +58,7 @@ outputs:
         - dask-cuda ={{ minor_version }}
         - dask-cudf ={{ minor_version }}
         - distributed ==2023.3.2.1
+        - numba >=0.57
         - numpy >=1.21
         - python x.x
         - thriftpy2 >=0.4.15
