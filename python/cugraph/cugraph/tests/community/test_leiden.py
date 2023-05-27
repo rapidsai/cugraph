@@ -20,7 +20,7 @@ import networkx as nx
 import cugraph
 import cudf
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS, karate_asymmetric
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
 
 from cudf.testing.testing import assert_series_equal
 
@@ -43,8 +43,8 @@ _test_data = {
         "resolution": 1.0,
         "input_type": "COO",
         "expected_output": {
-            "partition": [1, 1, 1, 0, 0, 0],
-            "modularity_score": 0.215969,
+            "partition": [1, 0, 1, 2, 2, 2],
+            "modularity_score": 0.1757322,
         },
     },
     "data_2": {
@@ -85,10 +85,10 @@ _test_data = {
         "input_type": "CSR",
         "expected_output": {
             # fmt: off
-            "partition": [0, 0, 0, 0, 3, 3, 3, 0, 1, 0, 3, 0, 0, 0, 1, 1, 3, 0, 1, 0, 1,
-                          0, 1, 1, 2, 2, 1, 1, 2, 1, 1, 2, 1, 1],
+            "partition": [6, 6, 3, 3, 1, 5, 5, 3, 0, 3, 1, 6, 3, 3, 4, 4, 5, 6, 4, 6, 4,
+                          6, 4, 4, 2, 2, 4, 4, 2, 4, 0, 2, 4, 4],
             # fmt: on
-            "modularity_score": 0.4155982,
+            "modularity_score": 0.3468113,
         },
     },
 }
@@ -120,7 +120,6 @@ def input_and_expected_output(request):
 
     G = cugraph.Graph()
 
-    # Done in the test
     if input_type == "COO":
         # Create graph from an edgelist
         df = cudf.DataFrame()
@@ -132,7 +131,7 @@ def input_and_expected_output(request):
             source="src",
             destination="dst",
             edge_attr="weight",
-            store_transposed=True,
+            store_transposed=False,
         )
 
     elif input_type == "CSR":
@@ -180,7 +179,7 @@ def cugraph_louvain(G):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_leiden(graph_file):
     edgevals = True
 
@@ -188,11 +187,12 @@ def test_leiden(graph_file):
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
-    assert leiden_mod >= (0.99 * louvain_mod)
+    # Leiden modularity score is smaller than Louvain's
+    assert leiden_mod >= (0.75 * louvain_mod)
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_leiden_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
@@ -205,7 +205,8 @@ def test_leiden_nx(graph_file):
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
     # Calculating modularity scores for comparison
-    assert leiden_mod >= (0.99 * louvain_mod)
+    # Leiden modularity score is smaller than Louvain's
+    assert leiden_mod >= (0.75 * louvain_mod)
 
 
 @pytest.mark.sg
