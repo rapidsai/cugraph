@@ -84,7 +84,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         #       The number of connected components (number of unique labels).
         #   labels: ndarray
         #       The length-N array of labels of the connected components.
-        n_components = len(df["labels"].unique())
+        n_components = df["labels"].nunique()
         sorted_df = df.sort_values("vertex")
         if return_labels:
             if is_cp_matrix_type(input_type):
