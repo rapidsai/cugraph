@@ -201,6 +201,7 @@ def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
     
     return node_offsets, node_offsets_replicated, count_replicated
 
+
 def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1):
     path = os.path.join(dataset_dir, dataset)
     parquet_path = os.path.join(path, 'parquet')
@@ -241,8 +242,12 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
                 edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename({'src':'dst','dst':'src'}).persist()
     
     # cuGraph-PyG assigns numeric edge type ids based on lexicographic order
+    edge_offsets = {}
+    edge_count = 0
     for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
         edge_index_dict[can_edge_type]['etp'] = cupy.int32(num_edge_type)
+        edge_offsets[can_edge_type] += edge_count
+        edge_count += len(edge_index_dict[can_edge_type])
     
     all_edges_df = dask_cudf.concat(
         list(edge_index_dict.values())
@@ -279,7 +284,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     del node_labels
     gc.collect()
 
-    return all_edges_df, node_labels_df, node_offsets_replicated, total_num_nodes
+    return all_edges_df, node_labels_df, node_offsets_replicated, edge_offsets, total_num_nodes
     
 
 def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seeds_per_call, fanout, reverse_edges=True, dataset_dir='.', replication_factor=1, num_labels=256, labeled_percentage=0.001):
@@ -342,7 +347,7 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
 
     else:
-        dask_edgelist_df, dask_label_df, node_offsets, total_num_nodes = \
+        dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
             load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor)
 
     num_input_edges = len(dask_edgelist_df)
@@ -383,6 +388,7 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         'dataset_dir': dataset_dir,
         'seed': seed,
         'node_offsets': node_offsets,
+        'edge_offsets': edge_offsets,
         'total_num_nodes': total_num_nodes,
         'total_num_edges': num_input_edges,
         'batch_size': batch_size,
