@@ -213,7 +213,6 @@ class EXPERIMENTAL__BulkSampleLoader:
             # Will raise StopIteration if there are no files left
             try:
                 fname = next(self.__input_files)
-                print('fname:', fname)
             except StopIteration as ex:
                 # Won't delete a non-temp dir (since it would just be deleting a string)
                 del self.__directory

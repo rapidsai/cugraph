@@ -646,7 +646,7 @@ def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
     # retrieving them. The datasets currently used are not truly bipartite.
     cu_M = utils.read_csv_file(graph_file)
-    nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique()
+    nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique().sort_values()
 
     # Create set of nodes for partition
     set1_exp = cudf.Series(nodes[0 : int(len(nodes) / 2)])

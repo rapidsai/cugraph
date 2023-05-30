@@ -186,6 +186,21 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
     return (end_time - start_time)
 
 
+def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
+    # cuGraph-PyG assigns offsets based on lexicographic order
+    node_offsets = {}
+    node_offsets_replicated = {}
+    count = 0
+    count_replicated = 0
+    for node_type in sorted(node_counts.keys()):
+        node_offsets[node_type] = count
+        node_offsets_replicated[node_type] = count_replicated
+
+        count += node_counts[node_type]
+        count_replicated += node_counts[node_type] * replication_factor
+    
+    return node_offsets, node_offsets_replicated, count_replicated
+
 def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1):
     path = os.path.join(dataset_dir, dataset)
     parquet_path = os.path.join(path, 'parquet')
@@ -194,16 +209,8 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
         meta = json.load(meta_file)
     
     # cuGraph-PyG assigns offsets based on lexicographic order
-    node_offsets = {}
-    node_offsets_replicated = {}
-    count = 0
-    count_replicated = 0
-    for node_type in sorted(meta['num_nodes'].keys()):
-        node_offsets[node_type] = count
-        node_offsets_replicated[node_type] = count_replicated
-
-        count += meta['num_nodes'][node_type]
-        count_replicated += meta['num_nodes'][node_type] * replication_factor
+    node_offsets, node_offsets_replicated, total_num_nodes = \
+        assign_offsets_pyg(meta['num_nodes'], replication_factor=replication_factor)
 
     edge_index_dict = {}
     for edge_type in os.listdir(parquet_path):
@@ -272,7 +279,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     del node_labels
     gc.collect()
 
-    return all_edges_df, node_labels_df
+    return all_edges_df, node_labels_df, node_offsets_replicated, total_num_nodes
     
 
 def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seeds_per_call, fanout, reverse_edges=True, dataset_dir='.', replication_factor=1, num_labels=256, labeled_percentage=0.001):
@@ -335,7 +342,8 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
 
     else:
-        dask_edgelist_df, dask_label_df = load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor)
+        dask_edgelist_df, dask_label_df, node_offsets, total_num_nodes = \
+            load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor)
 
     num_input_edges = len(dask_edgelist_df)
     print(
@@ -374,6 +382,9 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         'dataset': dataset,
         'dataset_dir': dataset_dir,
         'seed': seed,
+        'node_offsets': node_offsets,
+        'total_num_nodes': total_num_nodes,
+        'total_num_edges': num_input_edges,
         'batch_size': batch_size,
         'seeds_per_call': seeds_per_call,
         'batches_per_partition': batches_per_partition,
