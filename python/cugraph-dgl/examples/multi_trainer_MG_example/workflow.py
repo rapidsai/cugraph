@@ -16,6 +16,7 @@ import torch
 import time
 from distributed import Client, Event as Dask_Event
 import tempfile
+from cugraph.dask.comms import comms as Comms
 
 
 def enable_spilling():
@@ -39,7 +40,7 @@ def setup_cluster(dask_worker_devices):
     client.run(enable_spilling)
     print("Dask Cluster Setup Complete")
     del client
-    return cluster.scheduler_address
+    return cluster
 
 
 def create_dask_client(scheduler_address):
@@ -53,6 +54,8 @@ def create_dask_client(scheduler_address):
 def initalize_pytorch_worker(dev_id):
     import cupy as cp
     import rmm
+    from rmm.allocators.torch import rmm_torch_allocator
+    from rmm.allocators.cupy import rmm_cupy_allocator
 
     dev = cp.cuda.Device(
         dev_id
@@ -66,10 +69,10 @@ def initalize_pytorch_worker(dev_id):
     )
 
     if dev_id == 0:
-        torch.cuda.memory.change_current_allocator(rmm.rmm_torch_allocator)
+        torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
 
     torch.cuda.set_device(dev_id)
-    cp.cuda.set_allocator(rmm.rmm_cupy_allocator)
+    cp.cuda.set_allocator(rmm_cupy_allocator)
     enable_spilling()
     print("device_id", dev_id, flush=True)
 
@@ -98,7 +101,7 @@ def load_dgl_dataset(dataset_name="ogbn-products"):
     train_idx = train_idx.int()
     valid_idx = valid_idx.int()
     test_idx = test_idx.int()
-    return g, train_idx, valid_idx, test_idx
+    return g, train_idx, valid_idx, test_idx, dataset.num_classes
 
 
 def create_cugraph_graphstore_from_dgl_dataset(
@@ -106,9 +109,9 @@ def create_cugraph_graphstore_from_dgl_dataset(
 ):
     from cugraph_dgl import cugraph_storage_from_heterograph
 
-    dgl_g, train_idx, valid_idx, test_idx = load_dgl_dataset(dataset_name)
+    dgl_g, train_idx, valid_idx, test_idx, num_classes = load_dgl_dataset(dataset_name)
     cugraph_gs = cugraph_storage_from_heterograph(dgl_g, single_gpu=single_gpu)
-    return cugraph_gs, train_idx, valid_idx, test_idx
+    return cugraph_gs, train_idx, valid_idx, test_idx, num_classes
 
 
 def create_dataloader(gs, train_idx, device):
@@ -133,7 +136,9 @@ def create_dataloader(gs, train_idx, device):
 
 
 def run_workflow(rank, devices, scheduler_address):
-    # Below sets gpu_num
+    from model import Sage, train_model
+
+    # Below sets gpu_number
     dev_id = devices[rank]
     initalize_pytorch_worker(dev_id)
     device = torch.device(f"cuda:{dev_id}")
@@ -162,6 +167,7 @@ def run_workflow(rank, devices, scheduler_address):
             train_idx,
             valid_idx,
             test_idx,
+            num_classes,
         ) = create_cugraph_graphstore_from_dgl_dataset(
             "ogbn-products", single_gpu=False
         )
@@ -169,6 +175,7 @@ def run_workflow(rank, devices, scheduler_address):
         client.publish_dataset(train_idx=train_idx)
         client.publish_dataset(valid_idx=valid_idx)
         client.publish_dataset(test_idx=test_idx)
+        client.publish_dataset(num_classes=num_classes)
         event.set()
     else:
         if event.wait(timeout=1000):
@@ -176,6 +183,7 @@ def run_workflow(rank, devices, scheduler_address):
             train_idx = client.get_dataset("train_idx")
             valid_idx = client.get_dataset("valid_idx")
             test_idx = client.get_dataset("test_idx")
+            num_classes = client.get_dataset("num_classes")
         else:
             raise RuntimeError(f"Fetch cugraph_gs to worker_id {rank} failed")
 
@@ -183,26 +191,20 @@ def run_workflow(rank, devices, scheduler_address):
     print(f"Loading cugraph_store to worker {rank} is complete", flush=True)
     dataloader = create_dataloader(gs, train_idx, device)
     print("Data Loading Complete", flush=True)
-    del gs  # Clean up gs reference
-    # Comment below
-    st = time.time()
-    for step, (input_nodes, seeds, blocks) in enumerate(dataloader):
-        pass
-    et = time.time()
-    print(f"Warmup loading took = {et-st} s on worker = {rank}")
+    num_feats = gs.ndata["feat"]["_N"].shape[1]
+    hid_size = 256
+    # Load Training example
+    model = Sage(num_feats, hid_size, num_classes).to(device)
+    model = torch.nn.parallel.DistributedDataParallel(
+        model,
+        device_ids=[device],
+        output_device=device,
+    )
     torch.distributed.barrier()
-
-    n_epochs = 30
+    n_epochs = 10
     total_st = time.time()
-    for i in range(0, n_epochs):
-        st = time.time()
-        for step, (input_nodes, seeds, blocks) in enumerate(dataloader):
-            pass
-            # print(len(input_nodes))
-            # print(len(seeds))
-            # train_model()
-        et = time.time()
-        print(f"Data Loading took = {et-st} s for epoch = {i} on worker = {rank}")
+    opt = torch.optim.Adam(model.parameters(), lr=0.01)
+    train_model(model, gs, opt, dataloader, n_epochs, rank, valid_idx)
     torch.distributed.barrier()
     total_et = time.time()
     print(
@@ -217,22 +219,26 @@ def run_workflow(rank, devices, scheduler_address):
         client.unpublish_dataset("valid_idx")
         client.unpublish_dataset("test_idx")
         event.clear()
+    print("Workflow completed")
+    print("---" * 10)
+    Comms.destroy()
 
 
 if __name__ == "__main__":
     # Load dummy first
     # because new environments
     # require dataset download
-    _ = load_dgl_dataset()
-    del _
+    load_dgl_dataset()
     dask_worker_devices = [5, 6]
-    scheduler_address = setup_cluster(dask_worker_devices)
+    cluster = setup_cluster(dask_worker_devices)
 
     trainer_devices = [0, 1, 2]
     import torch.multiprocessing as mp
 
     mp.spawn(
         run_workflow,
-        args=(trainer_devices, scheduler_address),
+        args=(trainer_devices, cluster.scheduler_address),
         nprocs=len(trainer_devices),
     )
+    Comms.destroy()
+    cluster.close()
