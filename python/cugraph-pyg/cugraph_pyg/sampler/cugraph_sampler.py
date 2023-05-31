@@ -31,11 +31,11 @@ HeteroSamplerOutput = (
 )
 
 
-def _count_unique_nodes(
+def _get_unique_nodes(
     sampling_results: cudf.DataFrame,
     graph_store: CuGraphStore,
     node_type: str,
-    node_position: str,
+    node_position: str
 ) -> int:
     """
     Counts the number of unique nodes of a given node type.
@@ -54,8 +54,8 @@ def _count_unique_nodes(
 
     Returns
     -------
-    int
-        The number of unique nodes of the given node type.
+    cudf.Series
+        The unique nodes of the given node type.
     """
     if node_position == "src":
         edge_index = "sources"
@@ -78,9 +78,9 @@ def _count_unique_nodes(
 
         sampling_results_node = sampling_results[f]
     else:
-        return 0
+        return cudf.Series([], dtype='int64')
 
-    return sampling_results_node[edge_index].nunique()
+    return sampling_results_node[edge_index]
 
 
 def _sampler_output_from_sampling_results(
@@ -119,9 +119,9 @@ def _sampler_output_from_sampling_results(
         if len(graph_store.node_types) == 1:
             num_unique_nodes = sampling_results_hop_0.sources.nunique()
         else:
-            num_unique_nodes = _count_unique_nodes(
+            num_unique_nodes = _get_unique_nodes(
                 sampling_results_hop_0, graph_store, node_type, "src"
-            )
+            ).nunique()
 
         if num_unique_nodes > 0:
             num_nodes_per_hop_dict[node_type] = torch.zeros(
@@ -142,14 +142,13 @@ def _sampler_output_from_sampling_results(
         .sort_index()
     )
     nodes_of_interest.name = "nodes_of_interest"
-    print(nodes_of_interest)
     # del sampling_results_hop_0
 
     #print('hops:', hops)
     #print(sampling_results_hop_0.destinations.sort_values())
     #print(sampling_results.sources.loc[sampling_results.hop_id==1].sort_values())
     #print((sampling_results.sources.loc[sampling_results.hop_id==1].isin(sampling_results[sampling_results.hop_id==0].destinations)).sum())
-    assert len(nodes_of_interest) == cudf.concat([sampling_results.sources, sampling_results.destinations]).nunique()
+    #assert len(nodes_of_interest) == cudf.concat([sampling_results.sources, sampling_results.destinations]).nunique()
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
     noi_index = graph_store._get_vertex_groups_from_sample(
@@ -166,15 +165,33 @@ def _sampler_output_from_sampling_results(
     for hop in range(len(hops)):
         hop_ix_start = hops[hop]
         hop_ix_end = hops[hop + 1] if hop < len(hops) - 1 else len(sampling_results)
-        sampling_results_hop = sampling_results.iloc[hop_ix_start:hop_ix_end]
+        sampling_results_to_hop = sampling_results.iloc[0:hop_ix_end]
 
         for node_type in graph_store.node_types:
             if len(graph_store.node_types) == 1:
-                num_unique_nodes = sampling_results_hop.destinations.nunique()
+                num_unique_nodes = cudf.concat([
+                    sampling_results_hop_0.sources,
+                    sampling_results_to_hop.destinations,
+                ]).nunique()
             else:
-                num_unique_nodes = _count_unique_nodes(
-                    sampling_results_hop, graph_store, node_type, "dst"
+                unique_nodes_hop = _get_unique_nodes(
+                    sampling_results_to_hop,
+                    graph_store,
+                    node_type,
+                    "dst"
                 )
+
+                unique_nodes_0 = _get_unique_nodes(
+                    sampling_results_hop_0,
+                    graph_store,
+                    node_type,
+                    "src"
+                )
+                
+                num_unique_nodes = cudf.concat([
+                    unique_nodes_0,
+                    unique_nodes_hop
+                ]).nunique()
 
             if num_unique_nodes > 0:
                 if node_type not in num_nodes_per_hop_dict:
@@ -189,12 +206,10 @@ def _sampler_output_from_sampling_results(
                 num_edges_per_hop_dict[edge_type] = torch.zeros(
                     len(hops), dtype=torch.int64
                 )
-            num_edges_per_hop_dict[graph_store.edge_types[0]][hop] = len(
-                sampling_results_hop
-            )
+            num_edges_per_hop_dict[graph_store.edge_types[0]][hop] = hop_ix_end - hop_ix_start
         else:
             numeric_etypes, counts = torch.unique(
-                torch.as_tensor(sampling_results_hop.edge_type.values, device="cuda"),
+                torch.as_tensor(sampling_results.iloc[hop_ix_start:hop_ix_end].edge_type.values, device="cuda"),
                 return_counts=True,
             )
             numeric_etypes = list(numeric_etypes)

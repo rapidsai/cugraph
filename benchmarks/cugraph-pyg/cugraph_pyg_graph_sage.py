@@ -18,6 +18,7 @@ import time
 import argparse
 import gc
 import os
+import socket
 
 import torch
 import numpy as np
@@ -70,10 +71,8 @@ def train_epoch(model, loader, optimizer):
 
     t = time.perf_counter()
     for iter_i, data in enumerate(loader):
-        print(time.perf_counter() - t)
-        print(len(data.edge_index_dict['paper','cites','paper'][0].unique()))
-        print(len(data.edge_index_dict['paper','cites','paper'][1].unique()))
-        print('*********************************************************')
+        #print(data.edge_index_dict['paper','cites','paper'].shape)
+        #print('*********************************************************')
         data = data.to_homogeneous()
 
         num_batches += 1
@@ -98,7 +97,7 @@ def train_epoch(model, loader, optimizer):
         y_true = F.one_hot(
             y_true.to(torch.int64), num_classes=y_pred.shape[1]
         ).to(torch.float32)
-        print('shape: ', y_true.shape)
+        #print('shape: ', y_true.shape)
         """
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -243,7 +242,7 @@ def train_native(device:int, features_device:Union[str, int] = "cpu", num_epochs
         )
         print(f"loss after epoch {epoch}: {total_loss / num_batches}")
 
-def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
+def train(bulk_samples_dir: str, output_dir:str, device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
     """
     Parameters
     ----------
@@ -302,11 +301,12 @@ def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] =
                 num_output_features = num_classes
     print('done loading data')
 
-    print(num_input_features, num_output_features, len(output_meta['fanout']))
+    print(f"num input features: {num_input_features}; num output features: {num_output_features}; fanout: {output_meta['fanout']}")
     
+    num_hidden_channels = 64
     model = CuGraphSAGE(
             in_channels=num_input_features,
-            hidden_channels=64,
+            hidden_channels=num_hidden_channels,
             out_channels=num_output_features,
             num_layers=len(output_meta['fanout'])
     ).to(torch.float32).to(device)
@@ -337,6 +337,22 @@ def train(bulk_samples_dir: str, device: int, features_device: Union[str, int] =
             f"{(end_time_train - start_time_train) / 1e9:3.4f} s"
         )
         print(f"loss after epoch {epoch}: {total_loss / num_batches}")
+    
+        output_result_filename = 'results.csv'
+        with open(os.path.join(output_dir, output_result_filename)) as f:
+            results = {
+                'Machine': socket.gethostname(),
+                'Comms': output_meta['comms'] if 'comms' in output_meta else 'tcp',
+                'Dataset': output_meta['dataset'],
+                'Model': 'GraphSAGE',
+                '# Layers': len(model.convs),
+                '# Input Channels': num_input_features,
+                '# Output Channels': num_output_features,
+                '# Hidden Channels': num_hidden_channels,
+                '# Vertices': output_meta['total_num_nodes'],
+                '# Edges': output_meta['total_num_edges'],
+            }
+    
 
 
 def parse_args():
@@ -372,6 +388,13 @@ def parse_args():
         required=True,
     )
 
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        help="Directory to store results",
+        required=True
+    )
+
     return parser.parse_args()
 
 
@@ -383,7 +406,7 @@ def main():
     except ValueError:
         features_device = args.features_device
 
-    train(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
+    train(args.sample_dir, args.output_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
 
 
 if __name__ == "__main__":

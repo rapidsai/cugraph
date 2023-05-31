@@ -246,7 +246,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     edge_count = 0
     for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
         edge_index_dict[can_edge_type]['etp'] = cupy.int32(num_edge_type)
-        edge_offsets[can_edge_type] += edge_count
+        edge_offsets[can_edge_type] = edge_count
         edge_count += len(edge_index_dict[can_edge_type])
     
     all_edges_df = dask_cudf.concat(
@@ -388,7 +388,7 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         'dataset_dir': dataset_dir,
         'seed': seed,
         'node_offsets': node_offsets,
-        'edge_offsets': edge_offsets,
+        'edge_offsets': {'__'.join(k): v for k, v in edge_offsets.items()},
         'total_num_nodes': total_num_nodes,
         'total_num_edges': num_input_edges,
         'batch_size': batch_size,
@@ -400,7 +400,11 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         'execution_time': execution_time,
     }
     with open(os.path.join(output_subdir, 'output_meta.json'), 'w') as f:
-        json.dump(output_meta, f)
+        json.dump(
+            output_meta,
+            f,
+            indent='\t'
+        )
 
     print('allocation counts b:')
     print(allocation_counts.values())
