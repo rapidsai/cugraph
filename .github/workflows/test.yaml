@@ -16,7 +16,7 @@ on:
 jobs:
   conda-cpp-tests:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@branch-23.08
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -24,7 +24,7 @@ jobs:
       sha: ${{ inputs.sha }}
   conda-python-tests:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@branch-23.08
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -32,7 +32,7 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.08
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -42,7 +42,7 @@ jobs:
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest ./python/pylibcugraph/pylibcugraph/tests"
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.08
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -50,6 +50,6 @@ jobs:
       sha: ${{ inputs.sha }}
       package-name: cugraph
       # Always want to test against latest dask/distributed.
-      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@2023.3.2 git+https://github.com/dask/distributed.git@2023.3.2.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
-      test-before-arm64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@2023.3.2 git+https://github.com/dask/distributed.git@2023.3.2.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
+      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@2023.3.2 git+https://github.com/dask/distributed.git@2023.3.2.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.08"
+      test-before-arm64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@2023.3.2 git+https://github.com/dask/distributed.git@2023.3.2.1 git+https://github.com/rapidsai/dask-cuda.git@branch-23.08"
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -m sg ./python/cugraph/cugraph/tests"
