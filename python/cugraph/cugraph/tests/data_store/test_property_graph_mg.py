@@ -463,6 +463,7 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.parametrize("set_index", [True, False])
 def test_add_edge_data_with_ids(dask_client, set_index):
     """
