@@ -26,7 +26,7 @@ import pandas
 
 import torch.nn.functional as F
 
-from typing import Union
+from typing import Union, List
 
 from models_cugraph import CuGraphSAGE
 
@@ -70,7 +70,8 @@ def train_epoch(model, loader, optimizer):
     total_loss = 0.0
     num_batches = 0
 
-    t = time.perf_counter()
+    time_forward = 0.0
+    time_backward = 0.0
     for iter_i, data in enumerate(loader):
         #print(data.edge_index_dict['paper','cites','paper'].shape)
         #print('*********************************************************')
@@ -85,12 +86,15 @@ def train_epoch(model, loader, optimizer):
         # train
         y_true = data.y
 
+        start_time_forward = time.perf_counter()
         y_pred = model(
             data.x,
             data.edge_index,
             num_sampled_nodes,
             num_sampled_edges,
         )
+        end_time_forward = time.perf_counter()
+        time_forward += end_time_forward - start_time_forward
 
         if y_pred.shape[0] > len(y_true):
             raise ValueError(f"illegal shape: {y_pred.shape}; {y_true.shape}")
@@ -100,15 +104,16 @@ def train_epoch(model, loader, optimizer):
         y_true = F.one_hot(
             y_true.to(torch.int64), num_classes=y_pred.shape[1]
         ).to(torch.float32)
-        
-        """
 
+        start_time_backward = time.perf_counter()
         loss = F.cross_entropy(y_pred, y_true)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
+        end_time_backward = time.perf_counter()
+        time_backward += end_time_backward - start_time_backward
         
 
         del y_true
@@ -116,10 +121,8 @@ def train_epoch(model, loader, optimizer):
         del loss
         del data
         gc.collect()
-        """
-        t = time.perf_counter()
     
-    return total_loss, num_batches
+    return total_loss, num_batches, (time_forward / num_batches), (time_backward / num_batches)
 
 
 def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, int] = "cpu", num_epochs=1) -> None:
@@ -255,7 +258,8 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         )
         print('done creating loader')
 
-        total_loss, num_batches = train_epoch(model, loader, optimizer)
+        total_loss, num_batches, mean_forward_time, mean_backward_time = \
+            train_epoch(model, loader, optimizer)
 
         end_time_train = time.perf_counter_ns()
         print(
@@ -264,9 +268,9 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         )
         print(f"loss after epoch {epoch}: {total_loss / num_batches}")
     
-    return (end_time_train - start_time_train / 1e9)
+    return (end_time_train - start_time_train / 1e9), mean_forward_time, mean_backward_time
 
-def train(bulk_samples_dir: str, output_dir:str, native_time:float, device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
+def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
     """
     Parameters
     ----------
@@ -351,7 +355,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_time:float, device: int,
         )
         print('done creating loader')
 
-        total_loss, num_batches = train_epoch(model, cugraph_loader, optimizer)
+        total_loss, num_batches, mean_time_fw, mean_time_bw = train_epoch(model, cugraph_loader, optimizer)
 
         end_time_train = time.perf_counter_ns()
         train_time = (end_time_train - start_time_train) / 1e9
@@ -389,11 +393,16 @@ def train(bulk_samples_dir: str, output_dir:str, native_time:float, device: int,
             'Training Time': train_time,
             'Training Time Per Batch': train_time / num_batches,
             'Total Time': train_time + output_meta['execution_time'],
-            'Native Equivalent Time': native_time,
-            'Speedup': native_time / (train_time + output_meta['execution_time']),
+            'Mean Foward Time': mean_time_fw,
+            'Native Mean Forward Time': native_times[1],
+            'Mean Backward Time': mean_time_bw,
+            'Native Mean Backward Time': native_times[2],
+            'Native Equivalent Time': native_times[0],
+            'Sample/Load Speedup': (native_times[0] - native_times[1]*num_batches - native_times[2]*num_batches) / (output_meta['execution_time'] - mean_time_fw*num_batches - mean_time_bw*num_batches),
+            'Total Speedup': native_times[0] / (train_time + output_meta['execution_time']),
         }
         df = pandas.DataFrame(results, index=[0])
-        df.to_csv(os.path.join(output_dir, output_result_filename),header=False, sep=',', index=False, mode='a')
+        df.to_csv(os.path.join(output_dir, output_result_filename),header=True, sep=',', index=False, mode='a')
     
 
 
@@ -438,11 +447,11 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--native_time",
-        type=float,
-        help="Input the native runtime to avoid doing a native run",
+        "--native_times",
+        type=str,
+        help="Input the native runtimes (total, fw, bw) to avoid doing a native run",
         required=False,
-        default=-1.0
+        default="-1.0,-1.0,-1.0"
     )
 
     return parser.parse_args()
@@ -458,12 +467,12 @@ def main():
 
     init_pytorch_worker(args.device)
 
-    if args.native_time < 0:
-        native_time = train_native(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
-    else:
-        native_time = args.native_time
+    native_time, native_mean_fw_time, native_mean_bw_time = [float(x) for x in args.native_times.split(',')]
+    if native_time < 0:
+        native_time, native_mean_fw_time, native_mean_bw_time = \
+            train_native(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
         
-    train(args.sample_dir, args.output_dir, native_time, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
+    train(args.sample_dir, args.output_dir, (native_time, native_mean_fw_time, native_mean_bw_time), device=args.device, features_device=features_device, num_epochs=args.num_epochs)
 
 
 if __name__ == "__main__":
