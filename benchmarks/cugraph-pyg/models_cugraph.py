@@ -21,7 +21,6 @@ class CuGraphSAGE(nn.Module):
         self._trim = TrimToLayer()
 
     def forward(self, x, edge, num_sampled_nodes, num_sampled_edges):
-        s = x.shape[0]
         for i, conv in enumerate(self.convs):
             edge = edge.cuda()
             x = x.cuda().to(torch.float32)
@@ -34,6 +33,10 @@ class CuGraphSAGE(nn.Module):
                 edge,
                 None
             )
+            print(num_sampled_nodes)
+            print(num_sampled_edges)
+            print('x:', x.shape)
+            print('edge:', edge.shape)
 
             s = x.shape[0]
             edge_csc = CuGraphSAGEConv.to_csc(edge, (s, s))

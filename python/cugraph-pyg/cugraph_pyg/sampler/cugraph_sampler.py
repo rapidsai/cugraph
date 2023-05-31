@@ -198,7 +198,7 @@ def _sampler_output_from_sampling_results(
                     num_nodes_per_hop_dict[node_type] = torch.zeros(
                         len(hops) + 1, dtype=torch.int64
                     )
-                num_nodes_per_hop_dict[node_type][hop + 1] = num_unique_nodes
+                num_nodes_per_hop_dict[node_type][hop + 1] = num_unique_nodes - num_nodes_per_hop_dict[node_type][hop]
 
         if len(graph_store.edge_types) == 1:
             edge_type = graph_store.edge_types[0]
