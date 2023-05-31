@@ -16,6 +16,7 @@
 #include <centrality/betweenness_centrality_reference.hpp>
 #include <centrality/betweenness_centrality_validate.hpp>
 
+#include <structure/detail/structure_utils.cuh>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
@@ -99,7 +100,6 @@ class Tests_EdgeBetweennessCentrality
       hr_timer.start("Edge betweenness centrality");
     }
 
-#if 0
     auto d_centralities = cugraph::edge_betweenness_centrality(
       handle,
       graph_view,
@@ -108,17 +108,6 @@ class Tests_EdgeBetweennessCentrality
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       do_expensive_check);
-#else
-    EXPECT_THROW(cugraph::edge_betweenness_centrality(
-                   handle,
-                   graph_view,
-                   edge_weight_view,
-                   std::make_optional<raft::device_span<vertex_t const>>(
-                     raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
-                   betweenness_usecase.normalized,
-                   do_expensive_check),
-                 cugraph::logic_error);
-#endif
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -127,22 +116,54 @@ class Tests_EdgeBetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
-#if 0
-      auto [h_offsets, h_indices, h_wgt] = cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      // Compute reference edge betweenness result
+      auto [h_offsets, h_indices, h_wgt] =
+        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
 
-      auto h_seeds        = cugraph::test::to_host(handle, d_seeds);
+      auto h_seeds = cugraph::test::to_host(handle, d_seeds);
 
       auto h_reference_centralities =
-        betweenness_centrality_reference(h_offsets, h_indices, h_wgt, h_seeds, betweenness_usecase.include_endpoints);
+        edge_betweenness_centrality_reference(h_offsets, h_indices, h_wgt, h_seeds);
 
-      auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
+      // Convert host CSR/result back into device COO
+      auto d_offsets                  = cugraph::test::to_device(handle, h_offsets);
+      auto d_reference_dst_vertex_ids = cugraph::test::to_device(handle, h_indices);
+      auto d_reference_centralities   = cugraph::test::to_device(handle, h_reference_centralities);
+      auto d_reference_src_vertex_ids = cugraph::detail::expand_sparse_offsets(
+        raft::device_span<edge_t const>{d_offsets.data(), d_offsets.size()},
+        vertex_t{0},
+        handle.get_stream());
 
-      //  Need to get edges in order...
+#if 1
+      auto [h_src, h_dst, h_centralities] = cugraph::test::graph_to_host_coo(
+        handle, graph_view, std::make_optional(d_centralities.view()));
+
+      auto d_cugraph_src_vertex_ids = cugraph::test::to_device(handle, h_src);
+      auto d_cugraph_dst_vertex_ids = cugraph::test::to_device(handle, h_dst);
+      auto d_cugraph_results        = cugraph::test::to_device(handle, *h_centralities);
 
       cugraph::test::edge_betweenness_centrality_validate(handle,
-                                                          d_renumber_map_labels,
-                                                          d_centralities,
-                                                          std::nullopt,
+                                                          d_cugraph_src_vertex_ids,
+                                                          d_cugraph_dst_vertex_ids,
+                                                          d_cugraph_results,
+                                                          d_reference_src_vertex_ids,
+                                                          d_reference_dst_vertex_ids,
+                                                          d_reference_centralities);
+#else
+      // Extract cugraph result into COO arrays
+      auto [d_cugraph_src_vertex_ids, d_cugraph_dst_vertex_ids, d_cugraph_results] =
+        cugraph::decompress_to_edgelist(
+          handle,
+          graph_view,
+          std::make_optional(d_centralities.view()),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+
+      cugraph::test::edge_betweenness_centrality_validate(handle,
+                                                          d_cugraph_src_vertex_ids,
+                                                          d_cugraph_dst_vertex_ids,
+                                                          *d_cugraph_results,
+                                                          d_reference_src_vertex_ids,
+                                                          d_reference_dst_vertex_ids,
                                                           d_reference_centralities);
 #endif
     }
@@ -188,7 +209,6 @@ INSTANTIATE_TEST_SUITE_P(
                       EdgeBetweennessCentrality_Usecase{20, false, true, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(

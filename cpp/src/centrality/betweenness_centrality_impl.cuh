@@ -16,9 +16,12 @@
 #pragma once
 
 #include <prims/count_if_v.cuh>
+#include <prims/edge_bucket.cuh>
+#include <prims/extract_transform_e.cuh>
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/fill_edge_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_e.cuh>
 #include <prims/transform_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_v.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
@@ -54,6 +57,24 @@ struct brandes_e_op_t {
     vertex_t, vertex_t, value_t src_sigma, vertex_t dst_distance, ignore_t) const
   {
     return (dst_distance == invalid_distance_) ? thrust::make_optional(src_sigma) : thrust::nullopt;
+  }
+};
+
+template <typename vertex_t>
+struct extract_edge_e_op_t {
+  vertex_t d;
+
+  template <typename edge_t, typename weight_t>
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src,
+    vertex_t dst,
+    thrust::tuple<vertex_t, edge_t, weight_t> src_props,
+    thrust::tuple<vertex_t, edge_t, weight_t> dst_props,
+    weight_t edge_centrality)
+  {
+    return ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1)))
+             ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
+             : thrust::nullopt;
   }
 };
 
@@ -320,14 +341,45 @@ void accumulate_edge_results(
   // Based on Brandes algorithm, we want to follow back pointers in non-increasing
   // distance from S to compute delta
   //
-  for (vertex_t d = diameter; d > 1; --d) {
-    transform_outgoing_e(
+  for (vertex_t d = diameter; d > 0; --d) {
+    //
+    //  Populate edge_list with edges where `thrust::get<0>(dst_props) == d`
+    //  and `thrust::get<0>(dst_props) == (d-1)`
+    //
+    cugraph::edge_bucket_t<vertex_t, void, true, multi_gpu, true> edge_list(handle);
+
+    {
+      auto [src, dst] = extract_transform_e(handle,
+                                            graph_view,
+                                            src_properties.view(),
+                                            dst_properties.view(),
+                                            centralities.view(),
+                                            extract_edge_e_op_t<vertex_t>{d},
+                                            do_expensive_check);
+
+      thrust::sort(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(src.begin(), dst.begin()),
+                   thrust::make_zip_iterator(src.end(), dst.end()));
+      auto new_edgelist_end = thrust::unique(handle.get_thrust_policy(),
+                                             thrust::make_zip_iterator(src.begin(), dst.begin()),
+                                             thrust::make_zip_iterator(src.end(), dst.end()));
+
+      src.resize(
+        thrust::distance(thrust::make_zip_iterator(src.begin(), dst.begin()), new_edgelist_end),
+        handle.get_stream());
+      dst.resize(src.size(), handle.get_stream());
+
+      edge_list.insert(src.begin(), src.end(), dst.begin());
+    }
+
+    transform_e(
       handle,
       graph_view,
+      edge_list,
       src_properties.view(),
       dst_properties.view(),
       centralities.view(),
-      [d] __device__(auto, auto, auto src_props, auto dst_props, auto edge_centrality) {
+      [d] __device__(auto src, auto dst, auto src_props, auto dst_props, auto edge_centrality) {
         if ((thrust::get<0>(dst_props) == d) && (thrust::get<0>(src_props) == (d - 1))) {
           auto sigma_v = static_cast<weight_t>(thrust::get<1>(src_props));
           auto sigma_w = static_cast<weight_t>(thrust::get<1>(dst_props));
@@ -562,34 +614,6 @@ edge_betweenness_centrality(
                             std::move(sigma),
                             do_expensive_check);
   }
-
-#if 0
-  std::optional<weight_t> scale_factor{std::nullopt};
-
-  if (normalized) {
-    weight_t n = static_cast<weight_t>(graph_view.number_of_vertices());
-    if (!include_endpoints) { n -= weight_t{1}; }
-
-    scale_factor = n * (n - 1);
-  } else if (graph_view.is_symmetric())
-    scale_factor = weight_t{2};
-
-  if (scale_factor) {
-    if (graph_view.number_of_vertices() > 2) {
-      if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
-        (*scale_factor) *= static_cast<weight_t>(num_sources) /
-                           static_cast<weight_t>(graph_view.number_of_vertices());
-      }
-
-      thrust::transform(
-        handle.get_thrust_policy(),
-        centralities.begin(),
-        centralities.end(),
-        centralities.begin(),
-        [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
-    }
-  }
-#endif
 
   return centralities;
 }
