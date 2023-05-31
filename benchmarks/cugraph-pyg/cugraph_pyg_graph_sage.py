@@ -268,7 +268,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         )
         print(f"loss after epoch {epoch}: {total_loss / num_batches}")
     
-    return (end_time_train - start_time_train / 1e9), mean_forward_time, mean_backward_time
+    return ((end_time_train - start_time_train) / 1e9), mean_forward_time, mean_backward_time
 
 def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
     """
@@ -402,7 +402,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
             'Total Speedup': native_times[0] / (train_time + output_meta['execution_time']),
         }
         df = pandas.DataFrame(results, index=[0])
-        df.to_csv(os.path.join(output_dir, output_result_filename),header=True, sep=',', index=False, mode='a')
+        df.to_csv(os.path.join(output_dir, output_result_filename),header=False, sep=',', index=False, mode='a')
     
 
 
