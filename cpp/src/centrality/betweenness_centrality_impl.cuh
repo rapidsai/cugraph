@@ -331,9 +331,6 @@ void accumulate_edge_results(
     thrust::make_zip_iterator(distance.begin(), sigma.begin(), delta.begin()),
     dst_properties);
 
-  // FIXME: To do this efficiently, I need a version of
-  //   per_v_transform_reduce_outgoing_e and per_e_transform_outgoing_e
-  //   that takes a vertex list so that we can iterate over the frontier stack.
   //
   //   For now this will do a O(E) pass over all edges over the diameter
   //   of the graph.
@@ -360,6 +357,8 @@ void accumulate_edge_results(
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(src.begin(), dst.begin()),
                    thrust::make_zip_iterator(src.end(), dst.end()));
+
+      // Eliminate duplicates in case of a multi-graph
       auto new_edgelist_end = thrust::unique(handle.get_thrust_policy(),
                                              thrust::make_zip_iterator(src.begin(), dst.begin()),
                                              thrust::make_zip_iterator(src.end(), dst.end()));
