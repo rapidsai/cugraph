@@ -31,6 +31,7 @@ VALIDARGS="
    cugraph-pyg
    cugraph-dgl
    docs
+   all
    -v
    -g
    -n
@@ -57,6 +58,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
    docs                       - build the docs
+   all                        - build all the packages
  and <flag> is:
    -v                         - verbose build mode
    -g                         - build for debug
@@ -105,6 +107,7 @@ BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
 PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps ."
+BUILD_EVERTHING=0
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -119,6 +122,10 @@ function hasArg {
 
 function buildAll {
     (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-][a-zA-Z0-9\_\-]\+ ")
+}
+
+function buildEverything {
+    (( ${BUILD_EVERTHING} == 1))
 }
 
 function cleanPythonDir {
@@ -136,6 +143,10 @@ function cleanPythonDir {
 if hasArg -h || hasArg --help; then
     echo "${HELP}"
     exit 0
+fi
+
+if hasArg all ; then
+    BUILD_EVERTHING=1
 fi
 
 # Check for valid usage
@@ -231,7 +242,8 @@ fi
 
 ################################################################################
 # Configure, build, and install libcugraph
-if buildAll || hasArg libcugraph; then
+if  buildEverything || buildAll || hasArg libcugraph; then
+    echo "- building libcugraph"
     if hasArg --clean; then
         if [ -d ${LIBCUGRAPH_BUILD_DIR} ]; then
             find ${LIBCUGRAPH_BUILD_DIR} -mindepth 1 -delete
@@ -261,7 +273,8 @@ if buildAll || hasArg libcugraph; then
 fi
 
 # Configure, build, and install libcugraph_etl
-if buildAll || hasArg libcugraph_etl; then
+if buildEverything ||buildAll || hasArg libcugraph_etl; then
+    echo "- building libcugraph_etl"
     if hasArg --clean; then
         if [ -d ${LIBCUGRAPH_ETL_BUILD_DIR} ]; then
             find ${LIBCUGRAPH_ETL_BUILD_DIR} -mindepth 1 -delete
@@ -292,7 +305,8 @@ if buildAll || hasArg libcugraph_etl; then
 fi
 
 # Build, and install pylibcugraph
-if buildAll || hasArg pylibcugraph; then
+if buildEverything ||buildAll || hasArg pylibcugraph; then
+    echo "- building pylibcugraph"
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
@@ -315,7 +329,8 @@ if buildAll || hasArg pylibcugraph; then
 fi
 
 # Build and install the cugraph Python package
-if buildAll || hasArg cugraph; then
+if buildEverything || buildAll || hasArg cugraph; then
+    echo "- building cugraph"
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
@@ -339,7 +354,8 @@ if buildAll || hasArg cugraph; then
 fi
 
 # Install the cugraph-service-client and cugraph-service-server Python packages
-if hasArg cugraph-service; then
+if buildEverything || hasArg cugraph-service; then
+    echo "- building cugraph-service"
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
@@ -353,7 +369,8 @@ if hasArg cugraph-service; then
 fi
 
 # Build and install the cugraph-pyg Python package
-if hasArg cugraph-pyg; then
+if buildEverything || hasArg cugraph-pyg; then
+    echo "- building cugraph-pyg"
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
@@ -365,7 +382,8 @@ if hasArg cugraph-pyg; then
 fi
 
 # Install the cugraph-dgl extensions for DGL
-if hasArg cugraph-dgl; then
+if buildEverything || hasArg cugraph-dgl; then
+    echo "- building cugraph-dgl"
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
@@ -377,7 +395,8 @@ if hasArg cugraph-dgl; then
 fi
 
 # Build the docs
-if hasArg docs; then
+if buildEverything || hasArg docs; then
+    echo "- building docs"
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
         cd ${LIBCUGRAPH_BUILD_DIR}
