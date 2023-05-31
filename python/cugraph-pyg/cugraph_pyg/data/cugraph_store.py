@@ -787,26 +787,41 @@ class EXPERIMENTAL__CuGraphStore:
         if len(self.__edge_types_to_attrs) == 1:
             t_pyg_type = list(self.__edge_types_to_attrs.values())[0].edge_type
             src_type, _, dst_type = t_pyg_type
+            
+            if len(self.__vertex_type_offsets["type"]) == 1:
+                vtype = src_type    
+                id_table = noi_index[vtype]
+                id_map = cudf.Series(
+                    cupy.arange(id_table.shape[0], dtype='int32'),
+                    name='new_id',
+                    index=cupy.asarray(id_table)
+                ).sort_index()
 
-            dst_id_table = noi_index[dst_type]
-            dst_id_map = (
-                cudf.Series(cupy.asarray(dst_id_table), name="dst")
-                .reset_index()
-                .rename(columns={"index": "new_id"})
-                .set_index("dst")
-            )
-            dst = dst_id_map["new_id"].loc[sampling_results.destinations]
-            col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+                ix_r = torch.searchsorted(torch.as_tensor(id_map.index.values, device='cuda'), torch.as_tensor(sampling_results.sources.values, device='cuda'))
+                row_dict[t_pyg_type] = torch.as_tensor(id_map.values, device='cuda')[ix_r]
 
-            src_id_table = noi_index[src_type]
-            src_id_map = (
-                cudf.Series(cupy.asarray(src_id_table), name="src")
-                .reset_index()
-                .rename(columns={"index": "new_id"})
-                .set_index("src")
-            )
-            src = src_id_map["new_id"].loc[sampling_results.sources]
-            row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
+                ix_c = torch.searchsorted(torch.as_tensor(id_map.index.values, device='cuda'), torch.as_tensor(sampling_results.destinations.values, device='cuda'))
+                col_dict[t_pyg_type] = torch.as_tensor(id_map.values, device='cuda')[ix_c]
+            else:
+                dst_id_table = noi_index[dst_type]
+                dst_id_map = (
+                    cudf.DataFrame({
+                        'dst': cupy.asarray(dst_id_table),
+                        'new_id': cupy.arange(dst_id_table.shape[0])
+                    }).set_index('dst')
+                )
+                dst = dst_id_map["new_id"].loc[sampling_results.destinations]
+                col_dict[t_pyg_type] = torch.as_tensor(dst.values, device="cuda")
+
+                src_id_table = noi_index[src_type]
+                src_id_map = (
+                    cudf.DataFrame({
+                        'src': cupy.asarray(src_id_table),
+                        'new_id': cupy.arange(src_id_table.shape[0])
+                    }).set_index('src')
+                )
+                src = src_id_map["new_id"].loc[sampling_results.sources]
+                row_dict[t_pyg_type] = torch.as_tensor(src.values, device="cuda")
 
         else:
             # This will retrieve the single string representation.
@@ -818,9 +833,6 @@ class EXPERIMENTAL__CuGraphStore:
             )
 
             eoi_types = cudf.Series(eoi_types, name="t").groupby("t").groups
-            print('eoi types:')
-            print(eoi_types)
-            print('\n')
 
             for pyg_can_edge_type_str, ix in eoi_types.items():
                 pyg_can_edge_type = tuple(pyg_can_edge_type_str.split("__"))
@@ -832,7 +844,6 @@ class EXPERIMENTAL__CuGraphStore:
                     sampling_results.destinations.iloc[ix].values, device="cuda"
                 )
                 destinations -= self.__vertex_type_offsets["start"][dst_num_type]
-                print(dst_type, dst_num_type, self.__vertex_type_offsets["start"][dst_num_type])
 
                 # Create the col entry for this type
                 dst_id_table = noi_index[dst_type]
@@ -842,12 +853,6 @@ class EXPERIMENTAL__CuGraphStore:
                     .rename(columns={"index": "new_id"})
                     .set_index("dst")
                 )
-                print('dst id map:')
-                print(dst_id_map)
-                print('\n')
-                print('destinations:')
-                print(destinations)
-                print('\n')
                 dst = dst_id_map["new_id"].loc[cupy.asarray(destinations)]
                 col_dict[pyg_can_edge_type] = torch.as_tensor(dst.values, device="cuda")
 

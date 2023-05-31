@@ -13,6 +13,7 @@
 
 
 from typing import Sequence
+from time import perf_counter
 
 from cugraph_pyg.data import CuGraphStore
 
@@ -103,18 +104,22 @@ def _sampler_output_from_sampling_results(
     HeteroSamplerOutput
     """
 
+    time_hop_start = perf_counter()
     hops = torch.arange(sampling_results.hop_id.max() + 1, device="cuda")
     hops = torch.searchsorted(
         torch.as_tensor(sampling_results.hop_id.values, device="cuda"), hops
     )
+    print(f'calc hop pos: {perf_counter() - time_hop_start} s')
 
     num_nodes_per_hop_dict = {}
     num_edges_per_hop_dict = {}
 
+    time_calc_hop_0_start = perf_counter()
     # Fill out hop 0 in num_nodes_per_hop_dict, which is based on src instead of dst
     sampling_results_hop_0 = sampling_results.iloc[
         0 : (hops[1] if len(hops) > 1 else len(sampling_results))
     ]
+
     for node_type in graph_store.node_types:
         if len(graph_store.node_types) == 1:
             num_unique_nodes = sampling_results_hop_0.sources.nunique()
@@ -128,10 +133,12 @@ def _sampler_output_from_sampling_results(
                 len(hops) + 1, dtype=torch.int64
             )
             num_nodes_per_hop_dict[node_type][0] = num_unique_nodes
+    print(f'calc hop 0: {perf_counter() - time_calc_hop_0_start} s')
 
     # Calculate nodes of interest based on unique nodes in order of appearance
     # Use hop 0 sources since those are the only ones not included in destinations
     # Use torch.concat based on benchmark performance (vs. cudf.concat)
+    time_noi_start = perf_counter()
     import cupy
     nodes_of_interest = (
         cudf.Series(cupy.asarray(torch.concat([
@@ -142,6 +149,8 @@ def _sampler_output_from_sampling_results(
         .sort_index()
     )
     nodes_of_interest.name = "nodes_of_interest"
+    print(f'calc noi: {perf_counter() - time_noi_start} s')
+
     # del sampling_results_hop_0
 
     #print('hops:', hops)
@@ -151,17 +160,21 @@ def _sampler_output_from_sampling_results(
     #assert len(nodes_of_interest) == cudf.concat([sampling_results.sources, sampling_results.destinations]).nunique()
 
     # Get the grouped node index (for creating the renumbered grouped edge index)
+    time_vertex_groups_start = perf_counter()
     noi_index = graph_store._get_vertex_groups_from_sample(
         torch.as_tensor(nodes_of_interest.values, device="cuda")
     )
+    print(f'vertex groups: {perf_counter() - time_vertex_groups_start} s')
     del nodes_of_interest
 
     # Get the new edge index (by type as expected for HeteroData)
-    # FIXME handle edge ids/types after the C++ updates
+    time_edge_groups_start = perf_counter()
     row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
         sampling_results, noi_index
     )
+    print(f'edge groups: {perf_counter() - time_edge_groups_start} s')
 
+    time_nodes_per_hop_start = perf_counter()
     for hop in range(len(hops)):
         hop_ix_start = hops[hop]
         hop_ix_end = hops[hop + 1] if hop < len(hops) - 1 else len(sampling_results)
@@ -198,7 +211,7 @@ def _sampler_output_from_sampling_results(
                     num_nodes_per_hop_dict[node_type] = torch.zeros(
                         len(hops) + 1, dtype=torch.int64
                     )
-                num_nodes_per_hop_dict[node_type][hop + 1] = num_unique_nodes - num_nodes_per_hop_dict[node_type][hop]
+                num_nodes_per_hop_dict[node_type][hop + 1] = num_unique_nodes - int(num_nodes_per_hop_dict[node_type][:hop+1].sum(0))
 
         if len(graph_store.edge_types) == 1:
             edge_type = graph_store.edge_types[0]
@@ -221,6 +234,7 @@ def _sampler_output_from_sampling_results(
                         len(hops), dtype=torch.int64
                     )
                 num_edges_per_hop_dict[can_etype][hop] = count
+    print(f'nodes/edges per hop: {perf_counter() - time_nodes_per_hop_start} s')
 
     if HeteroSamplerOutput is None:
         raise ImportError("Error importing from pyg")

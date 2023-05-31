@@ -33,10 +33,6 @@ class CuGraphSAGE(nn.Module):
                 edge,
                 None
             )
-            print(num_sampled_nodes)
-            print(num_sampled_edges)
-            print('x:', x.shape)
-            print('edge:', edge.shape)
 
             s = x.shape[0]
             edge_csc = CuGraphSAGEConv.to_csc(edge, (s, s))
@@ -45,4 +41,12 @@ class CuGraphSAGE(nn.Module):
             x = F.relu(x)
             x = F.dropout(x, p=0.5)
 
+        x = x.narrow(
+            dim=0,
+            start=0,
+            length=x.shape[0] - num_sampled_nodes[1]
+        )
+
+        assert x.shape[0] == num_sampled_nodes[0]
         return x
+

@@ -100,7 +100,7 @@ def train_epoch(model, loader, optimizer):
         y_true = F.one_hot(
             y_true.to(torch.int64), num_classes=y_pred.shape[1]
         ).to(torch.float32)
-        #print('shape: ', y_true.shape)
+        
         """
 
         loss = F.cross_entropy(y_pred, y_true)
@@ -169,8 +169,8 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             del node_label
             gc.collect()
 
-            hetero_data[node_type]['train'] = (node_label_tensor > -1)
-            hetero_data[node_type]['y'] = node_label_tensor
+            hetero_data[node_type]['train'] = (node_label_tensor > -1).contiguous()
+            hetero_data[node_type]['y'] = node_label_tensor.contiguous()
             hetero_data[node_type]['num_nodes'] = num_nodes_dict[node_type]
 
             num_classes = int(node_label_tensor.max()) + 1
@@ -232,7 +232,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             in_channels=num_input_features,
             hidden_channels=64,
             out_channels=num_output_features,
-            num_layers=len(output_meta['fanout']) + 1
+            num_layers=len(output_meta['fanout'])
     ).to(torch.float32).to(device)
     print('done creating model')
 
@@ -263,6 +263,8 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             f"{(end_time_train - start_time_train) / 1e9:3.4f} s"
         )
         print(f"loss after epoch {epoch}: {total_loss / num_batches}")
+    
+    return (end_time_train - start_time_train / 1e9)
 
 def train(bulk_samples_dir: str, output_dir:str, native_time:float, device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
     """
@@ -328,7 +330,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_time:float, device: int,
             in_channels=num_input_features,
             hidden_channels=num_hidden_channels,
             out_channels=num_output_features,
-            num_layers=len(output_meta['fanout']) + 1
+            num_layers=len(output_meta['fanout'])
     ).to(torch.float32).to(device)
     print('done creating model')
     
@@ -435,6 +437,14 @@ def parse_args():
         required=True
     )
 
+    parser.add_argument(
+        "--native_time",
+        type=float,
+        help="Input the native runtime to avoid doing a native run",
+        required=False,
+        default=-1.0
+    )
+
     return parser.parse_args()
 
 
@@ -446,10 +456,13 @@ def main():
     except ValueError:
         features_device = args.features_device
 
-    #init_pytorch_worker(args.device)
+    init_pytorch_worker(args.device)
 
-    #native_time = train_native(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
-    native_time = 3600
+    if args.native_time < 0:
+        native_time = train_native(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
+    else:
+        native_time = args.native_time
+        
     train(args.sample_dir, args.output_dir, native_time, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
 
 
