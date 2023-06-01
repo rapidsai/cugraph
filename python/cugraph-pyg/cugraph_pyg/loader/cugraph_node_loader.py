@@ -125,6 +125,9 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__batches_per_partition = batches_per_partition
         self.__starting_batch_id = starting_batch_id
 
+        self._total_read_time = 0.0
+        self._total_convert_time = 0.0
+
         if input_nodes is None:
             # Will be loading from disk
             self.__num_batches = input_nodes
@@ -198,6 +201,9 @@ class EXPERIMENTAL__BulkSampleLoader:
         self.__input_files = iter(os.listdir(self.__directory.name))
 
     def __next__(self):
+        from time import perf_counter
+        start_time_read_data = perf_counter()
+        
         # Load the next set of sampling results if necessary
         if self.__next_batch >= self.__end_exclusive:
             if self.__directory is None:
@@ -242,7 +248,11 @@ class EXPERIMENTAL__BulkSampleLoader:
             self.__data = cudf.read_parquet(parquet_path)
             self.__data = self.__data[list(columns.keys())].astype(columns)
 
+        end_time_read_data = perf_counter()
+        self._total_read_time += (end_time_read_data - start_time_read_data)
+
         # Pull the next set of sampling results out of the dataframe in memory
+        start_time_convert = perf_counter()
         f = (self.__data["batch_id"] == self.__next_batch)
 
         sampler_output = _sampler_output_from_sampling_results(
@@ -255,7 +265,7 @@ class EXPERIMENTAL__BulkSampleLoader:
         # Get and return the sampled subgraph
         if isinstance(torch_geometric, MissingModule):
             noi_index, row_dict, col_dict, edge_dict = sampler_output["out"]
-            return _filter_cugraph_store(
+            out = _filter_cugraph_store(
                 self.__feature_store,
                 self.__graph_store,
                 noi_index,
@@ -276,7 +286,9 @@ class EXPERIMENTAL__BulkSampleLoader:
             out.set_value_dict('num_sampled_nodes', sampler_output.num_sampled_nodes)
             out.set_value_dict('num_sampled_edges', sampler_output.num_sampled_edges)
 
-            return out
+        end_time_convert = perf_counter()
+        self._total_convert_time += (end_time_convert - start_time_convert)
+        return out
 
     def __iter__(self):
         return self

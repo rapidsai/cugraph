@@ -46,12 +46,14 @@ from math import ceil
 
 import pandas as pd
 import numpy as np
+import cupy
 import cudf
+
 import dask_cudf
 import dask.dataframe as ddf
-import cupy
+from dask.distributed import default_client
 
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, Dict
 
 
 def construct_graph(dask_dataframe):
@@ -164,7 +166,6 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         log_level = 'INFO'
     )
 
-    from dask.distributed import wait, default_client
     n_workers = len(default_client().scheduler_info()['workers'])
 
     meta = cudf.DataFrame({
