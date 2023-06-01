@@ -23,12 +23,13 @@ requirements:
     - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
     - cython >=0.29,<0.30
-    - python x.x
+    - python
     - scikit-build >=0.13.1
   run:
     - distributed ==2023.3.2.1
     - numba >=0.57
-    - numpy
+    - numpy >=1.21
+    - python
     - pytorch >=2.0
     - cupy >=12.0.0
     - cugraph ={{ version }}
