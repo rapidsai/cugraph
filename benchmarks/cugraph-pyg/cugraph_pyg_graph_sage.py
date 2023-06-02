@@ -29,6 +29,7 @@ import torch.nn.functional as F
 from typing import Union, List
 
 from models_cugraph import CuGraphSAGE
+from cugraph.testing.mg_utils import enable_spilling
 
 def load_disk_features(meta: dict, node_type: str, replication_factor: int = 1):
     node_type_path = os.path.join(meta['dataset_dir'], meta['dataset'], 'npy', node_type)
@@ -80,15 +81,11 @@ def train_epoch(model, loader, optimizer):
         num_sampled_nodes = data['paper']['num_sampled_nodes']
         num_sampled_edges = data['paper','cites','paper']['num_sampled_edges']
         
-        start_time_to_homogeneous = time.perf_counter()
         data = data.to_homogeneous()
-        end_time_to_homogeneous = time.perf_counter()
-        time_to_homogeneous = (end_time_to_homogeneous - start_time_to_homogeneous)
 
         num_batches += 1
         if iter_i % 20 == 0:
             print(f"iteration {iter_i}")
-            print('homogeneous time: ', time_to_homogeneous)
 
         # train
         y_true = data.y
@@ -269,6 +266,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             disjoint=True,
         )
         print('done creating loader')
+        # loader was patched to record the feature extraction time
 
         total_loss, num_batches, mean_total_time, mean_forward_time, mean_backward_time = \
             train_epoch(model, loader, optimizer)
@@ -281,7 +279,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         )
         print(f"loss after epoch {epoch}: {total_loss / num_batches}")
     
-    return mean_total_time, mean_forward_time, mean_backward_time
+    return mean_total_time, mean_forward_time, mean_backward_time, (loader._feature_time / num_batches)
 
 def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], device: int, features_device: Union[str, int] = "cpu", num_epochs=1) -> None:
     """
@@ -381,6 +379,38 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
     
         train_time = mean_total_time * num_batches
         output_result_filename = 'results.csv'
+        results_native = {
+            'Dataset': f"{output_meta['dataset']} x {replication_factor}",
+            'Framework': 'PyG',
+            'Setup Details': f"GraphSAGE, {len(model.convs)} layers",
+            'Batch Size': output_meta['batch_size'],
+            'Fanout': str(output_meta['fanout']),
+            'Machine Details': socket.gethostname(),
+            'Bulk Sampling per epoch': 'n/a',
+            'MFG Creation': 0.0,
+            'Feature Loading': native_times[3] * num_batches,
+            'Model FWD': native_times[1] * num_batches,
+            'Model BWD': native_times[2] * num_batches,
+            'Time Per Epoch': native_times[0] * num_batches,
+            'Time Per Batch': native_times[0],
+            'Speedup': 1,
+        }
+        results_cugraph = {
+            'Dataset': f"{output_meta['dataset']} x {replication_factor}",
+            'Framework': 'cuGraph-PyG',
+            'Setup Details': f"GraphSAGE, {len(model.convs)} layers",
+            'Batch Size': output_meta['batch_size'],
+            'Fanout': str(output_meta['fanout']),
+            'Machine Details': socket.gethostname(),
+            'Bulk Sampling per epoch': output_meta['execution_time'],
+            'MFG Creation': cugraph_loader._total_convert_time + cugraph_loader._total_read_time,
+            'Feature Loading': cugraph_loader._total_feature_time,
+            'Model FWD': mean_time_fw * num_batches,
+            'Model BWD': mean_time_bw * num_batches,
+            'Time Per Epoch': train_time + output_meta['execution_time'],
+            'Time Per Batch': (train_time + output_meta['execution_time']) / num_batches,
+            'Speedup': (native_times[0] * num_batches) / (train_time + output_meta['execution_time']),
+        }
         results = {
             'Machine': socket.gethostname(),
             'Comms': output_meta['comms'] if 'comms' in output_meta else 'tcp',
@@ -418,6 +448,9 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
             'Minibatch Conversion Time': cugraph_loader._total_convert_time,
             'Minibatch Conversion Time Per Batch': cugraph_loader._total_convert_time / num_batches,
 
+            'Feature Fetch Time': cugraph_loader._total_feature_time,
+            'Feature Fetch Time Per Batch': cugraph_loader._total_feature_time / num_batches,
+
             'Foward Time': mean_time_fw * num_batches,
             'Native Forward Time': native_times[1] * num_batches,
 
@@ -432,6 +465,10 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
         }
         df = pandas.DataFrame(results, index=[0])
         df.to_csv(os.path.join(output_dir, output_result_filename),header=True, sep=',', index=False, mode='a')
+
+        df_n = pandas.DataFrame(results_native, index=[0])
+        df_c = pandas.DataFrame(results_cugraph, index=[1])
+        pandas.concat([df_n, df_c]).to_csv(os.path.join(output_dir, output_result_filename),header=True, sep=',', index=False, mode='a')
     
 
 
@@ -480,7 +517,7 @@ def parse_args():
         type=str,
         help="Input the native runtimes (total, fw, bw) to avoid doing a native run",
         required=False,
-        default="-1.0,-1.0,-1.0"
+        default="-1.0,-1.0,-1.0,-1.0"
     )
 
     return parser.parse_args()
@@ -495,13 +532,26 @@ def main():
         features_device = args.features_device
 
     init_pytorch_worker(args.device)
+    enable_spilling()
 
-    native_mean_time, native_mean_fw_time, native_mean_bw_time = [float(x) for x in args.native_times.split(',')]
+    native_mean_time, native_mean_fw_time, native_mean_bw_time, native_mean_feature_time = [float(x) for x in args.native_times.split(',')]
     if native_mean_time < 0:
-        native_mean_time, native_mean_fw_time, native_mean_bw_time = \
-            train_native(args.sample_dir, device=args.device, features_device=features_device, num_epochs=args.num_epochs)
+        native_mean_time, native_mean_fw_time, native_mean_bw_time, native_mean_feature_time = \
+            train_native(
+                args.sample_dir,
+                device=args.device,
+                features_device=features_device,
+                num_epochs=args.num_epochs
+            )
         
-    train(args.sample_dir, args.output_dir, (native_mean_time, native_mean_fw_time, native_mean_bw_time), device=args.device, features_device=features_device, num_epochs=args.num_epochs)
+    train(
+        args.sample_dir,
+        args.output_dir,
+        (native_mean_time, native_mean_fw_time, native_mean_bw_time, native_mean_feature_time),
+        device=args.device,
+        features_device=features_device,
+        num_epochs=args.num_epochs
+    )
 
 
 if __name__ == "__main__":

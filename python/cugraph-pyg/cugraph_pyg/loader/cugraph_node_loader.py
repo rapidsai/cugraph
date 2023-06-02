@@ -127,6 +127,7 @@ class EXPERIMENTAL__BulkSampleLoader:
 
         self._total_read_time = 0.0
         self._total_convert_time = 0.0
+        self._total_feature_time = 0.0
 
         if input_nodes is None:
             # Will be loading from disk
@@ -259,9 +260,13 @@ class EXPERIMENTAL__BulkSampleLoader:
             self.__data.loc[f], self.__graph_store
         )
 
+        end_time_convert = perf_counter()
+        self._total_convert_time += (end_time_convert - start_time_convert)
+
         # Get ready for next iteration
         self.__next_batch += 1
 
+        start_time_feature = perf_counter()
         # Get and return the sampled subgraph
         if isinstance(torch_geometric, MissingModule):
             noi_index, row_dict, col_dict, edge_dict = sampler_output["out"]
@@ -285,9 +290,10 @@ class EXPERIMENTAL__BulkSampleLoader:
 
             out.set_value_dict('num_sampled_nodes', sampler_output.num_sampled_nodes)
             out.set_value_dict('num_sampled_edges', sampler_output.num_sampled_edges)
+        end_time_feature = perf_counter()
 
-        end_time_convert = perf_counter()
-        self._total_convert_time += (end_time_convert - start_time_convert)
+        self._total_feature_time += (end_time_feature - start_time_feature)
+        
         return out
 
     def __iter__(self):
