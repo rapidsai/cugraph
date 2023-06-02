@@ -50,7 +50,7 @@ requirements:
     - libcublas {{ libcublas_host_version }}
     - libcublas-dev {{ libcublas_host_version }}
     - libcudf ={{ minor_version }}
-    - libcugraphops ={{ minor_version }}
+    - libcugraphops =23.06 # change this after 23.08 nightlies become available
     - libcurand {{ libcurand_host_version }}
     - libcurand-dev {{ libcurand_host_version }}
     - libcusolver {{ libcusolver_host_version }}
@@ -77,7 +77,7 @@ outputs:
         - cmake {{ cmake_version }}
       run:
         - cudatoolkit {{ cuda_spec }}
-        - libcugraphops ={{ minor_version }}
+        - libcugraphops =23.06 # change this after 23.08 nightlies become available
         - libraft ={{ minor_version }}
         - libraft-headers ={{ minor_version }}
         - librmm ={{ minor_version }}
