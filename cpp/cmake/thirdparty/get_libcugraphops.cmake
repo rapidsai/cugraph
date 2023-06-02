@@ -25,7 +25,7 @@ if(NOT DEFINED CUGRAPH_CUGRAPH_OPS_BRANCH)
 endif()
 
 if(NOT DEFINED CUGRAPH_CUGRAPH_OPS_REPOSITORY)
-  set(CUGRAPH_CUGRAPH_OPS_REPOSITORY "https://github.com/alexbarghi-nv/cugraph-ops.git")
+  set(CUGRAPH_CUGRAPH_OPS_REPOSITORY "https://github.com/rapidsai/cugraph-ops.git")
 endif()
 
 function(find_and_configure_cugraph_ops)
