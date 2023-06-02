@@ -167,9 +167,12 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   detail::decompress_edge_partition_to_edgelist(
     handle,
     edge_partition,
+    std::optional<detail::edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>{
+      std::nullopt},
     edge_partition_weight_view,
     edgelist_majors.data(),
     edgelist_minors.data(),
+    std::optional<edge_t*>{std::nullopt},
     edgelist_weights ? std::optional<weight_t*>{(*edgelist_weights).data()} : std::nullopt,
     segment_offsets);
 

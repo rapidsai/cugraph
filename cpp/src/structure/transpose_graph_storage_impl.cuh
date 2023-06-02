@@ -74,9 +74,14 @@ transpose_graph_storage_impl(
   // FIXME: if is_symmetric is true we can do this more efficiently,
   //        since the graph contents should be exactly the same
 
-  auto [edgelist_srcs, edgelist_dsts, edgelist_weights] = decompress_to_edgelist(
+  rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> edgelist_weights{std::nullopt};
+
+  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, edgelist_weights) = decompress_to_edgelist(
     handle,
     graph_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     edge_weights
       ? std::optional<edge_property_view_t<edge_t, weight_t const*>>{(*edge_weights).view()}
       : std::nullopt,
@@ -170,9 +175,14 @@ transpose_graph_storage_impl(
   // FIXME: if is_symmetric is true we can do this more efficiently,
   //        since the graph contents should be exactly the same
 
-  auto [edgelist_srcs, edgelist_dsts, edgelist_weights] = decompress_to_edgelist(
+  rmm::device_uvector<vertex_t> edgelist_srcs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> edgelist_dsts(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> edgelist_weights{std::nullopt};
+
+  std::tie(edgelist_srcs, edgelist_dsts, std::ignore, edgelist_weights) = decompress_to_edgelist(
     handle,
     graph_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     edge_weights
       ? std::optional<edge_property_view_t<edge_t, weight_t const*>>{(*edge_weights).view()}
       : std::nullopt,

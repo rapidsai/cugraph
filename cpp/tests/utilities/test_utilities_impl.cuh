@@ -48,11 +48,16 @@ graph_to_host_coo(
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -102,11 +107,16 @@ graph_to_device_coo(
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -142,11 +152,16 @@ graph_to_host_csr(
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    edge_weight_view,
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -226,8 +241,16 @@ mg_graph_to_sg_graph(
   std::optional<raft::device_span<vertex_t const>> number_map,
   bool renumber)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle, graph_view, edge_weight_view, number_map);
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    edge_weight_view,
+    number_map);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});

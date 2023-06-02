@@ -22,7 +22,6 @@
 #include <prims/fill_edge_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/transform_e.cuh>
-#include <prims/transform_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_v.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
