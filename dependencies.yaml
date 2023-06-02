@@ -216,7 +216,7 @@ dependencies:
           - cxx-compiler
           - gmock>=1.13.0
           - gtest>=1.13.0
-          - libcugraphops=23.6.*
+          - libcugraphops=23.8.*
           - libraft-headers=23.8.*
           - libraft=23.8.*
           - librmm=23.8.*
@@ -259,7 +259,7 @@ dependencies:
           - sphinx-markdown-tables
           - sphinx<6
           - sphinxcontrib-websupport
-          - pylibcugraphops=23.6.*
+          - pylibcugraphops=23.8.*
   py_version:
     specific:
       - output_types: [conda]
@@ -383,7 +383,7 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
-          - pylibcugraphops=23.6.*
+          - pylibcugraphops=23.8.*
   test_notebook:
     common:
       - output_types: [conda, requirements]

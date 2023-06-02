@@ -28,7 +28,7 @@ dependencies:
 - gtest>=1.13.0
 - ipython
 - libcudf=23.8.*
-- libcugraphops=23.6.*
+- libcugraphops=23.8.*
 - libraft-headers=23.8.*
 - libraft=23.8.*
 - librmm=23.8.*
@@ -45,7 +45,7 @@ dependencies:
 - pandas
 - pre-commit
 - pydata-sphinx-theme
-- pylibcugraphops=23.6.*
+- pylibcugraphops=23.8.*
 - pylibraft==23.8.*
 - pytest
 - pytest-benchmark
