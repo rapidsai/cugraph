@@ -220,7 +220,7 @@ dependencies:
           - libraft-headers=23.8.*
           - libraft=23.8.*
           - librmm=23.8.*
-          - openmpi # Required for building cpp-mgtests (multi-GPU tests)
+          - openmpi # Required for building cpp-mgtests (multi-GPU tests).
     specific:
       - output_types: [conda]
         matrices:
