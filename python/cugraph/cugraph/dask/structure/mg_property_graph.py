@@ -379,7 +379,11 @@ class EXPERIMENTAL__MGPropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is dask_cudf.Series:
-                return dask_cudf.concat(vert_sers, ignore_index=True).unique()
+                return (
+                    dask_cudf.concat(vert_sers, ignore_index=True)
+                    .unique()
+                    .sort_values()
+                )
             else:
                 raise TypeError("dataframe must be a CUDF Dask dataframe.")
         return self.__series_type()
