@@ -20,13 +20,13 @@ build:
 
 requirements:
   host:
-    - python x.x
+    - python
   run:
     - cugraph ={{ version }}
-    - dgl >=0.9.1
-    - numba >=0.56.2
-    - numpy
-    - python x.x
+    - dgl >=1.1.0.cu*
+    - numba >=0.57
+    - numpy >=1.21
+    - python
     - pytorch
 
 tests:

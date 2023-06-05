@@ -392,9 +392,11 @@ def test_extract_subgraph(
 
     assert remote_sg.get_num_vertices() == sg.number_of_vertices()
 
-    expected_vertex_ids = cudf.concat(
-        [sg.edgelist.edgelist_df["src"], sg.edgelist.edgelist_df["dst"]]
-    ).unique()
+    expected_vertex_ids = (
+        cudf.concat([sg.edgelist.edgelist_df["src"], sg.edgelist.edgelist_df["dst"]])
+        .unique()
+        .sort_values()
+    )
     if renumber:
         expected_vertex_ids = sg.unrenumber(
             cudf.DataFrame({"v": expected_vertex_ids}), "v"
