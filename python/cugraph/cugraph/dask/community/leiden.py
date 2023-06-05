@@ -21,11 +21,11 @@ import dask_cudf
 import dask
 from dask import delayed
 import cudf
-import cupy as cp
-import numpy
 
 from pylibcugraph import ResourceHandle
-from pylibcugraph import louvain as pylibcugraph_louvain
+from pylibcugraph import leiden as pylibcugraph_leiden
+import numpy
+import cupy as cp
 from typing import Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -44,30 +44,40 @@ def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
     return df, modularity
 
 
-def _call_plc_louvain(
-    sID: bytes, mg_graph_x, max_iter: int, resolution: int, do_expensive_check: bool
+def _call_plc_leiden(
+    sID: bytes,
+    mg_graph_x,
+    max_iter: int,
+    resolution: int,
+    random_state: int,
+    theta: int,
+    do_expensive_check: bool,
 ) -> Tuple[cp.ndarray, cp.ndarray, float]:
-    return pylibcugraph_louvain(
+    return pylibcugraph_leiden(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        random_state=random_state,
         graph=mg_graph_x,
         max_level=max_iter,
         resolution=resolution,
+        theta=theta,
         do_expensive_check=do_expensive_check,
     )
 
 
-def louvain(
-    input_graph: Graph, max_iter: int = 100, resolution: int = 1.0
+def leiden(
+    input_graph: Graph,
+    max_iter: int = 100,
+    resolution: int = 1.0,
+    random_state: int = None,
+    theta: int = 1.0,
 ) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
-    Louvain method
+    Leiden method
 
-    It uses the Louvain method described in:
-
-    VD Blondel, J-L Guillaume, R Lambiotte and E Lefebvre: Fast unfolding of
-    community hierarchies in large networks, J Stat Mech P10008 (2008),
-    http://arxiv.org/abs/0803.0476
+    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+    doi: 10.1038/s41598-019-41695-z
 
     Parameters
     ----------
@@ -78,16 +88,25 @@ def louvain(
         The current implementation only supports undirected graphs.
 
     max_iter : integer, optional (default=100)
-        This controls the maximum number of levels/iterations of the Louvain
+        This controls the maximum number of levels/iterations of the Leiden
         algorithm. When specified the algorithm will terminate after no more
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
 
-    resolution: float/double, optional (default=1.0)
+    resolution: float, optional (default=1.0)
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
         Defaults to 1.
+
+    random_state: int, optional(default=None)
+        Random state to use when generating samples.  Optional argument,
+        defaults to a hash of process id, time, and hostname.
+
+    theta: float, optional (default=1.0)
+        Called theta in the Leiden algorithm, this is used to scale
+        modularity gain in Leiden refinement phase, to compute
+        the probability of joining a random leiden community.
 
     Returns
     -------
@@ -108,25 +127,27 @@ def louvain(
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> parts = cugraph.louvain(G)
+    >>> parts, modularity_score = cugraph.leiden(G)
 
     """
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-    # Initialize dask client
+    # Return a client if one has started
     client = default_client()
 
     do_expensive_check = False
 
     result = [
         client.submit(
-            _call_plc_louvain,
+            _call_plc_leiden,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
             max_iter,
             resolution,
+            random_state,
+            theta,
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,

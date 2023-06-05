@@ -42,7 +42,7 @@ classifiers = [
 test = [
     "cudf==23.6.*",
     "networkx>=2.5.1",
-    "numpy>=1.21,<1.24",
+    "numpy>=1.21",
     "pandas",
     "pytest",
     "pytest-benchmark",
