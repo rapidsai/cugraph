@@ -14,6 +14,7 @@
 import logging
 import warnings
 import argparse
+import traceback
 
 from cugraph.testing.mg_utils import (
     generate_edgelist_rmat,
@@ -229,22 +230,23 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
     dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
     dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
     
-    generator = np.random.default_rng(seed=seed)
+    # generator = np.random.default_rng(seed=seed)
     num_labeled_nodes = int(2**(scale+1) * labeled_percentage)
     label_df = pd.DataFrame({
         'node': np.arange(num_labeled_nodes),
-        'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
+        # 'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
     })
     
-    dask_label_df = ddf.from_pandas(label_df)
+    n_workers = len(default_client().scheduler_info()['workers'])
+    dask_label_df = ddf.from_pandas(label_df, npartitions=n_workers*2)
     del label_df
     gc.collect()
 
     dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
 
     node_offsets = {'paper': 0}
-    edge_offsets = {('paper','cites','paper'):0},
-    total_num_nodes = dask_cudf.concat([dask_edgelist_df.src, dask_edgelist_df.dst]).nunique()
+    edge_offsets = {('paper','cites','paper'):0}
+    total_num_nodes = int(dask_cudf.concat([dask_edgelist_df.src, dask_edgelist_df.dst]).nunique().compute())
 
     if reverse_edges:
         dask_edgelist_df = dask_edgelist_df.rename(columns={'src':'dst', 'dst':'src'})
@@ -367,7 +369,8 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         The percentage of the data that is labeled (only for rmat datasets)
         Defaults to 0.001 to match papers100M
     """
-    if dataset[0:5] == 'rmat':
+    print(dataset)
+    if dataset[0:4] == 'rmat':
         dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
             generate_rmat_dataset(dataset, reverse_edges=reverse_edges, seed=seed, labeled_percentage=labeled_percentage, num_labels=num_labels)
 
@@ -424,6 +427,7 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         'num_sampling_gpus': len(G._plc_graph),
         'execution_time': execution_time,
     }
+
     with open(os.path.join(output_subdir, 'output_meta.json'), 'w') as f:
         json.dump(
             output_meta,
@@ -619,6 +623,7 @@ if __name__ == "__main__":
                     except Exception as e:
                         warnings.warn('An Exception Occurred!')
                         print(e)
+                        traceback.print_exc()
                     restart_client(client)
                     sleep(10)
 
