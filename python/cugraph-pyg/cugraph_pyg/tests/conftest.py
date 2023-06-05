@@ -96,7 +96,6 @@ def karate_gnn():
         "type0": len(all_vertices[0]),
         "type1": len(all_vertices[1]),
     }
-    print('all_vertices:', all_vertices)
 
     offsets = {"type0": 0, "type1": N["type0"]}
 
@@ -122,10 +121,6 @@ def karate_gnn():
         )
         for (src_type, edge_type, dst_type), elx in G.items()
     }
-
-    print('offset:', offsets)
-    print('G:', G)
-    
 
     return F, G, N
 
