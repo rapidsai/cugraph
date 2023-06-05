@@ -60,7 +60,7 @@ requirements:
     - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - pylibraft ={{ minor_version}}
-    - python x.x
+    - python
     - raft-dask ={{ minor_version }}
     - scikit-build >=0.13.1
     - setuptools
@@ -81,7 +81,7 @@ requirements:
     - libraft-headers ={{ minor_version }}
     - pylibcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
-    - python x.x
+    - python
     - raft-dask ={{ minor_version }}
     - ucx-proc=*=gpu
     - ucx-py {{ ucx_py_version }}

@@ -303,7 +303,7 @@ dependencies:
           - &distributed distributed>=2023.5.1
           - &dask_cuda dask-cuda==23.6.*
           - &dask_cudf dask-cudf==23.6.*
-          - &numba numba>=0.56.4,<0.57
+          - &numba numba>=0.57
           - raft-dask==23.6.*
           - *rmm
           - &ucx_py ucx-py==0.33.*
@@ -329,7 +329,7 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - *numba
-          - &numpy numpy>=1.21,<1.24  # Temporarily upper bound numpy to avoid overflow deprecations
+          - &numpy numpy>=1.21
       - output_types: [pyproject]
         packages:
           - &cugraph cugraph==23.6.*
@@ -356,6 +356,7 @@ dependencies:
           - *dask_cuda
           - *dask_cudf
           - *distributed
+          - *numba
           - *numpy
           - *rmm
           - *thrift
