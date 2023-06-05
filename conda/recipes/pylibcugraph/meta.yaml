@@ -60,7 +60,7 @@ requirements:
     - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - pylibraft ={{ minor_version}}
-    - python x.x
+    - python
     - rmm ={{ minor_version }}
     - scikit-build >=0.13.1
     - setuptools
@@ -69,7 +69,7 @@ requirements:
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libcugraph ={{ version }}
-    - python x.x
+    - python
 
 tests:
   requirements:

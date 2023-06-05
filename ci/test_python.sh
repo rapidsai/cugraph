@@ -64,14 +64,17 @@ popd
 
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
+export DASK_WORKER_DEVICES="0"
 pytest \
-  -m sg \
+  -v \
+  --benchmark-disable \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
+  -k "not test_property_graph_mg" \
   tests
 popd
 
@@ -124,7 +127,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       pylibcugraphops \
       cugraph \
       cugraph-dgl \
-      'dgl>=1.1.0.dev0' \
+      'dgl>=1.1.0.cu*' \
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
