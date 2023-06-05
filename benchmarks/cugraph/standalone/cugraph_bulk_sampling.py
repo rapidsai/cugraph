@@ -202,6 +202,55 @@ def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
     
     return node_offsets, node_offsets_replicated, count_replicated
 
+def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=256, reverse_edges=False):
+    """
+    Generates an rmat dataset.  Currently does not support heterogeneous datasets.
+
+    Parameters
+    ----------
+    dataset: The specifier of the rmat dataset (i.e. rmat_20_16)
+    seed: The seed to use for random number generation
+    num_labels: The number of classes for the labeled nodes
+    reverse_edges: Whether to reverse the edges in the edgelist (should be True for DGL, False, for PyG)
+    """
+
+    dataset = dataset.split('_')
+    scale = int(dataset[1])
+    edgefactor = int(dataset[2])
+
+    dask_edgelist_df = generate_edgelist_rmat(
+        scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
+    )
+    dask_edgelist_df = dask_edgelist_df.astype("int64")
+    dask_edgelist_df = dask_edgelist_df.reset_index(drop=True)
+
+
+    dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
+    dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
+    dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
+    
+    generator = np.random.default_rng(seed=seed)
+    num_labeled_nodes = int(2**(scale+1) * labeled_percentage)
+    label_df = pd.DataFrame({
+        'node': np.arange(num_labeled_nodes),
+        'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
+    })
+    
+    dask_label_df = ddf.from_pandas(label_df)
+    del label_df
+    gc.collect()
+
+    dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
+
+    node_offsets = {'paper': 0}
+    edge_offsets = {('paper','cites','paper'):0},
+    total_num_nodes = dask_cudf.concat([dask_edgelist_df.src, dask_edgelist_df.dst]).nunique()
+
+    if reverse_edges:
+        dask_edgelist_df = dask_edgelist_df.rename(columns={'src':'dst', 'dst':'src'})
+
+    return dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes
+
 
 def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1):
     path = os.path.join(dataset_dir, dataset)
@@ -319,33 +368,8 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         Defaults to 0.001 to match papers100M
     """
     if dataset[0:5] == 'rmat':
-        dataset = dataset.split('_')
-        scale = int(dataset[1])
-        edgefactor = int(dataset[2])
-
-        dask_edgelist_df = generate_edgelist_rmat(
-            scale=scale, edgefactor=edgefactor, seed=seed, unweighted=True, mg=True,
-        )
-        dask_edgelist_df = dask_edgelist_df.astype("int64")
-        dask_edgelist_df = dask_edgelist_df.reset_index(drop=True)
-
-
-        dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
-        dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
-        dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
-        
-        # generator = np.random.default_rng(seed=seed)
-        num_labeled_nodes = int(2**(scale+1) * labeled_percentage)
-        label_df = pd.DataFrame({
-            'node': np.arange(num_labeled_nodes),
-            # 'label': generator.integers(0, num_labels - 1, num_labeled_nodes).astype('float32')
-        })
-        
-        dask_label_df = ddf.from_pandas(label_df)
-        del label_df
-        gc.collect()
-
-        dask_label_df = dask_cudf.from_dask_dataframe(dask_label_df)
+        dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
+            generate_rmat_dataset(dataset, reverse_edges=reverse_edges, seed=seed, labeled_percentage=labeled_percentage, num_labels=num_labels)
 
     else:
         dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
