@@ -213,6 +213,7 @@ def pagerank(
     initial_guess_values = None
     pre_vtx_o_wgt_vertices = None
     pre_vtx_o_wgt_sums = None
+    converged = True
 
     G, isNx = ensure_cugraph_obj_for_nx(G, weight, store_transposed=True)
     if G.store_transposed is False:
@@ -253,6 +254,8 @@ def pagerank(
 
         personalization = ensure_valid_dtype(G, personalization, "personalization")
 
+        # FIXME: once the C/C++/PLC changes are in place, call the API with the
+        # changes to allow for the converged bool to be set.
         vertex, pagerank_values = pylibcugraph_p_pagerank(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
@@ -268,6 +271,8 @@ def pagerank(
             do_expensive_check=do_expensive_check,
         )
     else:
+        # FIXME: once the C/C++/PLC changes are in place, call the API with the
+        # changes to allow for the converged bool to be set.
         vertex, pagerank_values = pylibcugraph_pagerank(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
@@ -291,4 +296,7 @@ def pagerank(
     if isNx is True:
         df = df_score_to_dictionary(df, "pagerank")
 
-    return df
+    if error_on_nonconvergence:
+        return df
+    else:
+        return (df, converged)
