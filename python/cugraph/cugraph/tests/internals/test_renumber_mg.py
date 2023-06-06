@@ -113,7 +113,7 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     gdf["dst_old"] = destinations
     gdf["src"] = sources + translate
     gdf["dst"] = destinations + translate
-    gdf["weight"] = gdf.index.astype(np.float)
+    gdf["weight"] = gdf.index.astype(np.float64)
 
     ddf = dask.dataframe.from_pandas(
         gdf, npartitions=len(dask_client.scheduler_info()["workers"])

@@ -138,6 +138,7 @@ class DataLoader(torch.utils.data.DataLoader):
         self._sampling_output_dir = sampling_output_dir
         self._batches_per_partition = batches_per_partition
         self._seeds_per_call = seeds_per_call
+        self._rank = None
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
@@ -187,16 +188,16 @@ class DataLoader(torch.utils.data.DataLoader):
                         f"Fetch cugraph_dgl_mg_graph_ds to worker_id {rank}",
                         "from worker_id 0 failed",
                     )
-            self._rank = rank
         else:
+            rank = 0
             G = create_cugraph_graph_from_edges_dict(
                 edges_dict=graph._edges_dict,
                 etype_id_dict=graph._etype_id_dict,
                 edge_dir=graph_sampler.edge_dir,
             )
-            self._rank = 0
-        self._cugraph_graph = G
 
+        self._rank = rank
+        self._cugraph_graph = G
         super().__init__(
             self.cugraph_dgl_dataset,
             batch_size=None,
