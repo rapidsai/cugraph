@@ -432,3 +432,22 @@ def test_pagerank_transposed_false():
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G)
+
+
+@pytest.mark.sg
+def test_pagerank_non_convergence():
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    # FIXME: use a better exception
+    with pytest.raises(RuntimeError):
+        df = cugraph.pagerank(G, max_iter=1, error_on_nonconvergence=True)
+
+    (df, converged) = cugraph.pagerank(G, max_iter=1, error_on_nonconvergence=False)
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    # The default max_iter value should allow convergence for this graph
+    (df, converged) = cugraph.pagerank(G, error_on_nonconvergence=False)
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True

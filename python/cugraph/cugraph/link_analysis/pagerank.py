@@ -86,9 +86,9 @@ def pagerank(
     nstart=None,
     weight=None,
     dangling=None,
+    error_on_nonconvergence=True,
 ):
-    """
-    Find the PageRank score for every vertex in a graph. cuGraph computes an
+    """Find the PageRank score for every vertex in a graph. cuGraph computes an
     approximation of the Pagerank eigenvector using the power method. The
     number of iterations depends on the properties of the network itself; it
     increases when the tolerance descreases and/or alpha increases toward the
@@ -163,8 +163,18 @@ def pagerank(
     dangling : dict, optional (default=None)
         This parameter is here for NetworkX compatibility and ignored
 
+    error_on_nonconvergence : bool (default=True)
+        If the solver does not reach convergence, raise an exception if
+        error_on_nonconvergence is True. If error_on_nonconvergence is False,
+        the return value is a tuple of (pagerank, converged) where pagerank is
+        a cudf.DataFrame as described below, and converged is a boolean
+        indicating if the solver converged (True) or not (False).
+
     Returns
     -------
+    The return value varies based on the value of the error_on_nonconvergence
+    paramter.  If error_on_nonconvergence is True:
+
     PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
@@ -185,11 +195,18 @@ def pagerank(
         df['pagerank'] : cudf.Series
             Contains the PageRank score
 
+    If error_on_nonconvergence is False:
+
+    (PageRank, converged) : tuple of (cudf.DataFrame, bool)
+       PageRank is the GPU dataframe described above, converged is a bool
+       indicating if the solver converged (True) or not (False).
+
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
+
     """
 
     initial_guess_vertices = None
