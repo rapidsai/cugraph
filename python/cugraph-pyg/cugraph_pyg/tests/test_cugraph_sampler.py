@@ -171,3 +171,69 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
+
+"""
+Add benchmark results capture
+Disable benchmark results capture when running in CI
+
+
+1. update test_python.sh
+2. update dockerfile in graph_dl
+3. add new sg srun script (coordinate with Rick first)
+"""
+def test_mfg_creation():
+    seed = 62
+    seeds_per_call = 100_000
+    generator = cupy.random.default_rng(seed=seed)
+
+    tempdir = tempfile.TemporaryDirectory()
+    batches_per_partition = 200_000 // batch_size
+
+    num_vertices = graph.number_of_vertices()
+    training_percentage = 0.1
+    train_nodes = generator.integers(0, int(training_percentage * num_vertices))
+    train_batches = cupy.arange(num_vertices // batch_size + 1).repeat(batch_size)[:len(train_nodes)]
+    batch_df = cudf.DataFrame({
+        'node': train_nodes,
+        'batch': train_batches,
+    })
+
+    bulk_sample(
+        graph,
+        batch_size,
+        fanout,
+        seeds_per_call=seeds_per_call,
+        batches_per_partition=batches_per_partition,
+        batch_df=batch_df,
+        samples_dir=tempdir,
+        seed=seed
+    )
+
+    # todo read from file instead of running sampler
+    
+    G = {('vt1','et1','vt1'): graph.number_of_edges()}
+    N = {'vt1': graph.number_of_vertices()}
+    cugraph_store = CuGraphStore(None, G, N)
+
+    def read_batches(samples_dir, graph_store):
+        for file in os.listdir(samples_dir):
+            df = cudf.read_parquet(file)
+            m = ex_parquet_file.match(file)
+            if m is None:
+                raise ValueError(f"Invalid parquet filename {file}")
+
+            next_batch, end_inclusive = [int(g) for g in m.groups()]
+            
+            while next_batch <= end_inclusive:
+                df_i = df[df.batch_id==next_batch]
+                _sampler_output_from_sampling_results(
+                    df_i,
+                    graph_store,
+                    None
+                )
+    
+    gpubenchmark(
+        read_batches,
+        tempdir.name,
+        cugraph_store
+    )

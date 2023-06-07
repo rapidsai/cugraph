@@ -1,15 +1,12 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+import pytest
+
+import re
+import os
+import tempfile
+
+import cupy
+import cudf
+import torch
 
 import pytest
 import tempfile
@@ -42,7 +39,9 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
 from cugraph.testing import utils, mg_utils
 from cugraph.utilities.utils import is_device_version_less_than
-from cugraph_benchmarking.gnn import bulk_sample
+
+from cugraph_pyg.data import CuGraphStore
+from cugraph_pyg.loader.cugraph_node_loader import _sampler_output_from_sampling_results
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -50,6 +49,10 @@ from cugraph_benchmarking.params import (
     managed_memory,
     pool_allocator,
 )
+
+from cugraph_benchmarking.gnn import bulk_sample
+
+ex_parquet_file = re.compile(r"batch=([0-9]+)\-([0-9]+)\.parquet")
 
 # duck-type compatible Dataset for RMAT data
 class RmatDataset:
@@ -262,164 +265,16 @@ def is_graph_distributed(graph):
     return isinstance(graph.edgelist.edgelist_df, dask_cudf.DataFrame)
 
 
-###############################################################################
-# Benchmarks
-def bench_create_graph(gpubenchmark, edgelist):
-    gpubenchmark(cugraph.from_cudf_edgelist,
-                 edgelist,
-                 source="src", destination="dst",
-                 create_using=cugraph.structure.graph_classes.Graph,
-                 renumber=False)
+@pytest.fixture(scope="module")
+def graph(request, dataset):
+    G = dataset.get_graph()
+    return G
 
-
-# Creating directed Graphs on small datasets runs in micro-seconds, which
-# results in thousands of rounds before the default threshold is met, so lower
-# the max_time for this benchmark.
-@pytest.mark.benchmark(
-    warmup=True,
-    warmup_iterations=10,
-    max_time=0.005
-)
-def bench_create_digraph(gpubenchmark, edgelist):
-    gpubenchmark(cugraph.from_cudf_edgelist,
-                 edgelist,
-                 source="src", destination="dst",
-                 create_using=cugraph.Graph(directed=True),
-                 renumber=False)
-
-
-def bench_renumber(gpubenchmark, edgelist):
-    gpubenchmark(NumberMap.renumber, edgelist, "src", "dst")
-
-
-def bench_pagerank(gpubenchmark, transposed_graph):
-    pagerank = dask_cugraph.pagerank if is_graph_distributed(transposed_graph) \
-               else cugraph.pagerank
-    gpubenchmark(pagerank, transposed_graph)
-
-
-def bench_bfs(gpubenchmark, graph):
-    bfs = dask_cugraph.bfs if is_graph_distributed(graph) else cugraph.bfs
-    start = graph.edgelist.edgelist_df["src"][0]
-    gpubenchmark(bfs, graph, start)
-
-
-def bench_force_atlas2(gpubenchmark, graph):
-    if is_graph_distributed(graph):
-        pytest.skip("distributed graphs are not supported")
-    gpubenchmark(cugraph.force_atlas2, graph, max_iter=50)
-
-
-def bench_sssp(gpubenchmark, graph):
-    sssp = dask_cugraph.sssp if is_graph_distributed(graph) else cugraph.sssp
-    start = graph.edgelist.edgelist_df["src"][0]
-    gpubenchmark(sssp, graph, start)
-
-
-def bench_jaccard(gpubenchmark, unweighted_graph):
-    G = unweighted_graph
-    jaccard = dask_cugraph.jaccard if is_graph_distributed(G) else cugraph.jaccard
-    gpubenchmark(jaccard, G)
-
-
-@pytest.mark.skipif(
-    is_device_version_less_than((7, 0)), reason="Not supported on Pascal")
-def bench_louvain(gpubenchmark, graph):
-    louvain = dask_cugraph.louvain if is_graph_distributed(graph) else cugraph.louvain
-    gpubenchmark(louvain, graph)
-
-
-def bench_weakly_connected_components(gpubenchmark, graph):
-    if is_graph_distributed(graph):
-        pytest.skip("distributed graphs are not supported")
-    if graph.is_directed():
-        G = graph.to_undirected()
-    else:
-        G = graph
-    gpubenchmark(cugraph.weakly_connected_components, G)
-
-
-def bench_overlap(gpubenchmark, unweighted_graph):
-    G = unweighted_graph
-    overlap = dask_cugraph.overlap if is_graph_distributed(G) else cugraph.overlap
-    gpubenchmark(overlap, G)
-
-
-def bench_triangle_count(gpubenchmark, graph):
-    tc = dask_cugraph.triangle_count if is_graph_distributed(graph) \
-         else cugraph.triangle_count
-    gpubenchmark(tc, graph)
-
-
-def bench_spectralBalancedCutClustering(gpubenchmark, graph):
-    if is_graph_distributed(graph):
-        pytest.skip("distributed graphs are not supported")
-    gpubenchmark(cugraph.spectralBalancedCutClustering, graph, 2)
-
-
-@pytest.mark.skip(reason="Need to guarantee graph has weights, "
-                         "not doing that yet")
-def bench_spectralModularityMaximizationClustering(gpubenchmark, graph):
-    smmc = dask_cugraph.spectralModularityMaximizationClustering \
-           if is_graph_distributed(graph) \
-           else cugraph.spectralModularityMaximizationClustering
-    gpubenchmark(smmc, graph, 2)
-
-
-def bench_graph_degree(gpubenchmark, graph):
-    gpubenchmark(graph.degree)
-
-
-def bench_graph_degrees(gpubenchmark, graph):
-    if is_graph_distributed(graph):
-        pytest.skip("distributed graphs are not supported")
-    gpubenchmark(graph.degrees)
-
-
-def bench_betweenness_centrality(gpubenchmark, graph):
-    bc = dask_cugraph.betweenness_centrality if is_graph_distributed(graph) \
-         else cugraph.betweenness_centrality
-    gpubenchmark(bc, graph, k=10, random_state=123)
-
-
-def bench_edge_betweenness_centrality(gpubenchmark, graph):
-    if is_graph_distributed(graph):
-        pytest.skip("distributed graphs are not supported")
-    gpubenchmark(cugraph.edge_betweenness_centrality, graph, k=10, seed=123)
-
-
-def bench_uniform_neighbor_sample(gpubenchmark, graph):
-    uns = dask_cugraph.uniform_neighbor_sample if is_graph_distributed(graph) \
-         else cugraph.uniform_neighbor_sample
-
-    seed = 42
-    # FIXME: may need to provide number_of_vertices separately
-    num_verts_in_graph = graph.number_of_vertices()
-    len_start_list = max(int(num_verts_in_graph * 0.01), 2)
-    srcs = graph.edgelist.edgelist_df["src"]
-    frac = len_start_list / num_verts_in_graph
-
-    start_list = srcs.sample(frac=frac, random_state=seed)
-    # Attempt to automatically handle a dask Series
-    if hasattr(start_list, "compute"):
-        start_list = start_list.compute()
-
-    fanout_vals = [5, 5, 5]
-    gpubenchmark(uns, graph, start_list=start_list, fanout_vals=fanout_vals)
-
-
-def bench_egonet(gpubenchmark, graph):
-    egonet = dask_cugraph.ego_graph if is_graph_distributed(graph) \
-             else cugraph.ego_graph
-    n = 1
-    radius = 2
-    gpubenchmark(egonet, graph, n, radius=radius)
-
-@pytest.mark.parametrize('batch_size', [250, 500, 1000])
-@pytest.mark.parametrize('fanout', [[10,25], [10,10,10], [25,25]])
-@pytest.mark.parametrize('seeds_per_call', [50_000, 200_000, 800_000, 2_000_000])
-def bench_bulk_sampler(gpubenchmark, graph, batch_size, fanout, seeds_per_call):
+@pytest.mark.parametrize('batch_size', [500, 1000])
+@pytest.mark.parametrize('fanout', [[10, 25], [10, 10, 10]])
+def bench_pyg_mfg_create(gpubenchmark, graph, batch_size, fanout):
     seed = 62
+    seeds_per_call = 100_000
     generator = cupy.random.default_rng(seed=seed)
 
     tempdir = tempfile.TemporaryDirectory()
@@ -434,8 +289,7 @@ def bench_bulk_sampler(gpubenchmark, graph, batch_size, fanout, seeds_per_call):
         'batch': train_batches,
     })
 
-    gpubenchmark(
-        bulk_sample,
+    bulk_sample(
         graph,
         batch_size,
         fanout,
@@ -444,4 +298,31 @@ def bench_bulk_sampler(gpubenchmark, graph, batch_size, fanout, seeds_per_call):
         batch_df=batch_df,
         samples_dir=tempdir,
         seed=seed
+    )
+    
+    G = {('vt1','et1','vt1'): graph.number_of_edges()}
+    N = {'vt1': graph.number_of_vertices()}
+    cugraph_store = CuGraphStore(None, G, N)
+
+    def read_batches(samples_dir, graph_store):
+        for file in os.listdir(samples_dir):
+            df = cudf.read_parquet(file)
+            m = ex_parquet_file.match(file)
+            if m is None:
+                raise ValueError(f"Invalid parquet filename {file}")
+
+            next_batch, end_inclusive = [int(g) for g in m.groups()]
+            
+            while next_batch <= end_inclusive:
+                df_i = df[df.batch_id==next_batch]
+                _sampler_output_from_sampling_results(
+                    df_i,
+                    graph_store,
+                    None
+                )
+    
+    gpubenchmark(
+        read_batches,
+        tempdir.name,
+        cugraph_store
     )
