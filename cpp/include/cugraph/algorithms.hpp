@@ -1181,6 +1181,9 @@ void sssp(raft::handle_t const& handle,
 /**
  * @brief Compute PageRank scores.
  *
+ * @deprecated This API will be deprecated to replaced by the new version below
+ *             that returns metadata about the algorithm.
+ *
  * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
  * @p personalization_vertices is not `nullptr`.) PageRank scores.
  *
@@ -1235,6 +1238,74 @@ void pagerank(raft::handle_t const& handle,
               size_t max_iterations   = 500,
               bool has_initial_guess  = false,
               bool do_expensive_check = false);
+
+/**
+ * @brief Metadata about the execution of one of the centrality algorithms
+ */
+// FIXME:  This structure should be propagated to other algorithms that converge
+//   (eigenvector centrality, hits and katz centrality)
+//
+struct centrality_algorithm_metadata_t {
+  size_t number_of_iterations_;
+  bool converged_;
+};
+
+/**
+ * @brief Compute PageRank scores.
+ *
+ * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
+ * @p personalization_vertices is not `nullptr`.) PageRank scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
+ * max_iterations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of PageRank scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param precomputed_vertex_out_weight_sums Pointer to an array storing sums of out-going edge
+ * weights for the vertices (for re-use) or `std::nullopt`. If `std::nullopt`, these values are
+ * freshly computed. Computing these values outside this function reduces the number of memory
+ * allocations/deallocations and computing if a user repeatedly computes PageRank scores using the
+ * same graph with different personalization vectors.
+ * @param personalization Optional tuple containing device spans of vertex identifiers and
+ * personalization values for the vertices (compute personalized PageRank) or `std::nullopt`
+ * (compute general PageRank).
+ * @param initial_pageranks Optional device span containing initial PageRank values.  If
+ * specified this array will be used as the initial values and the PageRank values will be
+ * updated in place.  If not specified then the initial values will be set to 1.0 divided by
+ * the number of vertices in the graph and the return value will contain an `rmm::device_uvector`
+ * containing the resulting PageRank values.
+ * @param alpha PageRank damping factor.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in PageRank values between two consecutive iterations is less than the number of
+ * vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of PageRank iterations.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing the optional pagerank results (populated if @p initial_pageranks is
+ * set to `std::nullopt`) and a metadata structure with metadata indicating how many iterations
+ * were run and whether the algorithm converged or not.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+std::tuple<std::optional<rmm::device_uvector<result_t>>, centrality_algorithm_metadata_t> pagerank(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
+  std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
+    personalization,
+  std::optional<raft::device_span<result_t>> initial_pageranks,
+  result_t alpha,
+  result_t epsilon,
+  size_t max_iterations   = 500,
+  bool do_expensive_check = false);
 
 /**
  * @brief Compute Eigenvector Centrality scores.
