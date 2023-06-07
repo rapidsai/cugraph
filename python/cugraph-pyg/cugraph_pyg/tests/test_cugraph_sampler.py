@@ -14,8 +14,12 @@
 import cudf
 import cupy
 
+import pathlib
+import os
+
 import pytest
 
+from cugraph.gnn import FeatureStore
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
 
@@ -23,6 +27,7 @@ from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph import uniform_neighbor_sample
 
 torch = import_optional("torch")
+torch_geometric = import_optional('torch_geometric')
 
 
 @pytest.mark.cugraph_ops
@@ -172,6 +177,7 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
 
+
 """
 Add benchmark results capture
 Disable benchmark results capture when running in CI
@@ -181,59 +187,66 @@ Disable benchmark results capture when running in CI
 2. update dockerfile in graph_dl
 3. add new sg srun script (coordinate with Rick first)
 """
-def test_mfg_creation():
-    seed = 62
-    seeds_per_call = 100_000
-    generator = cupy.random.default_rng(seed=seed)
 
-    tempdir = tempfile.TemporaryDirectory()
-    batches_per_partition = 200_000 // batch_size
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_mfg_creation(gpubenchmark):
+    parent = pathlib.Path(__file__).parent.resolve()
+    df = cudf.read_parquet(os.path.join(parent, 'files/papers100M_1000_10_10_10.parquet'))
 
-    num_vertices = graph.number_of_vertices()
-    training_percentage = 0.1
-    train_nodes = generator.integers(0, int(training_percentage * num_vertices))
-    train_batches = cupy.arange(num_vertices // batch_size + 1).repeat(batch_size)[:len(train_nodes)]
-    batch_df = cudf.DataFrame({
-        'node': train_nodes,
-        'batch': train_batches,
-    })
+    G = {("vt1", "et1", "vt1"): 1_615_685_872}
+    N = {"vt1": 111_059_956}
 
-    bulk_sample(
-        graph,
-        batch_size,
-        fanout,
-        seeds_per_call=seeds_per_call,
-        batches_per_partition=batches_per_partition,
-        batch_df=batch_df,
-        samples_dir=tempdir,
-        seed=seed
-    )
-
-    # todo read from file instead of running sampler
+    generator = torch.manual_seed(62)
     
-    G = {('vt1','et1','vt1'): graph.number_of_edges()}
-    N = {'vt1': graph.number_of_vertices()}
-    cugraph_store = CuGraphStore(None, G, N)
+    x = torch.rand((N['vt1'], 1), device='cpu', dtype=torch.float32, generator=generator)
 
-    def read_batches(samples_dir, graph_store):
-        for file in os.listdir(samples_dir):
-            df = cudf.read_parquet(file)
-            m = ex_parquet_file.match(file)
-            if m is None:
-                raise ValueError(f"Invalid parquet filename {file}")
+    F = FeatureStore(backend='torch')
+    F.add_data(x, 'vt1', 'x')
 
-            next_batch, end_inclusive = [int(g) for g in m.groups()]
-            
-            while next_batch <= end_inclusive:
-                df_i = df[df.batch_id==next_batch]
-                _sampler_output_from_sampling_results(
-                    df_i,
-                    graph_store,
-                    None
-                )
-    
+    cugraph_store = CuGraphStore(F, G, N)
+
+    def read_batches(df, graph_store):
+        _sampler_output_from_sampling_results(df, graph_store, None)
+
     gpubenchmark(
         read_batches,
-        tempdir.name,
-        cugraph_store
+        df,
+        cugraph_store,
+    )
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.parametrize('num_features', [10, 100])
+def test_feature_fetch(gpubenchmark, num_features):
+    parent = pathlib.Path(__file__).parent.resolve()
+    df = cudf.read_parquet(os.path.join(parent, 'files/papers100M_1000_10_10_10.parquet'))
+
+    G = {("vt1", "et1", "vt1"): 1_615_685_872}
+    N = {"vt1": 111_059_956}
+    
+    generator = torch.manual_seed(62)
+    
+    x = torch.rand((N['vt1'], num_features), device='cpu', dtype=torch.float32, generator=generator)
+
+    F = FeatureStore(backend='torch')
+    F.add_data(x, 'vt1', 'x')
+
+    cugraph_store = CuGraphStore(F, G, N)
+
+    sampler_output = _sampler_output_from_sampling_results(df, cugraph_store)
+
+    def fetch_features(sampler_output, feature_store, graph_store):
+        torch_geometric.loader.utils.filter_custom_store(
+            feature_store,
+            graph_store,
+            sampler_output.node,
+            sampler_output.row,
+            sampler_output.col,
+            sampler_output.edge,
+        )
+
+    gpubenchmark(
+        fetch_features,
+        sampler_output,
+        cugraph_store,
+        cugraph_store,
     )
