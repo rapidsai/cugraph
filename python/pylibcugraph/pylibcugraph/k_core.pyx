@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -156,12 +156,16 @@ def k_core(ResourceHandle resource_handle,
         cugraph_k_core_result_get_src_vertices(k_core_result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_vertices_ptr = \
         cugraph_k_core_result_get_dst_vertices(k_core_result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* weigths_ptr = \
+    cdef cugraph_type_erased_device_array_view_t* weights_ptr = \
         cugraph_k_core_result_get_weights(k_core_result_ptr)
 
     cupy_src_vertices = copy_to_cupy_array(c_resource_handle_ptr, src_vertices_ptr)
     cupy_dst_vertices = copy_to_cupy_array(c_resource_handle_ptr, dst_vertices_ptr)
-    cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weigths_ptr)
+
+    if weights_ptr is not NULL:
+        cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
+    else:
+        cupy_weights = None
 
     cugraph_k_core_result_free(k_core_result_ptr)
     cugraph_core_result_free(core_result_ptr)

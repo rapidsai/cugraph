@@ -43,7 +43,7 @@ nvidia-smi
 # RAPIDS_DATASET_ROOT_DIR is used by test scripts
 export RAPIDS_DATASET_ROOT_DIR="$(realpath datasets)"
 pushd "${RAPIDS_DATASET_ROOT_DIR}"
-./get_test_data.sh
+./get_test_data.sh --benchmark
 popd
 
 EXITCODE=0
@@ -64,14 +64,17 @@ popd
 
 rapids-logger "pytest cugraph"
 pushd python/cugraph/cugraph
+export DASK_WORKER_DEVICES="0"
 pytest \
-  -m sg \
+  -v \
+  --benchmark-disable \
   --cache-clear \
   --junitxml="${RAPIDS_TESTS_DIR}/junit-cugraph.xml" \
   --cov-config=../../.coveragerc \
   --cov=cugraph \
   --cov-report=xml:"${RAPIDS_COVERAGE_DIR}/cugraph-coverage.xml" \
   --cov-report=term \
+  -k "not test_property_graph_mg" \
   tests
 popd
 
@@ -80,7 +83,7 @@ pushd benchmarks
 pytest \
   --capture=no \
   --verbose \
-  -m "managedmem_on and poolallocator_on and tiny" \
+  -m tiny \
   --benchmark-disable \
   cugraph/pytest-based/bench_algos.py
 popd
@@ -124,7 +127,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       pylibcugraphops \
       cugraph \
       cugraph-dgl \
-      'dgl>=1.0' \
+      'dgl>=1.1.0.cu*' \
       'pytorch>=2.0' \
       'pytorch-cuda>=11.8'
 
@@ -179,6 +182,7 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --channel "${PYTHON_CHANNEL}" \
       libcugraph \
       pylibcugraph \
+      pylibcugraphops \
       cugraph \
       cugraph-pyg
 
@@ -198,13 +202,13 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
       --cov-report=term \
       .
     popd
-    
+
     # Reactivate the test environment back
     set +u
     conda deactivate
     conda activate test
     set -u
-    
+
   else
     rapids-logger "skipping cugraph_pyg pytest on ARM64"
   fi

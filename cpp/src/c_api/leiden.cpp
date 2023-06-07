@@ -18,7 +18,9 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/graph_helper.hpp>
 #include <c_api/hierarchical_clustering_result.hpp>
+#include <c_api/random.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
 
@@ -27,25 +29,30 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
+#include <raft/core/handle.hpp>
+
 #include <optional>
 
 namespace {
 
 struct leiden_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
-  cugraph::c_api::cugraph_graph_t* graph_;
+  cugraph::c_api::cugraph_rng_state_t* rng_state_{nullptr};
+  cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   size_t max_level_;
   double resolution_;
   bool do_expensive_check_;
   cugraph::c_api::cugraph_hierarchical_clustering_result_t* result_{};
 
   leiden_functor(::cugraph_resource_handle_t const* handle,
+                 cugraph_rng_state_t* rng_state,
                  ::cugraph_graph_t* graph,
                  size_t max_level,
                  double resolution,
                  bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
+      rng_state_(reinterpret_cast<cugraph::c_api::cugraph_rng_state_t*>(rng_state)),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       max_level_(max_level),
       resolution_(resolution),
@@ -86,13 +93,23 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      auto [level, modularity] = cugraph::leiden(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        clusters.data(),
-        max_level_,
-        static_cast<weight_t>(resolution_));
+      // FIXME: Revisit the constant edge property idea.  We could consider an alternate
+      // implementation (perhaps involving the thrust::constant_iterator), or we
+      // could add support in Leiden for std::nullopt as the edge weights behaving
+      // as desired and only instantiating a real edge_property_view_t for the
+      // coarsened graphs.
+      auto [level, modularity] =
+        cugraph::leiden(handle_,
+                        rng_state_->rng_state_,
+                        graph_view,
+                        (edge_weights != nullptr)
+                          ? std::make_optional(edge_weights->view())
+                          : std::make_optional(cugraph::c_api::create_constant_edge_property(
+                                                 handle_, graph_view, weight_t{1})
+                                                 .view()),
+                        clusters.data(),
+                        max_level_,
+                        static_cast<weight_t>(resolution_));
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
@@ -109,14 +126,16 @@ struct leiden_functor : public cugraph::c_api::abstract_functor {
 }  // namespace
 
 extern "C" cugraph_error_code_t cugraph_leiden(const cugraph_resource_handle_t* handle,
+                                               cugraph_rng_state_t* rng_state,
                                                cugraph_graph_t* graph,
                                                size_t max_level,
                                                double resolution,
+                                               double theta,
                                                bool_t do_expensive_check,
                                                cugraph_hierarchical_clustering_result_t** result,
                                                cugraph_error_t** error)
 {
-  leiden_functor functor(handle, graph, max_level, resolution, do_expensive_check);
+  leiden_functor functor(handle, rng_state, graph, max_level, resolution, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

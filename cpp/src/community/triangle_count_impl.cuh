@@ -68,21 +68,15 @@ struct exclude_self_loop_t {
 
 template <typename edge_t>
 struct is_two_or_greater_t {
-  __device__ uint8_t operator()(edge_t core_number) const
-  {
-    return core_number >= edge_t{2} ? uint8_t{1} : uint8_t{0};
-  }
+  __device__ bool operator()(edge_t core_number) const { return core_number >= edge_t{2}; }
 };
 
 template <typename vertex_t>
 struct extract_two_core_t {
-  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(vertex_t src,
-                                                                            vertex_t dst,
-                                                                            uint8_t src_in_two_core,
-                                                                            uint8_t dst_in_two_core,
-                                                                            thrust::nullopt_t) const
+  __device__ thrust::optional<thrust::tuple<vertex_t, vertex_t>> operator()(
+    vertex_t src, vertex_t dst, bool src_in_two_core, bool dst_in_two_core, thrust::nullopt_t) const
   {
-    return (src_in_two_core == uint8_t{1}) && (dst_in_two_core == uint8_t{1})
+    return (src_in_two_core && dst_in_two_core)
              ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(src, dst)}
              : thrust::nullopt;
   }
@@ -161,6 +155,8 @@ void triangle_count(raft::handle_t const& handle,
   using weight_t = float;  // dummy
 
   // 1. Check input arguments.
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(
     graph_view.is_symmetric(),
@@ -254,13 +250,13 @@ void triangle_count(raft::handle_t const& handle,
     core_number(
       handle, cur_graph_view, core_numbers.data(), k_core_degree_type_t::OUT, size_t{2}, size_t{2});
 
-    edge_src_property_t<decltype(cur_graph_view), uint8_t> edge_src_in_two_cores(handle,
-                                                                                 cur_graph_view);
-    edge_dst_property_t<decltype(cur_graph_view), uint8_t> edge_dst_in_two_cores(handle,
-                                                                                 cur_graph_view);
+    edge_src_property_t<decltype(cur_graph_view), bool> edge_src_in_two_cores(handle,
+                                                                              cur_graph_view);
+    edge_dst_property_t<decltype(cur_graph_view), bool> edge_dst_in_two_cores(handle,
+                                                                              cur_graph_view);
     auto in_two_core_first =
       thrust::make_transform_iterator(core_numbers.begin(), is_two_or_greater_t<edge_t>{});
-    rmm::device_uvector<uint8_t> in_two_core_flags(core_numbers.size(), handle.get_stream());
+    rmm::device_uvector<bool> in_two_core_flags(core_numbers.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  in_two_core_first,
                  in_two_core_first + core_numbers.size(),

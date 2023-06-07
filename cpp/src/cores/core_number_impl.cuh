@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ struct v_to_core_number_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename edge_t>
 struct mult_degree_by_two_t {
-  __device__ edge_t operator()(edge_t d) const { return d * edge_t{2}; }
+  __device__ edge_t operator()(edge_t d) const { return d* edge_t{2}; }
 };
 
 }  // namespace
@@ -87,6 +87,8 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check)
 {
   // check input arguments.
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "Invalid input argument: core_number currently supports only undirected graphs.");

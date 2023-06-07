@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import numpy as np
-import warnings
 
 import cudf
 from cugraph.structure import Graph, MultiGraph
@@ -126,11 +125,6 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-# FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
-# set. An additional optional parameter for the weight attr name when accepting
-# Nx graphs may be needed.  From the Nx docs:
-# |      Many NetworkX algorithms designed for weighted graphs use
-# |      an edge attribute (by default `weight`) to hold a numerical value.
 def sssp(
     G,
     source=None,
@@ -141,6 +135,7 @@ def sssp(
     overwrite=None,
     indices=None,
     cutoff=None,
+    edge_attr="weight",
 ):
     """
     Compute the distance and predecessors for shortest paths from the specified
@@ -150,7 +145,9 @@ def sssp(
     unreachable will have a distance of infinity denoted by the maximum value
     of the data type and the predecessor set as -1. The source vertex's
     predecessor is also set to -1. Graphs with negative weight cycles are not
-    supported.
+    supported.  Unweighted graphs are also unsupported.
+
+    For finding shortest paths on an unweighted graph, use BFS instead.
 
     Parameters
     ----------
@@ -161,8 +158,12 @@ def sssp(
         The current implementation only supports weighted graphs.
     source : int
         Index of the source vertex.
-    cutoff : double, optional (default = None)
+    cutoff : double, optional (default=None)
         Maximum edge weight sum considered by the algorithm
+    edge_attr : str, optional (default='weight')
+        The name of the edge attribute that represents the weight of an edge.
+        This currently applies only when G is a NetworkX Graph.
+        Default value is 'weight', which follows NetworkX convention.
 
     Returns
     -------
@@ -211,17 +212,16 @@ def sssp(
         G, source, method, directed, return_predecessors, unweighted, overwrite, indices
     )
 
-    # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+        G, nx_weight_attr=edge_attr, matrix_graph_type=Graph(directed=directed)
     )
 
-    if not G.edgelist.weights:
-        warning_msg = (
-            "'SSSP' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release."
+    if not G.is_weighted():
+        err_msg = (
+            "'SSSP' requires the input graph to be weighted."
+            "'BFS' should be used instead of 'SSSP' for unweighted graphs."
         )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
+        raise RuntimeError(err_msg)
 
     if not G.has_node(source):
         raise ValueError("Graph does not contain source vertex")

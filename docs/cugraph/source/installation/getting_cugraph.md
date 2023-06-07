@@ -1,13 +1,16 @@
 
 # Getting cuGraph Packages
 
+Start by reading the [RAPIDS Instalation guide](https://docs.rapids.ai/install)  
+and checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pick list of install options.
+
+
 There are 4 ways to get cuGraph packages:
 1. [Quick start with Docker Repo](#docker)
 2. [Conda Installation](#conda)
 3. [Pip Installation](#pip)
 4. [Build from Source](#SOURCE)
 
-Or checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pick list of install options.
 
 <br>
 
@@ -35,7 +38,7 @@ Replace the package name in the example below to the one you want to install.
 Install and update cuGraph using the conda command:
 
 ```bash
-conda install -c rapidsai -c numba -c conda-forge -c nvidia cugraph cudatoolkit=11.8
+conda install -c rapidsai -c conda-forge -c nvidia cugraph cudatoolkit=11.8
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.8/3.10.

@@ -32,6 +32,7 @@ build:
     - SCCACHE_S3_KEY_PREFIX=pylibcugraph-aarch64 # [aarch64]
     - SCCACHE_S3_KEY_PREFIX=pylibcugraph-linux64 # [linux64]
     - SCCACHE_S3_USE_SSL
+    - SCCACHE_S3_NO_CREDENTIALS
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
 
@@ -59,7 +60,7 @@ requirements:
     - libraft ={{ minor_version }}
     - libraft-headers ={{ minor_version }}
     - pylibraft ={{ minor_version}}
-    - python x.x
+    - python
     - rmm ={{ minor_version }}
     - scikit-build >=0.13.1
     - setuptools
@@ -68,7 +69,7 @@ requirements:
   run:
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
     - libcugraph ={{ version }}
-    - python x.x
+    - python
 
 tests:
   requirements:

@@ -119,4 +119,4 @@ from cugraph import experimental
 from cugraph import gnn
 
 
-__version__ = "23.04.01"
+__version__ = "23.06.00"

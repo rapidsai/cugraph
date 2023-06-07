@@ -4,7 +4,6 @@ Link Analysis
 .. currentmodule:: cugraph
 
 
-
 HITS
 ----
 .. autosummary::

@@ -16,10 +16,12 @@ import pytest
 
 import dask_cudf
 
+from cugraph.testing.mg_utils import (
+    start_dask_client,
+    stop_dask_client,
+)
 from cugraph.dask.common.mg_utils import (
     is_single_gpu,
-    setup_local_dask_cluster,
-    teardown_local_dask_cluster,
 )
 from cugraph.generators import rmat
 import cugraph
@@ -61,13 +63,13 @@ def setup_module():
     global _client
     global _visible_devices
     if not _is_single_gpu:
-        (_cluster, _client) = setup_local_dask_cluster(p2p=True)
+        (_client, _cluster) = start_dask_client()
         _visible_devices = _client.scheduler_info()["workers"]
 
 
 def teardown_module():
     if not _is_single_gpu:
-        teardown_local_dask_cluster(_cluster, _client)
+        stop_dask_client(_client, _cluster)
 
 
 ###############################################################################

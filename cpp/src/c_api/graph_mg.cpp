@@ -338,19 +338,19 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
     weight_type = cugraph_data_type_id_t::FLOAT32;
   }
 
-  CAPI_EXPECTS((edge_type_ids == nullptr) || (p_edge_ids->type_ == edge_type),
+  CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->type_ == edge_type),
                CUGRAPH_INVALID_INPUT,
-               "Invalid input arguments: Edge id type must match edge (src/dst) type",
-               *error);
-
-  CAPI_EXPECTS((edge_type_ids == nullptr) || (p_edge_type_ids->size_ == p_src->size_),
-               CUGRAPH_INVALID_INPUT,
-               "Invalid input arguments: src size != edge prop size",
+               "Invalid input arguments: Edge id type must match edge type",
                *error);
 
   CAPI_EXPECTS((edge_ids == nullptr) || (p_edge_ids->size_ == p_src->size_),
                CUGRAPH_INVALID_INPUT,
-               "Invalid input arguments: src size != edge prop size",
+               "Invalid input arguments: src size != edge id prop size",
+               *error);
+
+  CAPI_EXPECTS((edge_type_ids == nullptr) || (p_edge_type_ids->size_ == p_src->size_),
+               CUGRAPH_INVALID_INPUT,
+               "Invalid input arguments: src size != edge type prop size",
                *error);
 
   cugraph_data_type_id_t edge_type_id_type;

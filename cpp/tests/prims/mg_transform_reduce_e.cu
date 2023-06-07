@@ -44,6 +44,7 @@
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 
@@ -107,7 +108,7 @@ class Tests_MGTransformReduceE
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of reduce_if_v primitive and thrust reduce on a single GPU
+  // Compare the results of transform_reduce_e primitive
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,

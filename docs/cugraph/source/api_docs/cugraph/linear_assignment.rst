@@ -4,7 +4,6 @@ Linear Assignment
 .. currentmodule:: cugraph
 
 
-
 Hungarian
 ---------
 .. autosummary::

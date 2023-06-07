@@ -11,14 +11,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import leiden_wrapper
+from pylibcugraph import leiden as pylibcugraph_leiden
+from pylibcugraph import ResourceHandle
+from cugraph.structure import Graph
+import cudf
+from typing import Union, Tuple
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
+from cugraph.utilities.utils import import_optional
+
+# FIXME: the networkx.Graph type used in the type annotation for
+# leiden() is specified using a string literal to avoid depending on
+# and importing networkx. Instead, networkx is imported optionally, which may
+# cause a problem for a type checker if run in an environment where networkx is
+# not installed.
+networkx = import_optional("networkx")
 
 
-def leiden(G, max_iter=100, resolution=1.0):
+def leiden(
+    G: Union[Graph, "networkx.Graph"],
+    max_iter: int = 100,
+    resolution: float = 1.0,
+    random_state: int = None,
+    theta: int = 1.0,
+) -> Tuple[cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     Leiden algorithm
@@ -44,11 +62,20 @@ def leiden(G, max_iter=100, resolution=1.0):
         than the specified number of iterations. No error occurs when the
         algorithm terminates early in this manner.
 
-    resolution: float/double, optional (default=1.0)
+    resolution: float, optional (default=1.0)
         Called gamma in the modularity formula, this changes the size
         of the communities.  Higher resolutions lead to more smaller
         communities, lower resolutions lead to fewer larger communities.
         Defaults to 1.
+
+    random_state: int, optional(default=None)
+        Random state to use when generating samples.  Optional argument,
+        defaults to a hash of process id, time, and hostname.
+
+    theta: float, optional (default=1.0)
+        Called theta in the Leiden algorithm, this is used to scale
+        modularity gain in Leiden refinement phase, to compute
+        the probability of joining a random leiden community.
 
     Returns
     -------
@@ -77,12 +104,26 @@ def leiden(G, max_iter=100, resolution=1.0):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    parts, modularity_score = leiden_wrapper.leiden(G, max_iter, resolution)
+    vertex, partition, modularity_score = pylibcugraph_leiden(
+        resource_handle=ResourceHandle(),
+        random_state=random_state,
+        graph=G._plc_graph,
+        max_level=max_iter,
+        resolution=resolution,
+        theta=theta,
+        do_expensive_check=False,
+    )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["partition"] = partition
 
     if G.renumbered:
-        parts = G.unrenumber(parts, "vertex")
+        parts = G.unrenumber(df, "vertex")
+    else:
+        parts = df
 
     if isNx is True:
-        parts = df_score_to_dictionary(parts, "partition")
+        parts = df_score_to_dictionary(df, "partition")
 
     return parts, modularity_score

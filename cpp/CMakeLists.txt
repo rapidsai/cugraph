@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 23.04.01 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 23.06.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -213,10 +213,8 @@ set(CUGRAPH_SOURCES
     src/community/leiden_sg.cu
     src/community/leiden_mg.cu
     src/community/legacy/louvain.cu
-    src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
-    src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/egonet_sg.cu
     src/community/egonet_mg.cu
     src/sampling/random_walks.cu
@@ -232,6 +230,7 @@ set(CUGRAPH_SOURCES
     src/components/legacy/connectivity.cu
     src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
+    src/generators/generate_bipartite_rmat_edgelist.cu
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
     src/generators/erdos_renyi_generator.cu
@@ -404,7 +403,8 @@ add_library(cugraph_c
         src/c_api/capi_helper.cu
         src/c_api/legacy_spectral.cpp
         src/c_api/legacy_ecg.cpp
-        src/c_api/graph_helper.cu
+        src/c_api/graph_helper_sg.cu
+        src/c_api/graph_helper_mg.cu
         src/c_api/graph_generators.cpp
         src/c_api/induced_subgraph_result.cpp
         src/c_api/hits.cpp

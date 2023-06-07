@@ -1,5 +1,5 @@
 # Contributing to cuGraph
-cuGraph, for the most part, is an open-source project where we encourage community involvement.  The cugraph-ops package is the expection being a closed-source package. 
+cuGraph, for the most part, is an open-source project where we encourage community involvement.  The cugraph-ops package is the expection being a closed-source package.
 
 There are multiple ways to be involved and contribute to the cuGraph community, the top paths are listed below:
 
@@ -11,8 +11,8 @@ If you are ready to contribute, jump right to the [Contribute Code](https://docs
 
 
 __Style Formatting Tools:__
-* `clang-format`  version 11.1+
-* `flake8`        version 3.5.0+
+* `clang-format`  version 16.0+
+* `flake8`        version 6.0.0+
 
 
 
@@ -36,7 +36,7 @@ If there is a feature or enhancement to an existing feature, please file an issu
 -	describing what you want to see added or changed.  For new features, if there is a white paper on the analytic, please include a reference to it
 
 ***Ask a Question***
-There are several ways to ask questions, including [Stack Overflow]( https://stackoverflow.com/), the quickest is by submiting a GitHub question issue.  
+There are several ways to ask questions, including [Stack Overflow]( https://stackoverflow.com/), the quickest is by submiting a GitHub question issue.
 
 -	Select Question
 -	describing your question
@@ -45,7 +45,7 @@ There are several ways to ask questions, including [Stack Overflow]( https://sta
 
 ## 2) Propose a New Feature and Implement It <a name="implement"></a>
 
-We love when people want to get involved, and if you have a suggestion for a new feature or enhancement and want to be the one doing the development work, we fully encourage that.  
+We love when people want to get involved, and if you have a suggestion for a new feature or enhancement and want to be the one doing the development work, we fully encourage that.
 
 - Submit a New Feature Issue (see above) and state that you are working on it.
 - The team will give feedback on the issue and happy to make suggestions
@@ -72,20 +72,21 @@ If you need more context on a particular issue, please ask.
 2. Read the RAPIDS [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
 3. Find or submit an issue to work on (include a comment that you are working issue)
 4. Fork the cuGraph [repo](#fork) and Code (make sure to add unit tests)!
-5. When done, and code passes local CI, create your pull request (PR)
+5. All RAPIDS projects are released under the Apache-2.0 license, so also make sure all source files that support comments include a copyright and the Apache-2.0 license text.
+6. When done, and code passes local CI, create your pull request (PR)
    1. Update the CHANGELOG.md with PR number - see [Changelog formatting](https://docs.rapids.ai/resources/changelog/)
    2. Ensure that the PR has the proper [tags](./PRTAGS.md)
-   3. Ensure the code matches out [style guide](https://docs.rapids.ai/resources/style/) 
-6. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
-7. Wait for other developers to review your code and update code as needed
-8. Once reviewed and approved, a RAPIDS developer will merge your pull request
+   3. Ensure the code matches out [style guide](https://docs.rapids.ai/resources/style/)
+7. Verify that cuGraph CI passes all [status checks](https://help.github.com/articles/about-status-checks/). Fix if needed
+8. Wait for other developers to review your code and update code as needed
+9. Once reviewed and approved, a RAPIDS developer will merge your pull request
 
 Remember, if you are unsure about anything, don't hesitate to comment on issues
 and ask for clarifications!
 
 **The _FIXME_** comment<pr>
 
-Use the _FIXME_ comment to capture technical debt.  It should not be used to flag bugs since those need to be cleaned up before code is submitted.   
+Use the _FIXME_ comment to capture technical debt.  It should not be used to flag bugs since those need to be cleaned up before code is submitted.
 We are implementing a script to count and track the number of FIXME in the code.  Usage of TODO or any other tag will not be accepted.
 
 
@@ -94,11 +95,11 @@ We are implementing a script to count and track the number of FIXME in the code.
 The RAPIDS cuGraph repo cannot directly be modified.  Contributions must come in the form of a *Pull Request* from a forked version of cugraph.    GitHub as a nice write up ion the process:  https://help.github.com/en/github/getting-started-with-github/fork-a-repo
 
 1. Fork the cugraph repo to your GitHub account
-2. clone your version 
+2. clone your version
 ```git clone https://github.com/<YOUR GITHUB NAME>/cugraph.git```
 
 
-Read the section on [building cuGraph from source](./SOURCEBUILD.md) to validate that the environment is correct.  
+Read the section on [building cuGraph from source](./SOURCEBUILD.md) to validate that the environment is correct.
 
 **Pro Tip** add an upstream remote repository so that you can keep your forked repo in sync
 ```git remote add upstream https://github.com/rapidsai/cugraph.git```
@@ -113,11 +114,11 @@ cuGraph only allows contribution to the current branch and not main or a future 
    1. commit your code
     ```git push```
 6. From the GitHub web page, open a Pull Request
-   1. follow the Pull Request [tagging policy](./PRTAGS.md) 
+   1. follow the Pull Request [tagging policy](./PRTAGS.md)
 
 ### Development Environment
 
-There is no recommended or preferred development environment.  There are a few *must have* conditions on GPU hardware and library versions.  But for the most part, users can work in the environment that they are familiar and comfortable with.  
+There is no recommended or preferred development environment.  There are a few *must have* conditions on GPU hardware and library versions.  But for the most part, users can work in the environment that they are familiar and comfortable with.
 
 **Hardware**
 

@@ -41,6 +41,7 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
+#include <thrust/optional.h>
 #include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
@@ -205,6 +206,8 @@ void per_v_pair_transform_dst_nbr_intersection(
   using edge_t     = typename GraphViewType::edge_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
   using result_t   = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     auto num_invalids =

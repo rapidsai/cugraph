@@ -27,9 +27,9 @@ outputs:
     requirements:
       host:
         - pip
-        - python x.x
+        - python
       run:
-        - python x.x
+        - python
         - thriftpy2 >=0.4.15
 
   - name: cugraph-service-server
@@ -47,19 +47,20 @@ outputs:
     requirements:
       host:
         - pip
-        - python x.x
+        - python
         - setuptools
         - wheel
       run:
         - {{ pin_subpackage('cugraph-service-client', exact=True) }}
         - cudf ={{ minor_version }}
         - cugraph ={{ minor_version }}
-        - cupy >=9.5.0,<12.0.0a0
+        - cupy >=12.0.0
         - dask-cuda ={{ minor_version }}
         - dask-cudf ={{ minor_version }}
         - distributed ==2023.3.2.1
-        - numpy
-        - python x.x
+        - numba >=0.57
+        - numpy >=1.21
+        - python
         - thriftpy2 >=0.4.15
         - ucx-py {{ ucx_py_version }}
 

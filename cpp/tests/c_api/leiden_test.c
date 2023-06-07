@@ -34,6 +34,7 @@ int generic_leiden_test(vertex_t* h_src,
                         size_t num_edges,
                         size_t max_level,
                         double resolution,
+                        double theta,
                         bool_t store_transposed)
 {
   int test_ret_value = 0;
@@ -42,23 +43,48 @@ int generic_leiden_test(vertex_t* h_src,
   cugraph_error_t* ret_error;
 
   cugraph_resource_handle_t* p_handle                = NULL;
+  cugraph_rng_state_t* p_rng_state                   = NULL;
   cugraph_graph_t* p_graph                           = NULL;
   cugraph_hierarchical_clustering_result_t* p_result = NULL;
+
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT32;
+  data_type_id_t edge_id_tid   = INT32;
+  data_type_id_t edge_type_tid = INT32;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
+  ret_code = cugraph_rng_state_create(p_handle, 0, &p_rng_state, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "rng_state create failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code = create_sg_test_graph(p_handle,
+                                  vertex_tid,
+                                  edge_tid,
+                                  h_src,
+                                  h_dst,
+                                  weight_tid,
+                                  h_wgt,
+                                  edge_type_tid,
+                                  NULL,
+                                  edge_id_tid,
+                                  NULL,
+                                  num_edges,
+                                  store_transposed,
+                                  FALSE,
+                                  FALSE,
+                                  FALSE,
+                                  &p_graph,
+                                  &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_leiden(p_handle, p_graph, max_level, resolution, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_leiden(
+    p_handle, p_rng_state, p_graph, max_level, resolution, theta, FALSE, &p_result, &ret_error);
 
-#if 0
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_leiden should have failed");
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_leiden failed.");
 
@@ -87,7 +113,6 @@ int generic_leiden_test(vertex_t* h_src,
 
     cugraph_hierarchical_clustering_result_free(p_result);
   }
-#endif
 
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
@@ -102,6 +127,7 @@ int test_leiden()
   size_t num_vertices = 6;
   size_t max_level    = 10;
   weight_t resolution = 1.0;
+  weight_t theta      = 1.0;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
@@ -120,6 +146,34 @@ int test_leiden()
                              num_edges,
                              max_level,
                              resolution,
+                             theta,
+                             FALSE);
+}
+
+int test_leiden_no_weights()
+{
+  size_t num_edges    = 16;
+  size_t num_vertices = 6;
+  size_t max_level    = 10;
+  weight_t resolution = 1.0;
+  weight_t theta      = 1.0;
+
+  vertex_t h_src[]             = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]             = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_result[]          = {1, 1, 1, 2, 0, 0};
+  weight_t expected_modularity = 0.0859375;
+
+  // Louvain wants store_transposed = FALSE
+  return generic_leiden_test(h_src,
+                             h_dst,
+                             NULL,
+                             h_result,
+                             expected_modularity,
+                             num_vertices,
+                             num_edges,
+                             max_level,
+                             resolution,
+                             theta,
                              FALSE);
 }
 
@@ -129,5 +183,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_leiden);
+  result |= RUN_TEST(test_leiden_no_weights);
   return result;
 }

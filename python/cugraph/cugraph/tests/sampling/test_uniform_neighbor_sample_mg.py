@@ -19,6 +19,7 @@ import cupy
 import cudf
 import dask_cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 import cugraph.dask as dcg
 import cugraph
@@ -261,6 +262,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
@@ -295,6 +297,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
@@ -324,6 +327,8 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
+    if len(dask_client.scheduler_info()["workers"]) <= 1:
+        pytest.skip("Test only valid for MG environments")
     edgelist_df = dask_cudf.from_cudf(
         cudf.DataFrame(
             {
@@ -474,9 +479,77 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
 
 
 @pytest.mark.mg
+def test_uniform_neighbor_sample_hop_id_order():
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 3, 6],
+                "dst": [2, 3, 4, 5, 6, 7],
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst")
+
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        cudf.Series([0, 1], dtype="int64"),
+        fanout_vals=[2, 2, 2],
+        with_replacement=False,
+        with_edge_properties=True,
+    )
+
+    for p in range(sampling_results.npartitions):
+        sampling_results_p = sampling_results.get_partition(p).compute()
+        assert (
+            sorted(sampling_results_p.hop_id.values_host.tolist())
+            == sampling_results_p.hop_id.values_host.tolist()
+        )
+
+
+@pytest.mark.mg
+def test_uniform_neighbor_sample_hop_id_order_multi_batch():
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 1, 2, 3, 3, 6],
+                "dst": [2, 3, 4, 5, 6, 7],
+            }
+        ),
+        npartitions=2,
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst")
+
+    sampling_results = cugraph.dask.uniform_neighbor_sample(
+        G,
+        cudf.Series([0, 1], dtype="int64"),
+        fanout_vals=[2, 2, 2],
+        batch_id_list=cudf.Series([0, 1], dtype="int32"),
+        with_replacement=False,
+        with_edge_properties=True,
+    )
+
+    for p in range(sampling_results.npartitions):
+        sampling_results_p = sampling_results.get_partition(p)
+        for b in range(2):
+            sampling_results_pb = sampling_results_p[
+                sampling_results_p.batch_id == b
+            ].compute()
+            assert (
+                sorted(sampling_results_pb.hop_id.values_host.tolist())
+                == sampling_results_pb.hop_id.values_host.tolist()
+            )
+
+
+@pytest.mark.mg
 @pytest.mark.parametrize("with_replacement", [True, False])
 @pytest.mark.skipif(
-    int(os.getenv("DASK_NUM_WORKERS", 2)) < 2, reason="too few workers to test"
+    len(os.getenv("DASK_WORKER_DEVICES", "0").split(",")) < 2,
+    reason="too few workers to test",
 )
 def test_uniform_neighbor_edge_properties_sample_small_start_list(
     dask_client, with_replacement

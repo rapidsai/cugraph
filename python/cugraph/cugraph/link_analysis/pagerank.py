@@ -112,16 +112,20 @@ def pagerank(
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
         (a performance optimization)
+
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
+
         personalization['values'] : cudf.Series
             Personalization values for vertices
 
     precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the precomputed vertex out weight
         information(a performance optimization).
+
         precomputed_vertex_out_weight['vertex'] : cudf.Series
             Subset of vertices of graph for precomputed_vertex_out_weight
+
         precomputed_vertex_out_weight['sums'] : cudf.Series
             Corresponding precomputed sum of outgoing vertices weight
 
@@ -144,8 +148,10 @@ def pagerank(
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for pagerank.
         (a performance optimization).
+
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
+
         nstart['values'] : cudf.Series
             Pagerank values for vertices
 
@@ -175,6 +181,7 @@ def pagerank(
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
+
         df['pagerank'] : cudf.Series
             Contains the PageRank score
 
