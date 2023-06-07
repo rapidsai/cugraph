@@ -26,7 +26,7 @@ requirements:
     - python
     - scikit-build >=0.13.1
   run:
-    - distributed ==2023.3.2.1
+    - distributed >=2023.5.1
     - numba >=0.57
     - numpy >=1.21
     - python
