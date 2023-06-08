@@ -376,9 +376,8 @@ random_walk_impl(raft::handle_t const& handle,
       }
     } else {
       if (result_weights) {
-        auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                    new_weights->begin(),
-                                                    current_position.begin());
+        auto input_iter = thrust::make_zip_iterator(
+          current_vertices.begin(), new_weights->begin(), current_position.begin());
 
         auto compacted_length = thrust::distance(
           input_iter,
@@ -411,8 +410,8 @@ random_walk_impl(raft::handle_t const& handle,
             result_wgts[pos * max_length + level]            = w;
           });
       } else {
-        auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                    current_position.begin());
+        auto input_iter =
+          thrust::make_zip_iterator(current_vertices.begin(), current_position.begin());
 
         auto compacted_length = thrust::distance(
           input_iter,
@@ -431,9 +430,7 @@ random_walk_impl(raft::handle_t const& handle,
           handle.get_thrust_policy(),
           thrust::make_zip_iterator(current_vertices.begin(), current_position.begin()),
           thrust::make_zip_iterator(current_vertices.end(), current_position.end()),
-          [result_verts = result_vertices.data(),
-           level,
-           max_length] __device__(auto tuple) {
+          [result_verts = result_vertices.data(), level, max_length] __device__(auto tuple) {
             vertex_t v                                       = thrust::get<0>(tuple);
             size_t pos                                       = thrust::get<1>(tuple);
             result_verts[pos * (max_length + 1) + level + 1] = v;
