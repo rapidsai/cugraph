@@ -408,11 +408,28 @@ int test_node2vec_random_walks()
     src, dst, wgt, num_vertices, num_edges, start, num_starts, 3, p, q, FALSE, FALSE);
 }
 
+int test_uniform_random_walks_oob()
+{
+  size_t num_edges    = 5;
+  size_t num_vertices = 6;
+  size_t num_starts   = 4;
+  size_t max_depth = 7;
+
+  vertex_t src[]   = {1, 2, 4, 7, 3};
+  vertex_t dst[]   = {5, 4, 1, 5, 2};
+  weight_t wgt[]   = {0.4, 0.5, 0.6, 0.7, 0.8};
+  vertex_t start[] = {2, 5, 3, 1};
+
+  return generic_uniform_random_walks_test(
+    src, dst, wgt, num_vertices, num_edges, start, num_starts, max_depth, TRUE, FALSE);
+}
+
 int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_uniform_random_walks);
   result |= RUN_TEST(test_biased_random_walks);
   result |= RUN_TEST(test_node2vec_random_walks);
+  result |= RUN_TEST(test_uniform_random_walks_oob);
   return result;
 }
