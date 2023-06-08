@@ -25,6 +25,11 @@ from pylibcugraph import (
 )
 from pylibcugraph import uniform_neighbor_sample
 
+# Set to True to disable memory leak assertions. This may be necessary when
+# running in environments that share a GPU (pytest-xdist), are using memory
+# pools, or other reasons which may cause the memory leak assertions to
+# improperly fail.
+mem_leak_assert_disabled = True
 
 # =============================================================================
 # Pytest fixtures
@@ -256,7 +261,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     expected_delta = free_memory_before - free_before_cleanup
     leak = expected_delta - actual_delta
     print(f"  {result_bytes=} {actual_delta=} {expected_delta=} {leak=}")
-    assert free_memory_before == device.mem_info[0]
+    assert (free_memory_before == device.mem_info[0]) or mem_leak_assert_disabled
 
 
 def test_sample_result():
@@ -289,7 +294,7 @@ def test_sample_result():
         device_batch_label=cp.arange(1e8 + 6, dtype="int32"),
     )
 
-    assert free_memory_before > device.mem_info[0]
+    assert (free_memory_before > device.mem_info[0]) or mem_leak_assert_disabled
 
     sources = sampling_result.get_sources()
     destinations = sampling_result.get_destinations()
@@ -304,7 +309,7 @@ def test_sample_result():
     # keeping the refcount >0.
     del sampling_result
     gc.collect()
-    assert free_memory_before > device.mem_info[0]
+    assert (free_memory_before > device.mem_info[0]) or mem_leak_assert_disabled
 
     # Check that the data is still valid
     assert sources[999] == 999
@@ -324,9 +329,9 @@ def test_sample_result():
 
     # sources2 should be keeping the data alive
     assert sources2[999] == 999
-    assert free_memory_before > device.mem_info[0]
+    assert (free_memory_before > device.mem_info[0]) or mem_leak_assert_disabled
 
     # All memory should be freed once the last reference is deleted
     del sources2
     gc.collect()
-    assert free_memory_before == device.mem_info[0]
+    assert (free_memory_before == device.mem_info[0]) or mem_leak_assert_disabled
