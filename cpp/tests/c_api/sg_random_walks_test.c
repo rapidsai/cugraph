@@ -95,10 +95,17 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
   //  NOTE:  The C++ tester does a more thorough validation.  For our purposes
   //  here we will do a simpler validation, merely checking that all edges
   //  are actually part of the graph
-  weight_t M[num_vertices][num_vertices];
 
-  for (int i = 0; i < num_vertices; ++i)
-    for (int j = 0; j < num_vertices; ++j)
+  size_t unrenumbered_vertex_size = num_vertices;
+  for (size_t i = 0 ; i < num_edges ; ++i) {
+    if (h_src[i] > unrenumbered_vertex_size) unrenumbered_vertex_size = h_src[i];
+    if (h_dst[i] > unrenumbered_vertex_size) unrenumbered_vertex_size = h_dst[i];
+  }
+  ++unrenumbered_vertex_size;
+  weight_t M[unrenumbered_vertex_size][unrenumbered_vertex_size];
+
+  for (int i = 0; i < unrenumbered_vertex_size; ++i)
+    for (int j = 0; j < unrenumbered_vertex_size; ++j)
       M[i][j] = -1;
 
   for (int i = 0; i < num_edges; ++i)
