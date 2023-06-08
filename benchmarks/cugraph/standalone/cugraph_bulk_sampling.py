@@ -521,7 +521,7 @@ def get_args():
         type=str,
         help='Comma separated list of batch sizes (i.e. 500,1000)',
         required=False,
-        default='500,1000'
+        default='512,1024'
     )
 
     parser.add_argument(
