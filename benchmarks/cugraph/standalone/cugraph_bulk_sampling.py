@@ -23,9 +23,6 @@ from cugraph.testing.mg_utils import (
     sizeof_fmt,
     get_peak_output_ratio_across_workers,
     restart_client,
-)
-
-from cugraph.testing.mg_utils import (
     start_dask_client,
     stop_dask_client,
     enable_spilling,
