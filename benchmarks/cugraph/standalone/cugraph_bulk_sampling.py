@@ -558,7 +558,7 @@ def get_args():
         type=str,
         help='Comma separated list of seeds per call (i.e. 1000000,2000000)',
         required=False,
-        default='500000,1000000,2000000',
+        default='524288',
     )
     
     parser.add_argument(
@@ -574,7 +574,7 @@ def get_args():
         type=str,
         help='Comma separated list of dask worker devices',
         required=False,
-        default=[0,1]
+        default="0"
     )
 
     parser.add_argument(
