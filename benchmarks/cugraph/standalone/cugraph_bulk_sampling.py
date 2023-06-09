@@ -268,8 +268,9 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
 
 
 def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1, persist=False):
-    path = os.path.join(dataset_dir, dataset)
-    parquet_path = os.path.join(path, 'parquet')
+    from pathlib import Path
+    path = Path(dataset_dir) / dataset
+    parquet_path = path / 'parquet'
 
     with open(os.path.join(path, 'meta.json')) as meta_file:
         meta = json.load(meta_file)
