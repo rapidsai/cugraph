@@ -69,7 +69,7 @@ def _write_samples_to_parquet(
         results_p["batch_id"] = offsets_p.batch_id.repeat(
             cupy.diff(offsets_p.offsets.values, append=end_ix)
         ).values
-        results_p.reset_index(drop=True).to_parquet(full_output_path, compression=None)
+        results_p.to_parquet(full_output_path, compression=None, index=False)
 
 
 def write_samples(
