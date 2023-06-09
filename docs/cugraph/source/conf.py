@@ -206,4 +206,4 @@ source_suffix = ['.rst', '.md']
 linkcode_resolve = make_linkcode_resolve(
     'cugraph', 'https://github.com/rapidsai/'
     'cugraph/blob/{revision}/python/'
-    '{package}/{path}#L{lineno}')
+    '{package}/{package}/{path}#L{lineno}')
