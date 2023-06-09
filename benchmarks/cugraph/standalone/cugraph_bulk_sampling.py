@@ -95,10 +95,15 @@ def symmetrize_ddf(dask_dataframe):
 
     return new_ddf
 
-def renumber_ddf(dask_df):
-    vertices = dask_cudf.concat([dask_df['src'], dask_df['dst']]).unique().reset_index(drop=True).persist()
+def renumber_ddf(dask_df, persist=False):
+    vertices = dask_cudf.concat([dask_df['src'], dask_df['dst']]).unique().reset_index(drop=True)
+    if persist:
+        vertices = vertices.persist()
+    
     vertices.name = 'v'
-    vertices = vertices.reset_index().set_index('v').rename(columns={'index': 'm'}).persist()
+    vertices = vertices.reset_index().set_index('v').rename(columns={'index': 'm'})
+    if persist:
+        vertices = vertices.persist()
 
     src = dask_df.merge(vertices, left_on='src', right_on='v', how='left').m.rename('src')
     dst = dask_df.merge(vertices, left_on='dst', right_on='v', how='left').m.rename('dst')
@@ -152,7 +157,7 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
-def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5]):
+def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5], persist=False):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -175,7 +180,10 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
     })
 
     
-    batch_df = label_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta).persist()
+    batch_df = label_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta)
+    if persist:
+        batch_df = batch_df.persist()
+
     del label_df
     print('created batches')
     
@@ -203,7 +211,7 @@ def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
     
     return node_offsets, node_offsets_replicated, count_replicated
 
-def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=256, reverse_edges=False):
+def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=256, reverse_edges=False, persist=False):
     """
     Generates an rmat dataset.  Currently does not support heterogeneous datasets.
 
@@ -227,7 +235,13 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
 
 
     dask_edgelist_df = renumber_ddf(dask_edgelist_df).persist()
+    if persist:
+        dask_edgelist_df = dask_edgelist_df.persist()
+
     dask_edgelist_df = symmetrize_ddf(dask_edgelist_df).persist()
+    if persist:
+        dask_edgelist_df = dask_edgelist_df.persist()
+
     dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
     
     # generator = np.random.default_rng(seed=seed)
@@ -254,14 +268,13 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
     return dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes
 
 
-def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1):
+def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1, persist=False):
     path = os.path.join(dataset_dir, dataset)
     parquet_path = os.path.join(path, 'parquet')
 
     with open(os.path.join(path, 'meta.json')) as meta_file:
         meta = json.load(meta_file)
     
-    # cuGraph-PyG assigns offsets based on lexicographic order
     node_offsets, node_offsets_replicated, total_num_nodes = \
         assign_offsets_pyg(meta['num_nodes'], replication_factor=replication_factor)
 
@@ -275,7 +288,10 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
 
             edge_index_dict[can_edge_type]['src'] += node_offsets_replicated[can_edge_type[0]]
             edge_index_dict[can_edge_type]['dst'] += node_offsets_replicated[can_edge_type[-1]]
-            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+
+            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
+            if persist:
+                edge_index_dict = edge_index_dict.persist()
 
             if replication_factor > 1:
                 edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].map_partitions(
@@ -286,14 +302,20 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
                         'dst': node_offsets[can_edge_type[2]],
                     },
                     meta=cudf.DataFrame({'src':cudf.Series(dtype='int64'), 'dst':cudf.Series(dtype='int64')})
-                ).persist()
+                )
+                
+                if persist:
+                    edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
             
             gc.collect()
 
             if reverse_edges:
-                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'}).persist()
+                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'})
+                
+                if persist:
+                    edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
     
-    # cuGraph-PyG assigns numeric edge type ids based on lexicographic order
+    # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
     edge_count = 0
     for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
@@ -303,7 +325,10 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     
     all_edges_df = dask_cudf.concat(
         list(edge_index_dict.values())
-    ).persist()
+    )
+    
+    if persist:
+        all_edges_df = all_edge_df.persist()
 
     del edge_index_dict
     gc.collect()
@@ -325,13 +350,19 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
                         'node': node_offsets[node_type]
                     },
                     meta=cudf.DataFrame({'node':cudf.Series(dtype='int64')})
-                ).persist()
+                )
+                
+                if persist:
+                    node_labels[node_type] = node_labels[node_type].persist()
 
             gc.collect()
     
     node_labels_df = dask_cudf.concat(
         list(node_labels.values())
-    ).persist()
+    )
+    
+    if persist:
+        node_labels_df = node_labels_df.persist()
     
     del node_labels
     gc.collect()
@@ -339,7 +370,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     return all_edges_df, node_labels_df, node_offsets_replicated, edge_offsets, total_num_nodes
     
 
-def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seeds_per_call, fanout, reverse_edges=True, dataset_dir='.', replication_factor=1, num_labels=256, labeled_percentage=0.001):
+def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seeds_per_call, fanout, reverse_edges=True, dataset_dir='.', replication_factor=1, num_labels=256, labeled_percentage=0.001, persist=False):
     """
     Entry point for the benchmark.
 
@@ -372,11 +403,11 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
     print(dataset)
     if dataset[0:4] == 'rmat':
         dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
-            generate_rmat_dataset(dataset, reverse_edges=reverse_edges, seed=seed, labeled_percentage=labeled_percentage, num_labels=num_labels)
+            generate_rmat_dataset(dataset, reverse_edges=reverse_edges, seed=seed, labeled_percentage=labeled_percentage, num_labels=num_labels, persist=persist)
 
     else:
         dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
-            load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor)
+            load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor, persist=persist)
 
     num_input_edges = len(dask_edgelist_df)
     print(
@@ -408,7 +439,8 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
         batch_size=batch_size,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
-        fanout=fanout
+        fanout=fanout,
+        persist=persist,
     )
 
     output_meta = {
@@ -556,6 +588,14 @@ def get_args():
         default=62
     )
 
+    parser.add_argument(
+        '--persist',
+        type=bool,
+        help='Will add additional persist() calls to speed up ETL.  Does not affect sampling runtime.',
+        required=False,
+        default=False,
+    )
+
     return parser.parse_args()
 
 
@@ -606,7 +646,8 @@ if __name__ == "__main__":
                             fanout=fanout,
                             dataset_dir=args.dataset_root,
                             reverse_edges=args.reverse_edges,
-                            replication_factor=replication_factor
+                            replication_factor=replication_factor,
+                            persist=args.persist,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
