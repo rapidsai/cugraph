@@ -291,7 +291,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
             gc.collect()
 
             if reverse_edges:
-                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename({'src':'dst','dst':'src'}).persist()
+                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'}).persist()
     
     # cuGraph-PyG assigns numeric edge type ids based on lexicographic order
     edge_offsets = {}
@@ -521,7 +521,7 @@ def get_args():
         type=str,
         help='Comma separated list of batch sizes (i.e. 500,1000)',
         required=False,
-        default='500,1000'
+        default='512,1024'
     )
 
     parser.add_argument(
