@@ -166,7 +166,6 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
-        log_level = 'INFO'
     )
 
     n_workers = len(default_client().scheduler_info()['workers'])
@@ -266,8 +265,9 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
 
 
 def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1, persist=False):
-    path = os.path.join(dataset_dir, dataset)
-    parquet_path = os.path.join(path, 'parquet')
+    from pathlib import Path
+    path = Path(dataset_dir) / dataset
+    parquet_path = path / 'parquet'
 
     with open(os.path.join(path, 'meta.json')) as meta_file:
         meta = json.load(meta_file)
