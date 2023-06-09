@@ -86,6 +86,8 @@ def train_epoch(model, loader, optimizer):
         num_batches += 1
         if iter_i % 20 == 0:
             print(f"iteration {iter_i}")
+            print(f"num sampled nodes: {num_sampled_nodes}")
+            print(f"num sampled edges: {num_sampled_edges}")
 
         # train
         y_true = data.y
@@ -203,18 +205,22 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         if re.match(r'[a-z]+__[a-z]+__[a-z]+', edge_type):
             print(f'Loading edge index for edge type {edge_type}')
 
+            print('reading parquet file...')
             can_edge_type = tuple(edge_type.split('__'))
             ei = pandas.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
             ei = {
-                'src': torch.from_numpy(ei.src.values),
-                'dst': torch.from_numpy(ei.dst.values),
+                'src': torch.as_tensor(ei.src.values, device='cpu'),
+                'dst': torch.as_tensor(ei.dst.values, device='cpu'),
             }
-            print('sorting edge index...')
-            ei['dst'], ix = torch.sort(ei['dst'])
-            ei['src'] = ei['src'][ix]
-            del ix
-            gc.collect()
 
+            #print('sorting edge index...')
+            #ei['dst'], ix = torch.sort(ei['dst'])
+            #ei['src'] = ei['src'][ix]
+            #del ix
+            #gc.collect()
+
+
+            print('processing replications...')
             if replication_factor > 1:
                 for r in range(1, replication_factor):
                     ei['src'] = torch.concat([
@@ -228,9 +234,18 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
                     ]).contiguous()
             gc.collect()
 
+            print('converting to csc...')
+            from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
+            ei = torch.stack([
+                ei['src'],
+                ei['dst'],
+            ])
+            ei = CuGraphModule.to_csc(ei)[:-1]
+
+            print('updating data structure...')
             hetero_data.put_edge_index(
-                layout='coo',
-                edge_index=[ei['src'], ei['dst']],
+                layout='csc',
+                edge_index=ei,
                 edge_type=can_edge_type,
                 size=(num_nodes_dict[can_edge_type[0]], num_nodes_dict[can_edge_type[2]]),
                 is_sorted=True
