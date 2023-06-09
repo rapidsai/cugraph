@@ -629,7 +629,7 @@ def get_args():
 
     parser.add_argument(
         '--persist',
-        type=bool,
+        action='store_true',
         help='Will add additional persist() calls to speed up ETL.  Does not affect sampling runtime.',
         required=False,
         default=False,
@@ -637,7 +637,7 @@ def get_args():
 
     parser.add_argument(
         '--add_edge_types',
-        type=bool,
+        action='store_true',
         help='Adds edge types to the edgelist.  Required for PyG if not providing edge ids.',
         required=False,
         default=False,
