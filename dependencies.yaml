@@ -216,10 +216,10 @@ dependencies:
           - cxx-compiler
           - gmock>=1.13.0
           - gtest>=1.13.0
-          - libcugraphops=23.6.*
-          - libraft-headers=23.6.*
-          - libraft=23.6.*
-          - librmm=23.6.*
+          - libcugraphops==23.8.*
+          - libraft-headers==23.8.*
+          - libraft==23.8.*
+          - librmm==23.8.*
           - openmpi # Required for building cpp-mgtests (multi-GPU tests)
     specific:
       - output_types: [conda]
@@ -259,7 +259,7 @@ dependencies:
           - sphinx-markdown-tables
           - sphinx<6
           - sphinxcontrib-websupport
-          - pylibcugraphops=23.6.*
+          - pylibcugraphops==23.8.*
   py_version:
     specific:
       - output_types: [conda]
@@ -286,38 +286,38 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - cython>=0.29,<0.30
-          - &pylibraft pylibraft==23.6.*
-          - &rmm rmm==23.6.*
-          - scikit-build>=0.13.1,<0.17.2
+          - &pylibraft pylibraft==23.8.*
+          - &rmm rmm==23.8.*
+          - scikit-build>=0.13.1
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - pylibcugraph==23.6.*
+          - pylibcugraph==23.8.*
   python_run_cugraph:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - &cudf cudf==23.6.*
-          - &dask dask==2023.3.2
-          - &distributed distributed==2023.3.2.1
-          - &dask_cuda dask-cuda==23.6.*
-          - &dask_cudf dask-cudf==23.6.*
+          - &cudf cudf==23.8.*
+          - &dask dask>=2023.5.1
+          - &distributed distributed>=2023.5.1
+          - &dask_cuda dask-cuda==23.8.*
+          - &dask_cudf dask-cudf==23.8.*
           - &numba numba>=0.57
-          - raft-dask==23.6.*
+          - raft-dask==23.8.*
           - *rmm
           - &ucx_py ucx-py==0.33.*
       - output_types: conda
         packages:
           - &cupy cupy>=12.0.0
-          - &dask-core dask-core==2023.3.2
-          - libcudf=23.6.*
+          - &dask-core dask-core>=2023.5.1
+          - libcudf==23.8.*
           - nccl>=2.9.9
           - ucx-proc=*=gpu
       - output_types: pyproject
         packages:
           - &cupy_pip cupy-cuda11x>=12.0.0
-          - pylibcugraph==23.6.*
+          - pylibcugraph==23.8.*
   python_run_pylibcugraph:
     common:
       - output_types: [conda, pyproject]
@@ -332,7 +332,7 @@ dependencies:
           - &numpy numpy>=1.21
       - output_types: [pyproject]
         packages:
-          - &cugraph cugraph==23.6.*
+          - &cugraph cugraph==23.8.*
   python_run_cugraph_pyg:
     common:
       - output_types: [conda, pyproject]
@@ -369,7 +369,7 @@ dependencies:
         packages:
           - *cupy_pip
           - *cugraph
-          - cugraph-service-client==23.6.*
+          - cugraph-service-client==23.8.*
   doc:
     common:
       - output_types: [conda]
@@ -383,7 +383,7 @@ dependencies:
           - sphinxcontrib-websupport
           - sphinx-markdown-tables
           - sphinx-copybutton
-          - pylibcugraphops=23.6.*
+          - pylibcugraphops==23.8.*
   test_notebook:
     common:
       - output_types: [conda, requirements]
