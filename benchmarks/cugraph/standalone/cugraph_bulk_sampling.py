@@ -69,11 +69,17 @@ def construct_graph(dask_dataframe):
     """
     assert dask_dataframe['src'].dtype == 'int64'
     assert dask_dataframe['dst'].dtype == 'int64'
-    assert dask_dataframe['etp'].dtype == 'int32'
+
+    if 'etp' in dask_dataframe.columns:
+        assert dask_dataframe['etp'].dtype == 'int32'
 
     G = cugraph.MultiGraph(directed=True)
     G.from_dask_cudf_edgelist(
-        dask_dataframe, source="src", destination="dst", edge_type='etp', renumber=False
+        dask_dataframe,
+        source="src", 
+        destination="dst",
+        edge_type='etp' if 'etp' in dask_dataframe.columns else None,
+        renumber=False
     )
     return G
 
@@ -207,7 +213,7 @@ def assign_offsets_pyg(node_counts: Dict[str, int], replication_factor:int=1):
     
     return node_offsets, node_offsets_replicated, count_replicated
 
-def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=256, reverse_edges=False, persist=False):
+def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=256, reverse_edges=False, persist=False, add_edge_types=False):
     """
     Generates an rmat dataset.  Currently does not support heterogeneous datasets.
 
@@ -238,7 +244,8 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
     if persist:
         dask_edgelist_df = dask_edgelist_df.persist()
 
-    dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
+    if add_edge_types:
+        dask_edgelist_df['etp'] = cupy.int32(0) # doesn't matter what the value is, really
     
     # generator = np.random.default_rng(seed=seed)
     num_labeled_nodes = int(2**(scale+1) * labeled_percentage)
@@ -264,7 +271,7 @@ def generate_rmat_dataset(dataset, seed=62, labeled_percentage=0.01, num_labels=
     return dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes
 
 
-def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1, persist=False):
+def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_factor=1, persist=False, add_edge_types=False):
     from pathlib import Path
     path = Path(dataset_dir) / dataset
     parquet_path = path / 'parquet'
@@ -316,7 +323,8 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     edge_offsets = {}
     edge_count = 0
     for num_edge_type, can_edge_type in enumerate(sorted(edge_index_dict.keys())):
-        edge_index_dict[can_edge_type]['etp'] = cupy.int32(num_edge_type)
+        if add_edge_types:
+            edge_index_dict[can_edge_type]['etp'] = cupy.int32(num_edge_type)
         edge_offsets[can_edge_type] = edge_count
         edge_count += len(edge_index_dict[can_edge_type])
     
@@ -367,7 +375,20 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     return all_edges_df, node_labels_df, node_offsets_replicated, edge_offsets, total_num_nodes
     
 
-def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seeds_per_call, fanout, reverse_edges=True, dataset_dir='.', replication_factor=1, num_labels=256, labeled_percentage=0.001, persist=False):
+def benchmark_cugraph_bulk_sampling(
+                                    dataset,
+                                    output_path,
+                                    seed,
+                                    batch_size,
+                                    seeds_per_call,
+                                    fanout,
+                                    reverse_edges=True,
+                                    dataset_dir='.',
+                                    replication_factor=1,
+                                    num_labels=256,
+                                    labeled_percentage=0.001,
+                                    persist=False,
+                                    add_edge_types=False):
     """
     Entry point for the benchmark.
 
@@ -396,15 +417,36 @@ def benchmark_cugraph_bulk_sampling(dataset, output_path, seed, batch_size, seed
     labeled_percentage: float
         The percentage of the data that is labeled (only for rmat datasets)
         Defaults to 0.001 to match papers100M
+    persist: bool
+        Whether to aggressively persist data in dask in attempt to speed up ETL.
+        Defaults to False.
+    add_edge_types: bool
+        Whether to add edge types to the edgelist.
+        Defaults to False.
     """
     print(dataset)
     if dataset[0:4] == 'rmat':
         dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
-            generate_rmat_dataset(dataset, reverse_edges=reverse_edges, seed=seed, labeled_percentage=labeled_percentage, num_labels=num_labels, persist=persist)
+            generate_rmat_dataset(
+                dataset,
+                reverse_edges=reverse_edges,
+                seed=seed,
+                labeled_percentage=labeled_percentage,
+                num_labels=num_labels,
+                persist=persist,
+                add_edge_types=add_edge_types
+            )
 
     else:
         dask_edgelist_df, dask_label_df, node_offsets, edge_offsets, total_num_nodes = \
-            load_disk_dataset(dataset, dataset_dir=dataset_dir, reverse_edges=reverse_edges, replication_factor=replication_factor, persist=persist)
+            load_disk_dataset(
+                dataset,
+                dataset_dir=dataset_dir,
+                reverse_edges=reverse_edges,
+                replication_factor=replication_factor,
+                persist=persist,
+                add_edge_types=add_edge_types
+            )
 
     num_input_edges = len(dask_edgelist_df)
     print(
@@ -593,6 +635,14 @@ def get_args():
         default=False,
     )
 
+    parser.add_argument(
+        '--add_edge_types',
+        type=bool,
+        help='Adds edge types to the edgelist.  Required for PyG if not providing edge ids.',
+        required=False,
+        default=False,
+    )
+
     return parser.parse_args()
 
 
@@ -645,6 +695,7 @@ if __name__ == "__main__":
                             reverse_edges=args.reverse_edges,
                             replication_factor=replication_factor,
                             persist=args.persist,
+                            add_edge_types=args.add_edge_types,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
