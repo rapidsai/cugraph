@@ -169,7 +169,6 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
-        log_level = 'INFO'
     )
 
     n_workers = len(default_client().scheduler_info()['workers'])
