@@ -104,6 +104,7 @@ class DistributedDataHandler:
         else:
             raise TypeError("Graph data must be dask-cudf dataframe")
 
+        broadcast_worker = None
         if batch_enabled:
             worker_ranks = client.run(_get_nvml_device_index)
             # The worker with 'rank = 0' must be the root of the broadcast.
