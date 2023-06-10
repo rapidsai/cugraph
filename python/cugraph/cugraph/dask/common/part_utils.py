@@ -114,7 +114,7 @@ def persist_dask_df_equal_parts_per_worker(dask_df, client):
     return dask_df
 
 
-async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
+async def _extract_partitions(dask_obj, client=None, batch_enabled=False, broadcast_worker=None):
     client = default_client() if client is None else client
     worker_list = Comms.get_workers()
 
@@ -123,7 +123,7 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
         # parts = persist_distributed_data(dask_obj, client)
         # FIXME: persist data to the same worker when batch_enabled=True
         if batch_enabled:
-            persisted = client.persist(dask_obj, workers=worker_list[0])
+            persisted = client.persist(dask_obj, workers=broadcast_worker)
         else:
             # repartition the 'dask_obj' to get as many partitions as there
             # are workers
