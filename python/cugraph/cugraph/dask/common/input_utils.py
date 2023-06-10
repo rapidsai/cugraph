@@ -107,10 +107,16 @@ class DistributedDataHandler:
         if batch_enabled:
             worker_ranks = client.run(_get_nvml_device_index)
             # The worker with 'rank = 0' must be the root of the broadcast.
-            broadcast_worker = list(worker_ranks.keys())[list(worker_ranks.values()).index(0)]
+            broadcast_worker = list(worker_ranks.keys())[
+                list(worker_ranks.values()).index(0)
+            ]
 
         gpu_futures = client.sync(
-            _extract_partitions, data, client, batch_enabled=batch_enabled, broadcast_worker=broadcast_worker
+            _extract_partitions,
+            data,
+            client,
+            batch_enabled=batch_enabled,
+            broadcast_worker=broadcast_worker,
         )
         workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
         return DistributedDataHandler(

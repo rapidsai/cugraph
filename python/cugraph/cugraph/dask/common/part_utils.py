@@ -114,7 +114,9 @@ def persist_dask_df_equal_parts_per_worker(dask_df, client):
     return dask_df
 
 
-async def _extract_partitions(dask_obj, client=None, batch_enabled=False, broadcast_worker=None):
+async def _extract_partitions(
+    dask_obj, client=None, batch_enabled=False, broadcast_worker=None
+):
     client = default_client() if client is None else client
     worker_list = Comms.get_workers()
 
