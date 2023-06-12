@@ -17,8 +17,6 @@ from collections.abc import Sequence
 from collections import OrderedDict
 from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
-import os
-from dask_cuda.utils import nvml_device_index
 
 import cugraph.dask.comms.comms as Comms
 
@@ -275,13 +273,3 @@ def get_vertex_partition_offsets(input_graph):
         cudf.Series(renumber_vertex_cumsum, dtype=vertex_dtype)
     )
     return vertex_partition_offsets
-
-
-def _get_nvml_device_index():
-    """
-    Return NVML device index based on environment variable
-    'CUDA_VISIBLE_DEVICES'.
-    """
-    # FIXME: Leverage the one from raft instead.
-    CUDA_VISIBLE_DEVICES = os.getenv("CUDA_VISIBLE_DEVICES")
-    return nvml_device_index(0, CUDA_VISIBLE_DEVICES)
