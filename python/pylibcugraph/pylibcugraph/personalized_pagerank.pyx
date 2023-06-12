@@ -35,7 +35,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_centrality_result_t,
-    cugraph_personalized_pagerank,
+    cugraph_personalized_pagerank_allow_nonconvergence,
     cugraph_centrality_result_converged,
     cugraph_centrality_result_get_vertices,
     cugraph_centrality_result_get_values,
@@ -54,6 +54,7 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
+from pylibcugraph.exceptions import FailedToConvergeError
 
 
 def personalized_pagerank(ResourceHandle resource_handle,
@@ -234,33 +235,37 @@ def personalized_pagerank(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
     cdef bool_t converged
+    cdef cugraph_type_erased_device_array_view_t* vertices_ptr
+    cdef cugraph_type_erased_device_array_view_t* pageranks_ptr
 
-    error_code = cugraph_personalized_pagerank(c_resource_handle_ptr,
-                                               c_graph_ptr,
-                                               precomputed_vertex_out_weight_vertices_view_ptr,
-                                               precomputed_vertex_out_weight_sums_view_ptr,
-                                               initial_guess_vertices_view_ptr,
-                                               initial_guess_values_view_ptr,
-                                               personalization_vertices_view_ptr,
-                                               personalization_values_view_ptr,
-                                               alpha,
-                                               epsilon,
-                                               max_iterations,
-                                               do_expensive_check,
-                                               &result_ptr,
-                                               &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_personalized_pagerank")
+    error_code = cugraph_personalized_pagerank_allow_nonconvergence(
+        c_resource_handle_ptr,
+        c_graph_ptr,
+        precomputed_vertex_out_weight_vertices_view_ptr,
+        precomputed_vertex_out_weight_sums_view_ptr,
+        initial_guess_vertices_view_ptr,
+        initial_guess_values_view_ptr,
+        personalization_vertices_view_ptr,
+        personalization_values_view_ptr,
+        alpha,
+        epsilon,
+        max_iterations,
+        do_expensive_check,
+        &result_ptr,
+        &error_ptr)
+    assert_success(
+        error_code, error_ptr, "cugraph_personalized_pagerank_allow_nonconvergence")
 
-    # Extract individual device array pointers from result and copy to cupy
-    # arrays for returning.
-    cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
-        cugraph_centrality_result_get_vertices(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* pageranks_ptr = \
-        cugraph_centrality_result_get_values(result_ptr)
-
-    cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
-    cupy_pageranks = copy_to_cupy_array(c_resource_handle_ptr, pageranks_ptr)
     converged = cugraph_centrality_result_converged(result_ptr)
+
+    # Only extract results if necessary
+    if (fail_on_nonconvergence is False) or (converged is True):
+        # Extract individual device array pointers from result and copy to cupy
+        # arrays for returning.
+        vertices_ptr = cugraph_centrality_result_get_vertices(result_ptr)
+        pageranks_ptr = cugraph_centrality_result_get_values(result_ptr)
+        cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
+        cupy_pageranks = copy_to_cupy_array(c_resource_handle_ptr, pageranks_ptr)
 
     # Free all pointers
     cugraph_centrality_result_free(result_ptr)
@@ -277,7 +282,10 @@ def personalized_pagerank(ResourceHandle resource_handle,
     if personalization_values is not None:
         cugraph_type_erased_device_array_view_free(personalization_values_view_ptr)
 
-    #if fail_on_nonconvergence is False:
-    #    return (cupy_vertices, cupy_pageranks, converged)
-
-    return (cupy_vertices, cupy_pageranks)
+    if fail_on_nonconvergence is False:
+        return (cupy_vertices, cupy_pageranks, bool(converged))
+    else:
+        if converged is True:
+            return (cupy_vertices, cupy_pageranks)
+        else:
+            raise FailedToConvergeError

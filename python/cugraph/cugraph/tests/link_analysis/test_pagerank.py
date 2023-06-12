@@ -439,7 +439,6 @@ def test_pagerank_non_convergence():
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
 
     # Not enough allowed iterations, should not converge
-    df = cugraph.pagerank(G, max_iter=1, fail_on_nonconvergence=True)
     with pytest.raises(cugraph.exceptions.FailedToConvergeError):
         df = cugraph.pagerank(G, max_iter=1, fail_on_nonconvergence=True)
 

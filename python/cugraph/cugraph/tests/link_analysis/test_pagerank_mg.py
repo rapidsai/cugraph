@@ -263,13 +263,13 @@ def test_pagerank_non_convergence(dask_client):
     (df, converged) = dcg.pagerank(
         dg, max_iter=1, personalization=personalization, fail_on_nonconvergence=False
     )
-    assert type(df) is cudf.DataFrame
+    assert type(df) is dask_cudf.DataFrame
     assert type(converged) is bool
     assert converged is False
 
     (df, converged) = dcg.pagerank(
         dg, personalization=personalization, fail_on_nonconvergence=False
     )
-    assert type(df) is cudf.DataFrame
+    assert type(df) is dask_cudf.DataFrame
     assert type(converged) is bool
     assert converged is True

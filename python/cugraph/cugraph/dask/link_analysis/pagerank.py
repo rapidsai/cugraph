@@ -13,31 +13,41 @@
 # limitations under the License.
 #
 
+import warnings
+
 from dask.distributed import wait, default_client
-import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 import numpy as np
-import warnings
-from cugraph.dask.common.input_utils import get_distributed_data
-
 from pylibcugraph import (
+    pagerank as plc_pagerank,
+    personalized_pagerank as plc_p_pagerank,
+    exceptions as plc_exceptions,
     ResourceHandle,
-    pagerank as pylibcugraph_pagerank,
-    personalized_pagerank as pylibcugraph_p_pagerank,
 )
+
+import cugraph.dask.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.exceptions import FailedToConvergeError
 
 
 def convert_to_cudf(cp_arrays):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
-    cupy_vertices, cupy_pagerank = cp_arrays
+    cupy_vertices, cupy_pagerank, *converged = cp_arrays
     df = cudf.DataFrame()
     df["vertex"] = cupy_vertices
     df["pagerank"] = cupy_pagerank
 
     return df
+
+
+def convert_to_converged_bool(cp_arrays):
+    cupy_vertices, cupy_pagerank, *converged = cp_arrays
+    if len(converged) > 0:
+        return converged[0]
+    return True
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -99,20 +109,26 @@ def _call_plc_pagerank(
     epsilon,
     max_iterations,
     do_expensive_check,
+    fail_on_nonconvergence,
 ):
-
-    return pylibcugraph_pagerank(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-        graph=mg_graph_x,
-        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-        initial_guess_vertices=initial_guess_vertices,
-        initial_guess_values=initial_guess_values,
-        alpha=alpha,
-        epsilon=epsilon,
-        max_iterations=max_iterations,
-        do_expensive_check=do_expensive_check,
-    )
+    try:
+        return plc_pagerank(
+            resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+            graph=mg_graph_x,
+            precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+            precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+            initial_guess_vertices=initial_guess_vertices,
+            initial_guess_values=initial_guess_values,
+            alpha=alpha,
+            epsilon=epsilon,
+            max_iterations=max_iterations,
+            do_expensive_check=do_expensive_check,
+            fail_on_nonconvergence=fail_on_nonconvergence,
+        )
+    # Re-raise this as a cugraph exception so users trying to catch this do not
+    # have to know to import another package.
+    except plc_exceptions.FailedToConvergeError:
+        raise FailedToConvergeError
 
 
 def _call_plc_personalized_pagerank(
@@ -127,23 +143,30 @@ def _call_plc_personalized_pagerank(
     epsilon,
     max_iterations,
     do_expensive_check,
+    fail_on_nonconvergence,
 ):
     personalization_vertices = data_personalization["vertex"]
     personalization_values = data_personalization["values"]
-    return pylibcugraph_p_pagerank(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-        graph=mg_graph_x,
-        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-        personalization_vertices=personalization_vertices,
-        personalization_values=personalization_values,
-        initial_guess_vertices=initial_guess_vertices,
-        initial_guess_values=initial_guess_values,
-        alpha=alpha,
-        epsilon=epsilon,
-        max_iterations=max_iterations,
-        do_expensive_check=do_expensive_check,
-    )
+    try:
+        return plc_p_pagerank(
+            resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+            graph=mg_graph_x,
+            precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+            precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+            personalization_vertices=personalization_vertices,
+            personalization_values=personalization_values,
+            initial_guess_vertices=initial_guess_vertices,
+            initial_guess_values=initial_guess_values,
+            alpha=alpha,
+            epsilon=epsilon,
+            max_iterations=max_iterations,
+            do_expensive_check=do_expensive_check,
+            fail_on_nonconvergence=fail_on_nonconvergence,
+        )
+    # Re-raise this as a cugraph exception so users trying to catch this do not
+    # have to know to import another package.
+    except plc_exceptions.FailedToConvergeError:
+        raise FailedToConvergeError
 
 
 def pagerank(
@@ -154,6 +177,7 @@ def pagerank(
     max_iter=100,
     tol=1.0e-5,
     nstart=None,
+    fail_on_nonconvergence=True,
 ):
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
@@ -222,8 +246,18 @@ def pagerank(
         nstart['values'] : cudf.Series
             Pagerank values for vertices
 
+    fail_on_nonconvergence : bool (default=True)
+        If the solver does not reach convergence, raise an exception if
+        fail_on_nonconvergence is True. If fail_on_nonconvergence is False,
+        the return value is a tuple of (pagerank, converged) where pagerank is
+        a cudf.DataFrame as described below, and converged is a boolean
+        indicating if the solver converged (True) or not (False).
+
     Returns
     -------
+    The return value varies based on the value of the fail_on_nonconvergence
+    paramter.  If fail_on_nonconvergence is True:
+
     PageRank : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the
         vertex identifiers and the corresponding PageRank values.
@@ -243,6 +277,12 @@ def pagerank(
 
         ddf['pagerank'] : dask_cudf.Series
             Contains the PageRank score
+
+    If fail_on_nonconvergence is False:
+
+    (PageRank, converged) : tuple of (dask_cudf.DataFrame, bool)
+       PageRank is the GPU dataframe described above, converged is a bool
+       indicating if the solver converged (True) or not (False).
 
     Examples
     --------
@@ -328,6 +368,7 @@ def pagerank(
                 tol,
                 max_iter,
                 do_expensive_check,
+                fail_on_nonconvergence,
                 workers=[w],
                 allow_other_workers=False,
             )
@@ -347,6 +388,7 @@ def pagerank(
                 tol,
                 max_iter,
                 do_expensive_check,
+                fail_on_nonconvergence,
                 workers=[w],
                 allow_other_workers=False,
             )
@@ -356,8 +398,15 @@ def pagerank(
     wait(result)
 
     cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
-
     wait(cudf_result)
+
+    if not fail_on_nonconvergence:
+        converged = all(
+            [
+                client.submit(convert_to_converged_bool, cp_arrays).result()
+                for cp_arrays in result
+            ]
+        )
 
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
@@ -368,4 +417,7 @@ def pagerank(
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
 
-    return ddf
+    if not fail_on_nonconvergence:
+        return (ddf, converged)
+    else:
+        return ddf

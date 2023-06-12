@@ -11,19 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
+import cudf
+import numpy as np
+
+from pylibcugraph import (
+    pagerank as plc_pagerank,
+    personalized_pagerank as plc_p_pagerank,
+    exceptions as plc_exceptions,
+    ResourceHandle,
+)
+
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
-import cudf
-import numpy as np
-import warnings
-
-from pylibcugraph import (
-    pagerank as pylibcugraph_pagerank,
-    personalized_pagerank as pylibcugraph_p_pagerank,
-    ResourceHandle,
-)
+from cugraph.exceptions import FailedToConvergeError
 
 
 def renumber_vertices(input_graph, input_df):
@@ -242,45 +246,51 @@ def pagerank(
         pre_vtx_o_wgt_vertices = precomputed_vertex_out_weight["vertex"]
         pre_vtx_o_wgt_sums = precomputed_vertex_out_weight["sums"]
 
-    if personalization is not None:
-        if not isinstance(personalization, cudf.DataFrame):
-            raise NotImplementedError(
-                "personalization other than a cudf dataframe " "currently not supported"
+    try:
+        if personalization is not None:
+            if not isinstance(personalization, cudf.DataFrame):
+                raise NotImplementedError(
+                    "personalization other than a cudf dataframe currently not "
+                    "supported"
+                )
+            if G.renumbered is True:
+                personalization = renumber_vertices(G, personalization)
+
+            personalization = ensure_valid_dtype(G, personalization, "personalization")
+
+            result_tuple = plc_p_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                personalization_vertices=personalization["vertex"],
+                personalization_values=personalization["values"],
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                do_expensive_check=do_expensive_check,
+                fail_on_nonconvergence=fail_on_nonconvergence,
             )
-        if G.renumbered is True:
-            personalization = renumber_vertices(G, personalization)
-
-        personalization = ensure_valid_dtype(G, personalization, "personalization")
-
-        result_tuple = pylibcugraph_p_pagerank(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-            precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-            personalization_vertices=personalization["vertex"],
-            personalization_values=personalization["values"],
-            initial_guess_vertices=initial_guess_vertices,
-            initial_guess_values=initial_guess_values,
-            alpha=alpha,
-            epsilon=tol,
-            max_iterations=max_iter,
-            do_expensive_check=do_expensive_check,
-            fail_on_nonconvergence=fail_on_nonconvergence,
-        )
-    else:
-        result_tuple = pylibcugraph_pagerank(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-            precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-            initial_guess_vertices=initial_guess_vertices,
-            initial_guess_values=initial_guess_values,
-            alpha=alpha,
-            epsilon=tol,
-            max_iterations=max_iter,
-            do_expensive_check=do_expensive_check,
-            fail_on_nonconvergence=fail_on_nonconvergence,
-        )
+        else:
+            result_tuple = plc_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                do_expensive_check=do_expensive_check,
+                fail_on_nonconvergence=fail_on_nonconvergence,
+            )
+    # Re-raise this as a cugraph exception so users trying to catch this do not
+    # have to know to import another package.
+    except plc_exceptions.FailedToConvergeError:
+        raise FailedToConvergeError
 
     df = cudf.DataFrame()
     df["vertex"] = result_tuple[0]
