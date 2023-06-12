@@ -425,7 +425,7 @@ def pagerank(
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
 
-    if not fail_on_nonconvergence:
-        return (ddf, converged)
-    else:
+    if fail_on_nonconvergence:
         return ddf
+    else:
+        return (ddf, converged)
