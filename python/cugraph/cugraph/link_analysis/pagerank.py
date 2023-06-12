@@ -206,14 +206,12 @@ def pagerank(
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
-
     """
 
     initial_guess_vertices = None
     initial_guess_values = None
     pre_vtx_o_wgt_vertices = None
     pre_vtx_o_wgt_sums = None
-    converged = True
 
     G, isNx = ensure_cugraph_obj_for_nx(G, weight, store_transposed=True)
     if G.store_transposed is False:
@@ -254,9 +252,7 @@ def pagerank(
 
         personalization = ensure_valid_dtype(G, personalization, "personalization")
 
-        # FIXME: once the C/C++/PLC changes are in place, call the API with the
-        # changes to allow for the converged bool to be set.
-        vertex, pagerank_values = pylibcugraph_p_pagerank(
+        result_tuple = pylibcugraph_p_pagerank(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
             precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
@@ -269,11 +265,10 @@ def pagerank(
             epsilon=tol,
             max_iterations=max_iter,
             do_expensive_check=do_expensive_check,
+            fail_on_nonconvergence=fail_on_nonconvergence,
         )
     else:
-        # FIXME: once the C/C++/PLC changes are in place, call the API with the
-        # changes to allow for the converged bool to be set.
-        vertex, pagerank_values = pylibcugraph_pagerank(
+        result_tuple = pylibcugraph_pagerank(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
             precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
@@ -284,11 +279,12 @@ def pagerank(
             epsilon=tol,
             max_iterations=max_iter,
             do_expensive_check=do_expensive_check,
+            fail_on_nonconvergence=fail_on_nonconvergence,
         )
 
     df = cudf.DataFrame()
-    df["vertex"] = vertex
-    df["pagerank"] = pagerank_values
+    df["vertex"] = result_tuple[0]
+    df["pagerank"] = result_tuple[1]
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -299,4 +295,4 @@ def pagerank(
     if fail_on_nonconvergence:
         return df
     else:
-        return (df, converged)
+        return (df, result_tuple[2])

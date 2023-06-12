@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,6 +36,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_centrality_result_t,
     cugraph_personalized_pagerank,
+    cugraph_centrality_result_converged,
     cugraph_centrality_result_get_vertices,
     cugraph_centrality_result_get_values,
     cugraph_centrality_result_free,
@@ -66,7 +67,8 @@ def personalized_pagerank(ResourceHandle resource_handle,
                           double alpha,
                           double epsilon,
                           size_t max_iterations,
-                          bool_t do_expensive_check):
+                          bool_t do_expensive_check,
+                          fail_on_nonconvergence=True):
     """
     Find the PageRank score for every vertex in a graph by computing an
     approximation of the Pagerank eigenvector using the power method. The
@@ -85,27 +87,21 @@ def personalized_pagerank(ResourceHandle resource_handle,
 
     precomputed_vertex_out_weight_vertices: device array type
         Subset of vertices of graph for precomputed_vertex_out_weight
-        (a performance optimization)
 
     precomputed_vertex_out_weight_sums : device array type
         Corresponding precomputed sum of outgoing vertices weight
-        (a performance optimization)
-    
+
     initial_guess_vertices : device array type
         Subset of vertices of graph for initial guess for pagerank values
-        (a performance optimization)
-    
+
     initial_guess_values : device array type
         Pagerank values for vertices
-        (a performance optimization)
-    
+
     personalization_vertices : device array type
         Subset of vertices of graph for personalization
-        (a performance optimization)
-    
+
     personalization_values : device array type
         Personalization values for vertices
-        (a performance optimization)
 
     alpha : double
         The damping factor alpha represents the probability to follow an
@@ -133,13 +129,29 @@ def personalized_pagerank(ResourceHandle resource_handle,
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 
+    fail_on_nonconvergence : bool (default=True)
+        If the solver does not reach convergence, raise an exception if
+        fail_on_nonconvergence is True. If fail_on_nonconvergence is False,
+        the return value is a tuple of (pagerank, converged) where pagerank is
+        a cudf.DataFrame as described below, and converged is a boolean
+        indicating if the solver converged (True) or not (False).
+
     Returns
     -------
-    A tuple of device arrays, where the first item in the tuple is a device
-    array containing the vertex identifiers, and the second item is a device
-    array containing the pagerank values for the corresponding vertices. For
-    example, the vertex identifier at the ith element of the vertex array has
-    the pagerank value of the ith element in the pagerank array.
+    The return value varies based on the value of the fail_on_nonconvergence
+    paramter.  If fail_on_nonconvergence is True:
+
+       A tuple of device arrays, where the first item in the tuple is a device
+       array containing the vertex identifiers, and the second item is a device
+       array containing the pagerank values for the corresponding vertices. For
+       example, the vertex identifier at the ith element of the vertex array has
+       the pagerank value of the ith element in the pagerank array.
+
+    If fail_on_nonconvergence is False:
+
+       A three-tuple where the first two items are the device arrays described
+       above, and the third is a bool indicating if the solver converged (True)
+       or not (False).
 
     Examples
     --------
@@ -207,12 +219,12 @@ def personalized_pagerank(ResourceHandle resource_handle,
         precomputed_vertex_out_weight_sums_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 precomputed_vertex_out_weight_sums)
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         personalization_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 personalization_vertices)
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         personalization_values_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
@@ -221,6 +233,7 @@ def personalized_pagerank(ResourceHandle resource_handle,
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
+    cdef bool_t converged
 
     error_code = cugraph_personalized_pagerank(c_resource_handle_ptr,
                                                c_graph_ptr,
@@ -247,6 +260,7 @@ def personalized_pagerank(ResourceHandle resource_handle,
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_pageranks = copy_to_cupy_array(c_resource_handle_ptr, pageranks_ptr)
+    converged = cugraph_centrality_result_converged(result_ptr)
 
     # Free all pointers
     cugraph_centrality_result_free(result_ptr)
@@ -262,5 +276,8 @@ def personalized_pagerank(ResourceHandle resource_handle,
         cugraph_type_erased_device_array_view_free(personalization_vertices_view_ptr)
     if personalization_values is not None:
         cugraph_type_erased_device_array_view_free(personalization_values_view_ptr)
+
+    #if fail_on_nonconvergence is False:
+    #    return (cupy_vertices, cupy_pageranks, converged)
 
     return (cupy_vertices, cupy_pageranks)
