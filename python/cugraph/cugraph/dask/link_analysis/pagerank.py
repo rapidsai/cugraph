@@ -15,6 +15,7 @@
 
 import warnings
 
+import dask
 from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
@@ -31,23 +32,22 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.exceptions import FailedToConvergeError
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_return_tuple(cp_arrays):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
     cupy_vertices, cupy_pagerank, *converged = cp_arrays
+
     df = cudf.DataFrame()
     df["vertex"] = cupy_vertices
     df["pagerank"] = cupy_pagerank
 
-    return df
-
-
-def convert_to_converged_bool(cp_arrays):
-    cupy_vertices, cupy_pagerank, *converged = cp_arrays
     if len(converged) > 0:
-        return converged[0]
-    return True
+        converged = converged[0]
+    else:
+        converged = True
+
+    return (df, converged)
 
 
 # FIXME: Move this function to the utility module so that it can be
@@ -397,22 +397,30 @@ def pagerank(
 
     wait(result)
 
-    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
-    wait(cudf_result)
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
 
-    if not fail_on_nonconvergence:
-        converged = all(
-            [
-                client.submit(convert_to_converged_bool, cp_arrays).result()
-                for cp_arrays in result
-            ]
-        )
+    # Have each worker convert tuple of arrays and bool from PLC to cudf
+    # DataFrames and bools. This will be a list of futures.
+    result_tuples = [
+        client.submit(convert_to_return_tuple, cp_arrays) for cp_arrays in result
+    ]
 
-    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    # Convert the futures to dask delayed objects so the tuples can be
+    # split. nout=2 is passed since each tuple/iterable is a fixed length of 2.
+    result_tuples = [dask.delayed(r, nout=2) for r in result_tuples]
+
+    # Create the ddf and get the converged bool from the delayed objs.  Use a
+    # meta DataFrame to pass the expected dtypes for the DataFrame to prevent
+    # another compute to determine them automatically.
+    meta = cudf.DataFrame(columns=["vertex", "pagerank"])
+    meta = meta.astype({"pagerank": "float64", "vertex": vertex_dtype})
+    ddf = dask_cudf.from_delayed([t[0] for t in result_tuples], meta=meta).persist()
+    converged = all(dask.compute(*[t[1] for t in result_tuples]))
+
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, result_tuples)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

@@ -216,7 +216,6 @@ def test_pagerank_invalid_personalization_dtype(dask_client):
 
 @pytest.mark.mg
 def test_dask_pagerank_transposed_false(dask_client):
-
     dg = create_distributed_karate_graph(store_transposed=False)
 
     warning_msg = (
