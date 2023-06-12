@@ -412,21 +412,6 @@ std::tuple<std::optional<rmm::device_uvector<result_t>>, centrality_algorithm_me
                  result_t{1.0} / graph_view.number_of_vertices());
   }
 
-#if 0
-argument types are:
-  (const raft::handle_t,
-   const cugraph::graph_view_t<int64_t, int64_t, true, true, void>,
-   std::optional<cugraph::edge_property_view_t<int64_t, const float *, float>>,
-   std::optional<const float *>,
-   std::optional<std::tuple<raft::span<const int64_t, true, 18446744073709551615UL>,
-                            raft::span<const float, true, 18446744073709551615UL>>>,
-   raft::span<float, true, 18446744073709551615UL>,
-   float,
-   float,
-   size_t,
-   __nv_bool)
-#endif
-
   auto metadata = detail::pagerank(
     handle,
     graph_view,

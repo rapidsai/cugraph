@@ -67,6 +67,82 @@ int generic_pagerank_test(vertex_t* h_src,
                               &p_result,
                               &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  cugraph_type_erased_device_array_view_t* vertices;
+  cugraph_type_erased_device_array_view_t* pageranks;
+
+  vertices  = cugraph_centrality_result_get_vertices(p_result);
+  pageranks = cugraph_centrality_result_get_values(p_result);
+
+  vertex_t h_vertices[num_vertices];
+  weight_t h_pageranks[num_vertices];
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    p_handle, (byte_t*)h_vertices, vertices, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    p_handle, (byte_t*)h_pageranks, pageranks, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value,
+                nearlyEqual(h_result[h_vertices[i]], h_pageranks[i], 0.001),
+                "pagerank results don't match");
+  }
+
+  cugraph_centrality_result_free(p_result);
+  cugraph_sg_graph_free(p_graph);
+  cugraph_free_resource_handle(p_handle);
+  cugraph_error_free(ret_error);
+
+  return test_ret_value;
+}
+
+int generic_pagerank_nonconverging_test(vertex_t* h_src,
+                                        vertex_t* h_dst,
+                                        weight_t* h_wgt,
+                                        weight_t* h_result,
+                                        size_t num_vertices,
+                                        size_t num_edges,
+                                        bool_t store_transposed,
+                                        double alpha,
+                                        double epsilon,
+                                        size_t max_iterations)
+{
+  int test_ret_value = 0;
+
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error;
+
+  cugraph_resource_handle_t* p_handle   = NULL;
+  cugraph_graph_t* p_graph              = NULL;
+  cugraph_centrality_result_t* p_result = NULL;
+
+  p_handle = cugraph_create_resource_handle(NULL);
+  TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
+
+  ret_code = create_test_graph(
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+
+  ret_code = cugraph_pagerank_allow_nonconvergence(p_handle,
+                                                   p_graph,
+                                                   NULL,
+                                                   NULL,
+                                                   NULL,
+                                                   NULL,
+                                                   alpha,
+                                                   epsilon,
+                                                   max_iterations,
+                                                   FALSE,
+                                                   &p_result,
+                                                   &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
+  TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* pageranks;
@@ -395,6 +471,25 @@ int test_pagerank_4_with_transpose()
     h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
 }
 
+int test_pagerank_non_convergence()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
+  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0.0776471, 0.167637, 0.0639699, 0.220202, 0.140046, 0.330498};
+
+  double alpha          = 0.95;
+  double epsilon        = 0.0001;
+  size_t max_iterations = 2;
+
+  // Pagerank wants store_transposed = TRUE
+  return generic_pagerank_nonconverging_test(
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
+}
+
 int test_personalized_pagerank()
 {
   size_t num_edges    = 3;
@@ -469,6 +564,7 @@ int main(int argc, char** argv)
   result |= RUN_TEST(test_pagerank_with_transpose);
   result |= RUN_TEST(test_pagerank_4);
   result |= RUN_TEST(test_pagerank_4_with_transpose);
+  result |= RUN_TEST(test_pagerank_non_convergence);
   result |= RUN_TEST(test_personalized_pagerank);
   result |= RUN_TEST(test_personalized_pagerank_non_convergence);
   return result;

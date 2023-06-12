@@ -313,6 +313,75 @@ extern "C" cugraph_error_code_t cugraph_pagerank(
                            max_iterations,
                            do_expensive_check);
 
+  auto return_value = cugraph::c_api::run_algorithm(graph, functor, result, error);
+
+  CAPI_EXPECTS(cugraph_centrality_result_converged(*result) == bool_t::TRUE,
+               CUGRAPH_UNKNOWN_ERROR,
+               "PageRank failed to converge.",
+               *error);
+
+  return return_value;
+}
+
+extern "C" cugraph_error_code_t cugraph_pagerank_allow_nonconvergence(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_guess_values,
+  double alpha,
+  double epsilon,
+  size_t max_iterations,
+  bool_t do_expensive_check,
+  cugraph_centrality_result_t** result,
+  cugraph_error_t** error)
+{
+  if (precomputed_vertex_out_weight_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_sums)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_sums must match",
+                 *error);
+  }
+  if (initial_guess_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_values must match",
+                 *error);
+  }
+  pagerank_functor functor(handle,
+                           graph,
+                           precomputed_vertex_out_weight_vertices,
+                           precomputed_vertex_out_weight_sums,
+                           initial_guess_vertices,
+                           initial_guess_values,
+                           nullptr,
+                           nullptr,
+                           alpha,
+                           epsilon,
+                           max_iterations,
+                           do_expensive_check);
+
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
