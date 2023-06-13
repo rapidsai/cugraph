@@ -81,4 +81,4 @@ from pylibcugraph.leiden import leiden
 
 from pylibcugraph.select_random_vertices import select_random_vertices
 
-__version__ = "23.06.01"
+__version__ = "23.06.02"

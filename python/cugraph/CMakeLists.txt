@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
-set(cugraph_version 23.06.01)
+set(cugraph_version 23.06.02)
 
 include(../../fetch_rapids.cmake)
 
