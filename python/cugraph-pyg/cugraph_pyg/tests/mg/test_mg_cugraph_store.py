@@ -20,17 +20,20 @@ from cugraph_pyg.data.cugraph_store import (
 from cugraph_pyg.data import CuGraphStore
 
 import cudf
+import dask_cudf
 import cupy
 import numpy as np
 
+from cugraph.utilities.utils import import_optional, MissingModule
+
 import pytest
 
-from random import randint
+
+torch = import_optional("torch")
+torch_geometric = import_optional("torch_geometric")
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_tensor_attr():
     ta = CuGraphTensorAttr("group0", "property1")
     assert not ta.is_fully_specified()
@@ -60,9 +63,7 @@ def test_tensor_attr():
     assert casted_ta3.index == [1, 2, 3]
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_edge_attr():
     ea = CuGraphEdgeAttr("type0", EdgeLayout.COO, False, 10)
     assert ea.edge_type == "type0"
@@ -96,43 +97,71 @@ def single_vertex_graph(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.parametrize(
+    "edge_index_type", ["numpy", "torch-cpu", "torch-gpu", "cudf", "dask-cudf"]
 )
-def test_get_edge_index(graph, dask_client):
+def test_get_edge_index(graph, edge_index_type, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    if "torch" in edge_index_type:
+        if edge_index_type == "torch-cpu":
+            device = "cpu"
+        else:
+            device = "cuda"
+        for et in list(G.keys()):
+            G[et][0] = torch.as_tensor(G[et][0], device=device)
+            G[et][1] = torch.as_tensor(G[et][1], device=device)
+    elif edge_index_type == "cudf":
+        for et in list(G.keys()):
+            G[et][0] = cudf.Series(G[et][0])
+            G[et][1] = cudf.Series(G[et][1])
+    elif edge_index_type == "dask-cudf":
+        for et in list(G.keys()):
+            G[et][0] = dask_cudf.from_cudf(cudf.Series(G[et][0]), npartitions=2)
+            G[et][1] = dask_cudf.from_cudf(cudf.Series(G[et][1]), npartitions=2)
+
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     for pyg_can_edge_type in G:
         src, dst = cugraph_store.get_edge_index(
             edge_type=pyg_can_edge_type, layout="coo", is_sorted=False
         )
 
-        assert G[pyg_can_edge_type][0].tolist() == src.get().tolist()
-        assert G[pyg_can_edge_type][1].tolist() == dst.get().tolist()
+        if edge_index_type == "cudf":
+            assert G[pyg_can_edge_type][0].values_host.tolist() == src.tolist()
+            assert G[pyg_can_edge_type][1].values_host.tolist() == dst.tolist()
+        elif edge_index_type == "dask-cudf":
+            assert (
+                G[pyg_can_edge_type][0].compute().values_host.tolist() == src.tolist()
+            )
+            assert (
+                G[pyg_can_edge_type][1].compute().values_host.tolist() == dst.tolist()
+            )
+        else:
+            assert G[pyg_can_edge_type][0].tolist() == src.tolist()
+            assert G[pyg_can_edge_type][1].tolist() == dst.tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_edge_types(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     eta = cugraph_store._edge_types_to_attrs
     assert eta.keys() == G.keys()
 
     for attr_name, attr_repr in eta.items():
-        assert len(G[attr_name][0]) == attr_repr.size[-1]
+        src_size = N[attr_name[0]]
+        dst_size = N[attr_name[-1]]
+        assert src_size == attr_repr.size[0]
+        assert dst_size == attr_repr.size[-1]
         assert attr_name == attr_repr.edge_type
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_subgraph(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     if len(G.keys()) > 1:
         for edge_type in G.keys():
@@ -147,29 +176,29 @@ def test_get_subgraph(graph, dask_client):
     assert sg.number_of_edges() == num_edges
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_basic(single_vertex_graph, dask_client):
     F, G, N = single_vertex_graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
-    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3))
+    nodes_of_interest = torch.as_tensor(
+        cupy.random.randint(0, sum(N.values()), 3), device="cuda"
+    )
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
-    assert index["vt1"].get().tolist() == sorted(nodes_of_interest.values_host.tolist())
+    assert index["vt1"].tolist() == nodes_of_interest.tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_renumber_vertices_multi_edge_multi_vertex(
     multi_edge_multi_vertex_graph_1, dask_client
 ):
     F, G, N = multi_edge_multi_vertex_graph_1
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
-    nodes_of_interest = cudf.Series(cupy.random.randint(0, sum(N.values()), 3)).unique()
+    nodes_of_interest = torch.as_tensor(
+        cupy.random.randint(0, sum(N.values()), 3), device="cuda"
+    ).unique()
 
     index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
@@ -177,100 +206,51 @@ def test_renumber_vertices_multi_edge_multi_vertex(
     brown_nodes = nodes_of_interest[nodes_of_interest > 1] - 2
 
     if len(black_nodes) > 0:
-        assert index["black"].get().tolist() == sorted(black_nodes.values_host.tolist())
+        assert index["black"].tolist() == sorted(black_nodes.tolist())
     if len(brown_nodes) > 0:
-        assert index["brown"].get().tolist() == sorted(brown_nodes.values_host.tolist())
+        assert index["brown"].tolist() == sorted(brown_nodes.tolist())
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
-def test_renumber_edges(graph, dask_client):
-    """
-    FIXME this test is not very good and should be replaced,
-    probably with a test that uses known good values.
-    """
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_renumber_edges(abc_graph, dask_client):
+    F, G, N = abc_graph
 
-    F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    graph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
-    v_offsets = [N[v] for v in sorted(N.keys())]
-    v_offsets = cupy.array(v_offsets)
-
-    cumsum = v_offsets.cumsum(0)
-    v_offsets = cumsum - v_offsets
-    v_offsets = {k: int(v_offsets[i]) for i, k in enumerate(sorted(N.keys()))}
-
-    e_num = {
-        pyg_can_edge_type: i for i, pyg_can_edge_type in enumerate(sorted(G.keys()))
-    }
-
-    eoi_src = cupy.array([], dtype="int64")
-    eoi_dst = cupy.array([], dtype="int64")
-    eoi_type = cupy.array([], dtype="int32")
-    for pyg_can_edge_type, ei in G.items():
-        src_type, _, dst_type = pyg_can_edge_type
-
-        c = randint(0, len(ei[0]))  # number to select
-        sel = np.random.randint(0, len(ei[0]), c)
-
-        src_i = cupy.array(ei[0][sel]) + v_offsets[src_type]
-        dst_i = cupy.array(ei[1][sel]) + v_offsets[dst_type]
-        eoi_src = cupy.concatenate([eoi_src, src_i])
-        eoi_dst = cupy.concatenate([eoi_dst, dst_i])
-        eoi_type = cupy.concatenate(
-            [eoi_type, cupy.array([e_num[pyg_can_edge_type]] * c)]
-        )
-
-    nodes_of_interest = (
-        cudf.Series(cupy.concatenate([eoi_src, eoi_dst])).unique().sort_values()
+    # let 0, 1 be the start vertices, fanout = [2, 1, 2, 3]
+    mock_sampling_results = cudf.DataFrame(
+        {
+            "sources": cudf.Series([0, 0, 1, 2, 3, 3, 1, 3, 3, 3], dtype="int64"),
+            "destinations": cudf.Series([2, 3, 3, 8, 1, 7, 3, 1, 5, 7], dtype="int64"),
+            "hop_id": cudf.Series([0, 0, 0, 1, 1, 1, 2, 3, 3, 3], dtype="int32"),
+            "edge_type": cudf.Series([0, 0, 0, 2, 1, 2, 0, 1, 2, 2], dtype="int32"),
+        }
     )
 
-    noi_index = cugraph_store._get_vertex_groups_from_sample(nodes_of_interest)
+    mock_noi_index = {
+        "A": torch.tensor([0, 1], device="cuda"),
+        "B": torch.tensor([0, 1], device="cuda"),
+        "C": torch.tensor([3, 2, 0], device="cuda"),
+    }
 
-    sdf = cudf.DataFrame(
-        {
-            "sources": eoi_src,
-            "destinations": eoi_dst,
-            "edge_type": eoi_type,
-        }
-    ).reset_index(drop=True)
+    row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
+        mock_sampling_results, mock_noi_index
+    )
 
-    row, col = cugraph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
-
-    for pyg_can_edge_type in G:
-        df = cudf.DataFrame(
-            {
-                "src": G[pyg_can_edge_type][0],
-                "dst": G[pyg_can_edge_type][1],
-            }
-        )
-
-        G[pyg_can_edge_type] = df
-
-    for pyg_can_edge_type in row:
-        stype, _, dtype = pyg_can_edge_type
-        src = noi_index[stype][row[pyg_can_edge_type]]
-        dst = noi_index[dtype][col[pyg_can_edge_type]]
-        assert len(src) == len(dst)
-
-        for i in range(len(src)):
-            src_i = int(src[i])
-            dst_i = int(dst[i])
-
-            df = G[pyg_can_edge_type]
-            df = df[df.src == src_i]
-            df = df[df.dst == dst_i]
-            # Ensure only 1 entry matches
-            assert len(df) == 1
+    assert len(row_dict) == 3
+    assert len(col_dict) == 3
+    assert row_dict[("A", "ab", "B")].tolist() == [0, 0, 1, 1]
+    assert col_dict[("A", "ab", "B")].tolist() == [0, 1, 1, 1]
+    assert row_dict[("B", "bc", "C")].tolist() == [0, 1, 1, 1]
+    assert col_dict[("B", "bc", "C")].tolist() == [0, 1, 2, 1]
+    assert row_dict[("B", "ba", "A")].tolist() == [1, 1]
+    assert col_dict[("B", "ba", "A")].tolist() == [1, 1]
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     for feature_name, feature_on_types in F.get_feature_list().items():
         for type_name in feature_on_types:
@@ -281,23 +261,28 @@ def test_get_tensor(graph, dask_client):
                 feat_name=feature_name,
             ).tolist()
 
-            tsr = (
-                cugraph_store.get_tensor(
-                    type_name, feature_name, v_ids, None, cupy.int64
-                )
-                .get()
-                .tolist()
-            )
+            tsr = cugraph_store.get_tensor(
+                type_name, feature_name, v_ids, None, cupy.int64
+            ).tolist()
 
             assert tsr == base_series
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+def test_get_tensor_empty_idx(karate_gnn, dask_client):
+    F, G, N = karate_gnn
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+
+    t = cugraph_store.get_tensor(
+        CuGraphTensorAttr(group_name="type0", attr_name="prop0", index=None)
+    )
+    assert t.tolist() == (torch.arange(17, dtype=torch.float32) * 31).tolist()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_multi_get_tensor(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     for vertex_type in sorted(N.keys()):
         v_ids = np.arange(N[vertex_type])
@@ -318,15 +303,13 @@ def test_multi_get_tensor(graph, dask_client):
             ]
         )
 
-        assert np.stack(tsr).get().tolist() == base_series.tolist()
+        assert torch.stack(tsr).tolist() == base_series.tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_all_tensor_attrs(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     tensor_attrs = []
     for vertex_type in sorted(N.keys()):
@@ -339,14 +322,6 @@ def test_get_all_tensor_attrs(graph, dask_client):
                     dtype=F.get_data([0], vertex_type, "prop1").dtype,
                 )
             )
-
-    for t in tensor_attrs:
-        print(t)
-
-    print("\n\n")
-
-    for t in cugraph_store.get_all_tensor_attrs():
-        print(t)
 
     assert sorted(tensor_attrs, key=lambda a: (a.group_name, a.attr_name)) == sorted(
         cugraph_store.get_all_tensor_attrs(), key=lambda a: (a.group_name, a.attr_name)
@@ -363,12 +338,10 @@ def test_multi_get_tensor_spec_props(multi_edge_multi_vertex_graph_1, dask_clien
     raise NotImplementedError("not implemented")
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_from_tensor_attrs(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     tensor_attrs = cugraph_store.get_all_tensor_attrs()
     for tensor_attr in tensor_attrs:
@@ -379,25 +352,37 @@ def test_get_tensor_from_tensor_attrs(graph, dask_client):
         assert cugraph_store.get_tensor(tensor_attr).tolist() == data.tolist()
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
-)
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_get_tensor_size(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
 
     tensor_attrs = cugraph_store.get_all_tensor_attrs()
     for tensor_attr in tensor_attrs:
         sz = N[tensor_attr.group_name]
 
         tensor_attr.index = np.arange(sz)
-        assert cugraph_store.get_tensor_size(tensor_attr) == sz
+        assert cugraph_store.get_tensor_size(tensor_attr) == torch.Size((sz,))
 
 
-@pytest.mark.skip(
-    "Skipping for now, unskip after https://github.com/rapidsai/cugraph/pull/3289"
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skipif(
+    isinstance(torch_geometric, MissingModule), reason="pyg not available"
 )
+def test_get_input_nodes(karate_gnn, dask_client):
+    F, G, N = karate_gnn
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
+
+    node_type, input_nodes = torch_geometric.loader.utils.get_input_nodes(
+        (cugraph_store, cugraph_store), "type0"
+    )
+
+    assert node_type == "type0"
+    assert input_nodes.tolist() == torch.arange(17, dtype=torch.int32).tolist()
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 def test_mg_frame_handle(graph, dask_client):
     F, G, N = graph
-    cugraph_store = CuGraphStore(F, G, N, backend="cupy", multi_gpu=True)
+    cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
     assert isinstance(cugraph_store._EXPERIMENTAL__CuGraphStore__graph._plc_graph, dict)

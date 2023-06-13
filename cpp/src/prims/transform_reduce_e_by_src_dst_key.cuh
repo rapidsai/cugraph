@@ -388,23 +388,27 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeSrcValueInputWrapper::value_iterator>>;
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeDstValueInputWrapper::value_iterator>>;
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
   using edge_partition_src_dst_key_device_view_t =
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeSrcDstKeyInputWrapper::value_iterator>;
+      typename EdgeSrcDstKeyInputWrapper::value_iterator,
+      typename EdgeSrcDstKeyInputWrapper::value_type>;
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
@@ -616,7 +620,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeSrcKeyInputWrapper Type of the wrapper for edge source key values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the  quinary edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -678,6 +682,8 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
                              typename GraphViewType::vertex_type>::value);
   static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     // currently, nothing to do
   }
@@ -704,7 +710,7 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -765,6 +771,8 @@ auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
   static_assert(std::is_same<typename EdgeDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
   static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do

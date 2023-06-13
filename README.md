@@ -26,8 +26,8 @@
 
 <div align="center">
 
-[Getting cuGraph](./readme_pages/getting_cugraph.md) *
-[Graph Algorithms](./readme_pages/algorithms.md) *
+[Getting cuGraph](./docs/cugraph/source/installation/getting_cugraph.md) *
+[Graph Algorithms](./docs/cugraph/source/graph_support/algorithms.md) *
 [Graph Service](./readme_pages/cugraph_service.md) *
 [Property Graph](./readme_pages/property_graph.md) *
 [GNN Support](./readme_pages/gnn_support.md)
@@ -37,8 +37,9 @@
 -----
 
 ## Table of content
-- Getting packages
-  - [Getting cuGraph Packages](./readme_pages/getting_cugraph.md)
+- Installation
+  - [Getting cuGraph Packages](./docs/cugraph/source/installation/getting_cugraph.md)
+  - [Building from Source](./docs/cugraph/source/installation/source_build.md)
   - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
 - General
   - [Latest News](./readme_pages/news.md)
@@ -72,7 +73,7 @@
 
 <img src="img/Stack2.png" alt="Stack" width="800">
 
-[RAPIDS](https://rapids.ai) cuGraph is a collection of GPU-accelerated graph algorithms and services. At the Python layer, cuGraph operates on [GPU DataFrames](https://github.com/rapidsai/cudf), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS. To similfy integration, cuGraph also support data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
+[RAPIDS](https://rapids.ai) cuGraph is a collection of GPU-accelerated graph algorithms and services. At the Python layer, cuGraph operates on [GPU DataFrames](https://github.com/rapidsai/cudf), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS. To simplify integration, cuGraph also supports data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
 
 While the high-level cugraph python API provides an easy-to-use and familiar interface for data scientists that's consistent with other RAPIDS libraries in their workflow, some use cases require access to lower-level graph theory concepts.  For these users, we provide an additional Python API called pylibcugraph, intended for applications that require a tighter integration with cuGraph at the Python layer with fewer dependencies.  Users familiar with C/C++/CUDA and graph structures can access libcugraph and libcugraph_c for low level integration outside of python.
 

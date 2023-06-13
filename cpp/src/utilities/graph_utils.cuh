@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -41,7 +41,7 @@
 namespace cugraph {
 namespace detail {
 
-//#define DEBUG 1
+// #define DEBUG 1
 #define CUDA_MAX_BLOCKS         65535
 #define CUDA_MAX_KERNEL_THREADS 256  // kernel will launch at most 256 threads per block
 #define US

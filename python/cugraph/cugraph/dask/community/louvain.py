@@ -13,28 +13,40 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
+
 from dask.distributed import wait, default_client
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
+import dask
+from dask import delayed
 import cudf
-import operator as op
+import cupy as cp
+import numpy
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import louvain as pylibcugraph_louvain
+from typing import Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cugraph import Graph
 
 
-def convert_to_cudf(cupy_vertex, cupy_partition):
+def convert_to_cudf(result: cp.ndarray) -> Tuple[cudf.DataFrame, float]:
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
+    cupy_vertex, cupy_partition, modularity = result
     df = cudf.DataFrame()
     df["vertex"] = cupy_vertex
     df["partition"] = cupy_partition
 
-    return df
+    return df, modularity
 
 
-def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
+def _call_plc_louvain(
+    sID: bytes, mg_graph_x, max_iter: int, resolution: int, do_expensive_check: bool
+) -> Tuple[cp.ndarray, cp.ndarray, float]:
     return pylibcugraph_louvain(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -44,7 +56,9 @@ def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, do_expensive_check)
     )
 
 
-def louvain(input_graph, max_iter=100, resolution=1.0):
+def louvain(
+    input_graph: Graph, max_iter: int = 100, resolution: int = 1.0
+) -> Tuple[dask_cudf.DataFrame, float]:
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method
@@ -122,32 +136,31 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
 
     wait(result)
 
-    # futures is a list of Futures containing tuples of (DataFrame, mod_score),
-    # unpack using separate calls to client.submit with a callable to get
-    # individual items.
-    # FIXME: look into an alternate way (not returning a tuples, accessing
-    # tuples differently, etc.) since multiple client.submit() calls may not be
-    # optimal.
-    result_vertex = [client.submit(op.getitem, f, 0) for f in result]
-    result_partition = [client.submit(op.getitem, f, 1) for f in result]
-    mod_score = [client.submit(op.getitem, f, 2) for f in result]
+    part_mod_score = [client.submit(convert_to_cudf, r) for r in result]
+    wait(part_mod_score)
 
-    cudf_result = [
-        client.submit(convert_to_cudf, cp_vertex_arrays, cp_partition_arrays)
-        for cp_vertex_arrays, cp_partition_arrays in zip(
-            result_vertex, result_partition
-        )
-    ]
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    empty_df = cudf.DataFrame(
+        {
+            "vertex": numpy.empty(shape=0, dtype=vertex_dtype),
+            "partition": numpy.empty(shape=0, dtype="int32"),
+        }
+    )
 
-    wait(cudf_result)
-    # Each worker should have computed the same mod_score
-    mod_score = mod_score[0].result()
+    part_mod_score = [delayed(lambda x: x, nout=2)(r) for r in part_mod_score]
 
-    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    ddf = dask_cudf.from_delayed(
+        [r[0] for r in part_mod_score], meta=empty_df, verify_meta=False
+    ).persist()
+
+    mod_score = dask.array.from_delayed(
+        part_mod_score[0][1], shape=(1,), dtype=float
+    ).compute()
+
     wait(ddf)
+    wait(mod_score)
 
-    # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait([r.release() for r in part_mod_score])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

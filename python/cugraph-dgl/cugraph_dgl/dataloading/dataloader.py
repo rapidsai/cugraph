@@ -138,6 +138,7 @@ class DataLoader(torch.utils.data.DataLoader):
         self._sampling_output_dir = sampling_output_dir
         self._batches_per_partition = batches_per_partition
         self._seeds_per_call = seeds_per_call
+        self._rank = None
 
         indices = _dgl_idx_to_cugraph_idx(indices, graph)
 
@@ -168,35 +169,35 @@ class DataLoader(torch.utils.data.DataLoader):
             )
 
         if use_ddp:
-            worker_info = torch.utils.data.get_worker_info()
+            rank = torch.distributed.get_rank()
             client = default_client()
-            event = Event("cugraph_dgl_load_mg_graph_event")
-            if worker_info.id == 0:
+            self._graph_creation_event = Event("cugraph_dgl_load_mg_graph_event")
+            if rank == 0:
                 G = create_cugraph_graph_from_edges_dict(
                     edges_dict=graph._edges_dict,
                     etype_id_dict=graph._etype_id_dict,
                     edge_dir=graph_sampler.edge_dir,
                 )
                 client.publish_dataset(cugraph_dgl_mg_graph_ds=G)
-                event.set()
+                self._graph_creation_event.set()
             else:
-                if event.wait(timeout=1000):
-                    G = client.get_dataset(G, "cugraph_dgl_mg_graph_ds")
+                if self._graph_creation_event.wait(timeout=1000):
+                    G = client.get_dataset("cugraph_dgl_mg_graph_ds")
                 else:
                     raise RuntimeError(
-                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {worker_info.id}",
+                        f"Fetch cugraph_dgl_mg_graph_ds to worker_id {rank}",
                         "from worker_id 0 failed",
                     )
-            self._rank = worker_info.id
         else:
+            rank = 0
             G = create_cugraph_graph_from_edges_dict(
                 edges_dict=graph._edges_dict,
                 etype_id_dict=graph._etype_id_dict,
                 edge_dir=graph_sampler.edge_dir,
             )
-            self._rank = 0
-        self._cugraph_graph = G
 
+        self._rank = rank
+        self._cugraph_graph = G
         super().__init__(
             self.cugraph_dgl_dataset,
             batch_size=None,
@@ -209,17 +210,12 @@ class DataLoader(torch.utils.data.DataLoader):
         output_dir = os.path.join(
             self._sampling_output_dir, "epoch_" + str(self.epoch_number)
         )
-        _clean_directory(output_dir)
-
-        # Todo: Figure out how to get rank
-        rank = self._rank
         bs = BulkSampler(
             output_path=output_dir,
             batch_size=self._batch_size,
             graph=self._cugraph_graph,
             batches_per_partition=self._batches_per_partition,
             seeds_per_call=self._seeds_per_call,
-            rank=rank,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,
             with_replacement=self.graph_sampler.replace,
         )
@@ -229,10 +225,19 @@ class DataLoader(torch.utils.data.DataLoader):
         batch_df = create_batch_df(self.tensorized_indices_ds)
         bs.add_batches(batch_df, start_col_name="start", batch_col_name="batch_id")
         bs.flush()
-        output_dir = output_dir + f"/rank={rank}/"
         self.cugraph_dgl_dataset.set_input_files(input_directory=output_dir)
         self.epoch_number = self.epoch_number + 1
         return super().__iter__()
+
+    def __del__(self):
+        if self.use_ddp:
+            torch.distributed.barrier()
+        if self._rank == 0:
+            if self.use_ddp:
+                client = default_client()
+                client.unpublish_dataset("cugraph_dgl_mg_graph_ds")
+                self._graph_creation_event.clear()
+            _clean_directory(self._sampling_output_dir)
 
 
 def get_batch_id_series(n_output_rows: int, batch_size: int):

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <utilities/graph_utils.cuh>
 
@@ -228,6 +228,8 @@ extract_ego(raft::handle_t const& handle,
             vertex_t n_subgraphs,
             vertex_t radius)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
   CUGRAPH_EXPECTS(n_subgraphs < graph_view.number_of_vertices(),
                   "Can't have more sources to extract from than vertices in the graph");
@@ -255,6 +257,8 @@ extract_ego(raft::handle_t const& handle,
             vertex_t radius,
             bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
   CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
 

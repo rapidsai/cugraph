@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,6 +42,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
 
         weights['vertex'] : cudf.Series
             Contains the vertex identifiers
+
         weights['weight'] : cudf.Series
             Contains the weights of vertices
 
@@ -60,8 +61,10 @@ def overlap_w(input_graph, weights, vertex_pair=None):
 
          df['first'] : cudf.Series
             The first vertex ID of each pair.
+
         df['second'] : cudf.Series
             The second vertex ID of each pair.
+
         df['overlap_coeff'] : cudf.Series
             The computed weighted Overlap coefficient between the first and the
             second vertex ID.
@@ -84,7 +87,6 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     >>> weights['weight'] = [random.random() for w in range(
     ...                      len(weights['vertex']))]
     >>> df = cugraph.overlap_w(G, weights)
-
     """
 
     if type(vertex_pair) == cudf.DataFrame:

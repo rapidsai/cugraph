@@ -23,6 +23,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/atomic_ops.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -57,7 +58,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_hypersparse(
+__global__ void transform_reduce_e_hypersparse(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -127,7 +128,7 @@ __global__ void trasnform_reduce_e_hypersparse(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -136,7 +137,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_low_degree(
+__global__ void transform_reduce_e_low_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -206,7 +207,7 @@ __global__ void trasnform_reduce_e_low_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -215,7 +216,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_mid_degree(
+__global__ void transform_reduce_e_mid_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -272,7 +273,7 @@ __global__ void trasnform_reduce_e_mid_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -281,7 +282,7 @@ template <typename GraphViewType,
           typename EdgePartitionEdgeValueInputWrapper,
           typename ResultIterator,
           typename EdgeOp>
-__global__ void trasnform_reduce_e_high_degree(
+__global__ void transform_reduce_e_high_degree(
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                GraphViewType::is_multi_gpu> edge_partition,
@@ -335,7 +336,7 @@ __global__ void trasnform_reduce_e_high_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add(result_iter, e_op_result_sum); }
 }
 
 }  // namespace detail
@@ -349,7 +350,7 @@ __global__ void trasnform_reduce_e_high_degree(
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -399,19 +400,24 @@ T transform_reduce_e(raft::handle_t const& handle,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeSrcValueInputWrapper::value_iterator>>;
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeDstValueInputWrapper::value_iterator>>;
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do
@@ -453,7 +459,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_block_t update_grid((*segment_offsets)[1],
                                           detail::transform_reduce_e_kernel_block_size,
                                           handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_high_degree<GraphViewType>
+        detail::transform_reduce_e_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
@@ -468,7 +474,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_warp_t update_grid((*segment_offsets)[2] - (*segment_offsets)[1],
                                          detail::transform_reduce_e_kernel_block_size,
                                          handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_mid_degree<GraphViewType>
+        detail::transform_reduce_e_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
@@ -483,7 +489,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid((*segment_offsets)[3] - (*segment_offsets)[2],
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_low_degree<GraphViewType>
+        detail::transform_reduce_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
@@ -498,7 +504,7 @@ T transform_reduce_e(raft::handle_t const& handle,
         raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        detail::trasnform_reduce_e_hypersparse<GraphViewType>
+        detail::transform_reduce_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition_src_value_input,
@@ -513,7 +519,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                                            detail::transform_reduce_e_kernel_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
 
-        detail::trasnform_reduce_e_low_degree<GraphViewType>
+        detail::transform_reduce_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
@@ -551,7 +557,7 @@ T transform_reduce_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -594,6 +600,8 @@ auto transform_reduce_e(raft::handle_t const& handle,
   using T           = typename detail::
     edge_op_result_type<vertex_t, vertex_t, src_value_t, dst_value_t, e_value_t, EdgeOp>::type;
   static_assert(!std::is_same_v<T, void>);
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     // currently, nothing to do

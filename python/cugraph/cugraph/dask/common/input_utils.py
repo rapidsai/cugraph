@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 
 
 from collections.abc import Sequence
-
 from collections import OrderedDict
 from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
@@ -101,10 +100,22 @@ class DistributedDataHandler:
         if isinstance(first(data) if multiple else data, (dcDataFrame, daskSeries)):
             datatype = "cudf"
         else:
-            raise Exception("Graph data must be dask-cudf dataframe")
+            raise TypeError("Graph data must be dask-cudf dataframe")
+
+        broadcast_worker = None
+        if batch_enabled:
+            worker_ranks = client.run(Comms.get_worker_id, Comms.get_session_id())
+            # The worker with 'rank = 0' must be the root of the broadcast.
+            broadcast_worker = list(worker_ranks.keys())[
+                list(worker_ranks.values()).index(0)
+            ]
 
         gpu_futures = client.sync(
-            _extract_partitions, data, client, batch_enabled=batch_enabled
+            _extract_partitions,
+            data,
+            client,
+            batch_enabled=batch_enabled,
+            broadcast_worker=broadcast_worker,
         )
         workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
         return DistributedDataHandler(

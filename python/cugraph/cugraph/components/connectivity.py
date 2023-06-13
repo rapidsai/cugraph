@@ -84,7 +84,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         #       The number of connected components (number of unique labels).
         #   labels: ndarray
         #       The length-N array of labels of the connected components.
-        n_components = len(df["labels"].unique())
+        n_components = df["labels"].nunique()
         sorted_df = df.sort_values("vertex")
         if return_labels:
             if is_cp_matrix_type(input_type):
@@ -291,6 +291,20 @@ def strongly_connected_components(
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
+    # Renumber the vertices so that they are contiguous (required)
+    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
+    if not G.renumbered:
+        edgelist = G.edgelist.edgelist_df
+        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
+            edgelist, ["src"], ["dst"]
+        )
+        renumbered_src_col_name = renumber_map.renumbered_src_col_name
+        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
+        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
+            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
+        )
+        G.properties.renumbered = True
+        G.renumber_map = renumber_map
 
     df = connectivity_wrapper.strongly_connected_components(G)
 

@@ -287,7 +287,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
 #ifndef NO_CUGRAPH_OPS
   edge_t mid_partition_degree_range_last = static_cast<edge_t>(K * 10);  // tuning parameter
   assert(mid_partition_degree_range_last > K);
-  size_t high_partition_over_sampling_K = K * 2;  // tuning parameter
+  size_t high_partition_over_sampling_K = K * 2;                         // tuning parameter
   assert(high_partition_over_sampling_K > K);
 
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier_degrees.size() * K, handle.get_stream());
@@ -313,34 +313,33 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
   auto high_partition_size = frontier_degrees.size() - (low_partition_size + mid_partition_size);
 
   if (low_partition_size > 0) {
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(low_partition_size * K),
-      [K,
-       low_first,
-       sample_nbr_indices = sample_nbr_indices.data(),
-       invalid_idx        = cugraph::ops::gnn::graph::INVALID_ID<edge_t>] __device__(size_t i) {
-        auto pair       = *(low_first + (i / K));
-        auto degree     = thrust::get<0>(pair);
-        auto seed_idx   = thrust::get<1>(pair);
-        auto sample_idx = static_cast<edge_t>(i % K);
-        sample_nbr_indices[seed_idx * K + sample_idx] =
-          (sample_idx < degree) ? sample_idx : invalid_idx;
-      });
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(low_partition_size * K),
+                     [K,
+                      low_first,
+                      sample_nbr_indices = sample_nbr_indices.data(),
+                      invalid_idx = cugraph::ops::graph::INVALID_ID<edge_t>] __device__(size_t i) {
+                       auto pair       = *(low_first + (i / K));
+                       auto degree     = thrust::get<0>(pair);
+                       auto seed_idx   = thrust::get<1>(pair);
+                       auto sample_idx = static_cast<edge_t>(i % K);
+                       sample_nbr_indices[seed_idx * K + sample_idx] =
+                         (sample_idx < degree) ? sample_idx : invalid_idx;
+                     });
   }
 
   if (mid_partition_size > 0) {
     rmm::device_uvector<edge_t> tmp_sample_nbr_indices(mid_partition_size * K, handle.get_stream());
     // FIXME: we can avoid the follow-up copy if get_sampling_index takes output offsets for
     // sampling output
-    cugraph::ops::gnn::graph::get_sampling_index(tmp_sample_nbr_indices.data(),
-                                                 rng_state,
-                                                 thrust::get<0>(mid_first.get_iterator_tuple()),
-                                                 mid_partition_size,
-                                                 static_cast<int32_t>(K),
-                                                 false,
-                                                 handle.get_stream());
+    cugraph::ops::graph::get_sampling_index(tmp_sample_nbr_indices.data(),
+                                            rng_state,
+                                            thrust::get<0>(mid_first.get_iterator_tuple()),
+                                            mid_partition_size,
+                                            static_cast<int32_t>(K),
+                                            false,
+                                            handle.get_stream());
     thrust::for_each(handle.get_thrust_policy(),
                      thrust::make_counting_iterator(size_t{0}),
                      thrust::make_counting_iterator(mid_partition_size * K),
@@ -415,7 +414,7 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
             (*retry_segment_indices).size() * high_partition_over_sampling_K, handle.get_stream());
         }
 
-        cugraph::ops::gnn::graph::get_sampling_index(
+        cugraph::ops::graph::get_sampling_index(
           retry_segment_indices ? (*retry_sample_nbr_indices).data()
                                 : tmp_sample_nbr_indices.data(),
           rng_state,
@@ -683,19 +682,22 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeSrcValueInputWrapper::value_iterator>>;
+      typename EdgeSrcValueInputWrapper::value_iterator,
+      typename EdgeSrcValueInputWrapper::value_type>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     edge_partition_endpoint_property_device_view_t<
       vertex_t,
-      typename EdgeDstValueInputWrapper::value_iterator>>;
+      typename EdgeDstValueInputWrapper::value_iterator,
+      typename EdgeDstValueInputWrapper::value_type>>;
   using edge_partition_e_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator>>;
+      typename EdgeValueInputWrapper::value_iterator,
+      typename EdgeValueInputWrapper::value_type>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
   static_assert(std::is_same_v<
@@ -859,13 +861,13 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   if (with_replacement) {
     if (frontier_degrees.size() > 0) {
       sample_nbr_indices.resize(frontier.size() * K, handle.get_stream());
-      cugraph::ops::gnn::graph::get_sampling_index(sample_nbr_indices.data(),
-                                                   rng_state,
-                                                   frontier_degrees.data(),
-                                                   static_cast<edge_t>(frontier_degrees.size()),
-                                                   static_cast<int32_t>(K),
-                                                   with_replacement,
-                                                   handle.get_stream());
+      cugraph::ops::graph::get_sampling_index(sample_nbr_indices.data(),
+                                              rng_state,
+                                              frontier_degrees.data(),
+                                              static_cast<edge_t>(frontier_degrees.size()),
+                                              static_cast<int32_t>(K),
+                                              with_replacement,
+                                              handle.get_stream());
       frontier_degrees.resize(0, handle.get_stream());
       frontier_degrees.shrink_to_fit(handle.get_stream());
     }
@@ -880,7 +882,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
                           // neighbors are distributed in minor_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};  // relevant only when (minor_comm_size > 1)
+    std::nullopt};        // relevant only when (minor_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
   if (minor_comm_size > 1) {
@@ -912,7 +914,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         raft::device_span<size_t>(d_tx_counts.data(), d_tx_counts.size()),
         frontier.size(),
         minor_comm_size,
-        cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
+        cugraph::ops::graph::INVALID_ID<edge_t>});
     rmm::device_uvector<size_t> tx_displacements(minor_comm_size, handle.get_stream());
     thrust::exclusive_scan(
       handle.get_thrust_policy(), d_tx_counts.begin(), d_tx_counts.end(), tx_displacements.begin());
@@ -1022,7 +1024,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           edge_partition_dst_value_input,
           edge_partition_e_value_input,
           e_op,
-          cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
+          cugraph::ops::graph::INVALID_ID<edge_t>,
           to_thrust_optional(invalid_value),
           K});
     } else {
@@ -1047,7 +1049,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                          edge_partition_dst_value_input,
                                          edge_partition_e_value_input,
                                          e_op,
-                                         cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
+                                         cugraph::ops::graph::INVALID_ID<edge_t>,
                                          to_thrust_optional(invalid_value),
                                          K});
     }
@@ -1147,7 +1149,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         count_valids_t<edge_t>{raft::device_span<edge_t const>(sample_local_nbr_indices.data(),
                                                                sample_local_nbr_indices.size()),
                                K,
-                               cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
+                               cugraph::ops::graph::INVALID_ID<edge_t>});
       (*sample_offsets).set_element_to_zero_async(size_t{0}, handle.get_stream());
       auto typecasted_sample_count_first =
         thrust::make_transform_iterator(sample_counts.begin(), typecast_t<int32_t, size_t>{});
@@ -1164,7 +1166,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         thrust::remove_if(handle.get_thrust_policy(),
                           pair_first,
                           pair_first + sample_local_nbr_indices.size(),
-                          check_invalid_t<edge_t, T>{cugraph::ops::gnn::graph::INVALID_ID<edge_t>});
+                          check_invalid_t<edge_t, T>{cugraph::ops::graph::INVALID_ID<edge_t>});
       sample_local_nbr_indices.resize(0, handle.get_stream());
       sample_local_nbr_indices.shrink_to_fit(handle.get_stream());
 
@@ -1191,9 +1193,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeBiasOp Type of the quaternary (or quinary) edge operator to set-up selection bias
+ * @tparam EdgeBiasOp Type of the quinary edge operator to set-up selection bias
  * values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1260,6 +1262,8 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          std::optional<T> invalid_value,
                                          bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_FAIL("unimplemented.");
 
   return std::make_tuple(std::nullopt,
@@ -1278,7 +1282,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -1340,6 +1344,8 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          std::optional<T> invalid_value,
                                          bool do_expensive_check = false)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   return detail::per_v_random_select_transform_e<false>(handle,
                                                         graph_view,
                                                         frontier,

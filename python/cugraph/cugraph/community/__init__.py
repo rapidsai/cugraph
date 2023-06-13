@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 from cugraph.community.louvain import louvain
 from cugraph.community.leiden import leiden
+
 from cugraph.community.ecg import ecg
 from cugraph.community.spectral_clustering import (
     spectralBalancedCutClustering,
@@ -22,6 +23,7 @@ from cugraph.community.spectral_clustering import (
     analyzeClustering_ratio_cut,
 )
 from cugraph.community.subgraph_extraction import subgraph
+from cugraph.community.induced_subgraph import induced_subgraph
 from cugraph.community.triangle_count import triangle_count
 from cugraph.community.ktruss_subgraph import ktruss_subgraph
 from cugraph.community.ktruss_subgraph import k_truss

@@ -146,6 +146,8 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   vertex_t const* destinations,
   size_t n_destinations)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS((graph_view.local_vertex_partition_range_size() == 0) || (distances != nullptr),
                   "Invalid input argument: distances cannot be null");
   CUGRAPH_EXPECTS(

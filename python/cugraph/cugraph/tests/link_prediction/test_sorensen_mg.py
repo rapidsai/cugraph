@@ -106,7 +106,6 @@ def input_expected_output(input_combo):
         source="src",
         destination="dst",
         renumber=True,
-        legacy_renum_only=True,
         store_transposed=True,
     )
 
@@ -157,7 +156,7 @@ def test_dask_sorensen(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_weighted_sorensen():
+def test_dask_weighted_sorensen(dask_client):
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -175,7 +174,6 @@ def test_dask_weighted_sorensen():
         destination="dst",
         edge_attr="value",
         renumber=True,
-        legacy_renum_only=True,
         store_transposed=True,
     )
     with pytest.raises(ValueError):
@@ -187,7 +185,6 @@ def test_dask_weighted_sorensen():
         source="src",
         destination="dst",
         edge_attr="value",
-        legacy_renum_only=True,
         store_transposed=True,
     )
 

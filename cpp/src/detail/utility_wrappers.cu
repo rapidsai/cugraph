@@ -206,5 +206,26 @@ template bool is_sorted(raft::handle_t const& handle, raft::device_span<int32_t 
 template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t> span);
 template bool is_sorted(raft::handle_t const& handle, raft::device_span<int64_t const> span);
 
+template <typename data_t>
+bool is_equal(raft::handle_t const& handle,
+              raft::device_span<data_t> span1,
+              raft::device_span<data_t> span2)
+{
+  return thrust::equal(handle.get_thrust_policy(), span1.begin(), span1.end(), span2.begin());
+}
+
+template bool is_equal(raft::handle_t const& handle,
+                       raft::device_span<int32_t> span1,
+                       raft::device_span<int32_t> span2);
+template bool is_equal(raft::handle_t const& handle,
+                       raft::device_span<int32_t const> span1,
+                       raft::device_span<int32_t const> span2);
+template bool is_equal(raft::handle_t const& handle,
+                       raft::device_span<int64_t> span1,
+                       raft::device_span<int64_t> span2);
+template bool is_equal(raft::handle_t const& handle,
+                       raft::device_span<int64_t const> span1,
+                       raft::device_span<int64_t const> span2);
+
 }  // namespace detail
 }  // namespace cugraph

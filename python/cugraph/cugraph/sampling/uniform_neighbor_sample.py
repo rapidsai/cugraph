@@ -20,12 +20,34 @@ import numpy
 
 import cudf
 import cupy as cp
+import warnings
 
 from typing import Union, Tuple, Sequence, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cugraph import Graph
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, start_list):
+    vertex_dtype = input_graph.edgelist.edgelist_df.dtypes[0]
+    if isinstance(start_list, cudf.Series):
+        start_list_dtypes = start_list.dtype
+    else:
+        start_list_dtypes = start_list.dtypes[0]
+
+    if start_list_dtypes != vertex_dtype:
+        warning_msg = (
+            "Uniform neighbor sample requires 'start_list' to match the graph's "
+            f"'vertex' type. input graph's vertex type is: {vertex_dtype} and got "
+            f"'start_list' of type: {start_list_dtypes}."
+        )
+        warnings.warn(warning_msg, UserWarning)
+        start_list = start_list.astype(vertex_dtype)
+
+    return start_list
 
 
 def uniform_neighbor_sample(
@@ -41,9 +63,6 @@ def uniform_neighbor_sample(
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
-
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
 
     Parameters
     ----------
@@ -152,6 +171,8 @@ def uniform_neighbor_sample(
     else:
         weight_t = "float32"
 
+    start_list = ensure_valid_dtype(G, start_list)
+
     if G.renumbered is True:
         if isinstance(start_list, cudf.DataFrame):
             start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
@@ -212,13 +233,16 @@ def uniform_neighbor_sample(
         df["sources"] = sources
         df["destinations"] = destinations
 
-        df["indices"] = indices
-        if weight_t == "int32":
-            df["indices"] = indices.astype("int32")
-        elif weight_t == "int64":
-            df["indices"] = indices.astype("int64")
+        if indices is None:
+            df["indices"] = None
         else:
             df["indices"] = indices
+            if weight_t == "int32":
+                df["indices"] = indices.astype("int32")
+            elif weight_t == "int64":
+                df["indices"] = indices.astype("int64")
+            else:
+                df["indices"] = indices
 
     if G.renumbered:
         df = G.unrenumber(df, "sources", preserve_order=True)

@@ -216,11 +216,11 @@ ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
 ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
 ###################################################################################################
-# - LEIDEN tests ---------------------------------------------------------------------------------
+# - LEIDEN tests ----------------------------------------------------------------------------------
 ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
-# - ECG tests ---------------------------------------------------------------------------------
+# - ECG tests -------------------------------------------------------------------------------------
 ConfigureTest(ECG_TEST community/ecg_test.cpp)
 
 ###################################################################################################
@@ -228,7 +228,7 @@ ConfigureTest(ECG_TEST community/ecg_test.cpp)
 ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
-# - EGO tests --------------------------------------------------------------------------------
+# - EGO tests -------------------------------------------------------------------------------------
 ConfigureTest(EGO_TEST community/egonet_test.cpp)
 
 ###################################################################################################
@@ -256,7 +256,11 @@ ConfigureTest(STREAM_TEST structure/streams.cu)
 ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
-# - Graph mask tests -----------------------------------------------------------------------------------
+# - Bipartite R-mat graph generation tests --------------------------------------------------------
+ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp)
+
+###################################################################################################
+# - Graph mask tests ------------------------------------------------------------------------------
 ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
 
 ###################################################################################################
@@ -264,7 +268,7 @@ ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
 ###################################################################################################
-# - Transpose tests ------------------------------------------------------------------------------
+# - Transpose tests -------------------------------------------------------------------------------
 ConfigureTest(TRANSPOSE_TEST structure/transpose_test.cpp)
 
 ###################################################################################################
@@ -297,12 +301,12 @@ ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp)
 ConfigureTest(BFS_TEST traversal/bfs_test.cpp)
 
 ###################################################################################################
-# - Extract BFS Paths tests ------------------------------------------------------------------------
+# - Extract BFS Paths tests -----------------------------------------------------------------------
 ConfigureTest(EXTRACT_BFS_PATHS_TEST
               traversal/extract_bfs_paths_test.cu)
 
 ###################################################################################################
-# - Multi-source BFS tests -----------------------------------------------------------------------
+# - Multi-source BFS tests ------------------------------------------------------------------------
 ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 
 ###################################################################################################
@@ -322,11 +326,11 @@ ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
-# - EIGENVECTOR_CENTRALITY tests -------------------------------------------------------------------------
+# - EIGENVECTOR_CENTRALITY tests ------------------------------------------------------------------
 ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp)
 
 ###################################################################################################
-# - BETWEENNESS_CENTRALITY tests -------------------------------------------------------------------------
+# - BETWEENNESS_CENTRALITY tests ------------------------------------------------------------------
 ConfigureTest(BETWEENNESS_CENTRALITY_TEST centrality/betweenness_centrality_test.cpp)
 ConfigureTest(EDGE_BETWEENNESS_CENTRALITY_TEST centrality/edge_betweenness_centrality_test.cpp)
 
@@ -343,8 +347,8 @@ ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
-###########################################################################################
-# - NBR SAMPLING tests -----------------------------------------------------------------
+###################################################################################################
+# - NBR SAMPLING tests ----------------------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
@@ -446,7 +450,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
     ###############################################################################################
-    # - MG EIGENVECTOR CENTRALITY tests ------------------------------------------------------------------
+    # - MG EIGENVECTOR CENTRALITY tests -----------------------------------------------------------
     ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
 
     ###############################################################################################
@@ -470,6 +474,18 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
     ConfigureTestMG(MG_LOUVAIN_TEST community/mg_louvain_test.cpp)
+
+    ###############################################################################################
+    # - MG LEIDEN tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_LEIDEN_TEST community/mg_leiden_test.cpp)
+
+    ###############################################################################################
+    # - MG MIS tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_MIS_TEST community/mg_mis_test.cu)
+
+    ###############################################################################################
+    # - MG SELECT RANDOM VERTICES tests -----------------------------------------------------------
+    ConfigureTestMG(MG_SELECT_RANDOM_VERTICES structure/mg_select_random_vertices_test.cpp)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
@@ -521,6 +537,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG PRIMS TRANSFORM_REDUCE_E tests ---------------------------------------------------------
     ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
     target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
+
+    ###############################################################################################
+    # - MG PRIMS TRANSFORM_E tests ----------------------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_E_TEST prims/mg_transform_e.cu)
+    target_link_libraries(MG_TRANSFORM_E_TEST PRIVATE cuco::cuco)
 
     ###############################################################################################
     # - MG PRIMS COUNT_IF_E tests -----------------------------------------------------------------

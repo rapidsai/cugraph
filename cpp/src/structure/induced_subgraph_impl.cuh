@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
@@ -130,6 +130,8 @@ extract_induced_subgraphs(
   hr_timer.start("extract_induced_subgraphs");
 #endif
   // 1. check input arguments
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   if (do_expensive_check) {
     size_t should_be_zero{std::numeric_limits<size_t>::max()};
