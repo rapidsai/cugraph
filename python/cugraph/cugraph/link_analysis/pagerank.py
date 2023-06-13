@@ -289,8 +289,8 @@ def pagerank(
             )
     # Re-raise this as a cugraph exception so users trying to catch this do not
     # have to know to import another package.
-    except plc_exceptions.FailedToConvergeError:
-        raise FailedToConvergeError
+    except plc_exceptions.FailedToConvergeError as exc:
+        raise FailedToConvergeError from exc
 
     df = cudf.DataFrame()
     df["vertex"] = result_tuple[0]

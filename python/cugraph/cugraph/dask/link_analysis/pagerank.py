@@ -32,20 +32,20 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.exceptions import FailedToConvergeError
 
 
-def convert_to_return_tuple(cp_arrays):
+def convert_to_return_tuple(plc_pr_retval):
     """
-    Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
+    Using the PLC pagerank return tuple, creates a cudf DataFrame from the cupy
+    arrays and extracts the (optional) bool.
     """
-    cupy_vertices, cupy_pagerank, *converged = cp_arrays
+    if len(plc_pr_retval) == 3:
+        cupy_vertices, cupy_pagerank, converged = plc_pr_retval
+    else:
+        cupy_vertices, cupy_pagerank = plc_pr_retval
+        converged = True
 
     df = cudf.DataFrame()
     df["vertex"] = cupy_vertices
     df["pagerank"] = cupy_pagerank
-
-    if len(converged) > 0:
-        converged = converged[0]
-    else:
-        converged = True
 
     return (df, converged)
 
@@ -127,8 +127,8 @@ def _call_plc_pagerank(
         )
     # Re-raise this as a cugraph exception so users trying to catch this do not
     # have to know to import another package.
-    except plc_exceptions.FailedToConvergeError:
-        raise FailedToConvergeError
+    except plc_exceptions.FailedToConvergeError as exc:
+        raise FailedToConvergeError from exc
 
 
 def _call_plc_personalized_pagerank(
@@ -165,8 +165,8 @@ def _call_plc_personalized_pagerank(
         )
     # Re-raise this as a cugraph exception so users trying to catch this do not
     # have to know to import another package.
-    except plc_exceptions.FailedToConvergeError:
-        raise FailedToConvergeError
+    except plc_exceptions.FailedToConvergeError as exc:
+        raise FailedToConvergeError from exc
 
 
 def pagerank(
