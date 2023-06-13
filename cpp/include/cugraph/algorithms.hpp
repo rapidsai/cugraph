@@ -1298,7 +1298,7 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
+  std::optional<raft::device_span<weight_t const>> precomputed_vertex_out_weight_sums,
   std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
     personalization,
   std::optional<raft::device_span<result_t const>> initial_pageranks,

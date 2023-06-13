@@ -52,7 +52,7 @@ centrality_algorithm_metadata_t pagerank(
   GraphViewType const& pull_graph_view,
   std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
     edge_weight_view,
-  std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
+  std::optional<raft::device_span<weight_t const>> precomputed_vertex_out_weight_sums,
   std::optional<std::tuple<raft::device_span<typename GraphViewType::vertex_type const>,
                            raft::device_span<result_t const>>> personalization,
   raft::device_span<result_t> pageranks,
@@ -102,7 +102,7 @@ centrality_algorithm_metadata_t pagerank(
       auto num_negative_precomputed_vertex_out_weight_sums =
         count_if_v(handle,
                    pull_graph_view,
-                   *precomputed_vertex_out_weight_sums,
+                   precomputed_vertex_out_weight_sums->data(),
                    [] __device__(auto, auto val) { return val < result_t{0.0}; });
       CUGRAPH_EXPECTS(
         num_negative_precomputed_vertex_out_weight_sums == 0,
@@ -204,7 +204,7 @@ centrality_algorithm_metadata_t pagerank(
     }
   }
   auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums
-                                  ? *precomputed_vertex_out_weight_sums
+                                  ? (*precomputed_vertex_out_weight_sums).data()
                                   : (*tmp_vertex_out_weight_sums).data();
 
   // 3. sum the personalization values
@@ -388,7 +388,9 @@ void pagerank(raft::handle_t const& handle,
     handle,
     graph_view,
     edge_weight_view,
-    precomputed_vertex_out_weight_sums,
+    std::make_optional(raft::device_span<weight_t const>{
+      *precomputed_vertex_out_weight_sums,
+      static_cast<size_t>(graph_view.local_vertex_partition_range_size())}),
     personalization_vertices
       ? std::make_optional(std::make_tuple(
           raft::device_span<vertex_t const>{*personalization_vertices,
@@ -411,7 +413,7 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
+  std::optional<raft::device_span<weight_t const>> precomputed_vertex_out_weight_sums,
   std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
     personalization,
   std::optional<raft::device_span<result_t const>> initial_pageranks,
@@ -422,10 +424,9 @@ std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pager
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  rmm::device_uvector<result_t> local_pageranks(0, handle.get_stream());
+  rmm::device_uvector<result_t> local_pageranks(graph_view.local_vertex_partition_range_size(),
+                                                handle.get_stream());
   if (!initial_pageranks) {
-    local_pageranks.resize(graph_view.local_vertex_partition_range_size(), handle.get_stream());
-
     thrust::fill(handle.get_thrust_policy(),
                  local_pageranks.begin(),
                  local_pageranks.end(),

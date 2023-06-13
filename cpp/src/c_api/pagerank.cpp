@@ -217,7 +217,9 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
           precomputed_vertex_out_weight_sums_
-            ? std::make_optional(precomputed_vertex_out_weight_sums.data())
+            ? std::make_optional(
+                raft::device_span<weight_t const>{precomputed_vertex_out_weight_sums.data(),
+                                                  precomputed_vertex_out_weight_sums.size()})
             : std::nullopt,
           personalization_vertices_
             ? std::make_optional(
