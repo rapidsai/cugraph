@@ -11,6 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Exception classes for cugraph.
+"""
+
 
 class FailedToConvergeError(Exception):
+    """
+    Raised when an algorithm fails to converge within a predetermined set of
+    constraints which vary based on the algorithm, and may or may not be
+    user-configurable.
+    """
+
     pass
