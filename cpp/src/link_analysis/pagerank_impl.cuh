@@ -162,6 +162,26 @@ centrality_algorithm_metadata_t pagerank(
       }
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: peresonalization values should be non-negative.");
+
+      rmm::device_uvector<vertex_t> check_for_duplicates(std::get<0>(*personalization).size(),
+                                                         handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   std::get<0>(*personalization).begin(),
+                   std::get<0>(*personalization).end(),
+                   check_for_duplicates.begin());
+
+      thrust::sort(
+        handle.get_thrust_policy(), check_for_duplicates.begin(), check_for_duplicates.end());
+
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(check_for_duplicates.size()),
+                         detail::is_first_in_run_t<vertex_t const*>{check_for_duplicates.data()});
+
+      CUGRAPH_EXPECTS(
+        static_cast<size_t>(num_uniques) == check_for_duplicates.size(),
+        "Invalid input argument: personalization vertices not contain duplicate entries.");
     }
   }
 
@@ -387,14 +407,14 @@ void pagerank(raft::handle_t const& handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-std::tuple<std::optional<rmm::device_uvector<result_t>>, centrality_algorithm_metadata_t> pagerank(
+std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pagerank(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
   std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
     personalization,
-  std::optional<raft::device_span<result_t>> initial_pageranks,
+  std::optional<raft::device_span<result_t const>> initial_pageranks,
   result_t alpha,
   result_t epsilon,
   size_t max_iterations,
@@ -410,24 +430,26 @@ std::tuple<std::optional<rmm::device_uvector<result_t>>, centrality_algorithm_me
                  local_pageranks.begin(),
                  local_pageranks.end(),
                  result_t{1.0} / graph_view.number_of_vertices());
+  } else {
+    thrust::copy(handle.get_thrust_policy(),
+                 initial_pageranks->begin(),
+                 initial_pageranks->end(),
+                 local_pageranks.begin());
   }
 
-  auto metadata = detail::pagerank(
-    handle,
-    graph_view,
-    edge_weight_view,
-    precomputed_vertex_out_weight_sums,
-    personalization,
-    initial_pageranks ? *initial_pageranks
-                      : raft::device_span<result_t>{local_pageranks.data(), local_pageranks.size()},
-    alpha,
-    epsilon,
-    max_iterations,
-    do_expensive_check);
+  auto metadata =
+    detail::pagerank(handle,
+                     graph_view,
+                     edge_weight_view,
+                     precomputed_vertex_out_weight_sums,
+                     personalization,
+                     raft::device_span<result_t>{local_pageranks.data(), local_pageranks.size()},
+                     alpha,
+                     epsilon,
+                     max_iterations,
+                     do_expensive_check);
 
-  return initial_pageranks
-           ? std::make_tuple(std::nullopt, metadata)
-           : std::make_tuple(std::make_optional(std::move(local_pageranks)), metadata);
+  return std::make_tuple(std::move(local_pageranks), metadata);
 }
 
 }  // namespace cugraph
