@@ -162,6 +162,26 @@ centrality_algorithm_metadata_t pagerank(
       }
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: peresonalization values should be non-negative.");
+
+      rmm::device_uvector<vertex_t> check_for_duplicates(std::get<0>(*personalization).size(),
+                                                         handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   std::get<0>(*personalization).begin(),
+                   std::get<0>(*personalization).end(),
+                   check_for_duplicates.begin());
+
+      thrust::sort(
+        handle.get_thrust_policy(), check_for_duplicates.begin(), check_for_duplicates.end());
+
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(check_for_duplicates.size()),
+                         detail::is_first_in_run_t<vertex_t const*>{check_for_duplicates.data()});
+
+      CUGRAPH_EXPECTS(
+        static_cast<size_t>(num_uniques) == check_for_duplicates.size(),
+        "Invalid input argument: personalization vertices not contain duplicate entries.");
     }
   }
 
