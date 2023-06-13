@@ -211,7 +211,7 @@ class Tests_PageRank
       hr_timer.start("PageRank");
     }
 
-    auto [tmp_pageranks, metadata] = cugraph::pagerank<vertex_t, edge_t, weight_t>(
+    auto [d_pageranks, metadata] = cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       graph_view,
       edge_weight_view,
@@ -223,13 +223,11 @@ class Tests_PageRank
                             raft::device_span<result_t const>{d_personalization_values->data(),
                                                               d_personalization_values->size()}))
         : std::nullopt,
-      std::optional<raft::device_span<result_t>>{std::nullopt},
+      std::optional<raft::device_span<result_t const>>{std::nullopt},
       alpha,
       epsilon,
       std::numeric_limits<size_t>::max(),
       false);
-
-    auto d_pageranks = std::move(*tmp_pageranks);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

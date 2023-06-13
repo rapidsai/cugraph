@@ -387,14 +387,14 @@ void pagerank(raft::handle_t const& handle,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
-std::tuple<std::optional<rmm::device_uvector<result_t>>, centrality_algorithm_metadata_t> pagerank(
+std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pagerank(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
   std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
     personalization,
-  std::optional<raft::device_span<result_t>> initial_pageranks,
+  std::optional<raft::device_span<result_t const>> initial_pageranks,
   result_t alpha,
   result_t epsilon,
   size_t max_iterations,
@@ -410,24 +410,26 @@ std::tuple<std::optional<rmm::device_uvector<result_t>>, centrality_algorithm_me
                  local_pageranks.begin(),
                  local_pageranks.end(),
                  result_t{1.0} / graph_view.number_of_vertices());
+  } else {
+    thrust::copy(handle.get_thrust_policy(),
+                 initial_pageranks->begin(),
+                 initial_pageranks->end(),
+                 local_pageranks.begin());
   }
 
-  auto metadata = detail::pagerank(
-    handle,
-    graph_view,
-    edge_weight_view,
-    precomputed_vertex_out_weight_sums,
-    personalization,
-    initial_pageranks ? *initial_pageranks
-                      : raft::device_span<result_t>{local_pageranks.data(), local_pageranks.size()},
-    alpha,
-    epsilon,
-    max_iterations,
-    do_expensive_check);
+  auto metadata =
+    detail::pagerank(handle,
+                     graph_view,
+                     edge_weight_view,
+                     precomputed_vertex_out_weight_sums,
+                     personalization,
+                     raft::device_span<result_t>{local_pageranks.data(), local_pageranks.size()},
+                     alpha,
+                     epsilon,
+                     max_iterations,
+                     do_expensive_check);
 
-  return initial_pageranks
-           ? std::make_tuple(std::nullopt, metadata)
-           : std::make_tuple(std::make_optional(std::move(local_pageranks)), metadata);
+  return std::make_tuple(std::move(local_pageranks), metadata);
 }
 
 }  // namespace cugraph

@@ -120,9 +120,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> pageranks(graph_view.local_vertex_partition_range_size(),
-                                              handle_.get_stream());
-
+      rmm::device_uvector<weight_t> initial_pageranks(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> personalization_vertices(0, handle_.get_stream());
       rmm::device_uvector<weight_t> personalization_values(0, handle_.get_stream());
 
@@ -201,7 +199,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                    initial_guess_values.size(),
                    handle_.get_stream());
 
-        pageranks = cugraph::detail::
+        initial_pageranks = cugraph::detail::
           collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
             handle_,
             std::move(initial_guess_vertices),
@@ -213,7 +211,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
             do_expensive_check_);
       }
 
-      auto [tmp_pageranks, metadata] =
+      auto [pageranks, metadata] =
         cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
@@ -228,9 +226,9 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                                 raft::device_span<weight_t const>{personalization_values.data(),
                                                                   personalization_values.size()}))
             : std::nullopt,
-          initial_guess_values_ != nullptr
-            ? std::make_optional(raft::device_span<weight_t>{pageranks.data(), pageranks.size()})
-            : std::nullopt,
+          initial_guess_values_ != nullptr ? std::make_optional(raft::device_span<weight_t const>{
+                                               initial_pageranks.data(), initial_pageranks.size()})
+                                           : std::nullopt,
           static_cast<weight_t>(alpha_),
           static_cast<weight_t>(epsilon_),
           max_iterations_,
@@ -242,10 +240,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
       result_ = new cugraph::c_api::cugraph_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        initial_guess_values_
-          ? new cugraph::c_api::cugraph_type_erased_device_array_t(pageranks, graph_->weight_type_)
-          : new cugraph::c_api::cugraph_type_erased_device_array_t(*tmp_pageranks,
-                                                                   graph_->weight_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(pageranks, graph_->weight_type_),
         metadata.number_of_iterations_,
         metadata.converged_};
     }
