@@ -120,9 +120,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> pageranks(graph_view.local_vertex_partition_range_size(),
-                                              handle_.get_stream());
-
+      rmm::device_uvector<weight_t> initial_pageranks(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> personalization_vertices(0, handle_.get_stream());
       rmm::device_uvector<weight_t> personalization_values(0, handle_.get_stream());
 
@@ -201,7 +199,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
                    initial_guess_values.size(),
                    handle_.get_stream());
 
-        pageranks = cugraph::detail::
+        initial_pageranks = cugraph::detail::
           collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, weight_t, multi_gpu>(
             handle_,
             std::move(initial_guess_vertices),
@@ -213,25 +211,30 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
             do_expensive_check_);
       }
 
-      cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
-        handle_,
-        graph_view,
-        (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-        precomputed_vertex_out_weight_sums_
-          ? std::make_optional(precomputed_vertex_out_weight_sums.data())
-          : std::nullopt,
-        personalization_vertices_ ? std::make_optional(personalization_vertices.data())
-                                  : std::nullopt,
-        personalization_values_ ? std::make_optional(personalization_values.data()) : std::nullopt,
-        personalization_vertices_
-          ? std::make_optional(static_cast<vertex_t>(personalization_vertices.size()))
-          : std::nullopt,
-        pageranks.data(),
-        static_cast<weight_t>(alpha_),
-        static_cast<weight_t>(epsilon_),
-        max_iterations_,
-        initial_guess_values_ != nullptr,
-        do_expensive_check_);
+      auto [pageranks, metadata] =
+        cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
+          precomputed_vertex_out_weight_sums_
+            ? std::make_optional(
+                raft::device_span<weight_t const>{precomputed_vertex_out_weight_sums.data(),
+                                                  precomputed_vertex_out_weight_sums.size()})
+            : std::nullopt,
+          personalization_vertices_
+            ? std::make_optional(
+                std::make_tuple(raft::device_span<vertex_t const>{personalization_vertices.data(),
+                                                                  personalization_vertices.size()},
+                                raft::device_span<weight_t const>{personalization_values.data(),
+                                                                  personalization_values.size()}))
+            : std::nullopt,
+          initial_guess_values_ != nullptr ? std::make_optional(raft::device_span<weight_t const>{
+                                               initial_pageranks.data(), initial_pageranks.size()})
+                                           : std::nullopt,
+          static_cast<weight_t>(alpha_),
+          static_cast<weight_t>(epsilon_),
+          max_iterations_,
+          do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
@@ -239,7 +242,9 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
       result_ = new cugraph::c_api::cugraph_centrality_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(pageranks, graph_->weight_type_)};
+        new cugraph::c_api::cugraph_type_erased_device_array_t(pageranks, graph_->weight_type_),
+        metadata.number_of_iterations_,
+        metadata.converged_};
     }
   }
 };
@@ -305,10 +310,167 @@ extern "C" cugraph_error_code_t cugraph_pagerank(
                            max_iterations,
                            do_expensive_check);
 
+  auto return_value = cugraph::c_api::run_algorithm(graph, functor, result, error);
+
+  CAPI_EXPECTS(cugraph_centrality_result_converged(*result) == bool_t::TRUE,
+               CUGRAPH_UNKNOWN_ERROR,
+               "PageRank failed to converge.",
+               *error);
+
+  return return_value;
+}
+
+extern "C" cugraph_error_code_t cugraph_pagerank_allow_nonconvergence(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_guess_values,
+  double alpha,
+  double epsilon,
+  size_t max_iterations,
+  bool_t do_expensive_check,
+  cugraph_centrality_result_t** result,
+  cugraph_error_t** error)
+{
+  if (precomputed_vertex_out_weight_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_sums)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_sums must match",
+                 *error);
+  }
+  if (initial_guess_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_values must match",
+                 *error);
+  }
+  pagerank_functor functor(handle,
+                           graph,
+                           precomputed_vertex_out_weight_vertices,
+                           precomputed_vertex_out_weight_sums,
+                           initial_guess_vertices,
+                           initial_guess_values,
+                           nullptr,
+                           nullptr,
+                           alpha,
+                           epsilon,
+                           max_iterations,
+                           do_expensive_check);
+
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
 
 extern "C" cugraph_error_code_t cugraph_personalized_pagerank(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_guess_values,
+  const cugraph_type_erased_device_array_view_t* personalization_vertices,
+  const cugraph_type_erased_device_array_view_t* personalization_values,
+  double alpha,
+  double epsilon,
+  size_t max_iterations,
+  bool_t do_expensive_check,
+  cugraph_centrality_result_t** result,
+  cugraph_error_t** error)
+{
+  if (precomputed_vertex_out_weight_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_sums)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_sums must match",
+                 *error);
+  }
+  if (initial_guess_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_values must match",
+                 *error);
+  }
+  if (personalization_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     personalization_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and personalization_vector must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     personalization_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and personalization_vector must match",
+                 *error);
+  }
+
+  pagerank_functor functor(handle,
+                           graph,
+                           precomputed_vertex_out_weight_vertices,
+                           precomputed_vertex_out_weight_sums,
+                           initial_guess_vertices,
+                           initial_guess_values,
+                           personalization_vertices,
+                           personalization_values,
+                           alpha,
+                           epsilon,
+                           max_iterations,
+                           do_expensive_check);
+
+  auto return_value = cugraph::c_api::run_algorithm(graph, functor, result, error);
+
+  CAPI_EXPECTS(cugraph_centrality_result_converged(*result) == bool_t::TRUE,
+               CUGRAPH_UNKNOWN_ERROR,
+               "PageRank failed to converge.",
+               *error);
+
+  return return_value;
+}
+
+extern "C" cugraph_error_code_t cugraph_personalized_pagerank_allow_nonconvergence(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,

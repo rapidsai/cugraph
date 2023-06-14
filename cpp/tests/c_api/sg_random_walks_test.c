@@ -95,10 +95,17 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
   //  NOTE:  The C++ tester does a more thorough validation.  For our purposes
   //  here we will do a simpler validation, merely checking that all edges
   //  are actually part of the graph
-  weight_t M[num_vertices][num_vertices];
 
-  for (int i = 0; i < num_vertices; ++i)
-    for (int j = 0; j < num_vertices; ++j)
+  size_t unrenumbered_vertex_size = num_vertices;
+  for (size_t i = 0 ; i < num_edges ; ++i) {
+    if (h_src[i] > unrenumbered_vertex_size) unrenumbered_vertex_size = h_src[i];
+    if (h_dst[i] > unrenumbered_vertex_size) unrenumbered_vertex_size = h_dst[i];
+  }
+  ++unrenumbered_vertex_size;
+  weight_t M[unrenumbered_vertex_size][unrenumbered_vertex_size];
+
+  for (int i = 0; i < unrenumbered_vertex_size; ++i)
+    for (int j = 0; j < unrenumbered_vertex_size; ++j)
       M[i][j] = -1;
 
   for (int i = 0; i < num_edges; ++i)
@@ -408,11 +415,28 @@ int test_node2vec_random_walks()
     src, dst, wgt, num_vertices, num_edges, start, num_starts, 3, p, q, FALSE, FALSE);
 }
 
+int test_uniform_random_walks_oob()
+{
+  size_t num_edges    = 5;
+  size_t num_vertices = 6;
+  size_t num_starts   = 4;
+  size_t max_depth = 7;
+
+  vertex_t src[]   = {1, 2, 4, 7, 3};
+  vertex_t dst[]   = {5, 4, 1, 5, 2};
+  weight_t wgt[]   = {0.4, 0.5, 0.6, 0.7, 0.8};
+  vertex_t start[] = {2, 5, 3, 1};
+
+  return generic_uniform_random_walks_test(
+    src, dst, wgt, num_vertices, num_edges, start, num_starts, max_depth, TRUE, FALSE);
+}
+
 int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_uniform_random_walks);
   result |= RUN_TEST(test_biased_random_walks);
   result |= RUN_TEST(test_node2vec_random_walks);
+  result |= RUN_TEST(test_uniform_random_walks_oob);
   return result;
 }
