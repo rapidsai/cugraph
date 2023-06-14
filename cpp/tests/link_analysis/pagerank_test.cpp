@@ -206,30 +206,27 @@ class Tests_PageRank
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_pageranks(graph_view.number_of_vertices(), handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("PageRank");
     }
 
-    cugraph::pagerank<vertex_t, edge_t, weight_t>(
+    auto [d_pageranks, metadata] = cugraph::pagerank<vertex_t, edge_t, weight_t>(
       handle,
       graph_view,
       edge_weight_view,
       std::nullopt,
       d_personalization_vertices
-        ? std::optional<vertex_t const*>{(*d_personalization_vertices).data()}
+        ? std::make_optional(
+            std::make_tuple(raft::device_span<vertex_t const>{d_personalization_vertices->data(),
+                                                              d_personalization_vertices->size()},
+                            raft::device_span<result_t const>{d_personalization_values->data(),
+                                                              d_personalization_values->size()}))
         : std::nullopt,
-      d_personalization_values ? std::optional<result_t const*>{(*d_personalization_values).data()}
-                               : std::nullopt,
-      d_personalization_vertices ? std::optional<vertex_t>{(*d_personalization_vertices).size()}
-                                 : std::nullopt,
-      d_pageranks.data(),
+      std::optional<raft::device_span<result_t const>>{std::nullopt},
       alpha,
       epsilon,
       std::numeric_limits<size_t>::max(),
-      false,
       false);
 
     if (cugraph::test::g_perf) {
