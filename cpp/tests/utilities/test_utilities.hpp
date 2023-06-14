@@ -154,6 +154,21 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
                             bool store_transposed,
                             bool multi_gpu);
 
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<
+             cugraph::edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                                      weight_t>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+read_graph_from_csv_file(raft::handle_t const& handle,
+                         std::string const& graph_file_full_path,
+                         bool test_weighted,
+                         bool renumber);
+
 // alias for easy customization for debug purposes:
 //
 template <typename value_t>
@@ -517,7 +532,7 @@ mg_vertex_property_values_to_sg_vertex_property_values(
   std::optional<raft::device_span<vertex_t const>>
     sg_renumber_map,  // std::nullopt if the SG graph is not renumbered
   std::optional<raft::device_span<vertex_t const>>
-    mg_vertices,      // std::nullopt if the entire local vertex partition range is assumed
+    mg_vertices,  // std::nullopt if the entire local vertex partition range is assumed
   raft::device_span<value_t const> mg_values);
 
 template <typename type_t>

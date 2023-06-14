@@ -342,6 +342,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                                  graph_view,
                                  chunk_vertex_pair_first,
                                  chunk_vertex_pair_first + this_chunk_size,
+                                 cugraph::edge_dummy_property_t{}.view(),
                                  std::array<bool, 2>{true, true},
                                  do_expensive_check);
 

@@ -21,7 +21,7 @@
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
-#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -149,6 +149,19 @@ struct call_intersection_op_t {
       src_prop          = *(vertex_property_first + src_offset);
       dst_prop          = *(vertex_property_first + dst_offset);
     }
+
+    printf("(%d <-> %d) %d %d %d\n",
+           static_cast<int>(src),
+           static_cast<int>(dst),
+           static_cast<int>(src_prop),
+           static_cast<int>(dst_prop),
+           static_cast<int>(intersection.size()));
+
+    for (size_t k = 0; k < intersection.size(); k++) {
+      printf("%d  ", static_cast<int>(*(intersection.data() + k)));
+    }
+    printf("\n");
+
     *(major_minor_pair_value_output_first + index) =
       intersection_op(src, dst, src_prop, dst_prop, intersection);
   }
@@ -166,6 +179,7 @@ struct call_intersection_op_t {
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexPairIterator Type of the iterator for input vertex pairs.
  * @tparam VertexValueInputWrapper Type of the wrapper for vertex property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam VertexPairValueOutputIterator Type of the iterator for vertex pair output property
  * variables.
@@ -176,6 +190,10 @@ struct call_intersection_op_t {
  * @param vertex_pair_last Iterator pointing to the last (exclusive) input vertex pair.
  * @param vertex_src_value_input Wrapper used to access vertex input property values (for the
  * vertices assigned to this process in multi-GPU).
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p intersection_op
+ * needs to access edge property values) or cugraph::edge_dummy_property_t::view() (if @p
+ * intersection_op does not access edge property values).
  * @param intersection_op quinary operator takes first vertex of the pair, second vertex of the
  * pair, property values for the first vertex, property values for the second vertex, and a list of
  * vertices in the intersection of the first & second vertices' destination neighbors and returns an
@@ -188,6 +206,7 @@ struct call_intersection_op_t {
 template <typename GraphViewType,
           typename VertexPairIterator,
           typename VertexValueInputIterator,
+          typename EdgeValueInputWrapper,
           typename IntersectionOp,
           typename VertexPairValueOutputIterator>
 void per_v_pair_transform_dst_nbr_intersection(
@@ -196,6 +215,7 @@ void per_v_pair_transform_dst_nbr_intersection(
   VertexPairIterator vertex_pair_first,
   VertexPairIterator vertex_pair_last,
   VertexValueInputIterator vertex_value_input_first,
+  EdgeValueInputWrapper edge_value_input,
   IntersectionOp intersection_op,
   VertexPairValueOutputIterator vertex_pair_value_output_first,
   bool do_expensive_check = false)
@@ -297,6 +317,23 @@ void per_v_pair_transform_dst_nbr_intersection(
                       size_t{0});
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+    if (GraphViewType::is_multi_gpu) {
+      auto& comm           = handle.get_comms();
+      auto const comm_rank = comm.get_rank();
+      auto const comm_size = comm.get_size();
+
+      for (int k = 0; k < comm_size; k++) {
+        comm.barrier();
+        if (comm_rank == k) {
+          std::cout << "Rank :" << comm_rank << ", edge partittion idx = " << i << std::endl;
+          RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+          std::cout << "------------------" << std::endl;
+        }
+        comm.barrier();
+      }
+    }
+
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
@@ -352,6 +389,7 @@ void per_v_pair_transform_dst_nbr_intersection(
                                  graph_view,
                                  chunk_vertex_pair_first,
                                  chunk_vertex_pair_first + this_chunk_size,
+                                 edge_value_input,
                                  std::array<bool, 2>{true, true},
                                  do_expensive_check);
 

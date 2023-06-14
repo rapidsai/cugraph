@@ -74,6 +74,7 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       out_degrees.begin(),
+      cugraph::edge_dummy_property_t{}.view(),
       [functor] __device__(auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection) {
         return functor.compute_score(static_cast<weight_t>(v1_degree),
                                      static_cast<weight_t>(v2_degree),

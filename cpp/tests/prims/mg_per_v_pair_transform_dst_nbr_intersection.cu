@@ -163,6 +163,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       mg_out_degrees.begin(),
+      cugraph::edge_dummy_property_t{}.view(),
       intersection_op_t<vertex_t, edge_t>{},
       cugraph::get_dataframe_buffer_begin(mg_result_buffer));
 
@@ -231,6 +232,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
             mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
           cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
           sg_out_degrees.begin(),
+          cugraph::edge_dummy_property_t{}.view(),
           intersection_op_t<vertex_t, edge_t>{},
           cugraph::get_dataframe_buffer_begin(sg_result_buffer));
 

@@ -111,8 +111,23 @@ class edge_partition_device_view_base_t {
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ thrust::tuple<vertex_t const*, edge_t, edge_t> local_edges(
-    vertex_t major_idx) const noexcept
+    vertex_t major_idx, bool debug = false) const noexcept
   {
+    if (debug && major_idx == 0) {
+      printf("offsets_.size(): %d\n", static_cast<int>(offsets_.size()));
+
+      printf("offsets_: ");
+      for (size_t k = 0; k < offsets_.size(); k++) {
+        printf("%d ", static_cast<int>(offsets_[k]));
+      }
+      printf("\n");
+
+      printf("indices_: ");
+      for (size_t k = 0; k < indices_.size(); k++) {
+        printf("%d ", static_cast<int>(indices_[k]));
+      }
+      printf("\n");
+    }
     auto edge_offset  = offsets_[major_idx];
     auto local_degree = offsets_[major_idx + 1] - edge_offset;
     auto indices      = indices_.data() + edge_offset;
