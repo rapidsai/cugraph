@@ -18,6 +18,7 @@ import pandas as pd
 import os
 import time
 import json
+from argparse import ArgumentParser
 
 
 def load_edges_from_disk(parquet_path, replication_factor, input_meta):
@@ -32,32 +33,34 @@ def load_edges_from_disk(parquet_path, replication_factor, input_meta):
     """
     graph_data = {}
     for edge_type in input_meta["num_edges"].keys():
-        print(f"Loading edge index for edge type {edge_type} for replication factor = {replication_factor}")
+        print(
+            f"Loading edge index for edge type {edge_type}"
+            f"for replication factor = {replication_factor}"
+        )
         can_edge_type = tuple(edge_type.split("__"))
         # TODO: Rename `edge_index` to a better name
         ei = pd.read_parquet(
-            os.path.join(os.path.join(parquet_path, edge_type), "edge_index.parquet")
+            os.path.join(parquet_path, edge_type, "edge_index.parquet")
         )
         ei = {
             "src": torch.from_numpy(ei.src.values),
             "dst": torch.from_numpy(ei.dst.values),
         }
         if replication_factor > 1:
+            src_ls = [ei["src"]]
+            dst_ls = [ei["dst"]]
             for r in range(1, replication_factor):
-                ei["src"] = torch.concat(
-                    [
-                        ei["src"],
-                        ei["src"] + int(r * input_meta["num_nodes"][can_edge_type[0]]),
-                    ]
-                ).contiguous()
+                new_src = ei["src"] + (
+                    r * input_meta["num_nodes"][can_edge_type[0]]
+                )
+                src_ls.append(new_src)
+                new_dst = ei["dst"] + (
+                    r * input_meta["num_nodes"][can_edge_type[2]]
+                )
+                dst_ls.append(new_dst)
 
-                ei["dst"] = torch.concat(
-                    [
-                        ei["dst"],
-                        ei["dst"] + int(r * input_meta["num_nodes"][can_edge_type[2]]),
-                    ]
-                ).contiguous()
-
+            ei["src"] = torch.cat(src_ls).contiguous()
+            ei["dst"] = torch.cat(dst_ls).contiguous()
         graph_data[can_edge_type] = ei["src"], ei["dst"]
     return graph_data
 
@@ -86,11 +89,16 @@ def load_node_labels(dataset_path, replication_factor, input_meta):
                             ]
                         ),
                         "label": pd.concat(
-                            [node_label.label for r in range(1, replication_factor)]
+                            [
+                                node_label.label
+                                for r in range(1, replication_factor)
+                            ]
                         ),
                     }
                 )
-                node_label = pd.concat([node_label, dfr]).reset_index(drop=True)
+                node_label = pd.concat([node_label, dfr]).reset_index(
+                    drop=True
+                )
 
             node_label_tensor = torch.full(
                 (num_nodes_dict[node_type],), -1, dtype=torch.float32
@@ -122,7 +130,9 @@ def create_dgl_graph_from_disk(dataset_path, replication_factor=1):
         input_meta = json.load(f)
 
     parquet_path = os.path.join(dataset_path, "parquet")
-    graph_data = load_edges_from_disk(parquet_path, replication_factor, input_meta)
+    graph_data = load_edges_from_disk(
+        parquet_path, replication_factor, input_meta
+    )
     node_data = load_node_labels(dataset_path, replication_factor, input_meta)
     g = dgl.heterograph(graph_data)
 
@@ -159,27 +169,111 @@ def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
     print(f"Time to create dataloader = {et - st:.2f} seconds")
     return dataloader
 
-for replication_factor in [1, 2, 4]:
-    st = time.time()
-    g, node_data = create_dgl_graph_from_disk(
-        dataset_path="/datasets/abarghi/ogbn_papers100M",
-        replication_factor=replication_factor,
-    )
-    et = time.time()
-    print(f"Replication factor = {replication_factor}")
-    print(f"G has {g.num_edges()} edges and took  {et - st:.2f} seconds to load")
-    train_idx = {"paper": node_data["paper"]["train_idx"]}
 
-    for fanouts in [[25, 25], [10, 10, 10], [5, 10, 20]]:
-        for batch_size in [512, 1024]:
+def dataloading_benchmark(g, train_idx, fanouts, batch_sizes, use_uva):
+    """
+    Run the dataloading benchmark.
+    Args:
+        g: DGLGraph
+        train_idx: Tensor containing the training indices.
+        fanouts: List of fanouts to use for the dataloader.
+        batch_sizes: List of batch sizes to use for the dataloader.
+        use_uva: Whether to use unified virtual address space.
+    """
+    time_ls = []
+    for fanout in fanouts:
+        for batch_size in batch_sizes:
             dataloader = create_dataloader(
-                g, train_idx, batch_size=batch_size, fanouts=fanouts, use_uva=True
+                g,
+                train_idx,
+                batch_size=batch_size,
+                fanouts=fanout,
+                use_uva=use_uva,
             )
-            st = time.time()
+            dataloading_st = time.time()
             for input_nodes, output_nodes, blocks in dataloader:
                 pass
-            et = time.time()
+            dataloading_et = time.time()
+            dataloading_time = dataloading_et - dataloading_st
+            time_d = {
+                "fanout": fanout,
+                "batch_size": batch_size,
+                "dataloading_time": dataloading_time,
+                "num_edges": g.num_edges(),
+                "num_batches": len(dataloader),
+            }
+            time_ls.append(time_d)
+
             print("Dataloading completed")
-            print(f"Fanouts = {fanouts}, batch_size = {batch_size}")
-            print(f"Time taken {et - st:.2f} seconds for num batches {len(dataloader)}")
+            print(f"Fanout = {fanout}, batch_size = {batch_size}")
+            print(
+                f"Time taken {dataloading_time:.2f} ",
+                f"seconds for num batches {len(dataloader)}",
+                flush=True,
+            )
             print("==============================================")
+    return time_ls
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--dataset_path", type=str, default="/datasets/abarghi/ogbn_papers100M"
+    )
+    parser.add_argument("--replication_factors", type=str, default="1,2,4,8")
+    parser.add_argument(
+        "--fanouts", type=str, default="25_25,10_10_10,5_10_20"
+    )
+    parser.add_argument("--batch_sizes", type=str, default="512,1024")
+    parser.add_argument("--do_not_use_uva", action="store_true")
+    args = parser.parse_args()
+
+    if args.do_not_use_uva:
+        use_uva = False
+    else:
+        use_uva = True
+
+    replication_factors = [int(x) for x in args.replication_factors.split(",")]
+    fanouts = [[int(y) for y in x.split("_")] for x in args.fanouts.split(",")]
+    batch_sizes = [int(x) for x in args.batch_sizes.split(",")]
+
+    print("Running dgl dataloading benchmark with the following parameters:")
+    print(f"Dataset path = {args.dataset_path}")
+    print(f"Replication factors = {replication_factors}")
+    print(f"Fanouts = {fanouts}")
+    print(f"Batch sizes = {batch_sizes}")
+    print(f"Use UVA = {use_uva}")
+    print("==============================================")
+
+    time_ls = []
+    for replication_factor in replication_factors:
+        st = time.time()
+        g, node_data = create_dgl_graph_from_disk(
+            dataset_path=args.dataset_path,
+            replication_factor=replication_factor,
+        )
+        et = time.time()
+        print(f"Replication factor = {replication_factor}")
+        print(
+            f"G has {g.num_edges()} edges and took",
+            f" {et - st:.2f} seconds to load"
+        )
+        train_idx = {"paper": node_data["paper"]["train_idx"]}
+        r_time_ls = dataloading_benchmark(
+            g, train_idx, fanouts, batch_sizes, use_uva=use_uva
+        )
+        print(
+            "Benchmark completed for replication factor = ", replication_factor
+        )
+        print("==============================================")
+        # Add replication factor to the time list
+        [
+            x.update({"replication_factor": replication_factor})
+            for x in r_time_ls
+        ]
+        time_ls.extend(r_time_ls)
+
+    df = pd.DataFrame(time_ls)
+    df.to_csv("dgl_dataloading_benchmark.csv", index=False)
+    print("Benchmark completed for all replication factors")
+    print("==============================================")
