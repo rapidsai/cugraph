@@ -62,6 +62,7 @@ def load_edges_from_disk(parquet_path, replication_factor, input_meta):
             ei["src"] = torch.cat(src_ls).contiguous()
             ei["dst"] = torch.cat(dst_ls).contiguous()
         graph_data[can_edge_type] = ei["src"], ei["dst"]
+    print("Graph Data compiled")
     return graph_data
 
 
@@ -151,6 +152,8 @@ def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
     Returns:
         DGLGraph: DGLGraph with the loaded dataset.
     """
+    
+    print("Creating dataloader", flush=True)
     st = time.time()
     if use_uva:
         train_idx = {k: v.to("cuda") for k, v in train_idx.items()}
@@ -198,7 +201,8 @@ def dataloading_benchmark(g, train_idx, fanouts, batch_sizes, use_uva):
             time_d = {
                 "fanout": fanout,
                 "batch_size": batch_size,
-                "dataloading_time": dataloading_time,
+                "dataloading_time_per_epoch": dataloading_time,
+                "dataloading_time_per_batch": dataloading_time / len(dataloader),
                 "num_edges": g.num_edges(),
                 "num_batches": len(dataloader),
             }
