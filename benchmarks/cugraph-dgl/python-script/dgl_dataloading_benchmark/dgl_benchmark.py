@@ -32,7 +32,7 @@ def load_edges_from_disk(parquet_path, replication_factor, input_meta):
     """
     graph_data = {}
     for edge_type in input_meta["num_edges"].keys():
-        print(f"Loading edge index for edge type {edge_type}")
+        print(f"Loading edge index for edge type {edge_type} for replication factor = {replication_factor}")
         can_edge_type = tuple(edge_type.split("__"))
         # TODO: Rename `edge_index` to a better name
         ei = pd.read_parquet(
@@ -159,25 +159,27 @@ def create_dataloader(g, train_idx, batch_size, fanouts, use_uva):
     print(f"Time to create dataloader = {et - st:.2f} seconds")
     return dataloader
 
+for replication_factor in [1, 2, 4]:
+    st = time.time()
+    g, node_data = create_dgl_graph_from_disk(
+        dataset_path="/datasets/abarghi/ogbn_papers100M",
+        replication_factor=replication_factor,
+    )
+    et = time.time()
+    print(f"Replication factor = {replication_factor}")
+    print(f"G has {g.num_edges()} edges and took  {et - st:.2f} seconds to load")
+    train_idx = {"paper": node_data["paper"]["train_idx"]}
 
-st = time.time()
-g, node_data = create_dgl_graph_from_disk(
-    dataset_path="/datasets/abarghi/ogbn_papers100M", replication_factor=2
-)
-et = time.time()
-print(f"G has {g.num_edges()} edges and took  {et - st:.2f} seconds to load")
-train_idx = {"paper": node_data["paper"]["train_idx"]}
-
-for fanouts in [[25, 25], [10, 10, 10], [5, 10, 20]]:
-    for batch_size in [512, 1024]:
-        dataloader = create_dataloader(
-            g, train_idx, batch_size=batch_size, fanouts=fanouts, use_uva=True
-        )
-        st = time.time()
-        for input_nodes, output_nodes, blocks in dataloader:
-            pass
-        et = time.time()
-        print("Dataloading completed")
-        print(f"Fanouts = {fanouts}, batch_size = {batch_size}")
-        print(f"Time taken {et - st:.2f} seconds for num batches {len(dataloader)}")
-        print("==========================================")
+    for fanouts in [[25, 25], [10, 10, 10], [5, 10, 20]]:
+        for batch_size in [512, 1024]:
+            dataloader = create_dataloader(
+                g, train_idx, batch_size=batch_size, fanouts=fanouts, use_uva=True
+            )
+            st = time.time()
+            for input_nodes, output_nodes, blocks in dataloader:
+                pass
+            et = time.time()
+            print("Dataloading completed")
+            print(f"Fanouts = {fanouts}, batch_size = {batch_size}")
+            print(f"Time taken {et - st:.2f} seconds for num batches {len(dataloader)}")
+            print("==============================================")
