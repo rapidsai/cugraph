@@ -201,65 +201,64 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         'parquet'
     )
 
-    for edge_type in os.listdir(parquet_path):
-        if re.match(r'[a-z]+__[a-z]+__[a-z]+', edge_type):
-            print(f'Loading edge index for edge type {edge_type}')
+    for edge_type in input_meta['num_edges'].keys():
+        print(f'Loading edge index for edge type {edge_type}')
 
-            print('reading parquet file...')
-            can_edge_type = tuple(edge_type.split('__'))
-            ei = pandas.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
-            ei = {
-                'src': torch.as_tensor(ei.src.values, device='cpu'),
-                'dst': torch.as_tensor(ei.dst.values, device='cpu'),
-            }
+        print('reading parquet file...')
+        can_edge_type = tuple(edge_type.split('__'))
+        ei = pandas.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
+        ei = {
+            'src': torch.as_tensor(ei.src.values, device='cpu'),
+            'dst': torch.as_tensor(ei.dst.values, device='cpu'),
+        }
 
-            #print('sorting edge index...')
-            #ei['dst'], ix = torch.sort(ei['dst'])
-            #ei['src'] = ei['src'][ix]
-            #del ix
-            #gc.collect()
+        print('sorting edge index...')
+        ei['dst'], ix = torch.sort(ei['dst'])
+        ei['src'] = ei['src'][ix]
+        del ix
+        gc.collect()
 
 
-            print('processing replications...')
-            if replication_factor > 1:
-                orig_src = ei['src']
-                orig_dst = ei['dst']
-                for r in range(1, replication_factor):
-                    ei['src'] = torch.concat([
-                        ei['src'],
-                        orig_src + int(r * input_meta['num_nodes'][can_edge_type[0]]),
-                    ])
+        print('processing replications...')
+        if replication_factor > 1:
+            orig_src = ei['src']
+            orig_dst = ei['dst']
+            for r in range(1, replication_factor):
+                ei['src'] = torch.concat([
+                    ei['src'],
+                    orig_src + int(r * input_meta['num_nodes'][can_edge_type[0]]),
+                ])
 
-                    ei['dst'] = torch.concat([
-                        ei['dst'],
-                        orig_dst + int(r * input_meta['num_nodes'][can_edge_type[2]]),
-                    ])
+                ei['dst'] = torch.concat([
+                    ei['dst'],
+                    orig_dst + int(r * input_meta['num_nodes'][can_edge_type[2]]),
+                ])
 
-                del orig_src
-                del orig_dst
+            del orig_src
+            del orig_dst
 
-                ei['src'] = ei['src'].contiguous()
-                ei['dst'] = ei['dst'].contiguous()
-            gc.collect()
+            ei['src'] = ei['src'].contiguous()
+            ei['dst'] = ei['dst'].contiguous()
+        gc.collect()
 
-            print('converting to csc...')
-            from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
-            ei = torch.stack([
-                ei['src'],
-                ei['dst'],
-            ])
-            ei = CuGraphModule.to_csc(ei)[:-1]
+        print('converting to csc...')
+        from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
+        ei = torch.stack([
+            ei['src'],
+            ei['dst'],
+        ])
+        ei = CuGraphModule.to_csc(ei)[:-1]
 
-            print('updating data structure...')
-            hetero_data.put_edge_index(
-                layout='csc',
-                edge_index=ei,
-                edge_type=can_edge_type,
-                size=(num_nodes_dict[can_edge_type[0]], num_nodes_dict[can_edge_type[2]]),
-                is_sorted=True
-            )
-            #hetero_data[can_edge_type]['edge_index'] = ei
-            gc.collect()
+        print('updating data structure...')
+        hetero_data.put_edge_index(
+            layout='csc',
+            edge_index=ei,
+            edge_type=can_edge_type,
+            size=(num_nodes_dict[can_edge_type[0]], num_nodes_dict[can_edge_type[2]]),
+            is_sorted=True
+        )
+        #hetero_data[can_edge_type]['edge_index'] = ei
+        gc.collect()
 
     print('done loading graph data')    
     print(num_input_features, num_output_features, len(output_meta['fanout']))
