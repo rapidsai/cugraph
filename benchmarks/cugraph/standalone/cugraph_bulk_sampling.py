@@ -140,9 +140,10 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[
             'start': cudf.Series(dtype='int64')
         })
     
+    original_df = df
     if replication_factor > 1:
         for r in range(1, replication_factor):
-            df_replicated = df
+            df_replicated = original_df
             for col, offset in col_offsets.items():
                 df_replicated[col] += offset * r
         
