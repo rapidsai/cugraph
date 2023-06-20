@@ -368,14 +368,6 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     
     if persist:
         node_labels_df = node_labels_df.persist()
-    
-    print('node labels max', node_labels_df['node'].max().compute())
-    print("node labels min", node_labels_df['node'].min().compute())
-    print('edge src min', all_edges_df['src'].min().compute())
-    print('edge src max', all_edges_df['src'].max().compute())
-    print('edge dst min', all_edges_df['dst'].min().compute())
-    print('edge dst max', all_edges_df['dst'].max().compute())
-    print('edges nunique', len(dask_cudf.concat([all_edges_df['src'].unique(), all_edges_df['dst'].unique()]).unique()))
 
     del node_labels
     gc.collect()
