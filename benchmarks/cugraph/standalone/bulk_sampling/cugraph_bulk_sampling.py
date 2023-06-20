@@ -140,28 +140,22 @@ def _make_batch_ids(bdf: cudf.DataFrame, batch_size: int, num_workers: int, part
     return bdf
 
 
-def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[str, int], partition_info: Optional[Union[dict, str]] = None):
+def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:Dict[str, int], partition_info: Optional[Union[dict, str]] = None):
     # Required by dask; need to skip dummy partitions.
     if partition_info is None:
         return cudf.DataFrame({
-            'batch': cudf.Series(dtype='int32'),
-            'start': cudf.Series(dtype='int64')
+            col: cudf.Series(dtype=df[col].dtype) for col in col_item_counts.keys()
         })
     
-    original_df = df
-    col_offsets = dict(col_offsets)
-    orig_src_count = col_offsets['src'].max()
-    orig_dst_count = col_offsets['dst'].max()
+    original_df = df.copy()
 
     if replication_factor > 1:
         for r in range(1, replication_factor):
             df_replicated = original_df
-            for col, offset in col_offsets.items():
+            for col, offset in col_item_counts.items():
                 df_replicated[col] += offset * r
         
             df = cudf.concat([df, df_replicated], ignore_index=True)
-            col_offsets['src'] += orig_src_count
-            col_offsets['dst'] += orig_dst_count
     
     return df
 
@@ -308,8 +302,8 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
                 _replicate_df,
                 replication_factor,
                 {
-                    'src': node_offsets[can_edge_type[0]],
-                    'dst': node_offsets[can_edge_type[2]],
+                    'src': meta['num_nodes'][can_edge_type[0]],
+                    'dst': meta['num_nodes'][can_edge_type[2]],
                 },
                 meta=cudf.DataFrame({'src':cudf.Series(dtype='int64'), 'dst':cudf.Series(dtype='int64')})
             )
@@ -339,7 +333,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     )
     
     if persist:
-        all_edges_df = all_edge_df.persist()
+        all_edges_df = all_edges_df.persist()
 
     del edge_index_dict
     gc.collect()
@@ -358,7 +352,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
                     _replicate_df,
                     replication_factor,
                     {
-                        'node': node_offsets[node_type]
+                        'node': meta['num_nodes'][node_type]
                     },
                     meta=cudf.DataFrame({'node':cudf.Series(dtype='int64')})
                 )
@@ -375,6 +369,14 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     if persist:
         node_labels_df = node_labels_df.persist()
     
+    print('node labels max', node_labels_df['node'].max().compute())
+    print("node labels min", node_labels_df['node'].min().compute())
+    print('edge src min', all_edges_df['src'].min().compute())
+    print('edge src max', all_edges_df['src'].max().compute())
+    print('edge dst min', all_edges_df['dst'].min().compute())
+    print('edge dst max', all_edges_df['dst'].max().compute())
+    print('edges nunique', len(dask_cudf.concat([all_edges_df['src'].unique(), all_edges_df['dst'].unique()]).unique()))
+
     del node_labels
     gc.collect()
 
