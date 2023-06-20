@@ -222,16 +222,24 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
 
             print('processing replications...')
             if replication_factor > 1:
+                orig_src = ei['src']
+                orig_dst = ei['dst']
                 for r in range(1, replication_factor):
                     ei['src'] = torch.concat([
                         ei['src'],
-                        ei['src'] + int(r * input_meta['num_nodes'][can_edge_type[0]]),
-                    ]).contiguous()
+                        orig_src + int(r * input_meta['num_nodes'][can_edge_type[0]]),
+                    ])
 
                     ei['dst'] = torch.concat([
                         ei['dst'],
-                        ei['dst'] + int(r * input_meta['num_nodes'][can_edge_type[2]]),
-                    ]).contiguous()
+                        orig_dst + int(r * input_meta['num_nodes'][can_edge_type[2]]),
+                    ])
+
+                del orig_src
+                del orig_dst
+
+                ei['src'] = ei['src'].contiguous()
+                ei['dst'] = ei['dst'].contiguous()
             gc.collect()
 
             print('converting to csc...')
