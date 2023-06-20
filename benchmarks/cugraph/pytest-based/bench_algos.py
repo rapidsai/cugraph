@@ -12,10 +12,7 @@
 # limitations under the License.
 
 import pytest
-import tempfile
 import numpy as np
-import cupy
-import cudf
 import pytest_benchmark
 # FIXME: Remove this when rapids_pytest_benchmark.gpubenchmark is available
 # everywhere
@@ -42,7 +39,6 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.generators import rmat
 from cugraph.testing import utils, mg_utils
 from cugraph.utilities.utils import is_device_version_less_than
-from cugraph_benchmarking.gnn import bulk_sample
 
 from cugraph_benchmarking.params import (
     directed_datasets,
@@ -414,34 +410,3 @@ def bench_egonet(gpubenchmark, graph):
     n = 1
     radius = 2
     gpubenchmark(egonet, graph, n, radius=radius)
-
-@pytest.mark.parametrize('batch_size', [250, 500, 1000])
-@pytest.mark.parametrize('fanout', [[10,25], [10,10,10], [25,25]])
-@pytest.mark.parametrize('seeds_per_call', [50_000, 200_000, 800_000, 2_000_000])
-def bench_bulk_sampler(gpubenchmark, graph, batch_size, fanout, seeds_per_call):
-    seed = 62
-    generator = cupy.random.default_rng(seed=seed)
-
-    tempdir = tempfile.TemporaryDirectory()
-    batches_per_partition = 200_000 // batch_size
-
-    num_vertices = graph.number_of_vertices()
-    training_percentage = 0.1
-    train_nodes = generator.integers(0, int(training_percentage * num_vertices))
-    train_batches = cupy.arange(num_vertices // batch_size + 1).repeat(batch_size)[:len(train_nodes)]
-    batch_df = cudf.DataFrame({
-        'node': train_nodes,
-        'batch': train_batches,
-    })
-
-    gpubenchmark(
-        bulk_sample,
-        graph,
-        batch_size,
-        fanout,
-        seeds_per_call=seeds_per_call,
-        batches_per_partition=batches_per_partition,
-        batch_df=batch_df,
-        samples_dir=tempdir,
-        seed=seed
-    )
