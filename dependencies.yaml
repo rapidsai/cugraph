@@ -288,7 +288,7 @@ dependencies:
           - cython>=0.29,<0.30
           - &pylibraft pylibraft==23.8.*
           - &rmm rmm==23.8.*
-          - scikit-build>=0.13.1,<0.17.2
+          - scikit-build>=0.13.1
   python_build_cugraph:
     common:
       - output_types: [conda, pyproject]
