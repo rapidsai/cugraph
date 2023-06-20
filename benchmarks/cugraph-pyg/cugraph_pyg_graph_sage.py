@@ -53,7 +53,7 @@ def init_pytorch_worker(device_id: int) -> None:
 
     rmm.reinitialize(
         devices=[device_id],
-        pool_allocator=True,
+        pool_allocator=False,
         maximum_pool_size=28e9,
     )
 
@@ -101,7 +101,7 @@ def train_epoch(model, loader, optimizer):
         )
         end_time_forward = time.perf_counter()
         time_forward += end_time_forward - start_time_forward
-
+        
         if y_pred.shape[0] > len(y_true):
             raise ValueError(f"illegal shape: {y_pred.shape}; {y_true.shape}")
 
@@ -218,11 +218,10 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
         del ix
         gc.collect()
 
-
         print('processing replications...')
         if replication_factor > 1:
-            orig_src = ei['src']
-            orig_dst = ei['dst']
+            orig_src = ei['src'].clone().detach()
+            orig_dst = ei['dst'].clone().detach()
             for r in range(1, replication_factor):
                 ei['src'] = torch.concat([
                     ei['src'],
@@ -241,18 +240,18 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             ei['dst'] = ei['dst'].contiguous()
         gc.collect()
 
-        print('converting to csc...')
-        from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
-        ei = torch.stack([
-            ei['src'],
-            ei['dst'],
-        ])
-        ei = CuGraphModule.to_csc(ei)[:-1]
+        #print('converting to csc...')
+        #from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
+        #ei = torch.stack([
+        #    ei['src'],
+        #    ei['dst'],
+        #])
+        #ei = CuGraphModule.to_csc(ei)[:-1]
 
         print('updating data structure...')
         hetero_data.put_edge_index(
-            layout='csc',
-            edge_index=ei,
+            layout='coo',
+            edge_index=list(ei.values()),
             edge_type=can_edge_type,
             size=(num_nodes_dict[can_edge_type[0]], num_nodes_dict[can_edge_type[2]]),
             is_sorted=True
@@ -333,7 +332,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
 
     num_input_features = 0
     num_output_features = 0
-    for node_type in os.listdir(os.path.join(dataset_path, 'npy')):
+    for node_type in input_meta['num_nodes'].keys():
         feature_data = load_disk_features(output_meta, node_type, replication_factor=replication_factor)
         fs.add_data(
             torch.as_tensor(feature_data, device=features_device),
@@ -346,6 +345,14 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
         label_path = os.path.join(dataset_path, 'parquet', node_type, 'node_label.parquet')
         if os.path.exists(label_path):
             node_label = cudf.read_parquet(label_path)
+            if replication_factor > 1:
+                base_num_nodes = input_meta['num_nodes'][node_type]
+                dfr = cudf.DataFrame({
+                    'node': cudf.concat([node_label.node + (r * base_num_nodes) for r in range(1, replication_factor)]),
+                    'label': cudf.concat([node_label.label for r in range(1, replication_factor)]),
+                })
+                node_label = cudf.concat([node_label, dfr]).reset_index(drop=True)
+
             node_label_tensor = torch.full((N[node_type],), -1, dtype=torch.float32, device='cuda')
             node_label_tensor[torch.as_tensor(node_label.node.values, device='cuda')] = \
                 torch.as_tensor(node_label.label.values, device='cuda')
