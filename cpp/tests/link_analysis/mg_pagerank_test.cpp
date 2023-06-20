@@ -120,30 +120,25 @@ class Tests_MGPageRank
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
-    rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle_->get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.start("MG PageRank");
     }
 
-    cugraph::pagerank<vertex_t, edge_t, weight_t>(
+    auto [d_mg_pageranks, metadata] = cugraph::pagerank<vertex_t, edge_t, weight_t>(
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
       std::nullopt,
       d_mg_personalization_vertices
-        ? std::optional<vertex_t const*>{(*d_mg_personalization_vertices).data()}
+        ? std::make_optional(std::make_tuple(
+            raft::device_span<vertex_t const>{d_mg_personalization_vertices->data(),
+                                              d_mg_personalization_vertices->size()},
+            raft::device_span<result_t const>{d_mg_personalization_values->data(),
+                                              d_mg_personalization_values->size()}))
         : std::nullopt,
-      d_mg_personalization_values
-        ? std::optional<result_t const*>{(*d_mg_personalization_values).data()}
-        : std::nullopt,
-      d_mg_personalization_vertices
-        ? std::optional{static_cast<vertex_t>((*d_mg_personalization_vertices).size())}
-        : std::nullopt,
-      d_mg_pageranks.data(),
+      std::optional<raft::device_span<result_t const>>{std::nullopt},
       alpha,
       epsilon,
       std::numeric_limits<size_t>::max(),
@@ -211,25 +206,19 @@ class Tests_MGPageRank
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-        rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.number_of_vertices(),
-                                                     handle_->get_stream());
-
-        cugraph::pagerank<vertex_t, edge_t, weight_t>(
+        auto [d_sg_pageranks, sg_metadata] = cugraph::pagerank<vertex_t, edge_t, weight_t>(
           *handle_,
           sg_graph_view,
           sg_edge_weight_view,
           std::nullopt,
           d_mg_aggregate_personalization_vertices
-            ? std::optional<vertex_t const*>{(*d_mg_aggregate_personalization_vertices).data()}
+            ? std::make_optional(std::make_tuple(
+                raft::device_span<vertex_t const>{d_mg_aggregate_personalization_vertices->data(),
+                                                  d_mg_aggregate_personalization_vertices->size()},
+                raft::device_span<result_t const>{d_mg_aggregate_personalization_values->data(),
+                                                  d_mg_aggregate_personalization_values->size()}))
             : std::nullopt,
-          d_mg_aggregate_personalization_values
-            ? std::optional<result_t const*>{(*d_mg_aggregate_personalization_values).data()}
-            : std::nullopt,
-          d_mg_aggregate_personalization_vertices
-            ? std::optional<vertex_t>{static_cast<vertex_t>(
-                (*d_mg_aggregate_personalization_vertices).size())}
-            : std::nullopt,
-          d_sg_pageranks.data(),
+          std::optional<raft::device_span<result_t const>>{std::nullopt},
           alpha,
           epsilon,
           std::numeric_limits<size_t>::max(),  // max_iterations
