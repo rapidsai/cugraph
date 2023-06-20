@@ -290,41 +290,40 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
         assign_offsets_pyg(meta['num_nodes'], replication_factor=replication_factor)
 
     edge_index_dict = {}
-    for edge_type in os.listdir(parquet_path):
-        if re.match(r'[a-z]+__[a-z]+__[a-z]+', edge_type):
-            print(f'Loading edge index for edge type {edge_type}')
+    for edge_type in meta['num_edges'].keys():
+        print(f'Loading edge index for edge type {edge_type}')
 
-            can_edge_type = tuple(edge_type.split('__'))
-            edge_index_dict[can_edge_type] = dask_cudf.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
+        can_edge_type = tuple(edge_type.split('__'))
+        edge_index_dict[can_edge_type] = dask_cudf.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
 
-            edge_index_dict[can_edge_type]['src'] += node_offsets_replicated[can_edge_type[0]]
-            edge_index_dict[can_edge_type]['dst'] += node_offsets_replicated[can_edge_type[-1]]
+        edge_index_dict[can_edge_type]['src'] += node_offsets_replicated[can_edge_type[0]]
+        edge_index_dict[can_edge_type]['dst'] += node_offsets_replicated[can_edge_type[-1]]
 
-            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
-            if persist:
-                edge_index_dict = edge_index_dict.persist()
+        edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type]
+        if persist:
+            edge_index_dict = edge_index_dict.persist()
 
-            if replication_factor > 1:
-                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].map_partitions(
-                    _replicate_df,
-                    replication_factor,
-                    {
-                        'src': node_offsets[can_edge_type[0]],
-                        'dst': node_offsets[can_edge_type[2]],
-                    },
-                    meta=cudf.DataFrame({'src':cudf.Series(dtype='int64'), 'dst':cudf.Series(dtype='int64')})
-                )
-                
-                if persist:
-                    edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+        if replication_factor > 1:
+            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].map_partitions(
+                _replicate_df,
+                replication_factor,
+                {
+                    'src': node_offsets[can_edge_type[0]],
+                    'dst': node_offsets[can_edge_type[2]],
+                },
+                meta=cudf.DataFrame({'src':cudf.Series(dtype='int64'), 'dst':cudf.Series(dtype='int64')})
+            )
             
-            gc.collect()
+            if persist:
+                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+        
+        gc.collect()
 
-            if reverse_edges:
-                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'})
-                
-                if persist:
-                    edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+        if reverse_edges:
+            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'})
+            
+            if persist:
+                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
     
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
