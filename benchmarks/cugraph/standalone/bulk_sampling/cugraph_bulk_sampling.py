@@ -467,8 +467,7 @@ def benchmark_cugraph_bulk_sampling(
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
     print(f'input memory: {input_memory}')
 
-    now = datetime.now()
-    output_subdir = os.path.join(output_path, f'{dataset}[{replication_factor}]_b{batch_size}_f{fanout})
+    output_subdir = os.path.join(output_path, f'{dataset}[{replication_factor}]_b{batch_size}_f{fanout}')
     os.makedirs(output_subdir)
 
     output_sample_path = os.path.join(output_subdir, 'samples')
@@ -667,6 +666,12 @@ if __name__ == "__main__":
     stats_ls = []
     client.run(enable_spilling)
     for dataset in datasets:
+        if re.match(r'([A-z]|[0-9])+\[[0-9]+\]', dataset):
+            replication_factor = int(dataset[-2])
+            dataset = dataset[:-3]
+        else:
+            replication_factor = 1
+
         for fanout in fanouts:
             for batch_size in batch_sizes:
                 for seeds_per_call in seeds_per_call_opts:
@@ -674,12 +679,6 @@ if __name__ == "__main__":
                     print(f'batch size: {batch_size}')
                     print(f'fanout: {fanout}')
                     print(f'seeds_per_call: {seeds_per_call}')
-
-                    if re.match(r'([A-z]|[0-9])+\[[0-9]+\]', dataset):
-                        replication_factor = int(dataset[-2])
-                        dataset = dataset[:-3]
-                    else:
-                        replication_factor = 1
 
                     try:
                         stats_d = {}
