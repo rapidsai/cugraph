@@ -729,7 +729,7 @@ if __name__ == "__main__":
                 "output_to_peak_ratio",
             ],
         )
-        stats_df.to_csv("cugraph_graph_creation_stats.csv")
+        stats_df.to_csv("cugraph_sampling_stats.csv")
         print("-" * 40 + f"dataset = {dataset} completed" + "-" * 40)
 
     # Cleanup Dask Cluster
