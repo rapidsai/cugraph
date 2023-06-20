@@ -192,8 +192,6 @@ if [[ "${RAPIDS_CUDA_VERSION}" == "11.8.0" ]]; then
     pushd python/cugraph-pyg/cugraph_pyg
     # rmat is not tested because of multi-GPU testing
     pytest \
-      -v \
-      --benchmark-disable \
       --cache-clear \
       --ignore=tests/int \
       --ignore=tests/mg \

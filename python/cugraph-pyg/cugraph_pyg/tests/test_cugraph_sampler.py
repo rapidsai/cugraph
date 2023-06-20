@@ -14,12 +14,8 @@
 import cudf
 import cupy
 
-import pathlib
-import os
-
 import pytest
 
-from cugraph.gnn import FeatureStore
 from cugraph_pyg.data import CuGraphStore
 from cugraph_pyg.sampler.cugraph_sampler import _sampler_output_from_sampling_results
 
@@ -27,7 +23,6 @@ from cugraph.utilities.utils import import_optional, MissingModule
 from cugraph import uniform_neighbor_sample
 
 torch = import_optional("torch")
-torch_geometric = import_optional('torch_geometric')
 
 
 @pytest.mark.cugraph_ops
@@ -176,77 +171,3 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
-
-
-"""
-Add benchmark results capture
-Disable benchmark results capture when running in CI
-
-
-1. update test_python.sh
-2. update dockerfile in graph_dl
-3. add new sg srun script (coordinate with Rick first)
-"""
-
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-def test_mfg_creation(gpubenchmark):
-    parent = pathlib.Path(__file__).parent.resolve()
-    df = cudf.read_parquet(os.path.join(parent, 'files/papers100M_1000_10_10_10.parquet'))
-
-    G = {("vt1", "et1", "vt1"): 1_615_685_872}
-    N = {"vt1": 111_059_956}
-
-    generator = torch.manual_seed(62)
-    
-    x = torch.rand((N['vt1'], 1), device='cpu', dtype=torch.float32, generator=generator)
-
-    F = FeatureStore(backend='torch')
-    F.add_data(x, 'vt1', 'x')
-
-    cugraph_store = CuGraphStore(F, G, N)
-
-    def read_batches(df, graph_store):
-        _sampler_output_from_sampling_results(df, graph_store, None)
-
-    gpubenchmark(
-        read_batches,
-        df,
-        cugraph_store,
-    )
-
-@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.parametrize('num_features', [10, 100])
-def test_feature_fetch(gpubenchmark, num_features):
-    parent = pathlib.Path(__file__).parent.resolve()
-    df = cudf.read_parquet(os.path.join(parent, 'files/papers100M_1000_10_10_10.parquet'))
-
-    G = {("vt1", "et1", "vt1"): 1_615_685_872}
-    N = {"vt1": 111_059_956}
-    
-    generator = torch.manual_seed(62)
-    
-    x = torch.rand((N['vt1'], num_features), device='cpu', dtype=torch.float32, generator=generator)
-
-    F = FeatureStore(backend='torch')
-    F.add_data(x, 'vt1', 'x')
-
-    cugraph_store = CuGraphStore(F, G, N)
-
-    sampler_output = _sampler_output_from_sampling_results(df, cugraph_store)
-
-    def fetch_features(sampler_output, feature_store, graph_store):
-        torch_geometric.loader.utils.filter_custom_store(
-            feature_store,
-            graph_store,
-            sampler_output.node,
-            sampler_output.row,
-            sampler_output.col,
-            sampler_output.edge,
-        )
-
-    gpubenchmark(
-        fetch_features,
-        sampler_output,
-        cugraph_store,
-        cugraph_store,
-    )
