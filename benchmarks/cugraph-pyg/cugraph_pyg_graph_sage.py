@@ -53,7 +53,7 @@ def init_pytorch_worker(device_id: int) -> None:
 
     rmm.reinitialize(
         devices=[device_id],
-        pool_allocator=False,
+        pool_allocator=True,
         maximum_pool_size=28e9,
     )
 
@@ -284,7 +284,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             num_neighbors={('paper','cites','paper'):output_meta['fanout']},
             replace=False,
             is_sorted=True,
-            disjoint=True,
+            disjoint=False,
         )
         print('done creating loader')
         # loader was patched to record the feature extraction time
