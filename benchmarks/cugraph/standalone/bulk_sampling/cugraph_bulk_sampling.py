@@ -184,8 +184,9 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
 
     
     batch_df = label_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta)
-    if persist:
-        batch_df = batch_df.persist()
+    
+    # should always persist the batch dataframe or performace may be suboptimal
+    batch_df = batch_df.persist()
 
     del label_df
     print('created batches')
@@ -316,8 +317,8 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
         if reverse_edges:
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].rename(columns={'src':'dst','dst':'src'})
             
-            if persist:
-                edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
+        if persist:
+            edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
     
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
@@ -456,6 +457,7 @@ def benchmark_cugraph_bulk_sampling(
     G = construct_graph(
         dask_edgelist_df
     )
+    del dask_edgelist_df
     print('constructed graph')
 
     input_memory = G.edgelist.edgelist_df.memory_usage().sum().compute()
