@@ -141,6 +141,10 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[
         })
     
     original_df = df
+    col_offsets = dict(col_offsets)
+    orig_src_count = col_offsets['src'].max()
+    orig_dst_count = col_offsets['dst'].max()
+
     if replication_factor > 1:
         for r in range(1, replication_factor):
             df_replicated = original_df
@@ -148,6 +152,8 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_offsets:Dict[
                 df_replicated[col] += offset * r
         
             df = cudf.concat([df, df_replicated], ignore_index=True)
+            col_offsets['src'] += orig_src_count
+            col_offsets['dst'] += orig_dst_count
     
     return df
 
