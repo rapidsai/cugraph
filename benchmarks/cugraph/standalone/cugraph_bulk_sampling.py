@@ -462,8 +462,7 @@ def benchmark_cugraph_bulk_sampling(
     print(f'input memory: {input_memory}')
 
     now = datetime.now()
-    timestring = datetime.strftime(now, '%Y-%m-%d-%H:%M:%S')
-    output_subdir = os.path.join(output_path, f'{dataset}[{replication_factor}]_b{batch_size}_f{fanout}_{timestring}')
+    output_subdir = os.path.join(output_path, f'{dataset}[{replication_factor}]_b{batch_size}_f{fanout})
     os.makedirs(output_subdir)
 
     output_sample_path = os.path.join(output_subdir, 'samples')
