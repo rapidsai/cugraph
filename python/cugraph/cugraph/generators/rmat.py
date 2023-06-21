@@ -16,7 +16,10 @@ import dask_cudf
 
 from cugraph.generators import rmat_wrapper
 from cugraph.dask.comms import comms as Comms
+import cudf
 import cugraph
+from pylibcugraph import generate_rmat_edgelist as pylibcugraph_generate_rmat_edgelist
+from pylibcugraph import ResourceHandle
 
 _graph_types = [cugraph.Graph, cugraph.MultiGraph]
 
@@ -111,6 +114,13 @@ def _sg_rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
+    include_edge_weights,
+    minimum_weight,
+    maximum_weight,
+    include_edge_ids,
+    include_edge_types,
+    min_edge_type,
+    max_edge_type,
     create_using=cugraph.Graph,
 ):
     """
@@ -118,9 +128,46 @@ def _sg_rmat(
     to initialize and return a cugraph Graph object specified with
     create_using. If create_using is None, returns the edgelist df as-is.
     """
-    df = rmat_wrapper.generate_rmat_edgelist(
-        scale, num_edges, a, b, c, seed, clip_and_flip, scramble_vertex_ids
+
+    # FIXME: add deprecation warning for the parameter 'seed' and rename it
+    # 'random_state'
+    random_state = seed
+    multi_gpu = False
+    src, dst, weights, edge_id, edge_type = pylibcugraph_generate_rmat_edgelist(
+        ResourceHandle(),
+        random_state,
+        scale,
+        num_edges,
+        a,
+        b,
+        c,
+        clip_and_flip,
+        include_edge_weights,
+        minimum_weight,
+        maximum_weight,
+        include_edge_ids,
+        include_edge_types,
+        min_edge_type,
+        max_edge_type,
+        multi_gpu,
     )
+
+    df = cudf.DataFrame()
+    df["src"] = src
+    df["dst"] = dst
+
+    if include_edge_weights:
+        df["weights"] = weights
+        weights = "weights"
+    
+    if include_edge_ids:
+        df["edge_id"] = edge_id
+        edge_id = "edge_id"
+    
+    if include_edge_types:
+        df["edge_type"] = edge_type
+        edge_type = "edge_type"
+
     if create_using is None:
         return df
 
@@ -135,7 +182,9 @@ def _sg_rmat(
             "(or subclass) type or instance, got: "
             f"{type(create_using)}"
         )
-    G.from_cudf_edgelist(df, source="src", destination="dst", renumber=False)
+    G.from_cudf_edgelist(
+        df, source="src", destination="dst", weight=weights,
+        edge_id=edge_id, edge_type=edge_type, renumber=False)
 
     return G
 
@@ -149,6 +198,13 @@ def _mg_rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
+    include_edge_weights,
+    minimum_weight,
+    maximum_weight,
+    include_edge_ids,
+    include_edge_types,
+    min_edge_type,
+    max_edge_type,
     create_using=cugraph.Graph,
 ):
     """
@@ -254,12 +310,19 @@ def _calc_num_edges_per_worker(num_workers, num_edges):
 def rmat(
     scale,
     num_edges,
-    a,
-    b,
-    c,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids,
+    a=0.57,
+    b=0.19,
+    c=0.19,
+    seed=42,
+    clip_and_flip=False,
+    scramble_vertex_ids=False,
+    include_edge_weights=False,
+    minimum_weight=0.0,
+    maximum_weight=1.0,
+    include_edge_ids=False,
+    include_edge_types=False,
+    min_edge_type=0,
+    max_edge_type=5,
     create_using=cugraph.Graph,
     mg=False,
 ):
@@ -276,31 +339,60 @@ def rmat(
     num_edges : int
         Number of edges to generate
 
-    a : float
+    a : float, optional (default=0.57)
         Probability of the edge being in the first partition
         The Graph 500 spec sets this value to 0.57
 
-    b : float
+    b : float, optional (default=0.19)
         Probability of the edge being in the second partition
         The Graph 500 spec sets this value to 0.19
 
 
-    c : float
+    c : float, optional (default=0.19)
         Probability of the edge being in the third partition
         The Graph 500 spec sets this value to 0.19
 
     seed : int
         Seed value for the random number generator
 
-    clip_and_flip : bool
+    clip_and_flip : bool, optional (default=False)
         Flag controlling whether to generate edges only in the lower triangular
         part (including the diagonal) of the graph adjacency matrix
         (if set to 'true') or not (if set to 'false).
 
-    scramble_vertex_ids : bool
+    scramble_vertex_ids : bool, optional (default=False)
         Flag controlling whether to scramble vertex ID bits (if set to `true`)
         or not (if set to `false`); scrambling vertex ID bits breaks
         correlation between vertex ID values and vertex degrees.
+    
+    include_edge_weights : bool, optional (default=False)
+        Flag controlling whether to generate edges with weights
+        (if set to 'true') or not (if set to 'false').
+
+    minimum_weight : float, optional (default=0.0)
+        Minimum weight value to generate if 'include_edge_weights' is 'true'
+        otherwise, this parameter is ignored.
+    
+    maximum_weight : float, optional (default=1.0)
+        Maximum weight value to generate if 'include_edge_weights' is 'true'
+        otherwise, this parameter is ignored.
+
+    include_edge_ids : bool, optional (default=False)
+        Flag controlling whether to generate edges with ids
+        (if set to 'true') or not (if set to 'false').
+    
+    include_edge_types : bool, optional (default=False)
+        Flag controlling whether to generate edges with types
+        (if set to 'true') or not (if set to 'false').
+    
+    # FIXME: update default values for 'min_edge_type' and 'max_edge_type'
+    min_edge_type : int, optional (default=0)
+        Minimum edge type to generate if 'include_edge_types' is 'true'
+        otherwise, this parameter is ignored.
+
+    max_edge_type : int, optional (default=5)
+        Maximum edge type to generate if 'include_edge_types' is 'true'
+        otherwise, this paramter is ignored.
 
     create_using : cugraph Graph type or None The graph type to construct
         containing the generated edges and vertices.  If None is specified, the
@@ -373,6 +465,13 @@ def rmat(
             seed,
             clip_and_flip,
             scramble_vertex_ids,
+            include_edge_weights,
+            minimum_weight,
+            maximum_weight,
+            include_edge_ids,
+            include_edge_types,
+            min_edge_type,
+            max_edge_type,
             create_using,
         )
 
