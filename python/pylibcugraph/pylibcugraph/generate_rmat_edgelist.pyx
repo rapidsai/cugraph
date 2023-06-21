@@ -67,6 +67,7 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
                            bool_t include_edge_weights,
                            minimum_weight,
                            maximum_weight,
+                           dtype,
                            bool_t include_edge_ids,
                            bool_t include_edge_types,
                            min_edge_type,
@@ -120,6 +121,10 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
     
     maximum_weight : double
         Maximum weight value to generate (if 'include_edge_weights' is 'true')
+    
+    dtype : string
+        The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
+        include_weights is true
     
     include_edge_ids : bool
         Flag controlling whether to generate edges with ids
@@ -180,19 +185,23 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
     
     cdef cugraph_type_erased_device_array_view_t* edge_weights_view_ptr
     
-    # FIXME: Remove hardcoded dtype
-    cdef cugraph_data_type_id_t dtype = data_type_id_t.FLOAT32
-
+    cdef cugraph_data_type_id_t dtype_ 
+    
     cupy_edge_weights = None
     cupy_edge_ids = None
     cupy_edge_types = None
 
 
     if include_edge_weights:
+        if dtype == "FLOAT32":
+            dtype_  = data_type_id_t.FLOAT32
+        # The python API should have checked that an appropriate 'dtype' was passed
+        else:
+            dtype_  = data_type_id_t.FLOAT64
         error_code =  cugraph_generate_edge_weights(c_resource_handle_ptr,
                                                     rng_state_ptr,
                                                     result_coo_ptr,
-                                                    dtype,
+                                                    dtype_,
                                                     minimum_weight,
                                                     maximum_weight,
                                                     &error_ptr)
