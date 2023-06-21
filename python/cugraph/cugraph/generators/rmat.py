@@ -33,6 +33,14 @@ def _ensure_args_rmat(
     seed,
     clip_and_flip,
     scramble_vertex_ids,
+    include_edge_weights,
+    minimum_weight,
+    maximum_weight,
+    dtype,
+    include_edge_ids,
+    include_edge_types,
+    min_edge_type,
+    max_edge_type,
     create_using,
     mg,
 ):
@@ -67,6 +75,30 @@ def _ensure_args_rmat(
         raise ValueError("'scramble_vertex_ids' must be a bool")
     if not isinstance(seed, int):
         raise TypeError("'seed' must be an int")
+    if include_edge_weights:
+        if include_edge_weights not in [True, False]:
+            raise ValueError("'include_edge_weights' must be a bool")
+        if maximum_weight is None or minimum_weight is None:
+            raise ValueError(
+                "'maximum_weight' and 'minimum_weight' must not be 'None' "
+                "if 'include_edge_weights' is 'true'"
+            )
+        if dtype not in ["FLOAT32", "FLOAT64"]:
+            raise ValueError(
+                "dtype must be either 'FLOAT32' or 'FLOAT64' if 'include_edge_weights' "
+                "is 'true'"
+            )
+    if include_edge_ids:
+        if include_edge_ids not in [True, False]:
+            raise ValueError("'include_edge_ids' must be a bool")
+    if include_edge_types:
+        if include_edge_types not in [True, False]:
+            raise ValueError("'include_edge_types' must be a bool")
+        if min_edge_type is None and max_edge_type is None:
+            raise ValueError(
+                "'min_edge_type' and 'max_edge_type' must not be 'None' "
+                "if 'include_edge_types' is 'true'"
+            )
 
 
 def _ensure_args_multi_rmat(
@@ -117,6 +149,7 @@ def _sg_rmat(
     include_edge_weights,
     minimum_weight,
     maximum_weight,
+    dtype,
     include_edge_ids,
     include_edge_types,
     min_edge_type,
@@ -145,6 +178,7 @@ def _sg_rmat(
         include_edge_weights,
         minimum_weight,
         maximum_weight,
+        dtype,
         include_edge_ids,
         include_edge_types,
         min_edge_type,
@@ -201,6 +235,7 @@ def _mg_rmat(
     include_edge_weights,
     minimum_weight,
     maximum_weight,
+    dtype,
     include_edge_ids,
     include_edge_types,
     min_edge_type,
@@ -317,12 +352,13 @@ def rmat(
     clip_and_flip=False,
     scramble_vertex_ids=False,
     include_edge_weights=False,
-    minimum_weight=0.0,
-    maximum_weight=1.0,
+    minimum_weight=None,
+    maximum_weight=None,
+    dtype=None,
     include_edge_ids=False,
     include_edge_types=False,
-    min_edge_type=0,
-    max_edge_type=5,
+    min_edge_type=None,
+    max_edge_type=None,
     create_using=cugraph.Graph,
     mg=False,
 ):
@@ -439,6 +475,14 @@ def rmat(
         seed,
         clip_and_flip,
         scramble_vertex_ids,
+        include_edge_weights,
+        minimum_weight,
+        maximum_weight,
+        dtype,
+        include_edge_ids,
+        include_edge_types,
+        min_edge_type,
+        max_edge_type,
         create_using,
         mg,
     )
@@ -468,6 +512,7 @@ def rmat(
             include_edge_weights,
             minimum_weight,
             maximum_weight,
+            dtype,
             include_edge_ids,
             include_edge_types,
             min_edge_type,
