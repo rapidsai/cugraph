@@ -27,6 +27,7 @@ set(cython_sources
     ecg.pyx
     egonet.pyx
     eigenvector_centrality.pyx
+    generate_rmat_edgelist.pyx
     graph_properties.pyx
     graphs.pyx
     hits.pyx
