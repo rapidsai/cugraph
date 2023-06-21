@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dask.distributed import default_client
+from dask.distributed import default_client, wait
 import dask_cudf
 
 from cugraph.generators import rmat_wrapper
@@ -223,6 +223,23 @@ def _sg_rmat(
     return G
 
 
+def convert_to_cudf(cp_arrays):
+    cp_src, cp_dst, cp_edge_weights, cp_edge_ids, cp_edge_types = cp_arrays
+
+    df = cudf.DataFrame()
+    df["src"] = cp_src
+    df["dst"] = cp_dst
+
+    if cp_edge_weights is not None:
+        df["weights"] = cp_edge_weights
+    if cp_edge_ids is not None:
+        df["edge_id"] = cp_edge_ids
+    if cp_edge_types is not None:
+        df["edge_type"] = cp_edge_types
+    
+    return df
+
+
 def _mg_rmat(
     scale,
     num_edges,
@@ -254,7 +271,7 @@ def _mg_rmat(
     worker_list = list(client.scheduler_info()["workers"].keys())
     num_workers = len(worker_list)
     num_edges_list = _calc_num_edges_per_worker(num_workers, num_edges)
-    futures = []
+    result = []
     for (i, worker_num_edges) in enumerate(num_edges_list):
         unique_worker_seed = seed + i
         future = client.submit(
@@ -268,11 +285,25 @@ def _mg_rmat(
             unique_worker_seed,
             clip_and_flip,
             scramble_vertex_ids,
+            include_edge_weights,
+            minimum_weight,
+            maximum_weight,
+            dtype,
+            include_edge_ids,
+            include_edge_types,
+            min_edge_type,
+            max_edge_type,
             workers=worker_list[i],
         )
-        futures.append(future)
+        result.append(future)
 
-    ddf = dask_cudf.from_delayed(futures)
+    wait(result)
+
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result)
 
     if create_using is None:
         return ddf
@@ -288,9 +319,26 @@ def _mg_rmat(
             "(or subclass) type or instance, got: "
             f"{type(create_using)}"
         )
-    G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
+    
+    weights = None
+    edge_id = None
+    edge_type = None
+
+    if "weights" in ddf.columns:
+        weights = "weights"
+    
+    if "edge_id" in ddf.columns:
+        edge_id = "edge_id"
+    
+    if "edge_type" in ddf.columns:
+        edge_type = "edge_type"
+
+    G.from_dask_cudf_edgelist(
+        ddf, source="src", destination="dst", weight=weights,
+        edge_id=edge_id, edge_type=edge_type)
 
     return G
+
 
 
 def _call_rmat(
@@ -300,26 +348,42 @@ def _call_rmat(
     a,
     b,
     c,
-    unique_worker_seed,
+    random_state,
     clip_and_flip,
     scramble_vertex_ids,
+    include_edge_weights,
+    minimum_weight,
+    maximum_weight,
+    dtype,
+    include_edge_ids,
+    include_edge_types,
+    min_edge_type,
+    max_edge_type,
 ):
     """
     Callable passed to dask client.submit calls that extracts the individual
     worker handle based on the dask session ID
     """
-    handle = Comms.get_handle(sID)
+    multi_gpu = True
 
-    return rmat_wrapper.generate_rmat_edgelist(
+    return pylibcugraph_generate_rmat_edgelist(
+        ResourceHandle(Comms.get_handle(sID).getHandle()),
+        random_state,
         scale,
         num_edges_for_worker,
         a,
         b,
         c,
-        unique_worker_seed,
         clip_and_flip,
-        scramble_vertex_ids,
-        handle=handle,
+        include_edge_weights,
+        minimum_weight,
+        maximum_weight,
+        dtype,
+        include_edge_ids,
+        include_edge_types,
+        min_edge_type,
+        max_edge_type,
+        multi_gpu,
     )
 
 
@@ -388,7 +452,7 @@ def rmat(
         Probability of the edge being in the third partition
         The Graph 500 spec sets this value to 0.19
 
-    seed : int
+    seed : int, optional (default=42)
         Seed value for the random number generator
 
     clip_and_flip : bool, optional (default=False)
@@ -405,11 +469,11 @@ def rmat(
         Flag controlling whether to generate edges with weights
         (if set to 'true') or not (if set to 'false').
 
-    minimum_weight : float, optional (default=0.0)
+    minimum_weight : float
         Minimum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
     
-    maximum_weight : float, optional (default=1.0)
+    maximum_weight : float
         Maximum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
 
@@ -420,13 +484,12 @@ def rmat(
     include_edge_types : bool, optional (default=False)
         Flag controlling whether to generate edges with types
         (if set to 'true') or not (if set to 'false').
-    
-    # FIXME: update default values for 'min_edge_type' and 'max_edge_type'
-    min_edge_type : int, optional (default=0)
+
+    min_edge_type : int
         Minimum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this parameter is ignored.
 
-    max_edge_type : int, optional (default=5)
+    max_edge_type : int
         Maximum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this paramter is ignored.
 
@@ -497,6 +560,14 @@ def rmat(
             seed,
             clip_and_flip,
             scramble_vertex_ids,
+            include_edge_weights,
+            minimum_weight,
+            maximum_weight,
+            dtype,
+            include_edge_ids,
+            include_edge_types,
+            min_edge_type,
+            max_edge_type,
             create_using,
         )
     else:
