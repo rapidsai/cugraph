@@ -44,7 +44,7 @@ def _ensure_args_rmat(
     max_edge_type=None,
     create_using=None,
     mg=None,
-    multi_rmat = False,
+    multi_rmat=False,
 ):
     """
     Ensures the args passed in are usable for the rmat() API, raises the
@@ -65,7 +65,7 @@ def _ensure_args_rmat(
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-    
+
     if multi_rmat is False:
         if not isinstance(scale, int):
             raise TypeError("'scale' must be an int")
@@ -197,11 +197,11 @@ def _sg_rmat(
     if include_edge_weights:
         df["weights"] = weights
         weights = "weights"
-    
+
     if include_edge_ids:
         df["edge_id"] = edge_id
         edge_id = "edge_id"
-    
+
     if include_edge_types:
         df["edge_type"] = edge_type
         edge_type = "edge_type"
@@ -221,8 +221,14 @@ def _sg_rmat(
             f"{type(create_using)}"
         )
     G.from_cudf_edgelist(
-        df, source="src", destination="dst", weight=weights,
-        edge_id=edge_id, edge_type=edge_type, renumber=False)
+        df,
+        source="src",
+        destination="dst",
+        weight=weights,
+        edge_id=edge_id,
+        edge_type=edge_type,
+        renumber=False,
+    )
 
     return G
 
@@ -240,7 +246,7 @@ def convert_to_cudf(cp_arrays):
         df["edge_id"] = cp_edge_ids
     if cp_edge_types is not None:
         df["edge_type"] = cp_edge_types
-    
+
     return df
 
 
@@ -323,26 +329,30 @@ def _mg_rmat(
             "(or subclass) type or instance, got: "
             f"{type(create_using)}"
         )
-    
+
     weights = None
     edge_id = None
     edge_type = None
 
     if "weights" in ddf.columns:
         weights = "weights"
-    
+
     if "edge_id" in ddf.columns:
         edge_id = "edge_id"
-    
+
     if "edge_type" in ddf.columns:
         edge_type = "edge_type"
 
     G.from_dask_cudf_edgelist(
-        ddf, source="src", destination="dst", weight=weights,
-        edge_id=edge_id, edge_type=edge_type)
+        ddf,
+        source="src",
+        destination="dst",
+        weight=weights,
+        edge_id=edge_id,
+        edge_type=edge_type,
+    )
 
     return G
-
 
 
 def _call_rmat(
@@ -468,7 +478,7 @@ def rmat(
         Flag controlling whether to scramble vertex ID bits (if set to `true`)
         or not (if set to `false`); scrambling vertex ID bits breaks
         correlation between vertex ID values and vertex degrees.
-    
+
     include_edge_weights : bool, optional (default=False)
         Flag controlling whether to generate edges with weights
         (if set to 'true') or not (if set to 'false').
@@ -476,7 +486,7 @@ def rmat(
     minimum_weight : float
         Minimum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
-    
+
     maximum_weight : float
         Maximum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
@@ -484,7 +494,7 @@ def rmat(
     include_edge_ids : bool, optional (default=False)
         Flag controlling whether to generate edges with ids
         (if set to 'true') or not (if set to 'false').
-    
+
     include_edge_types : bool, optional (default=False)
         Flag controlling whether to generate edges with types
         (if set to 'true') or not (if set to 'false').
@@ -656,7 +666,7 @@ def multi_rmat(
         Flag controlling whether to scramble vertex ID bits (if set to 'true')
         or not (if set to 'false'); scrambling vertx ID bits breaks correlation
         between vertex ID values and vertex degrees
-    
+
     include_edge_weights : bool, optional (default=False)
         Flag controlling whether to generate edges with weights
         (if set to 'true') or not (if set to 'false').
@@ -664,7 +674,7 @@ def multi_rmat(
     minimum_weight : float
         Minimum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
-    
+
     maximum_weight : float
         Maximum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
@@ -672,7 +682,7 @@ def multi_rmat(
     include_edge_ids : bool, optional (default=False)
         Flag controlling whether to generate edges with ids
         (if set to 'true') or not (if set to 'false').
-    
+
     include_edge_types : bool, optional (default=False)
         Flag controlling whether to generate edges with types
         (if set to 'true') or not (if set to 'false').
@@ -725,7 +735,7 @@ def multi_rmat(
         include_edge_types=include_edge_types,
         min_edge_type=min_edge_type,
         max_edge_type=max_edge_type,
-        multi_rmat = True,
+        multi_rmat=True,
     )
 
     edgelists = pylibcugraph_generate_rmat_edgelists(
@@ -766,7 +776,7 @@ def multi_rmat(
         if edge_type is not None:
             df["edge_type"] = edge_type
             edge_type = "edge_type"
-        
+
         dfs.append(df)
 
     list_G = []
@@ -774,8 +784,13 @@ def multi_rmat(
     for df in dfs:
         G = cugraph.Graph()
         G.from_cudf_edgelist(
-            df, source="src", destination="dst", weight=weights,
-            edge_id=edge_id, edge_type=edge_type)
+            df,
+            source="src",
+            destination="dst",
+            weight=weights,
+            edge_id=edge_id,
+            edge_type=edge_type,
+        )
         list_G.append(G)
 
     return list_G
