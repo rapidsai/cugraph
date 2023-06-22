@@ -19,30 +19,32 @@ from cugraph.dask.comms import comms as Comms
 import cudf
 import cugraph
 from pylibcugraph import generate_rmat_edgelist as pylibcugraph_generate_rmat_edgelist
+from pylibcugraph import generate_rmat_edgelists as pylibcugraph_generate_rmat_edgelists
 from pylibcugraph import ResourceHandle
 
 _graph_types = [cugraph.Graph, cugraph.MultiGraph]
 
 
 def _ensure_args_rmat(
-    scale,
-    num_edges,
-    a,
-    b,
-    c,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids,
-    include_edge_weights,
-    minimum_weight,
-    maximum_weight,
-    dtype,
-    include_edge_ids,
-    include_edge_types,
-    min_edge_type,
-    max_edge_type,
-    create_using,
-    mg,
+    scale=None,
+    num_edges=None,
+    a=None,
+    b=None,
+    c=None,
+    seed=None,
+    clip_and_flip=None,
+    scramble_vertex_ids=None,
+    include_edge_weights=None,
+    minimum_weight=None,
+    maximum_weight=None,
+    dtype=None,
+    include_edge_ids=None,
+    include_edge_types=None,
+    min_edge_type=None,
+    max_edge_type=None,
+    create_using=None,
+    mg=None,
+    multi_rmat = False,
 ):
     """
     Ensures the args passed in are usable for the rmat() API, raises the
@@ -63,18 +65,20 @@ def _ensure_args_rmat(
                 "(or subclass) type or instance, got: "
                 f"{type(create_using)}"
             )
-    if not isinstance(scale, int):
-        raise TypeError("'scale' must be an int")
-    if not isinstance(num_edges, int):
-        raise TypeError("'num_edges' must be an int")
-    if a + b + c > 1:
-        raise ValueError("a + b + c should be non-negative and no larger than 1.0")
-    if clip_and_flip not in [True, False]:
-        raise ValueError("'clip_and_flip' must be a bool")
-    if scramble_vertex_ids not in [True, False]:
-        raise ValueError("'scramble_vertex_ids' must be a bool")
-    if not isinstance(seed, int):
-        raise TypeError("'seed' must be an int")
+    
+    if multi_rmat is False:
+        if not isinstance(scale, int):
+            raise TypeError("'scale' must be an int")
+        if not isinstance(num_edges, int):
+            raise TypeError("'num_edges' must be an int")
+        if a + b + c > 1:
+            raise ValueError("a + b + c should be non-negative and no larger than 1.0")
+        if clip_and_flip not in [True, False]:
+            raise ValueError("'clip_and_flip' must be a bool")
+        if scramble_vertex_ids not in [True, False]:
+            raise ValueError("'scramble_vertex_ids' must be a bool")
+        if not isinstance(seed, int):
+            raise TypeError("'seed' must be an int")
     if include_edge_weights:
         if include_edge_weights not in [True, False]:
             raise ValueError("'include_edge_weights' must be a bool")
@@ -599,9 +603,18 @@ def multi_rmat(
     edge_factor,
     size_distribution,
     edge_distribution,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids,
+    seed=42,
+    clip_and_flip=False,
+    scramble_vertex_ids=False,
+    include_edge_weights=False,
+    minimum_weight=None,
+    maximum_weight=None,
+    dtype=None,
+    include_edge_ids=False,
+    include_edge_types=False,
+    min_edge_type=None,
+    max_edge_type=None,
+    mg=False,
 ):
     """
     Generate multiple Graph objects using a Recursive MATrix (R-MAT) graph
@@ -643,6 +656,46 @@ def multi_rmat(
         Flag controlling whether to scramble vertex ID bits (if set to 'true')
         or not (if set to 'false'); scrambling vertx ID bits breaks correlation
         between vertex ID values and vertex degrees
+    
+    include_edge_weights : bool, optional (default=False)
+        Flag controlling whether to generate edges with weights
+        (if set to 'true') or not (if set to 'false').
+
+    minimum_weight : float
+        Minimum weight value to generate if 'include_edge_weights' is 'true'
+        otherwise, this parameter is ignored.
+    
+    maximum_weight : float
+        Maximum weight value to generate if 'include_edge_weights' is 'true'
+        otherwise, this parameter is ignored.
+
+    include_edge_ids : bool, optional (default=False)
+        Flag controlling whether to generate edges with ids
+        (if set to 'true') or not (if set to 'false').
+    
+    include_edge_types : bool, optional (default=False)
+        Flag controlling whether to generate edges with types
+        (if set to 'true') or not (if set to 'false').
+
+    min_edge_type : int
+        Minimum edge type to generate if 'include_edge_types' is 'true'
+        otherwise, this parameter is ignored.
+
+    max_edge_type : int
+        Maximum edge type to generate if 'include_edge_types' is 'true'
+        otherwise, this paramter is ignored.
+
+    create_using : cugraph Graph type or None The graph type to construct
+        containing the generated edges and vertices.  If None is specified, the
+        edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned
+        as-is. This is useful for benchmarking Graph construction steps that
+        require raw data that includes potential self-loops, isolated vertices,
+        and duplicated edges.  Default is cugraph.Graph.
+
+    mg : bool, optional (default=False)
+        If True, R-MATs generation occurs across multiple GPUs. If False, only a
+        single GPU is used.  Default is False (single-GPU)
+        # FIXME: multi GPU RMATs generation not supported yet.
 
     Returns
     -------
@@ -660,22 +713,69 @@ def multi_rmat(
         scramble_vertex_ids,
     )
 
-    dfs = rmat_wrapper.generate_rmat_edgelists(
+    # FIXME: consolidate '_ensure_args_rmat' and '_ensure_args_multi_rmat'
+    # to have a single function check since both implementations share similar
+    # arguments now
+    _ensure_args_rmat(
+        include_edge_weights=include_edge_weights,
+        minimum_weight=minimum_weight,
+        maximum_weight=maximum_weight,
+        dtype=dtype,
+        include_edge_ids=include_edge_ids,
+        include_edge_types=include_edge_types,
+        min_edge_type=min_edge_type,
+        max_edge_type=max_edge_type,
+        multi_rmat = True,
+    )
+
+    edgelists = pylibcugraph_generate_rmat_edgelists(
+        ResourceHandle(),
+        seed,
         n_edgelists,
         min_scale,
         max_scale,
         edge_factor,
         size_distribution,
         edge_distribution,
-        seed,
         clip_and_flip,
-        scramble_vertex_ids,
+        include_edge_weights,
+        minimum_weight,
+        maximum_weight,
+        dtype,
+        include_edge_ids,
+        include_edge_types,
+        min_edge_type,
+        max_edge_type,
+        mg,
     )
+
+    dfs = []
+
+    for edgelist in edgelists:
+        src, dst, weights, edge_id, edge_type = edgelist
+        df = cudf.DataFrame()
+        df["src"] = src
+        df["dst"] = dst
+        if weights is not None:
+            df["weights"] = weights
+            weights = "weights"
+
+        if edge_id is not None:
+            df["edge_id"] = edge_id
+            edge_id = "edge_id"
+        if edge_type is not None:
+            df["edge_type"] = edge_type
+            edge_type = "edge_type"
+        
+        dfs.append(df)
+
     list_G = []
 
     for df in dfs:
         G = cugraph.Graph()
-        G.from_cudf_edgelist(df, source="src", destination="dst")
+        G.from_cudf_edgelist(
+            df, source="src", destination="dst", weight=weights,
+            edge_id=edge_id, edge_type=edge_type)
         list_G.append(G)
 
     return list_G
