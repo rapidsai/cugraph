@@ -83,7 +83,7 @@ cdef extern from "cugraph_c/graph_generators.h":
         )
 
     cdef void \
-        cugraph_list_coo_free(
+        cugraph_coo_list_free(
             cugraph_coo_list_t* coo_list
         )
 
