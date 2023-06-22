@@ -134,11 +134,11 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
         Flag controlling whether to generate edges with types
         (if set to 'true') or not (if set to 'false').
     
-    min_edge_type : int, optional (default=0)
+    min_edge_type : int
         Minimum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this parameter is ignored.
 
-    max_edge_type : int, optional (default=5)
+    max_edge_type : int
         Maximum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this paramter is ignored.
     
