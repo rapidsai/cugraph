@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 import pandas as pd
 import cupy as cp
+import cupyx
 from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
@@ -26,6 +27,7 @@ from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
 import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 import cugraph
 from cugraph.testing import utils
@@ -381,6 +383,18 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 
 @pytest.mark.sg
+def test_sssp_networkx_edge_attr():
+    G = nx.Graph()
+    G.add_edge(0, 1, other=10)
+    G.add_edge(1, 2, other=20)
+    df = cugraph.sssp(G, 0, edge_attr="other")
+    df = df.set_index("vertex")
+    assert df.loc[0, "distance"] == 0
+    assert df.loc[1, "distance"] == 10
+    assert df.loc[2, "distance"] == 30
+
+
+@pytest.mark.sg
 def test_scipy_api_compat():
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()
@@ -448,3 +462,58 @@ def test_scipy_api_compat():
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_coo_matrix, indices=[0, 1, 2])
     cugraph.shortest_path(input_coo_matrix, indices=0)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+def test_sssp_csr_graph(graph_file):
+    df = graph_file.get_edgelist()
+
+    M = cupyx.scipy.sparse.coo_matrix(
+        (df["wgt"].to_cupy(), (df["src"].to_cupy(), df["dst"].to_cupy()))
+    )
+    M = M.tocsr()
+
+    offsets = cudf.Series(M.indptr)
+    indices = cudf.Series(M.indices)
+    weights = cudf.Series(M.data)
+    G_csr = cugraph.Graph()
+    G_coo = graph_file.get_graph()
+
+    source = G_coo.select_random_vertices(num_vertices=1)[0]
+
+    print("source = ", source)
+
+    G_csr.from_cudf_adjlist(offsets, indices, weights)
+
+    result_csr = cugraph.sssp(G_csr, source)
+    result_coo = cugraph.sssp(G_coo, source)
+
+    result_csr = result_csr.sort_values("vertex").reset_index(drop=True)
+    result_sssp = (
+        result_coo.sort_values("vertex")
+        .reset_index(drop=True)
+        .rename(columns={"distance": "distance_coo", "predecessor": "predecessor_coo"})
+    )
+    result_sssp["distance_csr"] = result_csr["distance"]
+    result_sssp["predecessor_csr"] = result_csr["predecessor"]
+
+    distance_diffs = result_sssp.query("distance_csr != distance_coo")
+    predecessor_diffs = result_sssp.query("predecessor_csr != predecessor_coo")
+
+    assert len(distance_diffs) == 0
+    assert len(predecessor_diffs) == 0
+
+
+@pytest.mark.sg
+def test_sssp_unweighted_graph():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph(ignore_weights=True)
+
+    error_msg = (
+        "'SSSP' requires the input graph to be weighted."
+        "'BFS' should be used instead of 'SSSP' for unweighted graphs."
+    )
+
+    with pytest.raises(RuntimeError, match=error_msg):
+        cugraph.sssp(G, 1)
