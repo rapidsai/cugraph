@@ -31,7 +31,7 @@ class HomogenousBulkSamplerDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         total_number_of_nodes: int,
-        edge_dir: bool,
+        edge_dir: str,
     ):
         self.total_number_of_nodes = total_number_of_nodes
         self.edge_dir = edge_dir

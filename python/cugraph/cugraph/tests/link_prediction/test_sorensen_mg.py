@@ -156,7 +156,7 @@ def test_dask_sorensen(dask_client, benchmark, input_expected_output):
 
 
 @pytest.mark.mg
-def test_dask_weighted_sorensen():
+def test_dask_weighted_sorensen(dask_client):
     input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
