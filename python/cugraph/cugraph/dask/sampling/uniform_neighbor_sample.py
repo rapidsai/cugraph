@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import gc
+
 import numpy
 from dask import delayed
 from dask.distributed import wait, Lock, get_client
@@ -28,9 +30,15 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
 from cugraph.dask.comms import comms as Comms
+from cugraph.dask import get_n_workers
 
 from typing import Sequence, List, Union, Tuple
 from typing import TYPE_CHECKING
+
+from cugraph.dask.common.part_utils import (
+    get_persisted_df_worker_map,
+    persist_dask_df_equal_parts_per_worker,
+)
 
 if TYPE_CHECKING:
     from cugraph import Graph
@@ -150,12 +158,24 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         return df
 
 
+def __get_label_to_output_comm_rank(min_batch_id, max_batch_id, n_workers):
+    num_batches = max_batch_id - min_batch_id + 1
+    z = cp.zeros(num_batches, dtype="int32")
+    s = cp.array_split(cp.arange(num_batches), n_workers)
+    for i, t in enumerate(s):
+        z[t] = i
+
+    return z
+
+
 def _call_plc_uniform_neighbor_sample(
     sID,
     mg_graph_x,
     st_x,
-    label_list,
-    label_to_output_comm_rank,
+    keep_batches_together,
+    n_workers,
+    min_batch_id,
+    max_batch_id,
     fanout_vals,
     with_replacement,
     weight_t,
@@ -163,8 +183,16 @@ def _call_plc_uniform_neighbor_sample(
     random_state=None,
     return_offsets=False,
 ):
+    st_x = st_x[0]
     start_list_x = st_x[start_col_name]
     batch_id_list_x = st_x[batch_col_name] if batch_col_name in st_x else None
+
+    label_list = None
+    label_to_output_comm_rank = None
+    if keep_batches_together:
+        label_list = cp.arange(min_batch_id, max_batch_id + 1, dtype='int32')
+        label_to_output_comm_rank = __get_label_to_output_comm_rank(min_batch_id, max_batch_id, n_workers)
+
     cp_arrays = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
@@ -188,8 +216,9 @@ def _mg_call_plc_uniform_neighbor_sample(
     session_id,
     input_graph,
     ddf,
-    label_list,
-    label_to_output_comm_rank,
+    keep_batches_together,
+    min_batch_id,
+    max_batch_id,
     fanout_vals,
     with_replacement,
     weight_t,
@@ -198,27 +227,30 @@ def _mg_call_plc_uniform_neighbor_sample(
     random_state,
     return_offsets=False,
 ):
-    result = [
-        client.submit(
-            _call_plc_uniform_neighbor_sample,
+    n_workers = None
+    if keep_batches_together:
+        n_workers = get_n_workers()
+
+    delayed_tasks = {
+        w: delayed(_call_plc_uniform_neighbor_sample)(
             session_id,
             input_graph._plc_graph[w],
-            ddf[w][0],
-            label_list,
-            label_to_output_comm_rank,
+            starts,
+            keep_batches_together,
+            n_workers,
+            min_batch_id,
+            max_batch_id,
             fanout_vals,
             with_replacement,
             weight_t=weight_t,
             with_edge_properties=with_edge_properties,
             # FIXME accept and properly transmute a numpy/cupy random state.
-            random_state=hash((random_state, i)),
-            workers=[w],
-            allow_other_workers=False,
-            pure=False,
+            random_state=hash((random_state, w)),
             return_offsets=return_offsets,
         )
-        for i, w in enumerate(Comms.get_workers())
-    ]
+        for w,starts in ddf.items()
+    }
+    del ddf
 
     empty_df = (
         create_empty_df_with_edge_props(
@@ -228,6 +260,16 @@ def _mg_call_plc_uniform_neighbor_sample(
         else create_empty_df(indices_t, weight_t)
     )
 
+    result = [
+        client.compute(
+            task,
+            workers=[w],
+            allow_other_workers=False,
+            pure=False,
+        )
+        for w, task in delayed_tasks.items()
+    ]
+
     if return_offsets:
         result = [delayed(lambda x: x, nout=2)(r) for r in result]
         ddf = dask_cudf.from_delayed(
@@ -236,14 +278,18 @@ def _mg_call_plc_uniform_neighbor_sample(
         ddf_offsets = dask_cudf.from_delayed(
             [r[1] for r in result], meta=empty_df[1], verify_meta=False
         ).persist()
-        wait(ddf)
-        wait(ddf_offsets)
-        wait([r.release() for r in result])
+        #wait(ddf)
+        #wait(ddf_offsets)
+        #wait([r.release() for r in result])
+        del result
+
         return ddf, ddf_offsets
     else:
         ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
-        wait(ddf)
-        wait([r.release() for r in result])
+        #wait(ddf)
+        #wait([r.release() for r in result])
+        del result
+
         return ddf
 
 
@@ -254,8 +300,9 @@ def uniform_neighbor_sample(
     with_replacement: bool = True,
     with_edge_properties: bool = False,
     batch_id_list: Sequence = None,
-    label_list: Sequence = None,
-    label_to_output_comm_rank: bool = None,
+    keep_batches_together = False,
+    min_batch_id=None,
+    max_batch_id=None,
     random_state: int = None,
     return_offsets: bool = False,
     _multiple_clients: bool = False,
@@ -288,16 +335,15 @@ def uniform_neighbor_sample(
         List of batch ids that will be returned with the sampled edges if
         with_edge_properties is set to True.
 
-    label_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
-        List of unique batch id labels.  Used along with
-        label_to_output_comm_rank to assign batch ids to GPUs.
+    keep_batches_together: bool (optional, default=False)
+        If True, will ensure that the returned samples for each batch are on the
+        same partition.
 
-    label_to_out_comm_rank: cudf.Series or dask_cudf.Series (int32),
-    optional (default=None)
-        List of output GPUs (by rank) corresponding to batch
-        id labels in the label list.  Used to assign each batch
-        id to a GPU.
-        Must be in ascending order (i.e. [0, 0, 1, 2]).
+    min_batch_id: int (optional, default=None)
+        Required for the keep_batches_together option.  The minimum batch id.
+    
+    max_batch_id: int (optional, default=None)
+        Required for the keep_batches_together option.  The maximum batch id.
 
     random_state: int, optional
         Random seed to use when making sampling calls.
@@ -373,9 +419,13 @@ def uniform_neighbor_sample(
                 input_graph.renumber_map.renumbered_src_col_name
             ].dtype,
         )
-
     elif with_edge_properties and batch_id_list is None:
         batch_id_list = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
+
+    if keep_batches_together and min_batch_id is None:
+        raise ValueError('must provide min_batch_id if using keep_batches_together option')
+    if keep_batches_together and max_batch_id is None:
+        raise ValueError('must provide max_batch_id if using keep_batches_together option')
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -424,16 +474,19 @@ def uniform_neighbor_sample(
     if input_graph.renumbered:
         ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
 
-    if hasattr(ddf, "compute"):
-        ddf = get_distributed_data(ddf)
-        wait(ddf)
-        ddf = ddf.worker_to_parts
-    else:
-        splits = cp.array_split(cp.arange(len(ddf)), len(Comms.get_workers()))
-        ddf = {w: [ddf.iloc[splits[i]]] for i, w in enumerate(Comms.get_workers())}
-
     client = get_client()
     session_id = Comms.get_session_id()
+    n_workers = get_n_workers()
+
+    if not hasattr(ddf, 'compute'):
+        ddf = dask_cudf.from_cudf(ddf, npartitions=n_workers)
+
+    ddf = ddf.repartition(npartitions=n_workers)
+    ddf = ddf.map_partitions(lambda df: df.copy())
+    ddf = persist_dask_df_equal_parts_per_worker(ddf, client)
+
+    ddf = get_persisted_df_worker_map(ddf, client)
+
     if _multiple_clients:
         # Distributed centralized lock to allow
         # two disconnected processes (clients) to coordinate a lock
@@ -446,8 +499,9 @@ def uniform_neighbor_sample(
                     session_id=session_id,
                     input_graph=input_graph,
                     ddf=ddf,
-                    label_list=label_list,
-                    label_to_output_comm_rank=label_to_output_comm_rank,
+                    keep_batches_together=keep_batches_together,
+                    min_batch_id=min_batch_id,
+                    max_batch_id=max_batch_id,
                     fanout_vals=fanout_vals,
                     with_replacement=with_replacement,
                     weight_t=weight_t,
@@ -468,8 +522,9 @@ def uniform_neighbor_sample(
             session_id=session_id,
             input_graph=input_graph,
             ddf=ddf,
-            label_list=label_list,
-            label_to_output_comm_rank=label_to_output_comm_rank,
+            keep_batches_together=keep_batches_together,
+            min_batch_id=min_batch_id,
+            max_batch_id=max_batch_id,
             fanout_vals=fanout_vals,
             with_replacement=with_replacement,
             weight_t=weight_t,
