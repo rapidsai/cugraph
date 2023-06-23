@@ -1,0 +1,144 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --scheduler-file /root/work/cugraph/mg_utils/dask-scheduler.json
+                "
+/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2023-06-22 22:40:01,796 - distributed.scheduler - INFO - -----------------------------------------------
+2023-06-22 22:40:02,271 - distributed.scheduler - INFO - State start
+2023-06-22 22:40:02,644 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-ftgfz8yh', purging
+2023-06-22 22:40:02,646 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-x_bncqda', purging
+2023-06-22 22:40:02,646 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-cw9dgv_1', purging
+2023-06-22 22:40:02,646 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-zvesuwg9', purging
+2023-06-22 22:40:02,646 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-0d2u_aa8', purging
+2023-06-22 22:40:02,647 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-fw55cnw9', purging
+2023-06-22 22:40:02,647 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-neob8xd0', purging
+2023-06-22 22:40:02,647 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-q4ynrdsk', purging
+2023-06-22 22:40:02,660 - distributed.scheduler - INFO - -----------------------------------------------
+2023-06-22 22:40:02,661 - distributed.scheduler - INFO -   Scheduler at:  tcp://10.33.227.169:8786
+2023-06-22 22:40:02,662 - distributed.scheduler - INFO -   dashboard at:  http://10.33.227.169:8787/status
+2023-06-22 22:40:13,267 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:34219', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,512 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:34219
+2023-06-22 22:40:13,512 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35100
+2023-06-22 22:40:13,522 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:39251', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,522 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:39251
+2023-06-22 22:40:13,523 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35136
+2023-06-22 22:40:13,523 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:41231', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,524 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:41231
+2023-06-22 22:40:13,524 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35144
+2023-06-22 22:40:13,524 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:43695', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,524 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:43695
+2023-06-22 22:40:13,525 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35116
+2023-06-22 22:40:13,525 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:44625', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,526 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:44625
+2023-06-22 22:40:13,526 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35130
+2023-06-22 22:40:13,526 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:42151', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,527 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:42151
+2023-06-22 22:40:13,527 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35120
+2023-06-22 22:40:13,527 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:34817', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,528 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:34817
+2023-06-22 22:40:13,528 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35152
+2023-06-22 22:40:13,528 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:36997', status: init, memory: 0, processing: 0>
+2023-06-22 22:40:13,529 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:36997
+2023-06-22 22:40:13,529 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35154
+2023-06-22 22:40:13,604 - distributed.scheduler - INFO - Receive client connection: Client-c0914897-114d-11ee-8e66-d8c49778ced7
+2023-06-22 22:40:13,604 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35164
+2023-06-22 22:40:13,686 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2023-06-22 22:41:02,419 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 7.88s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 22:41:04,797 - distributed.worker - INFO - Run out-of-band function 'lambda'
+2023-06-22 22:41:06,122 - distributed.scheduler - INFO - Remove client Client-c0914897-114d-11ee-8e66-d8c49778ced7
+2023-06-22 22:41:06,125 - distributed.core - INFO - Received 'close-stream' from tcp://10.33.227.169:35164; closing.
+2023-06-22 22:41:06,125 - distributed.scheduler - INFO - Remove client Client-c0914897-114d-11ee-8e66-d8c49778ced7
+2023-06-22 22:41:06,127 - distributed.scheduler - INFO - Close client connection: Client-c0914897-114d-11ee-8e66-d8c49778ced7
+2023-06-22 22:46:46,046 - distributed._signals - INFO - Received signal SIGINT (2)
+2023-06-22 22:46:46,047 - distributed.core - INFO - Connection to tcp://10.33.227.169:35144 has been closed.
+2023-06-22 22:46:46,047 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:41231', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,048 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:41231
+2023-06-22 22:46:46,050 - distributed.core - INFO - Connection to tcp://10.33.227.169:35136 has been closed.
+2023-06-22 22:46:46,051 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:39251', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,051 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:39251
+2023-06-22 22:46:46,051 - distributed.core - INFO - Connection to tcp://10.33.227.169:35152 has been closed.
+2023-06-22 22:46:46,051 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:34817', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,051 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:34817
+2023-06-22 22:46:46,051 - distributed.core - INFO - Connection to tcp://10.33.227.169:35130 has been closed.
+2023-06-22 22:46:46,051 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:44625', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,051 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:44625
+2023-06-22 22:46:46,052 - distributed.core - INFO - Connection to tcp://10.33.227.169:35116 has been closed.
+2023-06-22 22:46:46,052 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:43695', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,052 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:43695
+2023-06-22 22:46:46,052 - distributed.core - INFO - Connection to tcp://10.33.227.169:35120 has been closed.
+2023-06-22 22:46:46,052 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:42151', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,052 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:42151
+2023-06-22 22:46:46,052 - distributed.core - INFO - Connection to tcp://10.33.227.169:35154 has been closed.
+2023-06-22 22:46:46,053 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:36997', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,053 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:36997
+2023-06-22 22:46:46,053 - distributed.core - INFO - Connection to tcp://10.33.227.169:35100 has been closed.
+2023-06-22 22:46:46,053 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:34219', status: running, memory: 0, processing: 0>
+2023-06-22 22:46:46,053 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:34219
+2023-06-22 22:46:46,053 - distributed.scheduler - INFO - Lost all workers
+2023-06-22 22:46:46,054 - distributed.scheduler - INFO - Scheduler closing...
+2023-06-22 22:46:46,055 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35100>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,056 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35152>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,056 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35154>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,057 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35136>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,057 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35120>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,057 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35116>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,057 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35130>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 22:46:46,058 - distributed.scheduler - INFO - Scheduler closing all comms
+2023-06-22 22:46:46,060 - distributed.scheduler - INFO - Stopped scheduler at 'tcp://10.33.227.169:8786'
+2023-06-22 22:46:46,061 - distributed.scheduler - INFO - End scheduler

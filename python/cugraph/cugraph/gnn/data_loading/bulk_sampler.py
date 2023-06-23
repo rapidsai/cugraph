@@ -232,13 +232,3 @@ class EXPERIMENTAL__BulkSampler:
         write_samples(
             samples, offsets, self.__batches_per_partition, self.__output_path
         )
-
-    def __get_label_to_output_comm_rank(self, min_batch_id, max_batch_id):
-        num_workers = dask_cugraph.get_n_workers()
-        num_batches = max_batch_id - min_batch_id + 1
-        z = cupy.zeros(num_batches, dtype="int32")
-        s = cupy.array_split(cupy.arange(num_batches), num_workers)
-        for i, t in enumerate(s):
-            z[t] = i
-
-        return cudf.Series(z)

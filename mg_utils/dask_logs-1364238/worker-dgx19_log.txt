@@ -1,0 +1,1138 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=12G
+             --local-directory=/tmp/
+             --scheduler-file=/root/work/cugraph/mg_utils/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2023-06-22 20:08:22,638 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:38149'
+2023-06-22 20:08:22,641 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:33633'
+2023-06-22 20:08:22,645 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:35971'
+2023-06-22 20:08:22,646 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:42297'
+2023-06-22 20:08:22,648 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:45203'
+2023-06-22 20:08:22,651 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:46107'
+2023-06-22 20:08:22,653 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:46243'
+2023-06-22 20:08:22,656 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:37427'
+2023-06-22 20:08:24,050 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-419onhc0', purging
+2023-06-22 20:08:24,051 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-4upvs95a', purging
+2023-06-22 20:08:24,051 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-c1i8t431', purging
+2023-06-22 20:08:24,051 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-o7xi2bcf', purging
+2023-06-22 20:08:24,052 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-7d0g5fbc', purging
+2023-06-22 20:08:24,052 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-xoehcmxi', purging
+2023-06-22 20:08:24,052 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-jcltvmjj', purging
+2023-06-22 20:08:24,062 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,062 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,178 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,178 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,186 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,186 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,190 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,190 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,190 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,190 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,191 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,192 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,199 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,199 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,204 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-22 20:08:24,204 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-22 20:08:24,505 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,642 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,645 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,648 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,651 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,654 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,655 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:24,662 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-22 20:08:27,099 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:35889
+2023-06-22 20:08:27,100 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:35889
+2023-06-22 20:08:27,100 - distributed.worker - INFO -          dashboard at:        10.33.227.169:43849
+2023-06-22 20:08:27,100 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,100 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,100 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,100 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,100 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-dvgolmmm
+2023-06-22 20:08:27,101 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-372ad896-8e74-4290-9f13-11537340f478
+2023-06-22 20:08:27,101 - distributed.worker - INFO - Starting Worker plugin RMMSetup-d45fbdba-757e-4c2f-91c8-4d329185f107
+2023-06-22 20:08:27,131 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:42147
+2023-06-22 20:08:27,131 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:42147
+2023-06-22 20:08:27,131 - distributed.worker - INFO -          dashboard at:        10.33.227.169:33815
+2023-06-22 20:08:27,131 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,131 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,131 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,131 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,131 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-ozl47s1b
+2023-06-22 20:08:27,132 - distributed.worker - INFO - Starting Worker plugin RMMSetup-cfd0face-9b1e-4a30-939a-581cb9f1394c
+2023-06-22 20:08:27,226 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:37445
+2023-06-22 20:08:27,226 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:37445
+2023-06-22 20:08:27,226 - distributed.worker - INFO -          dashboard at:        10.33.227.169:40531
+2023-06-22 20:08:27,226 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,226 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,226 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,226 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,226 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-w3f2ugkt
+2023-06-22 20:08:27,226 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:37411
+2023-06-22 20:08:27,227 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:37411
+2023-06-22 20:08:27,227 - distributed.worker - INFO - Starting Worker plugin PreImport-c024c1a3-3bfa-4383-a224-349de72d1c51
+2023-06-22 20:08:27,227 - distributed.worker - INFO -          dashboard at:        10.33.227.169:34729
+2023-06-22 20:08:27,227 - distributed.worker - INFO - Starting Worker plugin RMMSetup-a95a7674-2038-4843-a649-619ae14d0879
+2023-06-22 20:08:27,227 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,227 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,227 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,227 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,227 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-b_gziabv
+2023-06-22 20:08:27,227 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:39895
+2023-06-22 20:08:27,227 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:39895
+2023-06-22 20:08:27,227 - distributed.worker - INFO -          dashboard at:        10.33.227.169:33179
+2023-06-22 20:08:27,227 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,227 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,228 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,228 - distributed.worker - INFO - Starting Worker plugin RMMSetup-cc726403-2afb-4b7e-a869-1e3928ed3359
+2023-06-22 20:08:27,228 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,228 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-th8l_ig0
+2023-06-22 20:08:27,228 - distributed.worker - INFO - Starting Worker plugin RMMSetup-fcb84a28-4e91-4a44-bcdb-6588fab2d17e
+2023-06-22 20:08:27,242 - distributed.worker - INFO - Starting Worker plugin PreImport-265feec0-a3e2-4412-b574-50ecb4f83f86
+2023-06-22 20:08:27,243 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,244 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:40513
+2023-06-22 20:08:27,244 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:40513
+2023-06-22 20:08:27,244 - distributed.worker - INFO -          dashboard at:        10.33.227.169:41367
+2023-06-22 20:08:27,245 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,245 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,245 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,245 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,245 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-aqrrf6gp
+2023-06-22 20:08:27,245 - distributed.worker - INFO - Starting Worker plugin PreImport-a5338b1d-6166-4042-be9e-77e36a6e5278
+2023-06-22 20:08:27,245 - distributed.worker - INFO - Starting Worker plugin RMMSetup-0d43aba5-7e72-4713-865e-2bc3b5a84b21
+2023-06-22 20:08:27,246 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:42573
+2023-06-22 20:08:27,247 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:42573
+2023-06-22 20:08:27,247 - distributed.worker - INFO -          dashboard at:        10.33.227.169:42611
+2023-06-22 20:08:27,247 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,247 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,247 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,247 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,247 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-katnlfvz
+2023-06-22 20:08:27,248 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-17bd506e-aa68-4abc-a865-d10f78a02253
+2023-06-22 20:08:27,248 - distributed.worker - INFO - Starting Worker plugin RMMSetup-7288c46f-a15d-4b66-9836-058c1fe1c5a4
+2023-06-22 20:08:27,250 - distributed.worker - INFO -       Start worker at:  tcp://10.33.227.169:38113
+2023-06-22 20:08:27,250 - distributed.worker - INFO -          Listening to:  tcp://10.33.227.169:38113
+2023-06-22 20:08:27,250 - distributed.worker - INFO -          dashboard at:        10.33.227.169:45877
+2023-06-22 20:08:27,250 - distributed.worker - INFO - Waiting to connect to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,251 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,251 - distributed.worker - INFO -               Threads:                          1
+2023-06-22 20:08:27,251 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2023-06-22 20:08:27,251 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-ol6d88g7
+2023-06-22 20:08:27,251 - distributed.worker - INFO - Starting Worker plugin RMMSetup-c42f8b64-b0ed-44d2-8108-292cf3ca9249
+2023-06-22 20:08:27,276 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-8a3865b6-0564-4d7a-b5ea-4fcbb2780516
+2023-06-22 20:08:27,276 - distributed.worker - INFO - Starting Worker plugin PreImport-7b3ee384-e2ae-4286-ab43-35a12b663e9c
+2023-06-22 20:08:27,277 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,379 - distributed.worker - INFO - Starting Worker plugin PreImport-7637430a-ed25-47e6-ad56-db7a8ac52c43
+2023-06-22 20:08:27,380 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,442 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-2c4e64d9-0862-41e0-9630-b2f3a712cb70
+2023-06-22 20:08:27,442 - distributed.worker - INFO - Starting Worker plugin PreImport-64cc1c1f-c50a-4fab-875d-0ebbc7c78a27
+2023-06-22 20:08:27,442 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-76339f64-745a-401e-9bd3-ff10bfd59bc8
+2023-06-22 20:08:27,442 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-2898a2dc-717b-4575-bb6b-2490ab9b0ffa
+2023-06-22 20:08:27,442 - distributed.worker - INFO - Starting Worker plugin PreImport-a3ec204f-202e-40ee-b706-3d8febca8eaf
+2023-06-22 20:08:27,442 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-18f9adac-d0de-4529-b3a8-062c17c9ade6
+2023-06-22 20:08:27,443 - distributed.worker - INFO - Starting Worker plugin PreImport-9936acb7-6f80-41a0-b692-e645aaa6cf3f
+2023-06-22 20:08:27,443 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-8ad0c9aa-61ed-43e7-9c2f-b1273dcedb82
+2023-06-22 20:08:27,443 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,443 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,443 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,443 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,444 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,532 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,533 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,535 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,544 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,544 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,545 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,545 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,546 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,546 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,546 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,547 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,547 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,547 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,548 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,548 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,548 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,548 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,549 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,549 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,550 - distributed.worker - INFO -         Registered to:   tcp://10.33.227.169:8786
+2023-06-22 20:08:27,550 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,550 - distributed.worker - INFO - -------------------------------------------------
+2023-06-22 20:08:27,552 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:27,553 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:8786
+2023-06-22 20:08:33,986 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,986 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,986 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,986 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,987 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,987 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,987 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:33,987 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:34,079 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-22 20:08:44,827 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:44,827 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:45,040 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:45,047 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:45,108 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:45,148 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:45,157 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:45,589 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-22 20:08:51,734 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.07s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,734 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.05s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,734 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.05s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,734 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.06s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,834 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.16s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,835 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.17s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,835 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.15s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:08:51,836 - distributed.core - INFO - Event loop was unresponsive in Worker for 16.16s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 20:09:25,243 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,243 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,244 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,248 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,248 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,248 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,248 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:25,248 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-22 20:09:29,331 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,331 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,331 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,331 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,332 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,332 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,332 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,332 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-22 20:09:29,370 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-79787798-591e-449f-82eb-490df5438e00
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7f48442b9dd0>,       _START_  _BATCH_
+592       592        0
+593       593        0
+594       594        0
+595       595        0
+596       596        0
+...       ...      ...
+1148     1148        1
+1151     1151        1
+1146     1146        1
+1149     1149        1
+1150     1150        1
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': 8582045356975497140, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,419 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-d06494ba-28be-4a41-bcf4-46b0cd8e2119
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7f67a90dc630>,       _START_  _BATCH_
+1330     1330        1
+1331     1331        1
+1332     1332        1
+1333     1333        1
+1334     1334        1
+...       ...      ...
+1568     1568        1
+1569     1569        1
+1555     1555        1
+1566     1566        1
+1559     1559        1
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': -3357057960632056051, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,419 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-f33b6885-1fce-4668-8c4e-b7205378759d
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7ff1690de9d0>,       _START_  _BATCH_
+4998     4998        4
+4999     4999        4
+4982     4982        4
+4983     4983        4
+4984     4984        4
+...       ...      ...
+4288     4288        4
+4289     4289        4
+4292     4292        4
+4278     4278        4
+4282     4282        4
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': -6140848616487122120, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,423 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-eb3c0ce4-863e-4d47-b87a-140afe9eed59
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7fddb472b950>,       _START_  _BATCH_
+2980     2980        2
+2981     2981        2
+2982     2982        2
+2983     2983        2
+2984     2984        2
+...       ...      ...
+3681     3681        3
+3682     3682        3
+3683     3683        3
+3675     3675        3
+3669     3669        3
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': -8250131989604752417, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,429 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-62c2c773-325b-43c5-91a8-496f07cfb23b
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7f3ad8387590>,       _START_  _BATCH_
+7596     7596        7
+7597     7597        7
+7598     7598        7
+7599     7599        7
+7600     7600        7
+...       ...      ...
+7512     7512        7
+7513     7513        7
+7514     7514        7
+7515     7515        7
+7505     7505        7
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': 1981358866744178364, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,429 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-55fa6be6-dc2a-4000-aea9-68ca442548fa
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7f2dbc18ef90>,       _START_  _BATCH_
+5480     5480        5
+5481     5481        5
+5482     5482        5
+5483     5483        5
+5484     5484        5
+...       ...      ...
+5364     5364        5
+5365     5365        5
+5366     5366        5
+5367     5367        5
+5354     5354        5
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': 366792139614876305, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,430 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-4a4e1f78-0202-40f9-8c88-cdbe23614aaa
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7f69f8f61450>,       _START_  _BATCH_
+9806     9806        9
+9807     9807        9
+9808     9808        9
+9809     9809        9
+9810     9810        9
+...       ...      ...
+9450     9450        9
+9451     9451        9
+9452     9452        9
+9453     9453        9
+9445     9445        9
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': -7310072545212886130, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:09:29,430 - distributed.worker - WARNING - Compute Failed
+Key:       _call_plc_uniform_neighbor_sample-1a9c6f6d-65ea-4ff6-a52a-16691a433856
+Function:  _call_plc_uniform_neighbor_sample
+args:      (b'\xfd\xef\xa0\xa2\xbc\x96D\xa3\xa3\xcdC\x96\xee\xdfg\xf8', <pylibcugraph.graphs.MGGraph object at 0x7f689032ba90>,       _START_  _BATCH_
+7498     7498        7
+7499     7499        7
+7482     7482        7
+7483     7483        7
+7484     7484        7
+...       ...      ...
+6645     6645        6
+6646     6646        6
+6647     6647        6
+6649     6649        6
+6648     6648        6
+
+[1250 rows x 2 columns], True, 8, dd.Scalar<series-..., dtype=int32>, dd.Scalar<series-..., dtype=int32>, array([10, 25], dtype=int32), False)
+kwargs:    {'weight_t': 'float32', 'with_edge_properties': True, 'random_state': -4526281889357820061, 'return_offsets': False}
+Exception: 'AttributeError("\'Scalar\' object has no attribute \'_parent_meta\'")'
+
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:42573. Reason: worker-close
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:40513. Reason: worker-close
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:42147. Reason: worker-close
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:39895. Reason: worker-close
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:35889. Reason: worker-handle-scheduler-connection-broken
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:37411. Reason: worker-close
+2023-06-22 20:11:20,207 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:38113. Reason: worker-close
+2023-06-22 20:11:20,208 - distributed.worker - INFO - Stopping worker at tcp://10.33.227.169:37445. Reason: worker-close
+2023-06-22 20:11:20,208 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:38149'. Reason: nanny-close
+2023-06-22 20:11:20,208 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46388 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,210 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,209 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46374 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,209 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46366 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,209 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46424 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,211 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:33633'. Reason: nanny-close
+2023-06-22 20:11:20,210 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46410 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,210 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46394 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,210 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.33.227.169:46428 remote=tcp://10.33.227.169:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 20:11:20,213 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,214 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:35971'. Reason: nanny-close
+2023-06-22 20:11:20,214 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,214 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:42297'. Reason: nanny-close
+2023-06-22 20:11:20,214 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,215 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:45203'. Reason: nanny-close
+2023-06-22 20:11:20,215 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,215 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:46107'. Reason: nanny-close
+2023-06-22 20:11:20,216 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,216 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:46243'. Reason: nanny-close
+2023-06-22 20:11:20,216 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,216 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:37427'. Reason: nanny-close
+2023-06-22 20:11:20,217 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-22 20:11:20,228 - distributed.core - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:46243 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:54110 remote=tcp://10.33.227.169:46243>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:46243 after 100 s
+2023-06-22 20:11:20,230 - distributed.core - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:42297 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:43418 remote=tcp://10.33.227.169:42297>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:42297 after 100 s
+2023-06-22 20:11:20,230 - distributed.core - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:45203 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:40346 remote=tcp://10.33.227.169:45203>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:45203 after 100 s
+2023-06-22 20:11:20,232 - distributed.worker - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:46107 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:34934 remote=tcp://10.33.227.169:46107>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:46107 after 100 s
+2023-06-22 20:11:20,233 - distributed.core - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:35971 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:44240 remote=tcp://10.33.227.169:35971>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:35971 after 100 s
+2023-06-22 20:11:20,235 - distributed.core - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:37427 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:36594 remote=tcp://10.33.227.169:37427>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:37427 after 100 s
+2023-06-22 20:11:20,237 - distributed.core - ERROR - Timed out during handshake while connecting to tcp://10.33.227.169:33633 after 100 s
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1871, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 861, in _read_to_buffer
+    bytes_read = self.read_from_fd(buf)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/iostream.py", line 1116, in read_from_fd
+    return self.socket.recv_into(buf, len(buf))
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 373, in connect
+    handshake = await wait_for(comm.read(), time_left())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 241, in read
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed)  local=tcp://10.33.227.169:51472 remote=tcp://10.33.227.169:33633>: ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1540, in close
+    await r.close_gracefully(reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1362, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 378, in connect
+    raise OSError(
+OSError: Timed out during handshake while connecting to tcp://10.33.227.169:33633 after 100 s
+2023-06-22 20:11:23,418 - distributed.nanny - WARNING - Worker process still alive after 3.199969635009766 seconds, killing
+2023-06-22 20:11:23,418 - distributed.nanny - WARNING - Worker process still alive after 3.1999995422363288 seconds, killing
+2023-06-22 20:11:23,419 - distributed.nanny - WARNING - Worker process still alive after 3.199999389648438 seconds, killing
+2023-06-22 20:11:23,420 - distributed.nanny - WARNING - Worker process still alive after 3.199999389648438 seconds, killing
+2023-06-22 20:11:23,421 - distributed.nanny - WARNING - Worker process still alive after 3.1999995422363288 seconds, killing
+2023-06-22 20:11:23,422 - distributed.nanny - WARNING - Worker process still alive after 3.199999389648438 seconds, killing
+2023-06-22 20:11:23,423 - distributed.nanny - WARNING - Worker process still alive after 3.199999389648438 seconds, killing
+2023-06-22 20:11:23,425 - distributed.nanny - WARNING - Worker process still alive after 3.1999995422363288 seconds, killing
+2023-06-22 20:11:24,212 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,214 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,214 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,215 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,215 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,217 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,217 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,217 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364423 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364421 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364417 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364414 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364411 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364408 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364405 parent=1364377 started daemon>
+2023-06-22 20:11:24,219 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=1364402 parent=1364377 started daemon>
+2023-06-22 20:11:24,721 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 1364417 exit status was already read will report exitcode 255
+2023-06-22 20:11:24,945 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 1364411 exit status was already read will report exitcode 255
+2023-06-22 20:11:25,246 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 1364414 exit status was already read will report exitcode 255

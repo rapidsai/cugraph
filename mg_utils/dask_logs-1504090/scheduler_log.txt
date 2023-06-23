@@ -1,0 +1,217 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --scheduler-file /root/work/cugraph/mg_utils/dask-scheduler.json
+                "
+/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2023-06-22 23:12:35,136 - distributed.scheduler - INFO - -----------------------------------------------
+2023-06-22 23:12:35,599 - distributed.scheduler - INFO - State start
+2023-06-22 23:12:35,600 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-5lbp86nv', purging
+2023-06-22 23:12:35,601 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-7qdb048y', purging
+2023-06-22 23:12:35,601 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-15kjcepu', purging
+2023-06-22 23:12:35,601 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-wbodg42h', purging
+2023-06-22 23:12:35,601 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-w89yy7iv', purging
+2023-06-22 23:12:35,601 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-f2mvobqf', purging
+2023-06-22 23:12:35,602 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-5c7mh_f9', purging
+2023-06-22 23:12:35,602 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-pmmflek4', purging
+2023-06-22 23:12:35,611 - distributed.scheduler - INFO - -----------------------------------------------
+2023-06-22 23:12:35,611 - distributed.scheduler - INFO -   Scheduler at:  tcp://10.33.227.169:8786
+2023-06-22 23:12:35,612 - distributed.scheduler - INFO -   dashboard at:  http://10.33.227.169:8787/status
+2023-06-22 23:12:45,845 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:42393', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,130 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:42393
+2023-06-22 23:12:46,130 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35046
+2023-06-22 23:12:46,330 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:41585', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,331 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:41585
+2023-06-22 23:12:46,331 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35052
+2023-06-22 23:12:46,713 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:38535', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,714 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:38535
+2023-06-22 23:12:46,714 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35056
+2023-06-22 23:12:46,714 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:44595', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,715 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:44595
+2023-06-22 23:12:46,715 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35068
+2023-06-22 23:12:46,717 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:34115', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,718 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:34115
+2023-06-22 23:12:46,718 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35076
+2023-06-22 23:12:46,718 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:36829', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,719 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:36829
+2023-06-22 23:12:46,719 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35092
+2023-06-22 23:12:46,719 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:43195', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,720 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:43195
+2023-06-22 23:12:46,720 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35084
+2023-06-22 23:12:46,720 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.33.227.169:34483', status: init, memory: 0, processing: 0>
+2023-06-22 23:12:46,721 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.33.227.169:34483
+2023-06-22 23:12:46,721 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35108
+2023-06-22 23:12:48,172 - distributed.scheduler - INFO - Receive client connection: Client-4d94989a-1152-11ee-b3cc-d8c49778ced7
+2023-06-22 23:12:48,172 - distributed.core - INFO - Starting established connection to tcp://10.33.227.169:35180
+2023-06-22 23:12:48,275 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2023-06-22 23:13:36,437 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 8.24s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 23:13:36,447 - tornado.application - ERROR - Uncaught exception GET /tasks/ws (10.20.237.237)
+HTTPServerRequest(protocol='http', host='10.33.227.169:8787', method='GET', uri='/tasks/ws', version='HTTP/1.1', remote_ip='10.20.237.237')
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/websocket.py", line 937, in _accept_connection
+    open_result = handler.open(*handler.open_args, **handler.open_kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/web.py", line 3290, in wrapper
+    return method(self, *args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/bokeh/server/views/ws.py", line 149, in open
+    raise ProtocolError("Token is expired.")
+bokeh.protocol.exceptions.ProtocolError: Token is expired.
+2023-06-22 23:13:38,667 - distributed.worker - INFO - Run out-of-band function 'lambda'
+2023-06-22 23:13:42,615 - distributed.core - INFO - Event loop was unresponsive in Scheduler for 3.68s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-22 23:15:16,441 - distributed.scheduler - ERROR - broadcast to tcp://10.33.227.169:39563 failed: OSError: Timed out trying to connect to tcp://10.33.227.169:39563 after 100 s
+2023-06-22 23:15:16,443 - tornado.application - ERROR - Uncaught exception GET /info/logs/tcp%3A%2F%2F10.33.227.169%3A39563.html (10.20.237.237)
+HTTPServerRequest(protocol='http', host='10.33.227.169:8787', method='GET', uri='/info/logs/tcp%3A%2F%2F10.33.227.169%3A39563.html', version='HTTP/1.1', remote_ip='10.20.237.237')
+ConnectionRefusedError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 336, in connect
+    comm = await wait_for(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1878, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 504, in connect
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <distributed.comm.tcp.TCPConnector object at 0x7f1ba7cfebc0>: ConnectionRefusedError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/web.py", line 1786, in _execute
+    result = await result
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 754, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/http/scheduler/info.py", line 127, in get
+    logs = await self.server.get_worker_logs(workers=[worker])
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/scheduler.py", line 7878, in get_worker_logs
+    results = await self.broadcast(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/scheduler.py", line 6124, in broadcast
+    results = await All(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 249, in All
+    result = await tasks.next()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/scheduler.py", line 6099, in send_message
+    comm = await self.rpc.connect(addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1606, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1527, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 362, in connect
+    raise OSError(
+OSError: Timed out trying to connect to tcp://10.33.227.169:39563 after 100 s
+2023-06-22 23:19:03,743 - distributed.scheduler - INFO - Remove client Client-4d94989a-1152-11ee-b3cc-d8c49778ced7
+2023-06-22 23:19:03,747 - distributed.core - INFO - Received 'close-stream' from tcp://10.33.227.169:35180; closing.
+2023-06-22 23:19:03,747 - distributed.scheduler - INFO - Remove client Client-4d94989a-1152-11ee-b3cc-d8c49778ced7
+2023-06-22 23:19:03,749 - distributed.scheduler - INFO - Close client connection: Client-4d94989a-1152-11ee-b3cc-d8c49778ced7
+2023-06-22 23:19:05,044 - distributed._signals - INFO - Received signal SIGINT (2)
+2023-06-22 23:19:05,045 - distributed.core - INFO - Connection to tcp://10.33.227.169:35084 has been closed.
+2023-06-22 23:19:05,045 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:43195', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,046 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:43195
+2023-06-22 23:19:05,047 - distributed.scheduler - INFO - Scheduler closing...
+2023-06-22 23:19:05,047 - distributed.core - INFO - Connection to tcp://10.33.227.169:35056 has been closed.
+2023-06-22 23:19:05,048 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:38535', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,048 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:38535
+2023-06-22 23:19:05,048 - distributed.core - INFO - Connection to tcp://10.33.227.169:35068 has been closed.
+2023-06-22 23:19:05,048 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:44595', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,048 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:44595
+2023-06-22 23:19:05,048 - distributed.core - INFO - Connection to tcp://10.33.227.169:35046 has been closed.
+2023-06-22 23:19:05,048 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:42393', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,049 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:42393
+2023-06-22 23:19:05,050 - distributed.core - INFO - Connection to tcp://10.33.227.169:35052 has been closed.
+2023-06-22 23:19:05,050 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:41585', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,050 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:41585
+2023-06-22 23:19:05,051 - distributed.core - INFO - Connection to tcp://10.33.227.169:35092 has been closed.
+2023-06-22 23:19:05,051 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:36829', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,051 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:36829
+2023-06-22 23:19:05,051 - distributed.core - INFO - Connection to tcp://10.33.227.169:35108 has been closed.
+2023-06-22 23:19:05,051 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:34483', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,051 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:34483
+2023-06-22 23:19:05,051 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35108>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 317, in write
+    raise StreamClosedError()
+tornado.iostream.StreamClosedError: Stream is closed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 328, in write
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 144, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35108>: Stream is closed
+2023-06-22 23:19:05,052 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35092>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 317, in write
+    raise StreamClosedError()
+tornado.iostream.StreamClosedError: Stream is closed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 328, in write
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 144, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35092>: Stream is closed
+2023-06-22 23:19:05,053 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35056>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 23:19:05,053 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35052>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 317, in write
+    raise StreamClosedError()
+tornado.iostream.StreamClosedError: Stream is closed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 328, in write
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 144, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35052>: Stream is closed
+2023-06-22 23:19:05,053 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35046>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 23:19:05,053 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.33.227.169:8786 remote=tcp://10.33.227.169:35068>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-22 23:19:05,054 - distributed.scheduler - INFO - Scheduler closing all comms
+2023-06-22 23:19:05,055 - distributed.core - INFO - Connection to tcp://10.33.227.169:35076 has been closed.
+2023-06-22 23:19:05,055 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.33.227.169:34115', status: running, memory: 0, processing: 0>
+2023-06-22 23:19:05,055 - distributed.core - INFO - Removing comms to tcp://10.33.227.169:34115
+2023-06-22 23:19:05,055 - distributed.scheduler - INFO - Lost all workers
+2023-06-22 23:19:05,886 - distributed.scheduler - INFO - Stopped scheduler at 'tcp://10.33.227.169:8786'
+2023-06-22 23:19:05,887 - distributed.scheduler - INFO - End scheduler

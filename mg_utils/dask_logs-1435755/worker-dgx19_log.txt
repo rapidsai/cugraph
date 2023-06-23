@@ -1,0 +1,408 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=12G
+             --local-directory=/tmp/
+             --scheduler-file=/root/work/cugraph/mg_utils/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2023-06-22 21:43:32,839 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:38787'
+2023-06-22 21:43:32,842 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:39741'
+2023-06-22 21:43:32,846 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:43275'
+2023-06-22 21:43:32,847 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:35653'
+2023-06-22 21:43:32,849 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:45327'
+2023-06-22 21:43:32,853 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:33489'
+2023-06-22 21:43:32,855 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:46177'
+2023-06-22 21:43:32,857 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.33.227.169:34131'
+2023-06-22 21:43:33,950 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:38787'. Reason: nanny-close
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 15, in <module>
+    from .cuda_worker import CUDAWorker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/cuda_worker.py", line 12, in <module>
+    from distributed import Nanny
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 879, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 975, in get_code
+  File "<frozen importlib._bootstrap_external>", line 1074, in get_data
+KeyboardInterrupt
+2023-06-22 21:43:33,950 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:39741'. Reason: nanny-close
+2023-06-22 21:43:33,950 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:43275'. Reason: nanny-close
+2023-06-22 21:43:33,950 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:35653'. Reason: nanny-close
+2023-06-22 21:43:33,951 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:45327'. Reason: nanny-close
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 9, in <module>
+    import dask.dataframe.core
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/__init__.py", line 6, in <module>
+    from dask.dataframe import backends, dispatch, rolling
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/rolling.py", line 27, in <module>
+    from dask.dataframe.io import from_pandas
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/io/__init__.py", line 3, in <module>
+    from dask.dataframe.io import demo
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/io/demo.py", line 7, in <module>
+    from dask.dataframe.io.io import from_map
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/io/io.py", line 782, in <module>
+    class _PackedArgCallable(DataFrameIOFunction):
+  File "/opt/conda/envs/rapids/lib/python3.10/abc.py", line 107, in __new__
+    _abc_init(cls)
+KeyboardInterrupt
+2023-06-22 21:43:33,951 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:33489'. Reason: nanny-close
+2023-06-22 21:43:33,951 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:46177'. Reason: nanny-close
+2023-06-22 21:43:33,951 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.33.227.169:34131'. Reason: nanny-close
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 9, in <module>
+    import dask.dataframe.core
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/__init__.py", line 6, in <module>
+    from dask.dataframe import backends, dispatch, rolling
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/backends.py", line 15, in <module>
+    from dask.dataframe.core import DataFrame, Index, Scalar, Series, _Frame
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/core.py", line 6427, in <module>
+    Series._bind_operator_method(name, meth)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/core.py", line 4304, in _bind_operator_method
+    setattr(cls, name, derived_from(original)(meth))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/utils.py", line 851, in wrapper
+    method.__doc__ = _derived_from(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/utils.py", line 814, in _derived_from
+    doc = skip_doctest(doc)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/utils.py", line 681, in skip_doctest
+    return "\n".join([_skip_doctest(line) for line in doc.split("\n")])
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/utils.py", line 681, in <listcomp>
+    return "\n".join([_skip_doctest(line) for line in doc.split("\n")])
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/utils.py", line 664, in _skip_doctest
+    def _skip_doctest(line):
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 15, in <module>
+    from .cuda_worker import CUDAWorker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/cuda_worker.py", line 12, in <module>
+    from distributed import Nanny
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/__init__.py", line 4, in <module>
+    from distributed import config  # load distributed configuration first
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/config.py", line 20, in <module>
+    defaults = yaml.safe_load(f)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/__init__.py", line 125, in safe_load
+    return load(stream, SafeLoader)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/__init__.py", line 81, in load
+    return loader.get_single_data()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/constructor.py", line 49, in get_single_data
+    node = self.get_single_node()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 35, in get_single_node
+    if not self.check_event(StreamEndEvent):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/parser.py", line 98, in check_event
+    self.current_event = self.state()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/parser.py", line 142, in parse_implicit_document_start
+    if not self.check_token(DirectiveToken, DocumentStartToken,
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 116, in check_token
+    self.fetch_more_tokens()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 255, in fetch_more_tokens
+    return self.fetch_plain()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 679, in fetch_plain
+    self.tokens.append(self.scan_plain())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 1305, in scan_plain
+    spaces = self.scan_plain_spaces(indent, start_mark)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 1319, in scan_plain_spaces
+    whitespaces = self.prefix(length)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 15, in <module>
+    from .cuda_worker import CUDAWorker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/cuda_worker.py", line 12, in <module>
+    from distributed import Nanny
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/__init__.py", line 4, in <module>
+    from distributed import config  # load distributed configuration first
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/config.py", line 20, in <module>
+    defaults = yaml.safe_load(f)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/__init__.py", line 125, in safe_load
+    return load(stream, SafeLoader)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/__init__.py", line 81, in load
+    return loader.get_single_data()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/constructor.py", line 49, in get_single_data
+    node = self.get_single_node()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 36, in get_single_node
+    document = self.compose_document()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 55, in compose_document
+    node = self.compose_node(None, None)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 84, in compose_node
+    node = self.compose_mapping_node(anchor)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 133, in compose_mapping_node
+    item_value = self.compose_node(node, item_key)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 84, in compose_node
+    node = self.compose_mapping_node(anchor)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 133, in compose_mapping_node
+    item_value = self.compose_node(node, item_key)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 64, in compose_node
+    if self.check_event(AliasEvent):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/parser.py", line 98, in check_event
+    self.current_event = self.state()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/parser.py", line 449, in parse_block_mapping_value
+    if not self.check_token(KeyToken, ValueToken, BlockEndToken):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 116, in check_token
+    self.fetch_more_tokens()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 159, in fetch_more_tokens
+    self.scan_to_next_token()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 776, in scan_to_next_token
+    while self.peek() == ' ':
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 15, in <module>
+    from .cuda_worker import CUDAWorker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/cuda_worker.py", line 12, in <module>
+    from distributed import Nanny
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/__init__.py", line 4, in <module>
+    from distributed import config  # load distributed configuration first
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/config.py", line 20, in <module>
+    defaults = yaml.safe_load(f)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/__init__.py", line 125, in safe_load
+    return load(stream, SafeLoader)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/__init__.py", line 81, in load
+    return loader.get_single_data()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/constructor.py", line 49, in get_single_data
+    node = self.get_single_node()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 36, in get_single_node
+    document = self.compose_document()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 55, in compose_document
+    node = self.compose_node(None, None)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 84, in compose_node
+    node = self.compose_mapping_node(anchor)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 133, in compose_mapping_node
+    item_value = self.compose_node(node, item_key)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 84, in compose_node
+    node = self.compose_mapping_node(anchor)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 133, in compose_mapping_node
+    item_value = self.compose_node(node, item_key)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/composer.py", line 64, in compose_node
+    if self.check_event(AliasEvent):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/parser.py", line 98, in check_event
+    self.current_event = self.state()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/parser.py", line 449, in parse_block_mapping_value
+    if not self.check_token(KeyToken, ValueToken, BlockEndToken):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 116, in check_token
+    self.fetch_more_tokens()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 255, in fetch_more_tokens
+    return self.fetch_plain()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 679, in fetch_plain
+    self.tokens.append(self.scan_plain())
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 1305, in scan_plain
+    spaces = self.scan_plain_spaces(indent, start_mark)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/yaml/scanner.py", line 1331, in scan_plain_spaces
+    if self.peek() == ' ':
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 15, in <module>
+    from .cuda_worker import CUDAWorker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/cuda_worker.py", line 12, in <module>
+    from distributed import Nanny
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/__init__.py", line 4, in <module>
+    from distributed import config  # load distributed configuration first
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/config.py", line 4, in <module>
+    import logging.config
+  File "/opt/conda/envs/rapids/lib/python3.10/logging/config.py", line 354, in <module>
+    class BaseConfigurator(object):
+  File "/opt/conda/envs/rapids/lib/python3.10/logging/config.py", line 363, in BaseConfigurator
+    INDEX_PATTERN = re.compile(r'^\[\s*(\w+)\s*\]\s*')
+  File "/opt/conda/envs/rapids/lib/python3.10/re.py", line 251, in compile
+    return _compile(pattern, flags)
+  File "/opt/conda/envs/rapids/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 668, in _parse
+    if not item or item[0][0] is AT:
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 161, in __len__
+    def __len__(self):
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 125, in _main
+    prepare(preparation_data)
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 236, in prepare
+    _fixup_main_from_path(data['init_main_from_path'])
+  File "/opt/conda/envs/rapids/lib/python3.10/multiprocessing/spawn.py", line 287, in _fixup_main_from_path
+    main_content = runpy.run_path(main_path,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 289, in run_path
+    return _run_module_code(code, init_globals, run_name,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 96, in _run_module_code
+    _run_code(code, mod_globals, init_globals,
+  File "/opt/conda/envs/rapids/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/rapids/bin/dask-cuda-worker", line 7, in <module>
+    from dask_cuda.cli import worker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/__init__.py", line 15, in <module>
+    from .cuda_worker import CUDAWorker
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/dask_cuda/cuda_worker.py", line 12, in <module>
+    from distributed import Nanny
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/__init__.py", line 23, in <module>
+    from distributed.actor import Actor, ActorFuture, BaseActorFuture
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/actor.py", line 15, in <module>
+    from distributed.client import Future
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/client.py", line 62, in <module>
+    from distributed import versions as version_module
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/versions.py", line 15, in <module>
+    from packaging.requirements import Requirement
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/packaging/requirements.py", line 8, in <module>
+    from ._parser import parse_requirement as _parse_requirement
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/packaging/_parser.py", line 10, in <module>
+    from ._tokenizer import DEFAULT_RULES, Tokenizer
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/packaging/_tokenizer.py", line 6, in <module>
+    from .specifiers import Specifier
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/packaging/specifiers.py", line 107, in <module>
+    class Specifier(BaseSpecifier):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/packaging/specifiers.py", line 214, in Specifier
+    _regex = re.compile(
+  File "/opt/conda/envs/rapids/lib/python3.10/re.py", line 251, in compile
+    return _compile(pattern, flags)
+  File "/opt/conda/envs/rapids/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 841, in _parse
+    p = _parse_sub(source, state, sub_verbose, nested + 1)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 841, in _parse
+    p = _parse_sub(source, state, sub_verbose, nested + 1)
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 512, in _parse
+    sourceget()
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 257, in get
+    self.__next()
+  File "/opt/conda/envs/rapids/lib/python3.10/sre_parse.py", line 234, in __next
+    def __next(self):
+KeyboardInterrupt
+2023-06-22 21:43:34,120 - distributed.nanny - INFO - Worker process 1435937 was killed by signal 2
+2023-06-22 21:43:34,150 - distributed.nanny - INFO - Worker process 1435931 was killed by signal 2
+2023-06-22 21:43:34,151 - distributed.nanny - INFO - Worker process 1435935 was killed by signal 2
+2023-06-22 21:43:34,152 - distributed.nanny - INFO - Worker process 1435928 was killed by signal 2
+2023-06-22 21:43:34,153 - distributed.nanny - INFO - Worker process 1435922 was killed by signal 2
+2023-06-22 21:43:34,153 - distributed.nanny - INFO - Worker process 1435919 was killed by signal 2
+2023-06-22 21:43:34,154 - distributed.nanny - INFO - Worker process 1435925 was killed by signal 2
+2023-06-22 21:43:34,155 - distributed.nanny - INFO - Worker process 1435916 was killed by signal 2
