@@ -187,14 +187,11 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
-<<<<<<< HEAD
 
         start_time_calc_batches = time.perf_counter()
-=======
         self.__batches.reset_index(drop=True)
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
->>>>>>> branch-23.08
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
@@ -257,7 +254,6 @@ class EXPERIMENTAL__BulkSampler:
 
         # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
-<<<<<<< HEAD
         if hasattr(self.__batches, "compute"):
             self.__batches = self.__batches.persist()
 
@@ -270,11 +266,6 @@ class EXPERIMENTAL__BulkSampler:
         start_time_write = time.perf_counter()
 
         # Write batches to parquet
-=======
-        if isinstance(self.__batches, dask_cudf.DataFrame):
-            self.__batches = self.__batches.persist()
-
->>>>>>> branch-23.08
         self.__write(samples, offsets)
 
         end_time_write = time.perf_counter()
