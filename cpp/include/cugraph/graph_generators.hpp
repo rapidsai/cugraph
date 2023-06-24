@@ -66,6 +66,9 @@ namespace cugraph {
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
+ * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
+ * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
+ * and vertex degrees.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -78,7 +81,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double b           = 0.19,
   double c           = 0.19,
   uint64_t seed      = 0,
-  bool clip_and_flip = false);
+  bool clip_and_flip = false,
+  bool scramble_vertex_ids = false);
 
 /**
  * @brief generate an edge list for an R-mat graph.
@@ -113,6 +117,9 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
+ * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
+ * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
+ * and vertex degrees.
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> A tuple of
  * rmm::device_uvector objects for edge source vertex IDs and edge destination vertex IDs.
  */
@@ -125,7 +132,8 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   double a           = 0.57,
   double b           = 0.19,
   double c           = 0.19,
-  bool clip_and_flip = false);
+  bool clip_and_flip = false,
+  bool scramble_vertex_ids = false);
 
 /**
  * @brief generate an edge list for a bipartite R-mat graph.
@@ -199,6 +207,9 @@ enum class generator_distribution_t { POWER_LAW = 0, UNIFORM };
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
+ * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
+ * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
+ * and vertex degrees.
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
  *source vertex IDs and edge destination vertex IDs.
@@ -214,7 +225,8 @@ generate_rmat_edgelists(
   generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
   generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
   uint64_t seed                              = 0,
-  bool clip_and_flip                         = false);
+  bool clip_and_flip                         = false,
+  bool scramble_vertex_ids                   = false);
 
 /**
  * @brief generate multiple edge lists using the R-mat graph generator.
@@ -245,6 +257,9 @@ generate_rmat_edgelists(
  * @param clip_and_flip Flag controlling whether to generate edges only in the lower triangular part
  * (including the diagonal) of the graph adjacency matrix (if set to `true`) or not (if set to
  * `false`).
+ * @param scramble_vertex_ids Flag controlling whether to scramble vertex ID bits (if set to `true`)
+ * or not (if set to `false`); scrambling vertex ID bits breaks correlation between vertex ID values
+ * and vertex degrees.
  * @return A vector of std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> of
  *size @p n_edgelists, each vector element being a tuple of rmm::device_uvector objects for edge
  *source vertex IDs and edge destination vertex IDs.
@@ -260,7 +275,8 @@ generate_rmat_edgelists(
   size_t edge_factor                         = 16,
   generator_distribution_t size_distribution = generator_distribution_t::POWER_LAW,
   generator_distribution_t edge_distribution = generator_distribution_t::POWER_LAW,
-  bool clip_and_flip                         = false);
+  bool clip_and_flip                         = false,
+  bool scramble_vertex_ids                   = false);
 
 /**
  * @brief generate an edge list for path graph
