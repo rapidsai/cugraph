@@ -412,3 +412,40 @@ def compare_mst(mst_cugraph, mst_nx):
     print(cg_sum)
     print(nx_sum)
     assert np.isclose(cg_sum, nx_sum)
+
+"""
+class Resultset:
+    A Resultset Object, used to extract specific results from a networkX algo,
+    with provided graph creation settings, algorithm details, and other pertinent
+    information.
+
+    Parameters
+    ----------
+    graph_settings:
+
+    algo_settings:
+
+    other_settings:
+
+    def __init__(
+            self,
+            alg_name,
+            args,
+    ):
+"""
+
+def resultset(alg_name, args):
+    """
+    Used to extract specific results from a networkX algo, with provided graph creation
+    settings, algorithm details, and other pertinent information.
+    """
+
+
+    if alg_name == 'single_source_shortest_path_length':
+        Gnx, source, cutoff = args['graph'], args['source'], args['cutoff']
+        return nx.single_source_shortest_path_length(Gnx, source, cutoff)
+    elif alg_name == '_single_source_shortest_path_basic':
+        Gnx, source = args['graph'], args['source']
+        return nxacb._single_source_shortest_path_basic(Gnx, source)
+
+
