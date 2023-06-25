@@ -198,7 +198,6 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
     cupy_edge_ids = None
     cupy_edge_types = None
 
-
     if include_edge_weights:
         if dtype == "FLOAT32":
             dtype_  = data_type_id_t.FLOAT32

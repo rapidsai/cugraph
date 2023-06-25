@@ -62,7 +62,7 @@ cugraph_error_code_t cugraph_generate_rmat_edgelist(raft::handle_t const& handle
 {
   try {
     auto [src, dst] = cugraph::generate_rmat_edgelist<vertex_t>(
-      handle, rng_state, scale, num_edges, a, b, c, clip_and_flip);
+      handle, rng_state, scale, num_edges, a, b, c, clip_and_flip, scramble_vertex_ids);
 
     *result = new cugraph::c_api::cugraph_coo_t{
       std::make_unique<cugraph::c_api::cugraph_type_erased_device_array_t>(src, vertex_dtype),
