@@ -106,13 +106,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   }
 
   if (scramble_vertex_ids) {
-    return cugraph::scramble_vertex_ids<vertex_t>(
-      handle, std::move(srcs), std::move(dsts), scale);
-  }
-  else{
+    return cugraph::scramble_vertex_ids<vertex_t>(handle, std::move(srcs), std::move(dsts), scale);
+  } else {
     return std::make_tuple(std::move(srcs), std::move(dsts));
   }
-
 }
 
 template <typename vertex_t>
@@ -191,8 +188,15 @@ generate_rmat_edgelists(raft::handle_t const& handle,
   }
 
   for (size_t i = 0; i < n_edgelists; i++) {
-    output.push_back(generate_rmat_edgelist<vertex_t>(
-      handle, rng_state, scale[i], scale[i] * edge_factor, a, b, c, clip_and_flip, scramble_vertex_ids));
+    output.push_back(generate_rmat_edgelist<vertex_t>(handle,
+                                                      rng_state,
+                                                      scale[i],
+                                                      scale[i] * edge_factor,
+                                                      a,
+                                                      b,
+                                                      c,
+                                                      clip_and_flip,
+                                                      scramble_vertex_ids));
   }
   return output;
 }

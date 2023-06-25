@@ -77,11 +77,11 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   raft::handle_t const& handle,
   size_t scale,
   size_t num_edges,
-  double a           = 0.57,
-  double b           = 0.19,
-  double c           = 0.19,
-  uint64_t seed      = 0,
-  bool clip_and_flip = false,
+  double a                 = 0.57,
+  double b                 = 0.19,
+  double c                 = 0.19,
+  uint64_t seed            = 0,
+  bool clip_and_flip       = false,
   bool scramble_vertex_ids = false);
 
 /**
@@ -129,10 +129,10 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> generat
   raft::random::RngState& rng_state,
   size_t scale,
   size_t num_edges,
-  double a           = 0.57,
-  double b           = 0.19,
-  double c           = 0.19,
-  bool clip_and_flip = false,
+  double a                 = 0.57,
+  double b                 = 0.19,
+  double c                 = 0.19,
+  bool clip_and_flip       = false,
   bool scramble_vertex_ids = false);
 
 /**
