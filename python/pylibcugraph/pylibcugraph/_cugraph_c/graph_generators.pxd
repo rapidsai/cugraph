@@ -97,6 +97,7 @@ cdef extern from "cugraph_c/graph_generators.h":
             double b,
             double c,
             bool_t clip_and_flip,
+            bool_t scramble_vertex_ids,
             cugraph_coo_t** result,
             cugraph_error_t** error
         )
@@ -112,6 +113,7 @@ cdef extern from "cugraph_c/graph_generators.h":
             cugraph_generator_distribution_t size_distribution,
             cugraph_generator_distribution_t edge_distribution,
             bool_t clip_and_flip,
+            bool_t scramble_vertex_ids,
             cugraph_coo_list_t** result,
             cugraph_error_t** error
         )

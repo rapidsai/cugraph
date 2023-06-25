@@ -64,6 +64,7 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
                            double b,
                            double c,
                            bool_t clip_and_flip,
+                           bool_t scramble_vertex_ids,
                            bool_t include_edge_weights,
                            minimum_weight,
                            maximum_weight,
@@ -111,6 +112,11 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
         Flag controlling whether to generate edges only in the lower triangular
         part (including the diagonal) of the graph adjacency matrix
         (if set to 'true') or not (if set to 'false).
+    
+    scramble_vertex_ids : bool
+        Flag controlling whether to scramble vertex ID bits (if set to `true`)
+        or not (if set to `false`); scrambling vertex ID bits breaks
+        correlation between vertex ID values and vertex degrees.
     
     include_edge_weights : bool
         Flag controlling whether to generate edges with weights
@@ -173,6 +179,7 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
                                                 b,
                                                 c,
                                                 clip_and_flip,
+                                                scramble_vertex_ids,
                                                 &result_coo_ptr,
                                                 &error_ptr)
     assert_success(error_code, error_ptr, "generate_rmat_edgelist")
