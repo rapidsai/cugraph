@@ -12,16 +12,10 @@
 # limitations under the License.
 
 import os
-import cupy
 import cudf
-import dask_cudf
+import cupy
 
-from dask import delayed
-from dask.dataframe.utils import make_meta
-from distributed import default_client
-from cugraph.dask.common.part_utils import get_persisted_df_worker_map
-
-from typing import Union, Optional, Sequence
+from typing import Union, Optional
 
 
 def _write_samples_to_parquet(
@@ -108,87 +102,3 @@ def write_samples(
         _write_samples_to_parquet(
             results, offsets, batches_per_partition, output_path, partition_info="sg"
         )
-
-def _filter_batches(
-    batches: Sequence[cudf.DataFrame],
-    batch_col_name: str,
-    max_batch_id: int,
-) -> cudf.DataFrame: 
-    if isinstance(batches, cudf.DataFrame):
-        batches = [batches]
-
-    filtered_batches = cudf.DataFrame()
-    next_batches = cudf.DataFrame()
-
-    for df in batches:
-        f = (df[batch_col_name] <= max_batch_id)
-        filtered_batches = cudf.concat(
-            [
-                filtered_batches,
-                df.loc[f]
-            ],
-            ignore_index=True
-        )
-        next_batches = cudf.concat(
-            [
-                next_batches,
-                df.loc[~f]
-            ]
-        )
-        for col in list(df.columns):
-            df.drop(col, axis=1, inplace=True)
-    
-    return filtered_batches, next_batches
-
-def filter_batches(
-    batches:cudf.DataFrame,
-    batch_col_name: str,
-    max_batch_id: int
-):
-    if hasattr(batches, 'compute'):
-        #old_len = len(batches)
-        client = default_client()
-        meta = make_meta(batches)
-
-        batches = get_persisted_df_worker_map(batches, client)
-        delayed_tasks_d = {
-            w: delayed(_filter_batches)(
-                bdata,
-                batch_col_name,
-                max_batch_id
-            )
-            for w, bdata in batches.items()
-        }
-        del batches
-
-        result = [
-            client.compute(
-                task,
-                workers=[w],
-                allow_other_workers=False,
-                pure=True,
-            )
-            for w, task in delayed_tasks_d.items()
-        ]
-
-        result = [delayed(lambda x: x, nout=2)(r) for r in result]
-        filtered_batches = dask_cudf.from_delayed(
-            [r[0] for r in result], meta=meta, verify_meta=False
-        ).persist()
-        batches = dask_cudf.from_delayed(
-            [r[1] for r in result], meta=meta, verify_meta=False
-        ).persist()
-
-        #print(old_len)
-        #print(len(batches))
-        #print(len(filtered_batches))
-        #assert len(filtered_batches) + len(batches) == old_len
-    else:
-        filtered_batches, batches = _filter_batches(
-            batches,
-            batch_col_name,
-            max_batch_id,
-            partition_info='sg',
-        )
-    
-    return filtered_batches, batches

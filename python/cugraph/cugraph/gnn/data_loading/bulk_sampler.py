@@ -13,7 +13,7 @@
 
 import os
 
-from typing import Union, Optional
+from typing import Union
 
 import cudf
 import dask_cudf
@@ -21,7 +21,7 @@ import dask_cudf
 import cugraph
 import pylibcugraph
 
-from cugraph.gnn.data_loading.bulk_sampler_io import write_samples, filter_batches
+from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 
 import warnings
 import logging
@@ -187,7 +187,7 @@ class EXPERIMENTAL__BulkSampler:
             return
 
         start_time_calc_batches = time.perf_counter()
-        
+        self.__batches.reset_index(drop=True)
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
@@ -203,12 +203,7 @@ class EXPERIMENTAL__BulkSampler:
         npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
-        
-        filtered_batches, self.__batches = filter_batches(
-            self.__batches,
-            self.batch_col_name,
-            max_batch_id,
-        )
+        batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
 
         end_time_calc_batches = time.perf_counter()
         self.__logger.info(
@@ -236,8 +231,8 @@ class EXPERIMENTAL__BulkSampler:
         samples, offsets = sample_fn(
             self.__graph,
             **self.__sample_call_args,
-            start_list=filtered_batches[self.start_col_name],
-            batch_id_list=filtered_batches[self.batch_col_name],
+            start_list=self.__batches[self.start_col_name][batch_id_filter],
+            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
             with_edge_properties=True,
             return_offsets=True,
         )
@@ -251,6 +246,9 @@ class EXPERIMENTAL__BulkSampler:
         )
 
         start_time_filter_batches = time.perf_counter()
+
+        # Filter batches to remove those already processed
+        self.__batches = self.__batches[~batch_id_filter]
         if hasattr(self.__batches, "compute"):
             self.__batches = self.__batches.persist()
 

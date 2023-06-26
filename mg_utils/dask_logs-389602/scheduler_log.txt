@@ -1,0 +1,316 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --scheduler-file /root/cugraph/mg_utils/dask-scheduler.json
+                "
+/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2023-06-26 18:45:49,314 - distributed.scheduler - INFO - -----------------------------------------------
+2023-06-26 18:45:49,831 - distributed.scheduler - INFO - State start
+2023-06-26 18:45:49,832 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-rjr8kc56', purging
+2023-06-26 18:45:49,832 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-c0djub_9', purging
+2023-06-26 18:45:49,832 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-rl4eguf9', purging
+2023-06-26 18:45:49,832 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-xu9kp_cc', purging
+2023-06-26 18:45:49,833 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-ai081ucm', purging
+2023-06-26 18:45:49,833 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-ytbyxfna', purging
+2023-06-26 18:45:49,833 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-400bxacj', purging
+2023-06-26 18:45:49,833 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-n0v5twa4', purging
+2023-06-26 18:45:49,833 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-wkmj1qvd', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-cj_mycvs', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-q_1736w6', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-65jmyxhj', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-tcpbauby', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-m5ahvcl_', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-eon17czm', purging
+2023-06-26 18:45:49,834 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-v6tf6lm6', purging
+2023-06-26 18:45:49,847 - distributed.scheduler - INFO - -----------------------------------------------
+2023-06-26 18:45:49,847 - distributed.scheduler - INFO -   Scheduler at:  tcp://10.120.104.11:8786
+2023-06-26 18:45:49,848 - distributed.scheduler - INFO -   dashboard at:  http://10.120.104.11:8787/status
+2023-06-26 18:46:05,379 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:35199', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:05,382 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:35199
+2023-06-26 18:46:05,382 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51622
+2023-06-26 18:46:05,558 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:41851', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:05,559 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:41851
+2023-06-26 18:46:05,559 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51624
+2023-06-26 18:46:05,582 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:33973', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:05,582 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:33973
+2023-06-26 18:46:05,583 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51630
+2023-06-26 18:46:05,686 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:40665', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:05,686 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:40665
+2023-06-26 18:46:05,686 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51632
+2023-06-26 18:46:05,808 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:35529', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:05,808 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:35529
+2023-06-26 18:46:05,808 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51638
+2023-06-26 18:46:06,190 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:35467', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,190 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:35467
+2023-06-26 18:46:06,190 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51652
+2023-06-26 18:46:06,191 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:43143', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,191 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:43143
+2023-06-26 18:46:06,191 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51642
+2023-06-26 18:46:06,201 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:41491', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,202 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:41491
+2023-06-26 18:46:06,202 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51682
+2023-06-26 18:46:06,247 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:45225', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,248 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:45225
+2023-06-26 18:46:06,248 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51668
+2023-06-26 18:46:06,249 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46625', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,249 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46625
+2023-06-26 18:46:06,249 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51686
+2023-06-26 18:46:06,250 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:33633', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,250 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:33633
+2023-06-26 18:46:06,250 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51688
+2023-06-26 18:46:06,250 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:35839', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,251 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:35839
+2023-06-26 18:46:06,251 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51698
+2023-06-26 18:46:06,261 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:35125', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,261 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:35125
+2023-06-26 18:46:06,261 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51726
+2023-06-26 18:46:06,262 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:42985', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,262 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:42985
+2023-06-26 18:46:06,262 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51714
+2023-06-26 18:46:06,266 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46743', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,267 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46743
+2023-06-26 18:46:06,267 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51738
+2023-06-26 18:46:06,267 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37691', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:06,267 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37691
+2023-06-26 18:46:06,267 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:51744
+2023-06-26 18:46:12,415 - distributed.scheduler - INFO - Receive client connection: Client-b904d938-1451-11ee-b28f-5cff35c1a711
+2023-06-26 18:46:12,416 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:40590
+2023-06-26 18:46:13,117 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2023-06-26 18:46:39,955 - distributed.protocol.pickle - INFO - Failed to deserialize b'\x80\x05\x95\xcb3\x00\x00\x00\x00\x00\x00\x8c\x1edistributed.protocol.serialize\x94\x8c\x08ToPickle\x94\x93\x94)\x81\x94}\x94\x8c\x04data\x94\x8c\x13dask.highlevelgraph\x94\x8c\x0eHighLevelGraph\x94\x93\x94)\x81\x94}\x94(\x8c\x0cdependencies\x94}\x94(\x8c(len-agg-164997284f63f6ccf6dda3a45889d909\x94\x8f\x94(\x8cKlen-chunk-164997284f63f6ccf6dda3a45889d909-56c87d248339c445a4121190d918b7fc\x94\x90h\x0f\x8f\x94u\x8c\x10key_dependencies\x94}\x94\x8c\x06layers\x94}\x94(h\r\x8c\x0bdask.layers\x94\x8c\x16DataFrameTreeReduction\x94\x93\x94)\x81\x94}\x94(\x8c\x0bannotations\x94N\x8c\x16collection_annotations\x94N\x8c\x04name\x94h\r\x8c\nname_input\x94h\x0f\x8c\x11npartitions_input\x94K \x8c\x0bconcat_func\x94\x8c\tfunctools\x94\x8c\x07partial\x94\x93\x94\x8c\x13dask.dataframe.core\x94\x8c\x07_concat\x94\x93\x94\x85\x94R\x94(h%)}\x94\x8c\x0cignore_index\x94\x89sNt\x94b\x8c\x0etree_node_func\x94h"h#\x8c\x12_reduction_combine\x94\x93\x94\x85\x94R\x94(h-)}\x94\x8c\x0baca_combine\x94\x8c\x05numpy\x94\x8c\x03sum\x94\x93\x94sNt\x94b\x8c\rfinalize_func\x94h"h#\x8c\x14_reduction_aggregate\x94\x93\x94\x85\x94R\x94(h8)}\x94\x8c\raca_aggregate\x94h4sNt\x94b\x8c\x0bsplit_every\x94K \x8c\tsplit_out\x94N\x8c\x11output_partitions\x94]\x94K\x00a\x8c\x0etree_node_name\x94\x8c,len-combine-164997284f63f6ccf6dda3a45889d909\x94\x8c\x06widths\x94]\x94(K K\x01e\x8c\x06height\x94K\x02\x8c\x13_cached_output_keys\x94\x8f\x94(h\rK\x00\x86\x94\x90ubh\x0f\x8c\x0edask.blockwise\x94\x8c\tBlockwise\x94\x93\x94)\x81\x94}\x94(h\x1aNh\x1bN\x8c\x06output\x94h\x0f\x8c\x0eoutput_indices\x94\x8c\x02.0\x94\x85\x94\x8c\routput_blocks\x94N\x8c\x03dsk\x94}\x94(h\x0f(\x8c\ndask.utils\x94\x8c\x05apply\x94\x93\x94h#\x8c\x10_reduction_chunk\x94\x93\x94]\x94\x8c+getitem-8d47b07c1c13e54ee16e8160bcddbc27_.0\x94a\x8c\x08builtins\x94\x8c\x04dict\x94\x93\x94]\x94]\x94(\x8c\taca_chunk\x94\x8c\x08builtins\x94\x8c\x03len\x94\x93\x94ea\x86\x94t\x94h\\\x8c\t_operator\x94\x8c\x07getitem\x94\x93\x94\x8c1_replicate_df-5043fa5181a518cd128446db3f1911da_.0\x94\x8c\x13__dask_blockwise__0\x94\x87\x94hk(hXh#\x8c\x11apply_and_enforce\x94\x93\x94]\x94(\x8c\x13__dask_blockwise__1\x94\x8c*assign-79e7b6b9955aff4f05b61c6a13c74862_.0\x94\x8c\x13__dask_blockwise__2\x94\x8c\x13__dask_blockwise__3\x94eh_]\x94(]\x94(\x8c\x05_func\x94\x8c\x17cloudpickle.cloudpickle\x94\x8c\x0e_make_function\x94\x93\x94(hx\x8c\r_builtin_type\x94\x93\x94\x8c\x08CodeType\x94\x85\x94R\x94(K\x01K\x00K\x00K\x03K\x05J\x1f\x00\x00\x01C\x16\x88\x00|\x01i\x00|\x02\xa4\x01d\x01|\x00i\x01\xa4\x01\x8e\x01S\x00\x94N\x8c\x0epartition_info\x94\x86\x94)h\x81\x8c\x04args\x94\x8c\x06kwargs\x94\x87\x94\x8cJ/opt/conda/envs/rapids/lib/python3.10/site-packages/dask/dataframe/core.py\x94\x8c\x04func\x94ME\x1bC\x02\x16\x01\x94\x8c\torig_func\x94\x85\x94)t\x94R\x94}\x94(\x8c\x0b__package__\x94\x8c\x0edask.dataframe\x94\x8c\x08__name__\x94h#\x8c\x08__file__\x94h\x86uNNhx\x8c\x10_make_empty_cell\x94\x93\x94)R\x94\x85\x94t\x94R\x94\x8c\x1ccloudpickle.cloudpickle_fast\x94\x8c\x12_function_setstate\x94\x93\x94h\x97}\x94}\x94(h\x90h\x87\x8c\x0c__qualname__\x94\x8c\x1cmap_partitions.<locals>.func\x94\x8c\x0f__annotations__\x94}\x94\x8c\x0e__kwdefaults__\x94N\x8c\x0c__defaults__\x94N\x8c\n__module__\x94h#\x8c\x07__doc__\x94N\x8c\x0b__closure__\x94hx\x8c\n_make_cell\x94\x93\x94hz(h\x7f(K\x04K\x00K\x00K\tK\x07K\x03C\x84|\x03d\x00u\x00r\x12t\x00\xa0\x01\x87\x00f\x01d\x01d\x02\x84\x08|\x02\xa0\x02\xa1\x00D\x00\x83\x01\xa1\x01S\x00\x88\x00\xa0\x03\xa1\x00}\x04|\x01d\x03k\x04r@t\x04d\x03|\x01\x83\x02D\x00] }\x05|\x04}\x06|\x02\xa0\x05\xa1\x00D\x00]\x0e\\\x02}\x07}\x08|\x06|\x07\x05\x00\x19\x00|\x08|\x05\x14\x007\x00\x03\x00<\x00q\'t\x00j\x06\x88\x00|\x06g\x02d\x04d\x05\x8d\x02\x89\x00q\x1f\x88\x00S\x00\x94(Nh\x7f(K\x01K\x00K\x00K\x02K\x06K\x13C i\x00|\x00]\x0c}\x01|\x01t\x00j\x01\x88\x00|\x01\x19\x00j\x02d\x00\x8d\x01\x93\x02q\x02S\x00\x94\x8c\x05dtype\x94\x85\x94\x85\x94\x8c\x04cudf\x94\x8c\x06Series\x94h\xaa\x87\x94\x8c\x02.0\x94\x8c\x03col\x94\x86\x94\x8cR/root/cugraph/benchmarks/cugraph/standalone/bulk_sampling/cugraph_bulk_sampling.py\x94\x8c\n<dictcomp>\x94K\x92C\x06\x06\x00\x14\x01\x06\xff\x94\x8c\x02df\x94\x85\x94)t\x94R\x94\x8c!_replicate_df.<locals>.<dictcomp>\x94K\x01\x88h)\x85\x94t\x94(h\xad\x8c\tDataFrame\x94\x8c\x04keys\x94\x8c\x04copy\x94\x8c\x05range\x94\x8c\x05items\x94\x8c\x06concat\x94t\x94(h\xb6\x8c\x12replication_factor\x94\x8c\x0fcol_item_counts\x94h\x81\x8c\x0boriginal_df\x94\x8c\x01r\x94\x8c\rdf_replicated\x94h\xb1\x8c\x06offset\x94t\x94h\xb3\x8c\r_replicate_df\x94K\x8fC\x18\x08\x02\x0e\x01\x06\x01\x08\xff\x08\x04\x08\x02\x0e\x01\x04\x01\x10\x01\x16\x01\x14\x02\x04\x02\x94)h\xb7t\x94R\x94}\x94(h\x8eNh\x90\x8c\x08__main__\x94h\x91h\xb3uNNNt\x94R\x94h\x9ah\xd2}\x94}\x94(h\x90h\xcbh\x9dh\xcbh\x9f}\x94(h\xb6\x8c\x13cudf.core.dataframe\x94h\xbd\x93\x94h\xc4h]\x8c\x03int\x94\x93\x94h\xc5hj\x8c\x06typing\x94\x8c\x04Dict\x94\x93\x94h]\x8c\x03str\x94\x93\x94h\xd9\x86\x94\x86\x94R\x94h\x81hjh\xda\x8c\x05Union\x94\x93\x94h_h\xdeh]\x8c\x04type\x94\x93\x94N\x85\x94R\x94\x87\x94\x86\x94R\x94uh\xa1Nh\xa2N\x85\x94h\xa3h\xd0h\xa4Nh\xa5N\x8c\x17_cloudpickle_submodules\x94]\x94\x8c\x0b__globals__\x94}\x94h\xadhx\x8c\tsubimport\x94\x93\x94h\xad\x85\x94R\x94su\x86\x94\x86R0\x85\x94R\x94\x85\x94h\xec]\x94h\xee}\x94u\x86\x94\x86R0e]\x94(\x8c\x05_meta\x94h|\x8c\nMethodType\x94\x85\x94R\x94hz(h\x7f(K\x03K\x00K\x00K\x04K\x06KCC.d\x01d\x02\x84\x00t\x00|\x01d\x03\x19\x00t\x01t\x02|\x02\x83\x02\x83\x02D\x00\x83\x01}\x02|\x00\xa0\x03|\x01|\x02\xa1\x02}\x03|\x03S\x00\x94(X\x04\x02\x00\x00Perform device-side deserialization tasks.\n\n        Parameters\n        ----------\n        header : dict\n            The metadata required to reconstruct the object.\n        frames : list\n            The Buffers or memoryviews that the object should contain.\n\n        Returns\n        -------\n        Serializable\n            A new instance of `cls` (a subclass of `Serializable`) equivalent\n            to the instance that was serialized to produce the header and\n            frames.\n\n        :meta private:\n        \x94h\x7f(K\x01K\x00K\x00K\x03K\x05KSC&g\x00|\x00]\x0f\\\x02}\x01}\x02|\x01r\x0ft\x00j\x01j\x02\xa0\x03|\x02\xa1\x01n\x01|\x02\x91\x02q\x02S\x00\x94)(h\xad\x8c\x04core\x94\x8c\x06buffer\x94\x8c\tas_buffer\x94t\x94h\xb0\x8c\x01c\x94\x8c\x01f\x94\x87\x94\x8cD/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/abc.py\x94\x8c\n<listcomp>\x94K\xacC\x08\x06\x00\x06\x02\x14\xff\x06\xff\x94))t\x94R\x94\x8c1Serializable.host_deserialize.<locals>.<listcomp>\x94\x8c\x07is-cuda\x94t\x94(\x8c\x03zip\x94\x8c\x03map\x94\x8c\nmemoryview\x94\x8c\x12device_deserialize\x94t\x94(\x8c\x03cls\x94\x8c\x06header\x94\x8c\x06frames\x94\x8c\x03obj\x94t\x94j\n\x01\x00\x00\x8c\x10host_deserialize\x94K\x98C\n\x06\x14\x12\x02\x06\xfe\x0c\x04\x04\x01\x94))t\x94R\x94}\x94(h\x8e\x8c\tcudf.core\x94h\x90\x8c\rcudf.core.abc\x94h\x91j\n\x01\x00\x00uNNNt\x94R\x94h\x9aj$\x01\x00\x00}\x94}\x94(h\x90j\x1c\x01\x00\x00h\x9d\x8c\x1dSerializable.host_deserialize\x94h\x9f}\x94h\xa1Nh\xa2Nh\xa3j"\x01\x00\x00h\xa4j\x01\x01\x00\x00h\xa5Nh\xec]\x94h\xee}\x94h\xadh\xf3su\x86\x94\x86R0h\xd7\x86\x94R\x94}\x94(\x8c\x0ftype-serialized\x94C0\x80\x04\x95%\x00\x00\x00\x00\x00\x00\x00\x8c\x13cudf.core.dataframe\x94\x8c\tDataFrame\x94\x93\x94.\x94\x8c\x0ccolumn_names\x94C\x1a\x80\x04\x95\x0f\x00\x00\x00\x00\x00\x00\x00\x8c\x03src\x94\x8c\x03dst\x94\x86\x94.\x94\x8c\x07columns\x94}\x94(\x8c\x0ftype-serialized\x94C=\x80\x04\x952\x00\x00\x00\x00\x00\x00\x00\x8c\x1acudf.core.column.numerical\x94\x8c\x0fNumericalColumn\x94\x93\x94.\x94h\xaaCB\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x05numpy\x94\x8c\x05dtype\x94\x93\x94\x8c\x02i8\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01<\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94b.\x94\x8c\x18dtype-is-cudf-serialized\x94\x89h\x05}\x94(\x8c\x0ftype-serialized\x94CI\x80\x04\x95>\x00\x00\x00\x00\x00\x00\x00\x8c!cudf.core.buffer.spillable_buffer\x94\x8c\x14SpillableBufferSlice\x94\x93\x94.\x94\x8c\x0bframe_count\x94K\x01u\x8c\x04size\x94K\x00j<\x01\x00\x00K\x01u}\x94(j5\x01\x00\x00C=\x80\x04\x952\x00\x00\x00\x00\x00\x00\x00\x8c\x1acudf.core.column.numerical\x94\x8c\x0fNumericalColumn\x94\x93\x94.\x94h\xaaCB\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x05numpy\x94\x8c\x05dtype\x94\x93\x94\x8c\x02i8\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01<\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94b.\x94j8\x01\x00\x00\x89h\x05}\x94(j:\x01\x00\x00CI\x80\x04\x95>\x00\x00\x00\x00\x00\x00\x00\x8c!cudf.core.buffer.spillable_buffer\x94\x8c\x14SpillableBufferSlice\x94\x93\x94.\x94j<\x01\x00\x00K\x01uj=\x01\x00\x00K\x00j<\x01\x00\x00K\x01u\x86\x94\x8c\x05index\x94}\x94(\x8c\x0cindex_column\x94}\x94(\x8c\x05start\x94K\x00\x8c\x04stop\x94K\x00\x8c\x04step\x94K\x01uh\x1cC\x04\x80\x04N.\x94h\xaaCB\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x05numpy\x94\x8c\x05dtype\x94\x93\x94\x8c\x02i8\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01<\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94b.\x94\x8c\x0ftype-serialized\x94C-\x80\x04\x95"\x00\x00\x00\x00\x00\x00\x00\x8c\x0fcudf.core.index\x94\x8c\nRangeIndex\x94\x93\x94.\x94j<\x01\x00\x00K\x00u\x8c\x11index_frame_count\x94K\x00j\x10\x01\x00\x00]\x94(\x88\x88e\x8c\x07lengths\x94]\x94(K\x00K\x00e\x8c\twriteable\x94NN\x86\x94u]\x94(\x8c\x12numpy.core.numeric\x94\x8c\x0b_frombuffer\x94\x93\x94(\x97\x98h2h\xaa\x93\x94\x8c\x02u1\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01|\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94bK\x00\x85\x94\x8c\x01C\x94t\x94R\x94jX\x01\x00\x00(\x97\x98j\\\x01\x00\x00K\x00\x85\x94j`\x01\x00\x00t\x94R\x94e\x86\x94R\x94ee\x86\x94t\x94hr(\x8c\x16dask.dataframe.methods\x94\x8c\x06assign\x94\x93\x94\x8c*assign-7a31f8143cc223f15cd3762c9b451864_.0\x94\x8c\x13__dask_blockwise__5\x94\x8c\'add-bd81a73d3da345912094025794950413_.0\x94t\x94jo\x01\x00\x00hh\x8c\x03add\x94\x93\x94\x8c+getitem-0f5db0edc6a99e5906eedb06c6888b74_.0\x94\x8c\x13__dask_blockwise__6\x94\x87\x94js\x01\x00\x00hjjm\x01\x00\x00jn\x01\x00\x00\x87\x94\x8c\'add-2b5167922093b28b8b69868e84a15525_.0\x94jr\x01\x00\x00\x8c+getitem-36ffef13e0cce494c224877403ba899d_.0\x94jt\x01\x00\x00\x87\x94jx\x01\x00\x00hj\x8c0read-parquet-1a83665a6299205a0cf4e9c5910a7701_.0\x94hl\x87\x94jm\x01\x00\x00(jl\x01\x00\x00jz\x01\x00\x00hljw\x01\x00\x00t\x94jz\x01\x00\x00\x8c\x1edask.dataframe.io.parquet.core\x94\x8c\x16ParquetFunctionWrapper\x94\x93\x94)\x81\x94}\x94(\x8c\x06engine\x94\x8c\x14dask_cudf.io.parquet\x94\x8c\nCudfEngine\x94\x93\x94\x8c\x02fs\x94\x8c\x0bfsspec.spec\x94\x8c\rmake_instance\x94\x93\x94\x8c\x1cfsspec.implementations.local\x94\x8c\x0fLocalFileSystem\x94\x93\x94)}\x94\x87\x94R\x94\x8c\x04meta\x94h\xffj$\x01\x00\x00h\xd7\x86\x94R\x94}\x94(j/\x01\x00\x00C0\x80\x04\x95%\x00\x00\x00\x00\x00\x00\x00\x8c\x13cudf.core.dataframe\x94\x8c\tDataFrame\x94\x93\x94.\x94j1\x01\x00\x00C\x1a\x80\x04\x95\x0f\x00\x00\x00\x00\x00\x00\x00\x8c\x03src\x94\x8c\x03dst\x94\x86\x94.\x94j3\x01\x00\x00}\x94(j5\x01\x00\x00C=\x80\x04\x952\x00\x00\x00\x00\x00\x00\x00\x8c\x1acudf.core.column.numerical\x94\x8c\x0fNumericalColumn\x94\x93\x94.\x94h\xaaCB\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x05numpy\x94\x8c\x05dtype\x94\x93\x94\x8c\x02i8\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01<\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94b.\x94j8\x01\x00\x00\x89h\x05}\x94(j:\x01\x00\x00CI\x80\x04\x95>\x00\x00\x00\x00\x00\x00\x00\x8c!cudf.core.buffer.spillable_buffer\x94\x8c\x14SpillableBufferSlice\x94\x93\x94.\x94j<\x01\x00\x00K\x01uj=\x01\x00\x00K\x00j<\x01\x00\x00K\x01u}\x94(j5\x01\x00\x00C=\x80\x04\x952\x00\x00\x00\x00\x00\x00\x00\x8c\x1acudf.core.column.numerical\x94\x8c\x0fNumericalColumn\x94\x93\x94.\x94h\xaaCB\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x05numpy\x94\x8c\x05dtype\x94\x93\x94\x8c\x02i8\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01<\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94b.\x94j8\x01\x00\x00\x89h\x05}\x94(j:\x01\x00\x00CI\x80\x04\x95>\x00\x00\x00\x00\x00\x00\x00\x8c!cudf.core.buffer.spillable_buffer\x94\x8c\x14SpillableBufferSlice\x94\x93\x94.\x94j<\x01\x00\x00K\x01uj=\x01\x00\x00K\x00j<\x01\x00\x00K\x01u\x86\x94jD\x01\x00\x00}\x94(j/\x01\x00\x00C-\x80\x04\x95"\x00\x00\x00\x00\x00\x00\x00\x8c\x0fcudf.core.index\x94\x8c\nInt64Index\x94\x93\x94.\x94j1\x01\x00\x00C\x0f\x80\x04\x95\x04\x00\x00\x00\x00\x00\x00\x00N\x85\x94.\x94j3\x01\x00\x00}\x94(j5\x01\x00\x00C=\x80\x04\x952\x00\x00\x00\x00\x00\x00\x00\x8c\x1acudf.core.column.numerical\x94\x8c\x0fNumericalColumn\x94\x93\x94.\x94h\xaaCB\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x05numpy\x94\x8c\x05dtype\x94\x93\x94\x8c\x02i8\x94\x89\x88\x87\x94R\x94(K\x03\x8c\x01<\x94NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00t\x94b.\x94j8\x01\x00\x00\x89h\x05}\x94(j:\x01\x00\x00CI\x80\x04\x95>\x00\x00\x00\x00\x00\x00\x00\x8c!cudf.core.buffer.spillable_buffer\x94\x8c\x14SpillableBufferSlice\x94\x93\x94.\x94j<\x01\x00\x00K\x01uj=\x01\x00\x00K\x00j<\x01\x00\x00K\x01u\x85\x94ujO\x01\x00\x00K\x01j\x10\x01\x00\x00]\x94(\x88\x88\x88ejQ\x01\x00\x00]\x94(K\x00K\x00K\x00ejS\x01\x00\x00NNN\x87\x94u]\x94(jX\x01\x00\x00(\x97\x98j\\\x01\x00\x00K\x00\x85\x94j`\x01\x00\x00t\x94R\x94jX\x01\x00\x00(\x97\x98j\\\x01\x00\x00K\x00\x85\x94j`\x01\x00\x00t\x94R\x94jX\x01\x00\x00(\x97\x98j\\\x01\x00\x00K\x00\x85\x94j`\x01\x00\x00t\x94R\x94e\x86\x94R\x94\x8c\x08_columns\x94]\x94(\x8c\x03src\x94\x8c\x03dst\x94ejD\x01\x00\x00]\x94Na\x8c\rdtype_backend\x94N\x8c\rcommon_kwargs\x94}\x94(\x8c\npartitions\x94]\x94\x8c\ncategories\x94]\x94\x8c\x07filters\x94N\x8c\x06schema\x94\x8c\x0bpyarrow.lib\x94\x8c\x06schema\x94\x93\x94]\x94(j\xc7\x01\x00\x00\x8c\x05field\x94\x93\x94(\x8c\x03src\x94j\xc7\x01\x00\x00\x8c\x0etype_for_alias\x94\x93\x94\x8c\x05int64\x94\x85\x94R\x94\x88Nt\x94R\x94j\xcc\x01\x00\x00(\x8c\x03dst\x94j\xcf\x01\x00\x00\x8c\x05int64\x94\x85\x94R\x94\x88Nt\x94R\x94j\xcc\x01\x00\x00(\x8c\x11__index_level_0__\x94j\xcf\x01\x00\x00\x8c\x05int64\x94\x85\x94R\x94\x88Nt\x94R\x94e}\x94C\x06pandas\x94BW\x02\x00\x00{"index_columns": ["__index_level_0__"], "column_indexes": [{"name": null, "field_name": null, "pandas_type": "unicode", "numpy_type": "object", "metadata": {"encoding": "UTF-8"}}], "columns": [{"name": "src", "field_name": "src", "pandas_type": "int64", "numpy_type": "int64", "metadata": null}, {"name": "dst", "field_name": "dst", "pandas_type": "int64", "numpy_type": "int64", "metadata": null}, {"name": null, "field_name": "__index_level_0__", "pandas_type": "int64", "numpy_type": "int64", "metadata": null}], "creator": {"library": "pyarrow", "version": "11.0.0"}, "pandas_version": "1.5.3"}\x94s\x86\x94R\x94\x8c\x07dataset\x94}\x94(\x8c\x0cpartitioning\x94\x8c\x04hive\x94\x8c\x06format\x94\x8c\x18pyarrow._dataset_parquet\x94\x8c\x11ParquetFileFormat\x94\x93\x94j\xeb\x01\x00\x00\x8c!__pyx_unpickle_ParquetReadOptions\x94\x93\x94j\xeb\x01\x00\x00\x8c\x12ParquetReadOptions\x94\x93\x94J\xcf\xb4A\x0eN\x87\x94R\x94K\x03\x8f\x94\x86\x94bhc\x8c\x07getattr\x94\x93\x94j\xeb\x01\x00\x00\x8c\x1aParquetFragmentScanOptions\x94\x93\x94\x8c\x0c_reconstruct\x94\x86\x94R\x94}\x94(\x8c\x13use_buffered_stream\x94\x89\x8c\x0bbuffer_size\x94M\x00 \x8c\npre_buffer\x94\x89\x8c\x18thrift_string_size_limit\x94J\x00\xe1\xf5\x05\x8c\x1bthrift_container_size_limit\x94J@B\x0f\x00u\x85\x94R\x94\x86\x94R\x94u\x8c\x0econvert_string\x94\x89\x8c\x04read\x94}\x94(\x8c\x0fcheck_file_size\x94J\x00e\xcd\x1d\x8c\x11open_file_options\x94}\x94uj\xbe\x01\x00\x00Nuub\x8c\x13__dask_blockwise__7\x94\x86\x94u\x8c\tnumblocks\x94}\x94(\x8c dbcb642d370ae1f1cefac89d7b78bd3d\x94K \x85\x94\x8c 0427a5bfa3e75b5a1b873b3a9b4ed844\x94K \x85\x94u\x8c\x07io_deps\x94}\x94(j\x11\x02\x00\x00hJ\x8c\x10BlockwiseDepDict\x94\x93\x94)\x81\x94}\x94(\x8c\x07mapping\x94}\x94(K\x00\x85\x94}\x94(\x8c\x06number\x94K\x00\x8c\x08division\x94NuK\x01\x85\x94}\x94(j\x1f\x02\x00\x00K\x01j \x02\x00\x00NuK\x02\x85\x94}\x94(j\x1f\x02\x00\x00K\x02j \x02\x00\x00NuK\x03\x85\x94}\x94(j\x1f\x02\x00\x00K\x03j \x02\x00\x00NuK\x04\x85\x94}\x94(j\x1f\x02\x00\x00K\x04j \x02\x00\x00NuK\x05\x85\x94}\x94(j\x1f\x02\x00\x00K\x05j \x02\x00\x00NuK\x06\x85\x94}\x94(j\x1f\x02\x00\x00K\x06j \x02\x00\x00NuK\x07\x85\x94}\x94(j\x1f\x02\x00\x00K\x07j \x02\x00\x00NuK\x08\x85\x94}\x94(j\x1f\x02\x00\x00K\x08j \x02\x00\x00NuK\t\x85\x94}\x94(j\x1f\x02\x00\x00K\tj \x02\x00\x00NuK\n\x85\x94}\x94(j\x1f\x02\x00\x00K\nj \x02\x00\x00NuK\x0b\x85\x94}\x94(j\x1f\x02\x00\x00K\x0bj \x02\x00\x00NuK\x0c\x85\x94}\x94(j\x1f\x02\x00\x00K\x0cj \x02\x00\x00NuK\r\x85\x94}\x94(j\x1f\x02\x00\x00K\rj \x02\x00\x00NuK\x0e\x85\x94}\x94(j\x1f\x02\x00\x00K\x0ej \x02\x00\x00NuK\x0f\x85\x94}\x94(j\x1f\x02\x00\x00K\x0fj \x02\x00\x00NuK\x10\x85\x94}\x94(j\x1f\x02\x00\x00K\x10j \x02\x00\x00NuK\x11\x85\x94}\x94(j\x1f\x02\x00\x00K\x11j \x02\x00\x00NuK\x12\x85\x94}\x94(j\x1f\x02\x00\x00K\x12j \x02\x00\x00NuK\x13\x85\x94}\x94(j\x1f\x02\x00\x00K\x13j \x02\x00\x00NuK\x14\x85\x94}\x94(j\x1f\x02\x00\x00K\x14j \x02\x00\x00NuK\x15\x85\x94}\x94(j\x1f\x02\x00\x00K\x15j \x02\x00\x00NuK\x16\x85\x94}\x94(j\x1f\x02\x00\x00K\x16j \x02\x00\x00NuK\x17\x85\x94}\x94(j\x1f\x02\x00\x00K\x17j \x02\x00\x00NuK\x18\x85\x94}\x94(j\x1f\x02\x00\x00K\x18j \x02\x00\x00NuK\x19\x85\x94}\x94(j\x1f\x02\x00\x00K\x19j \x02\x00\x00NuK\x1a\x85\x94}\x94(j\x1f\x02\x00\x00K\x1aj \x02\x00\x00NuK\x1b\x85\x94}\x94(j\x1f\x02\x00\x00K\x1bj \x02\x00\x00NuK\x1c\x85\x94}\x94(j\x1f\x02\x00\x00K\x1cj \x02\x00\x00NuK\x1d\x85\x94}\x94(j\x1f\x02\x00\x00K\x1dj \x02\x00\x00NuK\x1e\x85\x94}\x94(j\x1f\x02\x00\x00K\x1ej \x02\x00\x00NuK\x1f\x85\x94}\x94(j\x1f\x02\x00\x00K\x1fj \x02\x00\x00Nuu\x8c\x0eproduces_tasks\x94\x89j\x0f\x02\x00\x00j\x12\x02\x00\x00\x8c\x0e_produces_keys\x94\x89ubj\x13\x02\x00\x00j\x18\x02\x00\x00)\x81\x94}\x94(j\x1b\x02\x00\x00}\x94(K\x00\x85\x94]\x94}\x94\x8c\x05piece\x94\x8cZ/datasets/abarghi/ogbn_papers100M/parquet/paper__cites__paper/edge_index.parquet/0.parquet\x94]\x94K\x00a]\x94\x87\x94saK\x01\x85\x94]\x94}\x94jg\x02\x00\x00\x8cZ/datasets/abarghi/ogbn_papers100M/parquet/paper__cites__paper/edge_index.parquet/1.parquet\x94]\x94K\x00a]\x94\x87\x94saK\x02\x85\x94]\x94}\x94jg\x02\x00\x00\x8cZ/datasets/abarghi/ogbn_papers100M/parquet/paper__cites__paper/edge_index.parquet/2.parquet\x94]\x94K\x00a]\x94\x87\x94saK\x03\x85\x94]\x94}\x94jg\x02\x00\x00\x8cZ/datasets/abarghi/ogbn_papers100M/parquet/paper__cites__paper/edge_index.parquet/3.parquet\x94]\x94K\x00a]\x94\x87\x94saK\x04\x85\x94]\x94}\x94jg\x02\x00\x00\x8cZ/datasets/abarghi/ogbn_papers100M/parquet/paper__cites__paper/edge_index.parquet/4.parquet\x94]\x94K\x00a]\x94\x87\x94saK\x05\x85\x94]\x94}\x94jg\x02\x00\x00\x8cZ/datasets/abarghi/ogbn_papers100M/parquet/paper__cites__paper/edge_index.parquet/5.parquet\x94]\x94K\x00a]\x94\x87\x94saK\x06\x85\x94]\x94'
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/protocol/pickle.py", line 94, in loads
+    return pickle.loads(x, buffers=buffers)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/abc.py", line 176, in host_deserialize
+    obj = cls.device_deserialize(header, frames)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/abc.py", line 130, in device_deserialize
+    return typ.deserialize(header, frames)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/dataframe.py", line 1008, in deserialize
+    obj = super().deserialize(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/frame.py", line 108, in deserialize
+    columns = deserialize_columns(header["columns"], frames)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/column/column.py", line 2458, in deserialize_columns
+    colobj = col_typ.deserialize(meta, frames[:col_frame_count])
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/column/column.py", line 1206, in deserialize
+    data, frames = unpack(header["data"], frames)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/column/column.py", line 1194, in unpack
+    obj = klass.deserialize(header, frames[:count])
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/buffer/spillable_buffer.py", line 563, in deserialize
+    return SpillableBuffer.deserialize(header, frames)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/buffer/buffer.py", line 334, in deserialize
+    return cls._from_device_memory(frame)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/buffer/spillable_buffer.py", line 222, in _from_device_memory
+    ret._finalize_init(ptr_desc={"type": "gpu"}, exposed=exposed)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/cudf/core/buffer/spillable_buffer.py", line 195, in _finalize_init
+    raise ValueError(
+ValueError: cannot create <class 'cudf.core.buffer.spillable_buffer.SpillableBuffer'> without a global spill manager
+2023-06-26 18:46:40,402 - distributed.worker - INFO - Run out-of-band function '_func_destroy_scheduler_session'
+2023-06-26 18:46:40,403 - distributed.scheduler - INFO - Restarting workers and releasing all keys.
+2023-06-26 18:46:40,422 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51688; closing.
+2023-06-26 18:46:40,422 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:33633', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,423 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:33633
+2023-06-26 18:46:40,423 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51630; closing.
+2023-06-26 18:46:40,424 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:33973', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,424 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:33973
+2023-06-26 18:46:40,424 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51726; closing.
+2023-06-26 18:46:40,425 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51622; closing.
+2023-06-26 18:46:40,425 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:35125', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,425 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35125
+2023-06-26 18:46:40,425 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:35199', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,425 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35199
+2023-06-26 18:46:40,426 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51652; closing.
+2023-06-26 18:46:40,426 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51638; closing.
+2023-06-26 18:46:40,427 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:35467', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,427 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35467
+2023-06-26 18:46:40,427 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:35529', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,427 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35529
+2023-06-26 18:46:40,427 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51698; closing.
+2023-06-26 18:46:40,427 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51744; closing.
+2023-06-26 18:46:40,428 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:35839', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,428 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35839
+2023-06-26 18:46:40,428 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:37691', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,428 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37691
+2023-06-26 18:46:40,429 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51682; closing.
+2023-06-26 18:46:40,429 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51632; closing.
+2023-06-26 18:46:40,429 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:41491', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,429 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:41491
+2023-06-26 18:46:40,430 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:40665', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,430 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:40665
+2023-06-26 18:46:40,430 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51624; closing.
+2023-06-26 18:46:40,431 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:41851', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,431 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:41851
+2023-06-26 18:46:40,432 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51714; closing.
+2023-06-26 18:46:40,432 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:42985', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,432 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42985
+2023-06-26 18:46:40,434 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51668; closing.
+2023-06-26 18:46:40,435 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:45225', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,435 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:45225
+2023-06-26 18:46:40,438 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51642; closing.
+2023-06-26 18:46:40,439 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:43143', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,439 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43143
+2023-06-26 18:46:40,459 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51686; closing.
+2023-06-26 18:46:40,459 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:46625', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,459 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:46625
+2023-06-26 18:46:40,487 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:51738; closing.
+2023-06-26 18:46:40,487 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:46743', status: closing, memory: 0, processing: 0>
+2023-06-26 18:46:40,487 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:46743
+2023-06-26 18:46:40,487 - distributed.scheduler - INFO - Lost all workers
+2023-06-26 18:46:46,995 - distributed.scheduler - INFO - Remove client Client-b904d938-1451-11ee-b28f-5cff35c1a711
+2023-06-26 18:46:46,996 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:40590; closing.
+2023-06-26 18:46:46,996 - distributed.scheduler - INFO - Remove client Client-b904d938-1451-11ee-b28f-5cff35c1a711
+2023-06-26 18:46:46,996 - distributed.scheduler - INFO - Close client connection: Client-b904d938-1451-11ee-b28f-5cff35c1a711
+2023-06-26 18:46:47,167 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:39615', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:47,167 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:39615
+2023-06-26 18:46:47,167 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:42808
+2023-06-26 18:46:47,970 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:42033', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:47,971 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:42033
+2023-06-26 18:46:47,971 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:42816
+2023-06-26 18:46:48,434 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:36721', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:48,434 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:36721
+2023-06-26 18:46:48,434 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:42836
+2023-06-26 18:46:48,435 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:38919', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:48,435 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:38919
+2023-06-26 18:46:48,435 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:42840
+2023-06-26 18:46:52,884 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:45093', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,884 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:45093
+2023-06-26 18:46:52,884 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41150
+2023-06-26 18:46:52,886 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37491', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,886 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37491
+2023-06-26 18:46:52,886 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41162
+2023-06-26 18:46:52,967 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37263', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,967 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37263
+2023-06-26 18:46:52,968 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41176
+2023-06-26 18:46:52,969 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:34265', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,969 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:34265
+2023-06-26 18:46:52,969 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41184
+2023-06-26 18:46:52,975 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46801', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,975 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46801
+2023-06-26 18:46:52,975 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41186
+2023-06-26 18:46:52,976 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:39967', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,977 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:39967
+2023-06-26 18:46:52,977 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41190
+2023-06-26 18:46:52,977 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37321', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,977 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37321
+2023-06-26 18:46:52,977 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41196
+2023-06-26 18:46:52,992 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:42843', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,993 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:42843
+2023-06-26 18:46:52,993 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41216
+2023-06-26 18:46:52,993 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37815', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,993 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37815
+2023-06-26 18:46:52,994 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41212
+2023-06-26 18:46:52,994 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:40271', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,994 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:40271
+2023-06-26 18:46:52,994 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41238
+2023-06-26 18:46:52,995 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46649', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:52,995 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46649
+2023-06-26 18:46:52,995 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41222
+2023-06-26 18:46:53,006 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37329', status: init, memory: 0, processing: 0>
+2023-06-26 18:46:53,006 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37329
+2023-06-26 18:46:53,006 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:41254
+2023-06-26 18:46:53,074 - distributed.scheduler - INFO - Restarting finished.
+2023-06-26 18:47:43,861 - distributed._signals - INFO - Received signal SIGINT (2)
+2023-06-26 18:47:43,862 - distributed.core - INFO - Connection to tcp://10.120.104.11:41150 has been closed.
+2023-06-26 18:47:43,862 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:45093', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,862 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:45093
+2023-06-26 18:47:43,862 - distributed.core - INFO - Connection to tcp://10.120.104.11:41186 has been closed.
+2023-06-26 18:47:43,862 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:46801', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,862 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:46801
+2023-06-26 18:47:43,862 - distributed.core - INFO - Connection to tcp://10.120.104.11:42836 has been closed.
+2023-06-26 18:47:43,863 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:36721', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,863 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36721
+2023-06-26 18:47:43,863 - distributed.core - INFO - Connection to tcp://10.120.104.11:42840 has been closed.
+2023-06-26 18:47:43,863 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:38919', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,863 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38919
+2023-06-26 18:47:43,863 - distributed.core - INFO - Connection to tcp://10.120.104.11:41212 has been closed.
+2023-06-26 18:47:43,863 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:37815', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,863 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37815
+2023-06-26 18:47:43,863 - distributed.core - INFO - Connection to tcp://10.120.104.11:42808 has been closed.
+2023-06-26 18:47:43,863 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:39615', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,863 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:39615
+2023-06-26 18:47:43,864 - distributed.core - INFO - Connection to tcp://10.120.104.11:41196 has been closed.
+2023-06-26 18:47:43,864 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:37321', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,864 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37321
+2023-06-26 18:47:43,864 - distributed.core - INFO - Connection to tcp://10.120.104.11:41190 has been closed.
+2023-06-26 18:47:43,864 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:39967', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,864 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:39967
+2023-06-26 18:47:43,864 - distributed.core - INFO - Connection to tcp://10.120.104.11:41184 has been closed.
+2023-06-26 18:47:43,864 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:34265', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,864 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:34265
+2023-06-26 18:47:43,864 - distributed.core - INFO - Connection to tcp://10.120.104.11:41254 has been closed.
+2023-06-26 18:47:43,864 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:37329', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,864 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37329
+2023-06-26 18:47:43,865 - distributed.scheduler - INFO - Scheduler closing...
+2023-06-26 18:47:43,865 - distributed.core - INFO - Connection to tcp://10.120.104.11:41162 has been closed.
+2023-06-26 18:47:43,865 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:37491', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,866 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37491
+2023-06-26 18:47:43,866 - distributed.core - INFO - Connection to tcp://10.120.104.11:41238 has been closed.
+2023-06-26 18:47:43,866 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:40271', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,866 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:40271
+2023-06-26 18:47:43,866 - distributed.core - INFO - Connection to tcp://10.120.104.11:41216 has been closed.
+2023-06-26 18:47:43,866 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:42843', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,866 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42843
+2023-06-26 18:47:43,866 - distributed.core - INFO - Connection to tcp://10.120.104.11:41176 has been closed.
+2023-06-26 18:47:43,866 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:37263', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,866 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37263
+2023-06-26 18:47:43,866 - distributed.core - INFO - Connection to tcp://10.120.104.11:41222 has been closed.
+2023-06-26 18:47:43,866 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:46649', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,866 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:46649
+2023-06-26 18:47:43,867 - distributed.core - INFO - Connection to tcp://10.120.104.11:42816 has been closed.
+2023-06-26 18:47:43,867 - distributed.scheduler - INFO - Remove worker <WorkerState 'tcp://10.120.104.11:42033', status: running, memory: 0, processing: 0>
+2023-06-26 18:47:43,867 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42033
+2023-06-26 18:47:43,867 - distributed.scheduler - INFO - Lost all workers
+2023-06-26 18:47:43,867 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.120.104.11:8786 remote=tcp://10.120.104.11:41176>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 18:47:43,868 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.120.104.11:8786 remote=tcp://10.120.104.11:41162>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 18:47:43,868 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.120.104.11:8786 remote=tcp://10.120.104.11:41238>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 18:47:43,868 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.120.104.11:8786 remote=tcp://10.120.104.11:42816>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 18:47:43,868 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.120.104.11:8786 remote=tcp://10.120.104.11:41216>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 18:47:43,868 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Scheduler connection to worker local=tcp://10.120.104.11:8786 remote=tcp://10.120.104.11:41222>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 18:47:43,869 - distributed.scheduler - INFO - Scheduler closing all comms
+2023-06-26 18:47:43,872 - distributed.scheduler - INFO - Stopped scheduler at 'tcp://10.120.104.11:8786'
+2023-06-26 18:47:43,872 - distributed.scheduler - INFO - End scheduler
