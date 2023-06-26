@@ -491,6 +491,10 @@ def rmat(
     maximum_weight : float
         Maximum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
+    
+    dtype : string
+        The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
+        include_weights is true
 
     include_edge_ids : bool, optional (default=False)
         Flag controlling whether to generate edges with ids
@@ -695,6 +699,10 @@ def multi_rmat(
     max_edge_type : int
         Maximum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this paramter is ignored.
+    
+    dtype : string
+        The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
+        include_weights is true
 
     create_using : cugraph Graph type or None The graph type to construct
         containing the generated edges and vertices.  If None is specified, the
