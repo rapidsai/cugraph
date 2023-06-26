@@ -15,10 +15,8 @@ import os
 
 from typing import Union
 
-import cupy
 import cudf
 import dask_cudf
-import cugraph.dask as dask_cugraph
 
 import cugraph
 import pylibcugraph

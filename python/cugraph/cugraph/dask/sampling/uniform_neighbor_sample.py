@@ -14,12 +14,9 @@
 
 from __future__ import annotations
 
-import gc
-
 import numpy
 from dask import delayed
-from dask.distributed import wait, Lock, get_client
-from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import Lock, get_client
 
 import dask_cudf
 import cudf
@@ -190,8 +187,10 @@ def _call_plc_uniform_neighbor_sample(
     label_list = None
     label_to_output_comm_rank = None
     if keep_batches_together:
-        label_list = cp.arange(min_batch_id, max_batch_id + 1, dtype='int32')
-        label_to_output_comm_rank = __get_label_to_output_comm_rank(min_batch_id, max_batch_id, n_workers)
+        label_list = cp.arange(min_batch_id, max_batch_id + 1, dtype="int32")
+        label_to_output_comm_rank = __get_label_to_output_comm_rank(
+            min_batch_id, max_batch_id, n_workers
+        )
 
     cp_arrays = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -248,7 +247,7 @@ def _mg_call_plc_uniform_neighbor_sample(
             random_state=hash((random_state, w)),
             return_offsets=return_offsets,
         )
-        for w,starts in ddf.items()
+        for w, starts in ddf.items()
     }
     del ddf
 
@@ -278,16 +277,16 @@ def _mg_call_plc_uniform_neighbor_sample(
         ddf_offsets = dask_cudf.from_delayed(
             [r[1] for r in result], meta=empty_df[1], verify_meta=False
         ).persist()
-        #wait(ddf)
-        #wait(ddf_offsets)
-        #wait([r.release() for r in result])
+        # wait(ddf)
+        # wait(ddf_offsets)
+        # wait([r.release() for r in result])
         del result
 
         return ddf, ddf_offsets
     else:
         ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
-        #wait(ddf)
-        #wait([r.release() for r in result])
+        # wait(ddf)
+        # wait([r.release() for r in result])
         del result
 
         return ddf
@@ -300,7 +299,7 @@ def uniform_neighbor_sample(
     with_replacement: bool = True,
     with_edge_properties: bool = False,
     batch_id_list: Sequence = None,
-    keep_batches_together = False,
+    keep_batches_together=False,
     min_batch_id=None,
     max_batch_id=None,
     random_state: int = None,
@@ -341,7 +340,7 @@ def uniform_neighbor_sample(
 
     min_batch_id: int (optional, default=None)
         Required for the keep_batches_together option.  The minimum batch id.
-    
+
     max_batch_id: int (optional, default=None)
         Required for the keep_batches_together option.  The maximum batch id.
 
@@ -423,9 +422,13 @@ def uniform_neighbor_sample(
         batch_id_list = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
 
     if keep_batches_together and min_batch_id is None:
-        raise ValueError('must provide min_batch_id if using keep_batches_together option')
+        raise ValueError(
+            "must provide min_batch_id if using keep_batches_together option"
+        )
     if keep_batches_together and max_batch_id is None:
-        raise ValueError('must provide max_batch_id if using keep_batches_together option')
+        raise ValueError(
+            "must provide max_batch_id if using keep_batches_together option"
+        )
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -478,7 +481,7 @@ def uniform_neighbor_sample(
     session_id = Comms.get_session_id()
     n_workers = get_n_workers()
 
-    if not hasattr(ddf, 'compute'):
+    if not hasattr(ddf, "compute"):
         ddf = dask_cudf.from_cudf(ddf, npartitions=n_workers)
 
     ddf = ddf.repartition(npartitions=n_workers)
