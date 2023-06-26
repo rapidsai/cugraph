@@ -1,0 +1,1835 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=28G
+             --rmm-async
+             --local-directory=/tmp/
+             --scheduler-file=/root/cugraph/mg_utils/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2023-06-26 20:54:40,399 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:42697'
+2023-06-26 20:54:40,401 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:37863'
+2023-06-26 20:54:40,403 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:42001'
+2023-06-26 20:54:40,406 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:43949'
+2023-06-26 20:54:40,409 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:43325'
+2023-06-26 20:54:40,410 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:45851'
+2023-06-26 20:54:40,412 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:36231'
+2023-06-26 20:54:40,414 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40977'
+2023-06-26 20:54:40,416 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:46177'
+2023-06-26 20:54:40,418 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:46817'
+2023-06-26 20:54:40,420 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34133'
+2023-06-26 20:54:40,424 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34635'
+2023-06-26 20:54:40,426 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:42789'
+2023-06-26 20:54:40,429 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40765'
+2023-06-26 20:54:40,431 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40881'
+2023-06-26 20:54:40,435 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40489'
+2023-06-26 20:54:41,975 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:41,975 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,092 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,092 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,100 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,100 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,101 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,101 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,102 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,102 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,103 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,103 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,107 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,107 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,108 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,108 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,110 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,110 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,118 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,118 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,130 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,130 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,134 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,134 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,136 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,136 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,137 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,138 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,138 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,139 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,140 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:54:42,141 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:54:42,149 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,271 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,279 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,279 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,280 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,281 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,285 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,285 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,290 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,297 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,309 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,313 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,314 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,314 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,316 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:42,316 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:54:48,256 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:37807
+2023-06-26 20:54:48,257 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:37807
+2023-06-26 20:54:48,257 - distributed.worker - INFO -          dashboard at:        10.120.104.11:41273
+2023-06-26 20:54:48,257 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:48,257 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:48,257 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:48,257 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:48,257 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-5uvix0uu
+2023-06-26 20:54:48,257 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-ffa47868-6d23-4903-a36d-0765c896c0fc
+2023-06-26 20:54:48,258 - distributed.worker - INFO - Starting Worker plugin RMMSetup-3432ee9b-e676-49ec-85ba-1cdda1f3091f
+2023-06-26 20:54:48,258 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43163
+2023-06-26 20:54:48,258 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43163
+2023-06-26 20:54:48,258 - distributed.worker - INFO -          dashboard at:        10.120.104.11:39079
+2023-06-26 20:54:48,258 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:48,258 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:48,258 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:48,258 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:48,258 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-mht24hj6
+2023-06-26 20:54:48,259 - distributed.worker - INFO - Starting Worker plugin PreImport-30b77801-7700-4b89-9a8b-d777ffe55601
+2023-06-26 20:54:48,259 - distributed.worker - INFO - Starting Worker plugin RMMSetup-9ae9d360-253c-44bc-83b9-01befce87d75
+2023-06-26 20:54:49,148 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:44435
+2023-06-26 20:54:49,148 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:44435
+2023-06-26 20:54:49,148 - distributed.worker - INFO -          dashboard at:        10.120.104.11:34689
+2023-06-26 20:54:49,148 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,148 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,148 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,149 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,149 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-jcnyhvng
+2023-06-26 20:54:49,149 - distributed.worker - INFO - Starting Worker plugin RMMSetup-6fe53185-071a-429b-a687-e2d804a2ca05
+2023-06-26 20:54:49,159 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:38937
+2023-06-26 20:54:49,159 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:38937
+2023-06-26 20:54:49,159 - distributed.worker - INFO -          dashboard at:        10.120.104.11:43441
+2023-06-26 20:54:49,159 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,159 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,159 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,159 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,159 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-xbqrxu40
+2023-06-26 20:54:49,160 - distributed.worker - INFO - Starting Worker plugin RMMSetup-46e74650-f506-4872-8888-74b2776425c8
+2023-06-26 20:54:49,189 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:35087
+2023-06-26 20:54:49,189 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:35087
+2023-06-26 20:54:49,189 - distributed.worker - INFO -          dashboard at:        10.120.104.11:39229
+2023-06-26 20:54:49,189 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,190 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,190 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,190 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,190 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-pdr_i5lq
+2023-06-26 20:54:49,190 - distributed.worker - INFO - Starting Worker plugin RMMSetup-b7da00c8-6204-471f-9382-cd7abf6e6046
+2023-06-26 20:54:49,193 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:32825
+2023-06-26 20:54:49,193 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:32825
+2023-06-26 20:54:49,193 - distributed.worker - INFO -          dashboard at:        10.120.104.11:41127
+2023-06-26 20:54:49,193 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,193 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,193 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,193 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,193 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-hbcqw8zs
+2023-06-26 20:54:49,193 - distributed.worker - INFO - Starting Worker plugin RMMSetup-0ffbffad-7907-45d3-a1a7-b56d07c828a8
+2023-06-26 20:54:49,195 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:42823
+2023-06-26 20:54:49,195 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:42823
+2023-06-26 20:54:49,195 - distributed.worker - INFO -          dashboard at:        10.120.104.11:41555
+2023-06-26 20:54:49,195 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,195 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,195 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,195 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,195 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-vyishl7v
+2023-06-26 20:54:49,196 - distributed.worker - INFO - Starting Worker plugin RMMSetup-18a603c9-3bb7-41a5-b74a-c9e722697d40
+2023-06-26 20:54:49,196 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:44653
+2023-06-26 20:54:49,197 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:44653
+2023-06-26 20:54:49,197 - distributed.worker - INFO -          dashboard at:        10.120.104.11:37071
+2023-06-26 20:54:49,197 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,197 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,197 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,197 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,197 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-aexy_xt0
+2023-06-26 20:54:49,197 - distributed.worker - INFO - Starting Worker plugin RMMSetup-203f73d7-4524-42ba-a845-30a3cde9f728
+2023-06-26 20:54:49,204 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:36109
+2023-06-26 20:54:49,204 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:36109
+2023-06-26 20:54:49,204 - distributed.worker - INFO -          dashboard at:        10.120.104.11:39699
+2023-06-26 20:54:49,204 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,204 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,204 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,204 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,204 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-znqw8gmd
+2023-06-26 20:54:49,205 - distributed.worker - INFO - Starting Worker plugin RMMSetup-e1eed6a4-0e84-4a7f-99e6-d7febb73fc26
+2023-06-26 20:54:49,214 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:42667
+2023-06-26 20:54:49,215 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:42667
+2023-06-26 20:54:49,215 - distributed.worker - INFO -          dashboard at:        10.120.104.11:38249
+2023-06-26 20:54:49,215 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,215 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,215 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,215 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,215 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-hbvxbtni
+2023-06-26 20:54:49,216 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-7dcdb60e-cd29-4f12-aa7a-862ac439b7d1
+2023-06-26 20:54:49,216 - distributed.worker - INFO - Starting Worker plugin RMMSetup-c2099814-9792-4bfd-92d0-374f44bbf657
+2023-06-26 20:54:49,222 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:37085
+2023-06-26 20:54:49,223 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:37085
+2023-06-26 20:54:49,223 - distributed.worker - INFO -          dashboard at:        10.120.104.11:41885
+2023-06-26 20:54:49,223 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,223 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,223 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,223 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,223 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-_j5ec3pv
+2023-06-26 20:54:49,224 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-8a0f649b-da89-4c3b-9c6e-ba0b4c4f91a3
+2023-06-26 20:54:49,224 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:42601
+2023-06-26 20:54:49,224 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:42601
+2023-06-26 20:54:49,224 - distributed.worker - INFO -          dashboard at:        10.120.104.11:39991
+2023-06-26 20:54:49,224 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,224 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,224 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,224 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,224 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-77gisnx8
+2023-06-26 20:54:49,225 - distributed.worker - INFO - Starting Worker plugin RMMSetup-5d500aa0-2606-471c-b427-95170d555211
+2023-06-26 20:54:49,225 - distributed.worker - INFO - Starting Worker plugin RMMSetup-9c269f8c-0a9d-425f-a546-ef812207fc9b
+2023-06-26 20:54:49,239 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:44173
+2023-06-26 20:54:49,239 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:44173
+2023-06-26 20:54:49,239 - distributed.worker - INFO -          dashboard at:        10.120.104.11:45399
+2023-06-26 20:54:49,239 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,239 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,239 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,239 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,239 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-k_w5t5rj
+2023-06-26 20:54:49,240 - distributed.worker - INFO - Starting Worker plugin RMMSetup-458fb272-a7ce-40c3-b025-e8f30f7e6685
+2023-06-26 20:54:49,240 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:45249
+2023-06-26 20:54:49,240 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:45249
+2023-06-26 20:54:49,240 - distributed.worker - INFO -          dashboard at:        10.120.104.11:43551
+2023-06-26 20:54:49,240 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,240 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:46649
+2023-06-26 20:54:49,240 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,240 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:46649
+2023-06-26 20:54:49,240 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,240 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,240 - distributed.worker - INFO -          dashboard at:        10.120.104.11:38227
+2023-06-26 20:54:49,240 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-72sz52kt
+2023-06-26 20:54:49,240 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,240 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,240 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,240 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,240 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-pbw_ioza
+2023-06-26 20:54:49,241 - distributed.worker - INFO - Starting Worker plugin PreImport-c0f66901-a13f-4cd0-900e-9d64950113ef
+2023-06-26 20:54:49,241 - distributed.worker - INFO - Starting Worker plugin RMMSetup-c5b1eeaa-495f-4a92-871a-8848c44bb16a
+2023-06-26 20:54:49,241 - distributed.worker - INFO - Starting Worker plugin RMMSetup-68d954e0-d846-4d58-862b-21145c2f3976
+2023-06-26 20:54:49,244 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43851
+2023-06-26 20:54:49,244 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43851
+2023-06-26 20:54:49,244 - distributed.worker - INFO -          dashboard at:        10.120.104.11:40907
+2023-06-26 20:54:49,244 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:49,244 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:49,244 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:54:49,244 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:54:49,244 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-z3lqvfgz
+2023-06-26 20:54:49,245 - distributed.worker - INFO - Starting Worker plugin PreImport-0463bc1a-671d-412a-8cfc-14059d8428e5
+2023-06-26 20:54:49,245 - distributed.worker - INFO - Starting Worker plugin RMMSetup-0c94a4bf-c6bb-4f73-b7e8-4b00c6024682
+2023-06-26 20:54:50,686 - distributed.worker - INFO - Starting Worker plugin PreImport-a643c45f-ecd8-427d-95bf-d737849d8da1
+2023-06-26 20:54:50,688 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:50,706 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-5ee1a810-ee56-42c0-be35-b621667b586a
+2023-06-26 20:54:50,709 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:50,711 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:50,711 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:50,716 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:50,733 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:50,734 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:50,736 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,795 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-cedbcec4-19ba-4cd5-b878-6487602cbf3a
+2023-06-26 20:54:52,796 - distributed.worker - INFO - Starting Worker plugin PreImport-89b48d1a-e7bf-4442-8b82-9e5190ac662b
+2023-06-26 20:54:52,797 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,816 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-458e1539-b3cc-4fe2-96f6-91aa0e7c827c
+2023-06-26 20:54:52,816 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,822 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,822 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,825 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,833 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,833 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,834 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,842 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-0f122639-23d7-4f81-b034-03a769896a7b
+2023-06-26 20:54:52,842 - distributed.worker - INFO - Starting Worker plugin PreImport-3030c400-c200-4a53-a420-f4c1e1124bd6
+2023-06-26 20:54:52,843 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,861 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,861 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,863 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,907 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-e9b3e445-fc99-419d-aeec-a43ccd6a5dfd
+2023-06-26 20:54:52,907 - distributed.worker - INFO - Starting Worker plugin PreImport-b6737bff-96f7-4ff7-b85b-662e4c8dd415
+2023-06-26 20:54:52,908 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,914 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-da1faeb4-2ad7-4002-94f6-91501bd66aa6
+2023-06-26 20:54:52,915 - distributed.worker - INFO - Starting Worker plugin PreImport-25441b3c-8db0-458b-9c24-5ad09eadf296
+2023-06-26 20:54:52,919 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,920 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,920 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,922 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,941 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-9ea8f2fe-fe20-465c-afcf-2b5b43254c8b
+2023-06-26 20:54:52,941 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,942 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-5a35f8d9-1b4a-4379-a935-b0e250c4f9af
+2023-06-26 20:54:52,943 - distributed.worker - INFO - Starting Worker plugin PreImport-1eac3a4e-9996-4ccb-b84c-a6e509234d2c
+2023-06-26 20:54:52,944 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,947 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,947 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,950 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,955 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,955 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,957 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,960 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:52,960 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:52,961 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:52,991 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-6c26c719-12b9-4d4f-90f2-856693a3d25c
+2023-06-26 20:54:52,992 - distributed.worker - INFO - Starting Worker plugin PreImport-b1f3b5d6-d16e-466a-9583-a29010f611f3
+2023-06-26 20:54:52,993 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,006 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,006 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,007 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:53,023 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-e25d4122-0ed0-4b1d-b821-ea3bb2e5a9f3
+2023-06-26 20:54:53,023 - distributed.worker - INFO - Starting Worker plugin PreImport-9661fb61-78a0-4913-95e2-5adfc08e61ea
+2023-06-26 20:54:53,024 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,026 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-3ef16d26-1651-44c6-a7cc-9b18fd2678f1
+2023-06-26 20:54:53,026 - distributed.worker - INFO - Starting Worker plugin PreImport-74045f89-e426-4a7e-bcad-3b234b7f741f
+2023-06-26 20:54:53,027 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-3a770714-c273-47c0-b3c4-0b3f50dc3f2a
+2023-06-26 20:54:53,027 - distributed.worker - INFO - Starting Worker plugin PreImport-2db945e1-3bda-4b58-886d-ee8787c6dc88
+2023-06-26 20:54:53,027 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,028 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,029 - distributed.worker - INFO - Starting Worker plugin PreImport-b710668d-ec49-4fc3-8e04-2f89e5b3965d
+2023-06-26 20:54:53,031 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,036 - distributed.worker - INFO - Starting Worker plugin PreImport-01477ee3-b0de-489f-b395-c7b417dd5f8b
+2023-06-26 20:54:53,036 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,036 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,037 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,038 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:53,041 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-0c4a0b0e-0d3e-4f1b-bf93-a703c97fc1ed
+2023-06-26 20:54:53,041 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,041 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,041 - distributed.worker - INFO - Starting Worker plugin PreImport-22c8a01d-6f6a-4a36-8c13-ee2d73d9d1e1
+2023-06-26 20:54:53,042 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:53,043 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,045 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,045 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,046 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,046 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,047 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:53,049 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:53,055 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,055 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,057 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:54:53,067 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:54:53,068 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:54:53,070 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,707 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,708 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,708 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,708 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,709 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,709 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,711 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,711 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,713 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,714 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,722 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:01,723 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,415 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:02,416 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:55:05,571 - distributed.core - INFO - Event loop was unresponsive in Worker for 3.17s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:17,602 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:17,747 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:17,757 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:17,895 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:17,895 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:17,982 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:17,993 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,038 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,041 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,213 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,226 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,273 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,283 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,320 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,524 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:18,677 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2023-06-26 20:55:25,205 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,205 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.10s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,206 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.10s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,206 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.09s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,208 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.09s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,208 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.10s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,209 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.10s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,209 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.09s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,212 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,214 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,214 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,215 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,220 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,220 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.12s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,220 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.12s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:55:25,221 - distributed.core - INFO - Event loop was unresponsive in Worker for 17.11s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,522 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,522 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.64s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,523 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,523 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.76s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,523 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,523 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.62s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,523 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,523 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.63s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,524 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.79s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,524 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,524 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,524 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,526 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,526 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,528 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,528 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.67s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:04,546 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,546 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,547 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,547 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,549 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,550 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,553 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:04,556 - distributed.worker - INFO - Run out-of-band function 'collect'
+2023-06-26 20:56:07,729 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,735 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,735 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,735 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,735 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:07,736 - distributed.worker - INFO - Run out-of-band function 'set_statistics_adaptor'
+2023-06-26 20:56:16,398 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,398 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,398 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,398 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.90s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,398 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,398 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,399 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,399 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,399 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,400 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,400 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,401 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,402 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,402 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,403 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:16,403 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.01s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+[520429][20:56:46:672049][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+2023-06-26 20:56:46,703 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 2)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 2, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         434698535     408886625   <NA>    <NA>      <NA>       0
+1         434698535     392727709   <NA>    <NA>      <NA>       0
+2         434698535     384237515   <NA>    <NA>      <NA>       0
+3         434698535     359103859   <NA>    <NA>      <NA>       0
+4         434698535     417950180   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84628031  387995836     395208834   <NA>    <NA>      <NA>       1
+84628032  387995836     349753165   <NA>    <NA>      <NA>       1
+84628033  387995836     381793741   <NA>    <NA>      <NA>       1
+84628034  387995836     345058577   <NA>    <NA>      <NA>       1
+84628035  387995836     378563848   <NA>    <NA>      <NA>       1
+
+[84628036 rows x 6 columns],     batch_id   offsets
+0       8849         0
+1       8850   1137571
+2       8851   2284880
+3       8852   3426583
+4       8853   45
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+[520427][20:56:46:703785][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+2023-06-26 20:56:46,713 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,713 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,713 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,714 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,719 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+2023-06-26 20:56:46,737 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 0)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 0, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         418277936     417684196   <NA>    <NA>      <NA>       0
+1         418277936     434838054   <NA>    <NA>      <NA>       0
+2          86346072      21120143   <NA>    <NA>      <NA>       0
+3          86346072      13564977   <NA>    <NA>      <NA>       0
+4          86346072      32034482   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84591411   83284450      79411977   <NA>    <NA>      <NA>       1
+84591412   83284450      56214358   <NA>    <NA>      <NA>       1
+84591413   83284450      81639945   <NA>    <NA>      <NA>       1
+84591414   83284450      71417239   <NA>    <NA>      <NA>       1
+84591415   83284450      79706305   <NA>    <NA>      <NA>       1
+
+[84591416 rows x 6 columns],     batch_id   offsets
+0       8776         0
+1       8777   1164781
+2       8778   2333254
+3       8779   3495974
+4       8780   46
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:46,738 - distributed.worker - INFO - Run out-of-band function '_func_destroy_all'
+[520433][20:56:49:552519][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+[520453][20:56:49:603284][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+[520432][20:56:50:061874][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+[520436][20:56:50:542532][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+[520450][20:56:50:723417][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+2023-06-26 20:56:50,936 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 11)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 11, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         417914315     363243557   <NA>    <NA>      <NA>       0
+1         417914315     440691794   <NA>    <NA>      <NA>       0
+2         417914315     374740222   <NA>    <NA>      <NA>       0
+3         417914315     373361866   <NA>    <NA>      <NA>       0
+4         417914315     416053719   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84843514  725983934     722526471   <NA>    <NA>      <NA>       1
+84843515  725983934     681865763   <NA>    <NA>      <NA>       1
+84843516  725983934     708467143   <NA>    <NA>      <NA>       1
+84843517  725983934     712663911   <NA>    <NA>      <NA>       1
+84843518  725983934     691548568   <NA>    <NA>      <NA>       1
+
+[84843519 rows x 6 columns],     batch_id   offsets
+0       8703         0
+1       8704   1157065
+2       8705   2315486
+3       8706   3462567
+4       8707   4
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:50,936 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.24s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:50,979 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.29s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,090 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.39s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,170 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.46s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,176 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 5)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 5, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         435392608     359929241   <NA>    <NA>      <NA>       0
+1         435392608     379691933   <NA>    <NA>      <NA>       0
+2         435392608     440638434   <NA>    <NA>      <NA>       0
+3         435392608     347217145   <NA>    <NA>      <NA>       0
+4         435392608     380593064   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84335577  681269344     711588798   <NA>    <NA>      <NA>       1
+84335578  681269344     706321476   <NA>    <NA>      <NA>       1
+84335579  681269344     673251446   <NA>    <NA>      <NA>       1
+84335580  681269344     707553446   <NA>    <NA>      <NA>       1
+84335581  681269344     718242515   <NA>    <NA>      <NA>       1
+
+[84335582 rows x 6 columns],     batch_id   offsets
+0       8922         0
+1       8923   1162030
+2       8924   2321687
+3       8925   3468105
+4       8926   46
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,177 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.47s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,178 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.47s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,201 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.50s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,223 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.52s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,224 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.53s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+[520435][20:56:51:249214][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+2023-06-26 20:56:51,254 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.55s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,271 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 8)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 8, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         768302326     695399072   <NA>    <NA>      <NA>       0
+1         768250461     713899794   <NA>    <NA>      <NA>       0
+2         768250461     743945579   <NA>    <NA>      <NA>       0
+3         768250461     681181699   <NA>    <NA>      <NA>       0
+4         768250461     737831197   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+83603431  743877086     732682440   <NA>    <NA>      <NA>       1
+83603432  743877086     718213359   <NA>    <NA>      <NA>       1
+83603433  743877086     741394363   <NA>    <NA>      <NA>       1
+83603434  743877086     732778595   <NA>    <NA>      <NA>       1
+83603435  743877086     732359738   <NA>    <NA>      <NA>       1
+
+[83603436 rows x 6 columns],     batch_id   offsets
+0       8995         0
+1       8996   1142696
+2       8997   2283430
+3       8998   3426651
+4       8999   45
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,271 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.56s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,290 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 13)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 13, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0          84753385       9716794   <NA>    <NA>      <NA>       0
+1          84753385      34382090   <NA>    <NA>      <NA>       0
+2         213659062     128752920   <NA>    <NA>      <NA>       0
+3         213659062     188440193   <NA>    <NA>      <NA>       0
+4         213659062     156122752   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84598170  340395440     367361214   <NA>    <NA>      <NA>       1
+84598171  340395440     344052513   <NA>    <NA>      <NA>       1
+84598172  340395440     382762888   <NA>    <NA>      <NA>       1
+84598173  340395440     344809109   <NA>    <NA>      <NA>       1
+84598174  340395440     374639063   <NA>    <NA>      <NA>       1
+
+[84598175 rows x 6 columns],     batch_id   offsets
+0       8630         0
+1       8631   1152658
+2       8632   2310323
+3       8633   3466887
+4       8634   4
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,293 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 12)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 12, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         102276448      76098805   <NA>    <NA>      <NA>       0
+1         102276448      82039470   <NA>    <NA>      <NA>       0
+2         196607804     139955897   <NA>    <NA>      <NA>       0
+3         196607804     195887473   <NA>    <NA>      <NA>       0
+4         196607804     128734751   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84521122   24200222      39197555   <NA>    <NA>      <NA>       1
+84521123   24200222      13184523   <NA>    <NA>      <NA>       1
+84521124   24200222       5989409   <NA>    <NA>      <NA>       1
+84521125   24200222      20748159   <NA>    <NA>      <NA>       1
+84521126   24200222        710710   <NA>    <NA>      <NA>       1
+
+[84521127 rows x 6 columns],     batch_id   offsets
+0       8411         0
+1       8412   1155363
+2       8413   2295730
+3       8414   3438042
+4       8415   4
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,293 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.59s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,304 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.61s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+[520437][20:56:51:304941][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+[520426][20:56:51:305254][error ] Parquet writer encountered exception during processing. No data has been written to the sink.
+2023-06-26 20:56:51,336 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 15)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 15, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         101802368      16290371   <NA>    <NA>      <NA>       0
+1         102606747      19879986   <NA>    <NA>      <NA>       0
+2         102606747      40119984   <NA>    <NA>      <NA>       0
+3         102606747      24912292   <NA>    <NA>      <NA>       0
+4         102606747      28413613   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84652576  113802553     145488236   <NA>    <NA>      <NA>       1
+84652577  113802553     161820118   <NA>    <NA>      <NA>       1
+84652578  113802553     164057513   <NA>    <NA>      <NA>       1
+84652579  113802553     138811178   <NA>    <NA>      <NA>       1
+84652580  160990578     163139480   <NA>    <NA>      <NA>       1
+
+[84652581 rows x 6 columns],     batch_id   offsets
+0       8557         0
+1       8558   1155264
+2       8559   2336864
+3       8560   3486379
+4       8561   4
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,336 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.64s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,338 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.64s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,340 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 9)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 9, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0         102067208      20958062   <NA>    <NA>      <NA>       0
+1         102067208      56852899   <NA>    <NA>      <NA>       0
+2         102067208      14090704   <NA>    <NA>      <NA>       0
+3         102067208      48032628   <NA>    <NA>      <NA>       0
+4         102067208      19917046   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84550061   72760634      80223507   <NA>    <NA>      <NA>       1
+84550062   72760634       9393416   <NA>    <NA>      <NA>       1
+84550063   72760634      24139966   <NA>    <NA>      <NA>       1
+84550064   72760634      21515312   <NA>    <NA>      <NA>       1
+84550065   17412678      51415216   <NA>    <NA>      <NA>       1
+
+[84550066 rows x 6 columns],     batch_id   offsets
+0       8338         0
+1       8339   1155038
+2       8340   2325296
+3       8341   3475609
+4       8342   46
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,342 - distributed.worker - WARNING - Compute Failed
+Key:       ('_write_samples_to_parquet-36e1d426ecfd04374c6747d951560e82', 6)
+Function:  subgraph_callable-2e6ad5dd-1a58-4f6c-b564-f8293374
+args:      ({'number': 6, 'division': None},             sources  destinations weight edge_id edge_type  hop_id
+0          85440226      29081183   <NA>    <NA>      <NA>       0
+1          85440226      27455810   <NA>    <NA>      <NA>       0
+2          85440226      48921303   <NA>    <NA>      <NA>       0
+3          85440226      50431970   <NA>    <NA>      <NA>       0
+4         197285557     137320447   <NA>    <NA>      <NA>       0
+...             ...           ...    ...     ...       ...     ...
+84724546  164425812     149157424   <NA>    <NA>      <NA>       1
+84724547  164425812     156742461   <NA>    <NA>      <NA>       1
+84724548  164425812     190990100   <NA>    <NA>      <NA>       1
+84724549  164425812     164177074   <NA>    <NA>      <NA>       1
+84724550  164425812     156989572   <NA>    <NA>      <NA>       1
+
+[84724551 rows x 6 columns],     batch_id   offsets
+0       8484         0
+1       8485   1166753
+2       8486   2337078
+3       8487   3488233
+4       8488   46
+kwargs:    {}
+Exception: "MemoryError('std::bad_alloc: out_of_memory: CUDA error at: /opt/conda/envs/rapids/include/rmm/mr/device/cuda_async_view_memory_resource.hpp:121: cudaErrorMemoryAllocation out of memory')"
+
+2023-06-26 20:56:51,343 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.64s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:56:51,440 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,442 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,443 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,443 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:35087. Reason: scheduler-restart
+2023-06-26 20:56:51,443 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,444 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,444 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:36109. Reason: scheduler-restart
+2023-06-26 20:56:51,444 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,444 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:37085. Reason: scheduler-restart
+2023-06-26 20:56:51,444 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:32825. Reason: scheduler-restart
+2023-06-26 20:56:51,445 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,445 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:37807. Reason: scheduler-restart
+2023-06-26 20:56:51,445 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,445 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,445 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:38937. Reason: scheduler-restart
+2023-06-26 20:56:51,446 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,446 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,447 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,447 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:35087
+2023-06-26 20:56:51,448 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,449 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,449 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,450 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,450 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:42601. Reason: scheduler-restart
+2023-06-26 20:56:51,450 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,451 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,451 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,451 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:42667. Reason: scheduler-restart
+2023-06-26 20:56:51,451 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:42823. Reason: scheduler-restart
+2023-06-26 20:56:51,451 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,451 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,451 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43163. Reason: scheduler-restart
+2023-06-26 20:56:51,451 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,452 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,452 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,452 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,452 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,452 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,452 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,452 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,453 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,453 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,453 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,453 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,453 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,453 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,453 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,454 - distributed.nanny - INFO - Nanny asking worker to close. Reason: scheduler-restart
+2023-06-26 20:56:51,457 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,459 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43851. Reason: scheduler-restart
+2023-06-26 20:56:51,459 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,459 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,459 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:44173. Reason: scheduler-restart
+2023-06-26 20:56:51,459 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,459 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,460 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:44653. Reason: scheduler-restart
+2023-06-26 20:56:51,460 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:44435. Reason: scheduler-restart
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,460 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,460 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,460 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,461 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:46649. Reason: scheduler-restart
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42601
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42667
+2023-06-26 20:56:51,461 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:45249. Reason: scheduler-restart
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42823
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43163
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42601
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42601
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42667
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42823
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42667
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43163
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42823
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43163
+2023-06-26 20:56:51,461 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,462 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42601
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42667
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42823
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43163
+2023-06-26 20:56:51,462 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42601
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42667
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42823
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43163
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:44173
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:36109
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:32825
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37085
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:44173
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:37807
+2023-06-26 20:56:51,463 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:38937
+2023-06-26 20:56:51,464 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,464 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42601
+2023-06-26 20:56:51,464 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42667
+2023-06-26 20:56:51,464 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:42823
+2023-06-26 20:56:51,464 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:43163
+2023-06-26 20:56:51,464 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:44173
+2023-06-26 20:56:51,465 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:44173
+2023-06-26 20:56:51,465 - distributed.core - INFO - Removing comms to tcp://10.120.104.11:44173
+2023-06-26 20:56:51,465 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,465 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,465 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,467 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 20:56:51,467 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,468 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,468 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,468 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,469 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,471 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,473 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,518 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,567 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,622 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,690 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:51,880 - distributed.nanny - INFO - Worker closed
+2023-06-26 20:56:54,272 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:55,305 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:56,236 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:56,323 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:56:56,323 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:56:56,498 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:56:59,774 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:56:59,775 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:56:59,775 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,778 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:56:59,778 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:56:59,798 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,798 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,801 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,806 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,807 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,809 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,811 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,814 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,818 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,819 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,822 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,824 - distributed.nanny - WARNING - Restarting worker
+2023-06-26 20:56:59,954 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:00,026 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,043 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:37123
+2023-06-26 20:57:01,043 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:37123
+2023-06-26 20:57:01,043 - distributed.worker - INFO -          dashboard at:        10.120.104.11:37513
+2023-06-26 20:57:01,043 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:01,043 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:01,043 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:01,044 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:01,044 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-8thlmrow
+2023-06-26 20:57:01,044 - distributed.worker - INFO - Starting Worker plugin RMMSetup-3721d8e0-e121-4ce1-9e15-b0940c8644fa
+2023-06-26 20:57:01,296 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,296 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,415 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-dd119d4d-1041-4e79-9f36-68e7441c80a7
+2023-06-26 20:57:01,415 - distributed.worker - INFO - Starting Worker plugin PreImport-c705b591-16fd-4a56-aac6-dd45a6e7ca4d
+2023-06-26 20:57:01,417 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:01,433 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:01,433 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:01,436 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:01,473 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,475 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,475 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,487 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,487 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,517 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,517 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,523 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,523 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,528 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,528 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,533 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40907
+2023-06-26 20:57:01,533 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40907
+2023-06-26 20:57:01,533 - distributed.worker - INFO -          dashboard at:        10.120.104.11:39583
+2023-06-26 20:57:01,533 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:01,533 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:01,533 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:01,533 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:01,533 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-hqv0zbrw
+2023-06-26 20:57:01,533 - distributed.worker - INFO - Starting Worker plugin RMMSetup-f5d47fae-cdc7-4dba-a00e-b8b033cba51e
+2023-06-26 20:57:01,536 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43285
+2023-06-26 20:57:01,537 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43285
+2023-06-26 20:57:01,537 - distributed.worker - INFO -          dashboard at:        10.120.104.11:45107
+2023-06-26 20:57:01,537 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:01,537 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:01,537 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:01,537 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:01,537 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-x_r8_md7
+2023-06-26 20:57:01,537 - distributed.worker - INFO - Starting Worker plugin RMMSetup-48ab8cb8-b4a0-40db-b32d-0fa9fee9b4e3
+2023-06-26 20:57:01,545 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,546 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,554 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,554 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,569 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,569 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,572 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,573 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,575 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,576 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,577 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,577 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,578 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 20:57:01,578 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 20:57:01,654 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,663 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,698 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,701 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,708 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,725 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,734 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,748 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,751 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,752 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,754 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:01,756 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 20:57:04,169 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-49f11b4f-322d-4cc7-b83d-91077a02bf67
+2023-06-26 20:57:04,170 - distributed.worker - INFO - Starting Worker plugin PreImport-fc866317-70ff-4f34-a862-34d931d68816
+2023-06-26 20:57:04,171 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:04,186 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:04,187 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:04,188 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-cb4d5f5d-573c-4a07-8d79-b68035fd49a8
+2023-06-26 20:57:04,189 - distributed.worker - INFO - Starting Worker plugin PreImport-e6e31172-7d3d-443e-9a23-f09033c9a48c
+2023-06-26 20:57:04,189 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:04,189 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:04,198 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:04,199 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:04,200 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:05,846 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:39383
+2023-06-26 20:57:05,846 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:39383
+2023-06-26 20:57:05,846 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42285
+2023-06-26 20:57:05,846 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:05,846 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:05,846 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:05,846 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:05,847 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-p4za7wdx
+2023-06-26 20:57:05,847 - distributed.worker - INFO - Starting Worker plugin RMMSetup-f2f5afb8-a6b1-4f22-ae44-28e3158483c8
+2023-06-26 20:57:06,734 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-3bbcbd8a-9411-449d-823f-82d5e65a90cd
+2023-06-26 20:57:06,734 - distributed.worker - INFO - Starting Worker plugin PreImport-8406d32e-4b05-492a-8f3c-a1c8d3aaca2a
+2023-06-26 20:57:06,735 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:06,744 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:06,744 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:06,747 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:08,091 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:38031
+2023-06-26 20:57:08,091 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:38031
+2023-06-26 20:57:08,091 - distributed.worker - INFO -          dashboard at:        10.120.104.11:40687
+2023-06-26 20:57:08,091 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,091 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,091 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,091 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,091 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-mllzyi9l
+2023-06-26 20:57:08,091 - distributed.worker - INFO - Starting Worker plugin RMMSetup-6aa426a9-9c37-4262-a30d-40c2503a13be
+2023-06-26 20:57:08,092 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:41607
+2023-06-26 20:57:08,093 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:41607
+2023-06-26 20:57:08,093 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42979
+2023-06-26 20:57:08,093 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,093 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,093 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,093 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,093 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-q9abegsq
+2023-06-26 20:57:08,094 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-074d43da-9dfb-4545-a9e2-a9def717e25a
+2023-06-26 20:57:08,094 - distributed.worker - INFO - Starting Worker plugin RMMSetup-3872f09e-7d0a-4fdf-b3ac-38c0a45ae138
+2023-06-26 20:57:08,094 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40997
+2023-06-26 20:57:08,095 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40997
+2023-06-26 20:57:08,095 - distributed.worker - INFO -          dashboard at:        10.120.104.11:40817
+2023-06-26 20:57:08,095 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,095 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,095 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,095 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,095 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-gadt4xqr
+2023-06-26 20:57:08,095 - distributed.worker - INFO - Starting Worker plugin PreImport-da391199-2192-4d45-bd3a-597baa903399
+2023-06-26 20:57:08,095 - distributed.worker - INFO - Starting Worker plugin RMMSetup-24d482e0-720d-4a1f-bf04-07d370dbc905
+2023-06-26 20:57:08,113 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:45303
+2023-06-26 20:57:08,113 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:45303
+2023-06-26 20:57:08,113 - distributed.worker - INFO -          dashboard at:        10.120.104.11:37211
+2023-06-26 20:57:08,114 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,114 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,114 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,114 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,114 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-aph_eyyo
+2023-06-26 20:57:08,114 - distributed.worker - INFO - Starting Worker plugin PreImport-4ec474fc-da8d-412e-94cf-e025b461cdc9
+2023-06-26 20:57:08,114 - distributed.worker - INFO - Starting Worker plugin RMMSetup-aa8075b8-939d-4674-887c-3eaba548cc97
+2023-06-26 20:57:08,115 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43511
+2023-06-26 20:57:08,115 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43511
+2023-06-26 20:57:08,115 - distributed.worker - INFO -          dashboard at:        10.120.104.11:41675
+2023-06-26 20:57:08,115 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,115 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,115 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,115 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,115 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-pw9883xn
+2023-06-26 20:57:08,116 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-02b694df-dbf2-4028-acb8-6cdc72e7998d
+2023-06-26 20:57:08,116 - distributed.worker - INFO - Starting Worker plugin RMMSetup-5bb930c6-0078-4e5f-96ec-a723932eaccc
+2023-06-26 20:57:08,126 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:33581
+2023-06-26 20:57:08,127 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:33581
+2023-06-26 20:57:08,127 - distributed.worker - INFO -          dashboard at:        10.120.104.11:44783
+2023-06-26 20:57:08,127 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,127 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,127 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,127 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,127 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-i6um4l0r
+2023-06-26 20:57:08,127 - distributed.worker - INFO - Starting Worker plugin RMMSetup-fd5b3b4f-7c78-4e4f-a7a7-fc6b69dbdb3e
+2023-06-26 20:57:08,131 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43113
+2023-06-26 20:57:08,131 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43113
+2023-06-26 20:57:08,131 - distributed.worker - INFO -          dashboard at:        10.120.104.11:33145
+2023-06-26 20:57:08,131 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,131 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,131 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,131 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,131 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-hz_uapmg
+2023-06-26 20:57:08,132 - distributed.worker - INFO - Starting Worker plugin RMMSetup-ae089955-3a39-4d9c-b44f-c539d697d7a1
+2023-06-26 20:57:08,135 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:41653
+2023-06-26 20:57:08,135 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:41653
+2023-06-26 20:57:08,135 - distributed.worker - INFO -          dashboard at:        10.120.104.11:36191
+2023-06-26 20:57:08,135 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,135 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,135 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,135 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,135 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-d8bd3cbb
+2023-06-26 20:57:08,136 - distributed.worker - INFO - Starting Worker plugin RMMSetup-67595667-bc83-4ff3-9d0c-c80cd6296b7b
+2023-06-26 20:57:08,137 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:44217
+2023-06-26 20:57:08,137 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:44217
+2023-06-26 20:57:08,138 - distributed.worker - INFO -          dashboard at:        10.120.104.11:43677
+2023-06-26 20:57:08,138 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,138 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,138 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,138 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,138 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-1wihcw0e
+2023-06-26 20:57:08,138 - distributed.worker - INFO - Starting Worker plugin PreImport-71916878-aece-413d-bee2-40984b57bc6a
+2023-06-26 20:57:08,138 - distributed.worker - INFO - Starting Worker plugin RMMSetup-acfdb257-1fc1-40a8-bb9f-6e79aee85123
+2023-06-26 20:57:08,140 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:33993
+2023-06-26 20:57:08,140 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:33993
+2023-06-26 20:57:08,140 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42839
+2023-06-26 20:57:08,140 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,140 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,140 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,140 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,140 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-z2cal5qe
+2023-06-26 20:57:08,141 - distributed.worker - INFO - Starting Worker plugin RMMSetup-f562102c-5735-4711-b4ec-9ddc3b5aa078
+2023-06-26 20:57:08,142 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40187
+2023-06-26 20:57:08,142 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40187
+2023-06-26 20:57:08,142 - distributed.worker - INFO -          dashboard at:        10.120.104.11:38231
+2023-06-26 20:57:08,142 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,142 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,142 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,142 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,142 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-b2g_9jz0
+2023-06-26 20:57:08,143 - distributed.worker - INFO - Starting Worker plugin RMMSetup-f33ff61c-ed3f-4560-8e08-6a1af2aa2ccf
+2023-06-26 20:57:08,147 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:34481
+2023-06-26 20:57:08,147 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:34481
+2023-06-26 20:57:08,147 - distributed.worker - INFO -          dashboard at:        10.120.104.11:43177
+2023-06-26 20:57:08,147 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:08,147 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:08,147 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 20:57:08,147 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 20:57:08,147 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-otjb0rka
+2023-06-26 20:57:08,147 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-06a7ad20-3bde-4373-8b68-3d13c898c5bb
+2023-06-26 20:57:08,148 - distributed.worker - INFO - Starting Worker plugin RMMSetup-27805dc9-5ada-4124-9924-156328158ca2
+2023-06-26 20:57:10,994 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-5d3180ce-3df9-449a-be78-9cb498a8e025
+2023-06-26 20:57:10,994 - distributed.worker - INFO - Starting Worker plugin PreImport-6ba51f7f-f0fd-4980-9321-0571ee296212
+2023-06-26 20:57:10,996 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:10,999 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-a1895caf-4091-4ab0-a700-08777e0d74a4
+2023-06-26 20:57:10,999 - distributed.worker - INFO - Starting Worker plugin PreImport-eb9f5332-1a8b-4601-9ba1-76f8c9eec508
+2023-06-26 20:57:11,001 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,004 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-eb8c5c08-2383-4d2c-90de-7ff133debcee
+2023-06-26 20:57:11,005 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,009 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,009 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,016 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,023 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,023 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,023 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,023 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,027 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,029 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,035 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-0b5e1aec-46f4-4520-80ad-3eaec7cf1fd0
+2023-06-26 20:57:11,036 - distributed.worker - INFO - Starting Worker plugin PreImport-ebfc26d5-c130-4cc9-b4ce-9623b0ff0943
+2023-06-26 20:57:11,036 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,048 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,048 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,052 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,065 - distributed.worker - INFO - Starting Worker plugin PreImport-ed9f097a-6c9a-49f4-9321-8d2bc4c89f02
+2023-06-26 20:57:11,068 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,074 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-29203f59-eb1c-4a7a-b240-5e0f6274c57d
+2023-06-26 20:57:11,075 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-75f47d0c-3a13-4d37-ad23-0ab0a00bbceb
+2023-06-26 20:57:11,075 - distributed.worker - INFO - Starting Worker plugin PreImport-f7edba6f-2354-4efc-8575-27a2628e3b1a
+2023-06-26 20:57:11,075 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,076 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,083 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-d78d5d79-c837-4364-84bb-ca0856bcdd81
+2023-06-26 20:57:11,083 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,083 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,083 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,088 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,088 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,090 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,092 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,092 - distributed.worker - INFO - Starting Worker plugin PreImport-8bc88636-b31a-4634-bcf5-29be68757884
+2023-06-26 20:57:11,092 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,092 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,092 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,096 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,096 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,097 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,099 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,100 - distributed.worker - INFO - Starting Worker plugin PreImport-8bc0fab0-80c2-4779-b330-47946dff69d0
+2023-06-26 20:57:11,102 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,104 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,104 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,106 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,111 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-96f290b1-91d1-45a4-845c-b5d1a1e3e35e
+2023-06-26 20:57:11,111 - distributed.worker - INFO - Starting Worker plugin PreImport-e8cfe453-163c-4a9c-8f0a-477d03af75ec
+2023-06-26 20:57:11,112 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-083b291c-4458-4fd2-9f73-c7e6fe8a4cbf
+2023-06-26 20:57:11,112 - distributed.worker - INFO - Starting Worker plugin PreImport-7e97b0b1-fcc4-4aff-9fbc-f8e5099f77c2
+2023-06-26 20:57:11,113 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,113 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,124 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,124 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,125 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,125 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,126 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,128 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:11,141 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 20:57:11,141 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 20:57:11,143 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 20:57:20,578 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,580 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.31s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,603 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,605 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.33s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,704 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,706 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.43s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,731 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,733 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.47s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,788 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,790 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.52s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,843 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,845 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.58s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,849 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,851 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.59s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,851 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,853 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.59s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:20,924 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:20,926 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.66s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:21,036 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:21,038 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.77s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:21,088 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:21,090 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.82s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:21,097 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:21,099 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.83s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:21,135 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:21,137 - distributed.core - INFO - Event loop was unresponsive in Worker for 9.86s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:21,267 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:21,269 - distributed.core - INFO - Event loop was unresponsive in Worker for 10.00s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:21,322 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:21,324 - distributed.core - INFO - Event loop was unresponsive in Worker for 10.04s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:23,073 - distributed.worker - INFO - Run out-of-band function 'enable_spilling'
+2023-06-26 20:57:23,077 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.81s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,086 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,087 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,087 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,087 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,087 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,087 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,087 - distributed.worker - INFO - Run out-of-band function '_get_nvml_device_index'
+2023-06-26 20:57:23,097 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,097 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,097 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,097 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,098 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,099 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,099 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,110 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,111 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,111 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:23,111 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2023-06-26 20:57:26,103 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:43325'. Reason: nanny-close
+2023-06-26 20:57:26,103 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,103 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:45851'. Reason: nanny-close
+2023-06-26 20:57:26,104 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,104 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:36231'. Reason: nanny-close
+2023-06-26 20:57:26,105 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,105 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:42789'. Reason: nanny-close
+2023-06-26 20:57:26,105 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,105 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:40765'. Reason: nanny-close
+2023-06-26 20:57:26,105 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,106 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:40881'. Reason: nanny-close
+2023-06-26 20:57:26,106 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,106 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:42697'. Reason: nanny-close
+2023-06-26 20:57:26,106 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,106 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:37863'. Reason: nanny-close
+2023-06-26 20:57:26,107 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,107 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:42001'. Reason: nanny-close
+2023-06-26 20:57:26,107 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,108 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:43949'. Reason: nanny-close
+2023-06-26 20:57:26,108 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,108 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:40977'. Reason: nanny-close
+2023-06-26 20:57:26,108 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,108 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:46177'. Reason: nanny-close
+2023-06-26 20:57:26,109 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,109 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:46817'. Reason: nanny-close
+2023-06-26 20:57:26,109 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,109 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34133'. Reason: nanny-close
+2023-06-26 20:57:26,109 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,110 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34635'. Reason: nanny-close
+2023-06-26 20:57:26,110 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,110 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:40489'. Reason: nanny-close
+2023-06-26 20:57:26,110 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2023-06-26 20:57:26,154 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:40187. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,162 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:39383. Reason: worker-close
+2023-06-26 20:57:26,164 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:44217. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,164 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43113. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,163 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.120.104.11:54602 remote=tcp://10.120.104.11:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1909, in _run_once
+    handle._run()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/ucp/continuous_ucx_progress.py", line 81, in _fd_reader_callback
+    worker.progress()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/nvtx/nvtx.py", line 101, in inner
+    result = func(*args, **kwargs)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+2023-06-26 20:57:26,165 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:34481. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,166 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:41653. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,167 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:38031. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,169 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:40997. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,169 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43511. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,169 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:37123. Reason: worker-close
+2023-06-26 20:57:26,170 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:41607. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,170 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:40907. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,170 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:33993. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,170 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:45303. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,170 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43285. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 20:57:26,171 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.120.104.11:54546 remote=tcp://10.120.104.11:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/base_events.py", line 1909, in _run_once
+    handle._run()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/ucp/continuous_ucx_progress.py", line 81, in _fd_reader_callback
+    worker.progress()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/nvtx/nvtx.py", line 101, in inner
+    result = func(*args, **kwargs)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 269, in write
+    raise CommClosedError()
+distributed.comm.core.CommClosedError
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/contextlib.py", line 279, in helper
+    @wraps(func)
+KeyboardInterrupt
+Exception ignored in: 'ucp._libs.ucx_api._send_callback'
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/contextlib.py", line 279, in helper
+    @wraps(func)
+KeyboardInterrupt: 
+2023-06-26 20:57:26,228 - distributed.core - INFO - Event loop was unresponsive in Worker for 3.12s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2023-06-26 20:57:26,235 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:33581. Reason: nanny-close
+2023-06-26 20:57:26,237 - distributed.core - INFO - Received 'close-stream' from tcp://10.120.104.11:8786; closing.
+2023-06-26 20:57:26,237 - distributed.batched - INFO - Batched Comm Closed <TCP (closed) Worker->Scheduler local=tcp://10.120.104.11:37426 remote=tcp://10.120.104.11:8786>
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 317, in write
+    raise StreamClosedError()
+tornado.iostream.StreamClosedError: Stream is closed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/tornado/gen.py", line 767, in run
+    value = future.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 328, in write
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 144, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <TCP (closed) Worker->Scheduler local=tcp://10.120.104.11:37426 remote=tcp://10.120.104.11:8786>: Stream is closed
+2023-06-26 20:57:26,259 - distributed.worker - ERROR - Failed to communicate with scheduler during heartbeat.
+ConnectionRefusedError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 355, in connect
+    comm = await wait_for(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 504, in connect
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <distributed.comm.tcp.TCPConnector object at 0x7f537ce9bd00>: ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1539, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 379, in connect
+    await asyncio.sleep(backoff)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 605, in sleep
+    return await future
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1257, in heartbeat
+    response = await retry_operation(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils_comm.py", line 434, in retry_operation
+    return await retry(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils_comm.py", line 413, in retry
+    return await coro()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1374, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1620, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1562, in _connect
+    raise CommClosedError(reason)
+distributed.comm.core.CommClosedError: ConnectionPool closing.
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 795, in wrapper
+    return await func(*args, **kwargs)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1510, in close
+    await self.finished()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 592, in finished
+    await self._event_finished.wait()
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/locks.py", line 214, in wait
+    await fut
+asyncio.exceptions.CancelledError
+2023-06-26 20:57:26,311 - distributed.nanny - INFO - Worker closed
+[1687813046.364191] [exp01:521716:0]           mpool.c:54   UCX  WARN  object 0x560f973e4ec0 {flags:0x41 <no debug info>} was not returned to mpool ucp_requests
+2023-06-26 20:57:29,312 - distributed.nanny - WARNING - Worker process still alive after 3.1999992370605472 seconds, killing
+2023-06-26 20:57:29,312 - distributed.nanny - WARNING - Worker process still alive after 3.1999995422363288 seconds, killing
+2023-06-26 20:57:29,313 - distributed.nanny - WARNING - Worker process still alive after 3.1999995422363288 seconds, killing
+2023-06-26 20:57:29,313 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,313 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,313 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,315 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,316 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,317 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,318 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,318 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,318 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,319 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,319 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:29,321 - distributed.nanny - WARNING - Worker process still alive after 3.199999694824219 seconds, killing
+2023-06-26 20:57:30,123 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,124 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,125 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,125 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,125 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,125 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,125 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,125 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,126 - distributed.nanny - ERROR - Error in Nanny killing Worker subprocess
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 456, in wait_for
+    return fut.result()
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 597, in close
+    await self.kill(timeout=timeout, reason=reason)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 380, in kill
+    await self.process.kill(reason=reason, timeout=0.8 * (deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/nanny.py", line 853, in kill
+    await process.join(max(0, deadline - time()))
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/process.py", line 330, in join
+    await wait_for(asyncio.shield(self._exit_future), timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 458, in wait_for
+    raise exceptions.TimeoutError() from exc
+asyncio.exceptions.TimeoutError
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521734 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521731 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521728 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521725 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521722 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521719 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521713 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521710 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521707 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521704 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521701 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521696 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521638 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521626 parent=518418 started daemon>
+2023-06-26 20:57:30,129 - distributed.process - INFO - reaping stray process <SpawnProcess name='Dask Worker process (from Nanny)' pid=521609 parent=518418 started daemon>
+2023-06-26 20:57:32,819 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 521707 exit status was already read will report exitcode 255
+2023-06-26 20:57:33,784 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 521609 exit status was already read will report exitcode 255
+2023-06-26 20:57:34,467 - distributed.process - WARNING - [<AsyncProcess Dask Worker process (from Nanny)>] process 521710 exit status was already read will report exitcode 255
