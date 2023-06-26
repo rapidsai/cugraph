@@ -33,8 +33,6 @@ from cugraph.experimental.gnn import BulkSampler
 
 import cugraph
 
-from datetime import datetime
-
 import json
 import re
 import os
@@ -173,6 +171,7 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
+        log_level = logging.INFO
     )
 
     n_workers = len(default_client().scheduler_info()['workers'])
@@ -658,9 +657,9 @@ if __name__ == "__main__":
     dask_worker_devices = [int(d) for d in args.dask_worker_devices.split(',')]
 
     client, cluster = start_dask_client(dask_worker_devices=dask_worker_devices, jit_unspill=False, rmm_pool_size=28e9, rmm_async=True)
-    enable_spilling()
+    #enable_spilling()
     stats_ls = []
-    client.run(enable_spilling)
+    #client.run(enable_spilling)
     for dataset in datasets:
         if re.match(r'([A-z]|[0-9])+\[[0-9]+\]', dataset):
             replication_factor = int(dataset[-2])
