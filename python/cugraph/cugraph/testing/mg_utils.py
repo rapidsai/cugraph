@@ -29,6 +29,7 @@ import numpy as np
 
 def start_dask_client(
     protocol=None,
+    rmm_async=False,
     rmm_pool_size=None,
     dask_worker_devices=None,
     jit_unspill=False,
@@ -137,6 +138,7 @@ def start_dask_client(
             local_directory=local_directory,
             protocol=protocol,
             rmm_pool_size=rmm_pool_size,
+            rmm_async=rmm_async,
             CUDA_VISIBLE_DEVICES=dask_worker_devices,
             jit_unspill=jit_unspill,
             device_memory_limit=device_memory_limit,
@@ -287,6 +289,15 @@ def persist_dask_object(arg):
 
 # Function to convert bytes into human readable format
 def sizeof_fmt(num, suffix="B"):
+    if isinstance(num, str):
+        if num[-2:] == "GB":
+            return num[:-2] + "G"
+        elif num[-2:] == "MB":
+            return num[:-2] + "M"
+        elif num[-2:] == "KB":
+            return num[:-2] + "K"
+        else:
+            raise ValueError("unknown unit")
     for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
         if abs(num) < 1024.0:
             return "%3.1f%s%s" % (num, unit, suffix)
