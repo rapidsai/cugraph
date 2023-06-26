@@ -355,8 +355,9 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param renumber_map If valid, return the renumbered edge list based on the provided @p
  * renumber_map
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return Tuple of edge sources, destinations, (optional) edge ids (if @p edge_id_view.has_value()
- * is true) and (optional) edge weights (if @p edge_weight_view.has_value() is true).
+ * @return Tuple of edge sources, destinations, (optional) edge weights (if
+ * @p edge_weight_view.has_value() is true) and (optional) edge ids (if
+ * @p edge_id_view.has_value() is true).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -365,13 +366,13 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
-           std::optional<rmm::device_uvector<edge_t>>,
-           std::optional<rmm::device_uvector<weight_t>>>
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>>
 decompress_to_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check = false);
 

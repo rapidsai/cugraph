@@ -52,11 +52,11 @@ graph_to_host_coo(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
@@ -111,11 +111,11 @@ graph_to_device_coo(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
@@ -156,11 +156,11 @@ graph_to_host_csr(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
@@ -245,11 +245,11 @@ mg_graph_to_sg_graph(
   rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
 
-  std::tie(d_src, d_dst, std::ignore, d_wgt) = cugraph::decompress_to_edgelist(
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
     handle,
     graph_view,
-    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
     number_map);
 
   d_src = cugraph::test::device_gatherv(

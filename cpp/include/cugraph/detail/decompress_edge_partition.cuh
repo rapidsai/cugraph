@@ -188,14 +188,14 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void decompress_edge_partition_to_edgelist(
   raft::handle_t const& handle,
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
-  std::optional<edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>
-    edge_partition_id_view,
   std::optional<edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>
     edge_partition_weight_view,
+  std::optional<edge_partition_edge_property_device_view_t<edge_t, edge_t const*>>
+    edge_partition_id_view,
   vertex_t* edgelist_majors /* [OUT] */,
   vertex_t* edgelist_minors /* [OUT] */,
-  std::optional<edge_t*> edgelist_ids /* [OUT] */,
   std::optional<weight_t*> edgelist_weights /* [OUT] */,
+  std::optional<edge_t*> edgelist_ids /* [OUT] */,
   std::optional<std::vector<vertex_t>> const& segment_offsets)
 {
   auto number_of_edges = edge_partition.number_of_edges();

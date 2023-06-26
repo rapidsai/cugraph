@@ -77,12 +77,12 @@ class Tests_TransposeStorage
     rmm::device_uvector<vertex_t> d_org_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
     if (transpose_storage_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, std::ignore, d_org_weights) =
+      std::tie(d_org_srcs, d_org_dsts, d_org_weights, std::ignore) =
         cugraph::decompress_to_edgelist(
           handle,
           graph.view(),
-          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           d_renumber_map_labels
             ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
                                                                     (*d_renumber_map_labels).size())
@@ -116,15 +116,15 @@ class Tests_TransposeStorage
 
       std::tie(d_storage_transposed_srcs,
                d_storage_transposed_dsts,
-               std::ignore,
-               d_storage_transposed_weights) =
+               d_storage_transposed_weights,
+               std::ignore) =
         cugraph::decompress_to_edgelist(
           handle,
           storage_transposed_graph.view(),
-          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           storage_transposed_edge_weights
             ? std::make_optional((*storage_transposed_edge_weights).view())
             : std::nullopt,
+          std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
           d_renumber_map_labels
             ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
                                                                     (*d_renumber_map_labels).size())
