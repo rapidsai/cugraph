@@ -113,7 +113,6 @@ class EXPERIMENTAL__BulkSampler:
         df: Union[cudf.DataFrame, dask_cudf.DataFrame],
         start_col_name: str,
         batch_col_name: str,
-        shuffle=True
     ) -> None:
         """
         Adds batches to this BulkSampler.
@@ -126,11 +125,6 @@ class EXPERIMENTAL__BulkSampler:
             Name of the column containing the start vertices
         batch_col_name: str
             Name of the column containing the batch ids
-        shuffle: bool (optional, default=True)
-            Whether to shuffle the input so that batches are
-            distributed randomly across partitions.
-            Turning this off is strongly discouraged unless
-            the input is already shuffled.
 
         Returns
         -------
@@ -177,12 +171,6 @@ class EXPERIMENTAL__BulkSampler:
                     "Provided batches must match the dataframe"
                     " type of previous batches!"
                 )
-
-        if shuffle:
-            if isinstance(self.__batches, dask_cudf.DataFrame):
-                self.__batches = self.__batches.shuffle(self.start_col_name, ignore_index=True)
-            else:
-                self.__batches = self.__batches.iloc[cupy.random.permutation(len(self.__batches))]
 
         if self.size >= self.seeds_per_call:
             self.__logger.info(

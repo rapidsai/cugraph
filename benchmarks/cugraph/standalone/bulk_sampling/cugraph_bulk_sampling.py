@@ -193,7 +193,7 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
     
 
     start_time = perf_counter()
-    sampler.add_batches(batch_df, start_col_name='node', batch_col_name='batch', shuffle=False)
+    sampler.add_batches(batch_df, start_col_name='node', batch_col_name='batch')
     sampler.flush()
     end_time = perf_counter()
     print('flushed all batches')
