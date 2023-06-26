@@ -25,6 +25,10 @@ import pylibcugraph
 
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 
+import warnings
+import logging
+import time
+
 
 class EXPERIMENTAL__BulkSampler:
     start_col_name = "_START_"
@@ -36,7 +40,8 @@ class EXPERIMENTAL__BulkSampler:
         output_path: str,
         graph,
         seeds_per_call: int = 200_000,
-        batches_per_partition=100,
+        batches_per_partition: int = 100,
+        log_level: int = None,
         **kwargs,
     ):
         """
@@ -55,13 +60,19 @@ class EXPERIMENTAL__BulkSampler:
             a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
+        log_level: int (optional, default=None)
+            Whether to enable logging for this sampler. Supports 3 levels
+            of logging if enabled (INFO, WARNING, ERROR).  If not provided,
+            defaults to WARNING.
         kwargs: kwargs
             Keyword arguments to be passed to the sampler (i.e. fanout).
         """
 
+        self.__logger = logging.getLogger(__name__)
+        self.__logger.setLevel(log_level or logging.WARNING)
+
         max_batches_per_partition = seeds_per_call // batch_size
         if batches_per_partition > max_batches_per_partition:
-            import warnings
 
             warnings.warn(
                 f"batches_per_partition ({batches_per_partition}) is >"
@@ -163,6 +174,11 @@ class EXPERIMENTAL__BulkSampler:
                 )
 
         if self.size >= self.seeds_per_call:
+            self.__logger.info(
+                f"Number of input seeds ({self.size})"
+                f" is >= seeds per call ({self.seeds_per_call})."
+                " Calling flush() to compute and write minibatches."
+            )
             self.flush()
 
     def flush(self) -> None:
@@ -171,6 +187,8 @@ class EXPERIMENTAL__BulkSampler:
         """
         if self.size == 0:
             return
+
+        start_time_calc_batches = time.perf_counter()
         self.__batches.reset_index(drop=True)
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
@@ -189,6 +207,13 @@ class EXPERIMENTAL__BulkSampler:
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
 
+        end_time_calc_batches = time.perf_counter()
+        self.__logger.info(
+            f"Calculated batches to sample; min = {min_batch_id}"
+            f" and max = {max_batch_id};"
+            f" took {end_time_calc_batches - start_time_calc_batches:.4f} s"
+        )
+
         if isinstance(self.__graph._plc_graph, pylibcugraph.graphs.SGGraph):
             sample_fn = cugraph.uniform_neighbor_sample
         else:
@@ -196,15 +221,15 @@ class EXPERIMENTAL__BulkSampler:
             self.__sample_call_args.update(
                 {
                     "_multiple_clients": True,
-                    "label_to_output_comm_rank": self.__get_label_to_output_comm_rank(
-                        min_batch_id, max_batch_id
-                    ),
-                    "label_list": cupy.arange(
-                        min_batch_id, max_batch_id + 1, dtype="int32"
-                    ),
+                    "keep_batches_together": True,
+                    "min_batch_id": min_batch_id,
+                    "max_batch_id": max_batch_id,
                 }
             )
 
+        start_time_sample_call = time.perf_counter()
+
+        # Call uniform neighbor sample
         samples, offsets = sample_fn(
             self.__graph,
             **self.__sample_call_args,
@@ -214,13 +239,45 @@ class EXPERIMENTAL__BulkSampler:
             return_offsets=True,
         )
 
+        end_time_sample_call = time.perf_counter()
+        sample_runtime = end_time_sample_call - start_time_sample_call
+        self.__logger.info(
+            f"Called uniform neighbor sample, took {sample_runtime:.4f} s"
+            f" ({(sample_runtime) / (max_batch_id - min_batch_id):.4f} s"
+            " per batch)"
+        )
+
+        start_time_filter_batches = time.perf_counter()
+
+        # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
-        if isinstance(self.__batches, dask_cudf.DataFrame):
+        if hasattr(self.__batches, "compute"):
             self.__batches = self.__batches.persist()
 
+        end_time_filter_batches = time.perf_counter()
+        self.__logger.info(
+            "Filtered batches, took "
+            f"{end_time_filter_batches - start_time_filter_batches} s"
+        )
+
+        start_time_write = time.perf_counter()
+
+        # Write batches to parquet
         self.__write(samples, offsets)
 
+        end_time_write = time.perf_counter()
+        write_runtime = end_time_write - start_time_write
+        self.__logger.info(
+            f"Wrote samples to parquet, took {write_runtime} seconds"
+            f" ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s"
+            " per batch)"
+        )
+
         if self.size > 0:
+            self.__logger.info(
+                f"There are still {self.size} samples remaining, "
+                "calling flush() again..."
+            )
             self.flush()
 
     def __write(
