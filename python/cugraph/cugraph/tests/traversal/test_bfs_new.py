@@ -273,7 +273,7 @@ def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, 
 SEEDS = [pytest.param(s) for s in SUBSET_SEED_OPTIONS]
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
 DATASETS = [pytest.param(d) for d in datasets.DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in datasets.DATASETS_SMALL]
+# DATASETS_SMALL = [pytest.param(d) for d in datasets.DATASETS_SMALL]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
 # Call gen_fixture_params_product() to caluculate the cartesian product of
@@ -289,8 +289,13 @@ graph_fixture_params = gen_fixture_params_product(
     (DATASETS, "ds"), (DIRECTED, "dirctd")
 )
 
-small_graph_fixture_params = gen_fixture_params_product(
-    (DATASETS_SMALL, "ds"), (DIRECTED, "dirctd")
+# small_graph_fixture_params = gen_fixture_params_product(
+#     (DATASETS_SMALL, "ds"), (DIRECTED, "dirctd")
+# )
+
+graph_algo_test_fixture_params = gen_fixture_params_product(
+    (SEEDS, "seed"), (DEPTH_LIMIT, "depth_limit"), (DATASETS, "ds"),
+    (DIRECTED, "dirctd")
 )
 
 # The single param list variants are used when only 1 param combination is
@@ -300,15 +305,27 @@ single_algo_test_fixture_params = gen_fixture_params_product(
     ([SEEDS[0]], "seed"), ([DEPTH_LIMIT[0]], "depth_limit")
 )
 
-single_small_graph_fixture_params = gen_fixture_params_product(
-    ([DATASETS_SMALL[0]], "ds"), (DIRECTED, "dirctd")
+single_graph_algo_test_fixture_params = gen_fixture_params_product(
+    ([SEEDS[0]], "seed"), ([DEPTH_LIMIT[0]], "depth_limit"),
+    (DIRECTED, "dirctd")
 )
+
+# single_small_graph_fixture_params = gen_fixture_params_product(
+#     ([DATASETS_SMALL[0]], "ds"), (DIRECTED, "dirctd")
+# )
 
 
 # Fixtures that result in a test-per (dataset X directed/undirected)
 # combination. These return the path to the dataset, a bool indicating if a
 # directed graph is being used, and the Nx graph object.
 
+@pytest.fixture(scope="module", params=graph_algo_test_fixture_params)
+def data_nx_graph(request):
+    return request
+
+@pytest.fixture(scope="module", params=single_graph_algo_test_fixture_params)
+def single_data_nx_graph(request):
+    return request
 
 # Fixtures that result in a test-per (dataset_nx_graph combinations X algo_test
 # param combinations) combination. These run Nx BFS on the Nx graph obj and
@@ -328,8 +345,25 @@ single_small_graph_fixture_params = gen_fixture_params_product(
 # =============================================================================
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs(cugraph_input_type):
-    return 0
+def test_bfs(gpubenchmark, data_nx_graph, cugraph_input_type):
+    #breakpoint()
+    (_, depth_limit, dataset, directed) = data_nx_graph.param
+    # start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
+    nodes = utils.resultset("nodes", alg_args={},
+                            graph_args={'dataset': dataset, 'directed': directed})
+    start_vertex = random.sample(list(nodes), 1)[0]
+
+    if directed:
+        if isinstance(cugraph_input_type, cugraph.Graph):
+            cugraph_input_type = cugraph.Graph(directed=True)
+        else:
+            assert 1 == 0
+    
+    if not isinstance(cugraph_input_type, cugraph.Graph):
+       assert 1 == 2
+
+    assert 1 == 5
+    compare_bfs(gpubenchmark, G, nx_values, start_vertex, depth_limit)
 
 
 @pytest.mark.sg
@@ -337,21 +371,33 @@ def test_bfs(cugraph_input_type):
     "cugraph_input_type", utils.NX_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
 )
 def test_bfs_nonnative_inputs(
-    cugraph_input_type
+    gpubenchmark, single_data_nx_graph, cugraph_input_type
 ):
-    test_bfs(cugraph_input_type)
+    assert 2 == 4
+    test_bfs(gpubenchmark, single_data_nx_graph, cugraph_input_type)
 
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs_invalid_start(
-    cugraph_input_type
+    gpubenchmark, data_nx_graph, cugraph_input_type
 ):
-    return 0
+    (_, depth_limit, dataset, directed) = data_nx_graph.param
+    assert 3 == 4
+    
+    el = G.view_edge_list()
+
+    newval = max(el.src.max(), el.dst.max()) + 1
+    start_vertex = newval
+
+    with pytest.raises(ValueError):
+        cugraph.bfs(G, start_vertex, depth_limit=depth_limit)
+
 
 
 @pytest.mark.sg
 def test_scipy_api_compat():
+    assert 1 == 2
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()
 
