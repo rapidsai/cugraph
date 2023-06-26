@@ -491,7 +491,7 @@ def rmat(
     maximum_weight : float
         Maximum weight value to generate if 'include_edge_weights' is 'true'
         otherwise, this parameter is ignored.
-    
+
     dtype : string
         The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
         include_weights is true
@@ -699,7 +699,7 @@ def multi_rmat(
     max_edge_type : int
         Maximum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this paramter is ignored.
-    
+
     dtype : string
         The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
         include_weights is true
