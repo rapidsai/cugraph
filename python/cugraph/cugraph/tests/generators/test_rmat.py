@@ -114,8 +114,9 @@ def test_rmat_edge_weights(
     include_edge_weights, dtype, min_max_weight, scramble_vertex_ids
 ):
     """
-    Verifies that the edge weights returned by rmat() are valid and raises an exception otherwise or if
-    invalid values are passed to 'dtype', 'minimum_weight' or 'maximum_weight'.
+    Verifies that the edge weights returned by rmat() are valid and raises an
+    exception otherwise or if invalid values are passed to 'dtype', 'minimum_weight'
+    or 'maximum_weight'.
 
     """
     scale = 2
@@ -160,7 +161,8 @@ def test_rmat_edge_weights(
                 "{} - weights > -0.0001".format(minimum_weight)
             )
 
-            # Check that edge weights values are between 'minimum_weight' and 'maximum_weight
+            # Check that edge weights values are between 'minimum_weight'
+            # and 'maximum_weight.
             assert len(edge_weights_err1) == 0
             assert len(edge_weights_err2) == 0
     else:
@@ -188,7 +190,8 @@ def test_rmat_edge_weights(
 )
 def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
     """
-    Verifies that the edge ids returned by rmat() are valid and raises an exception otherwise.
+    Verifies that the edge ids returned by rmat() are valid and raises an
+    exception otherwise.
 
     """
     num_edges = (2**scale) * 4
@@ -228,8 +231,9 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
 )
 def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_ids):
     """
-    Verifies that the edge types returned by rmat() are valid and raises an exception otherwise or if
-    invalid values are passed to 'min_edge_type' or 'max_edge_type'.
+    Verifies that the edge types returned by rmat() are valid and raises an
+    exception otherwise or if invalid values are passed to 'min_edge_type' or
+    'max_edge_type'.
 
     """
     scale = 2
@@ -265,7 +269,8 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_
             edge_types_err1 = df.query("{} < edge_type".format(max_edge_type))
             edge_types_err2 = df.query("{} > edge_type".format(min_edge_type))
 
-            # Check that edge weights values are between 'min_edge_type' and 'max_edge_type'
+            # Check that edge weights values are between 'min_edge_type'
+            # and 'max_edge_type'.
             assert len(edge_types_err1) == 0
             assert len(edge_types_err2) == 0
     else:
@@ -295,11 +300,11 @@ def test_rmat_clip_and_flip(
     scale, include_edge_weights, clip_and_flip, scramble_vertex_ids
 ):
     """
-    Verifies that there are edges only in the lower triangular part of the adjacency matrix
-    when 'clip_and_flip' is set to 'true'.
+    Verifies that there are edges only in the lower triangular part of
+    the adjacency matrix when 'clip_and_flip' is set to 'true'.
 
-    # FIXME: 'scramble_vertex_ids' nullifies the effect of 'clip_and_flip' therefore, both
-    # flags should not be set to 'True'.
+    FIXME: 'scramble_vertex_ids' nullifies the effect of 'clip_and_flip' therefore
+    both flags should not be set to 'True'.
 
     """
     num_edges = (2**scale) * 4
@@ -321,7 +326,8 @@ def test_rmat_clip_and_flip(
 
     if not include_edge_weights:
         df["weights"] = 1
-        # cupy coo_matrix only support 'float32', 'float64', 'complex64' and 'complex128'.
+        # cupy coo_matrix only support 'float32', 'float64', 'complex64'
+        # and 'complex128'.
         df["weights"] = df["weights"].astype("float32")
 
     dim = df[["src", "dst"]].max().max() + 1
