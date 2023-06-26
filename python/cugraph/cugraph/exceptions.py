@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .louvain import louvain
-from .triangle_count import triangle_count
-from .induced_subgraph import induced_subgraph
-from .leiden import leiden
+"""
+Exception classes for cugraph.
+"""
+
+
+class FailedToConvergeError(Exception):
+    """
+    Raised when an algorithm fails to converge within a predetermined set of
+    constraints which vary based on the algorithm, and may or may not be
+    user-configurable.
+    """
+
+    pass

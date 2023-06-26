@@ -11,19 +11,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
+import cudf
+import numpy as np
+
+from pylibcugraph import (
+    pagerank as plc_pagerank,
+    personalized_pagerank as plc_p_pagerank,
+    exceptions as plc_exceptions,
+    ResourceHandle,
+)
+
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
-import cudf
-import numpy as np
-import warnings
-
-from pylibcugraph import (
-    pagerank as pylibcugraph_pagerank,
-    personalized_pagerank as pylibcugraph_p_pagerank,
-    ResourceHandle,
-)
+from cugraph.exceptions import FailedToConvergeError
 
 
 def renumber_vertices(input_graph, input_df):
@@ -86,9 +90,9 @@ def pagerank(
     nstart=None,
     weight=None,
     dangling=None,
+    fail_on_nonconvergence=True,
 ):
-    """
-    Find the PageRank score for every vertex in a graph. cuGraph computes an
+    """Find the PageRank score for every vertex in a graph. cuGraph computes an
     approximation of the Pagerank eigenvector using the power method. The
     number of iterations depends on the properties of the network itself; it
     increases when the tolerance descreases and/or alpha increases toward the
@@ -163,8 +167,18 @@ def pagerank(
     dangling : dict, optional (default=None)
         This parameter is here for NetworkX compatibility and ignored
 
+    fail_on_nonconvergence : bool (default=True)
+        If the solver does not reach convergence, raise an exception if
+        fail_on_nonconvergence is True. If fail_on_nonconvergence is False,
+        the return value is a tuple of (pagerank, converged) where pagerank is
+        a cudf.DataFrame as described below, and converged is a boolean
+        indicating if the solver converged (True) or not (False).
+
     Returns
     -------
+    The return value varies based on the value of the fail_on_nonconvergence
+    paramter.  If fail_on_nonconvergence is True:
+
     PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
@@ -184,6 +198,12 @@ def pagerank(
 
         df['pagerank'] : cudf.Series
             Contains the PageRank score
+
+    If fail_on_nonconvergence is False:
+
+    (PageRank, converged) : tuple of (cudf.DataFrame, bool)
+       PageRank is the GPU dataframe described above, converged is a bool
+       indicating if the solver converged (True) or not (False).
 
     Examples
     --------
@@ -226,47 +246,55 @@ def pagerank(
         pre_vtx_o_wgt_vertices = precomputed_vertex_out_weight["vertex"]
         pre_vtx_o_wgt_sums = precomputed_vertex_out_weight["sums"]
 
-    if personalization is not None:
-        if not isinstance(personalization, cudf.DataFrame):
-            raise NotImplementedError(
-                "personalization other than a cudf dataframe " "currently not supported"
+    try:
+        if personalization is not None:
+            if not isinstance(personalization, cudf.DataFrame):
+                raise NotImplementedError(
+                    "personalization other than a cudf dataframe currently not "
+                    "supported"
+                )
+            if G.renumbered is True:
+                personalization = renumber_vertices(G, personalization)
+
+            personalization = ensure_valid_dtype(G, personalization, "personalization")
+
+            result_tuple = plc_p_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                personalization_vertices=personalization["vertex"],
+                personalization_values=personalization["values"],
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                do_expensive_check=do_expensive_check,
+                fail_on_nonconvergence=fail_on_nonconvergence,
             )
-        if G.renumbered is True:
-            personalization = renumber_vertices(G, personalization)
-
-        personalization = ensure_valid_dtype(G, personalization, "personalization")
-
-        vertex, pagerank_values = pylibcugraph_p_pagerank(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-            precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-            personalization_vertices=personalization["vertex"],
-            personalization_values=personalization["values"],
-            initial_guess_vertices=initial_guess_vertices,
-            initial_guess_values=initial_guess_values,
-            alpha=alpha,
-            epsilon=tol,
-            max_iterations=max_iter,
-            do_expensive_check=do_expensive_check,
-        )
-    else:
-        vertex, pagerank_values = pylibcugraph_pagerank(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
-            precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
-            initial_guess_vertices=initial_guess_vertices,
-            initial_guess_values=initial_guess_values,
-            alpha=alpha,
-            epsilon=tol,
-            max_iterations=max_iter,
-            do_expensive_check=do_expensive_check,
-        )
+        else:
+            result_tuple = plc_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                do_expensive_check=do_expensive_check,
+                fail_on_nonconvergence=fail_on_nonconvergence,
+            )
+    # Re-raise this as a cugraph exception so users trying to catch this do not
+    # have to know to import another package.
+    except plc_exceptions.FailedToConvergeError as exc:
+        raise FailedToConvergeError from exc
 
     df = cudf.DataFrame()
-    df["vertex"] = vertex
-    df["pagerank"] = pagerank_values
+    df["vertex"] = result_tuple[0]
+    df["pagerank"] = result_tuple[1]
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -274,4 +302,7 @@ def pagerank(
     if isNx is True:
         df = df_score_to_dictionary(df, "pagerank")
 
-    return df
+    if fail_on_nonconvergence:
+        return df
+    else:
+        return (df, result_tuple[2])

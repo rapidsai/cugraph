@@ -38,7 +38,7 @@ Replace the package name in the example below to the one you want to install.
 Install and update cuGraph using the conda command:
 
 ```bash
-conda install -c rapidsai -c numba -c conda-forge -c nvidia cugraph cudatoolkit=11.8
+conda install -c rapidsai -c conda-forge -c nvidia cugraph cudatoolkit=11.8
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.8/3.10.

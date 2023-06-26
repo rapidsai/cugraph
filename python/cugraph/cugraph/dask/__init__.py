@@ -32,3 +32,4 @@ from .cores.k_core import k_core
 from .link_prediction.jaccard import jaccard
 from .link_prediction.sorensen import sorensen
 from .link_prediction.overlap import overlap
+from .community.leiden import leiden
