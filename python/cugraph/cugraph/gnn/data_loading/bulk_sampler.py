@@ -221,12 +221,9 @@ class EXPERIMENTAL__BulkSampler:
             self.__sample_call_args.update(
                 {
                     "_multiple_clients": True,
-                    "label_to_output_comm_rank": self.__get_label_to_output_comm_rank(
-                        min_batch_id, max_batch_id
-                    ),
-                    "label_list": cupy.arange(
-                        min_batch_id, max_batch_id + 1, dtype="int32"
-                    ),
+                    "keep_batches_together": True,
+                    "min_batch_id": min_batch_id,
+                    "max_batch_id": max_batch_id,
                 }
             )
 
