@@ -187,7 +187,6 @@ class EXPERIMENTAL__BulkSampler:
             return
 
         start_time_calc_batches = time.perf_counter()
-        self.__batches.reset_index(drop=True)
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
@@ -204,6 +203,8 @@ class EXPERIMENTAL__BulkSampler:
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
+        if hasattr(batch_id_filter, 'compute'):
+            batch_id_filter = batch_id_filter.persist()
 
         end_time_calc_batches = time.perf_counter()
         self.__logger.info(
@@ -249,6 +250,7 @@ class EXPERIMENTAL__BulkSampler:
 
         # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
+        del batch_id_filter
         if hasattr(self.__batches, "compute"):
             self.__batches = self.__batches.persist()
 
