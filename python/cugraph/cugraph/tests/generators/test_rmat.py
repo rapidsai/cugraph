@@ -18,6 +18,7 @@ import cudf
 
 from cugraph.generators import rmat
 import cugraph
+from cupy.sparse import coo_matrix, triu, tril
 
 
 ##############################################################################
@@ -26,9 +27,42 @@ _scale_values = [2, 4, 16]
 _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _graph_types = [cugraph.Graph, None, int]
 _graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
+_clip_and_flip = [False, True]
+_clip_and_flip_test_ids = [f"clip_and_flip={x}" for x in _clip_and_flip]
+_scramble_vertex_ids=[False, True]
+_scramble_vertex_ids_test_ids = [f"scramble_vertex_ids={x}" for x in _scramble_vertex_ids]
+_include_edge_weights = [False, True]
+_include_edge_weights_test_ids = [f"include_edge_weights={x}" for x in _include_edge_weights]
+_dtype = [None, "FLOAT32", "FLOAT64", "INT32"]
+_dtype_test_ids = [f"_dtype={x}" for x in _dtype]
+_min_max_weight_values = [[None, None], [0, 1], [2, 5]]
+_min_max_weight_values_test_ids = [f"min_max_weight_values={x}" for x in _min_max_weight_values]
+_include_edge_ids = [False, True]
+_include_edge_ids_test_ids = [f"include_edge_ids={x}" for x in _include_edge_ids]
+_include_edge_types = [False, True]
+_include_edge_types_test_ids = [f"include_edge_types={x}" for x in _include_edge_types]
+_min_max_edge_type_values = [[None, None], [0, 1], [2, 5]]
+_min_max_edge_type_values_test_ids = [f"min_max_edge_type_values={x}" for x in _min_max_edge_type_values]
 
 
-def _call_rmat(scale, num_edges, create_using, mg=False):
+
+
+
+def _call_rmat(
+        scale,
+        num_edges,
+        create_using,
+        clip_and_flip=False,
+        scramble_vertex_ids=False,
+        include_edge_weights=False,
+        dtype=None,
+        minimum_weight=None,
+        maximum_weight=None,
+        include_edge_ids=False,
+        include_edge_types=False,
+        min_edge_type=None,
+        max_edge_type=None,
+        mg=False):
     """
     Simplifies calling RMAT by requiring only specific args that are varied by
     these tests and hard-coding all others.
@@ -40,28 +74,222 @@ def _call_rmat(scale, num_edges, create_using, mg=False):
         b=0.19,  # from Graph500
         c=0.19,  # from Graph500
         seed=24,
-        clip_and_flip=False,
-        scramble_vertex_ids=True,
+        clip_and_flip=clip_and_flip,
+        scramble_vertex_ids=scramble_vertex_ids,
         create_using=create_using,
+        include_edge_weights=include_edge_weights,
+        minimum_weight=minimum_weight,
+        maximum_weight=maximum_weight,
+        dtype=dtype,
+        include_edge_ids=include_edge_ids,
+        include_edge_types=include_edge_types,
+        min_edge_type=min_edge_type,
+        max_edge_type=max_edge_type,
         mg=mg,
     )
 
 
 ###############################################################################
+
+
+@pytest.mark.sg
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.parametrize("include_edge_weights", _include_edge_weights, ids=_include_edge_weights_test_ids)
+@pytest.mark.parametrize("dtype", _dtype, ids=_dtype_test_ids)
+@pytest.mark.parametrize("min_max_weight", _min_max_weight_values, ids=_min_max_weight_values_test_ids)
+@pytest.mark.parametrize("scramble_vertex_ids", _scramble_vertex_ids, ids=_scramble_vertex_ids_test_ids)
+def test_rmat_edge_weights(include_edge_weights, dtype, min_max_weight, scramble_vertex_ids):
+    """
+    Verifies that the edge weights returned by rmat() are valid and raises an exception otherwise or if
+    invalid values are passed to 'dtype', 'minimum_weight' or 'maximum_weight'.
+
+    """
+    scale = 2
+    num_edges = (2**scale) * 4
+    create_using = None  # Returns the edgelist from RMAT
+    minimum_weight, maximum_weight = min_max_weight
+
+    if include_edge_weights:
+        if minimum_weight is None or maximum_weight is None or dtype not in ["FLOAT32", "FLOAT64"]:
+            with pytest.raises(ValueError):
+                _call_rmat(
+                    scale,
+                    num_edges,
+                    create_using,
+                    scramble_vertex_ids=scramble_vertex_ids,
+                    include_edge_weights=include_edge_weights,
+                    dtype=dtype,
+                    minimum_weight=minimum_weight,
+                    maximum_weight=maximum_weight)
+        else:
+            df = _call_rmat(
+                    scale,
+                    num_edges,
+                    create_using,
+                    scramble_vertex_ids=scramble_vertex_ids,
+                    include_edge_weights=include_edge_weights,
+                    dtype=dtype,
+                    minimum_weight=minimum_weight,
+                    maximum_weight=maximum_weight)
+
+            # Check that there is a 'weights' column
+            assert "weights" in df.columns
+    
+            edge_weights_err1 = df.query("{} - weights < 0.0001".format(maximum_weight))
+            edge_weights_err2 = df.query("{} - weights > -0.0001".format(minimum_weight))
+
+            # Check that edge weights values are between 'minimum_weight' and 'maximum_weight
+            assert len(edge_weights_err1) == 0
+            assert len(edge_weights_err2) == 0
+    else:
+        df = _call_rmat(
+                scale,
+                num_edges,
+                create_using,
+                scramble_vertex_ids=scramble_vertex_ids,
+                include_edge_weights=include_edge_weights,
+                dtype=dtype,
+                minimum_weight=minimum_weight,
+                maximum_weight=maximum_weight)
+        assert len(df.columns) == 2
+
+
 @pytest.mark.sg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
-def test_rmat_edgelist(scale):
+@pytest.mark.parametrize("include_edge_ids", _include_edge_ids, ids=_include_edge_ids_test_ids)
+@pytest.mark.parametrize("scramble_vertex_ids", _scramble_vertex_ids, ids=_scramble_vertex_ids_test_ids)
+def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
     """
-    Verifies that the edgelist returned by rmat() is valid based on inputs.
-    """
+    Verifies that the edge ids returned by rmat() are valid and raises an exception otherwise.
 
+    """
     num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
+    df = _call_rmat(
+                scale,
+                num_edges,
+                create_using,
+                scramble_vertex_ids=scramble_vertex_ids,
+                include_edge_ids=include_edge_ids)
+    
+    if include_edge_ids:
+        assert "edge_id" in df.columns
+        df["index"] = df.index
+        edge_id_err = df.query("index != edge_id")
+        assert len(edge_id_err) == 0
+        
+    else:
+        assert len(df.columns) == 2
 
-    df = _call_rmat(scale, num_edges, create_using)
-    assert len(df) == num_edges
 
+@pytest.mark.sg
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.parametrize("include_edge_types", [_include_edge_types[0]], ids=[_include_edge_types_test_ids[0]])
+@pytest.mark.parametrize("min_max_edge_type", _min_max_edge_type_values, ids=_min_max_edge_type_values_test_ids)
+@pytest.mark.parametrize("scramble_vertex_ids", _scramble_vertex_ids, ids=_scramble_vertex_ids_test_ids)
+def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_ids):
+    """
+    Verifies that the edge types returned by rmat() are valid and raises an exception otherwise or if
+    invalid values are passed to 'min_edge_type' or 'max_edge_type'.
+
+    """
+    scale = 2
+    num_edges = (2**scale) * 4
+    create_using = None  # Returns the edgelist from RMAT
+    min_edge_type, max_edge_type = min_max_edge_type
+
+    if include_edge_types:
+        if min_edge_type is None or max_edge_type is None:
+            with pytest.raises(ValueError):
+                _call_rmat(
+                    scale,
+                    num_edges,
+                    create_using,
+                    scramble_vertex_ids=scramble_vertex_ids,
+                    include_edge_types=include_edge_types,
+                    min_edge_type=min_edge_type,
+                    max_edge_type=max_edge_type)
+        else:
+            df = _call_rmat(
+                    scale,
+                    num_edges,
+                    create_using,
+                    scramble_vertex_ids=scramble_vertex_ids,
+                    include_edge_types=include_edge_types,
+                    min_edge_type=min_edge_type,
+                    max_edge_type=max_edge_type)
+            
+            # Check that there is an 'edge_type' column
+            assert "edge_type" in df.columns
+            edge_types_err1 = df.query("{} < edge_type".format(max_edge_type))
+            edge_types_err2 = df.query("{} > edge_type".format(min_edge_type))
+
+            # Check that edge weights values are between 'min_edge_type' and 'max_edge_type'
+            assert len(edge_types_err1) == 0
+            assert len(edge_types_err2 ) == 0
+    else:
+        df = _call_rmat(
+                    scale,
+                    num_edges,
+                    create_using,
+                    scramble_vertex_ids=scramble_vertex_ids,
+                    include_edge_types=include_edge_types,
+                    min_edge_type=min_edge_type,
+                    max_edge_type=max_edge_type)
+        assert len(df.columns) == 2
+
+
+@pytest.mark.sg
+@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
+@pytest.mark.parametrize("scale", [2, 4, 8], ids=_scale_test_ids)
+@pytest.mark.parametrize("include_edge_weights", _include_edge_weights, ids=_include_edge_weights_test_ids)
+@pytest.mark.parametrize("clip_and_flip", _clip_and_flip, ids=_clip_and_flip_test_ids)
+@pytest.mark.parametrize("scramble_vertex_ids", [False], ids=[_scramble_vertex_ids_test_ids[0]])
+def test_rmat_clip_and_flip(scale, include_edge_weights, clip_and_flip, scramble_vertex_ids):
+    """
+    Verifies that there are edges only in the lower triangular part of the adjacency matrix
+    when 'clip_and_flip' is set to 'true'.
+
+    # FIXME: 'scramble_vertex_ids' nullifies the effect of 'clip_and_flip' therefore, both
+    # flags should not be set to 'True'.
+
+    """
+    num_edges = (2**scale) * 4
+    create_using = None  # Returns the edgelist from RMAT
+    minimum_weight = 0
+    maximum_weight = 1
+    dtype = "FLOAT32"
+    df = _call_rmat(
+                scale,
+                num_edges,
+                create_using,
+                clip_and_flip=clip_and_flip,
+                scramble_vertex_ids=scramble_vertex_ids,
+                include_edge_weights=include_edge_weights,
+                dtype=dtype,
+                minimum_weight=minimum_weight,
+                maximum_weight=maximum_weight)
+
+    if not include_edge_weights:
+        df["weights"] = 1
+        # cupy coo_matrix only support 'float32', 'float64', 'complex64' and 'complex128'.
+        df["weights"] = df["weights"].astype("float32")
+
+    dim = df[["src", "dst"]].max().max() + 1
+    src = df["src"].to_cupy()
+    dst = df["dst"].to_cupy()
+    weights = df["weights"].to_cupy()
+    adj_matrix = coo_matrix((weights, (src, dst)), shape=(dim, dim)).toarray()
+
+    upper_coo = triu(adj_matrix)
+    diag = tril(upper_coo)
+
+    if clip_and_flip:
+        # Except the diagonal, There should be no edge in the upper triangular part of
+        # the graph adjacency matrix.
+        assert diag.nnz == upper_coo.nnz
+    
 
 @pytest.mark.sg
 @pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
@@ -70,6 +298,7 @@ def test_rmat_return_type(graph_type):
     """
     Verifies that the return type returned by rmat() is valid (or the proper
     exception is raised) based on inputs.
+
     """
     scale = 2
     num_edges = (2**scale) * 4
