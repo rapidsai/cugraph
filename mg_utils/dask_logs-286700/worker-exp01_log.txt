@@ -1,0 +1,451 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=28G
+             --rmm-async
+             --local-directory=/tmp/
+             --scheduler-file=/root/cugraph/mg_utils/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2023-06-26 16:54:04,636 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34327'
+2023-06-26 16:54:04,638 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34043'
+2023-06-26 16:54:04,642 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:42673'
+2023-06-26 16:54:04,643 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34889'
+2023-06-26 16:54:04,647 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40259'
+2023-06-26 16:54:04,647 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:36661'
+2023-06-26 16:54:04,651 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:39693'
+2023-06-26 16:54:04,652 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:36665'
+2023-06-26 16:54:04,655 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:38431'
+2023-06-26 16:54:04,657 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34993'
+2023-06-26 16:54:04,660 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34863'
+2023-06-26 16:54:04,663 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:44889'
+2023-06-26 16:54:04,665 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:45921'
+2023-06-26 16:54:04,669 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:39219'
+2023-06-26 16:54:04,673 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:41171'
+2023-06-26 16:54:04,674 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:35341'
+2023-06-26 16:54:06,123 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,123 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,194 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,194 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,272 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,272 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,281 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,281 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,284 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,284 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,289 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,290 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,290 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,290 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,300 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,318 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,318 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,321 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,321 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,330 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,330 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,367 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,367 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,373 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,374 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,374 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,380 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,380 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,380 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,380 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,382 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,382 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,388 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-06-26 16:54:06,389 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-06-26 16:54:06,453 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,460 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,462 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,467 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,468 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,497 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,499 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,508 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,545 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,551 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,557 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,558 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,558 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:06,562 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-06-26 16:54:12,763 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40429
+2023-06-26 16:54:12,763 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40429
+2023-06-26 16:54:12,763 - distributed.worker - INFO -          dashboard at:        10.120.104.11:34999
+2023-06-26 16:54:12,763 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:12,763 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:12,763 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:12,763 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:12,763 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-z2c05iiz
+2023-06-26 16:54:12,764 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-01df7b3b-8acb-4bf9-aaab-ad4249bf5db9
+2023-06-26 16:54:12,764 - distributed.worker - INFO - Starting Worker plugin RMMSetup-56fb6d80-a968-49b8-9bce-43c5cdd6ee6c
+2023-06-26 16:54:12,853 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:35337
+2023-06-26 16:54:12,853 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:35337
+2023-06-26 16:54:12,853 - distributed.worker - INFO -          dashboard at:        10.120.104.11:38103
+2023-06-26 16:54:12,853 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:12,854 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:12,854 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:12,854 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:12,854 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-dyotwner
+2023-06-26 16:54:12,854 - distributed.worker - INFO - Starting Worker plugin RMMSetup-96f0eb9f-8d3e-4054-aa61-e1af32b65e50
+2023-06-26 16:54:12,855 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:36489
+2023-06-26 16:54:12,855 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:36489
+2023-06-26 16:54:12,855 - distributed.worker - INFO -          dashboard at:        10.120.104.11:34765
+2023-06-26 16:54:12,855 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:12,855 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:12,856 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:12,856 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:12,856 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-ucj8_5yz
+2023-06-26 16:54:12,857 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-9cb9a5a9-2f04-4b82-b200-ba24073efbb5
+2023-06-26 16:54:12,857 - distributed.worker - INFO - Starting Worker plugin RMMSetup-e18ce9f0-61fd-49ea-a49d-0716b6661fa9
+2023-06-26 16:54:13,290 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:33565
+2023-06-26 16:54:13,290 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:33565
+2023-06-26 16:54:13,290 - distributed.worker - INFO -          dashboard at:        10.120.104.11:39989
+2023-06-26 16:54:13,290 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,290 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,290 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,290 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,290 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-h1a9xgpj
+2023-06-26 16:54:13,291 - distributed.worker - INFO - Starting Worker plugin RMMSetup-090919f2-7dce-4477-974c-426d68fbc28c
+2023-06-26 16:54:13,327 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:36813
+2023-06-26 16:54:13,327 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:36813
+2023-06-26 16:54:13,327 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42173
+2023-06-26 16:54:13,327 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,327 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,327 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,327 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,327 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-au994jo_
+2023-06-26 16:54:13,328 - distributed.worker - INFO - Starting Worker plugin RMMSetup-631cc8de-c2ed-4572-b7b7-ec3367de69a4
+2023-06-26 16:54:13,352 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40101
+2023-06-26 16:54:13,353 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40101
+2023-06-26 16:54:13,353 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42321
+2023-06-26 16:54:13,353 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,353 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,353 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,353 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,353 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-ajeavgbk
+2023-06-26 16:54:13,353 - distributed.worker - INFO - Starting Worker plugin RMMSetup-645c20ec-68da-4e4d-96a0-fdfda5c937b0
+2023-06-26 16:54:13,357 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40699
+2023-06-26 16:54:13,357 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40699
+2023-06-26 16:54:13,357 - distributed.worker - INFO -          dashboard at:        10.120.104.11:41849
+2023-06-26 16:54:13,357 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,357 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,357 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,357 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,357 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-3pa4x5mq
+2023-06-26 16:54:13,358 - distributed.worker - INFO - Starting Worker plugin RMMSetup-41e5a53c-9c32-4049-af4f-28241fe2cc00
+2023-06-26 16:54:13,361 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:46589
+2023-06-26 16:54:13,361 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:46589
+2023-06-26 16:54:13,361 - distributed.worker - INFO -          dashboard at:        10.120.104.11:35811
+2023-06-26 16:54:13,361 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,361 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,361 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,361 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,361 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-er2bwh1o
+2023-06-26 16:54:13,361 - distributed.worker - INFO - Starting Worker plugin PreImport-a40114dc-7386-49b0-839b-ac66cbd4208f
+2023-06-26 16:54:13,362 - distributed.worker - INFO - Starting Worker plugin RMMSetup-17277256-cedf-4e82-812a-76dc6d0fe542
+2023-06-26 16:54:13,389 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:38553
+2023-06-26 16:54:13,389 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:38553
+2023-06-26 16:54:13,389 - distributed.worker - INFO -          dashboard at:        10.120.104.11:35583
+2023-06-26 16:54:13,389 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,389 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,389 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,389 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,389 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-marbz5dr
+2023-06-26 16:54:13,390 - distributed.worker - INFO - Starting Worker plugin RMMSetup-0f8a7937-829b-43cb-adb9-391493bd2f52
+2023-06-26 16:54:13,410 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43133
+2023-06-26 16:54:13,411 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43133
+2023-06-26 16:54:13,411 - distributed.worker - INFO -          dashboard at:        10.120.104.11:38515
+2023-06-26 16:54:13,411 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,411 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,411 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,411 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,411 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-8fiexcqs
+2023-06-26 16:54:13,411 - distributed.worker - INFO - Starting Worker plugin RMMSetup-b9f5696e-a33a-411e-a575-f3cdb0575f42
+2023-06-26 16:54:13,428 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:34527
+2023-06-26 16:54:13,429 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:34527
+2023-06-26 16:54:13,429 - distributed.worker - INFO -          dashboard at:        10.120.104.11:40291
+2023-06-26 16:54:13,429 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,429 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,429 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,429 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,429 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-r97qliw3
+2023-06-26 16:54:13,430 - distributed.worker - INFO - Starting Worker plugin PreImport-1b881ba5-443d-4df4-8c40-19cb24861e0e
+2023-06-26 16:54:13,430 - distributed.worker - INFO - Starting Worker plugin RMMSetup-347a73e5-0ba5-440c-88fc-88564ca0d7c2
+2023-06-26 16:54:13,442 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43965
+2023-06-26 16:54:13,443 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43965
+2023-06-26 16:54:13,443 - distributed.worker - INFO -          dashboard at:        10.120.104.11:37669
+2023-06-26 16:54:13,443 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,443 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,443 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,443 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,443 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-y74o1cyn
+2023-06-26 16:54:13,443 - distributed.worker - INFO - Starting Worker plugin PreImport-33af30d1-db4d-410e-9cce-bd992e5be9b8
+2023-06-26 16:54:13,443 - distributed.worker - INFO - Starting Worker plugin RMMSetup-74b37f0e-e16e-4214-b287-8d44142a1f9d
+2023-06-26 16:54:13,450 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:38265
+2023-06-26 16:54:13,450 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:38265
+2023-06-26 16:54:13,450 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42117
+2023-06-26 16:54:13,450 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,450 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,450 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,450 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,450 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-vabwx3xy
+2023-06-26 16:54:13,451 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-49d020fa-6cfc-42e3-a4c3-197b8a628ad4
+2023-06-26 16:54:13,451 - distributed.worker - INFO - Starting Worker plugin RMMSetup-9fca4ba2-35e7-4161-9f7b-2c0a8370aec4
+2023-06-26 16:54:13,456 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:41557
+2023-06-26 16:54:13,457 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:41557
+2023-06-26 16:54:13,457 - distributed.worker - INFO -          dashboard at:        10.120.104.11:44341
+2023-06-26 16:54:13,457 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,457 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,457 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:35597
+2023-06-26 16:54:13,457 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,457 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:35597
+2023-06-26 16:54:13,457 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,457 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-1o_by6xl
+2023-06-26 16:54:13,457 - distributed.worker - INFO -          dashboard at:        10.120.104.11:37531
+2023-06-26 16:54:13,457 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,457 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,457 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,457 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,457 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-1cg_bsq5
+2023-06-26 16:54:13,457 - distributed.worker - INFO - Starting Worker plugin RMMSetup-13456041-4a7e-4b5e-a09c-314f7cc6011e
+2023-06-26 16:54:13,458 - distributed.worker - INFO - Starting Worker plugin RMMSetup-2eca47fb-1f24-4623-bd7a-3aab985bbb54
+2023-06-26 16:54:13,459 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:42433
+2023-06-26 16:54:13,459 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:42433
+2023-06-26 16:54:13,459 - distributed.worker - INFO -          dashboard at:        10.120.104.11:40521
+2023-06-26 16:54:13,459 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:13,460 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:13,460 - distributed.worker - INFO -               Threads:                          1
+2023-06-26 16:54:13,460 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-06-26 16:54:13,460 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-cd8j4uba
+2023-06-26 16:54:13,460 - distributed.worker - INFO - Starting Worker plugin RMMSetup-840d77de-9464-441f-bcfc-f3b0faa242b8
+2023-06-26 16:54:16,446 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-3221f22f-b54c-428e-b95c-5313c332a6c8
+2023-06-26 16:54:16,447 - distributed.worker - INFO - Starting Worker plugin PreImport-35c91c90-28b3-4e0c-b3e0-b65607708790
+2023-06-26 16:54:16,448 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:16,479 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:16,479 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:16,482 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:16,687 - distributed.worker - INFO - Starting Worker plugin PreImport-2fb62813-7ba4-42e3-a01e-6a429eee9811
+2023-06-26 16:54:16,689 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:16,715 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:16,715 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:16,717 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:16,951 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-9f21b125-d95c-48f9-b5c0-88ed4919899d
+2023-06-26 16:54:16,952 - distributed.worker - INFO - Starting Worker plugin PreImport-b05e4ccc-10c2-4572-887b-96ded3dc69e4
+2023-06-26 16:54:16,953 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:16,972 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:16,972 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:16,975 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:16,992 - distributed.worker - INFO - Starting Worker plugin PreImport-4739e1c5-f275-4d2d-9a79-76e8a8fc9fe5
+2023-06-26 16:54:16,994 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,017 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,017 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,019 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,107 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-fc585b7d-4fba-4a70-bdd4-cb610b988fb3
+2023-06-26 16:54:17,107 - distributed.worker - INFO - Starting Worker plugin PreImport-6d51edd1-e06f-481d-a2fa-f87e5cd41b89
+2023-06-26 16:54:17,108 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,113 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-69f853ea-31e3-434e-81ff-6c1ba5d25e3a
+2023-06-26 16:54:17,114 - distributed.worker - INFO - Starting Worker plugin PreImport-7afece57-ebbc-4439-b832-ca0985f8f784
+2023-06-26 16:54:17,114 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-acc9b2ac-e082-475c-bef8-78b2580753a6
+2023-06-26 16:54:17,114 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,114 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,123 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,123 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,124 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,125 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-5782a8ee-dca2-4475-aa06-1c384321bbef
+2023-06-26 16:54:17,125 - distributed.worker - INFO - Starting Worker plugin PreImport-4b4eddcf-3304-4ad4-9c60-e3008148b831
+2023-06-26 16:54:17,126 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,137 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,137 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,138 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,138 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,138 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,139 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,144 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,144 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,146 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,168 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-199721a1-74b3-4beb-bc51-b999a3aab1e4
+2023-06-26 16:54:17,169 - distributed.worker - INFO - Starting Worker plugin PreImport-48deda08-fcc5-4ce9-ac17-c81540775efc
+2023-06-26 16:54:17,169 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,183 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,183 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,184 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,185 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-d8fa0a94-9756-4c19-a8c6-ebd71fd7927b
+2023-06-26 16:54:17,186 - distributed.worker - INFO - Starting Worker plugin PreImport-7904b33b-c056-454e-9d6d-864812e5d9c0
+2023-06-26 16:54:17,186 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,186 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-a9ff964f-0ea6-47cc-bedb-4569c4c7b2e3
+2023-06-26 16:54:17,187 - distributed.worker - INFO - Starting Worker plugin PreImport-bf690b16-f25f-40c7-9d33-bf465c8103a0
+2023-06-26 16:54:17,188 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,199 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,199 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,200 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-5af1ee45-0c13-4548-9080-c9a712f084ba
+2023-06-26 16:54:17,200 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,201 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,207 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,208 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,208 - distributed.worker - INFO - Starting Worker plugin PreImport-b098ea3f-b1b7-4c99-bb6d-78bda17295db
+2023-06-26 16:54:17,209 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,210 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,210 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-539427d7-6235-4050-a3c0-8df49d2569ac
+2023-06-26 16:54:17,210 - distributed.worker - INFO - Starting Worker plugin PreImport-c4c03af0-ad72-45a8-a3ea-9a0af6abb2c9
+2023-06-26 16:54:17,212 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,212 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-accc3b83-9827-496b-8aa2-d85d1dfb08a9
+2023-06-26 16:54:17,215 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-4796516d-56b2-40d2-82bb-d00d36011424
+2023-06-26 16:54:17,216 - distributed.worker - INFO - Starting Worker plugin PreImport-209ccf1d-2f71-48fe-8555-4ec0f711af27
+2023-06-26 16:54:17,217 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,217 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,217 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,218 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,218 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,223 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,223 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,224 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,236 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,236 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,237 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,237 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,238 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,239 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-06-26 16:54:17,240 - distributed.worker - INFO - -------------------------------------------------
+2023-06-26 16:54:17,240 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:17,242 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,186 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:33565. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43965. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:35597. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:36489. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:38553. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:40101. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:38265. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:34527. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:35337. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:40429. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:40699. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:46589. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,187 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:43133. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,188 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:36813. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,188 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:42433. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,189 - distributed.core - INFO - Connection to tcp://10.120.104.11:8786 has been closed.
+2023-06-26 16:54:44,189 - distributed.worker - INFO - Stopping worker at tcp://10.120.104.11:41557. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,203 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:41171'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,204 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:40259'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,204 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:38431'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,204 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:36661'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,205 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:34327'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,205 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:35341'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,205 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:34043'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,205 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:44889'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,206 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,206 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:39219'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,206 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,206 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:45921'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,206 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:39693'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:42673'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:34993'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:34863'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,207 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,208 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:34889'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,208 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,208 - distributed.nanny - INFO - Closing Nanny gracefully at 'tcp://10.120.104.11:36665'. Reason: worker-handle-scheduler-connection-broken
+2023-06-26 16:54:44,209 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,209 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,210 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,210 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,211 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,211 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,210 - distributed.worker - ERROR - Failed to communicate with scheduler during heartbeat.
+ConnectionRefusedError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 355, in connect
+    comm = await wait_for(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils.py", line 1919, in wait_for
+    return await asyncio.wait_for(fut, timeout)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 445, in wait_for
+    return fut.result()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 504, in connect
+    convert_stream_closed_error(self, e)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/tcp.py", line 142, in convert_stream_closed_error
+    raise CommClosedError(f"in {obj}: {exc.__class__.__name__}: {exc}") from exc
+distributed.comm.core.CommClosedError: in <distributed.comm.tcp.TCPConnector object at 0x7fcacdfac820>: ConnectionRefusedError: [Errno 111] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1539, in _connect
+    comm = await connect(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/comm/core.py", line 379, in connect
+    await asyncio.sleep(backoff)
+  File "/opt/conda/envs/rapids/lib/python3.10/asyncio/tasks.py", line 605, in sleep
+    return await future
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/worker.py", line 1257, in heartbeat
+    response = await retry_operation(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils_comm.py", line 434, in retry_operation
+    return await retry(
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/utils_comm.py", line 413, in retry
+    return await coro()
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1374, in send_recv_from_rpc
+    comm = await self.pool.connect(self.addr)
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1620, in connect
+    return await connect_attempt
+  File "/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/core.py", line 1562, in _connect
+    raise CommClosedError(reason)
+distributed.comm.core.CommClosedError: ConnectionPool closing.
+2023-06-26 16:54:44,211 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:44,211 - distributed.nanny - INFO - Worker closed
+2023-06-26 16:54:46,208 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,208 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,209 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,209 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,209 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,210 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,210 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,212 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,212 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,213 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,213 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,213 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,214 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:46,214 - distributed.nanny - ERROR - Worker process died unexpectedly
+2023-06-26 16:54:48,456 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:35341'. Reason: nanny-close-gracefully
+2023-06-26 16:54:48,953 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:40259'. Reason: nanny-close-gracefully
+2023-06-26 16:54:49,170 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:41171'. Reason: nanny-close-gracefully
+2023-06-26 16:54:49,355 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:36665'. Reason: nanny-close-gracefully
+2023-06-26 16:54:49,578 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:36661'. Reason: nanny-close-gracefully
+2023-06-26 16:54:49,871 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:39693'. Reason: nanny-close-gracefully
+2023-06-26 16:54:50,230 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:38431'. Reason: nanny-close-gracefully
+2023-06-26 16:54:50,231 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:39219'. Reason: nanny-close-gracefully
+2023-06-26 16:54:50,724 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:45921'. Reason: nanny-close-gracefully
+2023-06-26 16:54:50,724 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34327'. Reason: nanny-close-gracefully
+2023-06-26 16:54:51,359 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:42673'. Reason: nanny-close-gracefully
+2023-06-26 16:54:51,360 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34993'. Reason: nanny-close-gracefully
+2023-06-26 16:54:51,360 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34043'. Reason: nanny-close-gracefully
+2023-06-26 16:54:51,361 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34863'. Reason: nanny-close-gracefully
+2023-06-26 16:54:51,361 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:44889'. Reason: nanny-close-gracefully
+2023-06-26 16:54:51,826 - distributed.nanny - INFO - Closing Nanny at 'tcp://10.120.104.11:34889'. Reason: nanny-close
+2023-06-26 16:54:51,826 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
