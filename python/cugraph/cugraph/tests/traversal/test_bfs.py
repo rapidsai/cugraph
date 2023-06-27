@@ -395,7 +395,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
         start_vertex,
         depth_limit,
     ) = dataset_nxresults_startvertex_spc
-    assert 0 == 4
+
     # special case: ensure cugraph and Nx Graph types are DiGraphs if
     # "directed" is set, since the graph type parameterization is currently
     # independent of the directed parameter. Unfortunately this does not
@@ -421,7 +421,6 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
 def test_bfs_nonnative_inputs(
     gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type
 ):
-    assert 0 == 3
     test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
 
 
@@ -438,7 +437,6 @@ def test_bfs_invalid_start(
         start_vertex,
         depth_limit,
     ) = dataset_nxresults_startvertex_spc
-    assert 0 == 2
 
     el = G.view_edge_list()
 
@@ -451,7 +449,6 @@ def test_bfs_invalid_start(
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    assert 0 == 1
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()
 

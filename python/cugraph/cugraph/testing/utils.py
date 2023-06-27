@@ -434,16 +434,14 @@ class Resultset:
     ):
 """
 
-def resultset(alg_name, alg_args=None, graph_args=None):
-    """
+"""def resultset(alg_name, alg_args=None, graph_args=None):
     Used to extract specific results from a networkX algo, with provided graph creation
     settings, algorithm details, and other pertinent information.
 
     At first, resultset will create graph objects (if needed) and then apply algorithmic
     calls to them, but this will become an Object that stored these results on a repo and will
     simply pull from there.
-    """
-    """if create_graph:
+    if create_graph:
         # Do the logic for utils.generate_nx_graph_from_file here
         graph_file, directed, edgevals = graph_args['graph_file'], graph_args['directed'], graph_args['edgevals']
         Gnx = generate_cugraph_graph_from_file(graph_file, directed, edgevals)
@@ -457,4 +455,5 @@ def resultset(alg_name, alg_args=None, graph_args=None):
         Gnx, source = args['graph'], args['source']
         return nxacb._single_source_shortest_path_basic(Gnx, source)
     elif alg_name == 'nodes':
-        return Gnx.nodes()"""
+        return Gnx.nodes()
+"""

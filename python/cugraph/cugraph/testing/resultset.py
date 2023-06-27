@@ -1,41 +1,38 @@
 import random
-import json
 
-import pandas as pd
-import cupy as cp
-import numpy as np
+# import pandas as pd
+# import cupy as cp
+# import numpy as np
 
-import cudf
+# import cudf
 import networkx as nx
-import cugraph
-from cugraph.experimental.datasets import dolphins, netscience, karate_disjoint
+# import cugraph
+from cugraph.experimental.datasets import dolphins, netscience, karate_disjoint, karate
 from cugraph.testing import utils
-from cugraph.experimental import datasets
+# from cugraph.experimental import datasets
 
 
 # =============================================================================
 # Parameters
 # =============================================================================
-
 SEEDS = [42]
 
 DIRECTED_GRAPH_OPTIONS = [True, False]
 
 DEPTH_LIMITS = [None, 1, 5, 18]
 
-DATASETS = [dolphins, netscience, karate_disjoint]
+DATASETS = [dolphins, netscience, karate_disjoint, karate]
 
-# for nx results related to test_bfs:
+# For nx results related to test_bfs:
 test_bfs_results = {}
 test_bfs_starts = {}
 
 for ds in DATASETS:
     for seed in SEEDS:
         for depth_limit in DEPTH_LIMITS:
-        #for ds in DATASETS:
             for dirctd in DIRECTED_GRAPH_OPTIONS:
                 # this does the work of get_cu_graph_nx_results_and_params
-                print("seed:{}-depth_limit:{}-ds:{}-dirctd:{}".format(seed, depth_limit, ds, dirctd))
+                # print("seed:{}-depth_limit:{}-ds:{}-dirctd:{}".format(seed, depth_limit, ds, dirctd))
                 Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=dirctd)
 
                 random.seed(seed)
@@ -45,29 +42,21 @@ for ds in DATASETS:
                 )
 
                 test_bfs_results[str("{},{},{},{}".format(seed, depth_limit, ds, dirctd))] = nx_values
-                #test_bfs_starts[str("{},{},{},{}".format(seed, depth_limit, ds, dirctd))] = start_vertex
     test_bfs_starts[str("{},{}".format(seed, ds))] = start_vertex
-                #print(nx_values)
-                #breakpoint()
 
-print("test_bfs_results")
-print(test_bfs_results)
-print("test_bfs_starts")
-print(test_bfs_starts)
 
-#test_bfs_results_saved = 
+# print("test_bfs_results")
+# print(test_bfs_results)
+# print("test_bfs_starts")
+# print(test_bfs_starts)
+
+# RESULTS GENERATED FROM ABOVE CODE
+# These golden results could be stored somewhere for the resultset class to access/grab
+# test_bfs_results = {'42,None,dolphins,True': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1, 0: 2, 3: 2, 24: 2, 34: 2, 40: 2, 43: 2, 52: 2, 8: 2, 18: 2, 28: 2, 36: 2, 44: 2, 47: 2, 12: 2, 21: 2, 45: 2, 61: 2, 58: 2, 42: 2, 51: 2, 10: 3, 15: 3, 59: 3, 29: 3, 49: 3, 7: 3, 46: 3, 53: 3, 1: 3, 30: 3, 23: 3, 39: 3, 2: 3, 4: 3, 11: 3, 55: 3, 35: 4, 19: 4, 27: 4, 54: 4, 17: 4, 26: 4, 41: 4, 57: 4, 25: 5, 6: 5, 13: 5, 9: 5, 22: 5, 31: 5, 5: 5, 48: 5, 56: 6, 32: 6, 60: 7}, '42,None,dolphins,False': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1, 0: 2, 3: 2, 24: 2, 34: 2, 40: 2, 43: 2, 52: 2, 8: 2, 18: 2, 28: 2, 36: 2, 44: 2, 47: 2, 12: 2, 21: 2, 45: 2, 61: 2, 58: 2, 42: 2, 51: 2, 10: 3, 15: 3, 59: 3, 29: 3, 49: 3, 7: 3, 46: 3, 53: 3, 1: 3, 30: 3, 23: 3, 39: 3, 2: 3, 4: 3, 11: 3, 55: 3, 35: 4, 19: 4, 27: 4, 54: 4, 17: 4, 26: 4, 41: 4, 57: 4, 25: 5, 6: 5, 13: 5, 9: 5, 22: 5, 31: 5, 5: 5, 48: 5, 56: 6, 32: 6, 60: 7}, '42,1,dolphins,True': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1}, '42,1,dolphins,False': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1}, '42,5,dolphins,True': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1, 0: 2, 3: 2, 24: 2, 34: 2, 40: 2, 43: 2, 52: 2, 8: 2, 18: 2, 28: 2, 36: 2, 44: 2, 47: 2, 12: 2, 21: 2, 45: 2, 61: 2, 58: 2, 42: 2, 51: 2, 10: 3, 15: 3, 59: 3, 29: 3, 49: 3, 7: 3, 46: 3, 53: 3, 1: 3, 30: 3, 23: 3, 39: 3, 2: 3, 4: 3, 11: 3, 55: 3, 35: 4, 19: 4, 27: 4, 54: 4, 17: 4, 26: 4, 41: 4, 57: 4, 25: 5, 6: 5, 13: 5, 9: 5, 22: 5, 31: 5, 5: 5, 48: 5}, '42,5,dolphins,False': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1, 0: 2, 3: 2, 24: 2, 34: 2, 40: 2, 43: 2, 52: 2, 8: 2, 18: 2, 28: 2, 36: 2, 44: 2, 47: 2, 12: 2, 21: 2, 45: 2, 61: 2, 58: 2, 42: 2, 51: 2, 10: 3, 15: 3, 59: 3, 29: 3, 49: 3, 7: 3, 46: 3, 53: 3, 1: 3, 30: 3, 23: 3, 39: 3, 2: 3, 4: 3, 11: 3, 55: 3, 35: 4, 19: 4, 27: 4, 54: 4, 17: 4, 26: 4, 41: 4, 57: 4, 25: 5, 6: 5, 13: 5, 9: 5, 22: 5, 31: 5, 5: 5, 48: 5}, '42,18,dolphins,True': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1, 0: 2, 3: 2, 24: 2, 34: 2, 40: 2, 43: 2, 52: 2, 8: 2, 18: 2, 28: 2, 36: 2, 44: 2, 47: 2, 12: 2, 21: 2, 45: 2, 61: 2, 58: 2, 42: 2, 51: 2, 10: 3, 15: 3, 59: 3, 29: 3, 49: 3, 7: 3, 46: 3, 53: 3, 1: 3, 30: 3, 23: 3, 39: 3, 2: 3, 4: 3, 11: 3, 55: 3, 35: 4, 19: 4, 27: 4, 54: 4, 17: 4, 26: 4, 41: 4, 57: 4, 25: 5, 6: 5, 13: 5, 9: 5, 22: 5, 31: 5, 5: 5, 48: 5, 56: 6, 32: 6, 60: 7}, '42,18,dolphins,False': {16: 0, 14: 1, 20: 1, 33: 1, 37: 1, 38: 1, 50: 1, 0: 2, 3: 2, 24: 2, 34: 2, 40: 2, 43: 2, 52: 2, 8: 2, 18: 2, 28: 2, 36: 2, 44: 2, 47: 2, 12: 2, 21: 2, 45: 2, 61: 2, 58: 2, 42: 2, 51: 2, 10: 3, 15: 3, 59: 3, 29: 3, 49: 3, 7: 3, 46: 3, 53: 3, 1: 3, 30: 3, 23: 3, 39: 3, 2: 3, 4: 3, 11: 3, 55: 3, 35: 4, 19: 4, 27: 4, 54: 4, 17: 4, 26: 4, 41: 4, 57: 4, 25: 5, 6: 5, 13: 5, 9: 5, 22: 5, 31: 5, 5: 5, 48: 5, 56: 6, 32: 6, 60: 7}, '42,None,netscience,True': {1237: 0, 1238: 1}, '42,None,netscience,False': {1237: 0, 1238: 1}, '42,1,netscience,True': {1237: 0, 1238: 1}, '42,1,netscience,False': {1237: 0, 1238: 1}, '42,5,netscience,True': {1237: 0, 1238: 1}, '42,5,netscience,False': {1237: 0, 1238: 1}, '42,18,netscience,True': {1237: 0, 1238: 1}, '42,18,netscience,False': {1237: 0, 1238: 1}, '42,None,karate-disjoint,True': {19: 0, 0: 1, 1: 1, 33: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 21: 2, 31: 2, 30: 2, 9: 2, 14: 2, 15: 2, 18: 2, 20: 2, 22: 2, 23: 2, 26: 2, 27: 2, 28: 2, 29: 2, 32: 2, 16: 3, 24: 3, 25: 3}, '42,None,karate-disjoint,False': {19: 0, 0: 1, 1: 1, 33: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 21: 2, 31: 2, 30: 2, 9: 2, 14: 2, 15: 2, 18: 2, 20: 2, 22: 2, 23: 2, 26: 2, 27: 2, 28: 2, 29: 2, 32: 2, 16: 3, 24: 3, 25: 3}, '42,1,karate-disjoint,True': {19: 0, 0: 1, 1: 1, 33: 1}, '42,1,karate-disjoint,False': {19: 0, 0: 1, 1: 1, 33: 1}, '42,5,karate-disjoint,True': {19: 0, 0: 1, 1: 1, 33: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 21: 2, 31: 2, 30: 2, 9: 2, 14: 2, 15: 2, 18: 2, 20: 2, 22: 2, 23: 2, 26: 2, 27: 2, 28: 2, 29: 2, 32: 2, 16: 3, 24: 3, 25: 3}, '42,5,karate-disjoint,False': {19: 0, 0: 1, 1: 1, 33: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 21: 2, 31: 2, 30: 2, 9: 2, 14: 2, 15: 2, 18: 2, 20: 2, 22: 2, 23: 2, 26: 2, 27: 2, 28: 2, 29: 2, 32: 2, 16: 3, 24: 3, 25: 3}, '42,18,karate-disjoint,True': {19: 0, 0: 1, 1: 1, 33: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 21: 2, 31: 2, 30: 2, 9: 2, 14: 2, 15: 2, 18: 2, 20: 2, 22: 2, 23: 2, 26: 2, 27: 2, 28: 2, 29: 2, 32: 2, 16: 3, 24: 3, 25: 3}, '42,18,karate-disjoint,False': {19: 0, 0: 1, 1: 1, 33: 1, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 21: 2, 31: 2, 30: 2, 9: 2, 14: 2, 15: 2, 18: 2, 20: 2, 22: 2, 23: 2, 26: 2, 27: 2, 28: 2, 29: 2, 32: 2, 16: 3, 24: 3, 25: 3}, '42,None,karate,True': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 19: 2, 21: 2, 31: 2, 30: 2, 9: 2, 27: 2, 28: 2, 32: 2, 16: 3, 33: 3, 24: 3, 25: 3, 23: 3, 14: 3, 15: 3, 18: 3, 20: 3, 22: 3, 29: 3, 26: 4}, '42,None,karate,False': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 19: 2, 21: 2, 31: 2, 30: 2, 9: 2, 27: 2, 28: 2, 32: 2, 16: 3, 33: 3, 24: 3, 25: 3, 23: 3, 14: 3, 15: 3, 18: 3, 20: 3, 22: 3, 29: 3, 26: 4}, '42,1,karate,True': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1}, '42,1,karate,False': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1}, '42,5,karate,True': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 19: 2, 21: 2, 31: 2, 30: 2, 9: 2, 27: 2, 28: 2, 32: 2, 16: 3, 33: 3, 24: 3, 25: 3, 23: 3, 14: 3, 15: 3, 18: 3, 20: 3, 22: 3, 29: 3, 26: 4}, '42,5,karate,False': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 19: 2, 21: 2, 31: 2, 30: 2, 9: 2, 27: 2, 28: 2, 32: 2, 16: 3, 33: 3, 24: 3, 25: 3, 23: 3, 14: 3, 15: 3, 18: 3, 20: 3, 22: 3, 29: 3, 26: 4}, '42,18,karate,True': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 19: 2, 21: 2, 31: 2, 30: 2, 9: 2, 27: 2, 28: 2, 32: 2, 16: 3, 33: 3, 24: 3, 25: 3, 23: 3, 14: 3, 15: 3, 18: 3, 20: 3, 22: 3, 29: 3, 26: 4}, '42,18,karate,False': {7: 0, 0: 1, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 17: 2, 19: 2, 21: 2, 31: 2, 30: 2, 9: 2, 27: 2, 28: 2, 32: 2, 16: 3, 33: 3, 24: 3, 25: 3, 23: 3, 14: 3, 15: 3, 18: 3, 20: 3, 22: 3, 29: 3, 26: 4}}
+# test_bfs_starts = {'42,dolphins': 16, '42,netscience': 1237, '42,karate-disjoint': 19, '42,karate': 7}
 
 def get_bfs_results(test_params):
     return test_bfs_results[test_params]
 
 def get_bfs_starts(test_params):
     return test_bfs_starts[test_params]
-
-#G_dolphins = utils.generate_nx_graph_from_file(dolphins.get_path())
-#G_netscience = utils.generate_nx_graph_from_file(netscience.get_path())
-#G_karate_dj = utils.generate_nx_graph_from_file(karate_disjoint.get_path())
-
-
-# for nx results related to test_bfs_nonnative_inputs
-
-# for nx results related to test_bfs_invalid_start
