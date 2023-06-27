@@ -190,8 +190,6 @@ class EXPERIMENTAL__BulkSampler:
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
-        # print('partition sizes: ', self.__batches.map_partitions(len).compute())
-
         min_batch_id = self.__batches[self.batch_col_name].min()
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_call = (
@@ -240,15 +238,9 @@ class EXPERIMENTAL__BulkSampler:
 
         end_time_sample_call = time.perf_counter()
         sample_runtime = end_time_sample_call - start_time_sample_call
-        # max_batch_id_int = int(max_batch_id.compute())
-        # min_batch_id_int = int(min_batch_id.compute())
-        print(
-            f"Called uniform neighbor sample, took {sample_runtime:.4f} s", flush=True
-        )
+
         self.__logger.info(
             f"Called uniform neighbor sample, took {sample_runtime:.4f} s"
-            # f" ({(sample_runtime) / (max_batch_id_int - min_batch_id_int):.4f} s"
-            # " per batch)"
         )
 
         start_time_filter_batches = time.perf_counter()
@@ -272,11 +264,7 @@ class EXPERIMENTAL__BulkSampler:
 
         end_time_write = time.perf_counter()
         write_runtime = end_time_write - start_time_write
-        self.__logger.info(
-            f"Wrote samples to parquet, took {write_runtime} seconds"
-            # f" ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s"
-            # " per batch)"
-        )
+        self.__logger.info(f"Wrote samples to parquet, took {write_runtime} seconds")
 
         current_size = self.size
         if current_size > 0:

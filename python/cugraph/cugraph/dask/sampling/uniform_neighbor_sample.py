@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import numpy
 from dask import delayed
-from dask.distributed import Lock, get_client
+from dask.distributed import Lock, get_client, wait
 
 import dask_cudf
 import cudf
@@ -278,16 +278,15 @@ def _mg_call_plc_uniform_neighbor_sample(
         ddf_offsets = dask_cudf.from_delayed(
             [r[1] for r in result], meta=empty_df[1], verify_meta=False
         ).persist()
-        # wait(ddf)
-        # wait(ddf_offsets)
-        # wait([r.release() for r in result])
+
+        wait([r.release() for r in result])
         del result
 
         return ddf, ddf_offsets
     else:
         ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
-        # wait(ddf)
-        # wait([r.release() for r in result])
+
+        wait([r.release() for r in result])
         del result
 
         return ddf
