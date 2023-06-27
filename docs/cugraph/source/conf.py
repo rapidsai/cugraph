@@ -204,6 +204,5 @@ source_suffix = ['.rst', '.md']
 
 # The following is used by sphinx.ext.linkcode to provide links to github
 linkcode_resolve = make_linkcode_resolve(
-    'cugraph', 'https://github.com/rapidsai/'
-    'cugraph/blob/{revision}/python/'
-    '{package}/{path}#L{lineno}')
+    "https://github.com/rapidsai/cugraph/blob/{revision}/python/{path}#L{lineno}"
+)
