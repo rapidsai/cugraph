@@ -157,6 +157,7 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
 
 def __get_label_to_output_comm_rank(min_batch_id, max_batch_id, n_workers):
     num_batches = max_batch_id - min_batch_id + 1
+    num_batches = int(num_batches)
     z = cp.zeros(num_batches, dtype="int32")
     s = cp.array_split(cp.arange(num_batches), n_workers)
     for i, t in enumerate(s):
@@ -298,7 +299,7 @@ def uniform_neighbor_sample(
     fanout_vals: List[int],
     with_replacement: bool = True,
     with_edge_properties: bool = False,
-    batch_id_list: Sequence = None,
+    with_batch_ids: bool = False,
     keep_batches_together=False,
     min_batch_id=None,
     max_batch_id=None,
@@ -330,9 +331,8 @@ def uniform_neighbor_sample(
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
 
-    batch_id_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
-        List of batch ids that will be returned with the sampled edges if
-        with_edge_properties is set to True.
+    with_batch_ids: bool, optional (default=False)
+        Flag to specify whether to  batch ids are present in the start_list
 
     keep_batches_together: bool (optional, default=False)
         If True, will ensure that the returned samples for each batch are on the
@@ -418,8 +418,9 @@ def uniform_neighbor_sample(
                 input_graph.renumber_map.renumbered_src_col_name
             ].dtype,
         )
-    elif with_edge_properties and batch_id_list is None:
-        batch_id_list = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
+    elif with_edge_properties and with_batch_ids is False:
+        start_list = start_list.to_frame()
+        start_list[batch_id_n] = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
 
     if keep_batches_together and min_batch_id is None:
         raise ValueError(
@@ -449,30 +450,15 @@ def uniform_neighbor_sample(
     else:
         indices_t = numpy.int32
 
-    start_list = start_list.rename(start_col_name)
-    if batch_id_list is not None:
-        batch_id_list = batch_id_list.rename(batch_col_name)
-        if hasattr(start_list, "compute"):
-            # mg input
-            start_list = start_list.to_frame()
-            batch_id_list = batch_id_list.to_frame()
-            ddf = start_list.merge(
-                batch_id_list,
-                how="left",
-                left_index=True,
-                right_index=True,
-            )
-        else:
-            # sg input
-            ddf = cudf.concat(
-                [
-                    start_list,
-                    batch_id_list,
-                ],
-                axis=1,
-            )
-    else:
+    if hasattr(start_list, "to_frame"):
+        start_list = start_list.rename(start_col_name)
         ddf = start_list.to_frame()
+    else:
+        ddf = start_list
+        columns = ddf.columns
+        ddf = ddf.rename(
+            columns={columns[0]: start_col_name, columns[1]: batch_col_name}
+        )
 
     if input_graph.renumbered:
         ddf = input_graph.lookup_internal_vertex_id(ddf, column_name=start_col_name)
@@ -485,9 +471,7 @@ def uniform_neighbor_sample(
         ddf = dask_cudf.from_cudf(ddf, npartitions=n_workers)
 
     ddf = ddf.repartition(npartitions=n_workers)
-    ddf = ddf.map_partitions(lambda df: df.copy())
     ddf = persist_dask_df_equal_parts_per_worker(ddf, client)
-
     ddf = get_persisted_df_worker_map(ddf, client)
 
     if _multiple_clients:

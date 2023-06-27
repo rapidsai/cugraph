@@ -15,7 +15,6 @@ import os
 
 from typing import Union
 
-import cupy
 import cudf
 import dask_cudf
 
@@ -191,13 +190,9 @@ class EXPERIMENTAL__BulkSampler:
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
-        #print('partition sizes: ', self.__batches.map_partitions(len).compute())
+        # print('partition sizes: ', self.__batches.map_partitions(len).compute())
 
         min_batch_id = self.__batches[self.batch_col_name].min()
-        if isinstance(self.__batches, dask_cudf.DataFrame):
-            min_batch_id = min_batch_id.compute()
-        min_batch_id = int(min_batch_id)
-
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_call = (
             self.seeds_per_call + partition_size - 1
@@ -206,7 +201,7 @@ class EXPERIMENTAL__BulkSampler:
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
-        if hasattr(batch_id_filter, 'compute'):
+        if hasattr(batch_id_filter, "compute"):
             batch_id_filter = batch_id_filter.persist()
 
         end_time_calc_batches = time.perf_counter()
@@ -235,18 +230,25 @@ class EXPERIMENTAL__BulkSampler:
         samples, offsets = sample_fn(
             self.__graph,
             **self.__sample_call_args,
-            start_list=self.__batches[self.start_col_name][batch_id_filter],
-            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
+            start_list=self.__batches[[self.start_col_name, self.batch_col_name]][
+                batch_id_filter
+            ],
+            with_batch_ids=True,
             with_edge_properties=True,
             return_offsets=True,
         )
 
         end_time_sample_call = time.perf_counter()
         sample_runtime = end_time_sample_call - start_time_sample_call
+        # max_batch_id_int = int(max_batch_id.compute())
+        # min_batch_id_int = int(min_batch_id.compute())
+        print(
+            f"Called uniform neighbor sample, took {sample_runtime:.4f} s", flush=True
+        )
         self.__logger.info(
             f"Called uniform neighbor sample, took {sample_runtime:.4f} s"
-            f" ({(sample_runtime) / (max_batch_id - min_batch_id):.4f} s"
-            " per batch)"
+            # f" ({(sample_runtime) / (max_batch_id_int - min_batch_id_int):.4f} s"
+            # " per batch)"
         )
 
         start_time_filter_batches = time.perf_counter()
@@ -272,13 +274,14 @@ class EXPERIMENTAL__BulkSampler:
         write_runtime = end_time_write - start_time_write
         self.__logger.info(
             f"Wrote samples to parquet, took {write_runtime} seconds"
-            f" ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s"
-            " per batch)"
+            # f" ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s"
+            # " per batch)"
         )
 
-        if self.size > 0:
+        current_size = self.size
+        if current_size > 0:
             self.__logger.info(
-                f"There are still {self.size} samples remaining, "
+                f"There are still {current_size} samples remaining, "
                 "calling flush() again..."
             )
             self.flush()
