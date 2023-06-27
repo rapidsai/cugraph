@@ -14,3 +14,7 @@
 from cugraph.testing.utils import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
 )
+from cugraph.testing.resultset import (
+    get_bfs_results,
+    get_bfs_starts
+)

@@ -28,7 +28,7 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, resultset
 from cugraph.experimental import datasets
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -255,17 +255,26 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     assert invalid_predecessor_error == 0, "There are invalid predecessors"
 
 
-def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, Gnx):
+def get_cu_graph_and_params(dataset, directed):
+    """
+    Helper for fixtures returning a cuGraph obj and params
+    """
+    # create graph
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+    dataset_path = dataset.get_path()
+
+    return (G, dataset_path, directed)
+
+
+def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed):
     """
     Helper for fixtures returning Nx results and params.
     """
-    random.seed(seed)
-    start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
-
-    nx_values = utils.resultset('single_source_shortest_path_length', 
-                                {'graph': Gnx, 'source': start_vertex, 'cutoff': depth_limit})
+    start_vertex = resultset.get_bfs_starts('{},{}'.format(seed, dataset))
+    nx_values = resultset.get_bfs_results('{},{},{},{}'.format(seed, depth_limit, dataset, directed))
 
     return (G, dataset, directed, nx_values, start_vertex, depth_limit)
+
 
 # =============================================================================
 # Pytest Fixtures
@@ -320,12 +329,17 @@ single_graph_algo_test_fixture_params = gen_fixture_params_product(
 # directed graph is being used, and the Nx graph object.
 
 @pytest.fixture(scope="module", params=graph_algo_test_fixture_params)
-def data_nx_graph(request):
-    return request
+def dataset_nx_results(request):
+    return get_cu_graph_and_params(*request.param)
 
 @pytest.fixture(scope="module", params=single_graph_algo_test_fixture_params)
-def single_data_nx_graph(request):
-    return request
+def single_dataset_nx_results(request):
+    return get_cu_graph_and_params(*request.param)
+
+
+# @pytest.fixture(scope="module", params=single_small_graph_fixture_params)
+# def single_small_dataset_nx_results(request):
+#     return get_cu_graph_and_params(*request.param)
 
 # Fixtures that result in a test-per (dataset_nx_graph combinations X algo_test
 # param combinations) combination. These run Nx BFS on the Nx graph obj and
@@ -338,6 +352,36 @@ def single_data_nx_graph(request):
 # results, the starting vertex for BFS, and flag if shortes path counting was
 # used.
 
+
+@pytest.fixture(scope="module", params=algo_test_fixture_params)
+def dataset_nxresults_startvertex_spc(dataset_nx_results, request):
+    return get_cu_graph_nx_results_and_params(*request.param, *dataset_nx_results)
+
+
+@pytest.fixture(scope="module", params=single_algo_test_fixture_params)
+def single_dataset_nxresults_startvertex_spc(single_small_dataset_nx_graph, request):
+    return get_cu_graph_nx_results_and_params(
+        *request.param, *single_small_dataset_nx_graph
+    )
+
+
+@pytest.fixture(scope="module")
+def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
+
+    dataset, directed, Gnx = small_dataset_nx_graph
+    use_spc = True
+
+    start_vertices = [start_vertex for start_vertex in Gnx]
+
+    all_nx_values = []
+    for start_vertex in start_vertices:
+        _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(
+            Gnx, start_vertex
+        )
+        nx_values = nx_sp_counter
+        all_nx_values.append(nx_values)
+
+    return (dataset, directed, all_nx_values, start_vertices, use_spc)
 
 
 # =============================================================================
@@ -346,12 +390,13 @@ def single_data_nx_graph(request):
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs(gpubenchmark, data_nx_graph, cugraph_input_type):
-    #breakpoint()
-    (_, depth_limit, dataset, directed) = data_nx_graph.param
+    (seed, depth_limit, ds, directed) = data_nx_graph.param
+    start_vertex = resultset.get_bfs_starts('{},{}'.format(seed, ds))
+    nx_values = resultset.get_bfs_results('{},{},{},{}'.format(seed, depth_limit, ds, directed))
     # start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
-    nodes = utils.resultset("nodes", alg_args={},
-                            graph_args={'dataset': dataset, 'directed': directed})
-    start_vertex = random.sample(list(nodes), 1)[0]
+    #nodes = utils.resultset("nodes", alg_args={},
+    #                        graph_args={'dataset': dataset, 'directed': directed})
+    #start_vertex = random.sample(list(nodes), 1)[0]
 
     if directed:
         if isinstance(cugraph_input_type, cugraph.Graph):
@@ -361,8 +406,10 @@ def test_bfs(gpubenchmark, data_nx_graph, cugraph_input_type):
     
     if not isinstance(cugraph_input_type, cugraph.Graph):
        assert 1 == 2
+    else:
+        G = None
 
-    assert 1 == 5
+    #assert 1 == 5
     compare_bfs(gpubenchmark, G, nx_values, start_vertex, depth_limit)
 
 
