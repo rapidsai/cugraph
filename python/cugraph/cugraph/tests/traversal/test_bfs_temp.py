@@ -41,7 +41,7 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
-    import networkx.algorithms.centrality.betweenness as nxacb
+    #import networkx.algorithms.centrality.betweenness as nxacb
 
 
 # =============================================================================
@@ -153,9 +153,10 @@ def compare_single_sp_counter(result, expected, epsilon=DEFAULT_EPSILON):
     return np.isclose(result, expected, rtol=epsilon)
 
 
+# FIXME: contains nx dependency via passed argument, must remove source
 def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
     """
-    Genereate both cugraph and reference bfs traversal.
+    Generate both cugraph and reference bfs traversal.
     """
     if isinstance(start_vertex, int):
         result = benchmark_callable(cugraph.bfs_edges, G, start_vertex)
@@ -190,6 +191,7 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
         raise NotImplementedError("Invalid type for start_vertex")
 
 
+# FIXME: contains nx dependency via passed argument, must remove source
 def _compare_bfs(cugraph_df, nx_distances, source):
     # This call should only contain 3 columns:
     # 'vertex', 'distance', 'predecessor'
@@ -255,36 +257,39 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     assert distance_mismatch_error == 0, "There are invalid distances"
     assert invalid_predecessor_error == 0, "There are invalid predecessors"
 
-
+"""
+# FIXME: contains nx dependency via utils.generate_nx_graph_from_file, must remove source
 def get_cu_graph_nx_graph_and_params(dataset, directed):
-    """
     Helper for fixtures returning a Nx graph obj and params.
-    """
     # create graph
     G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
     dataset_path = dataset.get_path()
 
+    #breakpoint()
     return (
         G,
         dataset_path,
         directed,
         utils.generate_nx_graph_from_file(dataset_path, directed),
+        # utils.get_nx_results_from_file(dataset_path, directed)    
     )
 
 
+# FIXME: contains nx dependency via call to nx.ssspl, this should be cached/stored to use as reference here
 def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, Gnx):
-    """
     Helper for fixtures returning Nx results and params.
-    """
     random.seed(seed)
     start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
 
     nx_values = nx.single_source_shortest_path_length(
         Gnx, start_vertex, cutoff=depth_limit
     )
+    nx_values = utils.resultset('single_source_shortest_path_length', 
+                                {'graph': Gnx, 'source': start_vertex, 'cutoff': depth_limit})
+    #breakpoint()
 
     return (G, dataset, directed, nx_values, start_vertex, depth_limit)
-
+"""
 
 # =============================================================================
 # Pytest Fixtures
@@ -359,6 +364,7 @@ def single_dataset_nxresults_startvertex_spc(single_small_dataset_nx_graph, requ
     )
 
 
+# FIXME: contains nx dependency via nxacb.ssspb, this should be cached/stored to use as reference here
 @pytest.fixture(scope="module")
 def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 
@@ -369,9 +375,11 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 
     all_nx_values = []
     for start_vertex in start_vertices:
-        _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(
-            Gnx, start_vertex
-        )
+        #_, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(
+        #    Gnx, start_vertex
+        #)
+        _, _, nx_sp_counter = utils.resultset('_single_source_shortest_path_basic',
+                                              {'graph': Gnx, 'source': start_vertex})
         nx_values = nx_sp_counter
         all_nx_values.append(nx_values)
 
@@ -381,6 +389,7 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 # =============================================================================
 # Tests
 # =============================================================================
+# FIXME: contains nx dependency via lines 413-414, not sure how to handle this yet
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
 def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type):
@@ -395,7 +404,7 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
         start_vertex,
         depth_limit,
     ) = dataset_nxresults_startvertex_spc
-    assert 0 == 4
+
     # special case: ensure cugraph and Nx Graph types are DiGraphs if
     # "directed" is set, since the graph type parameterization is currently
     # independent of the directed parameter. Unfortunately this does not
@@ -421,7 +430,6 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
 def test_bfs_nonnative_inputs(
     gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type
 ):
-    assert 0 == 3
     test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
 
 
@@ -438,7 +446,6 @@ def test_bfs_invalid_start(
         start_vertex,
         depth_limit,
     ) = dataset_nxresults_startvertex_spc
-    assert 0 == 2
 
     el = G.view_edge_list()
 
@@ -451,7 +458,6 @@ def test_bfs_invalid_start(
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    assert 0 == 1
     graph_file = datasets.DATASETS[0]
     dataset_path = graph_file.get_path()
 
