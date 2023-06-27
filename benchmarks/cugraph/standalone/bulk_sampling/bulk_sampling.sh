@@ -17,7 +17,7 @@ export LIBCUDF_CUFILE_POLICY=OFF
 
 dataset_name="ogbn_papers100M"
 dataset_root="/datasets/abarghi/"
-output_root="/raid/vjawa/${dataset_name}_sampling"
+output_root="/tmp/samples"
 batch_sizes="512"
 fanouts="25_25,10_10_10,5_10_20"
 reverse_edges=True
