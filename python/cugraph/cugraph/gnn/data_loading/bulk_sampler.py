@@ -248,7 +248,7 @@ class EXPERIMENTAL__BulkSampler:
         # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
         del batch_id_filter
-        if hasattr(self.__batches, "compute"):
+        if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
         end_time_filter_batches = time.perf_counter()
