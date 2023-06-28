@@ -293,8 +293,10 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                                                   GraphViewType::is_multi_gpu>(handle,
                                                                                edge_partition,
                                                                                std::nullopt,
+                                                                               std::nullopt,
                                                                                majors.data(),
                                                                                minors.data(),
+                                                                               std::nullopt,
                                                                                std::nullopt,
                                                                                segment_offsets);
 

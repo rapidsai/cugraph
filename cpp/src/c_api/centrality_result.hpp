@@ -31,6 +31,7 @@ struct cugraph_centrality_result_t {
 struct cugraph_edge_centrality_result_t {
   cugraph_type_erased_device_array_t* src_ids_{};
   cugraph_type_erased_device_array_t* dst_ids_{};
+  cugraph_type_erased_device_array_t* edge_ids_{};
   cugraph_type_erased_device_array_t* values_{};
 };
 
