@@ -13,6 +13,7 @@
 
 from pylibcugraph import (
     betweenness_centrality as pylibcugraph_betweenness_centrality,
+    edge_betweenness_centrality as pylibcugraph_edge_betweenness_centrality,
     ResourceHandle,
 )
 from cugraph.centrality import edge_betweenness_centrality_wrapper
@@ -303,11 +304,31 @@ def edge_betweenness_centrality(
         raise TypeError("result type can only be np.float32 or np.float64")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    # FIXME: remove this function****************
     vertices = _initialize_vertices(G, k, seed)
 
+    """
     df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(
         G, normalized, weight, vertices, result_dtype
     )
+    """
+
+    src_vertices, dst_vertices, edge_ids, values = \
+        pylibcugraph_edge_betweenness_centrality(
+            resource_handle=ResourceHandle(),
+            graph=G,
+            k=vertices,
+            random_state=seed,
+            normalized=normalized,
+            do_expensive_check=False,
+        )
+
+    df = cudf.DataFrame()
+    df["src"] = src_vertices
+    df["dst"] = dst_vertices
+    df["betweenness_centrality"] = values
+    df["edge_id"] = edge_ids
 
     if G.renumbered:
         df = G.unrenumber(df, "src")
