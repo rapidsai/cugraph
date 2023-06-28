@@ -30,6 +30,12 @@ def _ensure_args_rmat(
     a=None,
     b=None,
     c=None,
+    n_edgelists=None,
+    min_scale=None,
+    max_scale=None,
+    edge_factor=None,
+    size_distribution=None,
+    edge_distribution=None,
     seed=None,
     clip_and_flip=None,
     scramble_vertex_ids=None,
@@ -46,8 +52,8 @@ def _ensure_args_rmat(
     multi_rmat=False,
 ):
     """
-    Ensures the args passed in are usable for the rmat() API, raises the
-    appropriate exception if incorrect, else returns None.
+    Ensures the args passed in are usable for the rmat() or multi rmat() API,
+    raises the appropriate exception if incorrect, else returns None.
     """
     if create_using is not None:
         if isinstance(create_using, cugraph.Graph):
@@ -65,19 +71,8 @@ def _ensure_args_rmat(
                 f"{type(create_using)}"
             )
 
-    if multi_rmat is False:
-        if not isinstance(scale, int):
-            raise TypeError("'scale' must be an int")
-        if not isinstance(num_edges, int):
-            raise TypeError("'num_edges' must be an int")
-        if a + b + c > 1:
-            raise ValueError("a + b + c should be non-negative and no larger than 1.0")
-        if clip_and_flip not in [True, False]:
-            raise ValueError("'clip_and_flip' must be a bool")
-        if scramble_vertex_ids not in [True, False]:
-            raise ValueError("'scramble_vertex_ids' must be a bool")
-        if not isinstance(seed, int):
-            raise TypeError("'seed' must be an int")
+    if not isinstance(seed, int):
+        raise TypeError("'seed' must be an int")
     if include_edge_weights:
         if include_edge_weights not in [True, False]:
             raise ValueError("'include_edge_weights' must be a bool")
@@ -102,42 +97,31 @@ def _ensure_args_rmat(
                 "'min_edge_type' and 'max_edge_type' must not be 'None' "
                 "if 'include_edge_types' is 'true'"
             )
-
-
-def _ensure_args_multi_rmat(
-    n_edgelists,
-    min_scale,
-    max_scale,
-    edge_factor,
-    size_distribution,
-    edge_distribution,
-    seed,
-    clip_and_flip,
-    scramble_vertex_ids,
-):
-    """
-    Ensures the args passed in are usable for the multi_rmat() API, raises the
-    appropriate exception if incorrect, else returns None.
-
-    """
-    if not isinstance(n_edgelists, int):
-        raise TypeError("'n_edgelists' must be an int")
-    if not isinstance(min_scale, int):
-        raise TypeError("'min_scale' must be an int")
-    if not isinstance(max_scale, int):
-        raise TypeError("'max_scale' must be an int")
-    if not isinstance(edge_factor, int):
-        raise TypeError("'edge_factor' must be an int")
-    if size_distribution not in [0, 1]:
-        raise TypeError("'size_distribution' must be either 0 or 1")
-    if edge_distribution not in [0, 1]:
-        raise TypeError("'edge_distribution' must be either 0 or 1")
-    if clip_and_flip not in [True, False]:
-        raise ValueError("'clip_and_flip' must be a bool")
-    if scramble_vertex_ids not in [True, False]:
-        raise ValueError("'scramble_vertex_ids' must be a bool")
-    if not isinstance(seed, int):
-        raise TypeError("'seed' must be an int")
+    
+    if multi_rmat:
+        if not isinstance(n_edgelists, int):
+            raise TypeError("'n_edgelists' must be an int")
+        if not isinstance(min_scale, int):
+            raise TypeError("'min_scale' must be an int")
+        if not isinstance(max_scale, int):
+            raise TypeError("'max_scale' must be an int")
+        if not isinstance(edge_factor, int):
+            raise TypeError("'edge_factor' must be an int")
+        if size_distribution not in [0, 1]:
+            raise TypeError("'size_distribution' must be either 0 or 1")
+        if edge_distribution not in [0, 1]:
+            raise TypeError("'edge_distribution' must be either 0 or 1")
+    else:
+        if not isinstance(scale, int):
+            raise TypeError("'scale' must be an int")
+        if not isinstance(num_edges, int):
+            raise TypeError("'num_edges' must be an int")
+        if a + b + c > 1:
+            raise ValueError("a + b + c should be non-negative and no larger than 1.0")
+        if clip_and_flip not in [True, False]:
+            raise ValueError("'clip_and_flip' must be a bool")
+        if scramble_vertex_ids not in [True, False]:
+            raise ValueError("'scramble_vertex_ids' must be a bool")
 
 
 def _sg_rmat(
@@ -525,7 +509,7 @@ def rmat(
 
     Returns
     -------
-    instance of cugraph.Graph
+    instance of cugraph.Graph or cudf or dask_cudf DataFrame
 
     Examples
     --------
@@ -704,13 +688,6 @@ def multi_rmat(
         The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
         include_weights is true
 
-    create_using : cugraph Graph type or None The graph type to construct
-        containing the generated edges and vertices.  If None is specified, the
-        edgelist cuDF DataFrame (or dask_cudf DataFrame for MG) is returned
-        as-is. This is useful for benchmarking Graph construction steps that
-        require raw data that includes potential self-loops, isolated vertices,
-        and duplicated edges.  Default is cugraph.Graph.
-
     mg : bool, optional (default=False)
         If True, R-MATs generation occurs across multiple GPUs. If False, only a
         single GPU is used.  Default is False (single-GPU)
@@ -720,22 +697,14 @@ def multi_rmat(
     -------
     list of cugraph.Graph instances
     """
-    _ensure_args_multi_rmat(
-        n_edgelists,
-        min_scale,
-        max_scale,
-        edge_factor,
-        size_distribution,
-        edge_distribution,
-        seed,
-        clip_and_flip,
-        scramble_vertex_ids,
-    )
-
-    # FIXME: consolidate '_ensure_args_rmat' and '_ensure_args_multi_rmat'
-    # to have a single function check since both implementations share similar
-    # arguments now
     _ensure_args_rmat(
+        n_edgelists=n_edgelists,
+        min_scale=min_scale,
+        max_scale=max_scale,
+        edge_factor=edge_factor,
+        size_distribution=size_distribution,
+        edge_distribution=edge_distribution,
+        seed=seed,
         include_edge_weights=include_edge_weights,
         minimum_weight=minimum_weight,
         maximum_weight=maximum_weight,
@@ -745,6 +714,8 @@ def multi_rmat(
         min_edge_type=min_edge_type,
         max_edge_type=max_edge_type,
         multi_rmat=True,
+        clip_and_flip=clip_and_flip,
+        scramble_vertex_ids=scramble_vertex_ids,
     )
 
     edgelists = pylibcugraph_generate_rmat_edgelists(
@@ -757,6 +728,7 @@ def multi_rmat(
         size_distribution,
         edge_distribution,
         clip_and_flip,
+        scramble_vertex_ids,
         include_edge_weights,
         minimum_weight,
         maximum_weight,
