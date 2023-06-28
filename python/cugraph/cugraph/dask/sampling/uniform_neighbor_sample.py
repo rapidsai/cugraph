@@ -331,7 +331,7 @@ def uniform_neighbor_sample(
         edge type, batch id, hop id) with the sampled edges.
 
     with_batch_ids: bool, optional (default=False)
-        Flag to specify whether to  batch ids are present in the start_list
+        Flag to specify whether batch ids are present in the start_list
 
     keep_batches_together: bool (optional, default=False)
         If True, will ensure that the returned samples for each batch are on the
@@ -417,7 +417,7 @@ def uniform_neighbor_sample(
                 input_graph.renumber_map.renumbered_src_col_name
             ].dtype,
         )
-    elif with_edge_properties and with_batch_ids is False:
+    elif with_edge_properties and not with_batch_ids:
         if not hasattr(start_list, 'to_frame'):
             raise ValueError('expected 1d input for start list without batch ids')
 
@@ -459,7 +459,7 @@ def uniform_neighbor_sample(
         ddf = start_list
         columns = ddf.columns
         ddf = ddf.rename(
-            columns={columns[0]: start_col_name, columns[1]: batch_col_name}
+            columns={columns[0]: start_col_name, columns[-1]: batch_col_name}
         )
 
     if input_graph.renumbered:

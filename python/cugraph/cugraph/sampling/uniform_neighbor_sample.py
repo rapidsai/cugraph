@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cugraph import Graph
 
+start_col_name = "_START_"
+batch_col_name = "_BATCH_"
 
 # FIXME: Move this function to the utility module so that it can be
 # shared by other algos
@@ -56,7 +58,7 @@ def uniform_neighbor_sample(
     fanout_vals: List[int],
     with_replacement: bool = True,
     with_edge_properties: bool = False,
-    batch_id_list: Sequence = None,
+    with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
@@ -84,9 +86,8 @@ def uniform_neighbor_sample(
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
 
-    batch_id_list: list (int32)
-        List of batch ids that will be returned with the sampled edges if
-        with_edge_properties is set to True.
+    with_batch_ids: bool, optional (default=False)
+        Flag to specify whether batch ids are present in the start_list
 
     random_state: int, optional
         Random seed to use when making sampling calls.
@@ -156,8 +157,12 @@ def uniform_neighbor_sample(
             start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
 
-    if with_edge_properties and batch_id_list is None:
-        batch_id_list = cp.zeros(len(start_list), dtype="int32")
+    if with_edge_properties and not with_batch_ids:
+        if not hasattr(start_list, 'to_frame'):
+            raise ValueError('expected 1d input for start list without batch ids')
+
+        start_list = start_list.to_frame()
+        start_list[batch_col_name] = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -173,21 +178,31 @@ def uniform_neighbor_sample(
 
     start_list = ensure_valid_dtype(G, start_list)
 
-    if G.renumbered is True:
-        if isinstance(start_list, cudf.DataFrame):
-            start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
-        else:
-            start_list = G.lookup_internal_vertex_id(start_list)
+    if hasattr(start_list, "to_frame"):
+        start_list = start_list.rename(start_col_name)
+        start_list = start_list.to_frame()
+
+        if G.renumbered:
+            start_list = G.lookup_internal_vertex_id(start_list, start_col_name)
+    else:
+        columns = start_list.columns
+        
+        if G.renumbered:
+            start_list = G.lookup_internal_vertex_id(start_list, columns[:-1])
+
+        start_list = start_list.rename(
+            columns={columns[0]: start_col_name, columns[-1]: batch_col_name}
+        )
 
     sampling_result = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
-        start_list=start_list,
+        start_list=start_list[start_col_name],
+        batch_id_list=start_list[batch_col_name] if batch_col_name in start_list else None,
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
         do_expensive_check=False,
         with_edge_properties=with_edge_properties,
-        batch_id_list=batch_id_list,
         random_state=random_state,
     )
 
