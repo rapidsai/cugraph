@@ -378,10 +378,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
- * @return device vector containing the centralities.
+ * @return edge_property_t containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<weight_t> edge_betweenness_centrality(
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,

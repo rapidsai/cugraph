@@ -57,6 +57,8 @@ class Tests_MGEdgeBetweennessCentrality
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(std::tuple<EdgeBetweennessCentrality_Usecase, input_usecase_t> const& param)
   {
+    constexpr bool do_expensive_check = false;
+
     auto [betweenness_usecase, input_usecase] = param;
 
     HighResTimer hr_timer{};
@@ -83,7 +85,7 @@ class Tests_MGEdgeBetweennessCentrality
       mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     raft::random::RngState rng_state(handle_->get_comms().get_rank());
-    auto d_seeds = cugraph::select_random_vertices(
+    auto d_mg_seeds = cugraph::select_random_vertices(
       *handle_,
       mg_graph_view,
       std::optional<raft::device_span<vertex_t const>>{std::nullopt},
@@ -98,24 +100,13 @@ class Tests_MGEdgeBetweennessCentrality
       hr_timer.start("MG edge betweenness centrality");
     }
 
-#if 0
     auto d_centralities = cugraph::edge_betweenness_centrality(
       *handle_,
       mg_graph_view,
       mg_edge_weight_view,
       std::make_optional<raft::device_span<vertex_t const>>(
-        raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
+        raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()}),
       betweenness_usecase.normalized);
-#else
-    EXPECT_THROW(cugraph::edge_betweenness_centrality(
-                   *handle_,
-                   mg_graph_view,
-                   mg_edge_weight_view,
-                   std::make_optional<raft::device_span<vertex_t const>>(
-                     raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
-                   betweenness_usecase.normalized),
-                 cugraph::logic_error);
-#endif
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -125,22 +116,52 @@ class Tests_MGEdgeBetweennessCentrality
     }
 
     if (betweenness_usecase.check_correctness) {
-#if 0
-      d_centralities = cugraph::test::device_gatherv(
-        *handle_, raft::device_span<weight_t const>(d_centralities.data(), d_centralities.size()));
-      d_seeds = cugraph::test::device_gatherv(
-        *handle_, raft::device_span<vertex_t const>(d_seeds.data(), d_seeds.size()));
+      // Extract MG results
+      auto [d_cugraph_src_vertex_ids, d_cugraph_dst_vertex_ids, d_cugraph_results] =
+        cugraph::test::graph_to_device_coo(
+          *handle_, mg_graph_view, std::make_optional(d_centralities.view()));
 
-      auto [h_src, h_dst, h_wgt] = cugraph::test::graph_to_host_coo(*handle_, graph_view);
+      // Create SG graph so we can generate SG results
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        sg_edge_weights{std::nullopt};
+      std::tie(sg_graph, sg_edge_weights, std::ignore) = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        false);
 
-      if (h_src.size() > 0) {
-        auto h_centralities = cugraph::test::to_host(*handle_, d_centralities);
-        auto h_seeds        = cugraph::test::to_host(*handle_, d_seeds);
+      auto d_mg_aggregate_seeds = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>{d_mg_seeds.data(), d_mg_seeds.size()});
 
-        cugraph::test::edge_betweenness_centrality_validate(
-          h_src, h_dst, h_wgt, h_centralities, h_seeds);
+      if (handle_->get_comms().get_rank() == 0) {
+        auto sg_edge_weights_view =
+          sg_edge_weights ? std::make_optional(sg_edge_weights->view()) : std::nullopt;
+
+        // Generate SG results and compare
+        auto d_sg_centralities = cugraph::edge_betweenness_centrality(
+          *handle_,
+          sg_graph.view(),
+          sg_edge_weights_view,
+          std::make_optional<raft::device_span<vertex_t const>>(raft::device_span<vertex_t const>{
+            d_mg_aggregate_seeds.data(), d_mg_aggregate_seeds.size()}),
+          betweenness_usecase.normalized,
+          do_expensive_check);
+
+        auto [d_sg_src_vertex_ids, d_sg_dst_vertex_ids, d_sg_reference_centralities] =
+          cugraph::test::graph_to_device_coo(
+            *handle_, sg_graph.view(), std::make_optional(d_sg_centralities.view()));
+
+        cugraph::test::edge_betweenness_centrality_validate(*handle_,
+                                                            d_cugraph_src_vertex_ids,
+                                                            d_cugraph_dst_vertex_ids,
+                                                            *d_cugraph_results,
+                                                            d_sg_src_vertex_ids,
+                                                            d_sg_dst_vertex_ids,
+                                                            *d_sg_reference_centralities);
       }
-#endif
     }
   }
 
