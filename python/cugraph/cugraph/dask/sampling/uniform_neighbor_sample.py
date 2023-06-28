@@ -469,7 +469,7 @@ def uniform_neighbor_sample(
     session_id = Comms.get_session_id()
     n_workers = get_n_workers()
 
-    if not hasattr(ddf, "compute"):
+    if isinstance(ddf, cudf.DataFrame):
         ddf = dask_cudf.from_cudf(ddf, npartitions=n_workers)
 
     ddf = ddf.repartition(npartitions=n_workers)
