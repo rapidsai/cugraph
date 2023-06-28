@@ -149,13 +149,12 @@ class EXPERIMENTAL__BulkSampler:
         ...     start_col_name="start_vid",
         ...     batch_col_name="start_batch")
         """
-        df = df.rename(
+        df = df[[start_col_name, batch_col_name]].rename(
             columns={
                 start_col_name: self.start_col_name,
                 batch_col_name: self.batch_col_name,
             }
         )
-        df = df[[start_col_name, batch_col_name]]
 
         if self.__batches is None:
             self.__batches = df
