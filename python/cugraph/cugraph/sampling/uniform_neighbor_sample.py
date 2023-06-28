@@ -182,7 +182,7 @@ def uniform_neighbor_sample(
 
     start_list = ensure_valid_dtype(G, start_list)
 
-    if hasattr(start_list, "to_frame"):
+    if isinstance(start_list, cudf.Series):
         start_list = start_list.rename(start_col_name)
         start_list = start_list.to_frame()
 

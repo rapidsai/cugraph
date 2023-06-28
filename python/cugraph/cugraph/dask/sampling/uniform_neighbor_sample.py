@@ -418,7 +418,7 @@ def uniform_neighbor_sample(
             ].dtype,
         )
     elif with_edge_properties and not with_batch_ids:
-        if not hasattr(start_list, "to_frame"):
+        if isinstance(start_list, (cudf.DataFrame, dask_cudf.DataFrame)):
             raise ValueError("expected 1d input for start list without batch ids")
 
         start_list = start_list.to_frame()
@@ -452,7 +452,7 @@ def uniform_neighbor_sample(
     else:
         indices_t = numpy.int32
 
-    if hasattr(start_list, "to_frame"):
+    if isinstance(start_list, (cudf.Series, dask_cudf.Series)):
         start_list = start_list.rename(start_col_name)
         ddf = start_list.to_frame()
     else:
