@@ -160,10 +160,9 @@ def uniform_neighbor_sample(
         )
 
     if with_edge_properties and not with_batch_ids:
-        if not hasattr(start_list, "to_frame"):
-            raise ValueError("expected 1d input for start list without batch ids")
+        if isinstance(start_list, cudf.Series):
+            start_list = start_list.to_frame()
 
-        start_list = start_list.to_frame()
         start_list[batch_col_name] = cudf.Series(
             cp.zeros(len(start_list), dtype="int32")
         )
@@ -191,12 +190,19 @@ def uniform_neighbor_sample(
     else:
         columns = start_list.columns
 
-        if G.renumbered:
-            start_list = G.lookup_internal_vertex_id(start_list, columns[:-1])
+        if with_batch_ids:
+            if G.renumbered:
+                start_list = G.lookup_internal_vertex_id(start_list, columns[:-1])
+            start_list = start_list.rename(
+                columns={columns[0]: start_col_name, columns[-1]: batch_col_name}
+            )
+        else:
+            if G.renumbered:
+                start_list = G.lookup_internal_vertex_id(start_list, columns)
+            start_list = start_list.rename(
+                columns={columns[0]: start_col_name}
+            )
 
-        start_list = start_list.rename(
-            columns={columns[0]: start_col_name, columns[-1]: batch_col_name}
-        )
 
     sampling_result = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
