@@ -97,5 +97,6 @@ extern "C" void cugraph_edge_centrality_result_free(cugraph_edge_centrality_resu
   delete internal_pointer->src_ids_;
   delete internal_pointer->dst_ids_;
   delete internal_pointer->values_;
+  delete internal_pointer->edge_ids_;
   delete internal_pointer;
 }
