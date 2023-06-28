@@ -25,6 +25,7 @@ set(cython_sources
     bfs.pyx
     core_number.pyx
     ecg.pyx
+    edge_betweenness_centrality.pyx
     egonet.pyx
     eigenvector_centrality.pyx
     graph_properties.pyx
