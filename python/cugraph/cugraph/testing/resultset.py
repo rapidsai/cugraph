@@ -7,7 +7,7 @@ import random
 # import cudf
 import networkx as nx
 # import cugraph
-from cugraph.experimental.datasets import dolphins, netscience, karate_disjoint, karate
+from cugraph.experimental.datasets import dolphins, netscience, karate_disjoint, karate, polbooks
 from cugraph.testing import utils
 # from cugraph.experimental import datasets
 
@@ -21,13 +21,17 @@ DIRECTED_GRAPH_OPTIONS = [True, False]
 
 DEPTH_LIMITS = [None, 1, 5, 18]
 
-DATASETS = [dolphins, netscience, karate_disjoint, karate]
+DATASETS = [dolphins, netscience, karate_disjoint]
 
-# For nx results related to test_bfs:
+#DATASETS = [dolphins, netscience, karate_disjoint, karate]
+
+DATASETS_SMALL = [karate, dolphins, polbooks]
+
+# tests/travesal/test_bfs:
 test_bfs_results = {}
 test_bfs_starts = {}
 
-for ds in DATASETS:
+for ds in DATASETS + [karate]:
     for seed in SEEDS:
         for depth_limit in DEPTH_LIMITS:
             for dirctd in DIRECTED_GRAPH_OPTIONS:
@@ -44,6 +48,11 @@ for ds in DATASETS:
                 test_bfs_results[str("{},{},{},{}".format(seed, depth_limit, ds, dirctd))] = nx_values
     test_bfs_starts[str("{},{}".format(seed, ds))] = start_vertex
 
+# tests/traversal/test_sssp.py
+for ds in DATASETS_SMALL:
+    # directed=True
+    Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=True)
+    print("ds:{}".format(ds))
 
 # print("test_bfs_results")
 # print(test_bfs_results)
