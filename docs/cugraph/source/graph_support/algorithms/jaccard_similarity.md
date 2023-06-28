@@ -4,7 +4,7 @@ The Jaccard similarity between two sets is defined as the ratio of the volume of
 
 The Jaccard Similarity can then be defined as
 
-Jaccard similarity coefficient = |A ∩ B| / |A ∪ B|
+Jaccard similarity coefficient = $\frac{|A \cap B|}{|A \cup B|}$
 
 In graphs, the sets refer to the set of connected nodes or neighborhood of nodes A and B.
 

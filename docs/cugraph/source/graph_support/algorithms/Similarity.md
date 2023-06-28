@@ -1,7 +1,7 @@
 
 # cuGraph Similarity Notebooks
 
-cuGraph Similarity notebooks contain a collection of Jupyter Notebooks that demonstrate algorithms to quantify the similarity between pairs of vertices in the graph.
+cuGraph Similarity folder contain a collection of Jupyter Notebooks that demonstrate algorithms to quantify the similarity between pairs of vertices in the graph.
 Results of Similarity algorithms are often used to answer questions like:
 * Could two vertices be duplicates or aliases of the same actor?
 * Can we predict missing edges based of the similarity between two nodes?
