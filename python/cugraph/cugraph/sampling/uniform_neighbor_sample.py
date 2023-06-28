@@ -199,10 +199,7 @@ def uniform_neighbor_sample(
         else:
             if G.renumbered:
                 start_list = G.lookup_internal_vertex_id(start_list, columns)
-            start_list = start_list.rename(
-                columns={columns[0]: start_col_name}
-            )
-
+            start_list = start_list.rename(columns={columns[0]: start_col_name})
 
     sampling_result = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(),
