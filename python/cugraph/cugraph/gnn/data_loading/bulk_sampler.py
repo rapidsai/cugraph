@@ -199,7 +199,7 @@ class EXPERIMENTAL__BulkSampler:
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
-        if hasattr(batch_id_filter, "compute"):
+        if isinstance(batch_id_filter, dask_cudf.Series):
             batch_id_filter = batch_id_filter.persist()
 
         end_time_calc_batches = time.perf_counter()
