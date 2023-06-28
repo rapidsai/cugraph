@@ -243,19 +243,11 @@ class EXPERIMENTAL__BulkSampler:
             f"Called uniform neighbor sample, took {sample_runtime:.4f} s"
         )
 
-        start_time_filter_batches = time.perf_counter()
-
         # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
         del batch_id_filter
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
-
-        end_time_filter_batches = time.perf_counter()
-        self.__logger.info(
-            "Filtered batches, took "
-            f"{end_time_filter_batches - start_time_filter_batches} s"
-        )
 
         start_time_write = time.perf_counter()
 
