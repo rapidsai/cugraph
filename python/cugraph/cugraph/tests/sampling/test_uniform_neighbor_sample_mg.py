@@ -355,10 +355,12 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=cudf.DataFrame({
-            'start': cudf.Series([0, 4], dtype="int64"),
-            'batch': cudf.Series([0, 1], dtype='int32')
-        }),
+        start_list=cudf.DataFrame(
+            {
+                "start": cudf.Series([0, 4], dtype="int64"),
+                "batch": cudf.Series([0, 1], dtype="int32"),
+            }
+        ),
         fanout_vals=[-1, -1],
         with_replacement=False,
         with_edge_properties=True,
@@ -372,7 +374,7 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     if return_offsets:
         sampling_results, sampling_offsets = sampling_results
 
-        batches_found = {0:0, 1:0}
+        batches_found = {0: 0, 1: 0}
         for i in range(n_workers):
             dfp = sampling_results.get_partition(i).compute()
             if len(dfp) > 0:
@@ -380,7 +382,7 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                 assert len(offsets_p) > 0
 
                 if offsets_p.batch_id.iloc[0] == 1:
-                    batches_found[1] +=1
+                    batches_found[1] += 1
 
                     assert offsets_p.batch_id.values_host.tolist() == [1]
                     assert offsets_p.offsets.values_host.tolist() == [0]
@@ -397,9 +399,12 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
                     assert offsets_p.batch_id.values_host.tolist() == [0]
                     assert offsets_p.offsets.values_host.tolist() == [0]
 
-                    assert sorted(dfp.sources.values_host.tolist()) == ([0, 0, 0, 1, 1, 2, 2, 2, 4, 4])
-                    assert sorted(dfp.destinations.values_host.tolist()) == ([1, 1, 1, 2, 2, 3, 3, 4, 4, 4])
-                
+                    assert sorted(dfp.sources.values_host.tolist()) == (
+                        [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
+                    )
+                    assert sorted(dfp.destinations.values_host.tolist()) == (
+                        [1, 1, 1, 2, 2, 3, 3, 4, 4, 4]
+                    )
 
     mdf = cudf.merge(
         sampling_results.compute(),
@@ -458,16 +463,18 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
         start_list=dask_cudf.from_cudf(
-            cudf.DataFrame({
-                'start': cudf.Series([0, 1, 2], dtype='int64'),
-                'batch': cudf.Series([1, 1, 1], dtype="int32"),
-            }),
-            npartitions=2
+            cudf.DataFrame(
+                {
+                    "start": cudf.Series([0, 1, 2], dtype="int64"),
+                    "batch": cudf.Series([1, 1, 1], dtype="int32"),
+                }
+            ),
+            npartitions=2,
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
-        with_batch_ids=True
+        with_batch_ids=True,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -542,11 +549,13 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
         dask_cudf.from_cudf(
-            cudf.DataFrame({
-            'start': cudf.Series([0, 1], dtype="int64"),
-            'batch': cudf.Series([0, 1], dtype="int32"),
-            }),
-            npartitions=2
+            cudf.DataFrame(
+                {
+                    "start": cudf.Series([0, 1], dtype="int64"),
+                    "batch": cudf.Series([0, 1], dtype="int32"),
+                }
+            ),
+            npartitions=2,
         ),
         fanout_vals=[2, 2, 2],
         with_replacement=False,
@@ -600,11 +609,13 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
     cugraph.dask.uniform_neighbor_sample(
         G,
         start_list=dask_cudf.from_cudf(
-            cudf.Series({
-                'start': cudf.Series([0]),
-                'batch': cudf.Series([10], dtype='int32'),
-            }),
-            npartitions=1
+            cudf.Series(
+                {
+                    "start": cudf.Series([0]),
+                    "batch": cudf.Series([10], dtype="int32"),
+                }
+            ),
+            npartitions=1,
         ),
         fanout_vals=[10, 25],
         with_replacement=with_replacement,
@@ -638,10 +649,12 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=cudf.DataFrame({
-            'start': cudf.Series([0,1,2]),
-            'batch': cudf.Series([1,1,1], dtype='int32')
-        }),
+        start_list=cudf.DataFrame(
+            {
+                "start": cudf.Series([0, 1, 2]),
+                "batch": cudf.Series([1, 1, 1], dtype="int32"),
+            }
+        ),
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
@@ -695,11 +708,11 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
     input_vertices = dask_cudf.concat([df.src, df.dst]).unique().compute()
     assert isinstance(input_vertices, cudf.Series)
 
-    input_vertices.name = 'start'
+    input_vertices.name = "start"
     input_vertices.index = cupy.random.permutation(len(input_vertices))
     input_vertices = input_vertices.to_frame().reset_index(drop=True)
 
-    input_vertices['batch'] = cudf.Series(
+    input_vertices["batch"] = cudf.Series(
         cupy.random.randint(0, max_batches, len(input_vertices)), dtype="int32"
     )
 
