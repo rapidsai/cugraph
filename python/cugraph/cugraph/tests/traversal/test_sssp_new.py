@@ -30,7 +30,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, resultset
 from cugraph.experimental import datasets
 
 
@@ -142,9 +142,9 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Tru
 
 def networkx_call(graph_file, source, edgevals=True):
     # Objective: can rewrite most of this to move networkx calls to testings/resultset.py
-    assert 0 == 1
     dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
+    dataset_name = graph_file.metadata['name']
+    """M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     # Directed NetworkX graph
     edge_attr = "weight" if edgevals else None
 
@@ -156,25 +156,27 @@ def networkx_call(graph_file, source, edgevals=True):
         create_using=nx.DiGraph(),
     )
     print("NX Solving... ")
-    t1 = time.time()
+    t1 = time.time()"""
 
     if edgevals is False:
-        nx_paths = nx.single_source_shortest_path_length(Gnx, source)
+        assert 0 == 20
+        # nx_paths = nx.single_source_shortest_path_length(Gnx, source)
     else:
         # FIXME: The nx call below doesn't return accurate results as it seems to
         # not support 'weights'. It matches cuGraph result only if the weight column
         # is 1s.
-        nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
+        nx_paths = resultset.get_sssp_results('{},{}'.format(dataset_name, source))
+        # nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
 
     G = graph_file.get_graph(
         create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
     )
 
-    t2 = time.time() - t1
-    print("NX Time : " + str(t2))
+    # t2 = time.time() - t1
+    # print("NX Time : " + str(t2))
 
-    return (G, dataset_path, source, nx_paths, Gnx)
-
+    # return (G, dataset_path, source, nx_paths, Gnx)
+    return (G, dataset_path, source, nx_paths, None)
 
 # =============================================================================
 # Pytest fixtures
@@ -227,7 +229,7 @@ def single_dataset_source_nxresults_weighted(request):
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
-    (G, dataset_path, source, nx_paths, Gnx) = dataset_source_nxresults
+    (G, dataset_path, source, nx_paths, _) = dataset_source_nxresults
 
     if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
@@ -261,7 +263,7 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
-    (G, _, source, nx_paths, Gnx) = dataset_source_nxresults
+    (G, _, source, _, _) = dataset_source_nxresults
     el = G.view_edge_list()
 
     newval = max(el.src.max(), el.dst.max()) + 1
@@ -287,6 +289,7 @@ def test_sssp_edgevals(
     gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
 ):
     # Extract the params generated from the fixture
+    assert False, "test_sssp_edgevals still uses Gnx"
     (G, _, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
     input_G_or_matrix = G
 
@@ -332,6 +335,7 @@ def test_sssp_edgevals_nonnative_inputs(
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
+    assert False, "test_sssp_data_type_conversion still uses nx"
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     cu_M = utils.read_csv_file(dataset_path)
@@ -386,6 +390,7 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 @pytest.mark.sg
 def test_sssp_networkx_edge_attr():
+    assert False, "test_sssp_networkx_edge_attr still uses nx"
     G = nx.Graph()
     G.add_edge(0, 1, other=10)
     G.add_edge(1, 2, other=20)

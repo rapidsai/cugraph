@@ -57,8 +57,8 @@ DEPTH_LIMITS = [None, 1, 5, 18]
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    # nx.Graph: pd.DataFrame,
-    # nx.DiGraph: pd.DataFrame,
+    'nx.Graph': pd.DataFrame,
+    'nx.DiGraph': pd.DataFrame,
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
@@ -414,11 +414,13 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
 #)
 @pytest.mark.sg
 @pytest.mark.parametrize(
-    "cugraph_input_type", utils.MATRIX_INPUT_TYPES
+    "cugraph_input_type", ['nx.Graph', 'nx.DiGraph'] + utils.MATRIX_INPUT_TYPES
 )
 def test_bfs_nonnative_inputs(
     gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type
 ):
+    if cugraph_input_type in ['nx.Graph', 'nx.DiGraph']:
+        assert False, "test_bfs_nonnative_inputs references nx Graph object"
     test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
 
 

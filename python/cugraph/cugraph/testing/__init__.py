@@ -16,5 +16,6 @@ from cugraph.testing.utils import (
 )
 from cugraph.testing.resultset import (
     get_bfs_results,
-    get_bfs_starts
+    get_bfs_starts,
+    get_sssp_results
 )
