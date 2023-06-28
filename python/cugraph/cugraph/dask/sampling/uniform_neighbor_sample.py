@@ -418,6 +418,9 @@ def uniform_neighbor_sample(
             ].dtype,
         )
     elif with_edge_properties and with_batch_ids is False:
+        if not hasattr(start_list, 'to_frame'):
+            raise ValueError('expected 1d input for start list without batch ids')
+
         start_list = start_list.to_frame()
         start_list[batch_id_n] = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
 

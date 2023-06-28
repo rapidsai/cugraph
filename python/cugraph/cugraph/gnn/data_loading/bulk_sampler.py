@@ -155,6 +155,7 @@ class EXPERIMENTAL__BulkSampler:
                 batch_col_name: self.batch_col_name,
             }
         )
+        df = df[[start_col_name, batch_col_name]]
 
         if self.__batches is None:
             self.__batches = df
