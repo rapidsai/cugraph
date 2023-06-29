@@ -279,6 +279,8 @@ def _mg_call_plc_uniform_neighbor_sample(
             [r[1] for r in result], meta=empty_df[1], verify_meta=False
         ).persist()
 
+        wait(ddf)
+        wait(ddf_offsets)
         wait([r.release() for r in result])
         del result
 
@@ -286,6 +288,7 @@ def _mg_call_plc_uniform_neighbor_sample(
     else:
         ddf = dask_cudf.from_delayed(result, meta=empty_df, verify_meta=False).persist()
 
+        wait(ddf)
         wait([r.release() for r in result])
         del result
 
