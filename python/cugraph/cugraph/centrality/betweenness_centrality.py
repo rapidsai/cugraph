@@ -279,7 +279,7 @@ def edge_betweenness_centrality(
         df['dst'] : cudf.Series
             Contains the vertex identifiers of the destination of each edge
 
-        df['edge_betweenness_centrality'] : cudf.Series
+        df['betweenness_centrality'] : cudf.Series
             Contains the betweenness centrality of edges
 
         When using undirected graphs, 'src' and 'dst' only contains elements
@@ -306,7 +306,13 @@ def edge_betweenness_centrality(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     # FIXME: remove this function****************
-    vertices = _initialize_vertices(G, k, seed)
+    # FIXME: Does the new implementation support weights 'test_edge_betweenness_centrality_weight_except'
+    """
+    vertices = cudf.Series(_initialize_vertices(G, k, seed))
+
+    print("vertices = ", vertices.to_arrow().tolist())
+    print("type of vertices = ", type(vertices))
+    """
 
     """
     df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(
@@ -314,11 +320,23 @@ def edge_betweenness_centrality(
     )
     """
 
-    src_vertices, dst_vertices, edge_ids, values = \
+    if not isinstance(k, (cudf.DataFrame, cudf.Series)):
+        if isinstance(k, list):
+            vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
+            k = cudf.Series(k, dtype=vertex_dtype)
+
+    if isinstance(k, (cudf.DataFrame, cudf.Series)):
+        if G.renumbered:
+            k = G.lookup_internal_vertex_id(k)
+
+    # FIXME: src, dst and edge_ids need to be of the same type which should not
+    # be the case
+
+    src_vertices, dst_vertices, values, edge_ids = \
         pylibcugraph_edge_betweenness_centrality(
             resource_handle=ResourceHandle(),
-            graph=G,
-            k=vertices,
+            graph=G._plc_graph,
+            k=k,
             random_state=seed,
             normalized=normalized,
             do_expensive_check=False,
@@ -328,11 +346,15 @@ def edge_betweenness_centrality(
     df["src"] = src_vertices
     df["dst"] = dst_vertices
     df["betweenness_centrality"] = values
-    df["edge_id"] = edge_ids
+    if edge_ids is not None:
+        df["edge_id"] = edge_ids
 
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
+    
+    if df["betweenness_centrality"].dtype != result_dtype:
+        df["betweenness_centrality"] = df["betweenness_centrality"].astype(result_dtype)
 
     if G.is_directed() is False:
         # select the lower triangle of the df based on src/dst vertex value
