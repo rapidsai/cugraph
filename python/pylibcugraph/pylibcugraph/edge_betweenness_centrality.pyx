@@ -148,17 +148,21 @@ def edge_betweenness_centrality(ResourceHandle resource_handle,
         cugraph_edge_centrality_result_get_src_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
         cugraph_edge_centrality_result_get_dst_vertices(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* edge_ids_ptr = \
-        cugraph_edge_centrality_result_get_values(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_edge_centrality_result_get_values(result_ptr)
     
-    cupy_src = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
-    cupy_dst = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
-    cupy_edge_ids = copy_to_cupy_array(c_resource_handle_ptr, edge_ids_ptr)
+    if graph.edge_id_view_ptr is NULL:
+        cupy_edge_ids = None
+    else:
+        edge_ids_ptr = cugraph_edge_centrality_result_get_edge_ids(result_ptr)
+        cupy_edge_ids = copy_to_cupy_array(c_resource_handle_ptr, edge_ids_ptr)
+        
+    
+    cupy_src_vertices = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
+    cupy_dst_vertices = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
     cupy_values = copy_to_cupy_array(c_resource_handle_ptr, values_ptr)
 
     cugraph_edge_centrality_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(vertex_list_view_ptr)
 
-    return (cupy_src, cupy_dst, cupy_edge_ids, cupy_values)
+    return (cupy_src_vertices, cupy_dst_vertices, cupy_values, cupy_edge_ids)
