@@ -279,7 +279,7 @@ def edge_betweenness_centrality(
 
         df['betweenness_centrality'] : cudf.Series
             Contains the betweenness centrality of edges
-        
+
         df["edge_id"] : cudf.Series
             Contains the edge ids of edges if there are.
 

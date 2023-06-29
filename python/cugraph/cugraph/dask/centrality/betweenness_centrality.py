@@ -35,14 +35,13 @@ def convert_to_cudf(cp_arrays: cp.ndarray, edge_bc: bool) -> cudf.DataFrame:
     """
     df = cudf.DataFrame()
     if edge_bc:
-        cupy_src_vertices, cupy_dst_vertices, cupy_values, cupy_edge_ids = \
-            cp_arrays
+        cupy_src_vertices, cupy_dst_vertices, cupy_values, cupy_edge_ids = cp_arrays
         df["src"] = cupy_src_vertices
         df["dst"] = cupy_dst_vertices
         df["betweenness_centrality"] = cupy_values
         if cupy_edge_ids is not None:
             df["edge_ids"] = cupy_edge_ids
-    
+
     else:
         cupy_vertices, cupy_values = cp_arrays
         df["vertex"] = cupy_vertices
@@ -63,13 +62,13 @@ def _call_plc_betweenness_centrality(
 
     if edge_bc:
         cp_arrays = pylibcugraph_edge_betweenness_centrality(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
-        graph=mg_graph_x,
-        k=k,
-        random_state=random_state,
-        normalized=normalized,
-        do_expensive_check=do_expensive_check,
-    )
+            resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+            graph=mg_graph_x,
+            k=k,
+            random_state=random_state,
+            normalized=normalized,
+            do_expensive_check=do_expensive_check,
+        )
     else:
         cp_arrays = pylibcugraph_betweenness_centrality(
             resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -318,7 +317,7 @@ def edge_betweenness_centrality(
 
         ddf['betweenness_centrality'] : dask_cudf.Series
             Contains the betweenness centrality of edges
-        
+
         ddf["edge_id"] : dask_cudf.Series
             Contains the edge ids of edges if there are.
 
