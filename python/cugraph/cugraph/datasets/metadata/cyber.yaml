@@ -1,0 +1,22 @@
+name: cyber
+file_type: .csv
+author: N/A
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/cyber.csv
+refs: N/A
+col_names:
+  - idx
+  - srcip
+  - dstip
+col_types:
+  - int32
+  - str
+  - str
+delim: ","
+header: 0
+has_loop: true
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 2546575
+number_of_nodes: 706529
+number_of_lines: 2546576

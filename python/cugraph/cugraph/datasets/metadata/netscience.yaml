@@ -1,0 +1,22 @@
+name: netscience
+file_type: .csv
+author: Newman, Mark EJ
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/netscience.csv
+refs: Finding community structure in networks using the eigenvectors of matrices.
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: false
+is_directed: true
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 2742
+number_of_nodes: 1461
+number_of_lines: 5484
