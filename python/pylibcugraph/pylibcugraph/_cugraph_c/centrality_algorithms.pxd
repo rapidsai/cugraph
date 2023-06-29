@@ -228,7 +228,7 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_edge_centrality_result_get_dst_vertices(
             cugraph_edge_centrality_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_edge_centrality_result_get_edge_ids(
             cugraph_edge_centrality_result_t* result
