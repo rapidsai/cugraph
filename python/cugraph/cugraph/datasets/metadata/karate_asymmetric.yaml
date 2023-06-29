@@ -1,0 +1,24 @@
+name: karate-asymmetric
+file_type: .csv
+author: Zachary W.
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-asymmetric.csv
+delim: " "
+header: None
+refs:
+  W. W. Zachary, An information flow model for conflict and fission in small groups,
+  Journal of Anthropological Research 33, 452-473 (1977).
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: true
+is_directed: false
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 78
+number_of_nodes: 34
+number_of_lines: 78

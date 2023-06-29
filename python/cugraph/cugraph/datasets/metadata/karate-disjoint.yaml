@@ -1,0 +1,22 @@
+name: karate-disjoint
+file_type: .csv
+author: null
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-disjoint.csv
+refs: null
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: false
+is_directed: True
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 312
+number_of_nodes: 68
+number_of_lines: 312

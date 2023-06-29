@@ -1,0 +1,22 @@
+name: karate-data
+file_type: .csv
+author: Zachary W.
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-data.csv
+refs:
+  W. W. Zachary, An information flow model for conflict and fission in small groups,
+  Journal of Anthropological Research 33, 452-473 (1977).
+delim: "\t"
+header: None
+col_names:
+  - src
+  - dst
+col_types:
+  - int32
+  - int32
+has_loop: true
+is_directed: true
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 156
+number_of_nodes: 34
+number_of_lines: 156

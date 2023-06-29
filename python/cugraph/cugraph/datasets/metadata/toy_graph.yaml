@@ -1,0 +1,22 @@
+name: toy_graph
+file_type: .csv
+author: null
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/toy_graph.csv
+refs: null
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: false
+is_directed: false
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 16
+number_of_nodes: 6
+number_of_lines: 16
