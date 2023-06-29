@@ -131,7 +131,6 @@ CUGRAPH_DIR_INPUT_TYPES = [
 
 
 def read_csv_for_nx(csv_file, read_weights_in_sp=True, read_weights=True):
-    print("Reading " + str(csv_file) + "...")
     if read_weights:
         if read_weights_in_sp is True:
             df = pd.read_csv(
@@ -224,25 +223,23 @@ def create_obj_from_csv(
 
 
 def read_csv_file(csv_file, read_weights_in_sp=True):
-    print("Reading " + str(csv_file) + "...")
     if read_weights_in_sp is True:
         return cudf.read_csv(
             csv_file,
             delimiter=" ",
-            dtype=["int32", "int32", "float32"],
+            dtype={"0": "int32", "1": "int32", "2": "float32"},
             header=None,
         )
     else:
         return cudf.read_csv(
             csv_file,
             delimiter=" ",
-            dtype=["int32", "int32", "float64"],
+            dtype={"0": "int32", "1": "int32", "2": "float64"},
             header=None,
         )
 
 
 def read_dask_cudf_csv_file(csv_file, read_weights_in_sp=True, single_partition=True):
-    print("Reading " + str(csv_file) + "...")
     if read_weights_in_sp is True:
         if single_partition:
             chunksize = os.path.getsize(csv_file)

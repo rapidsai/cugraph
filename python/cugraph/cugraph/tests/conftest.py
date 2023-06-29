@@ -12,7 +12,10 @@
 # limitations under the License.
 
 import pytest
-from cugraph.dask.common.mg_utils import start_dask_client, teardown_local_dask_cluster
+from cugraph.testing.mg_utils import (
+    start_dask_client,
+    stop_dask_client,
+)
 
 # module-wide fixtures
 
@@ -31,7 +34,11 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    cluster, client = start_dask_client()
-    yield client
+    # start_dask_client will check for the SCHEDULER_FILE and
+    # DASK_WORKER_DEVICES env vars and use them when creating a client if
+    # set. start_dask_client will also initialize the Comms singleton.
+    dask_client, dask_cluster = start_dask_client()
 
-    teardown_local_dask_cluster(cluster, client)
+    yield dask_client
+
+    stop_dask_client(dask_client, dask_cluster)

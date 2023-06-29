@@ -126,10 +126,7 @@ def bfs(
 ):
     """
     Find the distances and predecessors for a breadth first traversal of a
-    graph.
-
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
+    graph.  Unlike SSSP, BFS supports unweighted graphs.
 
     Parameters
     ----------

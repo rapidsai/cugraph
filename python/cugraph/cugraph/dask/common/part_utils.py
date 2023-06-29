@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -79,16 +79,51 @@ def persist_distributed_data(dask_df, client):
     return parts
 
 
-async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
+def _create_empty_dask_df_future(meta_df, client, worker):
+    df_future = client.scatter(meta_df.head(0), workers=[worker])
+    wait(df_future)
+    return [df_future]
+
+
+def get_persisted_df_worker_map(dask_df, client):
+    ddf_keys = futures_of(dask_df)
+    output_map = {}
+    for w, w_keys in client.has_what().items():
+        output_map[w] = [ddf_k for ddf_k in ddf_keys if str(ddf_k.key) in w_keys]
+        if len(output_map[w]) == 0:
+            output_map[w] = _create_empty_dask_df_future(dask_df._meta, client, w)
+    return output_map
+
+
+def _chunk_lst(ls, num_parts):
+    return [ls[i::num_parts] for i in range(num_parts)]
+
+
+def persist_dask_df_equal_parts_per_worker(dask_df, client):
+    ddf_keys = dask_df.to_delayed()
+    workers = client.scheduler_info()["workers"].keys()
+    ddf_keys_ls = _chunk_lst(ddf_keys, len(workers))
+    persisted_keys = []
+    for w, ddf_k in zip(workers, ddf_keys_ls):
+        persisted_keys.extend(
+            client.persist(ddf_k, workers=w, allow_other_workers=False)
+        )
+    dask_df = dask_cudf.from_delayed(persisted_keys, meta=dask_df._meta).persist()
+    wait(dask_df)
+    client.rebalance(dask_df)
+    return dask_df
+
+
+async def _extract_partitions(
+    dask_obj, client=None, batch_enabled=False, broadcast_worker=None
+):
     client = default_client() if client is None else client
     worker_list = Comms.get_workers()
 
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
-        # parts = persist_distributed_data(dask_obj, client)
-        # FIXME: persist data to the same worker when batch_enabled=True
         if batch_enabled:
-            persisted = client.persist(dask_obj, workers=worker_list[0])
+            persisted = client.persist(dask_obj, workers=broadcast_worker)
         else:
             # repartition the 'dask_obj' to get as many partitions as there
             # are workers

@@ -172,6 +172,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   static_assert(std::is_floating_point<weight_t>::value,
                 "weight_t should be a floating-point type.");
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
   if (initial_centralities)
     CUGRAPH_EXPECTS(initial_centralities->size() ==

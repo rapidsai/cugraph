@@ -16,14 +16,18 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
-import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
+import warnings
 from cugraph.dask.structure import replication
-from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
+from typing import Union, Dict
+from pylibcugraph import (
+    get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors,
+    select_random_vertices as pylibcugraph_select_random_vertices,
+)
 
 from pylibcugraph import (
     ResourceHandle,
@@ -41,25 +45,30 @@ class simpleGraphImpl:
     dstCol = "dst"
 
     class EdgeList:
-        def __init__(self, source, destination, edge_attr=None):
+        def __init__(
+            self,
+            source: str,
+            destination: str,
+            edge_attr: Union[cudf.DataFrame, Dict[str, cudf.DataFrame]] = None,
+        ):
             self.edgelist_df = cudf.DataFrame()
             self.edgelist_df[simpleGraphImpl.srcCol] = source
             self.edgelist_df[simpleGraphImpl.dstCol] = destination
             self.weights = False
             if edge_attr is not None:
-                self.weights = True
-                if isinstance(edge_attr, (list, tuple)):
-                    if len(edge_attr) == 3:
-                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr[0]
-                        self.edgelist_df[simpleGraphImpl.edgeIdCol] = edge_attr[1]
-                        self.edgelist_df[simpleGraphImpl.edgeTypeCol] = edge_attr[2]
-                    elif len(edge_attr) == 1:
-                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr[0]
-                    else:
-                        raise ValueError(
-                            "Illegal # of arguments provided" "for edge_attr"
-                        )
+                if isinstance(edge_attr, dict):
+                    if edge_attr[simpleGraphImpl.edgeWeightCol] is not None:
+                        self.weights = True
+
+                    for ea in [
+                        simpleGraphImpl.edgeIdCol,
+                        simpleGraphImpl.edgeTypeCol,
+                        simpleGraphImpl.edgeWeightCol,
+                    ]:
+                        if edge_attr[ea] is not None:
+                            self.edgelist_df[ea] = edge_attr[ea]
                 else:
+                    self.weights = True
                     self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr
 
     class AdjList:
@@ -110,10 +119,18 @@ class simpleGraphImpl:
         source="source",
         destination="destination",
         edge_attr=None,
+        weight=None,
+        edge_id=None,
+        edge_type=None,
         renumber=True,
         legacy_renum_only=True,
         store_transposed=False,
     ):
+        if legacy_renum_only:
+            warning_msg = (
+                "The parameter 'legacy_renum_only' is deprecated and will be removed."
+            )
+            warnings.warn(warning_msg, DeprecationWarning)
 
         # Verify column names present in input DataFrame
         s_col = source
@@ -134,15 +151,19 @@ class simpleGraphImpl:
         df_columns = s_col + d_col
 
         if edge_attr is not None:
+            if weight is not None or edge_id is not None or edge_type is not None:
+                raise ValueError(
+                    "If specifying edge_attr, cannot specify weight/edge_id/edge_type"
+                )
             if isinstance(edge_attr, str):
-                edge_attr = [edge_attr]
+                weight = edge_attr
+                edge_attr = [weight]
             if not (set(edge_attr).issubset(set(input_df.columns))):
                 raise ValueError(
                     f"edge_attr column {edge_attr} not found in input."
                     "Recheck the edge_attr parameter"
                 )
             self.properties.weighted = True
-            df_columns += edge_attr
 
             if len(edge_attr) != 1 and len(edge_attr) != 3:
                 raise ValueError(
@@ -159,14 +180,19 @@ class simpleGraphImpl:
                         "types are not permitted for an "
                         "undirected graph."
                     )
-                if not legacy_renum_only:
-                    raise ValueError(
-                        "User-provided edge ids and edge "
-                        "types are only permitted when "
-                        "from_edgelist is called with "
-                        "legacy_renum_only=True."
-                    )
 
+                weight, edge_id, edge_type = edge_attr
+        else:
+            edge_attr = []
+            if weight is not None:
+                edge_attr.append(weight)
+                self.properties.weighted = True
+            if edge_id is not None:
+                edge_attr.append(edge_id)
+            if edge_type is not None:
+                edge_attr.append(edge_type)
+
+        df_columns += edge_attr
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
         # device before gathering all the edge lists
@@ -175,19 +201,20 @@ class simpleGraphImpl:
         if isinstance(input_df, cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
                 raise ValueError(
-                    "cudf dataFrame edge list is too big " "to fit in a single GPU"
+                    "cudf dataFrame edge list is too big to fit in a single GPU"
                 )
             elist = input_df
         elif isinstance(input_df, dask_cudf.DataFrame):
             if len(input_df[source]) > 2147483100:
                 raise ValueError(
-                    "dask_cudf dataFrame edge list is too big " "to fit in a single GPU"
+                    "dask_cudf dataFrame edge list is too big to fit in a single GPU"
                 )
             elist = input_df.compute().reset_index(drop=True)
         else:
-            raise TypeError(
-                "input should be a cudf.DataFrame or " "a dask_cudf dataFrame"
-            )
+            raise TypeError("input should be a cudf.DataFrame or a dask_cudf dataFrame")
+
+        # Original, unmodified input dataframe.
+        self.input_df = elist
 
         # Renumbering
         self.renumber_map = None
@@ -203,10 +230,8 @@ class simpleGraphImpl:
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            # Use renumber_map to figure out if renumbering was skipped or not
-            # This was added to handle 'legacy_renum_only' which will skip the
-            # old C++ renumbering  when running the pylibcugraph/C algos
-            self.properties.renumbered = renumber_map.implementation.numbered
+            # Use renumber_map to figure out if the python renumbering occured
+            self.properties.renumbered = renumber_map.is_renumbered
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
@@ -229,6 +254,7 @@ class simpleGraphImpl:
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed,
             )
+
             if isinstance(value_col, cudf.DataFrame):
                 value_dict = {}
                 for i in value_col.columns:
@@ -245,7 +271,13 @@ class simpleGraphImpl:
             )
 
         if isinstance(value_col, dict):
-            value_col = [value_col[ea] for ea in edge_attr]
+            value_col = {
+                self.edgeWeightCol: value_col[weight] if weight in value_col else None,
+                self.edgeIdCol: value_col[edge_id] if edge_id in value_col else None,
+                self.edgeTypeCol: value_col[edge_type]
+                if edge_type in value_col
+                else None,
+            }
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col, value_col)
 
@@ -306,8 +338,8 @@ class simpleGraphImpl:
 
         np_array_data = self.to_numpy_array()
         pdf = pd.DataFrame(np_array_data)
-        if self.properties.renumbered:
-            nodes = self.renumber_map.implementation.df["0"].values_host.tolist()
+
+        nodes = self.nodes().values_host.tolist()
         pdf.columns = nodes
         pdf.index = nodes
         return pdf
@@ -321,10 +353,12 @@ class simpleGraphImpl:
         elen = self.number_of_edges()
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
+        nodes = self.nodes()
         for i in range(0, elen):
-            np_array[
-                df[simpleGraphImpl.srcCol].iloc[i], df[simpleGraphImpl.dstCol].iloc[i]
-            ] = df[self.edgeWeightCol].iloc[i]
+            # Map vertices to consecutive integers
+            idx_src = nodes[nodes == df[simpleGraphImpl.srcCol].iloc[i]].index[0]
+            idx_dst = nodes[nodes == df[simpleGraphImpl.dstCol].iloc[i]].index[0]
+            np_array[idx_src, idx_dst] = df[self.edgeWeightCol].iloc[i]
         return np_array
 
     def to_numpy_matrix(self):
@@ -356,11 +390,14 @@ class simpleGraphImpl:
         -------
         df : cudf.DataFrame
             This cudf.DataFrame wraps source, destination and weight
+
             df[src] : cudf.Series
                 contains the source index for each edge
+
             df[dst] : cudf.Series
                 contains the destination index for each edge
-            df[weight] : cusd.Series
+
+            df[weight] : cudf.Series
                 Column is only present for weighted Graph,
                 then containing the weight value for each edge
         """
@@ -634,6 +671,43 @@ class simpleGraphImpl:
 
         return df
 
+    def select_random_vertices(
+        self,
+        random_state: int = None,
+        num_vertices: int = None,
+    ) -> Union[cudf.Series, cudf.DataFrame]:
+        """
+        Select random vertices from the graph
+
+        Parameters
+        ----------
+        random_state : int , optional(default=None)
+            Random state to use when generating samples.  Optional argument,
+            defaults to a hash of process id, time, and hostname.
+
+        num_vertices : int, optional(default=None)
+            Number of vertices to sample. If None, all vertices will be selected
+
+        Returns
+        -------
+        return random vertices from the graph as a cudf
+        """
+        vertices = pylibcugraph_select_random_vertices(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            random_state=random_state,
+            num_vertices=num_vertices,
+        )
+
+        vertices = cudf.Series(vertices)
+        if self.properties.renumbered is True:
+            df_ = cudf.DataFrame()
+            df_["vertex"] = vertices
+            df_ = self.renumber_map.unrenumber(df_, "vertex")
+            vertices = df_["vertex"]
+
+        return vertices
+
     def number_of_vertices(self):
         """
         Get the number of nodes in the graph.
@@ -644,10 +718,7 @@ class simpleGraphImpl:
             elif self.transposedadjlist is not None:
                 self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
-                df = self.edgelist.edgelist_df[
-                    [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
-                ]
-                self.properties.node_count = df.max().max() + 1
+                self.properties.node_count = len(self.nodes())
             else:
                 raise RuntimeError("Graph is Empty")
         return self.properties.node_count
@@ -706,9 +777,11 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df[degree] : cudf.Series
                 The computed in-degree of the corresponding vertex.
 
@@ -721,7 +794,9 @@ class simpleGraphImpl:
         >>> df = G.in_degree([0,9,12])
 
         """
-        return self._degree(vertex_subset, direction=Direction.IN)
+        in_degree = self._degree(vertex_subset, direction=Direction.IN)
+
+        return in_degree
 
     def out_degree(self, vertex_subset=None):
         """
@@ -744,9 +819,11 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df[vertex] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df[degree] : cudf.Series
                 The computed out-degree of the corresponding vertex.
 
@@ -759,7 +836,8 @@ class simpleGraphImpl:
         >>> df = G.out_degree([0,9,12])
 
         """
-        return self._degree(vertex_subset, direction=Direction.OUT)
+        out_degree = self._degree(vertex_subset, direction=Direction.OUT)
+        return out_degree
 
     def degree(self, vertex_subset=None):
         """
@@ -782,9 +860,11 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df['degree'] : cudf.Series
                 The computed degree of the corresponding vertex.
 
@@ -821,11 +901,14 @@ class simpleGraphImpl:
             vertices (vertex_subset) containing the degrees. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
+
             df['vertex'] : cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
+
             df['in_degree'] : cudf.Series
                 The in-degree of the vertex.
+
             df['out_degree'] : cudf.Series
                 The out-degree of the vertex.
 
@@ -849,11 +932,27 @@ class simpleGraphImpl:
         df["in_degree"] = in_degree_col
         df["out_degree"] = out_degree_col
 
-        if self.properties.renumbered is True:
-            df = self.renumber_map.unrenumber(df, "vertex")
+        if self.properties.renumbered:
+            # Get the internal vertex IDs
+            nodes = self.renumber_map.df_internal_to_external["id"]
+        else:
+            nodes = self.nodes()
+        # If the vertex IDs are not contiguous, remove results for the
+        # isolated vertices
+        df = df[df["vertex"].isin(nodes.to_cupy())]
 
         if vertex_subset is not None:
+            if not isinstance(vertex_subset, cudf.Series):
+                vertex_subset = cudf.Series(vertex_subset)
+                if self.properties.renumbered:
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(
+                        vertex_subset
+                    )
+                vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
+
+        if self.properties.renumbered:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
 
@@ -863,24 +962,44 @@ class simpleGraphImpl:
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.properties.renumbered is True:
-            df = self.renumber_map.unrenumber(df, "vertex")
+        if self.properties.renumbered:
+            # Get the internal vertex IDs
+            nodes = self.renumber_map.df_internal_to_external["id"]
+        else:
+            nodes = self.nodes()
+        # If the vertex IDs are not contiguous, remove results for the
+        # isolated vertices
+        df = df[df["vertex"].isin(nodes.to_cupy())]
 
         if vertex_subset is not None:
+            if not isinstance(vertex_subset, cudf.Series):
+                vertex_subset = cudf.Series(vertex_subset)
+                if self.properties.renumbered:
+                    vertex_subset = self.renumber_map.to_internal_vertex_id(
+                        vertex_subset
+                    )
+                vertex_subset = vertex_subset.to_cupy()
             df = df[df["vertex"].isin(vertex_subset)]
+
+        if self.properties.renumbered:
+            df = self.renumber_map.unrenumber(df, "vertex")
 
         return df
 
-    def _make_plc_graph(self, value_col=None, store_transposed=False, renumber=True):
+    def _make_plc_graph(
+        self,
+        value_col: Dict[str, cudf.DataFrame] = None,
+        store_transposed: bool = False,
+        renumber: bool = True,
+    ):
         """
         Parameters
         ----------
-        value_col : cudf.DataFrame or tuple[cudf.DataFrame]
+        value_col : cudf.DataFrame or dict[str, cudf.DataFrame]
             If a single dataframe is provided, this is assumed
             to contain the edge weight values.
-            If a tuple of dataframes is provided, then it is
-            assumed to contain edge weights, edge ids, and
-            edge types, in that order.
+            If a dictionary of dataframes is provided, then it is
+            assumed to contain edge properties.
         store_transposed : bool (default=False)
             Whether to store the graph in a transposed
             format.  Required by some algorithms.
@@ -894,11 +1013,10 @@ class simpleGraphImpl:
             weight_col, id_col, type_col = None, None, None
         elif isinstance(value_col, (cudf.DataFrame, cudf.Series)):
             weight_col, id_col, type_col = value_col, None, None
-        elif isinstance(value_col, list):
-            if len(value_col) == 3:
-                weight_col, id_col, type_col = value_col
-            elif len(value_col) == 1:
-                weight_col, id_col, type_col = value_col[0], None, None
+        elif isinstance(value_col, dict):
+            weight_col = value_col[self.edgeWeightCol]
+            id_col = value_col[self.edgeIdCol]
+            type_col = value_col[self.edgeTypeCol]
         else:
             raise ValueError(f"Illegal value col {type(value_col)}")
 
@@ -911,20 +1029,12 @@ class simpleGraphImpl:
             input_array_format = "COO"
             src_or_offset_array = self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
             dst_or_index_array = self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
-            if weight_col is None:
-                # Some algos require the graph to be weighted
-                weight_col = cudf.Series(
-                    cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
-                )
+
         elif self.adjlist is not None:
             input_array_format = "CSR"
             src_or_offset_array = self.adjlist.offsets
             dst_or_index_array = self.adjlist.indices
-            if weight_col is None:
-                # Some algos require the graph to be weighted
-                weight_col = cudf.Series(
-                    cupy.ones(len(self.adjlist.indices), dtype="float32")
-                )
+
         else:
             raise TypeError(
                 "Edges need to be represented in either in COO or CSR format."
@@ -937,6 +1047,16 @@ class simpleGraphImpl:
                 weight_col = weight_col.astype("float32")
             if weight_t == "int64":
                 weight_col = weight_col.astype("float64")
+
+        if id_col is not None:
+            if src_or_offset_array.dtype == "int64" and id_col.dtype != "int64":
+                id_col = id_col.astype("int64")
+                warnings.warn(
+                    f"Vertex type is int64 but edge id type is {id_col.dtype}"
+                    ", automatically casting edge id type to int64. "
+                    "This may cause extra memory usage.  Consider passing"
+                    " a int64 list of edge ids instead."
+                )
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
@@ -1014,14 +1134,8 @@ class simpleGraphImpl:
         """
         Returns True if the graph contains the node n.
         """
-        if self.properties.renumbered:
-            tmp = self.renumber_map.to_internal_vertex_id(cudf.Series([n]))
-            return tmp[0] is not cudf.NA and tmp[0] >= 0
-        else:
-            df = self.edgelist.edgelist_df[
-                [simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]
-            ]
-            return (df == n).any().any()
+
+        return (self.nodes() == n).any().any()
 
     def has_edge(self, u, v):
         """
@@ -1065,16 +1179,15 @@ class simpleGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series.
+        Returns all the nodes in the graph as a cudf.Series, in order of appearance
+        in the edgelist (source column first, then destination column).
         If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
             if self.properties.renumbered:
-                # FIXME: This relies on current implementation
-                #        of NumberMap, should not really expose
-                #        this, perhaps add a method to NumberMap
-                df = self.renumber_map.implementation.df.drop(columns="id")
+                df = self.renumber_map.df_internal_to_external.drop(columns="id")
+
                 if len(df.columns) > 1:
                     return df
                 else:

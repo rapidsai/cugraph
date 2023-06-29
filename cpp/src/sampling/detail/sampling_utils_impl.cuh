@@ -122,6 +122,19 @@ struct sample_edges_op_t {
   }
 };
 
+template <typename label_t>
+struct shuffle_to_output_comm_rank_t {
+  raft::device_span<label_t const> output_label_;
+  raft::device_span<int32_t const> output_rank_;
+
+  template <typename key_t>
+  __device__ int32_t operator()(key_t key) const
+  {
+    auto pos = thrust::lower_bound(thrust::seq, output_label_.begin(), output_label_.end(), key);
+    return output_rank_[thrust::distance(output_label_.begin(), pos)];
+  }
+};
+
 struct segmented_fill_t {
   raft::device_span<int32_t const> fill_values{};
   raft::device_span<size_t const> segment_offsets{};
@@ -140,6 +153,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename label_t,
           typename tag_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -147,16 +161,13 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+           std::optional<rmm::device_uvector<label_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<
-    edge_property_view_t<edge_t,
-                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_id_type_view,
-  rmm::device_uvector<vertex_t> const& active_majors,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
   cugraph::vertex_frontier_t<vertex_t, tag_t, multi_gpu, false> const& vertex_frontier,
   bool do_expensive_check)
 {
@@ -165,74 +176,202 @@ gather_one_hop_edgelist(
   std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
-  std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
+  std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
   if (edge_weight_view) {
-    if (edge_id_type_view) {
-      auto edge_weight_type_id_view = view_concat(*edge_weight_view, *edge_id_type_view);
-
-      auto extracted_tuple =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         edge_weight_type_id_view,
-                                                         return_edges_with_properties_e_op{},
-                                                         do_expensive_check);
-
-      if constexpr (std::is_same_v<tag_t, int32_t>) {
-        std::tie(majors, minors, weights, edge_ids, edge_types, labels) =
-          std::move(extracted_tuple);
+    if (edge_id_view) {
+      if (edge_type_view) {
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, weights, edge_ids, edge_types, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view, *edge_type_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        } else {
+          std::tie(majors, minors, weights, edge_ids, edge_types) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view, *edge_type_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        }
       } else {
-        std::tie(majors, minors, weights, edge_ids, edge_types) = std::move(extracted_tuple);
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, weights, edge_ids, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        } else {
+          std::tie(majors, minors, weights, edge_ids) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_id_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        }
       }
     } else {
-      auto extracted_tuple =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         *edge_weight_view,
-                                                         return_edges_with_properties_e_op{},
-                                                         do_expensive_check);
-      if constexpr (std::is_same_v<tag_t, int32_t>) {
-        std::tie(majors, minors, weights, labels) = std::move(extracted_tuple);
+      if (edge_type_view) {
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, weights, edge_types, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_type_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        } else {
+          std::tie(majors, minors, weights, edge_types) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_weight_view, *edge_type_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        }
       } else {
-        std::tie(majors, minors, weights) = std::move(extracted_tuple);
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, weights, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             *edge_weight_view,
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        } else {
+          std::tie(majors, minors, weights) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             *edge_weight_view,
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        }
       }
     }
   } else {
-    if (edge_id_type_view) {
-      auto extracted_tuple =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         *edge_id_type_view,
-                                                         return_edges_with_properties_e_op{},
-                                                         do_expensive_check);
-      if constexpr (std::is_same_v<tag_t, int32_t>) {
-        std::tie(majors, minors, edge_ids, edge_types, labels) = std::move(extracted_tuple);
+    if (edge_id_view) {
+      if (edge_type_view) {
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, edge_ids, edge_types, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_id_view, *edge_type_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        } else {
+          std::tie(majors, minors, edge_ids, edge_types) =
+            cugraph::extract_transform_v_frontier_outgoing_e(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(0),
+              edge_src_dummy_property_t{}.view(),
+              edge_dst_dummy_property_t{}.view(),
+              view_concat(*edge_id_view, *edge_type_view),
+              return_edges_with_properties_e_op{},
+              do_expensive_check);
+        }
       } else {
-        std::tie(majors, minors, edge_ids, edge_types) = std::move(extracted_tuple);
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, edge_ids, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             *edge_id_view,
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        } else {
+          std::tie(majors, minors, edge_ids) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             *edge_id_view,
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        }
       }
     } else {
-      auto extracted_tuple =
-        cugraph::extract_transform_v_frontier_outgoing_e(handle,
-                                                         graph_view,
-                                                         vertex_frontier.bucket(0),
-                                                         edge_src_dummy_property_t{}.view(),
-                                                         edge_dst_dummy_property_t{}.view(),
-                                                         edge_dummy_property_t{}.view(),
-                                                         return_edges_with_properties_e_op{},
-                                                         do_expensive_check);
-      if constexpr (std::is_same_v<tag_t, int32_t>) {
-        std::tie(majors, minors, labels) = std::move(extracted_tuple);
+      if (edge_type_view) {
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, edge_types, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             *edge_type_view,
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        } else {
+          std::tie(majors, minors, edge_types) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             *edge_type_view,
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        }
       } else {
-        std::tie(majors, minors) = std::move(extracted_tuple);
+        if constexpr (std::is_same_v<tag_t, int32_t>) {
+          std::tie(majors, minors, labels) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             edge_dummy_property_t{}.view(),
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        } else {
+          std::tie(majors, minors) =
+            cugraph::extract_transform_v_frontier_outgoing_e(handle,
+                                                             graph_view,
+                                                             vertex_frontier.bucket(0),
+                                                             edge_src_dummy_property_t{}.view(),
+                                                             edge_dst_dummy_property_t{}.view(),
+                                                             edge_dummy_property_t{}.view(),
+                                                             return_edges_with_properties_e_op{},
+                                                             do_expensive_check);
+        }
       }
     }
   }
@@ -249,50 +388,61 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename label_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
+           std::optional<rmm::device_uvector<label_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<
-    edge_property_view_t<edge_t,
-                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_id_type_view,
-  rmm::device_uvector<vertex_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> active_majors,
+  std::optional<raft::device_span<label_t const>> active_major_labels,
   bool do_expensive_check)
 {
   if (active_major_labels) {
-    cugraph::vertex_frontier_t<vertex_t, int32_t, multi_gpu, false> vertex_label_frontier(handle,
+    cugraph::vertex_frontier_t<vertex_t, label_t, multi_gpu, false> vertex_label_frontier(handle,
                                                                                           1);
     vertex_label_frontier.bucket(0).insert(
       thrust::make_zip_iterator(active_majors.begin(), active_major_labels->begin()),
       thrust::make_zip_iterator(active_majors.end(), active_major_labels->end()));
 
-    return gather_one_hop_edgelist(handle,
-                                   graph_view,
-                                   edge_weight_view,
-                                   edge_id_type_view,
-                                   active_majors,
-                                   vertex_label_frontier,
-                                   do_expensive_check);
+    return gather_one_hop_edgelist<vertex_t,
+                                   edge_t,
+                                   weight_t,
+                                   edge_type_t,
+                                   label_t,
+                                   label_t,
+                                   multi_gpu>(handle,
+                                              graph_view,
+                                              edge_weight_view,
+                                              edge_id_view,
+                                              edge_type_view,
+                                              vertex_label_frontier,
+                                              do_expensive_check);
   } else {
     cugraph::vertex_frontier_t<vertex_t, void, multi_gpu, false> vertex_frontier(handle, 1);
     vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-    return gather_one_hop_edgelist(handle,
-                                   graph_view,
-                                   edge_weight_view,
-                                   edge_id_type_view,
-                                   active_majors,
-                                   vertex_frontier,
-                                   do_expensive_check);
+    return gather_one_hop_edgelist<vertex_t,
+                                   edge_t,
+                                   weight_t,
+                                   edge_type_t,
+                                   label_t,
+                                   void,
+                                   multi_gpu>(handle,
+                                              graph_view,
+                                              edge_weight_view,
+                                              edge_id_view,
+                                              edge_type_view,
+                                              vertex_frontier,
+                                              do_expensive_check);
   }
 }
 
@@ -300,26 +450,24 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename label_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           std::optional<rmm::device_uvector<int32_t>>>
-sample_edges(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<
-    edge_property_view_t<edge_t,
-                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_id_type_view,
-  raft::random::RngState& rng_state,
-  rmm::device_uvector<vertex_t> const& active_majors,
-  std::optional<rmm::device_uvector<int32_t>> const& active_major_labels,
-  size_t fanout,
-  bool with_replacement)
+           std::optional<rmm::device_uvector<label_t>>>
+sample_edges(raft::handle_t const& handle,
+             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+             std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+             std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+             raft::random::RngState& rng_state,
+             raft::device_span<vertex_t const> active_majors,
+             std::optional<raft::device_span<label_t const>> active_major_labels,
+             size_t fanout,
+             bool with_replacement)
 {
   using tag_t = void;
 
@@ -333,111 +481,154 @@ sample_edges(
   std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
   std::optional<rmm::device_uvector<int32_t>> labels{std::nullopt};
-
   std::optional<rmm::device_uvector<size_t>> sample_offsets{std::nullopt};
+
   if (edge_weight_view) {
-    if (edge_id_type_view) {
-      auto sample_e_op_results =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>(
-          0, handle.get_stream());
-      auto edge_weight_type_id_view = view_concat(*edge_weight_view, *edge_id_type_view);
-
-      std::tie(sample_offsets, sample_e_op_results) =
-        cugraph::per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          vertex_frontier.bucket(0),
-          edge_src_dummy_property_t{}.view(),
-          edge_dst_dummy_property_t{}.view(),
-          edge_weight_type_id_view,
-          sample_edges_op_t<vertex_t>{},
-          rng_state,
-          fanout,
-          with_replacement,
-          std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
-            std::nullopt},
-          true);
-
-      std::tie(majors, minors, weights, edge_ids, edge_types) = std::move(sample_e_op_results);
+    if (edge_id_view) {
+      if (edge_type_view) {
+        std::forward_as_tuple(sample_offsets,
+                              std::tie(majors, minors, weights, edge_ids, edge_types)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            view_concat(*edge_weight_view, *edge_id_view, *edge_type_view),
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t, edge_type_t>>{
+              std::nullopt},
+            true);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_ids)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            view_concat(*edge_weight_view, *edge_id_view),
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_t>>{std::nullopt},
+            true);
+      }
     } else {
-      auto sample_e_op_results =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, weight_t>>(0,
-                                                                               handle.get_stream());
-
-      std::tie(sample_offsets, sample_e_op_results) =
-        cugraph::per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          vertex_frontier.bucket(0),
-          edge_src_dummy_property_t{}.view(),
-          edge_dst_dummy_property_t{}.view(),
-          *edge_weight_view,
-          sample_edges_op_t<vertex_t>{},
-          rng_state,
-          fanout,
-          with_replacement,
-          std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
-          true);
-
-      std::tie(majors, minors, weights) = std::move(sample_e_op_results);
+      if (edge_type_view) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights, edge_types)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            view_concat(*edge_weight_view, *edge_type_view),
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t, edge_type_t>>{std::nullopt},
+            true);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, weights)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            *edge_weight_view,
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>{std::nullopt},
+            true);
+      }
     }
   } else {
-    if (edge_id_type_view) {
-      auto sample_e_op_results =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>(
-          0, handle.get_stream());
-
-      std::tie(sample_offsets, sample_e_op_results) =
-        cugraph::per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          vertex_frontier.bucket(0),
-          edge_src_dummy_property_t{}.view(),
-          edge_dst_dummy_property_t{}.view(),
-          *edge_id_type_view,
-          sample_edges_op_t<vertex_t>{},
-          rng_state,
-          fanout,
-          with_replacement,
-          std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
-          true);
-
-      std::tie(majors, minors, edge_ids, edge_types) = std::move(sample_e_op_results);
+    if (edge_id_view) {
+      if (edge_type_view) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids, edge_types)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            view_concat(*edge_id_view, *edge_type_view),
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, edge_t, edge_type_t>>{std::nullopt},
+            true);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_ids)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            *edge_id_view,
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, edge_t>>{std::nullopt},
+            true);
+      }
     } else {
-      auto sample_e_op_results =
-        allocate_dataframe_buffer<thrust::tuple<vertex_t, vertex_t>>(0, handle.get_stream());
-
-      std::tie(sample_offsets, sample_e_op_results) =
-        cugraph::per_v_random_select_transform_outgoing_e(
-          handle,
-          graph_view,
-          vertex_frontier.bucket(0),
-          edge_src_dummy_property_t{}.view(),
-          edge_dst_dummy_property_t{}.view(),
-          edge_dummy_property_t{}.view(),
-          sample_edges_op_t<vertex_t>{},
-          rng_state,
-          fanout,
-          with_replacement,
-          std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
-          true);
-
-      std::tie(majors, minors) = std::move(sample_e_op_results);
+      if (edge_type_view) {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors, edge_types)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            *edge_type_view,
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t, edge_type_t>>{std::nullopt},
+            true);
+      } else {
+        std::forward_as_tuple(sample_offsets, std::tie(majors, minors)) =
+          cugraph::per_v_random_select_transform_outgoing_e(
+            handle,
+            graph_view,
+            vertex_frontier.bucket(0),
+            edge_src_dummy_property_t{}.view(),
+            edge_dst_dummy_property_t{}.view(),
+            edge_dummy_property_t{}.view(),
+            sample_edges_op_t<vertex_t>{},
+            rng_state,
+            fanout,
+            with_replacement,
+            std::optional<thrust::tuple<vertex_t, vertex_t>>{std::nullopt},
+            true);
+      }
     }
   }
 
   if (active_major_labels) {
     labels = rmm::device_uvector<int32_t>((*sample_offsets).back_element(handle.get_stream()),
                                           handle.get_stream());
-    thrust::for_each(
-      handle.get_thrust_policy(),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(active_majors.size()),
-      segmented_fill_t{
-        raft::device_span<int32_t const>((*active_major_labels).data(),
-                                         (*active_major_labels).size()),
-        raft::device_span<size_t const>((*sample_offsets).data(), (*sample_offsets).size()),
-        raft::device_span<int32_t>((*labels).data(), (*labels).size())});
+    thrust::for_each(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(active_majors.size()),
+                     segmented_fill_t{*active_major_labels,
+                                      raft::device_span<size_t const>(sample_offsets->data(),
+                                                                      sample_offsets->size()),
+                                      raft::device_span<int32_t>(labels->data(), labels->size())});
   }
 
   return std::make_tuple(std::move(majors),
@@ -446,6 +637,732 @@ sample_edges(
                          std::move(edge_ids),
                          std::move(edge_types),
                          std::move(labels));
+}
+
+template <typename vertex_t,
+          typename weight_t,
+          typename edge_t,
+          typename edge_type_t,
+          typename label_t>
+void sort_sampled_tuples(raft::handle_t const& handle,
+                         rmm::device_uvector<vertex_t>& majors,
+                         rmm::device_uvector<vertex_t>& minors,
+                         std::optional<rmm::device_uvector<weight_t>>& weights,
+                         std::optional<rmm::device_uvector<edge_t>>& edge_ids,
+                         std::optional<rmm::device_uvector<edge_type_t>>& edge_types,
+                         std::optional<rmm::device_uvector<int32_t>>& hops,
+                         std::optional<rmm::device_uvector<label_t>>& labels)
+{
+  if (weights) {
+    if (edge_ids) {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                              thrust::make_zip_iterator(labels->end(), hops->end()),
+                              thrust::make_zip_iterator(majors.begin(),
+                                                        minors.begin(),
+                                                        weights->begin(),
+                                                        edge_ids->begin(),
+                                                        edge_types->begin()));
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              labels->begin(),
+                              labels->end(),
+                              thrust::make_zip_iterator(majors.begin(),
+                                                        minors.begin(),
+                                                        weights->begin(),
+                                                        edge_ids->begin(),
+                                                        edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()));
+        }
+      }
+    } else {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), weights->begin(), edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()));
+        }
+      }
+    }
+  } else {
+    if (edge_ids) {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(
+              majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()));
+        }
+      }
+    } else {
+      if (edge_types) {
+        if (hops) {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            thrust::make_zip_iterator(labels->begin(), hops->begin()),
+            thrust::make_zip_iterator(labels->end(), hops->end()),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
+        } else {
+          thrust::sort_by_key(
+            handle.get_thrust_policy(),
+            labels->begin(),
+            labels->end(),
+            thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()));
+        }
+      } else {
+        if (hops) {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              thrust::make_zip_iterator(labels->begin(), hops->begin()),
+                              thrust::make_zip_iterator(labels->end(), hops->end()),
+                              thrust::make_zip_iterator(majors.begin(), minors.begin()));
+        } else {
+          thrust::sort_by_key(handle.get_thrust_policy(),
+                              labels->begin(),
+                              labels->end(),
+                              thrust::make_zip_iterator(majors.begin(), minors.begin()));
+        }
+      }
+    }
+  }
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename label_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           std::optional<rmm::device_uvector<edge_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
+shuffle_and_organize_output(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::optional<rmm::device_uvector<edge_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<edge_type_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<label_t>>&& labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank)
+{
+  std::optional<rmm::device_uvector<size_t>> offsets{std::nullopt};
+
+  if (labels) {
+    sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, labels);
+
+    if (label_to_output_comm_rank) {
+      CUGRAPH_EXPECTS(labels, "labels must be specified in order to shuffle sampling results");
+
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+
+      auto total_global_mem = handle.get_device_properties().totalGlobalMem;
+      auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0}) +
+                          (edge_ids ? sizeof(edge_t) : size_t{0}) +
+                          (edge_types ? sizeof(edge_type_t) : size_t{0}) +
+                          (hops ? sizeof(int32_t) : size_t{0}) + sizeof(label_t);
+
+      auto constexpr mem_frugal_ratio =
+        0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
+      // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
+      // group-by by default, and thrust::sort requires temporary buffer comparable to the input
+      // data size)
+      auto mem_frugal_threshold = static_cast<size_t>(
+        static_cast<double>(total_global_mem / element_size) * mem_frugal_ratio);
+
+      if (weights) {
+        if (edge_ids) {
+          if (edge_types) {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(),
+                                          minors.begin(),
+                                          weights->begin(),
+                                          edge_ids->begin(),
+                                          edge_types->begin(),
+                                          hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+
+              handle.sync_stream();
+
+              std::forward_as_tuple(
+                std::tie(majors, minors, weights, edge_ids, edge_types, hops, labels),
+                std::ignore) = shuffle_values(comm,
+                                              thrust::make_zip_iterator(majors.begin(),
+                                                                        minors.begin(),
+                                                                        weights->begin(),
+                                                                        edge_ids->begin(),
+                                                                        edge_types->begin(),
+                                                                        hops->begin(),
+                                                                        labels->begin()),
+                                              h_tx_value_counts,
+                                              handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(),
+                                          minors.begin(),
+                                          weights->begin(),
+                                          edge_ids->begin(),
+                                          edge_types->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, edge_types, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_ids->begin(),
+                                                         edge_types->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(),
+                                          minors.begin(),
+                                          weights->begin(),
+                                          edge_ids->begin(),
+                                          hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_ids->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(
+                  majors.begin(), minors.begin(), weights->begin(), edge_ids->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_ids, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_ids->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          }
+        } else {
+          if (edge_types) {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(),
+                                          minors.begin(),
+                                          weights->begin(),
+                                          edge_types->begin(),
+                                          hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_types->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(
+                  majors.begin(), minors.begin(), weights->begin(), edge_types->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, edge_types, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         edge_types->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(
+                  majors.begin(), minors.begin(), weights->begin(), hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, hops, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         weights->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(), minors.begin(), weights->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, weights, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(
+                                 majors.begin(), minors.begin(), weights->begin(), labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          }
+        }
+      } else {
+        if (edge_ids) {
+          if (edge_types) {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(),
+                                          minors.begin(),
+                                          edge_ids->begin(),
+                                          edge_types->begin(),
+                                          hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_ids->begin(),
+                                                         edge_types->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(
+                  majors.begin(), minors.begin(), edge_ids->begin(), edge_types->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, edge_types, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_ids->begin(),
+                                                         edge_types->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(
+                  majors.begin(), minors.begin(), edge_ids->begin(), hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, hops, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_ids->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_ids->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, edge_ids, labels), std::ignore) =
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(
+                    majors.begin(), minors.begin(), edge_ids->begin(), labels->begin()),
+                  h_tx_value_counts,
+                  handle.get_stream());
+            }
+          }
+        } else {
+          if (edge_types) {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(
+                  majors.begin(), minors.begin(), edge_types->begin(), hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, edge_types, hops, labels),
+                                    std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(majors.begin(),
+                                                         minors.begin(),
+                                                         edge_types->begin(),
+                                                         hops->begin(),
+                                                         labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(), minors.begin(), edge_types->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, edge_types, labels), std::ignore) =
+                shuffle_values(
+                  comm,
+                  thrust::make_zip_iterator(
+                    majors.begin(), minors.begin(), edge_types->begin(), labels->begin()),
+                  h_tx_value_counts,
+                  handle.get_stream());
+            }
+          } else {
+            if (hops) {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(), minors.begin(), hops->begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, hops, labels), std::ignore) =
+                shuffle_values(comm,
+                               thrust::make_zip_iterator(
+                                 majors.begin(), minors.begin(), hops->begin(), labels->begin()),
+                               h_tx_value_counts,
+                               handle.get_stream());
+            } else {
+              auto d_tx_value_counts = cugraph::groupby_and_count(
+                labels->begin(),
+                labels->end(),
+                thrust::make_zip_iterator(majors.begin(), minors.begin()),
+                shuffle_to_output_comm_rank_t<label_t>{std::get<0>(*label_to_output_comm_rank),
+                                                       std::get<1>(*label_to_output_comm_rank)},
+                comm_size,
+                mem_frugal_threshold,
+                handle.get_stream());
+
+              std::vector<size_t> h_tx_value_counts(d_tx_value_counts.size());
+              raft::update_host(h_tx_value_counts.data(),
+                                d_tx_value_counts.data(),
+                                d_tx_value_counts.size(),
+                                handle.get_stream());
+              handle.sync_stream();
+
+              std::forward_as_tuple(std::tie(majors, minors, labels), std::ignore) = shuffle_values(
+                comm,
+                thrust::make_zip_iterator(majors.begin(), minors.begin(), labels->begin()),
+                h_tx_value_counts,
+                handle.get_stream());
+            }
+          }
+        }
+      }
+
+      sort_sampled_tuples(handle, majors, minors, weights, edge_ids, edge_types, hops, labels);
+    }
+
+    size_t num_unique_labels =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator<size_t>(0),
+                       thrust::make_counting_iterator<size_t>(labels->size()),
+                       is_first_in_run_t<label_t const*>{labels->data()});
+
+    rmm::device_uvector<label_t> unique_labels(num_unique_labels, handle.get_stream());
+    offsets = rmm::device_uvector<size_t>(num_unique_labels + 1, handle.get_stream());
+
+    thrust::reduce_by_key(handle.get_thrust_policy(),
+                          labels->begin(),
+                          labels->end(),
+                          thrust::make_constant_iterator(size_t{1}),
+                          unique_labels.begin(),
+                          offsets->begin());
+
+    thrust::exclusive_scan(
+      handle.get_thrust_policy(), offsets->begin(), offsets->end(), offsets->begin());
+    labels = std::move(unique_labels);
+  }
+
+  return std::make_tuple(std::move(majors),
+                         std::move(minors),
+                         std::move(weights),
+                         std::move(edge_ids),
+                         std::move(edge_types),
+                         std::move(hops),
+                         std::move(labels),
+                         std::move(offsets));
 }
 
 }  // namespace detail

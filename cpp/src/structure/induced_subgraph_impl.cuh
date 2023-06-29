@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-//#define TIMING
+// #define TIMING
 
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
 #include <prims/vertex_frontier.cuh>
@@ -131,6 +131,8 @@ extract_induced_subgraphs(
 #endif
   // 1. check input arguments
 
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   if (do_expensive_check) {
     size_t should_be_zero{std::numeric_limits<size_t>::max()};
     size_t num_aggregate_subgraph_vertices{};
@@ -175,19 +177,14 @@ extract_induced_subgraphs(
     detail::expand_sparse_offsets(subgraph_offsets, size_t{0}, handle.get_stream());
 
   if constexpr (multi_gpu) {
-    auto& comm               = handle.get_comms();
-    auto const comm_rank     = comm.get_rank();
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_rank = row_comm.get_rank();
-    auto const row_comm_size = row_comm.get_size();
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-    auto const col_comm_size = col_comm.get_size();
+    auto& comm           = handle.get_comms();
+    auto const comm_rank = comm.get_rank();
+    auto& major_comm     = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
 
-    dst_subgraph_vertices_v = cugraph::device_allgatherv(handle, row_comm, subgraph_vertices);
+    dst_subgraph_vertices_v = cugraph::device_allgatherv(handle, major_comm, subgraph_vertices);
 
     graph_ids_v = cugraph::device_allgatherv(
-      handle, row_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
+      handle, major_comm, raft::device_span<size_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
     thrust::sort(handle.get_thrust_policy(),
                  thrust::make_zip_iterator(graph_ids_v.begin(), dst_subgraph_vertices_v.begin()),

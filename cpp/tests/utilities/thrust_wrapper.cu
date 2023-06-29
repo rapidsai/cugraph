@@ -36,6 +36,31 @@
 namespace cugraph {
 namespace test {
 
+template <typename value_buffer_type>
+value_buffer_type sort(raft::handle_t const& handle, value_buffer_type const& values)
+{
+  auto sorted_values =
+    cugraph::allocate_dataframe_buffer<cugraph::dataframe_element_t<value_buffer_type>>(
+      values.size(), handle.get_stream());
+
+  thrust::copy(handle.get_thrust_policy(),
+               cugraph::get_dataframe_buffer_begin(values),
+               cugraph::get_dataframe_buffer_end(values),
+               cugraph::get_dataframe_buffer_begin(sorted_values));
+
+  thrust::sort(handle.get_thrust_policy(),
+               cugraph::get_dataframe_buffer_begin(sorted_values),
+               cugraph::get_dataframe_buffer_end(sorted_values));
+
+  return sorted_values;
+}
+
+template rmm::device_uvector<int32_t> sort(raft::handle_t const& handle,
+                                           rmm::device_uvector<int32_t> const& values);
+
+template rmm::device_uvector<int64_t> sort(raft::handle_t const& handle,
+                                           rmm::device_uvector<int64_t> const& values);
+
 template <typename key_buffer_type, typename value_buffer_type>
 std::tuple<key_buffer_type, value_buffer_type> sort_by_key(raft::handle_t const& handle,
                                                            key_buffer_type const& keys,
@@ -180,36 +205,6 @@ template void populate_vertex_ids(raft::handle_t const& handle,
 template void populate_vertex_ids(raft::handle_t const& handle,
                                   rmm::device_uvector<int64_t>& d_vertices_v,
                                   int64_t vertex_id_offset);
-
-template <typename T>
-rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
-                                       rmm::device_uvector<T> const& input,
-                                       size_t count,
-                                       bool sort_results)
-{
-  thrust::default_random_engine random_engine;
-
-  rmm::device_uvector<T> tmp(input.size(), handle.get_stream());
-
-  thrust::copy(handle.get_thrust_policy(), input.begin(), input.end(), tmp.begin());
-  thrust::shuffle(handle.get_thrust_policy(), tmp.begin(), tmp.end(), random_engine);
-
-  tmp.resize(std::min(count, tmp.size()), handle.get_stream());
-  tmp.shrink_to_fit(handle.get_stream());
-
-  if (sort_results) thrust::sort(handle.get_thrust_policy(), tmp.begin(), tmp.end());
-
-  return tmp;
-}
-
-template rmm::device_uvector<int32_t> randomly_select(raft::handle_t const& handle,
-                                                      rmm::device_uvector<int32_t> const& input,
-                                                      size_t count,
-                                                      bool sort_results);
-template rmm::device_uvector<int64_t> randomly_select(raft::handle_t const& handle,
-                                                      rmm::device_uvector<int64_t> const& input,
-                                                      size_t count,
-                                                      bool sort_results);
 
 template <typename vertex_t, typename weight_t>
 void remove_self_loops(raft::handle_t const& handle,

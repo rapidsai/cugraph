@@ -378,10 +378,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
- * @return device vector containing the centralities.
+ * @return edge_property_t containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<weight_t> edge_betweenness_centrality(
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -697,26 +698,90 @@ void flatten_dendrogram(raft::handle_t const& handle,
  *                                   Supported value : int (signed, 32-bit)
  * @tparam weight_t                  Type of edge weights. Supported values : float or double.
  *
- * @param[in]  handle                Library handle (RAFT). If a communicator is set in the handle,
- * @param[in]  graph                 input graph object (CSR)
- * @param[out] clustering            Pointer to device array where the clustering should be stored
- * @param[in]  max_iter              (optional) maximum number of iterations to run (default 100)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
  * @param[in]  resolution            (optional) The value of the resolution parameter to use.
  *                                   Called gamma in the modularity formula, this changes the size
  *                                   of the communities.  Higher resolutions lead to more smaller
  *                                   communities, lower resolutions lead to fewer larger
+ * communities. (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. It is used to compute
+ *                                    the probability of joining a random leiden community.
+ *                                    Called theta in the Leiden algorithm.
+ *
+ * @return                           a pair containing:
+ *                                     1) unique pointer to dendrogram
+ *                                     2) modularity of the returned clustering
+ *
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
+
+/**
+ * @brief      Leiden implementation
+ *
+ * Compute a clustering of the graph by maximizing modularity using the Leiden improvements
+ * to the Louvain method.
+ *
+ * Computed using the Leiden method described in:
+ *
+ *    Traag, V. A., Waltman, L., & van Eck, N. J. (2019). From Louvain to Leiden:
+ *    guaranteeing well-connected communities. Scientific reports, 9(1), 5233.
+ *    doi: 10.1038/s41598-019-41695-z
+ *
+ * @throws cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t                  Type of vertex identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam edge_t                    Type of edge identifiers.
+ *                                   Supported value : int (signed, 32-bit)
+ * @tparam weight_t                  Type of edge weights. Supported values : float or double.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param[in]  max_level             (optional) maximum number of levels to run (default 100)
+ * @param[in]  resolution            (optional) The value of the resolution parameter to use.
+ *                                   Called gamma in the modularity formula, this changes the size
+ *                                   of the communities.  Higher resolutions lead to more smaller
+ *                                   communities, lower resolutions lead to fewer larger
+ * communities. (default 1)
+ * @param[in]  theta                 (optional) The value of the parameter to scale modularity
+ *                                    gain in Leiden refinement phase. It is used to compute
+ *                                    the probability of joining a random leiden community.
+ *                                    Called theta in the Leiden algorithm.
  * communities. (default 1)
  *
  * @return                           a pair containing:
  *                                     1) number of levels of the returned clustering
  *                                     2) modularity of the returned clustering
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::pair<size_t, weight_t> leiden(raft::handle_t const& handle,
-                                   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
-                                   vertex_t* clustering,
-                                   size_t max_iter     = 100,
-                                   weight_t resolution = weight_t{1});
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<size_t, weight_t> leiden(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  vertex_t* clustering,  // FIXME: Use (device_)span instead
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1},
+  weight_t theta      = weight_t{1});
 
 /**
  * @brief Computes the ecg clustering of the given graph.
@@ -1065,7 +1130,7 @@ void bfs(raft::handle_t const& handle,
  *
  * @return std::tuple<rmm::device_uvector<vertex_t>, vertex_t> pair containing
  *       the paths as a dense matrix in the vector and the maximum path length.
- *       Unused elements in the paths * will be set to invalid_vertex_id (-1 for a signed
+ *       Unused elements in the paths will be set to invalid_vertex_id (-1 for a signed
  *       vertex_t, std::numeric_limits<vertex_t>::max() for an unsigned vertex_t type).
  */
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -1116,6 +1181,9 @@ void sssp(raft::handle_t const& handle,
 
 /**
  * @brief Compute PageRank scores.
+ *
+ * @deprecated This API will be deprecated to replaced by the new version below
+ *             that returns metadata about the algorithm.
  *
  * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
  * @p personalization_vertices is not `nullptr`.) PageRank scores.
@@ -1171,6 +1239,74 @@ void pagerank(raft::handle_t const& handle,
               size_t max_iterations   = 500,
               bool has_initial_guess  = false,
               bool do_expensive_check = false);
+
+/**
+ * @brief Metadata about the execution of one of the centrality algorithms
+ */
+// FIXME:  This structure should be propagated to other algorithms that converge
+//   (eigenvector centrality, hits and katz centrality)
+//
+struct centrality_algorithm_metadata_t {
+  size_t number_of_iterations_{};
+  bool converged_{};
+};
+
+/**
+ * @brief Compute PageRank scores.
+ *
+ * This function computes general (if @p personalization_vertices is `nullptr`) or personalized (if
+ * @p personalization_vertices is not `nullptr`.) PageRank scores.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
+ * max_iterations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam result_t Type of PageRank scores.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
+ * @param precomputed_vertex_out_weight_sums Pointer to an array storing sums of out-going edge
+ * weights for the vertices (for re-use) or `std::nullopt`. If `std::nullopt`, these values are
+ * freshly computed. Computing these values outside this function reduces the number of memory
+ * allocations/deallocations and computing if a user repeatedly computes PageRank scores using the
+ * same graph with different personalization vectors.
+ * @param personalization Optional tuple containing device spans of vertex identifiers and
+ * personalization values for the vertices (compute personalized PageRank) or `std::nullopt`
+ * (compute general PageRank).
+ * @param initial_pageranks Optional device span containing initial PageRank values.  If
+ * specified this array will be used as the initial values and the PageRank values will be
+ * updated in place.  If not specified then the initial values will be set to 1.0 divided by
+ * the number of vertices in the graph and the return value will contain an `rmm::device_uvector`
+ * containing the resulting PageRank values.
+ * @param alpha PageRank damping factor.
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in PageRank values between two consecutive iterations is less than the number of
+ * vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of PageRank iterations.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return tuple containing the optional pagerank results (populated if @p initial_pageranks is
+ * set to `std::nullopt`) and a metadata structure with metadata indicating how many iterations
+ * were run and whether the algorithm converged or not.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<result_t>, centrality_algorithm_metadata_t> pagerank(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<raft::device_span<weight_t const>> precomputed_vertex_out_weight_sums,
+  std::optional<std::tuple<raft::device_span<vertex_t const>, raft::device_span<result_t const>>>
+    personalization,
+  std::optional<raft::device_span<result_t const>> initial_pageranks,
+  result_t alpha,
+  result_t epsilon,
+  size_t max_iterations   = 500,
+  bool do_expensive_check = false);
 
 /**
  * @brief Compute Eigenvector Centrality scores.
@@ -1419,7 +1555,7 @@ std::
  * @p start_vertices can contain duplicates, in which case different random walks will
  * be generated for each instance.
  *
- * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If the graph is @p
+ * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If @p
  * edge_weight_view.has_value() is false, the returned value will be std::nullopt.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
@@ -1579,7 +1715,7 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 vertex_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
-                                ops::gnn::graph::SamplingAlgoT sampling_algo);
+                                ops::graph::SamplingAlgoT sampling_algo);
 
 /**
  * @brief generate sub-sampled graph as an edge list (COO format) given input graph,
@@ -1609,7 +1745,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_
   vertex_t const* ptr_d_start,
   size_t num_start_vertices,
   size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo);
+  ops::graph::SamplingAlgoT sampling_algo);
 #endif
 
 /**
@@ -1711,15 +1847,32 @@ k_core(raft::handle_t const& handle,
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
  * Output from this function is a tuple of vectors (src, dst, weight, edge_id, edge_type, hop,
- * label), identifying the randomly selected edges.  src is the source vertex, dst is the
+ * label, offsets), identifying the randomly selected edges.  src is the source vertex, dst is the
  * destination vertex, weight (optional) is the edge weight, edge_id (optional) identifies the edge
  * id, edge_type (optional) identifies the edge type, hop identifies which hop the edge was
- * encountered in, label (optional) identifies which vertex label this edge was derived from.
+ * encountered in.  The label output (optional) identifes the vertex label.  The offsets array
+ * (optional) will be described below and is dependent upon the input parameters.
+ *
+ *
+ * If @p starting_vertex_labels is not specified then no organization is applied to the output, the
+ * label and offsets values in the return set will be std::nullopt.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is not specified then
+ * the label output has values.  This will also result in the output being sorted by vertex label.
+ * The offsets array in the return will be a CSR-style offsets array to identify the beginning of
+ * each label range in the data.  `labels.size() == (offsets.size() - 1)`.
+ *
+ * If @p starting_vertex_labels is specified and @p label_to_output_comm_rank is specified then the
+ * label output has values.  This will also result in the output being sorted by vertex label.  The
+ * offsets array in the return will be a CSR-style offsets array to identify the beginning of each
+ * label range in the data.  `labels.size() == (offsets.size() - 1)`.  Additionally, the data will
+ * be shuffled so that all data with a particular label will be on the specified rank.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether sources (if false) or destinations (if
  * true) are major indices
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -1727,22 +1880,31 @@ k_core(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
  * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
- * @param edge_id_type_view Optional view object holding edge ids and types for @p graph_view.
- * @param starting_vertices Device vector of starting vertex IDs for the sampling.
- * @param starting_labels Optional device vector of starting vertex labels for the sampling.
+ * @param edge_id_view Optional view object holding edge ids for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * In a multi-gpu context the starting vertices should be local to this GPU.
+ * @param starting_vertex_labels Optional device span of labels associted with each starting vertex
+ * for the sampling.
+ * @param label_to_output_comm_rank Optional tuple of device spans mapping label to a particular
+ * output rank.  Element 0 of the tuple identifes the label, Element 1 of the tuple identifies the
+ * output rank.  The label span must be sorted in ascending order.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
+ * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param return_hops boolean flag specifying if the hop information should be returned
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
- * @param rng_state A pre-initialized raft::RngState object for generating random numbers
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
- * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type, int32_t hop,
- * optional int32_t label)
+ * optional weight_t weight, optional edge_t edge id, optional edge_type_t edge type,
+ * optional int32_t hop, optional label_t label, optional size_t offsets)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           typename edge_type_t,
+          typename label_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -1750,21 +1912,24 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            std::optional<rmm::device_uvector<edge_t>>,
            std::optional<rmm::device_uvector<edge_type_t>>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<int32_t>>>
+           std::optional<rmm::device_uvector<int32_t>>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<rmm::device_uvector<size_t>>>
 uniform_neighbor_sample(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<
-    edge_property_view_t<edge_t,
-                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
-    edge_id_type_view,
-  rmm::device_uvector<vertex_t>&& starting_vertices,
-  std::optional<rmm::device_uvector<int32_t>>&& starting_labels,
+  std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
+    label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
-  bool with_replacement = true);
+  bool return_hops,
+  bool with_replacement   = true,
+  bool do_expensive_check = false);
 
 /*
  * @brief Compute triangle counts.
@@ -1915,6 +2080,25 @@ std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbr
   raft::device_span<vertex_t const> start_vertices,
   size_t k,
   bool do_expensive_check = false);
+
+/*
+ * @brief Find a Maximal Independent Set
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param rng_state The RngState instance holding pseudo-random number generator state.
+ * @return A device vector containing vertices found in the maximal independent set
+ */
+
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> maximal_independent_set(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  raft::random::RngState& rng_state);
 
 }  // namespace cugraph
 

@@ -24,7 +24,6 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/comms/mpi_comms.hpp>
@@ -91,76 +90,55 @@ class Tests_MGInducedSubgraph
     int my_rank = handle_->get_comms().get_rank();
 
     // Construct random subgraph vertex lists
+
     std::vector<size_t> h_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1, 0);
-    std::vector<size_t> h_sg_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1,
-                                              0);
-
-    size_t max_subgraph_vertices_size =
-      std::accumulate(induced_subgraph_usecase.subgraph_sizes.begin(),
-                      induced_subgraph_usecase.subgraph_sizes.end(),
-                      size_t{0});
-
-    rmm::device_uvector<vertex_t> all_vertices(0, handle_->get_stream());
-    rmm::device_uvector<vertex_t> d_subgraph_vertices(max_subgraph_vertices_size,
-                                                      handle_->get_stream());
-    rmm::device_uvector<vertex_t> d_sg_subgraph_vertices(max_subgraph_vertices_size,
-                                                         handle_->get_stream());
-
-    if (my_rank == 0) {
-      // NOTE: This limits the size graph we can run in a test.  All of the
-      // vertices must fit on one GPU.  Of course, we've already limited this
-      // by the validation step which is going to run a single CPU version for
-      // comparison.
-      //
-      // This is also inefficient if the number of randomly selected vertices
-      // is much lass than the number of vertices in the graph.  But since we're
-      // testing with modest size graphs we're not going to worry about this.
-      //
-      // Better would be to construct a mechanism to select from an iterator
-      // rather than having to realize the entire sequence in a container.
-      all_vertices.resize(mg_graph_view.number_of_vertices(), handle_->get_stream());
-      cugraph::detail::sequence_fill(
-        handle_->get_stream(), all_vertices.data(), all_vertices.size(), vertex_t{0});
-    }
+    raft::random::RngState rng_state(handle_->get_comms().get_rank());
+    rmm::device_uvector<vertex_t> d_subgraph_vertices(0, handle_->get_stream());
 
     for (size_t i = 0; i < induced_subgraph_usecase.subgraph_sizes.size(); ++i) {
-      auto subgraph_size = induced_subgraph_usecase.subgraph_sizes[i];
-      auto start         = h_subgraph_offsets[i];
-      auto sg_start      = h_sg_subgraph_offsets[i];
+      ASSERT_TRUE(induced_subgraph_usecase.subgraph_sizes[i] <= mg_graph_view.number_of_vertices())
+        << "Invalid subgraph size.";
 
-      ASSERT_TRUE(subgraph_size <= mg_graph_view.number_of_vertices()) << "Invalid subgraph size.";
-      rmm::device_uvector<vertex_t> vertices(0, handle_->get_stream());
-
-      if (my_rank == 0) {
-        vertices = cugraph::test::randomly_select(*handle_, all_vertices, subgraph_size, true);
-        raft::copy(d_sg_subgraph_vertices.data() + sg_start,
-                   vertices.data(),
-                   vertices.size(),
-                   handle_->get_stream());
-        h_sg_subgraph_offsets[i + 1] = sg_start + vertices.size();
-      }
-
-      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-        *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
-
-      raft::copy(d_subgraph_vertices.data() + start,
+      auto vertices = cugraph::select_random_vertices(
+        *handle_,
+        mg_graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state,
+        induced_subgraph_usecase.subgraph_sizes[i],
+        false,
+        false);
+      h_subgraph_offsets[i + 1] = h_subgraph_offsets[i] + vertices.size();
+      d_subgraph_vertices.resize(h_subgraph_offsets[i + 1], handle_->get_stream());
+      raft::copy(d_subgraph_vertices.data() + h_subgraph_offsets[i],
                  vertices.data(),
                  vertices.size(),
                  handle_->get_stream());
-      h_subgraph_offsets[i + 1] = start + vertices.size();
     }
 
-    d_subgraph_vertices.resize(h_subgraph_offsets.back(), handle_->get_stream());
-    d_subgraph_vertices.shrink_to_fit(handle_->get_stream());
-
+    std::vector<size_t> h_sg_subgraph_offsets(
+      my_rank == 0 ? induced_subgraph_usecase.subgraph_sizes.size() + 1 : size_t{0}, 0);
     if (my_rank == 0) {
-      d_sg_subgraph_vertices.resize(h_sg_subgraph_offsets.back(), handle_->get_stream());
-      d_sg_subgraph_vertices.shrink_to_fit(handle_->get_stream());
-      all_vertices.resize(0, handle_->get_stream());
-      all_vertices.shrink_to_fit(handle_->get_stream());
+      std::partial_sum(induced_subgraph_usecase.subgraph_sizes.begin(),
+                       induced_subgraph_usecase.subgraph_sizes.end(),
+                       h_sg_subgraph_offsets.begin() + 1);
+    }
+    rmm::device_uvector<vertex_t> d_sg_subgraph_vertices(
+      my_rank == 0 ? h_sg_subgraph_offsets.back() : size_t{0}, handle_->get_stream());
+    for (size_t i = 0; i < induced_subgraph_usecase.subgraph_sizes.size(); ++i) {
+      auto vertices = cugraph::test::device_gatherv(
+        *handle_,
+        raft::device_span<vertex_t const>(d_subgraph_vertices.data() + h_subgraph_offsets[i],
+                                          h_subgraph_offsets[i + 1] - h_subgraph_offsets[i]));
+      if (my_rank == 0) {
+        raft::copy(d_sg_subgraph_vertices.data() + h_sg_subgraph_offsets[i],
+                   vertices.data(),
+                   vertices.size(),
+                   handle_->get_stream());
+      }
     }
 
     // 3. run MG InducedSubgraph
+
     auto d_subgraph_offsets = cugraph::test::to_device(*handle_, h_subgraph_offsets);
 
     if (cugraph::test::g_perf) {
@@ -213,23 +191,17 @@ class Tests_MGInducedSubgraph
       graph_ids_v = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(graph_ids_v.data(), graph_ids_v.size()));
 
+      auto triplet_first = thrust::make_zip_iterator(graph_ids_v.begin(),
+                                                     d_subgraph_edgelist_majors.begin(),
+                                                     d_subgraph_edgelist_minors.begin());
       if (d_subgraph_edgelist_weights) {
-        thrust::sort_by_key(
-          handle_->get_thrust_policy(),
-          thrust::make_zip_iterator(graph_ids_v.begin(),
-                                    d_subgraph_edgelist_majors.begin(),
-                                    d_subgraph_edgelist_minors.begin()),
-          thrust::make_zip_iterator(
-            graph_ids_v.end(), d_subgraph_edgelist_majors.end(), d_subgraph_edgelist_minors.end()),
-          d_subgraph_edgelist_weights->begin());
+        thrust::sort_by_key(handle_->get_thrust_policy(),
+                            triplet_first,
+                            triplet_first + graph_ids_v.size(),
+                            d_subgraph_edgelist_weights->begin());
       } else {
         thrust::sort(
-          handle_->get_thrust_policy(),
-          thrust::make_zip_iterator(graph_ids_v.begin(),
-                                    d_subgraph_edgelist_majors.begin(),
-                                    d_subgraph_edgelist_minors.begin()),
-          thrust::make_zip_iterator(
-            graph_ids_v.end(), d_subgraph_edgelist_majors.end(), d_subgraph_edgelist_minors.end()));
+          handle_->get_thrust_policy(), triplet_first, triplet_first + graph_ids_v.size());
       }
 
       auto d_subgraph_edgelist_offsets =
@@ -243,7 +215,7 @@ class Tests_MGInducedSubgraph
         *handle_,
         mg_graph_view,
         mg_edge_weight_view,
-        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
         false);
 
       if (my_rank == 0) {
@@ -292,6 +264,9 @@ TEST_P(Tests_MGInducedSubgraph_File, CheckInt32Int32)
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
+#if 0
+// FIXME:  We should use these tests, gtest-1.11.0 makes it a runtime error
+//         to define and not instantiate these.
 TEST_P(Tests_MGInducedSubgraph_Rmat, CheckInt32Int32)
 {
   run_current_test<int32_t, int32_t, float, false>(
@@ -309,6 +284,7 @@ TEST_P(Tests_MGInducedSubgraph_Rmat, CheckInt64Int64)
   run_current_test<int64_t, int64_t, float, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
   karate_test,

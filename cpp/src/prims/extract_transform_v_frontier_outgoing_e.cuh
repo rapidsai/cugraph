@@ -38,7 +38,7 @@ namespace cugraph {
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
- * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
+ * @tparam EdgeOp Type of the quinary edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -56,10 +56,10 @@ namespace cugraph {
  * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
  * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
  * access edge property values).
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * thrust::nullopt (if the return value is to be discarded) or a valid @p e_op output to be
- * extracted and accumulated.
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * property values for the destination, and property values for the edge and returns thrust::nullopt
+ * (if the return value is to be discarded) or a valid @p e_op output to be extracted and
+ * accumulated.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Dataframe buffer object storing extracted and accumulated valid @p e_op return values.
  */
@@ -97,6 +97,8 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
                                          EdgeOp>::type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
   using payload_t = typename e_op_result_t::value_type;
+
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
   auto value_buffer = allocate_dataframe_buffer<payload_t>(size_t{0}, handle.get_stream());
   std::tie(std::ignore, value_buffer) =

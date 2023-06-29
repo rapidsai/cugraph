@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,11 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import spectral_clustering_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_score_to_dictionary,
 )
+from pylibcugraph import (
+    balanced_cut_clustering as pylibcugraph_balanced_cut_clustering,
+    spectral_modularity_maximization as pylibcugraph_spectral_modularity_maximization,
+    analyze_clustering_modularity as pylibcugraph_analyze_clustering_modularity,
+    analyze_clustering_edge_cut as pylibcugraph_analyze_clustering_edge_cut,
+    analyze_clustering_ratio_cut as pylibcugraph_analyze_clustering_ratio_cut,
+)
+from pylibcugraph import ResourceHandle
+import cudf
+import numpy as np
 
 
 def spectralBalancedCutClustering(
@@ -81,16 +90,30 @@ def spectralBalancedCutClustering(
     # Error checking in C++ code
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
-
-    df = spectral_clustering_wrapper.spectralBalancedCutClustering(
-        G,
+    # Check if vertex type is "int32"
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
+            "'spectralBalancedCutClustering' requires the input graph's vertex to be "
+            "of type 'int32'"
+        )
+    vertex, partition = pylibcugraph_balanced_cut_clustering(
+        ResourceHandle(),
+        G._plc_graph,
         num_clusters,
         num_eigen_vects,
         evs_tolerance,
         evs_max_iter,
         kmean_tolerance,
         kmean_max_iter,
+        do_expensive_check=False,
     )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["cluster"] = partition
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -161,19 +184,31 @@ def spectralModularityMaximizationClustering(
 
     """
 
-    # Error checking in C++ code
-
     G, isNx = ensure_cugraph_obj_for_nx(G)
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
+            "'spectralModularityMaximizationClustering' requires the input graph's "
+            "vertex to be of type 'int32'"
+        )
 
-    df = spectral_clustering_wrapper.spectralModularityMaximizationClustering(
-        G,
+    vertex, partition = pylibcugraph_spectral_modularity_maximization(
+        ResourceHandle(),
+        G._plc_graph,
         num_clusters,
         num_eigen_vects,
         evs_tolerance,
         evs_max_iter,
         kmean_tolerance,
         kmean_max_iter,
+        do_expensive_check=False,
     )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["cluster"] = partition
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -235,16 +270,32 @@ def analyzeClustering_modularity(
         raise Exception("cluster_col_name must be a string")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
+            "'analyzeClustering_modularity' requires the input graph's "
+            "vertex to be of type 'int32'"
+        )
 
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
 
-    clustering = clustering.sort_values("vertex")
+    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+        raise ValueError(
+            "'analyzeClustering_modularity' requires both the clustering 'vertex' "
+            "and 'cluster' to be of type 'int32'"
+        )
 
-    score = spectral_clustering_wrapper.analyzeClustering_modularity(
-        G, n_clusters, clustering[cluster_col_name]
+    score = pylibcugraph_analyze_clustering_modularity(
+        ResourceHandle(),
+        G._plc_graph,
+        n_clusters,
+        clustering["vertex"],
+        clustering[cluster_col_name],
     )
 
     return score
@@ -302,15 +353,32 @@ def analyzeClustering_edge_cut(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    if (
+        G.edgelist.edgelist_df.dtypes[0] != np.int32
+        or G.edgelist.edgelist_df.dtypes[1] != np.int32
+    ):
+        raise ValueError(
+            "'analyzeClustering_edge_cut' requires the input graph's vertex to be "
+            "of type 'int32'"
+        )
+
     if G.renumbered:
         clustering = G.add_internal_vertex_id(
             clustering, "vertex", vertex_col_name, drop=True
         )
 
-    clustering = clustering.sort_values("vertex").reset_index(drop=True)
+    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+        raise ValueError(
+            "'analyzeClustering_edge_cut' requires both the clustering 'vertex' "
+            "and 'cluster' to be of type 'int32'"
+        )
 
-    score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
-        G, n_clusters, clustering[cluster_col_name]
+    score = pylibcugraph_analyze_clustering_edge_cut(
+        ResourceHandle(),
+        G._plc_graph,
+        n_clusters,
+        clustering["vertex"],
+        clustering[cluster_col_name],
     )
 
     return score
@@ -369,10 +437,18 @@ def analyzeClustering_ratio_cut(
             clustering, "vertex", vertex_col_name, drop=True
         )
 
-    clustering = clustering.sort_values("vertex")
+    if clustering.dtypes[0] != np.int32 or clustering.dtypes[1] != np.int32:
+        raise ValueError(
+            "'analyzeClustering_ratio_cut' requires both the clustering 'vertex' "
+            "and 'cluster' to be of type 'int32'"
+        )
 
-    score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
-        G, n_clusters, clustering[cluster_col_name]
+    score = pylibcugraph_analyze_clustering_ratio_cut(
+        ResourceHandle(),
+        G._plc_graph,
+        n_clusters,
+        clustering["vertex"],
+        clustering[cluster_col_name],
     )
 
     return score

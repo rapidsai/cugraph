@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ cugraph_error_code_t cugraph_sg_graph_create(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
-  bool_t check,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
 
@@ -112,7 +112,7 @@ cugraph_error_code_t cugraph_sg_graph_create_from_csr(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   bool_t renumber,
-  bool_t check,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
 
@@ -144,7 +144,7 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
                                 argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  num_edges       Number of edges
- * @param [in]  check           If true, do expensive checks to validate the input data
+ * @param [in]  do_expensive_check  If true, do expensive checks to validate the input data
  *    is consistent with software assumptions.  If false bypass these checks.
  * @param [out] graph           A pointer to the graph object
  * @param [out] error           Pointer to an error object storing details of any error.  Will
@@ -161,7 +161,7 @@ cugraph_error_code_t cugraph_mg_graph_create(
   const cugraph_type_erased_device_array_view_t* edge_type_ids,
   bool_t store_transposed,
   size_t num_edges,
-  bool_t check,
+  bool_t do_expensive_check,
   cugraph_graph_t** graph,
   cugraph_error_t** error);
 

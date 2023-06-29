@@ -84,7 +84,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         #       The number of connected components (number of unique labels).
         #   labels: ndarray
         #       The length-N array of labels of the connected components.
-        n_components = len(df["labels"].unique())
+        n_components = df["labels"].nunique()
         sorted_df = df.sort_values("vertex")
         if return_labels:
             if is_cp_matrix_type(input_type):
@@ -110,9 +110,9 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
 
         Graph or matrix object, which should contain the connectivity
         information (edge weights are not used for this algorithm). If using a
-        graph object, the graph can be either directed or undirected where an
+        graph object, the graph must be undirected where an
         undirected edge is represented by a directed edge in both directions.
-        The adjacency list will be computed if not already present.  The number
+        The adjacency list will be computed if not already present. The number
         of vertices should fit into a 32b int.
 
     directed : bool, optional (default=None)
@@ -174,7 +174,6 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     >>> df = cugraph.weakly_connected_components(G)
 
     """
-
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels
     )
@@ -292,6 +291,20 @@ def strongly_connected_components(
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
+    # Renumber the vertices so that they are contiguous (required)
+    # FIXME: Remove 'renumbering' once the algo leverage the CAPI graph
+    if not G.renumbered:
+        edgelist = G.edgelist.edgelist_df
+        renumbered_edgelist_df, renumber_map = G.renumber_map.renumber(
+            edgelist, ["src"], ["dst"]
+        )
+        renumbered_src_col_name = renumber_map.renumbered_src_col_name
+        renumbered_dst_col_name = renumber_map.renumbered_dst_col_name
+        G.edgelist.edgelist_df = renumbered_edgelist_df.rename(
+            columns={renumbered_src_col_name: "src", renumbered_dst_col_name: "dst"}
+        )
+        G.properties.renumbered = True
+        G.renumber_map = renumber_map
 
     df = connectivity_wrapper.strongly_connected_components(G)
 
@@ -330,6 +343,10 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
         csgraph[j, i].
 
     connection : str, optional (default='weak')
+
+        NOTE
+            For Graph-type values of G, weak components are only
+            supported for undirected graphs.
 
         [‘weak’|’strong’]. Return either weakly or strongly connected
         components.

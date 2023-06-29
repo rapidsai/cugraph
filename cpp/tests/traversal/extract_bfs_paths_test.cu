@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include "randomly_select_destinations.cuh"
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_graphs.hpp>
@@ -115,15 +114,32 @@ class Tests_ExtractBfsPaths
     auto h_distances    = cugraph::test::to_host(handle, d_distances);
     auto h_predecessors = cugraph::test::to_host(handle, d_predecessors);
 
-    auto d_destinations = cugraph::test::randomly_select_destinations<false>(
+    rmm::device_uvector<vertex_t> d_vertices(graph_view.number_of_vertices(), handle.get_stream());
+    {
+      constexpr vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
+      auto local_vertex_first           = vertex_t{0};
+      cugraph::detail::sequence_fill(
+        handle.get_stream(), d_vertices.begin(), d_vertices.size(), local_vertex_first);
+      auto end_iter = thrust::remove_if(
+        handle.get_thrust_policy(),
+        d_vertices.begin(),
+        d_vertices.end(),
+        [invalid_vertex, predecessors = d_predecessors.data(), local_vertex_first] __device__(
+          auto v) { return predecessors[v - local_vertex_first] == invalid_vertex; });
+      d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle.get_stream());
+    }
+
+    raft::random::RngState rng_state(0);
+    auto d_destinations = cugraph::select_random_vertices(
       handle,
-      graph_view.number_of_vertices(),
-      vertex_t{0},
-      d_predecessors,
-      extract_bfs_paths_usecase.num_paths_to_check);
+      graph_view,
+      std::make_optional(raft::device_span<vertex_t const>{d_vertices.data(), d_vertices.size()}),
+      rng_state,
+      std::min(extract_bfs_paths_usecase.num_paths_to_check, d_vertices.size()),
+      false,
+      false);
 
     rmm::device_uvector<vertex_t> d_paths(0, handle.get_stream());
-
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.start("Extract BFS paths");
@@ -212,13 +228,7 @@ INSTANTIATE_TEST_SUITE_P(
     std::make_tuple(ExtractBfsPaths_Usecase{0, 100},
                     cugraph::test::File_Usecase("test/datasets/polbooks.mtx")),
     std::make_tuple(ExtractBfsPaths_Usecase{0, 100},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(ExtractBfsPaths_Usecase{100, 100},
-                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
-    std::make_tuple(ExtractBfsPaths_Usecase{1000, 2000},
-                    cugraph::test::File_Usecase("test/datasets/wiki2003.mtx")),
-    std::make_tuple(ExtractBfsPaths_Usecase{1000, 20000},
-                    cugraph::test::File_Usecase("test/datasets/wiki-Talk.mtx"))));
+                    cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

@@ -52,9 +52,7 @@ int generic_scc_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code = cugraph_strongly_connected_components(p_handle, p_graph, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_NOT_IMPLEMENTED, "SCC should not be implemented, but is");
 
-#if 0
   // FIXME: Actual implementation will be something like this
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(
@@ -82,21 +80,18 @@ int generic_scc_test(vertex_t* h_src,
     component_check[i] = num_vertices;
   }
 
-  vertex_t num_errors = 0;
-  for (vertex_t i = 0; i < num_vertices; ++i) {
-    if (component_check[h_components[i]] == num_vertices) {
-      component_check[h_components[i]] = h_result[h_vertices[i]];
-    } else if (component_check[h_components[i]] != h_result[h_vertices[i]]) {
-      ++num_errors;
-    }
+  for (vertex_t i = 0 ; i < num_vertices; ++i) {
+    if (component_check[h_result[i]] == num_vertices)
+      component_check[h_result[i]] = h_components[i];
   }
 
-  TEST_ASSERT(test_ret_value, num_errors == 0, "strongly connected components results don't match");
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value, h_components[i] == component_check[h_result[i]], "component results don't match");
+  }
 
   cugraph_type_erased_device_array_view_free(components);
   cugraph_type_erased_device_array_view_free(vertices);
   cugraph_labeling_result_free(p_result);
-#endif
 
   cugraph_sg_graph_free(p_graph);
   cugraph_free_resource_handle(p_handle);
@@ -107,15 +102,15 @@ int generic_scc_test(vertex_t* h_src,
 
 int test_strongly_connected_components()
 {
-  size_t num_edges    = 16;
+  size_t num_edges    = 19;
   size_t num_vertices = 12;
 
-  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7, 8, 8, 8, 9, 10};
-  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+  vertex_t h_src[] = {0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 6, 7, 7, 8, 8, 8, 9, 10};
+  vertex_t h_dst[] = {1, 2, 3, 4, 0, 1, 3, 4, 5, 3, 5, 7, 9, 10, 6, 7, 9, 11, 11};
   weight_t h_wgt[] = {
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-  vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+  vertex_t h_result[] = {0, 0, 0, 3, 3, 5, 6, 7, 8, 9, 10, 11};
 
   // SCC wants store_transposed = FALSE
   return generic_scc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);

@@ -30,7 +30,7 @@ CURRENT_SHORT_TAG=${CURRENT_MAJOR}.${CURRENT_MINOR}
 NEXT_MAJOR=$(echo $NEXT_FULL_TAG | awk '{split($0, a, "."); print a[1]}')
 NEXT_MINOR=$(echo $NEXT_FULL_TAG | awk '{split($0, a, "."); print a[2]}')
 NEXT_SHORT_TAG=${NEXT_MAJOR}.${NEXT_MINOR}
-NEXT_UCX_PY_VERSION="$(curl -sL https://version.gpuci.io/rapids/${NEXT_SHORT_TAG}).*"
+NEXT_UCX_PY_VERSION="$(curl -sL https://version.gpuci.io/rapids/${NEXT_SHORT_TAG})"
 
 echo "Preparing release $CURRENT_TAG => $NEXT_FULL_TAG"
 
@@ -54,43 +54,70 @@ sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" p
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
 sed_runner 's/release = .*/release = '"'${NEXT_FULL_TAG}'"'/g' docs/cugraph/source/conf.py
 
-for FILE in conda/environments/*.yaml dependencies.yaml; do
-   sed_runner "s/libcugraphops=${CURRENT_SHORT_TAG}/libcugraphops=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/cudf=${CURRENT_SHORT_TAG}/cudf=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/rmm=${CURRENT_SHORT_TAG}/rmm=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/libraft-headers=${CURRENT_SHORT_TAG}/libraft-headers=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/libraft-distance=${CURRENT_SHORT_TAG}/libraft-distance=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/pyraft=${CURRENT_SHORT_TAG}/pyraft=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/raft-dask=${CURRENT_SHORT_TAG}/raft-dask=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/pylibraft=${CURRENT_SHORT_TAG}/pylibraft=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/dask-cuda=${CURRENT_SHORT_TAG}/dask-cuda=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/dask-cudf=${CURRENT_SHORT_TAG}/dask-cudf=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/cuxfilter=${CURRENT_SHORT_TAG}/cuxfilter=${NEXT_SHORT_TAG}/g" ${FILE};
-   sed_runner "s/ucx-py=.*/ucx-py=${NEXT_UCX_PY_VERSION}/g" ${FILE};
+# Python __init__.py updates
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph/cugraph/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/cugraph_dgl/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/cugraph_pyg/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/cugraph_service_client/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/cugraph_service_server/__init__.py
+sed_runner "s/__version__ = .*/__version__ = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pylibcugraph/__init__.py
+
+# Python pyproject.toml updates
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-dgl/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-pyg/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/client/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/cugraph-service/server/pyproject.toml
+sed_runner "s/^version = .*/version = \"${NEXT_FULL_TAG}\"/g" python/pylibcugraph/pyproject.toml
+
+# Need to distutils-normalize the original version
+NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}'))")
+
+DEPENDENCIES=(
+  cudf
+  cugraph
+  cugraph-service-client
+  cuxfilter
+  dask-cuda
+  dask-cudf
+  libcudf
+  libcugraphops
+  libraft
+  libraft-headers
+  librmm
+  pylibcugraph
+  pylibcugraphops
+  pylibraft
+  pyraft
+  raft-dask
+  rmm
+  ucx-py
+)
+for DEP in "${DEPENDENCIES[@]}"; do
+  for FILE in dependencies.yaml conda/environments/*.yaml; do
+    sed_runner "/-.* ${DEP}==/ s/==.*/==${NEXT_SHORT_TAG_PEP440}.*/g" ${FILE}
+    sed_runner "/-.* ucx-py==/ s/==.*/==${NEXT_UCX_PY_VERSION}.*/g" ${FILE}
+  done
+  for FILE in python/**/pyproject.toml python/**/**/pyproject.toml; do
+    sed_runner "/\"${DEP}==/ s/==.*\"/==${NEXT_SHORT_TAG_PEP440}.*\"/g" ${FILE}
+    sed_runner "/\"ucx-py==/ s/==.*\"/==${NEXT_UCX_PY_VERSION}.*\"/g" ${FILE}
+  done
 done
 
 # Doxyfile update
 sed_runner "s|PROJECT_NUMBER[[:space:]]*=.*|PROJECT_NUMBER=${NEXT_SHORT_TAG}|" cpp/doxygen/Doxyfile
 
 # ucx-py version
-sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/recipes/cugraph/conda_build_config.yaml
-sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/recipes/cugraph-service/conda_build_config.yaml
-sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}\"/}" conda/recipes/pylibcugraph/conda_build_config.yaml
+sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/cugraph/conda_build_config.yaml
+sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/cugraph-service/conda_build_config.yaml
+sed_runner "/^ucx_py_version:$/ {n;s/.*/  - \"${NEXT_UCX_PY_VERSION}.*\"/}" conda/recipes/pylibcugraph/conda_build_config.yaml
 
+# CI files
 for FILE in .github/workflows/*.yaml; do
   sed_runner "/shared-action-workflows/ s/@.*/@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds clone cugraph-ops, update its branch
   sed_runner "s/extra-repo-sha: branch-.*/extra-repo-sha: branch-${NEXT_SHORT_TAG}/g" "${FILE}"
   # Wheel builds install dask-cuda from source, update its branch
-  sed_runner "s/dask-cuda.git@branch-[^\"\s]\+/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
+  sed_runner "s/dask-cuda.git@branch-[0-9][0-9].[0-9][0-9]/dask-cuda.git@branch-${NEXT_SHORT_TAG}/g" "${FILE}"
 done
-
-
-# Need to distutils-normalize the original version
-NEXT_SHORT_TAG_PEP440=$(python -c "from setuptools.extern import packaging; print(packaging.version.Version('${NEXT_SHORT_TAG}'))")
-
-# Wheel builds install intra-RAPIDS dependencies from same release
-sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/setup.py
-sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/pylibcugraph/_custom_build/backend.py
-sed_runner "s/{cuda_suffix}[^\"].*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/setup.py
-sed_runner "s/{cuda_suffix}.*\",/{cuda_suffix}==${NEXT_SHORT_TAG_PEP440}.*\",/g" python/cugraph/_custom_build/backend.py
+sed_runner "s/RAPIDS_VERSION_NUMBER=\".*/RAPIDS_VERSION_NUMBER=\"${NEXT_SHORT_TAG}\"/g" ci/build_docs.sh

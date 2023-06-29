@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,93 +16,132 @@
 
 #pragma once
 
+#include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
+
 #include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 
-#include <cassert>
-#include <cmath>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <vector>
 
 namespace cugraph {
-namespace partition_2d {
 
-// default key-naming mechanism:
-//
-struct key_naming_t {
-  // simplified key (one per all row subcomms / one per all column sub-comms):
-  //
-  key_naming_t(void)
-    : row_suffix_(std::string("_p_row")),
-      col_suffix_(std::string("_p_col")),
-      name_(std::string("comm"))
-  {
-  }
-
-  std::string col_name(void) const { return name_ + col_suffix_; }
-
-  std::string row_name(void) const { return name_ + row_suffix_; }
-
- private:
-  std::string const row_suffix_;
-  std::string const col_suffix_;
-  std::string name_;
-};
-
-using pair_comms_t =
-  std::pair<std::shared_ptr<raft::comms::comms_t>, std::shared_ptr<raft::comms::comms_t>>;
-
-// FIXME: This class is a misnomer since the python layer is currently
-// responsible for creating and managing partitioning. Consider renaming it or
-// refactoring it away.
-//
-// class responsible for creating 2D partition sub-comms:
-// this is instantiated by each worker (processing element, PE)
-// for the row/column it belongs to;
-//
-// naming policy defaults to simplified naming:
-// one key per row subcomms, one per column subcomms;
-//
-template <typename name_policy_t = key_naming_t>
-class subcomm_factory_t {
+/**
+ * managed the mapping between graph partitioning and GPU partitioning
+ */
+class partition_manager {
  public:
-  subcomm_factory_t(raft::handle_t& handle, int row_size) : handle_(handle), row_size_(row_size)
+  // we 2D partition both a graph adjacency matrix and the GPUs. The graph adjacency matrix is 2D
+  // partitioned along the major axis and the minor axis. The GPUs are 2D partitioned to
+  // gpu_col_comm_size * gpu_row_comm_size where gpu_col_comm_size is the size of the column
+  // direction communicator (GPUs in the same column in the GPU 2D partitioning belongs to the same
+  // column sub-communicator) and row_comm_size is the size of the row direction communicator (GPUs
+  // in the same row belongs to the same row sub-communicator).  GPUs in the same GPU row
+  // communicator have consecutive process IDs (and may be physically closer in hierarchical
+  // interconnects). Graph algorithms require communications due to the graph adjacency matrix
+  // partitioning along the major axis (major sub-communicator is responsible for this) and along
+  // the minor axis (minor sub-communicator is responsible for this). This variable controls whether
+  // to map the major sub-communicator to the GPU row communicator or the GPU column communicator.
+  static constexpr bool map_major_comm_to_gpu_row_comm = true;
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_global_comm_rank_from_vertex_partition_id(int major_comm_size,
+                                                      int minor_comm_size,
+                                                      int vertex_partition_id)
   {
-    init_row_col_comms();
-  }
-  virtual ~subcomm_factory_t(void) {}
-
-  pair_comms_t const& row_col_comms(void) const { return row_col_subcomms_; }
-
- protected:
-  virtual void init_row_col_comms(void)
-  {
-    name_policy_t key;
-    raft::comms::comms_t const& communicator = handle_.get_comms();
-
-    int const rank = communicator.get_rank();
-    int row_index  = rank / row_size_;
-    int col_index  = rank % row_size_;
-
-    auto row_comm =
-      std::make_shared<raft::comms::comms_t>(communicator.comm_split(row_index, col_index));
-    handle_.set_subcomm(key.row_name(), row_comm);
-
-    auto col_comm =
-      std::make_shared<raft::comms::comms_t>(communicator.comm_split(col_index, row_index));
-    handle_.set_subcomm(key.col_name(), col_comm);
-
-    row_col_subcomms_.first  = row_comm;
-    row_col_subcomms_.second = col_comm;
+    return map_major_comm_to_gpu_row_comm
+             ? vertex_partition_id
+             : (vertex_partition_id % major_comm_size) * minor_comm_size +
+                 (vertex_partition_id / major_comm_size);
   }
 
- private:
-  raft::handle_t& handle_;
-  int row_size_;
-  pair_comms_t row_col_subcomms_;
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_global_comm_rank_from_graph_subcomm_ranks(int major_comm_size,
+                                                      int minor_comm_size,
+                                                      int major_comm_rank,
+                                                      int minor_comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm ? (minor_comm_rank * major_comm_size + major_comm_rank)
+                                          : (major_comm_rank * minor_comm_size + minor_comm_rank);
+  }
+
+#ifdef __CUDACC__
+  __host__ __device__
+#endif
+    static int
+    compute_vertex_partition_id_from_graph_subcomm_ranks(int major_comm_size,
+                                                         int minor_comm_size,
+                                                         int major_comm_rank,
+                                                         int minor_comm_rank)
+  {
+    return map_major_comm_to_gpu_row_comm
+             ? compute_global_comm_rank_from_graph_subcomm_ranks(
+                 major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank)
+             : minor_comm_rank * major_comm_size + major_comm_rank;
+  }
+
+  static std::string major_comm_name()
+  {
+    return std::string(map_major_comm_to_gpu_row_comm ? "gpu_row_comm" : "gpu_col_comm");
+  }
+
+  static std::string minor_comm_name()
+  {
+    return std::string(map_major_comm_to_gpu_row_comm ? "gpu_col_comm" : "gpu_row_comm");
+  }
+
+  template <typename vertex_t>
+  static std::vector<vertex_t> compute_partition_range_lasts(raft::handle_t const& handle,
+                                                             vertex_t local_partition_size)
+  {
+    auto& comm                 = handle.get_comms();
+    auto const comm_size       = comm.get_size();
+    auto& major_comm           = handle.get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto const major_comm_rank = major_comm.get_rank();
+    auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+    auto const minor_comm_rank = minor_comm.get_rank();
+
+    auto vertex_counts = host_scalar_allgather(comm, local_partition_size, handle.get_stream());
+    auto vertex_partition_ids =
+      host_scalar_allgather(comm,
+                            partition_manager::compute_vertex_partition_id_from_graph_subcomm_ranks(
+                              major_comm_size, minor_comm_size, major_comm_rank, minor_comm_rank),
+                            handle.get_stream());
+
+    std::vector<vertex_t> vertex_partition_range_offsets(comm_size + 1, 0);
+    for (int i = 0; i < comm_size; ++i) {
+      vertex_partition_range_offsets[vertex_partition_ids[i]] = vertex_counts[i];
+    }
+    std::exclusive_scan(vertex_partition_range_offsets.begin(),
+                        vertex_partition_range_offsets.end(),
+                        vertex_partition_range_offsets.begin(),
+                        vertex_t{0});
+
+    return std::vector<vertex_t>(vertex_partition_range_offsets.begin() + 1,
+                                 vertex_partition_range_offsets.end());
+  }
+
+  static void init_subcomm(raft::handle_t& handle, int gpu_row_comm_size)
+  {
+    auto& comm = handle.get_comms();
+
+    auto rank   = comm.get_rank();
+    int row_idx = rank / gpu_row_comm_size;
+    int col_idx = rank % gpu_row_comm_size;
+
+    handle.set_subcomm("gpu_row_comm",
+                       std::make_shared<raft::comms::comms_t>(comm.comm_split(row_idx, col_idx)));
+    handle.set_subcomm("gpu_col_comm",
+                       std::make_shared<raft::comms::comms_t>(comm.comm_split(col_idx, row_idx)));
+  };
 };
 
-}  // namespace partition_2d
 }  // namespace cugraph

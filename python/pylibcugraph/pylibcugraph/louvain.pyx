@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,11 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from libc.stdint cimport uintptr_t
-
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -27,18 +24,17 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.community_algorithms cimport (
-    cugraph_heirarchical_clustering_result_t,
+    cugraph_hierarchical_clustering_result_t,
     cugraph_louvain,
-    cugraph_heirarchical_clustering_result_get_vertices,
-    cugraph_heirarchical_clustering_result_get_clusters,
-    cugraph_heirarchical_clustering_result_get_modularity,
-    cugraph_heirarchical_clustering_result_free,
+    cugraph_hierarchical_clustering_result_get_vertices,
+    cugraph_hierarchical_clustering_result_get_clusters,
+    cugraph_hierarchical_clustering_result_get_modularity,
+    cugraph_hierarchical_clustering_result_free,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -48,10 +44,7 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
     copy_to_cupy_array,
-    get_c_type_from_numpy_type,
-    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -91,7 +84,7 @@ def louvain(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple containing the heirarchical clustering vertices, clusters and
+    A tuple containing the hierarchical clustering vertices, clusters and
     modularity score
 
     Examples
@@ -119,7 +112,7 @@ def louvain(ResourceHandle resource_handle,
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
-    cdef cugraph_heirarchical_clustering_result_t* result_ptr
+    cdef cugraph_hierarchical_clustering_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
@@ -135,15 +128,15 @@ def louvain(ResourceHandle resource_handle,
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
-        cugraph_heirarchical_clustering_result_get_vertices(result_ptr)
+        cugraph_hierarchical_clustering_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* clusters_ptr = \
-        cugraph_heirarchical_clustering_result_get_clusters(result_ptr)
+        cugraph_hierarchical_clustering_result_get_clusters(result_ptr)
     cdef double modularity = \
-        cugraph_heirarchical_clustering_result_get_modularity(result_ptr)
+        cugraph_hierarchical_clustering_result_get_modularity(result_ptr)
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_clusters = copy_to_cupy_array(c_resource_handle_ptr, clusters_ptr)
 
-    cugraph_heirarchical_clustering_result_free(result_ptr)
+    cugraph_hierarchical_clustering_result_free(result_ptr)
 
     return (cupy_vertices, cupy_clusters, modularity)

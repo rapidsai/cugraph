@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
@@ -23,6 +22,7 @@
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -195,10 +195,8 @@ struct e_op_t {
   {
     auto tag        = thrust::get<1>(tagged_src);
     auto dst_offset = dst - dst_first;
-    // FIXME: better switch to atomic_ref after
-    // https://github.com/nvidia/libcudacxx/milestone/2
     auto old =
-      atomicCAS(dst_components.get_iter(dst_offset), invalid_component_id<vertex_t>::value, tag);
+      dst_components.elementwise_atomic_cas(dst_offset, invalid_component_id<vertex_t>::value, tag);
     if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
       static_assert(sizeof(unsigned long long int) == sizeof(size_t));
       auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
@@ -269,8 +267,10 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
                                       typename GraphViewType::vertex_type* components,
                                       bool do_expensive_check)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
+  using vertex_t    = typename GraphViewType::vertex_type;
+  using edge_t      = typename GraphViewType::edge_type;
+  using weight_t    = float;  // dummy
+  using edge_type_t = int32_t;
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
@@ -696,23 +696,21 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         handle.get_thrust_policy(), input_first, input_first + num_inserts, output_first);
 
       if (GraphViewType::is_multi_gpu) {
-        auto& comm           = handle.get_comms();
-        auto const comm_size = comm.get_size();
-        auto& row_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-        auto const row_comm_size = row_comm.get_size();
-        auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-        auto const col_comm_size = col_comm.get_size();
-
-        std::tie(edge_buffer, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
-          comm,
-          get_dataframe_buffer_begin(edge_buffer),
-          get_dataframe_buffer_end(edge_buffer),
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-               comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-            return key_func(thrust::get<0>(val), thrust::get<1>(val));
-          },
-          handle.get_stream());
+        std::tie(std::get<0>(edge_buffer),
+                 std::get<1>(edge_buffer),
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) =
+          detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
+            vertex_t,
+            edge_t,
+            weight_t,
+            edge_type_t>(handle,
+                         std::move(std::get<0>(edge_buffer)),
+                         std::move(std::get<1>(edge_buffer)),
+                         std::nullopt,
+                         std::nullopt,
+                         std::nullopt);
         auto edge_first = get_dataframe_buffer_begin(edge_buffer);
         auto edge_last  = get_dataframe_buffer_end(edge_buffer);
         thrust::sort(handle.get_thrust_policy(), edge_first, edge_last);
@@ -724,16 +722,18 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       }
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-      std::tie(level_graph, std::ignore, std::ignore, tmp_renumber_map) =
+      std::tie(level_graph, std::ignore, std::ignore, std::ignore, tmp_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    float /* dummy */,
+                                   edge_t /* dummy */,
                                    int32_t /* dummy */,
                                    GraphViewType::is_storage_transposed,
                                    GraphViewType::is_multi_gpu>(handle,
                                                                 std::nullopt,
                                                                 std::move(std::get<0>(edge_buffer)),
                                                                 std::move(std::get<1>(edge_buffer)),
+                                                                std::nullopt,
                                                                 std::nullopt,
                                                                 std::nullopt,
                                                                 graph_properties_t{true, false},
@@ -783,6 +783,8 @@ void weakly_connected_components(raft::handle_t const& handle,
                                  vertex_t* components,
                                  bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
   weakly_connected_components_impl(handle, graph_view, components, do_expensive_check);
 }
 

@@ -66,15 +66,14 @@ struct select_random_vertices_functor : public cugraph::c_api::abstract_functor 
 
       rmm::device_uvector<vertex_t> local_vertices(0, handle_.get_stream());
 
-      if (!multi_gpu || (handle_.get_comms().get_rank() == 0)) {
-        local_vertices = cugraph::select_random_vertices(
-          handle_, graph_view, rng_state_->rng_state_, static_cast<vertex_t>(num_vertices_), false);
-      }
-
-      if constexpr (multi_gpu) {
-        local_vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-          handle_, std::move(local_vertices), graph_view.vertex_partition_range_lasts());
-      }
+      local_vertices = cugraph::select_random_vertices(
+        handle_,
+        graph_view,
+        std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+        rng_state_->rng_state_,
+        num_vertices_,
+        false,
+        false);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,

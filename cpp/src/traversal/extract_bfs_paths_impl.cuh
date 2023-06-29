@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <detail/graph_utils.cuh>
+#include <detail/graph_partition_utils.cuh>
 #include <utilities/collect_comm.cuh>
 #include <utilities/graph_utils.cuh>
 
@@ -146,8 +146,13 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
   vertex_t const* destinations,
   size_t n_destinations)
 {
-  CUGRAPH_EXPECTS(distances != nullptr, "Invalid input argument: distances cannot be null");
-  CUGRAPH_EXPECTS(predecessors != nullptr, "Invalid input argument: predecessors cannot be null");
+  CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
+
+  CUGRAPH_EXPECTS((graph_view.local_vertex_partition_range_size() == 0) || (distances != nullptr),
+                  "Invalid input argument: distances cannot be null");
+  CUGRAPH_EXPECTS(
+    (graph_view.local_vertex_partition_range_size() == 0) || (predecessors != nullptr),
+    "Invalid input argument: predecessors cannot be null");
 
   CUGRAPH_EXPECTS((n_destinations == 0) || (destinations != nullptr),
                   "Invalid input argument: destinations cannot be null");
@@ -217,12 +222,11 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
                       detail::decrement_position{});
 
     if constexpr (multi_gpu) {
-      current_frontier = collect_values_for_int_vertices(handle.get_comms(),
+      current_frontier = collect_values_for_int_vertices(handle,
                                                          current_frontier.begin(),
                                                          current_frontier.end(),
                                                          predecessors,
-                                                         h_vertex_partition_range_lasts,
-                                                         handle.get_stream());
+                                                         h_vertex_partition_range_lasts);
     } else {
       thrust::transform(handle.get_thrust_policy(),
                         current_frontier.begin(),

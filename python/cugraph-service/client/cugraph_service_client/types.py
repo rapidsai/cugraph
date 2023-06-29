@@ -35,7 +35,7 @@ Offsets = spec.Offsets
 class UnionWrapper:
     """
     Provides easy conversions between py objs and Thrift "unions". This is used
-    as a base class for the "*Wrapper" classes below. Together with the derived
+    as a base class for the "Wrapper" classes below. Together with the derived
     classes below, these objects allow the caller to go from py objects/Thrift
     unions to Thrift unions/py objects.
     """

@@ -1,2 +1,0 @@
-include versioneer.py
-include cugraph-pyg/_version.py

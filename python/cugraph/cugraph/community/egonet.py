@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -132,13 +132,14 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     df = cudf.DataFrame()
     df["src"] = source
     df["dst"] = destination
-    df["weight"] = weight
+    if weight is not None:
+        df["weight"] = weight
 
     if G.renumbered:
         df, src_names = G.unrenumber(df, "src", get_column_names=True)
         df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
     else:
-        # FIXME: THe original 'src' and 'dst' are not stored in 'simpleGraph'
+        # FIXME: The original 'src' and 'dst' are not stored in 'simpleGraph'
         src_names = "src"
         dst_names = "dst"
 
