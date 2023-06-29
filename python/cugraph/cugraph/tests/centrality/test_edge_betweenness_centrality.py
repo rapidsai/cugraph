@@ -201,7 +201,7 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
     # on the same seed and then sample on the number of vertices themselves
     if seed is None:
         seed = 123  # We want the same sources so we use the same seed when
-                    # randomly selecting vertices both below and internally(plc)
+        # randomly selecting vertices both below and internally(plc)
     sources = G.select_random_vertices(seed, k)
 
     if G.renumbered:
@@ -355,7 +355,7 @@ def test_edge_betweenness_centrality_0(
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("use_k_full", [True])
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-#@pytest.mark.skip(reason="Skipping large tests")
+# @pytest.mark.skip(reason="Skipping large tests")
 def test_edge_betweenness_centrality_k_full(
     graph_file,
     directed,
@@ -397,7 +397,7 @@ def test_edge_betweenness_centrality_k_full(
 @pytest.mark.parametrize("subset_seed", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-#@pytest.mark.skip(reason="Skipping large tests")
+# @pytest.mark.skip(reason="Skipping large tests")
 def test_edge_betweenness_centrality_fixed_sample(
     graph_file,
     directed,
@@ -434,7 +434,7 @@ def test_edge_betweenness_centrality_fixed_sample(
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-#@pytest.mark.skip(reason="Skipping large tests")
+# @pytest.mark.skip(reason="Skipping large tests")
 def test_edge_betweenness_centrality_weight_except(
     graph_file,
     directed,
@@ -525,9 +525,14 @@ def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normaliz
             and cugraph_bc[i][0] == networkx_bc[i][0]
         ):
             err = err + 1
-            print("type c_bc = ", type(cugraph_bc[i][1]), " type nx_bc = ", type(networkx_bc[i][1]))
+            print(
+                "type c_bc = ",
+                type(cugraph_bc[i][1]),
+                " type nx_bc = ",
+                type(networkx_bc[i][1]),
+            )
             diff = abs(cugraph_bc[i][1] - networkx_bc[i][1])
-            #diff = abs(cugraph_bc[i][1] - 2)
+            # diff = abs(cugraph_bc[i][1] - 2)
             print(f"{cugraph_bc[i][1]} and {networkx_bc[i][1]} ---- diff = {diff}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_bc))

@@ -16,7 +16,6 @@ from pylibcugraph import (
     edge_betweenness_centrality as pylibcugraph_edge_betweenness_centrality,
     ResourceHandle,
 )
-from cugraph.centrality import edge_betweenness_centrality_wrapper
 
 from cugraph.utilities import (
     df_edge_score_to_dictionary,
@@ -26,7 +25,6 @@ from cugraph.utilities import (
 import cudf
 import warnings
 import numpy as np
-import random
 from typing import Union
 
 
@@ -305,7 +303,8 @@ def edge_betweenness_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # FIXME: Does the new implementation support weights 'test_edge_betweenness_centrality_weight_except'
+    # FIXME: Does the new implementation support weights
+    # 'test_edge_betweenness_centrality_weight_except'
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
             vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
@@ -318,15 +317,19 @@ def edge_betweenness_centrality(
     # FIXME: src, dst and edge_ids need to be of the same type which should not
     # be the case
 
-    src_vertices, dst_vertices, values, edge_ids = \
-        pylibcugraph_edge_betweenness_centrality(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            k=k,
-            random_state=seed,
-            normalized=normalized,
-            do_expensive_check=False,
-        )
+    (
+        src_vertices,
+        dst_vertices,
+        values,
+        edge_ids,
+    ) = pylibcugraph_edge_betweenness_centrality(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        k=k,
+        random_state=seed,
+        normalized=normalized,
+        do_expensive_check=False,
+    )
 
     df = cudf.DataFrame()
     df["src"] = src_vertices
@@ -338,7 +341,7 @@ def edge_betweenness_centrality(
     if G.renumbered:
         df = G.unrenumber(df, "src")
         df = G.unrenumber(df, "dst")
-    
+
     if df["betweenness_centrality"].dtype != result_dtype:
         df["betweenness_centrality"] = df["betweenness_centrality"].astype(result_dtype)
 
