@@ -305,21 +305,7 @@ def edge_betweenness_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # FIXME: remove this function****************
     # FIXME: Does the new implementation support weights 'test_edge_betweenness_centrality_weight_except'
-    """
-    vertices = cudf.Series(_initialize_vertices(G, k, seed))
-
-    print("vertices = ", vertices.to_arrow().tolist())
-    print("type of vertices = ", type(vertices))
-    """
-
-    """
-    df = edge_betweenness_centrality_wrapper.edge_betweenness_centrality(
-        G, normalized, weight, vertices, result_dtype
-    )
-    """
-
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
             vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
@@ -375,44 +361,3 @@ def edge_betweenness_centrality(
         return df_edge_score_to_dictionary(df, "betweenness_centrality")
     else:
         return df
-
-
-# In order to compare with pre-set sources,
-# k can either be a list or an integer or None
-#  int: Generate an random sample with k elements
-# list: k become the length of the list and vertices become the content
-# None: All the vertices are considered
-def _initialize_vertices(G, k: Union[int, list], seed: int) -> np.ndarray:
-    vertices = None
-    numpy_vertices = None
-    if k is not None:
-        if isinstance(k, int):
-            vertices = _initialize_vertices_from_indices_sampling(G, k, seed)
-        elif isinstance(k, list):
-            vertices = _initialize_vertices_from_identifiers_list(G, k)
-        numpy_vertices = np.array(vertices, dtype=np.int32)
-    else:
-        numpy_vertices = np.arange(G.number_of_vertices(), dtype=np.int32)
-    return numpy_vertices
-
-
-# NOTE: We do not renumber in case k is an int, the sampling is
-#       not operating on the valid vertices identifiers but their
-#       indices:
-# Example:
-# - vertex '2' is missing
-# - vertices '0' '1' '3' '4' exist
-# - There is a vertex at index 2 (there is not guarantee that it is
-#   vertice '3' )
-def _initialize_vertices_from_indices_sampling(G, k: int, seed: int) -> list:
-    random.seed(seed)
-    vertices = random.sample(range(G.number_of_vertices()), k)
-    return vertices
-
-
-def _initialize_vertices_from_identifiers_list(G, identifiers: list) -> np.ndarray:
-    vertices = identifiers
-    if G.renumbered:
-        vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()
-
-    return vertices
