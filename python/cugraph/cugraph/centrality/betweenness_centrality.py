@@ -48,8 +48,8 @@ def betweenness_centrality(
     To improve performance. rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
-    CuGraph does not currently support the 'endpoints' and 'weight' parameters
-    as seen in the corresponding networkX call.
+    CuGraph does not currently support 'weight' parameters as seen in the
+    corresponding networkX call.
 
     Parameters
     ----------
@@ -279,6 +279,9 @@ def edge_betweenness_centrality(
 
         df['betweenness_centrality'] : cudf.Series
             Contains the betweenness centrality of edges
+        
+        df["edge_id"] : cudf.Series
+            Contains the edge ids of edges if there are.
 
         When using undirected graphs, 'src' and 'dst' only contains elements
         such that 'src' < 'dst', which might differ from networkx and user's
