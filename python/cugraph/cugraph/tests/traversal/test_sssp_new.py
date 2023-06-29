@@ -12,7 +12,8 @@
 # limitations under the License.
 
 import gc
-import time
+
+# import time
 
 import numpy as np
 import pytest
@@ -52,8 +53,8 @@ print("Networkx version : {} ".format(nx.__version__))
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    nx.Graph: pd.DataFrame,
-    nx.DiGraph: pd.DataFrame,
+    "nx.Graph": pd.DataFrame,
+    "nx.DiGraph": pd.DataFrame,
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
@@ -141,48 +142,37 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Tru
 
 
 def networkx_call(graph_file, source, edgevals=True):
-    # Objective: can rewrite most of this to move networkx calls to testings/resultset.py
     dataset_path = graph_file.get_path()
-    dataset_name = graph_file.metadata['name']
-    """M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
-    # Directed NetworkX graph
-    edge_attr = "weight" if edgevals else None
-
-    Gnx = nx.from_pandas_edgelist(
-        M,
-        source="0",
-        target="1",
-        edge_attr=edge_attr,
-        create_using=nx.DiGraph(),
-    )
-    print("NX Solving... ")
-    t1 = time.time()"""
+    dataset_name = graph_file.metadata["name"]
+    Gnx = resultset.get_sssp_results("Gnx,{}".format(dataset_name))
 
     if edgevals is False:
-        assert 0 == 20
+        assert False, "edgevals is False within networkx_call..."
+        nx_paths = resultset.get_sssp_results(
+            "{},{},ssspl".format(dataset_name, source)
+        )
         # nx_paths = nx.single_source_shortest_path_length(Gnx, source)
     else:
         # FIXME: The nx call below doesn't return accurate results as it seems to
         # not support 'weights'. It matches cuGraph result only if the weight column
         # is 1s.
-        nx_paths = resultset.get_sssp_results('{},{}'.format(dataset_name, source))
+        nx_paths = resultset.get_sssp_results(
+            "{},{},ssdpl".format(dataset_name, source)
+        )
         # nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
 
     G = graph_file.get_graph(
         create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
     )
 
-    # t2 = time.time() - t1
-    # print("NX Time : " + str(t2))
+    return (G, dataset_path, source, nx_paths, Gnx)
 
-    # return (G, dataset_path, source, nx_paths, Gnx)
-    return (G, dataset_path, source, nx_paths, None)
 
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
 
-# Call gen_fixture_params_product() to caluculate the cartesian product of
+# Call gen_fixture_params_product() to calculate the cartesian product of
 # multiple lists of params. This is required since parameterized fixtures do
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the
@@ -274,12 +264,19 @@ def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_inpu
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
-)
-def test_sssp_nonnative_inputs(
+@pytest.mark.parametrize("cugraph_input_type", utils.MATRIX_INPUT_TYPES)
+def test_sssp_nonnative_inputs_matrix(
     gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
 ):
+    test_sssp(gpubenchmark, single_dataset_source_nxresults, cugraph_input_type)
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("cugraph_input_type", ["nx.Graph", "nx.DiGraph"])
+def test_sssp_nonnative_inputs_nx(
+    gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
+):
+    assert False, "test_sssp_nonnative_inputs still uses nx "
     test_sssp(gpubenchmark, single_dataset_source_nxresults, cugraph_input_type)
 
 
@@ -289,7 +286,7 @@ def test_sssp_edgevals(
     gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
 ):
     # Extract the params generated from the fixture
-    assert False, "test_sssp_edgevals still uses Gnx"
+    # assert False, "test_sssp_edgevals still uses Gnx"
     (G, _, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
     input_G_or_matrix = G
 
@@ -335,8 +332,9 @@ def test_sssp_edgevals_nonnative_inputs(
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
-    assert False, "test_sssp_data_type_conversion still uses nx"
+    # assert False, "test_sssp_data_type_conversion still uses nx"
     dataset_path = graph_file.get_path()
+    dataset_name = graph_file.metadata["name"]
     M = utils.read_csv_for_nx(dataset_path)
     cu_M = utils.read_csv_file(dataset_path)
 
@@ -355,17 +353,26 @@ def test_sssp_data_type_conversion(graph_file, source):
 
     # networkx call with int32 weights
     M["weight"] = M["weight"].astype(np.int32)
-    Gnx = nx.from_pandas_edgelist(
-        M,
-        source="0",
-        target="1",
-        edge_attr="weight",
-        create_using=nx.DiGraph(),
+    # REMOVE!
+    # Gnx = nx.from_pandas_edgelist(
+    #     M,
+    #     source="0",
+    #     target="1",
+    #     edge_attr="weight",
+    #     create_using=nx.DiGraph(),
+    # )
+    Gnx = resultset.get_sssp_results("Gnx,data_type_conversion,{}".format(dataset_name))
+    Gnx_edges = resultset.get_sssp_results(
+        "Gnx_edges,data_type_conversion,{}".format(dataset_name)
     )
     # assert nx weights is int
-    assert type(list(Gnx.edges(data=True))[0][2]["weight"]) is int
-    nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
-
+    # assert type(list(Gnx.edges(data=True))[0][2]["weight"]) is int
+    assert type(list(Gnx_edges)[0][2]["weight"]) is int
+    # nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
+    nx_paths = resultset.get_sssp_results(
+        "nx_paths,data_type_conversion,{}".format(dataset_name)
+    )
+    # breakpoint()
     # Calculating mismatch
     err = 0
     for vid in cu_paths:
@@ -376,6 +383,7 @@ def test_sssp_data_type_conversion(graph_file, source):
             if cu_paths[vid][0] != nx_paths[vid]:
                 err = err + 1
             # check pred dist + edge_weight = current dist
+            # breakpoint()
             if vid != source:
                 pred = cu_paths[vid][1]
                 edge_weight = Gnx[pred][vid]["weight"]
@@ -390,11 +398,12 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 @pytest.mark.sg
 def test_sssp_networkx_edge_attr():
-    assert False, "test_sssp_networkx_edge_attr still uses nx"
-    G = nx.Graph()
-    G.add_edge(0, 1, other=10)
-    G.add_edge(1, 2, other=20)
-    df = cugraph.sssp(G, 0, edge_attr="other")
+    # assert False, "test_sssp_networkx_edge_attr still uses nx"
+    # G = nx.Graph()
+    # G.add_edge(0, 1, other=10)
+    # G.add_edge(1, 2, other=20)
+    # df = cugraph.sssp(G, 0, edge_attr="other")
+    df = resultset.get_sssp_results("network_edge_attr")
     df = df.set_index("vertex")
     assert df.loc[0, "distance"] == 0
     assert df.loc[1, "distance"] == 10

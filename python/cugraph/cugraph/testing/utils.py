@@ -413,6 +413,7 @@ def compare_mst(mst_cugraph, mst_nx):
     print(nx_sum)
     assert np.isclose(cg_sum, nx_sum)
 
+
 """
 class Resultset:
     A Resultset Object, used to extract specific results from a networkX algo,
@@ -439,21 +440,14 @@ class Resultset:
     settings, algorithm details, and other pertinent information.
 
     At first, resultset will create graph objects (if needed) and then apply algorithmic
-    calls to them, but this will become an Object that stored these results on a repo and will
-    simply pull from there.
+    calls to them, but this will become an Object that stored these results on a repo
+    and will simply pull from there.
     if create_graph:
         # Do the logic for utils.generate_nx_graph_from_file here
-        graph_file, directed, edgevals = graph_args['graph_file'], graph_args['directed'], graph_args['edgevals']
+        graph_file = graph_args['graph_file']
+        directed = graph_args['directed']
+        edgevals = graph_args['edgevals']
         Gnx = generate_cugraph_graph_from_file(graph_file, directed, edgevals)
     else:
-        Gnx = args['graph']    
-
-    if alg_name == 'single_source_shortest_path_length':
-        source, cutoff = args['source'], args['cutoff']
-        return nx.single_source_shortest_path_length(Gnx, source, cutoff)
-    elif alg_name == '_single_source_shortest_path_basic':
-        Gnx, source = args['graph'], args['source']
-        return nxacb._single_source_shortest_path_basic(Gnx, source)
-    elif alg_name == 'nodes':
-        return Gnx.nodes()
+        Gnx = args['graph']
 """
