@@ -19,7 +19,7 @@ from cugraph.datasets.dataset import (
     load_all,
     set_download_dir,
     get_download_dir,
-    default_download_dir
+    default_download_dir,
 )
 from cugraph.datasets import metadata
 
