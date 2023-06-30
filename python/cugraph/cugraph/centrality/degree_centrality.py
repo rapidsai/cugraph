@@ -45,7 +45,7 @@ def degree_centrality(G, normalized=True):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> dc = cugraph.degree_centrality(G)
 

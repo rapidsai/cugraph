@@ -198,7 +198,7 @@ def sssp(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> distances = cugraph.sssp(G, 0)
     >>> distances

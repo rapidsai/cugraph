@@ -124,7 +124,7 @@ class EXPERIMENTAL__BulkSampler:
         --------
         >>> import cudf
         >>> from cugraph.experimental.gnn import BulkSampler
-        >>> from cugraph.experimental.datasets import karate
+        >>> from cugraph.datasets import karate
         >>> import tempfile
         >>> df = cudf.DataFrame({
         ...     "start_vid": [0, 4, 2, 3, 9, 11],
