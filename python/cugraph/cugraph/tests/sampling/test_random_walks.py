@@ -21,7 +21,7 @@ import cugraph
 import cudf
 import networkx as nx
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
+from cugraph.datasets import DATASETS, DATASETS_SMALL
 
 # =============================================================================
 # Parameters

@@ -17,7 +17,7 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
+from cugraph.datasets import DATASETS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings

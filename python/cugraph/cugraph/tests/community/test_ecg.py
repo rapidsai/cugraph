@@ -18,7 +18,7 @@ import networkx as nx
 import cugraph
 
 from cugraph.testing import utils
-from cugraph.experimental.datasets import karate, dolphins, netscience
+from cugraph.datasets import karate, dolphins, netscience
 
 from pathlib import PurePath
 

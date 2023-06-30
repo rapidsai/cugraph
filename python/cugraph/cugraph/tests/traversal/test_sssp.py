@@ -27,7 +27,7 @@ from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
 import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
+from cugraph.datasets import DATASETS_UNDIRECTED
 
 import cugraph
 from cugraph.testing import utils

@@ -23,7 +23,7 @@ import cudf
 import cupy
 
 import networkx as nx
-from cugraph.experimental.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
+from cugraph.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
 
 
 # =============================================================================

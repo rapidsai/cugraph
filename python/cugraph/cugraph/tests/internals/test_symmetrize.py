@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.experimental.datasets import DATASETS
+from cugraph.datasets import DATASETS
 
 
 @pytest.mark.sg

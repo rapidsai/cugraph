@@ -19,7 +19,7 @@ import numpy as np
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
+from cugraph.datasets import DATASETS
 
 
 # =============================================================================

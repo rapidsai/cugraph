@@ -46,7 +46,7 @@ except ImportError:
 
 import cugraph
 from cugraph.generators import rmat
-from cugraph.experimental.datasets import cyber
+from cugraph.datasets import cyber
 
 
 def type_is_categorical(pG):

@@ -21,7 +21,7 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED_WEIGHTS
+from cugraph.datasets import DATASETS_UNDIRECTED_WEIGHTS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings

@@ -23,7 +23,7 @@ from cugraph.experimental import overlap as exp_overlap
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
+from cugraph.datasets import DATASETS_UNDIRECTED
 
 
 # =============================================================================

@@ -17,7 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import (
+from cugraph.datasets import (
     toy_graph,
     karate,
     DATASETS_UNDIRECTED,

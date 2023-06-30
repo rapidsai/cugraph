@@ -21,7 +21,7 @@ import pytest
 
 from cugraph.structure import Graph
 from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.experimental.datasets import (
+from cugraph.datasets import (
     ALL_DATASETS,
     ALL_DATASETS_WGT,
     SMALL_DATASETS,
@@ -158,7 +158,7 @@ def test_create_using(dataset):
 
 
 def test_ctor_with_datafile():
-    from cugraph.experimental.datasets import karate
+    from cugraph.datasets import karate
 
     karate_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
 

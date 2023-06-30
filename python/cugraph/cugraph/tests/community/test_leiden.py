@@ -20,7 +20,7 @@ import networkx as nx
 import cugraph
 import cudf
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
+from cugraph.datasets import DATASETS_UNDIRECTED, karate_asymmetric
 
 from cudf.testing.testing import assert_series_equal
 

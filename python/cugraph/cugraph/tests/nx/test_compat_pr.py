@@ -25,7 +25,7 @@ import numpy as np
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 from cugraph.testing import utils
-from cugraph.experimental.datasets import karate
+from cugraph.datasets import karate
 
 
 MAX_ITERATIONS = [100, 200]

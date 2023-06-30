@@ -20,7 +20,7 @@ from cugraph.testing import utils
 
 import numpy as np
 from numba import cuda
-from cugraph.experimental.datasets import DATASETS_KTRUSS, karate_asymmetric
+from cugraph.datasets import DATASETS_KTRUSS, karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

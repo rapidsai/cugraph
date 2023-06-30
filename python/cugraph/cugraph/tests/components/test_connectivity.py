@@ -24,7 +24,7 @@ from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
-from cugraph.experimental.datasets import DATASETS, STRONGDATASETS
+from cugraph.datasets import DATASETS, STRONGDATASETS
 from cugraph.utilities import is_nx_graph_type
 
 import cudf

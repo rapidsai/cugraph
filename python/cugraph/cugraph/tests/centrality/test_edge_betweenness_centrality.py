@@ -17,7 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
+from cugraph.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
 import random
 import numpy as np
 import cupy

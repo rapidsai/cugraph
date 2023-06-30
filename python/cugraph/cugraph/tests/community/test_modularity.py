@@ -20,7 +20,7 @@ import cudf
 import cugraph
 from cugraph.testing import utils
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS
+from cugraph.datasets import DATASETS
 
 import networkx as nx
 

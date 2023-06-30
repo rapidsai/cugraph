@@ -20,7 +20,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS, karate
+from cugraph.datasets import DATASETS, karate
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings

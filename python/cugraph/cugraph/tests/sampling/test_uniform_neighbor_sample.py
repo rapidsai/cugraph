@@ -19,7 +19,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
 from cugraph import uniform_neighbor_sample
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
+from cugraph.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
 
 # =============================================================================
