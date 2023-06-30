@@ -18,6 +18,9 @@ from typing import Union
 import cudf
 import dask_cudf
 
+from dask.distributed import wait
+from dask.distributed import futures_of
+
 import cugraph
 import pylibcugraph
 
@@ -190,7 +193,7 @@ class EXPERIMENTAL__BulkSampler:
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
-        min_batch_id = self.__batches[self.batch_col_name].min()
+        min_batch_id = int(self.__batches[self.batch_col_name].min().compute())
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_call = (
             self.seeds_per_call + partition_size - 1
@@ -253,6 +256,10 @@ class EXPERIMENTAL__BulkSampler:
 
         # Write batches to parquet
         self.__write(samples, offsets)
+        wait([f.release() for f in futures_of(samples)] + [f.release() for f in futures_of(offsets)])
+
+        del samples
+        del offsets
 
         end_time_write = time.perf_counter()
         write_runtime = end_time_write - start_time_write

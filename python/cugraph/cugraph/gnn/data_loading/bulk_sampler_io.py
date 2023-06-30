@@ -24,7 +24,7 @@ def _write_samples_to_parquet(
     batches_per_partition: int,
     output_path: str,
     partition_info: Optional[Union[dict, str]] = None,
-) -> None:
+) -> cudf.Series:
     """
     Writes the samples to parquet.
     results: cudf.DataFrame
@@ -40,6 +40,8 @@ def _write_samples_to_parquet(
         Either a dictionary containing partition data from dask, the string 'sg'
         indicating that this is a single GPU write, or None indicating that this
         function should perform a no-op (required by dask).
+    
+    Returns an empty cudf series.
     """
 
     # Required by dask; need to skip dummy partitions.
@@ -71,6 +73,7 @@ def _write_samples_to_parquet(
         ).values
         results_p.to_parquet(full_output_path, compression=None, index=False)
 
+    return cudf.Series(dtype='int64')
 
 def write_samples(
     results: cudf.DataFrame,
@@ -97,7 +100,9 @@ def write_samples(
             batches_per_partition,
             output_path,
             align_dataframes=False,
+            meta=cudf.Series(dtype='int64')
         ).compute()
+
     else:
         _write_samples_to_parquet(
             results, offsets, batches_per_partition, output_path, partition_info="sg"
