@@ -46,7 +46,7 @@ def _write_samples_to_parquet(
 
     # Required by dask; need to skip dummy partitions.
     if partition_info is None or len(results) == 0:
-        return
+        return cudf.Series(dtype='int64')
     if partition_info != "sg" and (not isinstance(partition_info, dict)):
         raise ValueError("Invalid value of partition_info")
 
