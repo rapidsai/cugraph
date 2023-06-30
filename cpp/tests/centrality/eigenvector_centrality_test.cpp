@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -167,10 +167,15 @@ class Tests_EigenvectorCentrality
     }
 
     if (eigenvector_usecase.check_correctness) {
-      auto [dst_v, src_v, opt_wgt_v] = cugraph::decompress_to_edgelist(
+      rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
+      rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
+      std::optional<rmm::device_uvector<weight_t>> opt_wgt_v{std::nullopt};
+
+      std::tie(dst_v, src_v, opt_wgt_v, std::ignore) = cugraph::decompress_to_edgelist(
         handle,
         graph_view,
         edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
         std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
       auto h_src     = cugraph::test::to_host(handle, src_v);
