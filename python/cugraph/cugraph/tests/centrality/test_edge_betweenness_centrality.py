@@ -320,7 +320,7 @@ def generate_upper_triangle(dataframe):
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_edge_betweenness_centrality_0(
+def test_edge_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
@@ -330,7 +330,6 @@ def test_edge_betweenness_centrality_0(
     result_dtype,
     edgevals,
 ):
-    # test_edge_betweenness_centrality[False-float32-42-None-False-4-False-graph_file0]
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
         directed=directed,
