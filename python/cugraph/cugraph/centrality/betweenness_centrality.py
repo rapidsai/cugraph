@@ -136,7 +136,6 @@ def betweenness_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # FIXME: Should we raise an error if the graph created is weighted?
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
