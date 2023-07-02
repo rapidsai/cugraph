@@ -40,7 +40,7 @@ def convert_to_cudf(cp_arrays: cp.ndarray, edge_bc: bool) -> cudf.DataFrame:
         df["dst"] = cupy_dst_vertices
         df["betweenness_centrality"] = cupy_values
         if cupy_edge_ids is not None:
-            df["edge_ids"] = cupy_edge_ids
+            df["edge_id"] = cupy_edge_ids
 
     else:
         cupy_vertices, cupy_values = cp_arrays
@@ -124,6 +124,7 @@ def betweenness_centrality(
         int, list, cudf.Series, cudf.DataFrame, dask_cudf.Series, dask_cudf.DataFrame
     ] = None,
     normalized: bool = True,
+    weight: cudf.DataFrame = None,
     endpoints: bool = False,
     random_state: int = None,
 ) -> dask_cudf.DataFrame:
@@ -159,6 +160,11 @@ def betweenness_centrality(
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
+    
+    weight : (dask)cudf.DataFrame, optional (default=None)
+        Specifies the weights to be used for each edge.
+        Should contain a mapping between
+        edges and weights.
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
@@ -206,6 +212,12 @@ def betweenness_centrality(
             "the graph creation"
         )
         warnings.warn(warning_msg, UserWarning)
+    
+    if weight is not None:
+        raise NotImplementedError(
+            "weighted implementation of betweenness "
+            "centrality not currently supported"
+        )
 
     if not isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
         if isinstance(k, (cudf.DataFrame, cudf.Series, list)):
@@ -261,6 +273,7 @@ def edge_betweenness_centrality(
         int, list, cudf.Series, cudf.DataFrame, dask_cudf.Series, dask_cudf.DataFrame
     ] = None,
     normalized: bool = True,
+    weight: cudf.DataFrame = None,
     random_state: int = None,
 ) -> dask_cudf.DataFrame:
     """
@@ -295,6 +308,11 @@ def edge_betweenness_centrality(
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
+    
+    weight : (dask)cudf.DataFrame, optional (default=None)
+        Specifies the weights to be used for each edge.
+        Should contain a mapping between
+        edges and weights.
 
     random_state : int, optional (default=None)
         if k is specified and k is an integer, use random_state to initialize the
@@ -346,6 +364,12 @@ def edge_betweenness_centrality(
             "the graph creation"
         )
         warnings.warn(warning_msg, UserWarning)
+    
+    if weight is not None:
+        raise NotImplementedError(
+            "weighted implementation of edge betweenness "
+            "centrality not currently supported"
+        )
 
     if not isinstance(k, (dask_cudf.DataFrame, dask_cudf.Series)):
         if isinstance(k, (cudf.DataFrame, cudf.Series, list)):
@@ -391,5 +415,15 @@ def edge_betweenness_centrality(
 
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, "vertex")
+
+    if input_graph.is_directed() is False:
+        # swap the src and dst vertices for the lower triangle only. Because
+        # this is a symmeterized graph, this operation results in a df with
+        # multiple src/dst entries.
+        ddf['src'], ddf['dst'] = ddf[["src", "dst"]].min(axis=1), ddf[["src", "dst"]].max(axis=1)
+        # overwrite the df with the sum of the values for all alike src/dst
+        # vertex pairs, resulting in half the edges of the original df from the
+        # symmeterized graph.
+        ddf = ddf.groupby(by=["src", "dst"]).sum().reset_index()
 
     return ddf
