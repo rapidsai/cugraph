@@ -160,7 +160,7 @@ def betweenness_centrality(
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
-    
+
     weight : (dask)cudf.DataFrame, optional (default=None)
         Specifies the weights to be used for each edge.
         Should contain a mapping between
@@ -212,7 +212,7 @@ def betweenness_centrality(
             "the graph creation"
         )
         warnings.warn(warning_msg, UserWarning)
-    
+
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
@@ -308,7 +308,7 @@ def edge_betweenness_centrality(
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
-    
+
     weight : (dask)cudf.DataFrame, optional (default=None)
         Specifies the weights to be used for each edge.
         Should contain a mapping between
@@ -364,7 +364,7 @@ def edge_betweenness_centrality(
             "the graph creation"
         )
         warnings.warn(warning_msg, UserWarning)
-    
+
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of edge betweenness "
@@ -420,7 +420,9 @@ def edge_betweenness_centrality(
         # swap the src and dst vertices for the lower triangle only. Because
         # this is a symmeterized graph, this operation results in a df with
         # multiple src/dst entries.
-        ddf['src'], ddf['dst'] = ddf[["src", "dst"]].min(axis=1), ddf[["src", "dst"]].max(axis=1)
+        ddf["src"], ddf["dst"] = ddf[["src", "dst"]].min(axis=1), ddf[
+            ["src", "dst"]
+        ].max(axis=1)
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.

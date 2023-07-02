@@ -22,7 +22,6 @@ import cugraph
 import cugraph.dask as dcg
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing import utils
 
 
 # =============================================================================
@@ -44,6 +43,7 @@ SUBSET_SEED_OPTIONS = [42]
 
 # FIXME: edge_bc fails on 8 GPU when running the email_Eu_core datasets
 # with directed graph. Passes with undirected graph
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 datasets = DATASETS_UNDIRECTED
 
 
@@ -69,14 +69,20 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip((
-        "graph_file",
-        "directed",
-        "include_weights",
-        "include_edge_ids",
-        "normalized",
-        "subset_size",
-        "subset_seed"), request.param))
+    parameters = dict(
+        zip(
+            (
+                "graph_file",
+                "directed",
+                "include_weights",
+                "include_edge_ids",
+                "normalized",
+                "subset_size",
+                "subset_seed",
+            ),
+            request.param,
+        )
+    )
 
     return parameters
 
@@ -88,7 +94,7 @@ def input_expected_output(input_combo):
     (based on cuGraph HITS) which can be used for validation.
     """
 
-    #input_data_path = input_combo["graph_file"]
+    # input_data_path = input_combo["graph_file"]
     directed = input_combo["directed"]
     normalized = input_combo["normalized"]
     k = input_combo["subset_size"]
@@ -96,37 +102,35 @@ def input_expected_output(input_combo):
     edge_ids = input_combo["include_edge_ids"]
     weight = input_combo["include_weights"]
 
-    #G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
+    # G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
     df = input_combo["graph_file"].get_edgelist()
     if edge_ids:
         dtype = df.dtypes[0]
         edge_id = "edge_id"
         df["edge_id"] = df.index
         df = df.astype(dtype)
-        
+
     else:
-        edge_id=None
-    
+        edge_id = None
+
     G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(
-        df,
-        source="src",
-        destination="dst",
-        weight="wgt",
-        edge_id = edge_id
+        df, source="src", destination="dst", weight="wgt", edge_id=edge_id
     )
     if isinstance(k, int):
         k = G.select_random_vertices(subset_seed, k)
-    sg_cugraph_edge_bc = cugraph.edge_betweenness_centrality(
-        G, k, normalized)
-    
+    sg_cugraph_edge_bc = cugraph.edge_betweenness_centrality(G, k, normalized)
+
     input_combo["k"] = k
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
-    sg_cugraph_edge_bc = cugraph.edge_betweenness_centrality(G, k, normalized).sort_values(
-        ["src", "dst"]).reset_index(drop=True)
-    
+    sg_cugraph_edge_bc = (
+        cugraph.edge_betweenness_centrality(G, k, normalized)
+        .sort_values(["src", "dst"])
+        .reset_index(drop=True)
+    )
+
     input_data_path = input_combo["graph_file"].get_path()
 
     input_combo["sg_cugraph_results"] = sg_cugraph_edge_bc
@@ -150,7 +154,7 @@ def input_expected_output(input_combo):
         ddf = ddf.assign(idx=1)
         ddf["edge_id"] = ddf.idx.cumsum().astype(dtype) - 1
     else:
-        edge_id=None
+        edge_id = None
 
     dg = cugraph.Graph(directed=directed)
 
@@ -178,7 +182,9 @@ def input_expected_output(input_combo):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.mg
-def test_dask_edge_betweenness_centrality(dask_client, benchmark, input_expected_output):
+def test_dask_edge_betweenness_centrality(
+    dask_client, benchmark, input_expected_output
+):
 
     dg = input_expected_output["MGGraph"]
     k = input_expected_output["k"]
@@ -192,39 +198,41 @@ def test_dask_edge_betweenness_centrality(dask_client, benchmark, input_expected
 
     else:
         result_edge_bc = benchmark(
-                dcg.edge_betweenness_centrality, dg, k, normalized, weight=weight
-            )
+            dcg.edge_betweenness_centrality, dg, k, normalized, weight=weight
+        )
         result_edge_bc = (
             result_edge_bc.compute()
             .sort_values(["src", "dst"])
             .reset_index(drop=True)
-            .rename(
-                columns={"betweenness_centrality": "mg_betweenness_centrality"}
-            )
+            .rename(columns={"betweenness_centrality": "mg_betweenness_centrality"})
         )
 
         if len(result_edge_bc.columns) > 3:
             result_edge_bc = result_edge_bc.rename(columns={"edge_id": "mg_edge_id"})
 
-        expected_output = (
-            input_expected_output["sg_cugraph_results"]
-            .reset_index(drop=True)
+        expected_output = input_expected_output["sg_cugraph_results"].reset_index(
+            drop=True
         )
 
         # Update the dask cugraph HITS results with sg cugraph results for easy
         # comparison using cuDF DataFrame methods.
-        result_edge_bc["betweenness_centrality"] = expected_output["betweenness_centrality"]
+        result_edge_bc["betweenness_centrality"] = expected_output[
+            "betweenness_centrality"
+        ]
         if len(expected_output.columns) > 3:
             result_edge_bc["edge_id"] = expected_output["edge_id"]
             edge_id_diff = result_edge_bc.query("mg_edge_id != edge_id")
             assert len(edge_id_diff) == 0
 
-        edge_bc_diffs1 = result_edge_bc.query("mg_betweenness_centrality - betweenness_centrality > 0.0001")
-        edge_bc_diffs2 = result_edge_bc.query("betweenness_centrality - mg_betweenness_centrality < -0.0001")
-        
+        edge_bc_diffs1 = result_edge_bc.query(
+            "mg_betweenness_centrality - betweenness_centrality > 0.0001"
+        )
+        edge_bc_diffs2 = result_edge_bc.query(
+            "betweenness_centrality - mg_betweenness_centrality < -0.0001"
+        )
+
         assert len(edge_bc_diffs1) == 0
         assert len(edge_bc_diffs2) == 0
-
 
 
 """
@@ -254,7 +262,3 @@ def test_dask_hits_transposed_false(dask_client):
     with pytest.warns(UserWarning, match=warning_msg):
         dcg.hits(dg)
 """
-
-
-
-
