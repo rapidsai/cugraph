@@ -38,20 +38,3 @@ toy_graph = Dataset(meta_path / "toy_graph.yaml")
 toy_graph_undirected = Dataset(meta_path / "toy_graph_undirected.yaml")
 email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
 ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
-
-# batches
-DATASETS_UNDIRECTED = [karate, dolphins]
-DATASETS_UNDIRECTED_WEIGHTS = [netscience]
-DATASETS_SMALL = [karate, dolphins, polbooks]
-STRONGDATASETS = [dolphins, netscience, email_Eu_core]
-DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
-MEDIUM_DATASETS = [polbooks]
-SMALL_DATASETS = [karate, dolphins, netscience]
-RLY_SMALL_DATASETS = [small_line, small_tree]
-ALL_DATASETS = [karate, dolphins, netscience, polbooks, small_line, small_tree]
-ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks, small_line, small_tree]
-TEST_GROUP = [dolphins, netscience]
-
-# FIXME: removed karate variant. check if unit tests are breaking
-DATASETS_UNRENUMBERED = []
-DATASETS = [dolphins, netscience]

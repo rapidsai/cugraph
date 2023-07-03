@@ -21,12 +21,12 @@ import pytest
 
 from cugraph.structure import Graph
 from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.experimental.datasets import (
+from cugraph.testing import (
     ALL_DATASETS,
     ALL_DATASETS_WGT,
     SMALL_DATASETS,
 )
-from cugraph.experimental import datasets
+from cugraph import datasets
 
 # Add the sg marker to all tests in this module.
 pytestmark = pytest.mark.sg
