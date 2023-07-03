@@ -26,14 +26,14 @@ dgl = import_optional("dgl")
 
 
 @pytest.mark.parametrize("beta", [False, True])
-@pytest.mark.parametrize("bipartite", [False, True])
+@pytest.mark.parametrize("bipartite_node_feats", [False, True])
 @pytest.mark.parametrize("concat", [False, True])
 @pytest.mark.parametrize("idtype_int", [False, True])
 @pytest.mark.parametrize("num_heads", [1, 2, 3, 4])
 @pytest.mark.parametrize("to_block", [False, True])
 @pytest.mark.parametrize("use_edge_feats", [False, True])
 def test_TransformerConv(
-    beta, bipartite, concat, idtype_int, num_heads, to_block, use_edge_feats
+    beta, bipartite_node_feats, concat, idtype_int, num_heads, to_block, use_edge_feats
 ):
     device = "cuda"
     g = create_graph1().to(device)
@@ -44,7 +44,7 @@ def test_TransformerConv(
     if to_block:
         g = dgl.to_block(g)
 
-    if bipartite:
+    if bipartite_node_feats:
         in_node_feats = (5, 3)
         nfeat = (
             torch.rand(g.num_src_nodes(), in_node_feats[0], device=device),
