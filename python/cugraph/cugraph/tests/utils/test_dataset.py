@@ -239,3 +239,29 @@ def test_unload():
     assert ds._edgelist is not None
     ds.unload()
     assert ds._edgelist is None
+
+
+# TODO: check for all datasets
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_node_and_edge_count(dataset):
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
+
+    # these are the values read directly from .yaml file
+    meta_node_count = dataset.metadata["number_of_nodes"]
+    meta_edge_count = dataset.metadata["number_of_edges"]
+
+    # value from the cugraph.Graph object
+    obj_node_count = G.number_of_nodes()
+    obj_edge_count = G.number_of_edges()
+
+    assert obj_node_count == meta_node_count
+    assert obj_edge_count == meta_edge_count
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_directed(dataset):
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
+
+    assert G.is_directed() == dataset.metadata["is_directed"]

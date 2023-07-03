@@ -21,14 +21,17 @@ from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH, RAPIDS_DATASET_R
 # batches
 
 from cugraph.datasets import (
-    karate,
+    cyber,
     dolphins,
+    karate,
+    ktruss_polbooks,
     polbooks,
     netscience,
     small_line,
     small_tree,
     email_Eu_core,
-    ktruss_polbooks,
+    toy_graph,
+    toy_graph_undirected,
 )
 
 DATASETS_UNDIRECTED = [karate, dolphins]
@@ -39,7 +42,18 @@ DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
 MEDIUM_DATASETS = [polbooks]
 SMALL_DATASETS = [karate, dolphins, netscience]
 RLY_SMALL_DATASETS = [small_line, small_tree]
-ALL_DATASETS = [karate, dolphins, netscience, polbooks, small_line, small_tree]
+ALL_DATASETS = [
+    dolphins,
+    karate,
+    ktruss_polbooks,
+    polbooks,
+    netscience,
+    small_line,
+    small_tree,
+    email_Eu_core,
+    toy_graph,
+    toy_graph_undirected,
+]
 ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks, small_line, small_tree]
 TEST_GROUP = [dolphins, netscience]
 

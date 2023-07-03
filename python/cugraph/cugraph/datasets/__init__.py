@@ -27,14 +27,14 @@ from cugraph.datasets import metadata
 meta_path = Path(__file__).parent / "metadata"
 
 # invidual datasets
-karate = Dataset(meta_path / "karate.yaml")
-dolphins = Dataset(meta_path / "dolphins.yaml")
-polbooks = Dataset(meta_path / "polbooks.yaml")
-netscience = Dataset(meta_path / "netscience.yaml")
 cyber = Dataset(meta_path / "cyber.yaml")
+dolphins = Dataset(meta_path / "dolphins.yaml")
+email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
+karate = Dataset(meta_path / "karate.yaml")
+ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
+netscience = Dataset(meta_path / "netscience.yaml")
+polbooks = Dataset(meta_path / "polbooks.yaml")
 small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
 toy_graph = Dataset(meta_path / "toy_graph.yaml")
 toy_graph_undirected = Dataset(meta_path / "toy_graph_undirected.yaml")
-email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
-ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
