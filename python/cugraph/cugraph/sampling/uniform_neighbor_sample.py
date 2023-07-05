@@ -177,7 +177,10 @@ def _uniform_neighbor_sample_legacy(
 
     return df
 
-uniform_neighbor_sample_legacy = deprecated_warning_wrapper(_uniform_neighbor_sample_legacy)
+
+uniform_neighbor_sample_legacy = deprecated_warning_wrapper(
+    _uniform_neighbor_sample_legacy
+)
 
 
 def uniform_neighbor_sample(
@@ -186,7 +189,7 @@ def uniform_neighbor_sample(
     fanout_vals: List[int],
     with_replacement: bool = True,
     with_edge_properties: bool = False,
-    batch_id_list: Sequence = None, # deprecated
+    batch_id_list: Sequence = None,  # deprecated
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
@@ -214,7 +217,7 @@ def uniform_neighbor_sample(
     with_edge_properties: bool, optional (default=False)
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
-    
+
     batch_id_list: list (int32)
         Deprecated.
         List of batch ids that will be returned with the sampled edges if

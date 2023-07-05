@@ -332,6 +332,11 @@ def _mg_call_plc_uniform_neighbor_sample(
     if keep_batches_together:
         n_workers = get_n_workers()
 
+        if hasattr(min_batch_id, "compute"):
+            min_batch_id = min_batch_id.compute()
+        if hasattr(max_batch_id, "compute"):
+            max_batch_id = max_batch_id.compute()
+
     result = [
         client.submit(
             _call_plc_uniform_neighbor_sample,
@@ -378,7 +383,7 @@ def _mg_call_plc_uniform_neighbor_sample(
         wait([ddf, ddf_offsets])
         wait([r.release() for r in result_split])
         wait([r.release() for r in result])
-        
+
         del result
 
         return ddf, ddf_offsets
@@ -537,8 +542,12 @@ def _uniform_neighbor_sample_legacy(
         return ddf, offsets_ddf
 
     return ddf
-    
-uniform_neighbor_sample_legacy = deprecated_warning_wrapper(_uniform_neighbor_sample_legacy)
+
+
+uniform_neighbor_sample_legacy = deprecated_warning_wrapper(
+    _uniform_neighbor_sample_legacy
+)
+
 
 def uniform_neighbor_sample(
     input_graph: Graph,
@@ -546,9 +555,9 @@ def uniform_neighbor_sample(
     fanout_vals: List[int],
     with_replacement: bool = True,
     with_edge_properties: bool = False,
-    batch_id_list: Sequence = None, # deprecated
-    label_list: Sequence = None, # deprecated
-    label_to_output_comm_rank: bool = None, # deprecated
+    batch_id_list: Sequence = None,  # deprecated
+    label_list: Sequence = None,  # deprecated
+    label_to_output_comm_rank: bool = None,  # deprecated
     with_batch_ids: bool = False,
     keep_batches_together=False,
     min_batch_id=None,
@@ -580,7 +589,7 @@ def uniform_neighbor_sample(
     with_edge_properties: bool, optional (default=False)
         Flag to specify whether to return edge properties (weight, edge id,
         edge type, batch id, hop id) with the sampled edges.
-    
+
     batch_id_list: cudf.Series or dask_cudf.Series (int32), optional (default=None)
         Deprecated.
         List of batch ids that will be returned with the sampled edges if
@@ -676,7 +685,11 @@ def uniform_neighbor_sample(
                     Contains the offsets of each batch in the sampling result
     """
 
-    if batch_id_list is not None or label_list is not None or label_to_output_comm_rank is not None:
+    if (
+        batch_id_list is not None
+        or label_list is not None
+        or label_to_output_comm_rank is not None
+    ):
         return uniform_neighbor_sample_legacy(
             input_graph,
             start_list,

@@ -195,8 +195,9 @@ class EXPERIMENTAL__BulkSampler:
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
-            min_batch_id = min_batch_id.compute()
-        min_batch_id = int(min_batch_id)
+            min_batch_id = min_batch_id.persist()
+        else:
+            min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_call = (
@@ -205,6 +206,9 @@ class EXPERIMENTAL__BulkSampler:
         npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
+        if isinstance(self.__batches, dask_cudf.DataFrame):
+            max_batch_id = max_batch_id.persist()
+
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
         if isinstance(batch_id_filter, dask_cudf.Series):
             batch_id_filter = batch_id_filter.persist()
@@ -261,7 +265,10 @@ class EXPERIMENTAL__BulkSampler:
         # Write batches to parquet
         self.__write(samples, offsets)
         if isinstance(self.__batches, dask_cudf.DataFrame):
-            wait([f.release() for f in futures_of(samples)] + [f.release() for f in futures_of(offsets)])
+            wait(
+                [f.release() for f in futures_of(samples)]
+                + [f.release() for f in futures_of(offsets)]
+            )
 
         del samples
         del offsets
