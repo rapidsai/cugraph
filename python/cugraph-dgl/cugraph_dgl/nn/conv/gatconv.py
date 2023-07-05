@@ -19,8 +19,8 @@ from typing import Optional, Tuple, Union
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
-from pylibcugraphops.pytorch import BipartiteCSC, SampledCSC, StaticCSC
-from pylibcugraphops.pytorch.operators import mha_gat_n2n, mha_gat_n2n_bipartite
+from pylibcugraphops.pytorch import CSC
+from pylibcugraphops.pytorch.operators import mha_gat_n2n
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
@@ -173,8 +173,19 @@ class GATConv(BaseConv):
             :math:`H` is the number of heads, and :math:`D_{out}` is size of
             output feature.
         """
+        if max_in_degree is None:
+            max_in_degree = -1
+
         bipartite = not isinstance(nfeat, torch.Tensor)
         offsets, indices, _ = g.adj_tensors("csc")
+
+        graph = CSC(
+            offsets=offsets,
+            indices=indices,
+            num_src_nodes=g.num_src_nodes(),
+            dst_max_in_degree=max_in_degree,
+            is_bipartite=bipartite,
+        )
 
         if efeat is not None:
             if self.fc_edge is None:
@@ -191,23 +202,8 @@ class GATConv(BaseConv):
                     f"integers to allow bipartite node features, but got "
                     f"{self.in_feats}."
                 )
-            _graph = BipartiteCSC(
-                offsets=offsets, indices=indices, num_src_nodes=g.num_src_nodes()
-            )
             nfeat_src = self.fc_src(nfeat[0])
             nfeat_dst = self.fc_dst(nfeat[1])
-
-            out = mha_gat_n2n_bipartite(
-                src_feat=nfeat_src,
-                dst_feat=nfeat_dst,
-                attn_weights=self.attn_weights,
-                graph=_graph,
-                num_heads=self.num_heads,
-                activation="LeakyReLU",
-                negative_slope=self.negative_slope,
-                concat_heads=self.concat,
-                edge_feat=efeat,
-            )
         else:
             if not hasattr(self, "fc"):
                 raise RuntimeError(
@@ -215,36 +211,17 @@ class GATConv(BaseConv):
                     f"integer, but got {self.in_feats}."
                 )
             nfeat = self.fc(nfeat)
-            # Sampled primitive does not support edge features
-            if g.is_block and efeat is None:
-                if max_in_degree is None:
-                    max_in_degree = g.in_degrees().max().item()
 
-                if max_in_degree < self.MAX_IN_DEGREE_MFG:
-                    _graph = SampledCSC(
-                        offsets=offsets,
-                        indices=indices,
-                        max_num_neighbors=max_in_degree,
-                        num_src_nodes=g.num_src_nodes(),
-                    )
-                else:
-                    offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-                    _graph = StaticCSC(offsets=offsets, indices=indices)
-            else:
-                if g.is_block:
-                    offsets = self.pad_offsets(offsets, g.num_src_nodes() + 1)
-                _graph = StaticCSC(offsets=offsets, indices=indices)
-
-            out = mha_gat_n2n(
-                feat=nfeat,
-                attn_weights=self.attn_weights,
-                graph=_graph,
-                num_heads=self.num_heads,
-                activation="LeakyReLU",
-                negative_slope=self.negative_slope,
-                concat_heads=self.concat,
-                edge_feat=efeat,
-            )[: g.num_dst_nodes()]
+        out = mha_gat_n2n(
+            (nfeat_src, nfeat_dst) if bipartite else nfeat,
+            self.attn_weights,
+            graph,
+            num_heads=self.num_heads,
+            activation="LeakyReLU",
+            negative_slope=self.negative_slope,
+            concat_heads=self.concat,
+            edge_feat=efeat,
+        )[: g.num_dst_nodes()]
 
         if self.concat:
             out = out.view(-1, self.num_heads, self.out_feats)
