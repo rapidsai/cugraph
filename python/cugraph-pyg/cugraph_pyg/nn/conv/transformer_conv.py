@@ -12,8 +12,6 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-from pylibcugraphops.pytorch.operators import mha_simple_n2n
-
 from cugraph.utilities.utils import import_optional
 
 from .base import BaseConv
@@ -21,6 +19,7 @@ from .base import BaseConv
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 torch_geometric = import_optional("torch_geometric")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class TransformerConv(BaseConv):
@@ -186,7 +185,7 @@ class TransformerConv(BaseConv):
                 )
             edge_attr = self.lin_edge(edge_attr)
 
-        out = mha_simple_n2n(
+        out = ops_torch.operators.mha_simple_n2n(
             key,
             query,
             value,
