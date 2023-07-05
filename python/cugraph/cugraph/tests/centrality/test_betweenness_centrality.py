@@ -313,7 +313,7 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 @pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_betweenness_centrality_0(
+def test_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
