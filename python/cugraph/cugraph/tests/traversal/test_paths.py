@@ -19,7 +19,6 @@ import cudf
 from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 import cupy
 
-# import networkx as nx
 from cugraph.testing import resultset
 import pytest
 
@@ -45,8 +44,6 @@ def graphs(request):
         graph_tf.writelines(request.param)
         graph_tf.seek(0)
 
-        # nx_G = nx.read_weighted_edgelist(graph_tf.name, delimiter=",")
-        # nx_results = utils.resultset.get_paths_results(params)
         cudf_df = cudf.read_csv(
             graph_tf.name,
             names=["src", "dst", "data"],
@@ -77,7 +74,6 @@ def graphs(request):
             (weights, (i, j)), shape=(largest_vertex + 1, largest_vertex + 1)
         )
 
-        # yield cugraph_G, nx_results, cupy_df
         yield cugraph_G, cupy_df
 
 
@@ -164,7 +160,6 @@ def test_shortest_path_length_no_path(graphs):
 
     path_1_to_8 = cugraph.shortest_path_length(cugraph_G, 1, 8)
     assert path_1_to_8 == sys.float_info.max
-    # assert cugraph.shortest_path_length(nx_G, "1", "8") in [max_float_32, path_1_to_8]
     assert resultset.get_paths_results("1,8,disconnected,invalid") in [
         max_float_32,
         path_1_to_8,
@@ -178,9 +173,7 @@ def test_shortest_path_length_no_target(graphs):
     cugraph_G, cupy_df = graphs
 
     cugraph_path_1_to_all = cugraph.shortest_path_length(cugraph_G, 1)
-    # nx_path_1_to_all = nx.shortest_path_length(nx_G, source="1", weight="weight")
     nx_path_1_to_all = resultset.get_paths_results("1,notarget,nx")
-    # nx_gpu_path_1_to_all = cugraph.shortest_path_length(nx_G, "1")
     nx_gpu_path_1_to_all = resultset.get_paths_results("1,notarget,cu")
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
 

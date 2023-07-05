@@ -35,26 +35,10 @@ from cugraph.testing import utils, resultset
 from cugraph.experimental import datasets
 
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-
-print("Networkx version : {} ".format(nx.__version__))
-
-
 # Map of cuGraph input types to the expected output type for cuGraph
 # connected_components calls.
 cuGraph_input_output_map = {
     cugraph.Graph: cudf.DataFrame,
-    # "nx.Graph": pd.DataFrame,
-    # "nx.DiGraph": pd.DataFrame,
     cp_coo_matrix: tuple,
     cp_csr_matrix: tuple,
     cp_csc_matrix: tuple,
@@ -148,7 +132,7 @@ def networkx_call(graph_file, source, edgevals=True):
 
     if edgevals is False:
         # FIXME: no test coverage if edgevals is False, this assertion is never reached
-        assert False, "edgevals is False within networkx_call..."
+        assert False 
         nx_paths = resultset.get_sssp_results(
             "{},{},ssspl".format(dataset_name, source)
         )
@@ -164,7 +148,7 @@ def networkx_call(graph_file, source, edgevals=True):
         create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
     )
 
-    return (G, dataset_path, source, nx_paths, Gnx)
+    return (G, dataset_path, graph_file, source, nx_paths, Gnx)
 
 
 # =============================================================================
@@ -218,7 +202,7 @@ def single_dataset_source_nxresults_weighted(request):
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
-    (G, dataset_path, source, nx_paths, _) = dataset_source_nxresults
+    (G, dataset_path, _, source, nx_paths, _) = dataset_source_nxresults
 
     if not isinstance(cugraph_input_type, cugraph.Graph):
         input_G_or_matrix = utils.create_obj_from_csv(
@@ -252,7 +236,7 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
-    (G, _, source, _, _) = dataset_source_nxresults
+    (G, _, _, source, _, _) = dataset_source_nxresults
     el = G.view_edge_list()
 
     newval = max(el.src.max(), el.dst.max()) + 1
@@ -275,10 +259,8 @@ def test_sssp_nonnative_inputs_matrix(
 def test_sssp_nonnative_inputs_nx(
     gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
 ):
-    # test_sssp calls utils.create_obj_for_csv if not a cugraph.Graph first,
-    # then calls cugraph_call, and then does the mismatch calculation
-    (_, _, source, nx_paths, Gnx) = single_dataset_source_nxresults
-    result = gpubenchmark(cugraph.sssp, Gnx, source)
+    (_, _, _, source, nx_paths, _) = single_dataset_source_nxresults
+    result = resultset.get_sssp_results("nonnative_input,{},{}".format(cugraph_input_type, source)) # should be a pd dataframe
     result = cudf.from_pandas(result)
     if np.issubdtype(result["distance"].dtype, np.integer):
         max_val = np.iinfo(result["distance"].dtype).max
@@ -315,14 +297,12 @@ def test_sssp_edgevals(
     gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
 ):
     # Extract the params generated from the fixture
-    # assert False, "test_sssp_edgevals still uses Gnx"
-    (G, _, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
+    (G, _, dataset, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
     input_G_or_matrix = G
 
     cu_paths, max_val = cugraph_call(
         gpubenchmark, input_G_or_matrix, source, edgevals=True
     )
-
     # Calculating mismatch
     err = 0
     for vid in cu_paths:

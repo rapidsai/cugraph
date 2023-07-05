@@ -414,40 +414,14 @@ def compare_mst(mst_cugraph, mst_nx):
     assert np.isclose(cg_sum, nx_sum)
 
 
-"""
-class Resultset:
-    A Resultset Object, used to extract specific results from a networkX algo,
-    with provided graph creation settings, algorithm details, and other pertinent
-    information.
-
-    Parameters
-    ----------
-    graph_settings:
-
-    algo_settings:
-
-    other_settings:
-
-    def __init__(
-            self,
-            alg_name,
-            args,
-    ):
-"""
-
-"""def resultset(alg_name, alg_args=None, graph_args=None):
-    Used to extract specific results from a networkX algo, with provided graph creation
-    settings, algorithm details, and other pertinent information.
-
-    At first, resultset will create graph objects (if needed) and then apply algorithmic
-    calls to them, but this will become an Object that stored these results on a repo
-    and will simply pull from there.
-    if create_graph:
-        # Do the logic for utils.generate_nx_graph_from_file here
-        graph_file = graph_args['graph_file']
-        directed = graph_args['directed']
-        edgevals = graph_args['edgevals']
-        Gnx = generate_cugraph_graph_from_file(graph_file, directed, edgevals)
-    else:
-        Gnx = args['graph']
-"""
+def convert_nx_view_to_dict(Gnx):
+    """
+    An unoptimized way of converting networkX's AdjacencyView to a
+    dict-of-dict-of-dicts.
+    """
+    Gnx_dict = {}
+    for u in Gnx.nodes:
+        Gnx_dict[u] = {}
+        for v in Gnx[u]:
+            Gnx_dict[u][v] = Gnx[u][v]
+    return Gnx_dict

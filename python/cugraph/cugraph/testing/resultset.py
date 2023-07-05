@@ -76,7 +76,6 @@ for ds in DATASETS + [karate]:
 for dirctd in DIRECTED_GRAPH_OPTIONS:
     Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd)
     result = cugraph.bfs_edges(Gnx, source=7)
-    # cugraph_df = convert_output_to_cudf(Gnx, result)
     cugraph_df = cudf.from_pandas(result)
     test_bfs_results[str("{},{},{}").format(ds, dirctd, "nonnative-nx")] = cugraph_df
 
@@ -90,10 +89,7 @@ SOURCES = [1]
 
 for ds in DATASETS_SMALL:
     for source in SOURCES:
-        # directed=True
         Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=True)
-
-        # At this moment, there is no support on if edgevals=False
         nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
         test_sssp_results[str("{},{},ssdpl").format(ds, source)] = nx_paths
 
@@ -106,7 +102,7 @@ for ds in DATASETS_SMALL:
             edge_attr=edge_attr,
             create_using=nx.DiGraph(),
         )
-        test_sssp_results["Gnx,{}".format(ds)] = Gnx
+        test_sssp_results["Gnx,{}".format(ds)] = utils.convert_nx_view_to_dict(Gnx)
 
         M["weight"] = M["weight"].astype(np.int32)
         Gnx = nx.from_pandas_edgelist(
@@ -116,13 +112,22 @@ for ds in DATASETS_SMALL:
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-        test_sssp_results["Gnx,data_type_conversion,{}".format(ds)] = Gnx
+        test_sssp_results["Gnx,data_type_conversion,{}".format(ds)] = utils.convert_nx_view_to_dict(Gnx)
         test_sssp_results["Gnx_edges,data_type_conversion,{}".format(ds)] = Gnx.edges(
             data=True
         )
         test_sssp_results[
             "nx_paths,data_type_conversion,{}".format(ds)
         ] = nx.single_source_dijkstra_path_length(Gnx, source)
+
+for dirctd in DIRECTED_GRAPH_OPTIONS:
+    for source in SOURCES:
+        Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd, edgevals=True)
+        if dirctd:
+            test_sssp_results["nonnative_input,nx.DiGraph,{}".format(source)] = cugraph.sssp(Gnx, source)
+        else:
+            test_sssp_results["nonnative_input,nx.Graph,{}".format(source)] = cugraph.sssp(Gnx, source)
+
 
 G = nx.Graph()
 G.add_edge(0, 1, other=10)
@@ -199,16 +204,6 @@ test_paths_results[str("1,notarget,nx")] = nx.shortest_path_length(
 )
 test_paths_results[str("1,notarget,cu")] = cugraph.shortest_path_length(Gnx_DIS, "1")
 
-
-# DEBUGGING
-# print("test_bfs_results")
-# print(test_bfs_results)
-# print("test_bfs_starts")
-# print(test_bfs_starts)
-# print("test_sssp_results")
-# print(test_sssp_results)
-# print("test_paths_results")
-# print(test_paths_results)
 
 # GETTERS
 def get_bfs_results(test_params):
