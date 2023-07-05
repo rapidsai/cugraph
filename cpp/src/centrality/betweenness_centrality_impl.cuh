@@ -647,6 +647,39 @@ edge_betweenness_centrality(
                             do_expensive_check);
   }
 
+  std::optional<weight_t> scale_factor{std::nullopt};
+
+  if (normalized) {
+    weight_t n = static_cast<weight_t>(graph_view.number_of_vertices());
+
+    scale_factor = n * (n - 1);
+  } else if (graph_view.is_symmetric())
+    scale_factor = weight_t{2};
+  
+  
+  if (scale_factor) {
+    if (graph_view.number_of_vertices() > 2) {
+      //
+      //  FIXME: When normalizing the result, we might not want to follow NetworkX
+      //  as it doesn't account for sources.
+      //
+      //  if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
+      //    (*scale_factor) *= static_cast<weight_t>(num_sources) /
+      //                      static_cast<weight_t>(graph_view.number_of_vertices());
+      //  }
+      //
+
+      thrust::transform(
+        handle.get_thrust_policy(),
+        centralities.mutable_view().value_firsts()[0],
+        centralities.mutable_view().value_firsts()[0] + centralities.mutable_view().edge_counts()[0],
+        centralities.mutable_view().value_firsts()[0],
+        [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
+
+    }
+  }
+
+
   return centralities;
 }
 
