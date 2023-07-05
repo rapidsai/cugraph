@@ -22,6 +22,8 @@
 
 #include <raft/random/rng_state.hpp>
 
+#include <type_traits>
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t>
@@ -34,14 +36,19 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 size_t sampling_size,
                                 ops::graph::SamplingAlgoT sampling_algo)
 {
-  const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
-  return ops::graph::uniform_sample_csr(rng_state,
+  using base_vertex_t = std::decay_t<vertex_t>;
+  using base_edge_t   = std::decay_t<edge_t>;
+  static_assert(std::is_same_v<base_vertex_t, base_edge_t>,
+                "cugraph-ops sampling not yet implemented for different node and edge types");
+
+  const auto ops_graph = detail::get_graph(graph_view);
+  return ops::graph::uniform_sample_csc(rng_state,
                                         ops_graph,
                                         ptr_d_start,
                                         num_start_vertices,
                                         sampling_size,
                                         sampling_algo,
-                                        max_degree,
+                                        ops_graph.dst_max_in_degree,
                                         handle.get_stream());
 }
 
@@ -55,14 +62,19 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_
   size_t sampling_size,
   ops::graph::SamplingAlgoT sampling_algo)
 {
-  const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
+  using base_vertex_t = std::decay_t<vertex_t>;
+  using base_edge_t   = std::decay_t<edge_t>;
+  static_assert(std::is_same_v<base_vertex_t, base_edge_t>,
+                "cugraph-ops sampling not yet implemented for different node and edge types");
+
+  const auto ops_graph = detail::get_graph(graph_view);
   return ops::graph::uniform_sample_coo(rng_state,
                                         ops_graph,
                                         ptr_d_start,
                                         num_start_vertices,
                                         sampling_size,
                                         sampling_algo,
-                                        max_degree,
+                                        ops_graph.dst_max_in_degree,
                                         handle.get_stream());
 }
 
