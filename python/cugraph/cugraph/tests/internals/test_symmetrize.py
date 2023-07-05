@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.experimental.datasets import DATASETS
+from cugraph.experimental.datasets import DATASETS  # using old karate variants
 
 
 @pytest.mark.sg

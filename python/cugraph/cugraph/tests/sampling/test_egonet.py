@@ -17,7 +17,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
+from cugraph.experimental.datasets import DATASETS  # using old karate variants
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

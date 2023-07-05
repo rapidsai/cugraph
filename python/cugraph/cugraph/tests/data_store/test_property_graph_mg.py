@@ -24,8 +24,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 from cugraph.dask.common.mg_utils import is_single_gpu
 
 import cugraph.dask as dcg
-from cugraph.experimental.datasets import cyber
-from cugraph.experimental.datasets import netscience
+from cugraph.experimental.datasets import cyber, netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available

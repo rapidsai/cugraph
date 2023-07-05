@@ -19,8 +19,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 import networkx as nx
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
+from cugraph.testing import utils, DATASETS_UNDIRECTED
 
 
 # =============================================================================

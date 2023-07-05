@@ -59,4 +59,4 @@ TEST_GROUP = [dolphins, netscience]
 
 # FIXME: removed karate variant. check if unit tests are breaking
 DATASETS_UNRENUMBERED = []
-DATASETS = [dolphins, netscience]
+DATASETS = [dolphins, netscience, karate]

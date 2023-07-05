@@ -21,7 +21,8 @@ import cugraph
 import cudf
 import networkx as nx
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
+from cugraph.experimental.datasets import DATASETS  # using old karate variants
+from cugraph.testing import DATASETS_SMALL
 
 # =============================================================================
 # Parameters

@@ -19,8 +19,8 @@ import pytest
 import cugraph
 import cupyx
 import cudf
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
+from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.experimental.datasets import karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

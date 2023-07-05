@@ -17,8 +17,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
+from cugraph.testing import utils, DATASETS_UNDIRECTED
 
 import networkx as nx
 

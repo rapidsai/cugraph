@@ -22,7 +22,7 @@ from cudf.testing import assert_series_equal
 
 from cugraph.structure.number_map import NumberMap
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS
+from cugraph.experimental.datasets import DATASETS  # using old karate variants
 
 
 @pytest.mark.sg

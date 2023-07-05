@@ -16,11 +16,11 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, DATASETS_KTRUSS
 
 import numpy as np
 from numba import cuda
-from cugraph.experimental.datasets import DATASETS_KTRUSS, karate_asymmetric
+from cugraph.experimental.datasets import karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -92,7 +92,7 @@ def test_unsupported_cuda_version():
     k = 5
 
     graph_file = DATASETS_KTRUSS[0][0]
-    G = graph_file.get_graph()
+    G = graph_file.get_graph(fetch=True)
     if __cuda_version == __unsupported_cuda_version:
         with pytest.raises(NotImplementedError):
             cugraph.k_truss(G, k)
@@ -146,7 +146,9 @@ def test_ktruss_subgraph_directed_Graph():
     k = 5
     edgevals = True
     G = karate_asymmetric.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+        fetch=True,
+        create_using=cugraph.Graph(directed=True),
+        ignore_weights=not edgevals,
     )
     with pytest.raises(ValueError):
         cugraph.k_truss(G, k)

@@ -16,14 +16,13 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, DATASETS_SMALL, DATASETS_UNRENUMBERED
 import random
 import numpy as np
 import cudf
 import cupy
 
 import networkx as nx
-from cugraph.experimental.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
 
 
 # =============================================================================
@@ -113,7 +112,9 @@ def calc_betweenness_centrality(
         edge_attr = None
 
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
+        fetch=True,
+        create_using=cugraph.Graph(directed=directed),
+        ignore_weights=not edgevals,
     )
 
     M = G.to_pandas_edgelist().rename(

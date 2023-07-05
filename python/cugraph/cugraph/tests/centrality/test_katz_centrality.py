@@ -17,12 +17,14 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import (
+    utils,
+    DATASETS,
+    DATASETS_UNDIRECTED,
+)
 from cugraph.experimental.datasets import (
     toy_graph_undirected,
     karate,
-    DATASETS,
-    DATASETS_UNDIRECTED,
 )
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings

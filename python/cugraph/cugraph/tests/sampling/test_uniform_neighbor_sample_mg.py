@@ -25,7 +25,8 @@ import cugraph.dask as dcg
 import cugraph
 
 from cugraph.dask import uniform_neighbor_sample
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
+from cugraph.experimental.datasets import email_Eu_core, small_tree
+from cugraph.testing import DATASETS_UNDIRECTED
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available

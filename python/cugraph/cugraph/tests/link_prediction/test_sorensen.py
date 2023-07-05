@@ -18,9 +18,9 @@ import cudf
 from cudf.testing import assert_series_equal, assert_frame_equal
 
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, DATASETS_UNDIRECTED
 from cugraph.experimental import sorensen as exp_sorensen
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, netscience
+from cugraph.experimental.datasets import netscience
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

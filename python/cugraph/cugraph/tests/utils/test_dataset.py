@@ -241,7 +241,6 @@ def test_unload():
     assert ds._edgelist is None
 
 
-# TODO: check for all datasets
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_node_and_edge_count(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
