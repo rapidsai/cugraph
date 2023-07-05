@@ -112,7 +112,9 @@ for ds in DATASETS_SMALL:
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-        test_sssp_results["Gnx,data_type_conversion,{}".format(ds)] = utils.convert_nx_view_to_dict(Gnx)
+        test_sssp_results[
+            "Gnx,data_type_conversion,{}".format(ds)
+        ] = utils.convert_nx_view_to_dict(Gnx)
         test_sssp_results["Gnx_edges,data_type_conversion,{}".format(ds)] = Gnx.edges(
             data=True
         )
@@ -122,11 +124,17 @@ for ds in DATASETS_SMALL:
 
 for dirctd in DIRECTED_GRAPH_OPTIONS:
     for source in SOURCES:
-        Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd, edgevals=True)
+        Gnx = utils.generate_nx_graph_from_file(
+            karate.get_path(), directed=dirctd, edgevals=True
+        )
         if dirctd:
-            test_sssp_results["nonnative_input,nx.DiGraph,{}".format(source)] = cugraph.sssp(Gnx, source)
+            test_sssp_results[
+                "nonnative_input,nx.DiGraph,{}".format(source)
+            ] = cugraph.sssp(Gnx, source)
         else:
-            test_sssp_results["nonnative_input,nx.Graph,{}".format(source)] = cugraph.sssp(Gnx, source)
+            test_sssp_results[
+                "nonnative_input,nx.Graph,{}".format(source)
+            ] = cugraph.sssp(Gnx, source)
 
 
 G = nx.Graph()

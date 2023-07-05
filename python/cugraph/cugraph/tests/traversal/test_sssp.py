@@ -132,7 +132,7 @@ def networkx_call(graph_file, source, edgevals=True):
 
     if edgevals is False:
         # FIXME: no test coverage if edgevals is False, this assertion is never reached
-        assert False 
+        assert False
         nx_paths = resultset.get_sssp_results(
             "{},{},ssspl".format(dataset_name, source)
         )
@@ -260,7 +260,9 @@ def test_sssp_nonnative_inputs_nx(
     gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
 ):
     (_, _, _, source, nx_paths, _) = single_dataset_source_nxresults
-    result = resultset.get_sssp_results("nonnative_input,{},{}".format(cugraph_input_type, source)) # should be a pd dataframe
+    result = resultset.get_sssp_results(
+        "nonnative_input,{},{}".format(cugraph_input_type, source)
+    )  # should be a pd dataframe
     result = cudf.from_pandas(result)
     if np.issubdtype(result["distance"].dtype, np.integer):
         max_val = np.iinfo(result["distance"].dtype).max
