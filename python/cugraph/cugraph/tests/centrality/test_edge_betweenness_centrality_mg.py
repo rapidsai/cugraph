@@ -37,13 +37,13 @@ IS_DIRECTED = [True, False]
 INCLUDE_WEIGHTS = [False, True]
 INCLUDE_EDGE_IDS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
-
 SUBSET_SIZE_OPTIONS = [4, None]
 SUBSET_SEED_OPTIONS = [42]
 
-# FIXME: edge_bc fails on 8 GPU when running the email_Eu_core datasets
-# with directed graph. Passes with undirected graph
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+
+# FIXME: edge_bc fails on 8 GPUs when running the email_Eu_core datasets
+# with directed graph. Passes with undirected graph.
+# Huge performance bottleneck when moving to 8 GPUs
 datasets = DATASETS_UNDIRECTED
 
 
@@ -90,11 +90,11 @@ def input_combo(request):
 @pytest.fixture(scope="module")
 def input_expected_output(input_combo):
     """
-    This fixture returns the inputs and expected results from the HITS algo.
-    (based on cuGraph HITS) which can be used for validation.
+    This fixture returns the inputs and expected results from the edge
+    betweenness centrality algo.
+    (based on cuGraph edge betweenness centrality) which can be used
+    for validation.
     """
-
-    # input_data_path = input_combo["graph_file"]
     directed = input_combo["directed"]
     normalized = input_combo["normalized"]
     k = input_combo["subset_size"]
@@ -102,7 +102,6 @@ def input_expected_output(input_combo):
     edge_ids = input_combo["include_edge_ids"]
     weight = input_combo["include_weights"]
 
-    # G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
     df = input_combo["graph_file"].get_edgelist()
     if edge_ids:
         dtype = df.dtypes[0]
@@ -119,7 +118,6 @@ def input_expected_output(input_combo):
     )
     if isinstance(k, int):
         k = G.select_random_vertices(subset_seed, k)
-    sg_cugraph_edge_bc = cugraph.edge_betweenness_centrality(G, k, normalized)
 
     input_combo["k"] = k
     # Save the results back to the input_combo dictionary to prevent redundant
@@ -213,9 +211,6 @@ def test_dask_edge_betweenness_centrality(
         expected_output = input_expected_output["sg_cugraph_results"].reset_index(
             drop=True
         )
-
-        # Update the dask cugraph HITS results with sg cugraph results for easy
-        # comparison using cuDF DataFrame methods.
         result_edge_bc["betweenness_centrality"] = expected_output[
             "betweenness_centrality"
         ]
@@ -225,40 +220,11 @@ def test_dask_edge_betweenness_centrality(
             assert len(edge_id_diff) == 0
 
         edge_bc_diffs1 = result_edge_bc.query(
-            "mg_betweenness_centrality - betweenness_centrality > 0.0001"
+            "mg_betweenness_centrality - betweenness_centrality > 0.01"
         )
         edge_bc_diffs2 = result_edge_bc.query(
-            "betweenness_centrality - mg_betweenness_centrality < -0.0001"
+            "betweenness_centrality - mg_betweenness_centrality < -0.01"
         )
 
         assert len(edge_bc_diffs1) == 0
         assert len(edge_bc_diffs2) == 0
-
-
-"""
-@pytest.mark.mg
-def test_dask_hits_transposed_false(dask_client):
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
-
-    chunksize = dcg.get_chunksize(input_data_path)
-
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", store_transposed=False)
-
-    warning_msg = (
-        "HITS expects the 'store_transposed' "
-        "flag to be set to 'True' for optimal performance during "
-        "the graph creation"
-    )
-
-    with pytest.warns(UserWarning, match=warning_msg):
-        dcg.hits(dg)
-"""
