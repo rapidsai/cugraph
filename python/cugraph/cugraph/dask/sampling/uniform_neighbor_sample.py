@@ -644,14 +644,14 @@ def uniform_neighbor_sample(
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets per rank.
-    
+
     unique_sources: bool, optional (default=False)
         Whether to ensure that sources do not reappear as sources in
         future hops.
-    
+
     carry_over_sources: bool, optional (default=False)
         Whether to carry over previous sources into future hops.
-    
+
     deduplicate_sources: bool, optional (default=False)
         Whether to first deduplicate the list of possible sources
         from the previous destinations before performing next
@@ -755,9 +755,15 @@ def uniform_neighbor_sample(
 
         start_list = start_list.to_frame()
         if isinstance(start_list, dask_cudf.DataFrame):
-            start_list = start_list.map_partitions(lambda df: df.assign(**{batch_id_n: cudf.Series(cp.zeros(len(df), dtype='int32'))})).persist()
+            start_list = start_list.map_partitions(
+                lambda df: df.assign(
+                    **{batch_id_n: cudf.Series(cp.zeros(len(df), dtype="int32"))}
+                )
+            ).persist()
         else:
-            start_list = start_list.reset_index(drop=True).assign(**{batch_id_n: cudf.Series(cp.zeros(len(start_list), dtype='int32'))})
+            start_list = start_list.reset_index(drop=True).assign(
+                **{batch_id_n: cudf.Series(cp.zeros(len(start_list), dtype="int32"))}
+            )
 
     if keep_batches_together and min_batch_id is None:
         raise ValueError(

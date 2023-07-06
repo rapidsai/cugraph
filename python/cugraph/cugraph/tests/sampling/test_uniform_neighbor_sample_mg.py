@@ -745,47 +745,66 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_unique_sources_basic(dask_client):
-    df = dask_cudf.from_cudf(cudf.DataFrame({
-        'src': [0, 4, 1, 2, 3, 5, 4, 1, 0],
-        'dst': [1, 1, 2, 4, 3, 1, 5, 0, 2],
-        'eid': [9, 8, 7, 6, 5, 4, 3, 2, 1]
-    }), npartitions=1)
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 4, 1, 2, 3, 5, 4, 1, 0],
+                "dst": [1, 1, 2, 4, 3, 1, 5, 0, 2],
+                "eid": [9, 8, 7, 6, 5, 4, 3, 2, 1],
+            }
+        ),
+        npartitions=1,
+    )
 
     G = cugraph.MultiGraph(directed=True)
-    G.from_dask_cudf_edgelist(df, source='src', destination='dst', edge_id='eid')
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst", edge_id="eid")
 
-    sampling_results = cugraph.dask.uniform_neighbor_sample(
-        G,
-        cudf.DataFrame({
-            'seed': cudf.Series([0, 4, 1], dtype='int64'),
-            'batch': cudf.Series([1,1,1], dtype='int32'),
-        }),
-        [2, 3, 3],
-        with_replacement=False,
-        with_edge_properties=True,
-        with_batch_ids=True,
-        random_state=62,
-        unique_sources=True,
-    ).sort_values(by='hop_id').compute()
-
+    sampling_results = (
+        cugraph.dask.uniform_neighbor_sample(
+            G,
+            cudf.DataFrame(
+                {
+                    "seed": cudf.Series([0, 4, 1], dtype="int64"),
+                    "batch": cudf.Series([1, 1, 1], dtype="int32"),
+                }
+            ),
+            [2, 3, 3],
+            with_replacement=False,
+            with_edge_properties=True,
+            with_batch_ids=True,
+            random_state=62,
+            unique_sources=True,
+        )
+        .sort_values(by="hop_id")
+        .compute()
+    )
 
     expected_hop_0 = [1, 2, 1, 5, 2, 0]
-    assert sorted(sampling_results[sampling_results.hop_id==0].destinations.values_host.tolist()) == sorted(expected_hop_0)
+    assert sorted(
+        sampling_results[sampling_results.hop_id == 0].destinations.values_host.tolist()
+    ) == sorted(expected_hop_0)
 
-    next_sources = set(sampling_results[sampling_results.hop_id>0].sources.values_host.tolist())
-    for v in [0,4,1]:
+    next_sources = set(
+        sampling_results[sampling_results.hop_id > 0].sources.values_host.tolist()
+    )
+    for v in [0, 4, 1]:
         assert v not in next_sources
-    
-    next_sources = set(sampling_results[sampling_results.hop_id>1].sources.values_host.tolist())
-    for v in sampling_results[sampling_results.hop_id==1].sources.values_host.tolist():
+
+    next_sources = set(
+        sampling_results[sampling_results.hop_id > 1].sources.values_host.tolist()
+    )
+    for v in sampling_results[
+        sampling_results.hop_id == 1
+    ].sources.values_host.tolist():
         assert v not in next_sources
+
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_unique_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(el, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
     seeds = el.src.sample(frac=0.001).unique().sample(frac=1)
 
@@ -800,8 +819,14 @@ def test_uniform_neighbor_sample_unique_sources_email_eu_core(dask_client):
     ).compute()
 
     for hop in range(5):
-        current_sources = set(sampling_results[sampling_results.hop_id==hop].sources.values_host.tolist()) 
-        future_sources = set(sampling_results[sampling_results.hop_id>hop].sources.values_host.tolist())
+        current_sources = set(
+            sampling_results[
+                sampling_results.hop_id == hop
+            ].sources.values_host.tolist()
+        )
+        future_sources = set(
+            sampling_results[sampling_results.hop_id > hop].sources.values_host.tolist()
+        )
 
         for s in current_sources:
             assert s not in future_sources
@@ -809,44 +834,71 @@ def test_uniform_neighbor_sample_unique_sources_email_eu_core(dask_client):
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
-    df = dask_cudf.from_cudf(cudf.DataFrame({
-        'src': [0, 4, 1, 2, 3, 5, 4, 1, 0, 6],
-        'dst': [1, 1, 2, 4, 6, 1, 5, 0, 2, 2],
-        'eid': [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-    }), npartitions=4)
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 4, 1, 2, 3, 5, 4, 1, 0, 6],
+                "dst": [1, 1, 2, 4, 6, 1, 5, 0, 2, 2],
+                "eid": [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+            }
+        ),
+        npartitions=4,
+    )
 
     G = cugraph.MultiGraph(directed=True)
-    G.from_dask_cudf_edgelist(df, source='src', destination='dst', edge_id='eid')
+    G.from_dask_cudf_edgelist(df, source="src", destination="dst", edge_id="eid")
 
-    sampling_results = cugraph.dask.uniform_neighbor_sample(
-        G,
-        cudf.DataFrame({
-            'seed': cudf.Series([0, 4, 3], dtype='int64'),
-            'batch': cudf.Series([1,1,1], dtype='int32'),
-        }),
-        [2, 3, 3],
-        with_replacement=False,
-        with_edge_properties=True,
-        with_batch_ids=True,
-        random_state=62,
-        carry_over_sources=True,
-    ).sort_values(by='hop_id')[['sources','destinations','hop_id']].compute()
+    sampling_results = (
+        cugraph.dask.uniform_neighbor_sample(
+            G,
+            cudf.DataFrame(
+                {
+                    "seed": cudf.Series([0, 4, 3], dtype="int64"),
+                    "batch": cudf.Series([1, 1, 1], dtype="int32"),
+                }
+            ),
+            [2, 3, 3],
+            with_replacement=False,
+            with_edge_properties=True,
+            with_batch_ids=True,
+            random_state=62,
+            carry_over_sources=True,
+        )
+        .sort_values(by="hop_id")[["sources", "destinations", "hop_id"]]
+        .compute()
+    )
 
-    assert len(sampling_results[(sampling_results.hop_id==2) & (sampling_results.sources==6)]) == 2
+    assert (
+        len(
+            sampling_results[
+                (sampling_results.hop_id == 2) & (sampling_results.sources == 6)
+            ]
+        )
+        == 2
+    )
 
     for hop in range(2):
-        sources_current_hop = set(sampling_results[sampling_results.hop_id==hop].sources.values_host.tolist())
-        sources_next_hop = set(sampling_results[sampling_results.hop_id==(hop+1)].sources.values_host.tolist())
+        sources_current_hop = set(
+            sampling_results[
+                sampling_results.hop_id == hop
+            ].sources.values_host.tolist()
+        )
+        sources_next_hop = set(
+            sampling_results[
+                sampling_results.hop_id == (hop + 1)
+            ].sources.values_host.tolist()
+        )
 
         for s in sources_current_hop:
             assert s in sources_next_hop
+
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(el, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
     seeds = el.src.sample(frac=0.001).unique().sample(frac=1)
 
@@ -861,18 +913,27 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
     ).compute()
 
     for hop in range(4):
-        sources_current_hop = set(sampling_results[sampling_results.hop_id==hop].sources.values_host.tolist())
-        sources_next_hop = set(sampling_results[sampling_results.hop_id==(hop+1)].sources.values_host.tolist())
+        sources_current_hop = set(
+            sampling_results[
+                sampling_results.hop_id == hop
+            ].sources.values_host.tolist()
+        )
+        sources_next_hop = set(
+            sampling_results[
+                sampling_results.hop_id == (hop + 1)
+            ].sources.values_host.tolist()
+        )
 
         for s in sources_current_hop:
             assert s in sources_next_hop
+
 
 @pytest.mark.mg
 def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(el, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
     seeds = el.src.sample(frac=0.001).unique().sample(frac=1)
 
@@ -887,9 +948,14 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
     ).compute()
 
     for hop in range(5):
-        counts_current_hop = sampling_results[sampling_results.hop_id==hop].sources.value_counts().values_host.tolist()
+        counts_current_hop = (
+            sampling_results[sampling_results.hop_id == hop]
+            .sources.value_counts()
+            .values_host.tolist()
+        )
         for c in counts_current_hop:
             assert c <= 5 - hop
+
 
 # =============================================================================
 # Benchmarks

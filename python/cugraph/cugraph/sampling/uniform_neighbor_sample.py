@@ -198,119 +198,119 @@ def uniform_neighbor_sample(
     deduplicate_sources: bool = False,
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
-    Does neighborhood sampling, which samples nodes from a graph based on the
-    current node's neighbors, with a corresponding fanout value at each hop.
+        Does neighborhood sampling, which samples nodes from a graph based on the
+        current node's neighbors, with a corresponding fanout value at each hop.
 
-    Parameters
-    ----------
-    G : cugraph.Graph
-        cuGraph graph, which contains connectivity information as dask cudf
-        edge list dataframe
+        Parameters
+        ----------
+        G : cugraph.Graph
+            cuGraph graph, which contains connectivity information as dask cudf
+            edge list dataframe
 
-    start_list : list or cudf.Series (int32)
-        a list of starting vertices for sampling
+        start_list : list or cudf.Series (int32)
+            a list of starting vertices for sampling
 
-    fanout_vals : list (int32)
-        List of branching out (fan-out) degrees per starting vertex for each
-        hop level.
+        fanout_vals : list (int32)
+            List of branching out (fan-out) degrees per starting vertex for each
+            hop level.
 
-    with_replacement: bool, optional (default=True)
-        Flag to specify if the random sampling is done with replacement
+        with_replacement: bool, optional (default=True)
+            Flag to specify if the random sampling is done with replacement
 
-    with_edge_properties: bool, optional (default=False)
-        Flag to specify whether to return edge properties (weight, edge id,
-        edge type, batch id, hop id) with the sampled edges.
+        with_edge_properties: bool, optional (default=False)
+            Flag to specify whether to return edge properties (weight, edge id,
+            edge type, batch id, hop id) with the sampled edges.
 
-    batch_id_list: list (int32)
-        Deprecated.
-        List of batch ids that will be returned with the sampled edges if
-        with_edge_properties is set to True.
+        batch_id_list: list (int32)
+            Deprecated.
+            List of batch ids that will be returned with the sampled edges if
+            with_edge_properties is set to True.
 
-    with_batch_ids: bool, optional (default=False)
-        Flag to specify whether batch ids are present in the start_list
-        Assumes they are the last column in the start_list dataframe
+        with_batch_ids: bool, optional (default=False)
+            Flag to specify whether batch ids are present in the start_list
+            Assumes they are the last column in the start_list dataframe
 
-    random_state: int, optional
-        Random seed to use when making sampling calls.
+        random_state: int, optional
+            Random seed to use when making sampling calls.
 
-    return_offsets: bool, optional (default=False)
-        Whether to return the sampling results with batch ids
-        included as one dataframe, or to instead return two
-        dataframes, one with sampling results and one with
-        batch ids and their start offsets.
-<<<<<<< HEAD
-    
-    unique_sources: bool, optional (default=False)
-        Whether to ensure that sources do not reappear as sources in
-        future hops.
-    
-    carry_over_sources: bool, optional (default=False)
-        Whether to carry over previous sources into future hops.
-    
-    deduplicate_sources: bool, optional (default=False)
-        Whether to first deduplicate the list of possible sources
-        from the previous destinations before performing next
-        hop.
-=======
->>>>>>> 037239686052ee4e07286dcf235d0aa1b0da0ff0
+        return_offsets: bool, optional (default=False)
+            Whether to return the sampling results with batch ids
+            included as one dataframe, or to instead return two
+            dataframes, one with sampling results and one with
+            batch ids and their start offsets.
+    <<<<<<< HEAD
 
-    Returns
-    -------
-    result : cudf.DataFrame or Tuple[cudf.DataFrame, cudf.DataFrame]
-        GPU data frame containing multiple cudf.Series
+        unique_sources: bool, optional (default=False)
+            Whether to ensure that sources do not reappear as sources in
+            future hops.
 
-        If with_edge_properties=False:
-            df['sources']: cudf.Series
-                Contains the source vertices from the sampling result
-            df['destinations']: cudf.Series
-                Contains the destination vertices from the sampling result
-            df['indices']: cudf.Series
-                Contains the indices (edge weights) from the sampling result
-                for path reconstruction
+        carry_over_sources: bool, optional (default=False)
+            Whether to carry over previous sources into future hops.
 
-        If with_edge_properties=True:
-            If return_offsets=False:
+        deduplicate_sources: bool, optional (default=False)
+            Whether to first deduplicate the list of possible sources
+            from the previous destinations before performing next
+            hop.
+    =======
+    >>>>>>> 037239686052ee4e07286dcf235d0aa1b0da0ff0
+
+        Returns
+        -------
+        result : cudf.DataFrame or Tuple[cudf.DataFrame, cudf.DataFrame]
+            GPU data frame containing multiple cudf.Series
+
+            If with_edge_properties=False:
                 df['sources']: cudf.Series
                     Contains the source vertices from the sampling result
                 df['destinations']: cudf.Series
                     Contains the destination vertices from the sampling result
-                df['edge_weight']: cudf.Series
-                    Contains the edge weights from the sampling result
-                df['edge_id']: cudf.Series
-                    Contains the edge ids from the sampling result
-                df['edge_type']: cudf.Series
-                    Contains the edge types from the sampling result
-                df['batch_id']: cudf.Series
-                    Contains the batch ids from the sampling result
-                df['hop_id']: cudf.Series
-                    Contains the hop ids from the sampling result
+                df['indices']: cudf.Series
+                    Contains the indices (edge weights) from the sampling result
+                    for path reconstruction
 
-            If return_offsets=True:
-                df['sources']: cudf.Series
-                    Contains the source vertices from the sampling result
-                df['destinations']: cudf.Series
-                    Contains the destination vertices from the sampling result
-                df['edge_weight']: cudf.Series
-                    Contains the edge weights from the sampling result
-                df['edge_id']: cudf.Series
-                    Contains the edge ids from the sampling result
-                df['edge_type']: cudf.Series
-                    Contains the edge types from the sampling result
-                df['hop_id']: cudf.Series
-                    Contains the hop ids from the sampling result
+            If with_edge_properties=True:
+                If return_offsets=False:
+                    df['sources']: cudf.Series
+                        Contains the source vertices from the sampling result
+                    df['destinations']: cudf.Series
+                        Contains the destination vertices from the sampling result
+                    df['edge_weight']: cudf.Series
+                        Contains the edge weights from the sampling result
+                    df['edge_id']: cudf.Series
+                        Contains the edge ids from the sampling result
+                    df['edge_type']: cudf.Series
+                        Contains the edge types from the sampling result
+                    df['batch_id']: cudf.Series
+                        Contains the batch ids from the sampling result
+                    df['hop_id']: cudf.Series
+                        Contains the hop ids from the sampling result
 
-                offsets_df['batch_id']: cudf.Series
-                    Contains the batch ids from the sampling result
-                offsets_df['offsets']: cudf.Series
-                    Contains the offsets of each batch in the sampling result
+                If return_offsets=True:
+                    df['sources']: cudf.Series
+                        Contains the source vertices from the sampling result
+                    df['destinations']: cudf.Series
+                        Contains the destination vertices from the sampling result
+                    df['edge_weight']: cudf.Series
+                        Contains the edge weights from the sampling result
+                    df['edge_id']: cudf.Series
+                        Contains the edge ids from the sampling result
+                    df['edge_type']: cudf.Series
+                        Contains the edge types from the sampling result
+                    df['hop_id']: cudf.Series
+                        Contains the hop ids from the sampling result
+
+                    offsets_df['batch_id']: cudf.Series
+                        Contains the batch ids from the sampling result
+                    offsets_df['offsets']: cudf.Series
+                        Contains the offsets of each batch in the sampling result
     """
 
     if batch_id_list is not None:
         if unique_sources or deduplicate_sources or carry_over_sources:
             raise ValueError(
-                'unique_sources, deduplicate_sources, and carry_over_sources'
-                ' are not supported with batch_id_list.'
-                ' Consider using with_batch_ids instead.'
+                "unique_sources, deduplicate_sources, and carry_over_sources"
+                " are not supported with batch_id_list."
+                " Consider using with_batch_ids instead."
             )
         return uniform_neighbor_sample_legacy(
             G,
