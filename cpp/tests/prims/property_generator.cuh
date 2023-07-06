@@ -21,7 +21,7 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <cuco/detail/hash_functions.cuh>
+#include <cuco/hash_functions.cuh>
 
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>

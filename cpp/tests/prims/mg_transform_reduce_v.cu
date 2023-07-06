@@ -29,7 +29,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
 
-#include <cuco/detail/hash_functions.cuh>
+#include <cuco/hash_functions.cuh>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
