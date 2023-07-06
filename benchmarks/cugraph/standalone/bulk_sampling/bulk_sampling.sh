@@ -15,12 +15,13 @@ export RAPIDS_NO_INITIALIZE="1"
 export CUDF_SPILL="1"
 export LIBCUDF_CUFILE_POLICY=OFF
 
-dataset_name="ogbn_papers100M"
-dataset_root="/datasets/abarghi/"
-output_root="/tmp/samples"
-batch_sizes="512"
-fanouts="25_25,10_10_10,5_10_20"
-reverse_edges=True
+
+dataset_name=$1
+dataset_root=$2
+output_root=$3
+batch_sizes=$4
+fanouts=$5
+reverse_edges=$6
 
 rm -rf $output_root
 mkdir -p $output_root
