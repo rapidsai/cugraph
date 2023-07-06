@@ -112,6 +112,8 @@ def _mg_call_plc_betweenness_centrality(
         for i, w in enumerate(Comms.get_workers())
     ]
 
+    wait(result)
+
     ddf = dask_cudf.from_delayed(result, verify_meta=False).persist()
     wait(ddf)
     wait([r.release() for r in result])
@@ -426,6 +428,8 @@ def edge_betweenness_centrality(
         # symmeterized graph.
         ddf = ddf.groupby(by=["src", "dst"]).sum().reset_index()
         if 'edge_id' in ddf.columns:
+            edge_ids_type = ddf["edge_id"].dtype
             ddf["edge_id"] = ddf["edge_id"] / 2
+            ddf["edge_id"] = ddf["edge_id"].astype(edge_ids_type)
 
     return ddf
