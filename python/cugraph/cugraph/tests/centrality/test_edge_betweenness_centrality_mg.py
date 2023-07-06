@@ -44,6 +44,7 @@ SUBSET_SEED_OPTIONS = [42]
 # FIXME: edge_bc fails on 8 GPUs when running the email_Eu_core datasets
 # with directed graph. Passes with undirected graph.
 # Huge performance bottleneck when moving to 8 GPUs
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 datasets = DATASETS_UNDIRECTED
 
 
