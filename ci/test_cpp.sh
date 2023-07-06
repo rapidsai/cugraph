@@ -41,19 +41,15 @@ EXITCODE=0
 trap "EXITCODE=1" ERR
 set +e
 
+export GTEST_OUTPUT=xml:${RAPIDS_TESTS_DIR}/
+
 # Run libcugraph gtests from libcugraph-tests package
 rapids-logger "Run gtests"
-for gt in "$CONDA_PREFIX"/bin/gtests/libcugraph/* ; do
-    test_name=$(basename ${gt})
-    echo "Running gtest $test_name"
-    ${gt} --gtest_output=xml:${RAPIDS_TESTS_DIR}
-done
+cd "$CONDA_PREFIX"/bin/gtests/libcugraph/
+ctest -j10 --output-on-failure
 
-for ct in "$CONDA_PREFIX"/bin/gtests/libcugraph_c/CAPI_*_TEST ; do
-    test_name=$(basename ${ct})
-    echo "Running C API test $test_name"
-    ${ct}
-done
+cd "$CONDA_PREFIX"/bin/gtests/libcugraph_c/
+ctest -j10 --output-on-failure
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
