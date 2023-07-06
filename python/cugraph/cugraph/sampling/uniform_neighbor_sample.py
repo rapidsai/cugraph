@@ -193,6 +193,9 @@ def uniform_neighbor_sample(
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
+    unique_sources: bool = False,
+    carry_over_sources: bool = False,
+    deduplicate_sources: bool = False,
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -235,6 +238,18 @@ def uniform_neighbor_sample(
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets.
+    
+    unique_sources: bool, optional (default=False)
+        Whether to ensure that sources do not reappear as sources in
+        future hops.
+    
+    carry_over_sources: bool, optional (default=False)
+        Whether to carry over previous sources into future hops.
+    
+    deduplicate_sources: bool, optional (default=False)
+        Whether to first deduplicate the list of possible sources
+        from the previous destinations before performing next
+        hop.
 
     Returns
     -------
@@ -288,6 +303,12 @@ def uniform_neighbor_sample(
     """
 
     if batch_id_list is not None:
+        if unique_sources or deduplicate_sources or carry_over_sources:
+            raise ValueError(
+                'unique_sources, deduplicate_sources, and carry_over_sources'
+                ' are not supported with batch_id_list.'
+                ' Consider using with_batch_ids instead.'
+            )
         return uniform_neighbor_sample_legacy(
             G,
             start_list,
@@ -309,7 +330,7 @@ def uniform_neighbor_sample(
 
     if with_edge_properties and not with_batch_ids:
         if isinstance(start_list, cudf.Series):
-            start_list = start_list.to_frame()
+            start_list = start_list.reset_index(drop=True).to_frame()
 
         start_list[batch_col_name] = cudf.Series(
             cp.zeros(len(start_list), dtype="int32")
@@ -361,6 +382,9 @@ def uniform_neighbor_sample(
         do_expensive_check=False,
         with_edge_properties=with_edge_properties,
         random_state=random_state,
+        unique_sources=unique_sources,
+        carry_over_sources=carry_over_sources,
+        deduplicate_sources=deduplicate_sources,
     )
 
     df = cudf.DataFrame()

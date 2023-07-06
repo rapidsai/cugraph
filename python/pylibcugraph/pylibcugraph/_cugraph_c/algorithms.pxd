@@ -231,6 +231,50 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t** result,
             cugraph_error_t** error
         )
+    
+    ctypedef struct cugraph_sampling_options_t:
+        pass
+    
+    cdef cugraph_error_code_t \
+        cugraph_sampling_options_create(
+            cugraph_sampling_options_t** options,
+            cugraph_error_t** error,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_with_replacement(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_return_hops(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_unique_sources(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_carry_over_sources(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_set_dedupe_sources(
+            cugraph_sampling_options_t* options,
+            bool_t value,
+        )
+    
+    cdef void \
+        cugraph_sampling_options_free(
+            cugraph_sampling_options_t* options,
+    )
 
     # uniform random walks
     cdef cugraph_error_code_t \
