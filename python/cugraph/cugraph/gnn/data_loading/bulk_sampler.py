@@ -37,6 +37,8 @@ class EXPERIMENTAL__BulkSampler:
         graph,
         seeds_per_call: int = 200_000,
         batches_per_partition=100,
+        renumber_using_dgl: bool = False,
+        renumber_using_dgl_sampling_direction: str = "in",
         **kwargs,
     ):
         """
@@ -78,6 +80,10 @@ class EXPERIMENTAL__BulkSampler:
         self.__batches_per_partition = batches_per_partition
         self.__batches = None
         self.__sample_call_args = kwargs
+        self.__renumber_using_dgl = renumber_using_dgl
+        self.__renumber_using_dgl_sampling_direction = (
+            renumber_using_dgl_sampling_direction
+        )
 
     @property
     def seeds_per_call(self) -> int:
@@ -230,7 +236,12 @@ class EXPERIMENTAL__BulkSampler:
     ) -> None:
         os.makedirs(self.__output_path, exist_ok=True)
         write_samples(
-            samples, offsets, self.__batches_per_partition, self.__output_path
+            samples,
+            offsets,
+            self.__batches_per_partition,
+            self.__output_path,
+            self.__renumber_using_dgl,
+            self.__renumber_using_dgl_sampling_direction,
         )
 
     def __get_label_to_output_comm_rank(self, min_batch_id, max_batch_id):

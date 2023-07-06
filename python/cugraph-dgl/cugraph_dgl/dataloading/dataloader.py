@@ -214,6 +214,8 @@ class DataLoader(torch.utils.data.DataLoader):
             output_path=output_dir,
             batch_size=self._batch_size,
             graph=self._cugraph_graph,
+            renumber_using_dgl=True,
+            renumber_using_dgl_sampling_direction=self.graph_sampler.edge_dir,
             batches_per_partition=self._batches_per_partition,
             seeds_per_call=self._seeds_per_call,
             fanout_vals=self.graph_sampler._reversed_fanout_vals,

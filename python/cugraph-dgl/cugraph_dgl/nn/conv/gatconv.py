@@ -19,12 +19,13 @@ from typing import Optional, Tuple, Union
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
-from pylibcugraphops.pytorch import BipartiteCSC, SampledCSC, StaticCSC
-from pylibcugraphops.pytorch.operators import mha_gat_n2n, mha_gat_n2n_bipartite
+# from pylibcugraphops.pytorch import BipartiteCSC, SampledCSC, StaticCSC
+# from pylibcugraphops.pytorch.operators import mha_gat_n2n, mha_gat_n2n_bipartite
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(BaseConv):

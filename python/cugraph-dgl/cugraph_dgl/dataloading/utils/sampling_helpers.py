@@ -29,47 +29,54 @@ def cast_to_tensor(ser: cudf.Series):
     return torch.as_tensor(ser.values, device="cuda")
 
 
-def _get_tensor_ls_from_sampled_df(df):
+def _get_tensor_d_from_sampled_df(df):
     """
     Converts a sampled cuDF DataFrame into a list of tensors.
 
     Args:
         df (cudf.DataFrame): The sampled cuDF DataFrame containing columns
-        'batch_id', 'sources', 'destinations', 'edge_id', and 'hop_id'.
-
     Returns:
-        list: A list of tuples, where each tuple contains three tensors:
-              'sources', 'destinations', and 'edge_id'.
-              The tensors are split based on 'batch_id' and 'hop_id'.
-
+        dict: A dictionary of tensors, keyed by batch_id and hop_id.
     """
     batch_id_tensor = cast_to_tensor(df["batch_id"])
+    batch_id_min = batch_id_tensor.min()
+    batch_id_max = batch_id_tensor.max()
     batch_indices = torch.arange(
-        start=batch_id_tensor.min() + 1,
-        end=batch_id_tensor.max() + 1,
+        start=batch_id_min + 1,
+        end=batch_id_max + 1,
         device=batch_id_tensor.device,
     )
     batch_indices = torch.searchsorted(batch_id_tensor, batch_indices)
+    split_d = {i: {} for i in range(batch_id_min, batch_id_max + 1)}
 
-    split_d = {}
-    for column in ["sources", "destinations", "edge_id", "hop_id"]:
-        tensor = cast_to_tensor(df[column])
-        split_d[column] = torch.tensor_split(tensor, batch_indices.cpu())
+    for column in df.columns:
+        if column != "batch_id":
+            t = cast_to_tensor(df[column])
+            split_t = torch.tensor_split(t, batch_indices.cpu())
+            for bid, batch_t in zip(split_d.keys(), split_t):
+                split_d[bid][column] = batch_t
+    del df
+    result_tensor_d = {}
+    for batch_id, batch_d in split_d.items():
+        hop_id_tensor = batch_d["hop_id"]
+        hop_id_min = hop_id_tensor.min()
+        hop_id_max = hop_id_tensor.max()
 
-    result_tensor_ls = []
-    for i, hop_id_tensor in enumerate(split_d["hop_id"]):
         hop_indices = torch.arange(
-            start=hop_id_tensor.min() + 1,
-            end=hop_id_tensor.max() + 1,
+            start=hop_id_min + 1,
+            end=hop_id_max + 1,
             device=hop_id_tensor.device,
         )
         hop_indices = torch.searchsorted(hop_id_tensor, hop_indices)
-        s = torch.tensor_split(split_d["sources"][i], hop_indices.cpu())
-        d = torch.tensor_split(split_d["destinations"][i], hop_indices.cpu())
-        eid = torch.tensor_split(split_d["edge_id"][i], hop_indices.cpu())
-        result_tensor_ls.append((x, y, z) for x, y, z in zip(s, d, eid))
+        hop_split_d = {i: {} for i in range(hop_id_min, hop_id_max + 1)}
+        for column, t in batch_d.items():
+            if column != "hop_id":
+                split_t = torch.tensor_split(t, hop_indices.cpu())
+                for hid, ht in zip(hop_split_d.keys(), split_t):
+                    hop_split_d[hid][column] = ht
 
-    return result_tensor_ls
+        result_tensor_d[batch_id] = hop_split_d
+    return result_tensor_d
 
 
 def create_homogeneous_sampled_graphs_from_dataframe(
@@ -81,19 +88,20 @@ def create_homogeneous_sampled_graphs_from_dataframe(
     This helper function creates DGL MFGS  for
     homogeneous graphs from cugraph sampled dataframe
     """
-    result_tensor_ls = _get_tensor_ls_from_sampled_df(sampled_df)
+    result_tensor_d = _get_tensor_d_from_sampled_df(sampled_df)
+    del sampled_df
     result_mfgs = [
         _create_homogeneous_sampled_graphs_from_tensors_perhop(
-            tensors_perhop_ls, total_number_of_nodes, edge_dir
+            tensors_batch_d, total_number_of_nodes, edge_dir
         )
-        for tensors_perhop_ls in result_tensor_ls
+        for tensors_batch_d in result_tensor_d.values()
     ]
-    del result_tensor_ls
+    del result_tensor_d
     return result_mfgs
 
 
 def _create_homogeneous_sampled_graphs_from_tensors_perhop(
-    tensors_perhop_ls, total_number_of_nodes, edge_dir
+    tensors_batch_d, total_number_of_nodes, edge_dir
 ):
     if edge_dir not in ["in", "out"]:
         raise ValueError(f"Invalid edge_dir {edge_dir} provided")
@@ -102,18 +110,11 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
     graph_per_hop_ls = []
     output_nodes = None
     seed_nodes = None
-    for src_ids, dst_ids, edge_ids in tensors_perhop_ls:
-        # print("Creating block", flush=True)
-        block = create_homogeneous_dgl_block_from_tensors_ls(
-            src_ids=src_ids,
-            dst_ids=dst_ids,
-            edge_ids=edge_ids,
-            seed_nodes=seed_nodes,
-            total_number_of_nodes=total_number_of_nodes,
-        )
-        seed_nodes = block.srcdata[dgl.NID]
+    for hop_id, tensor_d in tensors_batch_d.items():
+        block = _create_homogeneous_dgl_block_from_tensor_d(tensor_d)
+        seed_nodes = tensor_d["sources"].unique()
         if output_nodes is None:
-            output_nodes = block.dstdata[dgl.NID]
+            output_nodes = tensor_d["destinations"].unique()
         graph_per_hop_ls.append(block)
 
     # default DGL behavior
@@ -122,29 +123,13 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
     return seed_nodes, output_nodes, graph_per_hop_ls
 
 
-def create_homogeneous_dgl_block_from_tensors_ls(
-    src_ids: torch.Tensor,
-    dst_ids: torch.Tensor,
-    edge_ids: torch.Tensor,
-    seed_nodes: Optional[torch.Tensor],
-    total_number_of_nodes: int,
+def _create_homogeneous_dgl_block_from_tensor_d(
+    tensor_d,
 ):
-    sampled_graph = dgl.graph(
-        (src_ids, dst_ids),
-        num_nodes=total_number_of_nodes,
-    )
-    sampled_graph.edata[dgl.EID] = edge_ids
-    # TODO: Check if unique is needed
-    if seed_nodes is None:
-        seed_nodes = dst_ids.unique()
-
-    block = dgl.to_block(
-        sampled_graph,
-        dst_nodes=seed_nodes,
-        src_nodes=src_ids.unique(),
-        include_dst_in_src=True,
-    )
-    block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
+    rs = tensor_d["renumbered_sources"]
+    rd = tensor_d["renumbered_destinations"]
+    block = dgl.create_block((rs, rd))
+    block.edata[dgl.EID] = tensor_d["edge_id"]
     return block
 
 

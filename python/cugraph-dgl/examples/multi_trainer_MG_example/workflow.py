@@ -229,10 +229,10 @@ if __name__ == "__main__":
     # because new environments
     # require dataset download
     load_dgl_dataset()
-    dask_worker_devices = [5, 6]
+    dask_worker_devices = [4, 5, 6]
     cluster = setup_cluster(dask_worker_devices)
 
-    trainer_devices = [0, 1, 2]
+    trainer_devices = [1, 2]
     import torch.multiprocessing as mp
 
     mp.spawn(
