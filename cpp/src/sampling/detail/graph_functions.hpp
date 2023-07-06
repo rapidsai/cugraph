@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <raft/random/rng_state.hpp>
 #include <thrust/optional.h>
 
 namespace cugraph {
@@ -119,6 +120,81 @@ sample_edges(raft::handle_t const& handle,
              std::optional<raft::device_span<label_t const>> active_major_labels,
              size_t fanout,
              bool with_replacement);
+
+/**
+ * @brief Use the sampling results from hop N to populate the new frontier for hop N+1.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam label_t Type of label. Needs to be an integral type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param starting_vertices The source vertices for the current hop
+ * @param starting_vertex_labels Optional labels for the source vertices for the current hop
+ * @param new_frontier_vertices Vertices discovered in the current hop
+ * @param new_frontier_vertex_labels Optional labels for each of the newly discovered vertices
+ * @param vertex_used_as_source Span used for marking vertices that have already appeared as a
+ * source (empty span if @p unique_sources is false)
+ * @param vertex_partition Vertex partition view from the graph view
+ * @param vertex_partition_range_lasts End of range information from graph view
+ * @param unique_sources boolean flag, if true then sources at each hop will not be repeated.  That
+ * is, if vertex v appears as a source in hop X, it will never be sent as a source to a hop > X.
+ * Default is false.
+ * @param carry_over_sources boolean flag, if true then sources for hop X will be repeated as
+ * sources for all hops > X.  Default is false
+ * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
+ * multiple times with the same label, it will only be passed once (for each label) as a source
+ * for the next hop.  Default is false.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return A tuple of device vectors containing the vertices for the next frontier expansion and
+ *  optional labels associated with the vertices.
+ */
+template <typename vertex_t, typename label_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<label_t>>,
+           std::optional<std::tuple<rmm::device_uvector<vertex_t>,
+                                    std::optional<rmm::device_uvector<label_t>>>>>
+prepare_next_frontier(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  raft::device_span<vertex_t const> new_frontier_vertices,
+  std::optional<raft::device_span<label_t const>> new_frontier_vertex_labels,
+  std::optional<std::tuple<rmm::device_uvector<vertex_t>,
+                           std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
+  vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
+  std::vector<vertex_t> const& vertex_partition_range_lasts,
+  bool carry_over_sources,
+  bool dedupe_sources,
+  bool do_expensive_check);
+
+/**
+ * @brief Remove from the frontier any vertices that have already been used as a source
+ *
+ * @tparam vertex_t Type of vertex identifiers.  Needs to be an integral type.
+ * @tparam label_t Type of label.  Needs to be an integral type.
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param frontier_vertices Vertices discovered in the current hop
+ * @param frontier_vertex_labels Labels for the vertices discovered in the current hop
+ * @param vertices_used_as_source Device vector containing all vertices used in previous hops as a
+ * source
+ * @param vertex_labels_used_as_source Device vector containing vertex labels associated with
+ * the @p vertices_used_as_source used in previous hops as a source vertex label
+ *
+ * @return tuple containing the modified frontier_vertices and frontier_vertex_labels
+ */
+template <typename vertex_t, typename label_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<label_t>>
+remove_visited_vertices_from_frontier(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& frontier_vertices,
+  rmm::device_uvector<label_t>&& frontier_vertex_labels,
+  rmm::device_uvector<vertex_t> const& vertices_used_as_source,
+  rmm::device_uvector<label_t> const& vertex_labels_used_as_source);
 
 // FIXME: Should this go in shuffle_wrappers.hpp?
 /**

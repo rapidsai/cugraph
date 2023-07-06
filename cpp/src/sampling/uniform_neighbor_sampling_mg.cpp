@@ -42,6 +42,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -66,6 +69,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -90,6 +96,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -114,6 +123,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -138,6 +150,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -162,6 +177,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check);
 
 }  // namespace cugraph
