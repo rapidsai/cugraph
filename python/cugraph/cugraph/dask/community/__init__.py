@@ -14,3 +14,4 @@
 from .louvain import louvain
 from .triangle_count import triangle_count
 from .induced_subgraph import induced_subgraph
+from .leiden import leiden
