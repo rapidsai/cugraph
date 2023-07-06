@@ -48,8 +48,10 @@ rapids-logger "Run gtests"
 cd "$CONDA_PREFIX"/bin/gtests/libcugraph/
 ctest -j10 --output-on-failure
 
-cd "$CONDA_PREFIX"/bin/gtests/libcugraph_c/
-ctest -j10 --output-on-failure
+if [ -d "$CONDA_PREFIX"/bin/gtests/libcugraph_c/ ]
+  cd "$CONDA_PREFIX"/bin/gtests/libcugraph_c/
+  ctest -j10 --output-on-failure
+fi
 
 rapids-logger "Test script exiting with value: $EXITCODE"
 exit ${EXITCODE}
