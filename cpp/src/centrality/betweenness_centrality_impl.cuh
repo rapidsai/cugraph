@@ -651,12 +651,10 @@ edge_betweenness_centrality(
 
   if (normalized) {
     weight_t n = static_cast<weight_t>(graph_view.number_of_vertices());
-
     scale_factor = n * (n - 1);
   } else if (graph_view.is_symmetric())
     scale_factor = weight_t{2};
-  
-  
+
   if (scale_factor) {
     if (graph_view.number_of_vertices() > 2) {
       //
@@ -669,13 +667,17 @@ edge_betweenness_centrality(
       //  }
       //
 
+      auto firsts =  centralities.view().value_firsts();
+      auto counts = centralities.view().edge_counts();
+      auto mutable_firsts = centralities.mutable_view().value_firsts();
+      for (size_t k=0; k<counts.size(); k++){
       thrust::transform(
         handle.get_thrust_policy(),
-        centralities.mutable_view().value_firsts()[0],
-        centralities.mutable_view().value_firsts()[0] + centralities.mutable_view().edge_counts()[0],
-        centralities.mutable_view().value_firsts()[0],
+        firsts[k],
+        firsts[k] + counts[k],
+        mutable_firsts[k],
         [sf = *scale_factor] __device__(auto centrality) { return centrality / sf; });
-
+    }
     }
   }
 
