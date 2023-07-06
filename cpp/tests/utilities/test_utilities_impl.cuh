@@ -48,11 +48,16 @@ graph_to_host_coo(
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -94,17 +99,69 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool is_multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+graph_to_device_coo(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
+{
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+
+  if constexpr (is_multi_gpu) {
+    d_src = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
+    d_dst = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{d_dst.data(), d_dst.size()});
+    if (d_wgt)
+      *d_wgt = cugraph::test::device_gatherv(
+        handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+    if (handle.get_comms().get_rank() != 0) {
+      d_src.resize(0, handle.get_stream());
+      d_src.shrink_to_fit(handle.get_stream());
+      d_dst.resize(0, handle.get_stream());
+      d_dst.shrink_to_fit(handle.get_stream());
+      if (d_wgt) {
+        (*d_wgt).resize(0, handle.get_stream());
+        (*d_wgt).shrink_to_fit(handle.get_stream());
+      }
+    }
+  }
+
+  return std::make_tuple(std::move(d_src), std::move(d_dst), std::move(d_wgt));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
 std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
 graph_to_host_csr(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -184,8 +241,16 @@ mg_graph_to_sg_graph(
   std::optional<raft::device_span<vertex_t const>> number_map,
   bool renumber)
 {
-  auto [d_src, d_dst, d_wgt] =
-    cugraph::decompress_to_edgelist(handle, graph_view, edge_weight_view, number_map);
+  rmm::device_uvector<vertex_t> d_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_wgt{std::nullopt};
+
+  std::tie(d_src, d_dst, d_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    number_map);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
