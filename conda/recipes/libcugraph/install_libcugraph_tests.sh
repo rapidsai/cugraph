@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 
 cmake --install cpp/build --component testing
 cmake --install cpp/build --component testing_c
