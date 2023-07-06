@@ -110,17 +110,20 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
     graph_per_hop_ls = []
     output_nodes = None
     seed_nodes = None
+    # st = time.time()
     for hop_id, tensor_d in tensors_batch_d.items():
         block = _create_homogeneous_dgl_block_from_tensor_d(tensor_d)
-        seed_nodes = tensor_d["sources"].unique()
+        seed_nodes = tensor_d["sources"]
         if output_nodes is None:
-            output_nodes = tensor_d["destinations"].unique()
+            output_nodes = tensor_d["destinations"]
         graph_per_hop_ls.append(block)
+    # et = time.time()
+    # print("Time to create blocks", et - st)
 
     # default DGL behavior
     if edge_dir == "in":
         graph_per_hop_ls.reverse()
-    return seed_nodes, output_nodes, graph_per_hop_ls
+    return seed_nodes.unique(), output_nodes.unique(), graph_per_hop_ls
 
 
 def _create_homogeneous_dgl_block_from_tensor_d(
