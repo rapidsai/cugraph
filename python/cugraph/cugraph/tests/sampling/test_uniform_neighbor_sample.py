@@ -286,7 +286,7 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 
     sampling_results = uniform_neighbor_sample(
         test_data["Graph"],
-        test_data["start_list"],
+        test_data["start_list"].astype("int64"),
         test_data["fanout_vals"],
         test_data["with_replacement"],
     )
@@ -331,11 +331,11 @@ def test_uniform_neighbor_sample_edge_properties(return_offsets):
 
     sampling_results = uniform_neighbor_sample(
         G,
-        start_list=start_df["seed"],
+        start_list=start_df,
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
-        batch_id_list=start_df["batch"],
+        with_batch_ids=True,
         return_offsets=return_offsets,
     )
     if return_offsets:
@@ -390,11 +390,16 @@ def test_uniform_neighbor_sample_edge_properties_self_loops():
 
     sampling_results = cugraph.uniform_neighbor_sample(
         G,
-        start_list=cudf.Series([0, 1, 2]),
-        batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
+        start_list=cudf.DataFrame(
+            {
+                "start": cudf.Series([0, 1, 2]),
+                "batch": cudf.Series([1, 1, 1], dtype="int32"),
+            }
+        ),
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
         random_state=80,
     )
 
@@ -461,11 +466,16 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
 
     sampling_results = cugraph.uniform_neighbor_sample(
         G,
-        cudf.Series([0, 1], dtype="int64"),
+        start_list=cudf.DataFrame(
+            {
+                "start": cudf.Series([0, 1], dtype="int64"),
+                "batch": cudf.Series([0, 1], dtype="int32"),
+            }
+        ),
         fanout_vals=[2, 2, 2],
-        batch_id_list=cudf.Series([0, 1], dtype="int32"),
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
     )
 
     for b in range(2):
@@ -503,11 +513,16 @@ def test_uniform_neighbor_sample_empty_start_list():
 
     sampling_results = cugraph.uniform_neighbor_sample(
         G,
-        start_list=cudf.Series([], dtype="int64"),
-        batch_id_list=cudf.Series([], dtype="int32"),
+        start_list=cudf.DataFrame(
+            {
+                "start_list": cudf.Series(dtype="int64"),
+                "batch_id_list": cudf.Series(dtype="int32"),
+            }
+        ),
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
         random_state=32,
     )
 
