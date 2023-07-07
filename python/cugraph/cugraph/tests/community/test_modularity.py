@@ -18,9 +18,8 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, DATASETS_TESTING
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS
 
 import networkx as nx
 
@@ -55,7 +54,7 @@ PARTITIONS = [2, 4, 8]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
     gc.collect()
@@ -77,7 +76,7 @@ def test_modularity_clustering(graph_file, partitions):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_nx(graph_file, partitions):
     # Read in the graph and get a cugraph object
@@ -108,7 +107,7 @@ def test_modularity_clustering_nx(graph_file, partitions):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_multi_column(graph_file, partitions):
     # Read in the graph and get a cugraph object

@@ -12,18 +12,11 @@
 # limitations under the License.
 
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH, RAPIDS_DATASET_ROOT_DIR
-
-#
-# Moved Dataset Batches
-#
-
-# FIXME: it is hard to keep track of which datasets are included in certain batches and which are not. maybe convert this to a single fixture that let's you import datasets by name and yields a list? eg. get_batch("A", "B", C") => [A, B, C]
-# batches
-
 from cugraph.datasets import (
     cyber,
     dolphins,
     karate,
+    karate_disjoint,
     ktruss_polbooks,
     polbooks,
     netscience,
@@ -34,17 +27,25 @@ from cugraph.datasets import (
     toy_graph_undirected,
 )
 
+#
+# Moved Dataset Batches
+#
+
 DATASETS_UNDIRECTED = [karate, dolphins]
-DATASETS_UNDIRECTED_WEIGHTS = [netscience]
 DATASETS_SMALL = [karate, dolphins, polbooks]
-STRONGDATASETS = [dolphins, netscience, email_Eu_core]
-DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
-MEDIUM_DATASETS = [polbooks]
-SMALL_DATASETS = [karate, dolphins, netscience]
-RLY_SMALL_DATASETS = [small_line, small_tree]
+DATASETS_WEIGHTS = [
+    dolphins,
+    karate,
+    karate_disjoint,
+    netscience,
+    polbooks,
+    small_line,
+    small_tree,
+]
 ALL_DATASETS = [
     dolphins,
     karate,
+    karate_disjoint,
     ktruss_polbooks,
     polbooks,
     netscience,
@@ -54,9 +55,4 @@ ALL_DATASETS = [
     toy_graph,
     toy_graph_undirected,
 ]
-ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks, small_line, small_tree]
-TEST_GROUP = [dolphins, netscience]
-
-# FIXME: removed karate variant. check if unit tests are breaking
-DATASETS_UNRENUMBERED = []
-DATASETS = [dolphins, netscience, karate]
+DATASETS_TESTING = [dolphins, netscience, karate_disjoint]

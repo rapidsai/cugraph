@@ -18,7 +18,7 @@ import pytest
 from cugraph.testing import utils, DATASETS_SMALL
 import cugraph
 import cudf
-from cugraph.experimental.datasets import small_line, karate
+from cugraph.datasets import small_line, karate
 
 
 # =============================================================================

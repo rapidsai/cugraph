@@ -19,7 +19,7 @@ import cudf
 import cugraph
 from cugraph.testing import (
     utils,
-    DATASETS,
+    DATASETS_TESTING,
     DATASETS_UNDIRECTED,
 )
 from cugraph.experimental.datasets import (
@@ -77,7 +77,7 @@ def calc_katz(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_katz_centrality(graph_file):
     katz_scores = calc_katz(graph_file)
 

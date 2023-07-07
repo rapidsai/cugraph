@@ -32,11 +32,10 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing"]
 
 fixture_params = gen_fixture_params_product(
-    (datasets, "graph_file"),
+    (DATASETS_UNDIRECTED, "graph_file"),
     (degree_type, "degree_type"),
 )
 

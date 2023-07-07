@@ -21,15 +21,14 @@ import cugraph
 import cudf
 import networkx as nx
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-from cugraph.experimental.datasets import DATASETS  # using old karate variants
-from cugraph.testing import DATASETS_SMALL
+from cugraph.testing import DATASETS_SMALL, DATASETS_TESTING
 
 # =============================================================================
 # Parameters
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
-DATASETS = [pytest.param(d) for d in DATASETS]
+DATASETS = [pytest.param(d) for d in DATASETS_TESTING]
 DATASETS_SMALL = [pytest.param(d) for d in DATASETS_SMALL]
 
 

@@ -19,8 +19,8 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS, karate  # using old karate variants
+from cugraph.testing import utils, DATASETS_TESTING
+from cugraph.experimental.datasets import karate  # using old karate variants
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -158,7 +158,7 @@ def setup_function():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -224,7 +224,7 @@ def test_pagerank(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -269,7 +269,7 @@ def test_pagerank_nx(graph_file, max_iter, tol, alpha, personalization_perc, has
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)

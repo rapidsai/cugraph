@@ -20,11 +20,11 @@ import gc
 import pytest
 
 from cugraph.structure import Graph
-from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
 from cugraph.testing import (
+    RAPIDS_DATASET_ROOT_DIR_PATH,
     ALL_DATASETS,
-    ALL_DATASETS_WGT,
-    SMALL_DATASETS,
+    DATASETS_WEIGHTS,
+    DATASETS_SMALL,
 )
 from cugraph import datasets
 
@@ -139,7 +139,7 @@ def test_get_path(dataset):
     tmpd.cleanup()
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
+@pytest.mark.parametrize("dataset", DATASETS_WEIGHTS)
 def test_weights(dataset):
     G = dataset.get_graph(fetch=True)
     assert G.is_weighted()
@@ -147,7 +147,7 @@ def test_weights(dataset):
     assert not G.is_weighted()
 
 
-@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+@pytest.mark.parametrize("dataset", DATASETS_SMALL)
 def test_create_using(dataset):
     G = dataset.get_graph(fetch=True)
     assert not G.is_directed()
@@ -158,7 +158,7 @@ def test_create_using(dataset):
 
 
 def test_ctor_with_datafile():
-    from cugraph.experimental.datasets import karate
+    from cugraph.datasets import karate
 
     karate_csv = RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
 

@@ -16,7 +16,8 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.testing import utils, DATASETS_SMALL, DATASETS_UNRENUMBERED
+from cugraph.datasets import karate_disjoint
+from cugraph.testing import utils, DATASETS_SMALL
 import random
 import numpy as np
 import cupy
@@ -384,7 +385,7 @@ def test_edge_betweenness_centrality_k_full(
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNRENUMBERED)
+@pytest.mark.parametrize("graph_file", [karate_disjoint])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)

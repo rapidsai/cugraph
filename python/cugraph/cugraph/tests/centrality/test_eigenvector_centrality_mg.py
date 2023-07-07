@@ -19,7 +19,7 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.experimental.datasets import DATASETS  # depends on karate variant
+from cugraph.testing.utils import DATASETS
 
 
 # =============================================================================
