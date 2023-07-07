@@ -238,7 +238,6 @@ def uniform_neighbor_sample(
             included as one dataframe, or to instead return two
             dataframes, one with sampling results and one with
             batch ids and their start offsets.
-    <<<<<<< HEAD
 
         unique_sources: bool, optional (default=False)
             Whether to ensure that sources do not reappear as sources in
@@ -251,8 +250,6 @@ def uniform_neighbor_sample(
             Whether to first deduplicate the list of possible sources
             from the previous destinations before performing next
             hop.
-    =======
-    >>>>>>> 037239686052ee4e07286dcf235d0aa1b0da0ff0
 
         Returns
         -------
