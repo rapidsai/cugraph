@@ -15,8 +15,8 @@ from typing import Optional, Tuple, Union
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
-from pylibcugraphops.pytorch import CSC
-from pylibcugraphops.pytorch.operators import mha_simple_n2n
+# from pylibcugraphops.pytorch import CSC
+# from pylibcugraphops.pytorch.operators import mha_simple_n2n
 
 dgl = import_optional("dgl")
 torch = import_optional("torch")

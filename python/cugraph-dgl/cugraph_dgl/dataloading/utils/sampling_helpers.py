@@ -52,6 +52,7 @@ def _get_tensor_ls_from_sampled_df(df):
     batch_indices = torch.searchsorted(batch_id_tensor, batch_indices)
 
     split_d = {}
+    
     for column in ["sources", "destinations", "edge_id", "hop_id"]:
         tensor = cast_to_tensor(df[column])
         split_d[column] = torch.tensor_split(tensor, batch_indices.cpu())
