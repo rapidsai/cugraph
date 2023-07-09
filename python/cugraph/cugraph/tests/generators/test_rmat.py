@@ -113,9 +113,8 @@ def test_rmat_edge_weights(
     include_edge_weights, dtype, min_max_weight, scramble_vertex_ids
 ):
     """
-    Verifies that the edge weights returned by rmat() are valid and raises an
-    exception otherwise or if invalid values are passed to 'dtype', 'minimum_weight'
-    or 'maximum_weight'.
+    Verifies that the edge weights returned by rmat() are valid. Also verifies that
+    valid values are passed to 'dtype', 'minimum_weight' and 'maximum_weight'.
 
     """
     scale = 2
@@ -188,8 +187,7 @@ def test_rmat_edge_weights(
 )
 def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
     """
-    Verifies that the edge ids returned by rmat() are valid and raises an
-    exception otherwise.
+    Verifies that the edge ids returned by rmat() are valid.
 
     """
     num_edges = (2**scale) * 4
@@ -215,8 +213,8 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
 @pytest.mark.sg
 @pytest.mark.parametrize(
     "include_edge_types",
-    [_include_edge_types[0]],
-    ids=[_include_edge_types_test_ids[0]],
+    _include_edge_types,
+    ids=_include_edge_types_test_ids,
 )
 @pytest.mark.parametrize(
     "min_max_edge_type",
@@ -228,9 +226,8 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
 )
 def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_ids):
     """
-    Verifies that the edge types returned by rmat() are valid and raises an
-    exception otherwise or if invalid values are passed to 'min_edge_type' or
-    'max_edge_type'.
+    Verifies that the edge types returned by rmat() are valid and that valid values
+    are passed for 'min_edge_type' and 'max_edge_type'.
 
     """
     scale = 2
