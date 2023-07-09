@@ -97,7 +97,7 @@ def _ensure_args_rmat(
                 "'min_edge_type_value' and 'max_edge_type_value' must not be 'None' "
                 "if 'include_edge_types' is True"
             )
-    
+
     if multi_rmat:
         if not isinstance(n_edgelists, int):
             raise TypeError("'n_edgelists' must be an int")
