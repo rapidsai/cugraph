@@ -99,7 +99,6 @@ def _call_rmat(
 
 
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize(
     "include_edge_weights", _include_edge_weights, ids=_include_edge_weights_test_ids
 )
@@ -180,7 +179,6 @@ def test_rmat_edge_weights(
 
 
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", _scale_values, ids=_scale_test_ids)
 @pytest.mark.parametrize(
     "include_edge_ids", _include_edge_ids, ids=_include_edge_ids_test_ids
@@ -215,7 +213,6 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
 
 
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize(
     "include_edge_types",
     [_include_edge_types[0]],
@@ -287,7 +284,6 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_
 
 
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("scale", [2, 4, 8], ids=_scale_test_ids)
 @pytest.mark.parametrize(
     "include_edge_weights", _include_edge_weights, ids=_include_edge_weights_test_ids
@@ -346,7 +342,6 @@ def test_rmat_clip_and_flip(
 
 
 @pytest.mark.sg
-@pytest.mark.filterwarnings("ignore:make_current is deprecated:DeprecationWarning")
 @pytest.mark.parametrize("graph_type", _graph_types, ids=_graph_test_ids)
 def test_rmat_return_type(graph_type):
     """
