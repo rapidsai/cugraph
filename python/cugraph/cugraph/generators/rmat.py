@@ -45,8 +45,8 @@ def _ensure_args_rmat(
     dtype=None,
     include_edge_ids=None,
     include_edge_types=None,
-    min_edge_type=None,
-    max_edge_type=None,
+    min_edge_type_value=None,
+    max_edge_type_value=None,
     create_using=None,
     mg=None,
     multi_rmat=False,
@@ -79,12 +79,12 @@ def _ensure_args_rmat(
         if maximum_weight is None or minimum_weight is None:
             raise ValueError(
                 "'maximum_weight' and 'minimum_weight' must not be 'None' "
-                "if 'include_edge_weights' is 'true'"
+                "if 'include_edge_weights' is True"
             )
         if dtype not in ["FLOAT32", "FLOAT64"]:
             raise ValueError(
                 "dtype must be either 'FLOAT32' or 'FLOAT64' if 'include_edge_weights' "
-                "is 'true'"
+                "is True"
             )
     if include_edge_ids:
         if include_edge_ids not in [True, False]:
@@ -92,10 +92,10 @@ def _ensure_args_rmat(
     if include_edge_types:
         if include_edge_types not in [True, False]:
             raise ValueError("'include_edge_types' must be a bool")
-        if min_edge_type is None and max_edge_type is None:
+        if min_edge_type_value is None and max_edge_type_value is None:
             raise ValueError(
-                "'min_edge_type' and 'max_edge_type' must not be 'None' "
-                "if 'include_edge_types' is 'true'"
+                "'min_edge_type_value' and 'max_edge_type_value' must not be 'None' "
+                "if 'include_edge_types' is True"
             )
     
     if multi_rmat:
@@ -139,8 +139,8 @@ def _sg_rmat(
     dtype,
     include_edge_ids,
     include_edge_types,
-    min_edge_type,
-    max_edge_type,
+    min_edge_type_value,
+    max_edge_type_value,
     create_using=cugraph.Graph,
 ):
     """
@@ -169,8 +169,8 @@ def _sg_rmat(
         dtype,
         include_edge_ids,
         include_edge_types,
-        min_edge_type,
-        max_edge_type,
+        min_edge_type_value,
+        max_edge_type_value,
         multi_gpu,
     )
 
@@ -249,8 +249,8 @@ def _mg_rmat(
     dtype,
     include_edge_ids,
     include_edge_types,
-    min_edge_type,
-    max_edge_type,
+    min_edge_type_value,
+    max_edge_type_value,
     create_using=cugraph.Graph,
 ):
     """
@@ -285,8 +285,8 @@ def _mg_rmat(
             dtype,
             include_edge_ids,
             include_edge_types,
-            min_edge_type,
-            max_edge_type,
+            min_edge_type_value,
+            max_edge_type_value,
             workers=worker_list[i],
         )
         result.append(future)
@@ -355,8 +355,8 @@ def _call_rmat(
     dtype,
     include_edge_ids,
     include_edge_types,
-    min_edge_type,
-    max_edge_type,
+    min_edge_type_value,
+    max_edge_type_value,
 ):
     """
     Callable passed to dask client.submit calls that extracts the individual
@@ -380,8 +380,8 @@ def _call_rmat(
         dtype,
         include_edge_ids,
         include_edge_types,
-        min_edge_type,
-        max_edge_type,
+        min_edge_type_value,
+        max_edge_type_value,
         multi_gpu,
     )
 
@@ -420,8 +420,8 @@ def rmat(
     dtype=None,
     include_edge_ids=False,
     include_edge_types=False,
-    min_edge_type=None,
-    max_edge_type=None,
+    min_edge_type_value=None,
+    max_edge_type_value=None,
     create_using=cugraph.Graph,
     mg=False,
 ):
@@ -432,7 +432,7 @@ def rmat(
     Parameters
     ----------
     scale : int
-        Scale factor to set the number of vertices in the graph Vertex IDs have
+        Scale factor to set the number of vertices in the graph. Vertex IDs have
         values in [0, V), where V = 1 << 'scale'
 
     num_edges : int
@@ -457,7 +457,7 @@ def rmat(
     clip_and_flip : bool, optional (default=False)
         Flag controlling whether to generate edges only in the lower triangular
         part (including the diagonal) of the graph adjacency matrix
-        (if set to 'true') or not (if set to 'false).
+        (if set to True) or not (if set to 'false).
 
     scramble_vertex_ids : bool, optional (default=False)
         Flag controlling whether to scramble vertex ID bits (if set to `true`)
@@ -466,14 +466,14 @@ def rmat(
 
     include_edge_weights : bool, optional (default=False)
         Flag controlling whether to generate edges with weights
-        (if set to 'true') or not (if set to 'false').
+        (if set to True) or not (if set to False).
 
     minimum_weight : float
-        Minimum weight value to generate if 'include_edge_weights' is 'true'
+        Minimum weight value to generate if 'include_edge_weights' is True
         otherwise, this parameter is ignored.
 
     maximum_weight : float
-        Maximum weight value to generate if 'include_edge_weights' is 'true'
+        Maximum weight value to generate if 'include_edge_weights' is True
         otherwise, this parameter is ignored.
 
     dtype : string
@@ -482,18 +482,18 @@ def rmat(
 
     include_edge_ids : bool, optional (default=False)
         Flag controlling whether to generate edges with ids
-        (if set to 'true') or not (if set to 'false').
+        (if set to True) or not (if set to False).
 
     include_edge_types : bool, optional (default=False)
         Flag controlling whether to generate edges with types
-        (if set to 'true') or not (if set to 'false').
+        (if set to True) or not (if set to False).
 
-    min_edge_type : int
-        Minimum edge type to generate if 'include_edge_types' is 'true'
+    min_edge_type_value : int
+        Minimum edge type to generate if 'include_edge_types' is True
         otherwise, this parameter is ignored.
 
-    max_edge_type : int
-        Maximum edge type to generate if 'include_edge_types' is 'true'
+    max_edge_type_value : int
+        Maximum edge type to generate if 'include_edge_types' is True
         otherwise, this paramter is ignored.
 
     create_using : cugraph Graph type or None The graph type to construct
@@ -547,8 +547,8 @@ def rmat(
         dtype=dtype,
         include_edge_ids=include_edge_ids,
         include_edge_types=include_edge_types,
-        min_edge_type=min_edge_type,
-        max_edge_type=max_edge_type,
+        min_edge_type_value=min_edge_type_value,
+        max_edge_type_value=max_edge_type_value,
         create_using=create_using,
         mg=mg,
     )
@@ -569,8 +569,8 @@ def rmat(
             dtype,
             include_edge_ids,
             include_edge_types,
-            min_edge_type,
-            max_edge_type,
+            min_edge_type_value,
+            max_edge_type_value,
             create_using,
         )
     else:
@@ -589,8 +589,8 @@ def rmat(
             dtype,
             include_edge_ids,
             include_edge_types,
-            min_edge_type,
-            max_edge_type,
+            min_edge_type_value,
+            max_edge_type_value,
             create_using,
         )
 
@@ -611,8 +611,8 @@ def multi_rmat(
     dtype=None,
     include_edge_ids=False,
     include_edge_types=False,
-    min_edge_type=None,
-    max_edge_type=None,
+    min_edge_type_value=None,
+    max_edge_type_value=None,
     mg=False,
 ):
     """
@@ -646,42 +646,42 @@ def multi_rmat(
     seed : int
         Seed value for the random number generator
 
-    clip_and_flip : bool
+    clip_and_flip : bool, optional (default=False)
         Flag controlling whether to generate edges only in the lower triangular
         part (including the diagonal) of the graph adjacency matrix
-        (if set to 'true') or not (if set to 'false')
+        (if set to True) or not (if set to False)
 
     scramble_vertex_ids : bool
-        Flag controlling whether to scramble vertex ID bits (if set to 'true')
-        or not (if set to 'false'); scrambling vertx ID bits breaks correlation
+        Flag controlling whether to scramble vertex ID bits (if set to True)
+        or not (if set to False); scrambling vertx ID bits breaks correlation
         between vertex ID values and vertex degrees
 
     include_edge_weights : bool, optional (default=False)
         Flag controlling whether to generate edges with weights
-        (if set to 'true') or not (if set to 'false').
+        (if set to True) or not (if set to ').
 
     minimum_weight : float
-        Minimum weight value to generate if 'include_edge_weights' is 'true'
+        Minimum weight value to generate if 'include_edge_weights' is True
         otherwise, this parameter is ignored.
 
     maximum_weight : float
-        Maximum weight value to generate if 'include_edge_weights' is 'true'
+        Maximum weight value to generate if 'include_edge_weights' is True
         otherwise, this parameter is ignored.
 
     include_edge_ids : bool, optional (default=False)
         Flag controlling whether to generate edges with ids
-        (if set to 'true') or not (if set to 'false').
+        (if set to True) or not (if set to False).
 
     include_edge_types : bool, optional (default=False)
         Flag controlling whether to generate edges with types
-        (if set to 'true') or not (if set to 'false').
+        (if set to True) or not (if set to False).
 
-    min_edge_type : int
-        Minimum edge type to generate if 'include_edge_types' is 'true'
+    min_edge_type_value : int
+        Minimum edge type to generate if 'include_edge_types' is True
         otherwise, this parameter is ignored.
 
-    max_edge_type : int
-        Maximum edge type to generate if 'include_edge_types' is 'true'
+    max_edge_type_value : int
+        Maximum edge type to generate if 'include_edge_types' is True
         otherwise, this paramter is ignored.
 
     dtype : string
@@ -711,8 +711,8 @@ def multi_rmat(
         dtype=dtype,
         include_edge_ids=include_edge_ids,
         include_edge_types=include_edge_types,
-        min_edge_type=min_edge_type,
-        max_edge_type=max_edge_type,
+        min_edge_type_value=min_edge_type_value,
+        max_edge_type_value=max_edge_type_value,
         multi_rmat=True,
         clip_and_flip=clip_and_flip,
         scramble_vertex_ids=scramble_vertex_ids,
@@ -735,8 +735,8 @@ def multi_rmat(
         dtype,
         include_edge_ids,
         include_edge_types,
-        min_edge_type,
-        max_edge_type,
+        min_edge_type_value,
+        max_edge_type_value,
         mg,
     )
 
