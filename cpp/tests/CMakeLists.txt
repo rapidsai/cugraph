@@ -293,7 +293,8 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
 # - Bipartite R-mat graph generation tests --------------------------------------------------------
-ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp)
+ConfigureTest(GENERATE_BIPARTITE_RMAT_TEST generators/generate_bipartite_rmat_test.cpp
+    GPUS 1 PERCENT 100)
 
 ###################################################################################################
 # - Graph mask tests ------------------------------------------------------------------------------
