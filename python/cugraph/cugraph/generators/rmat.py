@@ -74,8 +74,8 @@ def _ensure_args_rmat(
     if not isinstance(seed, int):
         raise TypeError("'seed' must be an int")
     if include_edge_weights:
-        if include_edge_weights not in [True, False]:
-            raise ValueError("'include_edge_weights' must be a bool")
+        if not isinstance(include_edge_weights, bool):
+            raise TypeError("'include_edge_weights' must be a bool")
         if maximum_weight is None or minimum_weight is None:
             raise ValueError(
                 "'maximum_weight' and 'minimum_weight' must not be 'None' "
@@ -87,11 +87,11 @@ def _ensure_args_rmat(
                 "is True"
             )
     if include_edge_ids:
-        if include_edge_ids not in [True, False]:
-            raise ValueError("'include_edge_ids' must be a bool")
+        if not isinstance(include_edge_ids, bool):
+            raise TypeError("'include_edge_ids' must be a bool")
     if include_edge_types:
-        if include_edge_types not in [True, False]:
-            raise ValueError("'include_edge_types' must be a bool")
+        if not isinstance(include_edge_types, bool):
+            raise TypeError("'include_edge_types' must be a bool")
         if min_edge_type_value is None and max_edge_type_value is None:
             raise ValueError(
                 "'min_edge_type_value' and 'max_edge_type_value' must not be 'None' "
@@ -118,10 +118,10 @@ def _ensure_args_rmat(
             raise TypeError("'num_edges' must be an int")
         if a + b + c > 1:
             raise ValueError("a + b + c should be non-negative and no larger than 1.0")
-        if clip_and_flip not in [True, False]:
-            raise ValueError("'clip_and_flip' must be a bool")
-        if scramble_vertex_ids not in [True, False]:
-            raise ValueError("'scramble_vertex_ids' must be a bool")
+        if not isinstance(clip_and_flip , bool):
+            raise TypeError("'clip_and_flip' must be a bool")
+        if not isinstance(scramble_vertex_ids, bool):
+            raise TypeError("'scramble_vertex_ids' must be a bool")
 
 
 def _sg_rmat(
