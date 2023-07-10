@@ -65,8 +65,8 @@ def _call_rmat(
     maximum_weight=None,
     include_edge_ids=False,
     include_edge_types=False,
-    min_edge_type=None,
-    max_edge_type=None,
+    min_edge_type_value=None,
+    max_edge_type_value=None,
     mg=False,
 ):
     """
@@ -89,8 +89,8 @@ def _call_rmat(
         dtype=dtype,
         include_edge_ids=include_edge_ids,
         include_edge_types=include_edge_types,
-        min_edge_type=min_edge_type,
-        max_edge_type=max_edge_type,
+        min_edge_type_value=min_edge_type_value,
+        max_edge_type_value=max_edge_type_value,
         mg=mg,
     )
 
@@ -217,26 +217,26 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
     ids=_include_edge_types_test_ids,
 )
 @pytest.mark.parametrize(
-    "min_max_edge_type",
+    "min_max_edge_type_value",
     _min_max_edge_type_values,
     ids=_min_max_edge_type_values_test_ids,
 )
 @pytest.mark.parametrize(
     "scramble_vertex_ids", _scramble_vertex_ids, ids=_scramble_vertex_ids_test_ids
 )
-def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_ids):
+def test_rmat_edge_types(include_edge_types, min_max_edge_type_value, scramble_vertex_ids):
     """
     Verifies that the edge types returned by rmat() are valid and that valid values
-    are passed for 'min_edge_type' and 'max_edge_type'.
+    are passed for 'min_edge_type_value' and 'max_edge_type_value'.
 
     """
     scale = 2
     num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
-    min_edge_type, max_edge_type = min_max_edge_type
+    min_edge_type_value, max_edge_type_value = min_max_edge_type_value
 
     if include_edge_types:
-        if min_edge_type is None or max_edge_type is None:
+        if min_edge_type_value is None or max_edge_type_value is None:
             with pytest.raises(ValueError):
                 _call_rmat(
                     scale,
@@ -244,8 +244,8 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_
                     create_using,
                     scramble_vertex_ids=scramble_vertex_ids,
                     include_edge_types=include_edge_types,
-                    min_edge_type=min_edge_type,
-                    max_edge_type=max_edge_type,
+                    min_edge_type_value=min_edge_type_value,
+                    max_edge_type_value=max_edge_type_value,
                 )
         else:
             df = _call_rmat(
@@ -254,17 +254,17 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_
                 create_using,
                 scramble_vertex_ids=scramble_vertex_ids,
                 include_edge_types=include_edge_types,
-                min_edge_type=min_edge_type,
-                max_edge_type=max_edge_type,
+                min_edge_type_value=min_edge_type_value,
+                max_edge_type_value=max_edge_type_value,
             )
 
             # Check that there is an 'edge_type' column
             assert "edge_type" in df.columns
-            edge_types_err1 = df.query("{} < edge_type".format(max_edge_type))
-            edge_types_err2 = df.query("{} > edge_type".format(min_edge_type))
+            edge_types_err1 = df.query("{} < edge_type".format(max_edge_type_value))
+            edge_types_err2 = df.query("{} > edge_type".format(min_edge_type_value))
 
-            # Check that edge weights values are between 'min_edge_type'
-            # and 'max_edge_type'.
+            # Check that edge weights values are between 'min_edge_type_value'
+            # and 'max_edge_type_value'.
             assert len(edge_types_err1) == 0
             assert len(edge_types_err2) == 0
     else:
@@ -274,8 +274,8 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_
             create_using,
             scramble_vertex_ids=scramble_vertex_ids,
             include_edge_types=include_edge_types,
-            min_edge_type=min_edge_type,
-            max_edge_type=max_edge_type,
+            min_edge_type_value=min_edge_type_value,
+            max_edge_type_value=max_edge_type_value,
         )
         assert len(df.columns) == 2
 
