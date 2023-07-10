@@ -118,7 +118,7 @@ def _ensure_args_rmat(
             raise TypeError("'num_edges' must be an int")
         if a + b + c > 1:
             raise ValueError("a + b + c should be non-negative and no larger than 1.0")
-        if not isinstance(clip_and_flip , bool):
+        if not isinstance(clip_and_flip, bool):
             raise TypeError("'clip_and_flip' must be a bool")
         if not isinstance(scramble_vertex_ids, bool):
             raise TypeError("'scramble_vertex_ids' must be a bool")

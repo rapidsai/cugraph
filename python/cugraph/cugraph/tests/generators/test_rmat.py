@@ -224,7 +224,9 @@ def test_rmat_edge_ids(scale, include_edge_ids, scramble_vertex_ids):
 @pytest.mark.parametrize(
     "scramble_vertex_ids", _scramble_vertex_ids, ids=_scramble_vertex_ids_test_ids
 )
-def test_rmat_edge_types(include_edge_types, min_max_edge_type_value, scramble_vertex_ids):
+def test_rmat_edge_types(
+    include_edge_types, min_max_edge_type_value, scramble_vertex_ids
+):
     """
     Verifies that the edge types returned by rmat() are valid and that valid values
     are passed for 'min_edge_type_value' and 'max_edge_type_value'.
@@ -286,9 +288,7 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type_value, scramble_v
     "include_edge_weights", _include_edge_weights, ids=_include_edge_weights_test_ids
 )
 @pytest.mark.parametrize("clip_and_flip", _clip_and_flip, ids=_clip_and_flip_test_ids)
-def test_rmat_clip_and_flip(
-    scale, include_edge_weights, clip_and_flip
-):
+def test_rmat_clip_and_flip(scale, include_edge_weights, clip_and_flip):
     """
     Verifies that there are edges only in the lower triangular part of
     the adjacency matrix when 'clip_and_flip' is set to 'true'.
