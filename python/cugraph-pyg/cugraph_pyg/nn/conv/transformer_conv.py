@@ -12,7 +12,7 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-from pylibcugraphops.pytorch.operators import mha_simple_n2n as TransformerConvAgg
+from pylibcugraphops.pytorch.operators import mha_simple_n2n
 
 from cugraph.utilities.utils import import_optional
 
@@ -168,10 +168,10 @@ class TransformerConv(BaseConv):
                 representation to the desired format.
             edge_attr: (torch.Tensor, optional) The edge features.
         """
-        bipartite = not isinstance(x, torch.Tensor)
+        bipartite = True
         graph = self.get_cugraph(csc, bipartite=bipartite)
 
-        if not bipartite:
+        if isinstance(x, torch.Tensor):
             x = (x, x)
 
         query = self.lin_query(x[1])
@@ -186,7 +186,7 @@ class TransformerConv(BaseConv):
                 )
             edge_attr = self.lin_edge(edge_attr)
 
-        out = TransformerConvAgg(
+        out = mha_simple_n2n(
             key,
             query,
             value,
