@@ -82,7 +82,7 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
                            bool_t multi_gpu,
                            ):
     """
-    Generate RMAT edge list
+    Generate multiple RMAT edge list
 
     Parameters
     ----------
@@ -160,7 +160,9 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
 
     Returns
     -------
-
+    return a list of tuple containing the sources and destinations with their
+    corresponding weights, ids and types if the flags 'include_edge_weights',
+    'include_edge_ids' and 'include_edge_types' are respectively set to 'true'
     """
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
