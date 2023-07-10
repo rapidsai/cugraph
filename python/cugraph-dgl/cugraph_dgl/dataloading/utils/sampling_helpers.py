@@ -52,10 +52,11 @@ def _get_tensor_ls_from_sampled_df(df):
     batch_indices = torch.searchsorted(batch_id_tensor, batch_indices)
 
     split_d = {}
-    
+
     for column in ["sources", "destinations", "edge_id", "hop_id"]:
-        tensor = cast_to_tensor(df[column])
-        split_d[column] = torch.tensor_split(tensor, batch_indices.cpu())
+        if column in df.columns:
+            tensor = cast_to_tensor(df[column])
+            split_d[column] = torch.tensor_split(tensor, batch_indices.cpu())
 
     result_tensor_ls = []
     for i, hop_id_tensor in enumerate(split_d["hop_id"]):
@@ -67,7 +68,11 @@ def _get_tensor_ls_from_sampled_df(df):
         hop_indices = torch.searchsorted(hop_id_tensor, hop_indices)
         s = torch.tensor_split(split_d["sources"][i], hop_indices.cpu())
         d = torch.tensor_split(split_d["destinations"][i], hop_indices.cpu())
-        eid = torch.tensor_split(split_d["edge_id"][i], hop_indices.cpu())
+        if "edge_id" in split_d:
+            eid = torch.tensor_split(split_d["edge_id"][i], hop_indices.cpu())
+        else:
+            eid = [None] * len(s)
+
         result_tensor_ls.append((x, y, z) for x, y, z in zip(s, d, eid))
 
     return result_tensor_ls
@@ -126,7 +131,7 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
 def create_homogeneous_dgl_block_from_tensors_ls(
     src_ids: torch.Tensor,
     dst_ids: torch.Tensor,
-    edge_ids: torch.Tensor,
+    edge_ids: Optional[torch.Tensor],
     seed_nodes: Optional[torch.Tensor],
     total_number_of_nodes: int,
 ):
@@ -134,7 +139,8 @@ def create_homogeneous_dgl_block_from_tensors_ls(
         (src_ids, dst_ids),
         num_nodes=total_number_of_nodes,
     )
-    sampled_graph.edata[dgl.EID] = edge_ids
+    if edge_ids is not None:
+        sampled_graph.edata[dgl.EID] = edge_ids
     # TODO: Check if unique is needed
     if seed_nodes is None:
         seed_nodes = dst_ids.unique()
@@ -145,7 +151,8 @@ def create_homogeneous_dgl_block_from_tensors_ls(
         src_nodes=src_ids.unique(),
         include_dst_in_src=True,
     )
-    block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
+    if edge_ids is not None:
+        block.edata[dgl.EID] = sampled_graph.edata[dgl.EID]
     return block
 
 
