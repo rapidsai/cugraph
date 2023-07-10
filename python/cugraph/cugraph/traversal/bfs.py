@@ -197,7 +197,7 @@ def bfs(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.bfs(G, 0)
 
@@ -315,7 +315,7 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.bfs_edges(G, 0)
 

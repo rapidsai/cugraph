@@ -21,7 +21,7 @@ import cugraph
 from cugraph.testing import utils, DATASETS_UNDIRECTED
 from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
 from cugraph.experimental import jaccard as exp_jaccard
-from cugraph.experimental.datasets import netscience
+from cugraph.datasets import netscience
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

@@ -169,7 +169,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.weakly_connected_components(G)
 
@@ -278,7 +278,7 @@ def strongly_connected_components(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.strongly_connected_components(G)
 
@@ -387,7 +387,7 @@ def connected_components(G, directed=None, connection="weak", return_labels=None
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.connected_components(G, connection="weak")
 

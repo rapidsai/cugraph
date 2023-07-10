@@ -22,7 +22,7 @@ import cudf
 from cugraph.testing import utils, DATASETS_UNDIRECTED
 from cugraph.experimental.datasets import (
     karate_asymmetric,
-)  # using deleted karate variant
+)  # using experimental karate variant
 
 from cudf.testing.testing import assert_series_equal
 

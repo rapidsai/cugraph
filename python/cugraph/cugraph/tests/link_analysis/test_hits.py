@@ -21,7 +21,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
 from cugraph.testing import utils, DATASETS_UNDIRECTED
-from cugraph.experimental.datasets import email_Eu_core, karate
+from cugraph.datasets import email_Eu_core, karate
 
 
 # =============================================================================

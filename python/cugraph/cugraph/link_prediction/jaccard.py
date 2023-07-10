@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -54,7 +54,7 @@ def jaccard(input_graph, vertex_pair=None):
     you can get the interesting (non-zero) values that are part of the networkx
     solution by doing the following:
 
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> pairs = G.get_two_hop_neighbors()
     >>> df = cugraph.jaccard(G, pairs)
@@ -99,7 +99,7 @@ def jaccard(input_graph, vertex_pair=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.jaccard(G)
 
@@ -159,7 +159,7 @@ def jaccard_coefficient(G, ebunch=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.jaccard_coefficient(G)
 

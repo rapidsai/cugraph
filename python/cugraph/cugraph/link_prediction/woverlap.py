@@ -72,7 +72,7 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     Examples
     --------
     >>> import random
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> # Create a dataframe containing the vertices with their
     >>> # corresponding weight

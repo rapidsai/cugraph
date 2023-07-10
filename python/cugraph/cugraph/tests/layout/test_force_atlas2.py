@@ -19,7 +19,7 @@ import cugraph
 from cugraph.internals import GraphBasedDimRedCallback
 from sklearn.manifold import trustworthiness
 import scipy.io
-from cugraph.experimental.datasets import karate, polbooks, dolphins, netscience
+from cugraph.datasets import karate, polbooks, dolphins, netscience
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from

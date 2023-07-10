@@ -86,7 +86,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> ego_graph = cugraph.ego_graph(G, 1, radius=2)
 
@@ -190,7 +190,7 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> b_ego_graph, offsets = cugraph.batched_ego_graphs(G, seeds=[1,5],
     ...                                                   radius=2)

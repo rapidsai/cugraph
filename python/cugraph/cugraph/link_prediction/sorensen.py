@@ -71,7 +71,7 @@ def sorensen(input_graph, vertex_pair=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.sorensen(G)
 
@@ -132,7 +132,7 @@ def sorensen_coefficient(G, ebunch=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.sorensen_coefficient(G)
 

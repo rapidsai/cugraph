@@ -91,7 +91,7 @@ def induced_subgraph(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> verts = np.zeros(3, dtype=np.int32)
     >>> verts[0] = 0

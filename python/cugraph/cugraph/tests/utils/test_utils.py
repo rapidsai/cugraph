@@ -18,7 +18,7 @@ import pytest
 import cugraph
 import cudf
 from cugraph.testing import utils
-from cugraph.experimental.datasets import karate
+from cugraph.datasets import karate
 import numpy as np
 
 
