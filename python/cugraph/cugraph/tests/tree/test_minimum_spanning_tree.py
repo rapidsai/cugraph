@@ -21,7 +21,7 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.datasets import DATASETS_UNDIRECTED_WEIGHTS
+from cugraph.datasets import netscience
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,10 +36,13 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+DATASETS_UNDIRECTED_WEIGHTS = [netscience]
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 

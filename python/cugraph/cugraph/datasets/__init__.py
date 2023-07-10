@@ -27,45 +27,16 @@ from cugraph.datasets import metadata
 meta_path = Path(__file__).parent / "metadata"
 
 # invidual datasets
+cyber = Dataset(meta_path / "cyber.yaml")
+dolphins = Dataset(meta_path / "dolphins.yaml")
+email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
 karate = Dataset(meta_path / "karate.yaml")
-karate_data = Dataset(meta_path / "karate_data.yaml")
-karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
 karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
 karate_disjoint = Dataset(meta_path / "karate-disjoint.yaml")
-dolphins = Dataset(meta_path / "dolphins.yaml")
-polbooks = Dataset(meta_path / "polbooks.yaml")
+ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
 netscience = Dataset(meta_path / "netscience.yaml")
-cyber = Dataset(meta_path / "cyber.yaml")
+polbooks = Dataset(meta_path / "polbooks.yaml")
 small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
 toy_graph = Dataset(meta_path / "toy_graph.yaml")
 toy_graph_undirected = Dataset(meta_path / "toy_graph_undirected.yaml")
-email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
-ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
-
-# batches
-DATASETS_UNDIRECTED = [karate, dolphins]
-
-DATASETS_UNDIRECTED_WEIGHTS = [netscience]
-
-DATASETS_UNRENUMBERED = [karate_disjoint]
-
-DATASETS = [dolphins, netscience, karate_disjoint]
-
-DATASETS_SMALL = [karate, dolphins, polbooks]
-
-STRONGDATASETS = [dolphins, netscience, email_Eu_core]
-
-DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
-
-MEDIUM_DATASETS = [polbooks]
-
-SMALL_DATASETS = [karate, dolphins, netscience]
-
-RLY_SMALL_DATASETS = [small_line, small_tree]
-
-ALL_DATASETS = [karate, dolphins, netscience, polbooks, small_line, small_tree]
-
-ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks, small_line, small_tree]
-
-TEST_GROUP = [dolphins, netscience]

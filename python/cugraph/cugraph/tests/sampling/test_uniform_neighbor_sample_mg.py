@@ -25,7 +25,8 @@ import cugraph.dask as dcg
 import cugraph
 
 from cugraph.dask import uniform_neighbor_sample
-from cugraph.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
+from cugraph.datasets import email_Eu_core, small_tree
+from cugraph.testing import DATASETS_UNDIRECTED
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -327,7 +328,8 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
 def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
-    if len(dask_client.scheduler_info()["workers"]) <= 1:
+    n_workers = len(dask_client.scheduler_info()["workers"])
+    if n_workers <= 1:
         pytest.skip("Test only valid for MG environments")
     edgelist_df = dask_cudf.from_cudf(
         cudf.DataFrame(
@@ -352,43 +354,58 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
         edge_attr=["w", "eid", "etp"],
     )
 
-    dest_rank = [0, 1]
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=cudf.Series([0, 4], dtype="int64"),
+        start_list=cudf.DataFrame(
+            {
+                "start": cudf.Series([0, 4], dtype="int64"),
+                "batch": cudf.Series([0, 1], dtype="int32"),
+            }
+        ),
         fanout_vals=[-1, -1],
         with_replacement=False,
         with_edge_properties=True,
-        batch_id_list=cudf.Series([0, 1], dtype="int32"),
-        label_list=cudf.Series([0, 1], dtype="int32") if return_offsets else None,
-        label_to_output_comm_rank=cudf.Series(dest_rank, dtype="int32")
-        if return_offsets
-        else None,
+        with_batch_ids=True,
+        keep_batches_together=True,
+        min_batch_id=0,
+        max_batch_id=1,
         return_offsets=return_offsets,
     )
 
     if return_offsets:
         sampling_results, sampling_offsets = sampling_results
 
-        df_p0 = sampling_results.get_partition(0).compute()
-        assert sorted(df_p0.sources.values_host.tolist()) == (
-            [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
-        )
-        assert sorted(df_p0.destinations.values_host.tolist()) == (
-            [1, 1, 1, 2, 2, 3, 3, 4, 4, 4]
-        )
+        batches_found = {0: 0, 1: 0}
+        for i in range(n_workers):
+            dfp = sampling_results.get_partition(i).compute()
+            if len(dfp) > 0:
+                offsets_p = sampling_offsets.get_partition(i).compute()
+                assert len(offsets_p) > 0
 
-        df_p1 = sampling_results.get_partition(1).compute()
-        assert sorted(df_p1.sources.values_host.tolist()) == ([1, 1, 3, 3, 4, 4])
-        assert sorted(df_p1.destinations.values_host.tolist()) == ([1, 2, 2, 3, 3, 4])
+                if offsets_p.batch_id.iloc[0] == 1:
+                    batches_found[1] += 1
 
-        offsets_p0 = sampling_offsets.get_partition(0).compute()
-        assert offsets_p0.batch_id.values_host.tolist() == [0]
-        assert offsets_p0.offsets.values_host.tolist() == [0]
+                    assert offsets_p.batch_id.values_host.tolist() == [1]
+                    assert offsets_p.offsets.values_host.tolist() == [0]
 
-        offsets_p1 = sampling_offsets.get_partition(1).compute()
-        assert offsets_p1.batch_id.values_host.tolist() == [1]
-        assert offsets_p1.offsets.values_host.tolist() == [0]
+                    assert sorted(dfp.sources.values_host.tolist()) == (
+                        [1, 1, 3, 3, 4, 4]
+                    )
+                    assert sorted(dfp.destinations.values_host.tolist()) == (
+                        [1, 2, 2, 3, 3, 4]
+                    )
+                elif offsets_p.batch_id.iloc[0] == 0:
+                    batches_found[0] += 1
+
+                    assert offsets_p.batch_id.values_host.tolist() == [0]
+                    assert offsets_p.offsets.values_host.tolist() == [0]
+
+                    assert sorted(dfp.sources.values_host.tolist()) == (
+                        [0, 0, 0, 1, 1, 2, 2, 2, 4, 4]
+                    )
+                    assert sorted(dfp.destinations.values_host.tolist()) == (
+                        [1, 1, 1, 2, 2, 3, 3, 4, 4, 4]
+                    )
 
     mdf = cudf.merge(
         sampling_results.compute(),
@@ -446,13 +463,19 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=dask_cudf.from_cudf(cudf.Series([0, 1, 2]), npartitions=2),
-        batch_id_list=dask_cudf.from_cudf(
-            cudf.Series([1, 1, 1], dtype="int32"), npartitions=2
+        start_list=dask_cudf.from_cudf(
+            cudf.DataFrame(
+                {
+                    "start": cudf.Series([0, 1, 2], dtype="int64"),
+                    "batch": cudf.Series([1, 1, 1], dtype="int32"),
+                }
+            ),
+            npartitions=2,
         ),
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -526,23 +549,32 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        cudf.Series([0, 1], dtype="int64"),
+        dask_cudf.from_cudf(
+            cudf.DataFrame(
+                {
+                    "start": cudf.Series([0, 1], dtype="int64"),
+                    "batch": cudf.Series([0, 1], dtype="int32"),
+                }
+            ),
+            npartitions=2,
+        ),
         fanout_vals=[2, 2, 2],
-        batch_id_list=cudf.Series([0, 1], dtype="int32"),
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
     )
 
     for p in range(sampling_results.npartitions):
         sampling_results_p = sampling_results.get_partition(p)
-        for b in range(2):
-            sampling_results_pb = sampling_results_p[
-                sampling_results_p.batch_id == b
-            ].compute()
-            assert (
-                sorted(sampling_results_pb.hop_id.values_host.tolist())
-                == sampling_results_pb.hop_id.values_host.tolist()
-            )
+        if len(sampling_results_p) > 0:
+            for b in range(2):
+                sampling_results_pb = sampling_results_p[
+                    sampling_results_p.batch_id == b
+                ].compute()
+                assert (
+                    sorted(sampling_results_pb.hop_id.values_host.tolist())
+                    == sampling_results_pb.hop_id.values_host.tolist()
+                )
 
 
 @pytest.mark.mg
@@ -577,11 +609,19 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
 
     cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=cudf.Series([0]),
+        start_list=dask_cudf.from_cudf(
+            cudf.Series(
+                {
+                    "start": cudf.Series([0]),
+                    "batch": cudf.Series([10], dtype="int32"),
+                }
+            ),
+            npartitions=1,
+        ),
         fanout_vals=[10, 25],
         with_replacement=with_replacement,
         with_edge_properties=True,
-        batch_id_list=cudf.Series([10], dtype="int32"),
+        with_batch_ids=True,
     )
 
 
@@ -610,11 +650,16 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
-        start_list=cudf.Series([0, 1, 2]),
-        batch_id_list=cudf.Series([1, 1, 1], dtype="int32"),
+        start_list=cudf.DataFrame(
+            {
+                "start": cudf.Series([0, 1, 2]),
+                "batch": cudf.Series([1, 1, 1], dtype="int32"),
+            }
+        ),
         fanout_vals=[2, 2],
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
     ).compute()
 
     assert sorted(sampling_results.sources.values_host.tolist()) == [0, 0, 1, 1, 2, 2]
@@ -664,24 +709,24 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
     input_vertices = dask_cudf.concat([df.src, df.dst]).unique().compute()
     assert isinstance(input_vertices, cudf.Series)
 
+    input_vertices.name = "start"
     input_vertices.index = cupy.random.permutation(len(input_vertices))
+    input_vertices = input_vertices.to_frame().reset_index(drop=True)
 
-    input_batch = cudf.Series(
+    input_vertices["batch"] = cudf.Series(
         cupy.random.randint(0, max_batches, len(input_vertices)), dtype="int32"
     )
-    input_batch.index = cupy.random.permutation(len(input_vertices))
 
     if input_df == dask_cudf.DataFrame:
-        input_batch = dask_cudf.from_cudf(input_batch, npartitions=num_workers)
         input_vertices = dask_cudf.from_cudf(input_vertices, npartitions=num_workers)
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
         start_list=input_vertices,
-        batch_id_list=input_batch,
         fanout_vals=[5, 5],
         with_replacement=False,
         with_edge_properties=True,
+        with_batch_ids=True,
     )
 
     for batch_id in range(max_batches):
@@ -693,7 +738,7 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
             .compute()
         )
 
-        input_starts_per_batch = len(input_batch[input_batch == batch_id])
+        input_starts_per_batch = len(input_vertices[input_vertices.batch == batch_id])
 
         # Should be <= to account for starts without outgoing edges
         assert output_starts_per_batch <= input_starts_per_batch

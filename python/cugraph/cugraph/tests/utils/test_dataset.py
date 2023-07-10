@@ -20,13 +20,13 @@ import gc
 import pytest
 
 from cugraph.structure import Graph
-from cugraph.testing import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.datasets import (
+from cugraph.testing import (
+    RAPIDS_DATASET_ROOT_DIR_PATH,
     ALL_DATASETS,
-    ALL_DATASETS_WGT,
-    SMALL_DATASETS,
+    DATASETS_WEIGHTS,
+    DATASETS_SMALL,
 )
-from cugraph.experimental import datasets
+from cugraph import datasets
 
 # Add the sg marker to all tests in this module.
 pytestmark = pytest.mark.sg
@@ -139,7 +139,7 @@ def test_get_path(dataset):
     tmpd.cleanup()
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
+@pytest.mark.parametrize("dataset", DATASETS_WEIGHTS)
 def test_weights(dataset):
     G = dataset.get_graph(fetch=True)
     assert G.is_weighted()
@@ -147,7 +147,7 @@ def test_weights(dataset):
     assert not G.is_weighted()
 
 
-@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+@pytest.mark.parametrize("dataset", DATASETS_SMALL)
 def test_create_using(dataset):
     G = dataset.get_graph(fetch=True)
     assert not G.is_directed()
@@ -239,3 +239,28 @@ def test_unload():
     assert ds._edgelist is not None
     ds.unload()
     assert ds._edgelist is None
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_node_and_edge_count(dataset):
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
+
+    # these are the values read directly from .yaml file
+    meta_node_count = dataset.metadata["number_of_nodes"]
+    meta_edge_count = dataset.metadata["number_of_edges"]
+
+    # value from the cugraph.Graph object
+    obj_node_count = G.number_of_nodes()
+    obj_edge_count = G.number_of_edges()
+
+    assert obj_node_count == meta_node_count
+    assert obj_edge_count == meta_edge_count
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_directed(dataset):
+    dataset_is_directed = dataset.metadata["is_directed"]
+    G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
+
+    assert G.is_directed() == dataset.metadata["is_directed"]

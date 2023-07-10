@@ -18,10 +18,9 @@ import scipy
 import numpy as np
 import cudf
 from cudf.testing import assert_series_equal
-from cugraph.datasets import DATASETS_UNDIRECTED
 
 import cugraph
-from cugraph.testing import utils
+from cugraph.testing import utils, DATASETS_UNDIRECTED
 
 
 # =============================================================================

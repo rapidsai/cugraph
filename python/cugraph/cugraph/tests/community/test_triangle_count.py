@@ -19,8 +19,10 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.datasets import DATASETS_UNDIRECTED, karate_asymmetric
+from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.experimental.datasets import (
+    karate_asymmetric,
+)  # using experimental karate variant
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings

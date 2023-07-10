@@ -17,7 +17,7 @@ import pytest
 import numpy as np
 
 import cugraph
-from cugraph.datasets import DATASETS
+from cugraph.testing import DATASETS_TESTING
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -45,7 +45,7 @@ SOURCES = [1]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 @pytest.mark.parametrize("source", SOURCES)
 def test_filter_unreachable(graph_file, source):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))

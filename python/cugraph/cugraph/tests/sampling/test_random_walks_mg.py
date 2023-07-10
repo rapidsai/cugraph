@@ -22,7 +22,10 @@ import cugraph
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
 import cugraph.dask as dcg
-from cugraph.datasets import DATASETS_SMALL, karate_asymmetric
+from cugraph.experimental.datasets import (
+    karate_asymmetric,
+)  # using experimental karate variant
+from cugraph.testing import DATASETS_SMALL
 
 
 # =============================================================================

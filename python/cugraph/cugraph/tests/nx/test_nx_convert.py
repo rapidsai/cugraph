@@ -16,8 +16,7 @@ import pytest
 import cudf
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.datasets import DATASETS
+from cugraph.testing import utils, DATASETS_TESTING
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -70,7 +69,7 @@ def _compare_graphs(nxG, cuG, has_wt=True):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_networkx_compatibility(graph_file):
     # test to make sure cuGraph and Nx build similar Graphs
     # Read in the graph
@@ -97,7 +96,7 @@ def test_networkx_compatibility(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_nx_convert_undirected(graph_file):
     # read data and create a Nx Graph
     dataset_path = graph_file.get_path()
@@ -114,7 +113,7 @@ def test_nx_convert_undirected(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_nx_convert_directed(graph_file):
     # read data and create a Nx DiGraph
     dataset_path = graph_file.get_path()
@@ -130,7 +129,7 @@ def test_nx_convert_directed(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_nx_convert_weighted(graph_file):
     # read data and create a Nx DiGraph
     dataset_path = graph_file.get_path()
@@ -147,7 +146,7 @@ def test_nx_convert_weighted(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_nx_convert_multicol(graph_file):
     # read data and create a Nx Graph
     dataset_path = graph_file.get_path()

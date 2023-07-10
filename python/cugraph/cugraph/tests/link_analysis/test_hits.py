@@ -20,8 +20,8 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.datasets import DATASETS_UNDIRECTED, email_Eu_core, karate
+from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.datasets import email_Eu_core, karate
 
 
 # =============================================================================

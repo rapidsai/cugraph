@@ -17,6 +17,6 @@ has_loop: false
 is_directed: true
 is_multigraph: false
 is_symmetric: true
-number_of_edges: 2742
+number_of_edges: 5484
 number_of_nodes: 1461
 number_of_lines: 5484

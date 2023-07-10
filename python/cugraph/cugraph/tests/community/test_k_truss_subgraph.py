@@ -15,12 +15,12 @@ import gc
 
 import pytest
 
-import cugraph
-from cugraph.testing import utils
-
 import numpy as np
 from numba import cuda
-from cugraph.datasets import DATASETS_KTRUSS, karate_asymmetric
+
+import cugraph
+from cugraph.testing import utils
+from cugraph.datasets import polbooks, ktruss_polbooks, karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,10 +35,13 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
+DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
@@ -92,7 +95,7 @@ def test_unsupported_cuda_version():
     k = 5
 
     graph_file = DATASETS_KTRUSS[0][0]
-    G = graph_file.get_graph()
+    G = graph_file.get_graph(fetch=True)
     if __cuda_version == __unsupported_cuda_version:
         with pytest.raises(NotImplementedError):
             cugraph.k_truss(G, k)
@@ -105,18 +108,17 @@ def test_unsupported_cuda_version():
     (__cuda_version == __unsupported_cuda_version),
     reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
 )
-@pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
-def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
+@pytest.mark.parametrize("_, nx_ground_truth", utils.DATASETS_KTRUSS)
+def test_ktruss_subgraph_Graph(_, nx_ground_truth):
 
     k = 5
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    G = polbooks.get_graph(fetch=True, create_using=cugraph.Graph(directed=False))
     k_subgraph = cugraph.ktruss_subgraph(G, k)
 
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
+# FIXME: currently failing due to a FileNotFound error from cugraph build
 @pytest.mark.sg
 @pytest.mark.skipif(
     (__cuda_version == __unsupported_cuda_version),
@@ -146,7 +148,9 @@ def test_ktruss_subgraph_directed_Graph():
     k = 5
     edgevals = True
     G = karate_asymmetric.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+        fetch=True,
+        create_using=cugraph.Graph(directed=True),
+        ignore_weights=not edgevals,
     )
     with pytest.raises(ValueError):
         cugraph.k_truss(G, k)

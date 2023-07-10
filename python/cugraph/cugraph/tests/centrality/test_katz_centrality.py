@@ -17,13 +17,12 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils
-from cugraph.datasets import (
-    toy_graph_undirected,
-    karate,
-    DATASETS,
+from cugraph.testing import (
+    utils,
+    DATASETS_TESTING,
     DATASETS_UNDIRECTED,
 )
+from cugraph.datasets import toy_graph_undirected, karate
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -75,7 +74,7 @@ def calc_katz(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
 def test_katz_centrality(graph_file):
     katz_scores = calc_katz(graph_file)
 
