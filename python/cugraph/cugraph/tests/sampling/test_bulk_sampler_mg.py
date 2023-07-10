@@ -37,16 +37,19 @@ def test_bulk_sampler_simple(dask_client, scratch_dir):
         edge_attr=["wgt", "eid", "etp"],
     )
 
+    samples_path = os.path.join(scratch_dir, 'mg_test_bulk_sampler_simple')
+    
+    if os.path.exists(samples_path):
+        shutil.rmtree(samples_path)
+    os.makedirs(samples_path)
+
     bs = BulkSampler(
         batch_size=2,
-        output_path=scratch_dir,
+        output_path=samples_path,
         graph=G,
         fanout_vals=[2, 2],
         with_replacement=False,
     )
-
-    samples_path = os.path.join(scratch_dir, 'mg_test_bulk_sampler_simple')
-    os.makedirs(samples_path)
 
     batches = dask_cudf.from_cudf(
         cudf.DataFrame(
@@ -83,6 +86,8 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
     )
 
     samples_path = os.path.join(scratch_dir, 'mg_test_bulk_sampler_mg_graph_sg_input')
+    if os.path.exists(samples_path):
+        shutil.rmtree(samples_path)
     os.makedirs(samples_path)
     bs = BulkSampler(
         batch_size=2,

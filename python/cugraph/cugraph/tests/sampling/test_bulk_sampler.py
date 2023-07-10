@@ -37,6 +37,8 @@ def test_bulk_sampler_simple(scratch_dir):
     )
 
     samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_simple')
+    if os.path.exists(samples_path):
+        shutil.rmtree(samples_path)
     os.makedirs(samples_path)
     bs = BulkSampler(
         batch_size=2,
@@ -79,6 +81,8 @@ def test_bulk_sampler_remainder(scratch_dir):
     )
 
     samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_remainder')
+    if os.path.exists(samples_path):
+        shutil.rmtree(samples_path)
     os.makedirs(samples_path)
     bs = BulkSampler(
         batch_size=2,
@@ -140,6 +144,8 @@ def test_bulk_sampler_large_batch_size(scratch_dir):
     )
 
     samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_large_batch_size')
+    if os.path.exists(samples_path):
+        shutil.rmtree(samples_path)
     os.makedirs(samples_path)
     bs = BulkSampler(
         batch_size=5120,

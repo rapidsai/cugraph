@@ -35,6 +35,8 @@ def test_bulk_sampler_io(scratch_dir):
     offsets = cudf.DataFrame({"offsets": [0, 8], "batch_id": [0, 1]})
 
     samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_io')
+    if os.path.exists(samples_path):
+        shutil.rmtree(samples_path)
     os.makedirs(samples_path)
     write_samples(results, offsets, 1, samples_path)
 
