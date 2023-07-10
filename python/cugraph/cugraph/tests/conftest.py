@@ -17,6 +17,9 @@ from cugraph.testing.mg_utils import (
     stop_dask_client,
 )
 
+import os
+import tempfile
+
 # module-wide fixtures
 
 
@@ -42,3 +45,16 @@ def dask_client():
     yield dask_client
 
     stop_dask_client(dask_client, dask_cluster)
+
+@pytest.fixture(scope="module")
+def scratch_dir():
+    # This should always be set if doing MG testing, since temporary
+    # directories are only accessible from the current process.
+    tempdir_object = os.getenv('RAPIDS_PYTEST_SCRATCH_DIR', tempfile.TemporaryDirectory())
+    
+    if isinstance(tempdir_object, tempfile.TemporaryDirectory):
+        yield tempdir_object.name
+    else:
+        yield tempdir_object
+    
+    del tempdir_object

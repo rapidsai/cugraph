@@ -1,0 +1,310 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=12G
+             --local-directory=/tmp/
+             --scheduler-file=/root/cugraph/mg_utils/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2023-07-10 14:13:38,049 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:41533'
+2023-07-10 14:13:38,052 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:32917'
+2023-07-10 14:13:38,054 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:46717'
+2023-07-10 14:13:38,057 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:46161'
+2023-07-10 14:13:38,060 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40633'
+2023-07-10 14:13:38,061 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:43943'
+2023-07-10 14:13:38,063 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:34705'
+2023-07-10 14:13:38,065 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:43095'
+2023-07-10 14:13:38,067 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:37753'
+2023-07-10 14:13:38,069 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:37489'
+2023-07-10 14:13:38,071 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:41205'
+2023-07-10 14:13:38,074 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:33629'
+2023-07-10 14:13:38,078 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:45229'
+2023-07-10 14:13:38,079 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:40053'
+2023-07-10 14:13:38,082 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:38611'
+2023-07-10 14:13:38,084 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.120.104.11:44951'
+2023-07-10 14:13:39,579 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,579 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,691 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,692 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,692 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,692 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,727 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,727 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,731 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,731 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,740 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,740 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,740 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,740 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,742 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,742 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,762 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,816 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,816 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,825 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,825 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,827 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,827 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,829 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,829 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,835 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,835 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,837 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,837 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,838 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,838 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,839 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2023-07-10 14:13:39,839 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2023-07-10 14:13:39,873 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,873 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,909 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,912 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,919 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,919 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:39,923 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,006 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,006 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,008 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,017 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,017 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,018 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,025 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:40,034 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2023-07-10 14:13:46,314 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43711
+2023-07-10 14:13:46,314 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43711
+2023-07-10 14:13:46,314 - distributed.worker - INFO -          dashboard at:        10.120.104.11:33551
+2023-07-10 14:13:46,314 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,314 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,314 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,314 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,314 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-pm078045
+2023-07-10 14:13:46,315 - distributed.worker - INFO - Starting Worker plugin RMMSetup-b1b52fde-ca27-40cc-a4e2-df249835e7e8
+2023-07-10 14:13:46,494 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-2eb94da5-05cd-4fa5-a5a7-1136473bc9b6
+2023-07-10 14:13:46,495 - distributed.worker - INFO - Starting Worker plugin PreImport-84c449c5-1af2-4df1-9e69-3bde1c3131f8
+2023-07-10 14:13:46,496 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,516 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:37221
+2023-07-10 14:13:46,516 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:37221
+2023-07-10 14:13:46,516 - distributed.worker - INFO -          dashboard at:        10.120.104.11:45969
+2023-07-10 14:13:46,516 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,516 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,516 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,516 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,516 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-lwoe0tcy
+2023-07-10 14:13:46,517 - distributed.worker - INFO - Starting Worker plugin RMMSetup-4a12ec25-b632-4cdd-b7b0-e00a95b45672
+2023-07-10 14:13:46,519 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,519 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,522 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:46,531 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:46765
+2023-07-10 14:13:46,531 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:46765
+2023-07-10 14:13:46,531 - distributed.worker - INFO -          dashboard at:        10.120.104.11:36255
+2023-07-10 14:13:46,531 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,531 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,531 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,531 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,531 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-ganmntyd
+2023-07-10 14:13:46,532 - distributed.worker - INFO - Starting Worker plugin RMMSetup-fd9d67a3-148c-4b13-9c1b-b98d6f3d6382
+2023-07-10 14:13:46,657 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:34571
+2023-07-10 14:13:46,658 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:34571
+2023-07-10 14:13:46,658 - distributed.worker - INFO -          dashboard at:        10.120.104.11:37907
+2023-07-10 14:13:46,658 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,658 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,658 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,658 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,658 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-4g__kx4d
+2023-07-10 14:13:46,659 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-17b04daa-6ce2-48b2-9ebe-b4292e1f8e53
+2023-07-10 14:13:46,660 - distributed.worker - INFO - Starting Worker plugin PreImport-c077c5fd-f0a3-4eef-9cc2-a49ddbff7cf9
+2023-07-10 14:13:46,660 - distributed.worker - INFO - Starting Worker plugin RMMSetup-47002c6d-a9d6-493d-aaf2-15aae98426ea
+2023-07-10 14:13:46,704 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:39479
+2023-07-10 14:13:46,704 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:39479
+2023-07-10 14:13:46,704 - distributed.worker - INFO -          dashboard at:        10.120.104.11:46175
+2023-07-10 14:13:46,704 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,704 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,704 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,704 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,704 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-_xwgvf0b
+2023-07-10 14:13:46,705 - distributed.worker - INFO - Starting Worker plugin RMMSetup-bded866a-876c-4af5-9779-af981197ee25
+2023-07-10 14:13:46,711 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:40969
+2023-07-10 14:13:46,711 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:40969
+2023-07-10 14:13:46,711 - distributed.worker - INFO -          dashboard at:        10.120.104.11:40569
+2023-07-10 14:13:46,711 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,711 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,711 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,711 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,711 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-3l4z3pes
+2023-07-10 14:13:46,711 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-a89ee0bf-93a5-4d3f-aa01-605d5409ae02
+2023-07-10 14:13:46,712 - distributed.worker - INFO - Starting Worker plugin PreImport-5c2e3188-62e1-49e5-bfeb-763ba0fc696e
+2023-07-10 14:13:46,714 - distributed.worker - INFO - Starting Worker plugin RMMSetup-2909e1a9-f2b5-4696-b401-053e20e1ce5a
+2023-07-10 14:13:46,742 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:46531
+2023-07-10 14:13:46,742 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:46531
+2023-07-10 14:13:46,742 - distributed.worker - INFO -          dashboard at:        10.120.104.11:46191
+2023-07-10 14:13:46,742 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,743 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,743 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,743 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,743 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-psrnkxoc
+2023-07-10 14:13:46,743 - distributed.worker - INFO - Starting Worker plugin RMMSetup-7c159d00-2660-48f0-8641-1a7e5d41bdc1
+2023-07-10 14:13:46,881 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:46149
+2023-07-10 14:13:46,881 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:46149
+2023-07-10 14:13:46,881 - distributed.worker - INFO -          dashboard at:        10.120.104.11:35463
+2023-07-10 14:13:46,881 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,881 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,881 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,881 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,881 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-6kqf7ujz
+2023-07-10 14:13:46,882 - distributed.worker - INFO - Starting Worker plugin RMMSetup-ee80530b-8ba9-439e-8824-b33dcc3da299
+2023-07-10 14:13:46,897 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:36389
+2023-07-10 14:13:46,897 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:36389
+2023-07-10 14:13:46,897 - distributed.worker - INFO -          dashboard at:        10.120.104.11:46109
+2023-07-10 14:13:46,897 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,897 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,897 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,897 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,897 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-osec77r4
+2023-07-10 14:13:46,898 - distributed.worker - INFO - Starting Worker plugin RMMSetup-2f23bb24-9a1a-4d2b-a93b-90fb1064c9d9
+2023-07-10 14:13:46,917 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43443
+2023-07-10 14:13:46,917 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43443
+2023-07-10 14:13:46,917 - distributed.worker - INFO -          dashboard at:        10.120.104.11:34413
+2023-07-10 14:13:46,917 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,917 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,917 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,917 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,917 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-771ov1n7
+2023-07-10 14:13:46,918 - distributed.worker - INFO - Starting Worker plugin RMMSetup-fe7c5ff3-395c-47d9-8d8c-3118b45e3214
+2023-07-10 14:13:46,956 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:41457
+2023-07-10 14:13:46,957 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:41457
+2023-07-10 14:13:46,957 - distributed.worker - INFO -          dashboard at:        10.120.104.11:35429
+2023-07-10 14:13:46,957 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,957 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,957 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,957 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,957 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-1q6eksng
+2023-07-10 14:13:46,957 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:35299
+2023-07-10 14:13:46,957 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:35299
+2023-07-10 14:13:46,957 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42707
+2023-07-10 14:13:46,957 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:46,957 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:46,957 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:46,957 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:46,957 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-gqgtykvo
+2023-07-10 14:13:46,957 - distributed.worker - INFO - Starting Worker plugin RMMSetup-ef2d16e0-f2ee-4035-8898-9bef831d1776
+2023-07-10 14:13:46,958 - distributed.worker - INFO - Starting Worker plugin RMMSetup-854c67ae-aeb6-4fd6-a1f3-7307fb08d945
+2023-07-10 14:13:47,139 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-7b1e8461-d5f4-43fe-884a-e5fb01e19bec
+2023-07-10 14:13:47,140 - distributed.worker - INFO - Starting Worker plugin PreImport-35e8e8ba-1495-46cf-abd5-749949e06363
+2023-07-10 14:13:47,140 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,140 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:45233
+2023-07-10 14:13:47,141 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:45233
+2023-07-10 14:13:47,141 - distributed.worker - INFO -          dashboard at:        10.120.104.11:46471
+2023-07-10 14:13:47,141 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,141 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,141 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:47,141 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:47,141 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-ypia5ffr
+2023-07-10 14:13:47,142 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-9bce91ab-818c-464b-b285-392ec5be7cfc
+2023-07-10 14:13:47,143 - distributed.worker - INFO - Starting Worker plugin PreImport-31e235a9-0d22-4302-8c5b-2034d5ab9c88
+2023-07-10 14:13:47,143 - distributed.worker - INFO - Starting Worker plugin RMMSetup-13070557-5215-4328-b81b-54e18822db15
+2023-07-10 14:13:47,159 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,159 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,160 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,192 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-0d59e94e-0a8f-4adb-9f9b-eb49828dcb6e
+2023-07-10 14:13:47,192 - distributed.worker - INFO - Starting Worker plugin PreImport-ac19cedf-ecfe-42b0-af46-dc1e927d385b
+2023-07-10 14:13:47,193 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,199 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:45265
+2023-07-10 14:13:47,199 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:45265
+2023-07-10 14:13:47,199 - distributed.worker - INFO -          dashboard at:        10.120.104.11:45757
+2023-07-10 14:13:47,199 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,199 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,199 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:47,199 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:47,199 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-yxpgzlxw
+2023-07-10 14:13:47,199 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-96720dc2-3536-4afd-a078-c894832fe320
+2023-07-10 14:13:47,200 - distributed.worker - INFO - Starting Worker plugin PreImport-e7731060-9110-4388-b89f-35b5b97eb3ed
+2023-07-10 14:13:47,200 - distributed.worker - INFO - Starting Worker plugin RMMSetup-c47b6943-f368-43cb-a172-33cfd76d7bf9
+2023-07-10 14:13:47,209 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,209 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,210 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,224 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43029
+2023-07-10 14:13:47,224 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43029
+2023-07-10 14:13:47,224 - distributed.worker - INFO -          dashboard at:        10.120.104.11:45737
+2023-07-10 14:13:47,224 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,224 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,224 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:47,225 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:47,225 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-z01etjya
+2023-07-10 14:13:47,226 - distributed.worker - INFO - Starting Worker plugin RMMSetup-9bf06a06-8dd7-43da-9c45-76daa9c9753a
+2023-07-10 14:13:47,227 - distributed.worker - INFO -       Start worker at:  tcp://10.120.104.11:43055
+2023-07-10 14:13:47,227 - distributed.worker - INFO -          Listening to:  tcp://10.120.104.11:43055
+2023-07-10 14:13:47,227 - distributed.worker - INFO -          dashboard at:        10.120.104.11:42555
+2023-07-10 14:13:47,227 - distributed.worker - INFO - Waiting to connect to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,227 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,228 - distributed.worker - INFO -               Threads:                          1
+2023-07-10 14:13:47,228 - distributed.worker - INFO -                Memory:                  94.41 GiB
+2023-07-10 14:13:47,228 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-hfnz5i2r
+2023-07-10 14:13:47,228 - distributed.worker - INFO - Starting Worker plugin RMMSetup-71b88fb4-b56d-4be0-8a59-4407fef9004c
+2023-07-10 14:13:47,334 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,336 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,353 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,353 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,356 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,375 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,375 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,378 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,388 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-991659f3-1635-436a-876d-9ef498372946
+2023-07-10 14:13:47,388 - distributed.worker - INFO - Starting Worker plugin PreImport-82566ebc-93d7-452c-9f5a-3e033250147b
+2023-07-10 14:13:47,389 - distributed.worker - INFO - Starting Worker plugin PreImport-c7fda433-fe02-45f3-9889-bfad6ac0034b
+2023-07-10 14:13:47,389 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,389 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-152b2a93-0182-40d5-83df-c7ec7a1fcec7
+2023-07-10 14:13:47,390 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,401 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,401 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,403 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,416 - distributed.worker - INFO - Starting Worker plugin PreImport-567bb76a-08a5-4bd8-8284-49a3cb2aa77e
+2023-07-10 14:13:47,416 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-1b4f1edf-7357-4e59-80a7-5aed4bf64594
+2023-07-10 14:13:47,417 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,418 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,418 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,421 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,432 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,432 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,434 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,466 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-27de6943-012b-43d9-977b-8e05873a0f4b
+2023-07-10 14:13:47,467 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-b84572ac-72dd-4462-9c41-552216fe4752
+2023-07-10 14:13:47,467 - distributed.worker - INFO - Starting Worker plugin PreImport-c6483d5d-87fc-44d9-8abe-e167d2f20b53
+2023-07-10 14:13:47,467 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-73da3ef8-c311-4d15-ad51-d34b3e975c8a
+2023-07-10 14:13:47,467 - distributed.worker - INFO - Starting Worker plugin PreImport-c0a6e995-e695-441b-934e-b03110171f4a
+2023-07-10 14:13:47,467 - distributed.worker - INFO - Starting Worker plugin PreImport-c8241e68-4d0f-4eab-b002-f0122f572f96
+2023-07-10 14:13:47,468 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,468 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,468 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,481 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,481 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,482 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,482 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,482 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,483 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,487 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,487 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,490 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,511 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-b21551a3-af6b-4e95-aa8e-d4e4103bef24
+2023-07-10 14:13:47,511 - distributed.worker - INFO - Starting Worker plugin PreImport-b7252edd-e6e3-490a-96a9-610e685d1c1b
+2023-07-10 14:13:47,512 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,537 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,537 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,540 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,579 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-53311231-ff38-4451-9edd-03ab8ec03341
+2023-07-10 14:13:47,579 - distributed.worker - INFO - Starting Worker plugin PreImport-c466f6ae-ddcb-4dcd-9f8b-dd0d1c3eefb7
+2023-07-10 14:13:47,580 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,626 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,646 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-efa9772e-83ce-4e30-bbbf-196e352e0985
+2023-07-10 14:13:47,646 - distributed.worker - INFO - Starting Worker plugin PreImport-c48a32fe-74a3-4b9a-b7f8-c96994f4261a
+2023-07-10 14:13:47,647 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,647 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,647 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,650 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,650 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,651 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,651 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,652 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,666 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,666 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,670 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786
+2023-07-10 14:13:47,682 - distributed.worker - INFO -         Registered to:   tcp://10.120.104.11:8786
+2023-07-10 14:13:47,682 - distributed.worker - INFO - -------------------------------------------------
+2023-07-10 14:13:47,687 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:8786

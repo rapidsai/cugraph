@@ -1,0 +1,58 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --scheduler-file /root/cugraph/mg_utils/dask-scheduler.json
+                "
+/opt/conda/envs/rapids/lib/python3.10/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2023-07-10 14:13:30,897 - distributed.scheduler - INFO - -----------------------------------------------
+2023-07-10 14:13:31,388 - distributed.scheduler - INFO - State start
+2023-07-10 14:13:31,401 - distributed.scheduler - INFO - -----------------------------------------------
+2023-07-10 14:13:31,402 - distributed.scheduler - INFO -   Scheduler at:  tcp://10.120.104.11:8786
+2023-07-10 14:13:31,402 - distributed.scheduler - INFO -   dashboard at:  http://10.120.104.11:8787/status
+2023-07-10 14:13:46,516 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:43711', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:46,519 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:43711
+2023-07-10 14:13:46,519 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60798
+2023-07-10 14:13:47,158 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:37221', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,158 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:37221
+2023-07-10 14:13:47,158 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60808
+2023-07-10 14:13:47,208 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46765', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,208 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46765
+2023-07-10 14:13:47,209 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60820
+2023-07-10 14:13:47,352 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:40969', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,353 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:40969
+2023-07-10 14:13:47,353 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60830
+2023-07-10 14:13:47,374 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:34571', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,375 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:34571
+2023-07-10 14:13:47,375 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60844
+2023-07-10 14:13:47,401 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:39479', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,401 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:39479
+2023-07-10 14:13:47,401 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60854
+2023-07-10 14:13:47,417 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:43443', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,417 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:43443
+2023-07-10 14:13:47,417 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60858
+2023-07-10 14:13:47,431 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46531', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,432 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46531
+2023-07-10 14:13:47,432 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60860
+2023-07-10 14:13:47,480 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:46149', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,481 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:46149
+2023-07-10 14:13:47,481 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60888
+2023-07-10 14:13:47,481 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:36389', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,482 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:36389
+2023-07-10 14:13:47,482 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60874
+2023-07-10 14:13:47,486 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:35299', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,487 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:35299
+2023-07-10 14:13:47,487 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60890
+2023-07-10 14:13:47,533 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:41457', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,536 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:41457
+2023-07-10 14:13:47,536 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60898
+2023-07-10 14:13:47,646 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:43055', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,646 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:43055
+2023-07-10 14:13:47,646 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60910
+2023-07-10 14:13:47,647 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:45233', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,649 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:45233
+2023-07-10 14:13:47,650 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60926
+2023-07-10 14:13:47,665 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:43029', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,665 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:43029
+2023-07-10 14:13:47,665 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60942
+2023-07-10 14:13:47,678 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://10.120.104.11:45265', status: init, memory: 0, processing: 0>
+2023-07-10 14:13:47,678 - distributed.scheduler - INFO - Starting worker compute stream, tcp://10.120.104.11:45265
+2023-07-10 14:13:47,678 - distributed.core - INFO - Starting established connection to tcp://10.120.104.11:60954
