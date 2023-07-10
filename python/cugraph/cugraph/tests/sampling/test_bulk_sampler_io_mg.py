@@ -41,7 +41,7 @@ def test_bulk_sampler_io(scratch_dir):
     offsets = cudf.DataFrame({"offsets": [0, 0], "batch_id": [0, 1]})
     offsets = dask_cudf.from_cudf(offsets, npartitions=2)
 
-    samples_path = os.path.join(scratch_dir, 'mg_test_bulk_sampler_io')
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_io")
     if os.path.exists(samples_path):
         shutil.rmtree(samples_path)
     os.makedirs(samples_path)

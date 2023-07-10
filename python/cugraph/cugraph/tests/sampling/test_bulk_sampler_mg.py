@@ -37,8 +37,8 @@ def test_bulk_sampler_simple(dask_client, scratch_dir):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    samples_path = os.path.join(scratch_dir, 'mg_test_bulk_sampler_simple')
-    
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_simple")
+
     if os.path.exists(samples_path):
         shutil.rmtree(samples_path)
     os.makedirs(samples_path)
@@ -71,6 +71,7 @@ def test_bulk_sampler_simple(dask_client, scratch_dir):
 
     shutil.rmtree(samples_path)
 
+
 @pytest.mark.mg
 def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
@@ -85,7 +86,7 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    samples_path = os.path.join(scratch_dir, 'mg_test_bulk_sampler_mg_graph_sg_input')
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_mg_graph_sg_input")
     if os.path.exists(samples_path):
         shutil.rmtree(samples_path)
     os.makedirs(samples_path)

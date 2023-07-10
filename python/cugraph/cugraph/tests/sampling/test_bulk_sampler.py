@@ -36,7 +36,7 @@ def test_bulk_sampler_simple(scratch_dir):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_simple')
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_simple")
     if os.path.exists(samples_path):
         shutil.rmtree(samples_path)
     os.makedirs(samples_path)
@@ -62,7 +62,7 @@ def test_bulk_sampler_simple(scratch_dir):
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
-    
+
     shutil.rmtree(samples_path)
 
 
@@ -80,7 +80,7 @@ def test_bulk_sampler_remainder(scratch_dir):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_remainder')
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_remainder")
     if os.path.exists(samples_path):
         shutil.rmtree(samples_path)
     os.makedirs(samples_path)
@@ -143,7 +143,7 @@ def test_bulk_sampler_large_batch_size(scratch_dir):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    samples_path = os.path.join(scratch_dir, 'test_bulk_sampler_large_batch_size')
+    samples_path = os.path.join(scratch_dir, "test_bulk_sampler_large_batch_size")
     if os.path.exists(samples_path):
         shutil.rmtree(samples_path)
     os.makedirs(samples_path)
