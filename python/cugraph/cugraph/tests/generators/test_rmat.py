@@ -286,18 +286,15 @@ def test_rmat_edge_types(include_edge_types, min_max_edge_type, scramble_vertex_
     "include_edge_weights", _include_edge_weights, ids=_include_edge_weights_test_ids
 )
 @pytest.mark.parametrize("clip_and_flip", _clip_and_flip, ids=_clip_and_flip_test_ids)
-@pytest.mark.parametrize(
-    "scramble_vertex_ids", [False], ids=[_scramble_vertex_ids_test_ids[0]]
-)
 def test_rmat_clip_and_flip(
-    scale, include_edge_weights, clip_and_flip, scramble_vertex_ids
+    scale, include_edge_weights, clip_and_flip
 ):
     """
     Verifies that there are edges only in the lower triangular part of
     the adjacency matrix when 'clip_and_flip' is set to 'true'.
 
-    FIXME: 'scramble_vertex_ids' nullifies the effect of 'clip_and_flip' therefore
-    both flags should not be set to 'True'.
+    Note: 'scramble_vertex_ids' nullifies the effect of 'clip_and_flip' therefore
+    both flags should not be set to 'True' in order to test the former
 
     """
     num_edges = (2**scale) * 4
@@ -310,7 +307,7 @@ def test_rmat_clip_and_flip(
         num_edges,
         create_using,
         clip_and_flip=clip_and_flip,
-        scramble_vertex_ids=scramble_vertex_ids,
+        scramble_vertex_ids=False,
         include_edge_weights=include_edge_weights,
         dtype=dtype,
         minimum_weight=minimum_weight,
