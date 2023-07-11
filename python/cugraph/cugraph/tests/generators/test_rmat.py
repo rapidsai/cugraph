@@ -19,6 +19,8 @@ import cudf
 from cugraph.generators import rmat
 import cugraph
 from cupy.sparse import coo_matrix, triu, tril
+import numpy as np
+import cupy as cp
 
 
 ##############################################################################
@@ -38,6 +40,7 @@ _include_edge_weights_test_ids = [
     f"include_edge_weights={x}" for x in _include_edge_weights
 ]
 _dtype = [None, "FLOAT32", "FLOAT64", "INT32"]
+_dtype = [np.float32, cp.float32, None, "FLOAT64"]
 _dtype_test_ids = [f"_dtype={x}" for x in _dtype]
 _min_max_weight_values = [[None, None], [0, 1], [2, 5]]
 _min_max_weight_values_test_ids = [
@@ -126,7 +129,7 @@ def test_rmat_edge_weights(
         if (
             minimum_weight is None
             or maximum_weight is None
-            or dtype not in ["FLOAT32", "FLOAT64"]
+            or dtype not in [np.float32, np.float64, cp.float32, cp.float64]
         ):
             with pytest.raises(ValueError):
                 _call_rmat(
@@ -301,7 +304,7 @@ def test_rmat_clip_and_flip(scale, include_edge_weights, clip_and_flip):
     create_using = None  # Returns the edgelist from RMAT
     minimum_weight = 0
     maximum_weight = 1
-    dtype = "FLOAT32"
+    dtype = np.float32
     df = _call_rmat(
         scale,
         num_edges,
