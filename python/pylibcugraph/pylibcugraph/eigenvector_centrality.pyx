@@ -50,7 +50,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
-    get_c_type_from_numpy_type,
+    get_c_type_from_numpy_cupy_type,
 )
 
 

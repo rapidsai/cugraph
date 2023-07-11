@@ -47,7 +47,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
-    get_c_type_from_numpy_type,
+    get_c_type_from_numpy_cupy_type,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -167,7 +167,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
         cugraph_type_erased_device_array_view_create(
             <void*>cai_sources_ptr,
             len(sources),
-            get_c_type_from_numpy_type(sources.dtype))
+            get_c_type_from_numpy_cupy_type(sources.dtype))
     
     cdef cugraph_paths_result_t* result_ptr
 

@@ -51,7 +51,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
     copy_to_cupy_array,
-    get_c_type_from_numpy_type
+    get_c_type_from_numpy_cupy_type
 )
 
 
@@ -132,7 +132,7 @@ def hits(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_initial_hubs_guess_vertices_ptr,
                 len(initial_hubs_guess_vertices),
-                get_c_type_from_numpy_type(initial_hubs_guess_vertices.dtype))
+                get_c_type_from_numpy_cupy_type(initial_hubs_guess_vertices.dtype))
     
     if initial_hubs_guess_values is not None:
         assert_CAI_type(initial_hubs_guess_values, "initial_hubs_guess_values")
@@ -144,7 +144,7 @@ def hits(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_initial_hubs_guess_values_ptr,
                 len(initial_hubs_guess_values),
-                get_c_type_from_numpy_type(initial_hubs_guess_values.dtype))
+                get_c_type_from_numpy_cupy_type(initial_hubs_guess_values.dtype))
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr

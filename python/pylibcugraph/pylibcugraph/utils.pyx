@@ -122,19 +122,18 @@ cdef get_numpy_type_from_c_type(data_type_id_t c_type):
         raise RuntimeError("Internal error: got invalid data type enum value "
                            f"from C: {c_type}")
 
-
-cdef get_c_type_from_numpy_type(numpy_type):
-    if numpy_type == numpy.int32:
+cdef get_c_type_from_numpy_cupy_type(numpy_cupy_type):
+    if numpy_cupy_type in [numpy.int32, cupy.int32]:
         return data_type_id_t.INT32
-    elif numpy_type == numpy.int64:
+    elif numpy_cupy_type in [numpy.int64, cupy.int64]:
         return data_type_id_t.INT64
-    elif numpy_type == numpy.float32:
+    elif numpy_cupy_type in [numpy.float32, cupy.float32]:
         return data_type_id_t.FLOAT32
-    elif numpy_type == numpy.float64:
+    elif numpy_cupy_type in [numpy.float64, cupy.float64]:
         return data_type_id_t.FLOAT64
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "
-                          f"from Numpy: {numpy_type}")
+                          f"from Numpy/Cupy: {numpy_cupy_type}")
 
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type):
     if numpy_type == numpy.int32:
@@ -207,7 +206,7 @@ cdef copy_to_cupy_array_ids(
 
     cdef cugraph_type_erased_device_array_view_t* cupy_array_view_ptr = \
         cugraph_type_erased_device_array_view_create(
-            <void*>cupy_array_ptr, array_size, get_c_type_from_numpy_type(cupy_array.dtype))
+            <void*>cupy_array_ptr, array_size, get_c_type_from_numpy_cupy_type(cupy_array.dtype))
 
     cdef cugraph_error_t* error_ptr
     error_code = cugraph_type_erased_device_array_view_copy(
@@ -231,7 +230,7 @@ cdef cugraph_type_erased_device_array_view_t* \
             view_ptr = cugraph_type_erased_device_array_view_create(
                 <void*>cai_ptr,
                 len(python_obj),
-                get_c_type_from_numpy_type(python_obj.dtype))
+                get_c_type_from_numpy_cupy_type(python_obj.dtype))
 
         return view_ptr
 

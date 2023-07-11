@@ -37,7 +37,7 @@ cdef assert_AI_type(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(data_type_id_t c_type)
 
-cdef get_c_type_from_numpy_type(numpy_type)
+cdef get_c_type_from_numpy_cupy_type(numpy_type)
 
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type)
 

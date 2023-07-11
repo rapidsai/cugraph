@@ -48,7 +48,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    get_c_type_from_numpy_type,
+    get_c_type_from_numpy_cupy_type,
 )
 
 def core_number(ResourceHandle resource_handle,

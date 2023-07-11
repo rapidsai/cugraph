@@ -57,7 +57,7 @@ from pylibcugraph.utils cimport (
     copy_to_cupy_array,
     assert_CAI_type,
     assert_AI_type,
-    get_c_type_from_numpy_type,
+    get_c_type_from_numpy_cupy_type,
 )
 
 
@@ -108,7 +108,7 @@ def uniform_random_walks(ResourceHandle resource_handle,
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
             len(start_vertices),
-            get_c_type_from_numpy_type(start_vertices.dtype))
+            get_c_type_from_numpy_cupy_type(start_vertices.dtype))
 
     error_code = cugraph_uniform_random_walks(
         c_resource_handle_ptr,

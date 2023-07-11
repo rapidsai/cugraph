@@ -51,7 +51,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
-    get_c_type_from_numpy_type,
+    get_c_type_from_numpy_cupy_type,
 )
 
 
@@ -147,7 +147,7 @@ def node2vec(ResourceHandle resource_handle,
         cugraph_type_erased_device_array_view_create(
             <void*>cai_seed_ptr,
             len(seed_array),
-            get_c_type_from_numpy_type(seed_array.dtype))
+            get_c_type_from_numpy_cupy_type(seed_array.dtype))
 
     error_code = cugraph_node2vec(c_resource_handle_ptr,
                                   c_graph_ptr,
