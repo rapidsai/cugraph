@@ -16,6 +16,8 @@ import dask_cudf
 
 from cugraph.dask.comms import comms as Comms
 import cudf
+import numpy as np
+import cupy as cp
 import cugraph
 from pylibcugraph import generate_rmat_edgelist as pylibcugraph_generate_rmat_edgelist
 from pylibcugraph import generate_rmat_edgelists as pylibcugraph_generate_rmat_edgelists
@@ -81,10 +83,10 @@ def _ensure_args_rmat(
                 "'maximum_weight' and 'minimum_weight' must not be 'None' "
                 "if 'include_edge_weights' is True"
             )
-        if dtype not in ["FLOAT32", "FLOAT64"]:
+        if dtype not in [np.float32, np.float64, cp.float32, cp.float64]:
             raise ValueError(
-                "dtype must be either 'FLOAT32' or 'FLOAT64' if 'include_edge_weights' "
-                "is True"
+                "dtype must be either numpy or cupy 'float32' or 'float64' if "
+                "'include_edge_weights' is True."
             )
     if include_edge_ids:
         if not isinstance(include_edge_ids, bool):
@@ -433,26 +435,26 @@ def rmat(
     ----------
     scale : int
         Scale factor to set the number of vertices in the graph. Vertex IDs have
-        values in [0, V), where V = 1 << 'scale'
+        values in [0, V), where V = 1 << 'scale'.
 
     num_edges : int
         Number of edges to generate
 
     a : float, optional (default=0.57)
         Probability of the edge being in the first partition
-        The Graph 500 spec sets this value to 0.57
+        The Graph 500 spec sets this value to 0.57.
 
     b : float, optional (default=0.19)
         Probability of the edge being in the second partition
-        The Graph 500 spec sets this value to 0.19
+        The Graph 500 spec sets this value to 0.19.
 
 
     c : float, optional (default=0.19)
         Probability of the edge being in the third partition
-        The Graph 500 spec sets this value to 0.19
+        The Graph 500 spec sets this value to 0.19.
 
     seed : int, optional (default=42)
-        Seed value for the random number generator
+        Seed value for the random number generator.
 
     clip_and_flip : bool, optional (default=False)
         Flag controlling whether to generate edges only in the lower triangular
@@ -476,9 +478,9 @@ def rmat(
         Maximum weight value to generate if 'include_edge_weights' is True
         otherwise, this parameter is ignored.
 
-    dtype : string
-        The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
-        include_weights is true
+    dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64
+        The type of weight to generate which is ignored unless
+        include_weights is true.
 
     include_edge_ids : bool, optional (default=False)
         Flag controlling whether to generate edges with ids
@@ -505,7 +507,7 @@ def rmat(
 
     mg : bool, optional (default=False)
         If True, R-MAT generation occurs across multiple GPUs. If False, only a
-        single GPU is used.  Default is False (single-GPU)
+        single GPU is used.  Default is False (single-GPU).
 
     Returns
     -------
@@ -622,13 +624,13 @@ def multi_rmat(
     Parameters
     ----------
     n_edgelists : int
-        Number of edge lists (graphs) to generate
+        Number of edge lists (graphs) to generate.
 
     min_scale : int
-        Scale factor to set the minimum number of vertices in the graph
+        Scale factor to set the minimum number of vertices in the graph.
 
     max_scale : int
-        Scale factor to set the maximum number of vertices in the graph
+        Scale factor to set the maximum number of vertices in the graph.
 
     edge_factor : int
         Average number of edges per vertex to generate
@@ -636,25 +638,25 @@ def multi_rmat(
     size_distribution : int
         Distribution of the graph sizes, impacts the scale parameter of the
         R-MAT generator.
-        '0' for POWER_LAW distribution and '1' for UNIFORM distribution
+        '0' for POWER_LAW distribution and '1' for UNIFORM distribution.
 
     edge_distribution : int
         Edges distribution for each graph, impacts how R-MAT parameters
         a,b,c,d, are set.
-        '0' for POWER_LAW distribution and '1' for UNIFORM distribution
+        '0' for POWER_LAW distribution and '1' for UNIFORM distribution.
 
     seed : int
-        Seed value for the random number generator
+        Seed value for the random number generator.
 
     clip_and_flip : bool, optional (default=False)
         Flag controlling whether to generate edges only in the lower triangular
         part (including the diagonal) of the graph adjacency matrix
-        (if set to True) or not (if set to False)
+        (if set to True) or not (if set to False).
 
     scramble_vertex_ids : bool
         Flag controlling whether to scramble vertex ID bits (if set to True)
         or not (if set to False); scrambling vertx ID bits breaks correlation
-        between vertex ID values and vertex degrees
+        between vertex ID values and vertex degrees.
 
     include_edge_weights : bool, optional (default=False)
         Flag controlling whether to generate edges with weights
@@ -684,9 +686,9 @@ def multi_rmat(
         Maximum edge type to generate if 'include_edge_types' is True
         otherwise, this paramter is ignored.
 
-    dtype : string
-        The type of weight to generate ("FLOAT32" or "FLOAT64"), ignored unless
-        include_weights is true
+    dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64
+        The type of weight to generate which is ignored unless
+        include_weights is true.
 
     mg : bool, optional (default=False)
         If True, R-MATs generation occurs across multiple GPUs. If False, only a
