@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 from pylibcugraph.structure.graph_primtypes cimport *
-from pylibcugraph.structure.graph_utilities cimport *
 
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
