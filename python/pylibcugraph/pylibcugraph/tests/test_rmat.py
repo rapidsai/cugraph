@@ -11,17 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 
 import pytest
 import cupy as cp
 import numpy as np
-import cudf
 
 from pylibcugraph import (
-    SGGraph,
     ResourceHandle,
-    GraphProperties,
 )
 from pylibcugraph import generate_rmat_edgelist
 
@@ -66,9 +62,10 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
         assert M[h_result_dsts[edge]][h_result_srcs[edge]] == h_result_indices[edge]
 
 
-def check_results(result, scale, num_edges, include_edge_ids,
-        include_edge_weights, include_edge_types):
-    
+def check_results(
+    result, scale, num_edges, include_edge_ids, include_edge_weights, include_edge_types
+):
+
     h_src_arr, h_dst_arr, h_wgt_arr, h_ids_arr, h_types_arr = result
 
     if include_edge_weights:
@@ -77,7 +74,7 @@ def check_results(result, scale, num_edges, include_edge_ids,
         assert h_ids_arr is not None
     if include_edge_types:
         assert h_types_arr is not None
-        
+
 
 # TODO: Coverage for the MG implementation
 @pytest.mark.parametrize("scale", [2, 4, 8])
@@ -88,12 +85,17 @@ def check_results(result, scale, num_edges, include_edge_ids,
 @pytest.mark.parametrize("include_edge_types", [False, True])
 @pytest.mark.parametrize("include_edge_ids", [False, True])
 def test_rmat(
-    scale, num_edges, clip_and_flip, scramble_vertex_ids, include_edge_weights,
-    include_edge_types, include_edge_ids
+    scale,
+    num_edges,
+    clip_and_flip,
+    scramble_vertex_ids,
+    include_edge_weights,
+    include_edge_types,
+    include_edge_ids,
 ):
 
     resource_handle = ResourceHandle()
-    
+
     result = generate_rmat_edgelist(
         resource_handle=resource_handle,
         random_state=42,
@@ -115,5 +117,10 @@ def test_rmat(
         multi_gpu=False,
     )
     check_results(
-        result, scale, num_edges, include_edge_ids,
-        include_edge_weights, include_edge_types)
+        result,
+        scale,
+        num_edges,
+        include_edge_ids,
+        include_edge_weights,
+        include_edge_types,
+    )
