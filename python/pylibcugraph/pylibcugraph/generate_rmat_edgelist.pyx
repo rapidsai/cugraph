@@ -72,8 +72,8 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
                            dtype,
                            bool_t include_edge_ids,
                            bool_t include_edge_types,
-                           min_edge_type,
-                           max_edge_type,
+                           min_edge_type_value,
+                           max_edge_type_value,
                            bool_t multi_gpu,
                            ):
     """
@@ -141,11 +141,11 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
         Flag controlling whether to generate edges with types
         (if set to 'true') or not (if set to 'false').
     
-    min_edge_type : int
+    min_edge_type_value : int
         Minimum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this parameter is ignored.
 
-    max_edge_type : int
+    max_edge_type_value : int
         Maximum edge type to generate if 'include_edge_types' is 'true'
         otherwise, this paramter is ignored.
     
@@ -229,8 +229,8 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
         error_code = cugraph_generate_edge_types(c_resource_handle_ptr,
                                                  rng_state_ptr,
                                                  result_coo_ptr,
-                                                 min_edge_type,
-                                                 max_edge_type,
+                                                 min_edge_type_value,
+                                                 max_edge_type_value,
                                                  &error_ptr)
         
         assert_success(error_code, error_ptr, "generate_edge_types")
