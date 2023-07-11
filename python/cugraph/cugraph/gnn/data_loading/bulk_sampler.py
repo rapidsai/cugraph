@@ -15,10 +15,11 @@ import os
 
 from typing import Union
 
-import cupy
 import cudf
 import dask_cudf
-import cugraph.dask as dask_cugraph
+
+from dask.distributed import wait
+from dask.distributed import futures_of
 
 import cugraph
 import pylibcugraph
@@ -151,7 +152,7 @@ class EXPERIMENTAL__BulkSampler:
         ...     start_col_name="start_vid",
         ...     batch_col_name="start_batch")
         """
-        df = df.rename(
+        df = df[[start_col_name, batch_col_name]].rename(
             columns={
                 start_col_name: self.start_col_name,
                 batch_col_name: self.batch_col_name,
@@ -189,14 +190,14 @@ class EXPERIMENTAL__BulkSampler:
             return
 
         start_time_calc_batches = time.perf_counter()
-        self.__batches.reset_index(drop=True)
         if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
 
         min_batch_id = self.__batches[self.batch_col_name].min()
         if isinstance(self.__batches, dask_cudf.DataFrame):
-            min_batch_id = min_batch_id.compute()
-        min_batch_id = int(min_batch_id)
+            min_batch_id = min_batch_id.persist()
+        else:
+            min_batch_id = int(min_batch_id)
 
         partition_size = self.batches_per_partition * self.batch_size
         partitions_per_call = (
@@ -205,7 +206,19 @@ class EXPERIMENTAL__BulkSampler:
         npartitions = partitions_per_call
 
         max_batch_id = min_batch_id + npartitions * self.batches_per_partition - 1
+        if isinstance(self.__batches, dask_cudf.DataFrame):
+            max_batch_id = max_batch_id.persist()
+
         batch_id_filter = self.__batches[self.batch_col_name] <= max_batch_id
+        if isinstance(batch_id_filter, dask_cudf.Series):
+            batch_id_filter = batch_id_filter.persist()
+
+        end_time_calc_batches = time.perf_counter()
+        self.__logger.info(
+            f"Calculated batches to sample; min = {min_batch_id}"
+            f" and max = {max_batch_id};"
+            f" took {end_time_calc_batches - start_time_calc_batches:.4f} s"
+        )
 
         end_time_calc_batches = time.perf_counter()
         self.__logger.info(
@@ -233,49 +246,48 @@ class EXPERIMENTAL__BulkSampler:
         samples, offsets = sample_fn(
             self.__graph,
             **self.__sample_call_args,
-            start_list=self.__batches[self.start_col_name][batch_id_filter],
-            batch_id_list=self.__batches[self.batch_col_name][batch_id_filter],
+            start_list=self.__batches[[self.start_col_name, self.batch_col_name]][
+                batch_id_filter
+            ],
+            with_batch_ids=True,
             with_edge_properties=True,
             return_offsets=True,
         )
 
         end_time_sample_call = time.perf_counter()
         sample_runtime = end_time_sample_call - start_time_sample_call
+
         self.__logger.info(
             f"Called uniform neighbor sample, took {sample_runtime:.4f} s"
-            f" ({(sample_runtime) / (max_batch_id - min_batch_id):.4f} s"
-            " per batch)"
         )
-
-        start_time_filter_batches = time.perf_counter()
 
         # Filter batches to remove those already processed
         self.__batches = self.__batches[~batch_id_filter]
-        if hasattr(self.__batches, "compute"):
+        del batch_id_filter
+        if isinstance(self.__batches, dask_cudf.DataFrame):
             self.__batches = self.__batches.persist()
-
-        end_time_filter_batches = time.perf_counter()
-        self.__logger.info(
-            "Filtered batches, took "
-            f"{end_time_filter_batches - start_time_filter_batches} s"
-        )
 
         start_time_write = time.perf_counter()
 
         # Write batches to parquet
         self.__write(samples, offsets)
+        if isinstance(self.__batches, dask_cudf.DataFrame):
+            wait(
+                [f.release() for f in futures_of(samples)]
+                + [f.release() for f in futures_of(offsets)]
+            )
+
+        del samples
+        del offsets
 
         end_time_write = time.perf_counter()
         write_runtime = end_time_write - start_time_write
-        self.__logger.info(
-            f"Wrote samples to parquet, took {write_runtime} seconds"
-            f" ({(write_runtime) / (max_batch_id - min_batch_id):.4f} s"
-            " per batch)"
-        )
+        self.__logger.info(f"Wrote samples to parquet, took {write_runtime} seconds")
 
-        if self.size > 0:
+        current_size = self.size
+        if current_size > 0:
             self.__logger.info(
-                f"There are still {self.size} samples remaining, "
+                f"There are still {current_size} samples remaining, "
                 "calling flush() again..."
             )
             self.flush()

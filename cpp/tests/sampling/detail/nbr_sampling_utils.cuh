@@ -31,7 +31,7 @@
 #include <cugraph/utilities/high_res_timer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <cuco/detail/hash_functions.cuh>
+#include <cuco/hash_functions.cuh>
 
 #include <raft/core/handle.hpp>
 

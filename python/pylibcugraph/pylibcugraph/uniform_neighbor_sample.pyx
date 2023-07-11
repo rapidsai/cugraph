@@ -42,9 +42,20 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_destinations,
     cugraph_sample_result_get_index,
     cugraph_sample_result_free,
+
+    cugraph_sampling_options_t,
+    cugraph_sampling_options_create,
+    cugraph_sampling_options_free,
+    cugraph_sampling_set_with_replacement,
+    cugraph_sampling_set_return_hops,
+    cugraph_sampling_set_unique_sources,
+    cugraph_sampling_set_dedupe_sources,
+    cugraph_sampling_set_carry_over_sources,
+
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
-    cugraph_uniform_neighbor_sample_with_edge_properties,
+    cugraph_uniform_neighbor_sample,
+
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -75,12 +86,16 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             _GPUGraph input_graph,
                             start_list,
                             h_fan_out,
+                            *,
                             bool_t with_replacement,
                             bool_t do_expensive_check,
                             bool_t with_edge_properties=<bool_t>False,
                             batch_id_list=None,
                             label_list=None,
                             label_to_output_comm_rank=None,
+                            bool_t unique_sources=<bool_t>False,
+                            bool_t carry_over_sources=<bool_t>False,
+                            bool_t deduplicate_sources=<bool_t>False,
                             random_state=None):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -118,6 +133,28 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     batch_id_list: list[int32] (Optional)
         List of int32 batch ids that is returned with each edge.  Optional
         argument, defaults to NULL, returning nothing.
+    
+    label_list: list[int32] (Optional)
+        List of unique int32 batch ids.  Required if also passing the
+        label_to_output_comm_rank flag.  Default to NULL (does nothing)
+    
+    label_to_output_comm_rank: list[int32] (Optional)
+        Maps the unique batch ids in label_list to the rank of the
+        worker that should hold results for that batch id.
+        Defaults to NULL (does nothing)
+    
+    unique_sources: bool (Optional)
+        Whether to ensure that sources do not reappear as sources in
+        future hops.  Defaults to False.
+    
+    carry_over_sources: bool (Optional)
+        Whether to carry over previous sources into future hops.
+        Defaults to False.
+    
+    deduplicate_sources: bool (Optional)
+        Whether to first deduplicate the list of possible sources
+        from the previous destinations before performing next
+        hop.  Defaults to False.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -212,7 +249,18 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
 
     cdef cugraph_rng_state_t* rng_state_ptr = \
         cg_rng_state.rng_state_ptr
-    error_code = cugraph_uniform_neighbor_sample_with_edge_properties(
+
+    cdef cugraph_sampling_options_t* sampling_options
+    error_code = cugraph_sampling_options_create(&sampling_options, &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_sampling_options_create")
+
+    cugraph_sampling_set_with_replacement(sampling_options, with_replacement)
+    cugraph_sampling_set_return_hops(sampling_options, <bool_t>True)
+    cugraph_sampling_set_dedupe_sources(sampling_options, deduplicate_sources)
+    cugraph_sampling_set_carry_over_sources(sampling_options, carry_over_sources)
+    cugraph_sampling_set_unique_sources(sampling_options, unique_sources)
+
+    error_code = cugraph_uniform_neighbor_sample(
         c_resource_handle_ptr,
         c_graph_ptr,
         start_ptr,
@@ -221,12 +269,14 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         label_to_output_comm_rank_ptr,
         fan_out_ptr,
         rng_state_ptr,
-        with_replacement,
-        <bool_t>True,  # return_hops
+        sampling_options,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample_with_edge_properties")
+    assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
+
+    # Free the sampling options
+    cugraph_sampling_options_free(sampling_options)
 
     # Free the two input arrays that are no longer needed.
     cugraph_type_erased_device_array_view_free(start_ptr)

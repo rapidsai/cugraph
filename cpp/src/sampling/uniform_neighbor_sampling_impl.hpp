@@ -21,6 +21,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <cugraph/vertex_partition_view.hpp>
 
 #include <raft/core/handle.hpp>
 
@@ -57,6 +58,9 @@ uniform_neighbor_sample_impl(
   raft::host_span<int32_t const> fan_out,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   raft::random::RngState& rng_state,
   bool do_expensive_check)
 {
@@ -113,6 +117,18 @@ uniform_neighbor_sample_impl(
       ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
       : std::nullopt;
 
+  std::optional<
+    std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_t>>>>
+    vertex_used_as_source{std::nullopt};
+
+  if (unique_sources) {
+    vertex_used_as_source = std::make_optional(
+      std::make_tuple(rmm::device_uvector<vertex_t>{0, handle.get_stream()},
+                      starting_vertex_labels
+                        ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
+                        : std::nullopt));
+  }
+
   std::vector<size_t> level_sizes{};
   int32_t hop{0};
   for (auto&& k_level : fan_out) {
@@ -157,48 +173,33 @@ uniform_neighbor_sample_impl(
 
     ++hop;
     if (hop < fan_out.size()) {
-      if constexpr (multi_gpu) {
-        size_t frontier_size = level_result_dst_vectors.back().size();
-        frontier_vertices.resize(frontier_size, handle.get_stream());
+      // FIXME:  We should modify vertex_partition_range_lasts to return a raft::host_span
+      //  rather than making a copy.
+      auto vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
+      std::tie(frontier_vertices, frontier_vertex_labels, vertex_used_as_source) =
+        prepare_next_frontier(
+          handle,
+          starting_vertices,
+          starting_vertex_labels,
+          raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
+                                            level_result_dst_vectors.back().size()},
+          frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
+                                     level_result_label_vectors->back().data(),
+                                     level_result_label_vectors->back().size()))
+                                 : std::nullopt,
+          std::move(vertex_used_as_source),
+          graph_view.local_vertex_partition_view(),
+          vertex_partition_range_lasts,
+          carry_over_sources,
+          dedupe_sources,
+          do_expensive_check);
 
-        raft::copy(frontier_vertices.begin(),
-                   level_result_dst_vectors.back().data(),
-                   level_result_dst_vectors.back().size(),
-                   handle.get_stream());
+      starting_vertices =
+        raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size());
 
-        if (starting_vertex_labels) {
-          frontier_vertex_labels->resize(frontier_size, handle.get_stream());
-          raft::copy(frontier_vertex_labels->begin(),
-                     level_result_label_vectors->back().data(),
-                     frontier_size,
-                     handle.get_stream());
-
-          std::tie(frontier_vertices, *frontier_vertex_labels) =
-            shuffle_int_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
-              handle,
-              std::move(frontier_vertices),
-              std::move(*frontier_vertex_labels),
-              graph_view.vertex_partition_range_lasts());
-
-          starting_vertices =
-            raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size());
-
-          starting_vertex_labels = raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                    frontier_vertex_labels->size());
-        } else {
-          frontier_vertices = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
-            handle, std::move(frontier_vertices), graph_view.vertex_partition_range_lasts());
-
-          starting_vertices =
-            raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size());
-        }
-      } else {
-        starting_vertices = raft::device_span<vertex_t const>(
-          level_result_dst_vectors.back().data(), level_result_dst_vectors.back().size());
-        if (starting_vertex_labels) {
-          starting_vertex_labels = raft::device_span<label_t const>(
-            level_result_label_vectors->back().data(), level_result_label_vectors->back().size());
-        }
+      if (frontier_vertex_labels) {
+        starting_vertex_labels = raft::device_span<label_t const>(frontier_vertex_labels->data(),
+                                                                  frontier_vertex_labels->size());
       }
     }
   }
@@ -349,6 +350,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
+  bool unique_sources,
+  bool carry_over_sources,
+  bool dedupe_sources,
   bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
@@ -364,6 +368,9 @@ uniform_neighbor_sample(
                                               fan_out,
                                               return_hops,
                                               with_replacement,
+                                              unique_sources,
+                                              carry_over_sources,
+                                              dedupe_sources,
                                               rng_state,
                                               do_expensive_check);
 }

@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-#include <cugraph/algorithms.hpp>
-
-#include "uniform_neighbor_sampling_impl.hpp"
+#include <sampling/detail/shuffle_and_organize_output_impl.cuh>
 
 namespace cugraph {
+namespace detail {
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -28,24 +27,17 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+shuffle_and_organize_output(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
-  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
-  bool dedupe_sources,
-  bool do_expensive_check);
+    label_to_output_comm_rank);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -55,24 +47,17 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+shuffle_and_organize_output(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
-  bool dedupe_sources,
-  bool do_expensive_check);
+    label_to_output_comm_rank);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -82,24 +67,17 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+shuffle_and_organize_output(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
-  raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  rmm::device_uvector<int64_t>&& majors,
+  rmm::device_uvector<int64_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
-  bool dedupe_sources,
-  bool do_expensive_check);
+    label_to_output_comm_rank);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -109,24 +87,17 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+shuffle_and_organize_output(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
-  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<int32_t, int32_t const*>> edge_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
-  bool dedupe_sources,
-  bool do_expensive_check);
+    label_to_output_comm_rank);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -136,24 +107,17 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+shuffle_and_organize_output(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
-  raft::device_span<int32_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
-  bool dedupe_sources,
-  bool do_expensive_check);
+    label_to_output_comm_rank);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -163,23 +127,17 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<int32_t>>,
                     std::optional<rmm::device_uvector<size_t>>>
-uniform_neighbor_sample(
+shuffle_and_organize_output(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
-  std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
-  std::optional<edge_property_view_t<int64_t, int64_t const*>> edge_id_view,
-  std::optional<edge_property_view_t<int64_t, int32_t const*>> edge_type_view,
-  raft::device_span<int64_t const> starting_vertices,
-  std::optional<raft::device_span<int32_t const>> starting_vertex_labels,
+  rmm::device_uvector<int64_t>&& majors,
+  rmm::device_uvector<int64_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights,
+  std::optional<rmm::device_uvector<int64_t>>&& edge_ids,
+  std::optional<rmm::device_uvector<int32_t>>&& edge_types,
+  std::optional<rmm::device_uvector<int32_t>>&& hops,
+  std::optional<rmm::device_uvector<int32_t>>&& labels,
   std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
-    label_to_output_comm_rank,
-  raft::host_span<int32_t const> fan_out,
-  raft::random::RngState& rng_state,
-  bool return_hops,
-  bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
-  bool dedupe_sources,
-  bool do_expensive_check);
+    label_to_output_comm_rank);
 
+}  // namespace detail
 }  // namespace cugraph

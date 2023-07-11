@@ -378,10 +378,11 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
- * @return device vector containing the centralities.
+ * @return edge_property_t containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<weight_t> edge_betweenness_centrality(
+edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
@@ -1892,6 +1893,14 @@ k_core(raft::handle_t const& handle,
  * level
  * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @param return_hops boolean flag specifying if the hop information should be returned
+ * @param unique_sources boolean flag, if true then sources at each hop will not be repeated.  That
+ * is, if vertex v appears as a source in hop X, it will never be sent as a source to a hop > X.
+ * Default is false.
+ * @param carry_over_sources boolean flag, if true then sources for hop X will be repeated as
+ * sources for all hops > X.  Default is false
+ * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
+ * multiple times with the same label, it will only be passed once (for each label) as a source
+ * for the next hop.  Default is false.
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1928,6 +1937,9 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement   = true,
+  bool unique_sources     = false,
+  bool carry_over_sources = false,
+  bool dedupe_sources     = false,
   bool do_expensive_check = false);
 
 /*

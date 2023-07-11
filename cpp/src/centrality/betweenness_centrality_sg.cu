@@ -73,7 +73,8 @@ template rmm::device_uvector<double> betweenness_centrality(
   bool const include_endpoints,
   bool do_expensive_check);
 
-template rmm::device_uvector<float> edge_betweenness_centrality(
+template edge_property_t<graph_view_t<int32_t, int32_t, false, false>, float>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
@@ -81,7 +82,8 @@ template rmm::device_uvector<float> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check);
 
-template rmm::device_uvector<float> edge_betweenness_centrality(
+template edge_property_t<graph_view_t<int32_t, int64_t, false, false>, float>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -89,7 +91,8 @@ template rmm::device_uvector<float> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check);
 
-template rmm::device_uvector<float> edge_betweenness_centrality(
+template edge_property_t<graph_view_t<int64_t, int64_t, false, false>, float>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -97,7 +100,8 @@ template rmm::device_uvector<float> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check);
 
-template rmm::device_uvector<double> edge_betweenness_centrality(
+template edge_property_t<graph_view_t<int32_t, int32_t, false, false>, double>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
@@ -105,7 +109,8 @@ template rmm::device_uvector<double> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check);
 
-template rmm::device_uvector<double> edge_betweenness_centrality(
+template edge_property_t<graph_view_t<int32_t, int64_t, false, false>, double>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
@@ -113,7 +118,8 @@ template rmm::device_uvector<double> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check);
 
-template rmm::device_uvector<double> edge_betweenness_centrality(
+template edge_property_t<graph_view_t<int64_t, int64_t, false, false>, double>
+edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
