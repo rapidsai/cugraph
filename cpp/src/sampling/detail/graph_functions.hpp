@@ -138,11 +138,7 @@ sample_edges(raft::handle_t const& handle,
  * source (empty span if @p unique_sources is false)
  * @param vertex_partition Vertex partition view from the graph view
  * @param vertex_partition_range_lasts End of range information from graph view
- * @param unique_sources boolean flag, if true then sources at each hop will not be repeated.  That
- * is, if vertex v appears as a source in hop X, it will never be sent as a source to a hop > X.
- * Default is false.
- * @param carry_over_sources boolean flag, if true then sources for hop X will be repeated as
- * sources for all hops > X.  Default is false
+ * @param prior_sources_behavior Identifies how to treat sources in each hop
  * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
  * multiple times with the same label, it will only be passed once (for each label) as a source
  * for the next hop.  Default is false.
@@ -166,7 +162,7 @@ prepare_next_frontier(
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 

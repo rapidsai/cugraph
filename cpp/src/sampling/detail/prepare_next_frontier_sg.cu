@@ -33,7 +33,7 @@ prepare_next_frontier(
                            std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
   vertex_partition_view_t<int32_t, false> vertex_partition,
   std::vector<int32_t> const& vertex_partition_range_lasts,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 
@@ -51,7 +51,7 @@ prepare_next_frontier(
                            std::optional<rmm::device_uvector<int32_t>>>>&& vertex_used_as_source,
   vertex_partition_view_t<int64_t, false> vertex_partition,
   std::vector<int64_t> const& vertex_partition_range_lasts,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 

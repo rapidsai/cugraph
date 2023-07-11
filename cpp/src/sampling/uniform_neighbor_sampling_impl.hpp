@@ -58,8 +58,7 @@ uniform_neighbor_sample_impl(
   raft::host_span<int32_t const> fan_out,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   raft::random::RngState& rng_state,
   bool do_expensive_check)
@@ -121,7 +120,7 @@ uniform_neighbor_sample_impl(
     std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_t>>>>
     vertex_used_as_source{std::nullopt};
 
-  if (unique_sources) {
+  if (prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
     vertex_used_as_source = std::make_optional(
       std::make_tuple(rmm::device_uvector<vertex_t>{0, handle.get_stream()},
                       starting_vertex_labels
@@ -190,7 +189,7 @@ uniform_neighbor_sample_impl(
           std::move(vertex_used_as_source),
           graph_view.local_vertex_partition_view(),
           vertex_partition_range_lasts,
-          carry_over_sources,
+          prior_sources_behavior,
           dedupe_sources,
           do_expensive_check);
 
@@ -350,8 +349,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check)
 {
@@ -368,8 +366,7 @@ uniform_neighbor_sample(
                                               fan_out,
                                               return_hops,
                                               with_replacement,
-                                              unique_sources,
-                                              carry_over_sources,
+                                              prior_sources_behavior,
                                               dedupe_sources,
                                               rng_state,
                                               do_expensive_check);

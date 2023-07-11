@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
@@ -51,7 +52,7 @@ prepare_next_frontier(
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check)
 {
@@ -94,7 +95,9 @@ prepare_next_frontier(
   }
 
   size_t frontier_size = new_frontier_vertices.size();
-  if (carry_over_sources) { frontier_size += starting_vertices.size(); }
+  if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
+    frontier_size += starting_vertices.size();
+  }
 
   rmm::device_uvector<vertex_t> frontier_vertices(frontier_size, handle.get_stream());
   auto frontier_vertex_labels =
@@ -102,7 +105,7 @@ prepare_next_frontier(
       ? std::make_optional<rmm::device_uvector<label_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
 
-  if (carry_over_sources) {
+  if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
     raft::copy(frontier_vertices.begin(),
                starting_vertices.data(),
                starting_vertices.size(),
@@ -120,7 +123,7 @@ prepare_next_frontier(
   }
 
   if (frontier_vertex_labels) {
-    if (carry_over_sources) {
+    if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
       raft::copy(frontier_vertex_labels->begin(),
                  starting_vertex_labels->data(),
                  starting_vertex_labels->size(),
