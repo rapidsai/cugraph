@@ -20,7 +20,7 @@ import networkx as nx
 import cudf
 import cugraph
 from cugraph.testing import utils, DATASETS_TESTING
-from cugraph.experimental.datasets import karate
+from cugraph.datasets import karate
 
 
 ###############################################################################

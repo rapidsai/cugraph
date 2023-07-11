@@ -28,8 +28,8 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental import datasets
+from cugraph.testing import utils, DATASETS_TESTING, DATASETS_SMALL
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -291,8 +291,8 @@ def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, 
 # =============================================================================
 SEEDS = [pytest.param(s) for s in SUBSET_SEED_OPTIONS]
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
-DATASETS = [pytest.param(d) for d in datasets.DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in datasets.DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in DATASETS_TESTING]
+DATASETS_SMALL = [pytest.param(d) for d in DATASETS_SMALL]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
 # Call gen_fixture_params_product() to caluculate the cartesian product of
@@ -449,7 +449,7 @@ def test_bfs_invalid_start(
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    graph_file = datasets.DATASETS[0]
+    graph_file = DATASETS_TESTING[0]
     dataset_path = graph_file.get_path()
 
     input_cugraph_graph = graph_file.get_graph(ignore_weights=True)
