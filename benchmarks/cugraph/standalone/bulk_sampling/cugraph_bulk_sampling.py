@@ -160,7 +160,7 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:D
 
 
 @get_allocation_counts_dask_lazy(return_allocations=True, logging=True)
-def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5], persist=False):
+def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_call=200000, batches_per_partition=100, fanout=[5, 5, 5], unique_sources=False, carry_over_sources=False, deduplicate_sources=True, persist=False):
     cupy.random.seed(seed)
 
     sampler = BulkSampler(
@@ -168,6 +168,9 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         output_path=output_path,
         graph=G,
         fanout_vals=fanout,
+        unique_sources=unique_sources,
+        carry_over_sources=carry_over_sources,
+        deduplicate_sources=deduplicate_sources,
         with_replacement=False,
         random_state=seed,
         seeds_per_call=seeds_per_call,
@@ -393,7 +396,10 @@ def benchmark_cugraph_bulk_sampling(
                                     num_labels=256,
                                     labeled_percentage=0.001,
                                     persist=False,
-                                    add_edge_types=False):
+                                    add_edge_types=False,
+                                    unique_sources=False,
+                                    carry_over_sources=False,
+                                    deduplicate_sources=False):
     """
     Entry point for the benchmark.
 
@@ -428,6 +434,12 @@ def benchmark_cugraph_bulk_sampling(
     add_edge_types: bool
         Whether to add edge types to the edgelist.
         Defaults to False.
+    unique_sources: bool
+        If True, sources are not allowed to reappear as sources in future hops.
+    carry_over_sources: bool
+        If True, sources from previous hops are always carried over to the next hop.
+    deduplicate_sources: bool
+        If True, the source list is deduplicated before performing sampling.
     """
     print(dataset)
     if dataset[0:4] == 'rmat':
@@ -483,6 +495,9 @@ def benchmark_cugraph_bulk_sampling(
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
         fanout=fanout,
+        unique_sources=unique_sources,
+        carry_over_sources=carry_over_sources,
+        deduplicate_sources=deduplicate_sources,
         persist=persist,
     )
 
@@ -647,6 +662,30 @@ def get_args():
         default=False,
     )
 
+    parser.add_argument(
+        '--unique_sources',
+        action='store_true',
+        help='If true, sources are not allowed to reappear as sources in future hops',
+        required=False,
+        default=False,
+    )
+
+    parser.add_argument(
+        '--carry_over_sources',
+        action='store_true',
+        help='If true, sources from previous hops are carried over to the next hop',
+        required=False,
+        default=False,
+    )
+
+    parser.add_argument(
+        '--deduplicate_sources',
+        action='store_true',
+        help='If true, sources are deduplicated before calling sampling',
+        required=False,
+        default=False,
+    )
+
     return parser.parse_args()
 
 
@@ -700,6 +739,9 @@ if __name__ == "__main__":
                             replication_factor=replication_factor,
                             persist=args.persist,
                             add_edge_types=args.add_edge_types,
+                            unique_sources=args.unique_sources,
+                            carry_over_sources=args.carry_over_sources,
+                            deduplicate_sources=args.deduplicate_sources,
                         )
                         stats_d["dataset"] = dataset
                         stats_d["num_input_edges"] = num_input_edges
