@@ -17,8 +17,6 @@
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
-    data_type_id_t,
-    cugraph_data_type_id_t,
     bool_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -216,7 +214,6 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
     cupy_edge_ids = None
     cupy_edge_types = None
 
-    cdef cugraph_data_type_id_t dtype_ 
     edgelists = []
 
     for index in range(size):

@@ -17,8 +17,6 @@
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
-    data_type_id_t,
-    cugraph_data_type_id_t,
     bool_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -192,9 +190,7 @@ def generate_rmat_edgelist(ResourceHandle resource_handle,
         destinations_view_ptr = cugraph_coo_get_destinations(result_coo_ptr)
     
     cdef cugraph_type_erased_device_array_view_t* edge_weights_view_ptr
-    
-    cdef cugraph_data_type_id_t dtype_ 
-    
+
     cupy_edge_weights = None
     cupy_edge_ids = None
     cupy_edge_types = None
