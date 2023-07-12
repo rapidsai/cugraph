@@ -32,6 +32,7 @@ import dask_cudf
 
 import cugraph
 from cugraph.dask.common.mg_utils import get_client
+
 # from cugraph.experimental.datasets import default_download_dir
 
 
@@ -424,7 +425,10 @@ def compare_mst(mst_cugraph, mst_nx):
             Gnx_dict[u][v] = Gnx[u][v]
     return Gnx_dict"""
 
-default_results_download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
+default_results_download_dir = (
+    Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
+)
+
 
 class ResultSet:
     """
@@ -459,7 +463,9 @@ class ResultSet:
                 # try to load results, if file doesn't exist raise pref. RuntimeError
                 raise FileNotFoundError(local_result_file)
             else:
-                with open(default_results_download_dir / local_result_file, "rb") as file:
+                with open(
+                    default_results_download_dir / local_result_file, "rb"
+                ) as file:
                     self.results = pickle.load(file)
         else:
             raise ValueError(

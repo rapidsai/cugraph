@@ -175,10 +175,10 @@ def test_shortest_path_length_no_target(graphs):
     cugraph_G, cupy_df = graphs
 
     cugraph_path_1_to_all = cugraph.shortest_path_length(cugraph_G, 1)
-    # nx_path_1_to_all = get_paths_results("1,notarget,nx")
-    # nx_gpu_path_1_to_all = cudf.DataFrame.from_dict(get_paths_results("1,notarget,cu"))
     nx_path_1_to_all = paths_results.results["1,notarget,nx"]
-    nx_gpu_path_1_to_all = cudf.DataFrame.from_dict(paths_results.results["1,notarget,cu"])
+    nx_gpu_path_1_to_all = cudf.DataFrame.from_dict(
+        paths_results.results["1,notarget,cu"]
+    )
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
 
     # Cast networkx graph on cugraph vertex column type from str to int.

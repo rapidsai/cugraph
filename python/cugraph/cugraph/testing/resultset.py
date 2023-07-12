@@ -33,7 +33,7 @@ from cugraph.experimental.datasets import (
     karate,
     polbooks,
 )
-from cugraph.testing import utils, ResultSet
+from cugraph.testing import utils
 
 default_results_upload_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
 
@@ -80,9 +80,7 @@ for dirctd in DIRECTED_GRAPH_OPTIONS:
     Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd)
     result = cugraph.bfs_edges(Gnx, source=7)
     cugraph_df = cudf.from_pandas(result)
-    test_bfs_results[
-        "{},{},{}".format(ds, dirctd, "nonnative-nx")
-    ] = cugraph_df
+    test_bfs_results["{},{},{}".format(ds, dirctd, "nonnative-nx")] = cugraph_df
 
 
 # =============================================================================
@@ -208,9 +206,7 @@ for graph in ["connected", "disconnected"]:
 test_paths_results["1,notarget,nx"] = nx.shortest_path_length(
     Gnx_DIS, source="1", weight="weight"
 )
-test_paths_results["1,notarget,cu"] = cugraph.shortest_path_length(
-    Gnx_DIS, "1"
-)
+test_paths_results["1,notarget,cu"] = cugraph.shortest_path_length(Gnx_DIS, "1")
 
 
 # serial_bfs_results = pickle.dumps(test_bfs_results)
@@ -221,9 +217,15 @@ test_paths_results["1,notarget,cu"] = cugraph.shortest_path_length(
 # pickle.dump(test_sssp_results, open("testing/sssp_results.pkl", "wb"))
 # pickle.dump(test_paths_results, open("testing/paths_results.pkl", "wb"))
 
-pickle.dump(test_bfs_results, open(default_results_upload_dir / "bfs_results.pkl", "wb"))
-pickle.dump(test_sssp_results, open(default_results_upload_dir / "sssp_results.pkl", "wb"))
-pickle.dump(test_paths_results, open(default_results_upload_dir / "paths_results.pkl", "wb"))
+pickle.dump(
+    test_bfs_results, open(default_results_upload_dir / "bfs_results.pkl", "wb")
+)
+pickle.dump(
+    test_sssp_results, open(default_results_upload_dir / "sssp_results.pkl", "wb")
+)
+pickle.dump(
+    test_paths_results, open(default_results_upload_dir / "paths_results.pkl", "wb")
+)
 
 # Example of how ResultSet is used in each individual testing script
 # my_bfs_results = ResultSet(local_result_file="bfs_results.pkl")

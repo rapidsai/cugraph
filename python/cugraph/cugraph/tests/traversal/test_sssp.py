@@ -255,7 +255,9 @@ def test_sssp_nonnative_inputs_nx(
     gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
 ):
     (_, _, _, source, nx_paths) = single_dataset_source_nxresults
-    result = sssp_results.results["nonnative_input,{},{}".format(cugraph_input_type, source)]
+    result = sssp_results.results[
+        "nonnative_input,{},{}".format(cugraph_input_type, source)
+    ]
     # ^^ should be a pd dataframe
     result = cudf.from_pandas(result)
     if np.issubdtype(result["distance"].dtype, np.integer):
@@ -355,7 +357,9 @@ def test_sssp_data_type_conversion(graph_file, source):
     dist_np = df["distance"].to_numpy()
     pred_np = df["predecessor"].to_numpy()
     cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
-    nx_paths = sssp_results.results["nx_paths,data_type_conversion,{}".format(dataset_name)]
+    nx_paths = sssp_results.results[
+        "nx_paths,data_type_conversion,{}".format(dataset_name)
+    ]
 
     # Calculating mismatch
     err = 0
