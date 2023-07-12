@@ -32,7 +32,7 @@ add_library(cugraphtestutil STATIC
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
             cores/k_core_validate.cu
-	        structure/induced_subgraph_validate.cu
+            structure/induced_subgraph_validate.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 
@@ -97,7 +97,7 @@ function(ConfigureTest CMAKE_TEST_NAME)
         COMMAND ${CMAKE_TEST_NAME}
         GPUS ${_CUGRAPH_TEST_GPUS}
         PERCENT ${_CUGRAPH_TEST_PERCENT}
-        INSTALL_COMPONENT_SET testing #bin/gtests/libcugraph
+        INSTALL_COMPONENT_SET testing
     )
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH")
 endfunction()
@@ -130,7 +130,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
              ${MPIEXEC_POSTFLAGS}
         GPUS ${GPU_COUNT}
         PERCENT 100
-        INSTALL_COMPONENT_SET testing_mg #bin/gtests/libcugraph_mg
+        INSTALL_COMPONENT_SET testing_mg
     )
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_MG")
 
@@ -170,7 +170,7 @@ function(ConfigureCTest CMAKE_TEST_NAME)
         COMMAND ${CMAKE_TEST_NAME}
         GPUS ${_CUGRAPH_TEST_GPUS}
         PERCENT ${_CUGRAPH_TEST_PERCENT}
-        INSTALL_COMPONENT_SET testing_c #bin/gtests/libcugraph_c
+        INSTALL_COMPONENT_SET testing_c
     )
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C")
 
@@ -203,7 +203,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
              ${MPIEXEC_POSTFLAGS}
         GPUS ${GPU_COUNT}
         PERCENT 100
-        INSTALL_COMPONENT_SET testing_mg #bin/gtests/libcugraph_mg
+        INSTALL_COMPONENT_SET testing_mg
     )
     set_tests_properties(${CMAKE_TEST_NAME} PROPERTIES LABELS "CUGRAPH_C_MG")
 
