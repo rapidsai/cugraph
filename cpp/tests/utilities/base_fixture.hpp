@@ -74,7 +74,7 @@ inline auto make_pool()
   // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
   // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
   auto const [free, total] = rmm::detail::available_device_memory();
-  auto min_alloc =
+  auto const min_alloc =
     rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
   return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), min_alloc);
 }
