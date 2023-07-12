@@ -39,7 +39,7 @@ from pylibcugraph.resource_handle cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
-    get_c_type_from_numpy_cupy_type,
+    get_c_type_from_numpy_type,
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
@@ -111,13 +111,13 @@ def create_sampling_result(ResourceHandle resource_handle,
         cugraph_type_erased_device_array_view_create(
             <void*>cai_srcs_ptr,
             len(device_sources),
-            get_c_type_from_numpy_cupy_type(device_sources.dtype))
+            get_c_type_from_numpy_type(device_sources.dtype))
     )
     cdef cugraph_type_erased_device_array_view_t* c_dsts_view_ptr = (
         cugraph_type_erased_device_array_view_create(
             <void*>cai_dsts_ptr,
             len(device_destinations),
-            get_c_type_from_numpy_cupy_type(device_destinations.dtype))
+            get_c_type_from_numpy_type(device_destinations.dtype))
     )
     cdef cugraph_type_erased_device_array_view_t* c_weight_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if device_weights is not None:
@@ -125,7 +125,7 @@ def create_sampling_result(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_weights_ptr,
                 len(device_weights),
-                get_c_type_from_numpy_cupy_type(device_weights.dtype)
+                get_c_type_from_numpy_type(device_weights.dtype)
             )
         )   
     cdef cugraph_type_erased_device_array_view_t* c_edge_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -134,7 +134,7 @@ def create_sampling_result(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_edge_ids_ptr,
                 len(device_edge_id),
-                get_c_type_from_numpy_cupy_type(device_edge_id.dtype)
+                get_c_type_from_numpy_type(device_edge_id.dtype)
             )
         )   
     cdef cugraph_type_erased_device_array_view_t* c_edge_type_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -143,7 +143,7 @@ def create_sampling_result(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_edge_types_ptr,
                 len(device_edge_type),
-                get_c_type_from_numpy_cupy_type(device_edge_type.dtype)
+                get_c_type_from_numpy_type(device_edge_type.dtype)
             )
         )   
 
@@ -153,7 +153,7 @@ def create_sampling_result(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_hop_ptr,
                 len(device_hop),
-                get_c_type_from_numpy_cupy_type(device_hop.dtype)
+                get_c_type_from_numpy_type(device_hop.dtype)
             )
         )   
 
@@ -163,7 +163,7 @@ def create_sampling_result(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_batch_id_ptr,
                 len(device_batch_label),
-                get_c_type_from_numpy_cupy_type(device_batch_label.dtype)
+                get_c_type_from_numpy_type(device_batch_label.dtype)
             )
         )   
 

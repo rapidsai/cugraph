@@ -18,7 +18,6 @@ from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -50,7 +49,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
-    get_c_type_from_numpy_cupy_type,
+    get_c_type_from_numpy_type,
 )
 
 
@@ -109,7 +108,7 @@ def triangle_count(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_start_ptr,
                 len(start_list),
-                get_c_type_from_numpy_cupy_type(start_list.dtype))
+                get_c_type_from_numpy_type(start_list.dtype))
     else:
         start_ptr = NULL
     

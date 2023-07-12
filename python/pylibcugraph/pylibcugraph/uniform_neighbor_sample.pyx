@@ -18,7 +18,6 @@ from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -38,10 +37,6 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
-    cugraph_sample_result_get_sources,
-    cugraph_sample_result_get_destinations,
-    cugraph_sample_result_get_index,
-    cugraph_sample_result_free,
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
     cugraph_uniform_neighbor_sample_with_edge_properties,
@@ -51,14 +46,12 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
-    MGGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    copy_to_cupy_array,
     assert_CAI_type,
     assert_AI_type,
-    get_c_type_from_numpy_cupy_type,
+    get_c_type_from_numpy_type,
 )
 from pylibcugraph.internal_types.sampling_result cimport (
     SamplingResult,
@@ -172,7 +165,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         cugraph_type_erased_device_array_view_create(
             <void*>cai_start_ptr,
             len(start_list),
-            get_c_type_from_numpy_cupy_type(start_list.dtype))
+            get_c_type_from_numpy_type(start_list.dtype))
 
     cdef cugraph_type_erased_device_array_view_t* batch_id_ptr = <cugraph_type_erased_device_array_view_t*>NULL
     if batch_id_list is not None:
@@ -180,7 +173,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_batch_id_ptr,
                 len(batch_id_list),
-                get_c_type_from_numpy_cupy_type(batch_id_list.dtype)
+                get_c_type_from_numpy_type(batch_id_list.dtype)
             )
  
     cdef cugraph_type_erased_device_array_view_t* label_list_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -189,7 +182,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_label_list_ptr,
                 len(label_list),
-                get_c_type_from_numpy_cupy_type(label_list.dtype)
+                get_c_type_from_numpy_type(label_list.dtype)
             )
     
     cdef cugraph_type_erased_device_array_view_t* label_to_output_comm_rank_ptr = <cugraph_type_erased_device_array_view_t*>NULL
@@ -198,14 +191,14 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             cugraph_type_erased_device_array_view_create(
                 <void*>cai_label_to_output_comm_rank_ptr,
                 len(label_to_output_comm_rank),
-                get_c_type_from_numpy_cupy_type(label_to_output_comm_rank.dtype)
+                get_c_type_from_numpy_type(label_to_output_comm_rank.dtype)
             )
 
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_fan_out_ptr,
             len(h_fan_out),
-            get_c_type_from_numpy_cupy_type(h_fan_out.dtype))
+            get_c_type_from_numpy_type(h_fan_out.dtype))
 
     
     cg_rng_state = CuGraphRandomState(resource_handle, random_state)

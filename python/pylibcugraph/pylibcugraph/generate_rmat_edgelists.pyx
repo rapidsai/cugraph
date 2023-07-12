@@ -50,7 +50,7 @@ from pylibcugraph.resource_handle cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    get_c_type_from_numpy_cupy_type,
+    get_c_type_from_numpy_type,
 )
 from pylibcugraph._cugraph_c.random cimport (
     cugraph_rng_state_t
@@ -225,7 +225,7 @@ def generate_rmat_edgelists(ResourceHandle resource_handle,
         cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, destinations_view_ptr)
 
         if include_edge_weights:
-            dtype = get_c_type_from_numpy_cupy_type(dtype)
+            dtype = get_c_type_from_numpy_type(dtype)
             error_code =  cugraph_generate_edge_weights(c_resource_handle_ptr,
                                                         rng_state_ptr,
                                                         result_coo_ptr,

@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,7 +37,7 @@ cdef assert_AI_type(obj, var_name, allow_None=*)
 
 cdef get_numpy_type_from_c_type(data_type_id_t c_type)
 
-cdef get_c_type_from_numpy_cupy_type(numpy_type)
+cdef get_c_type_from_numpy_type(numpy_type)
 
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type)
 
