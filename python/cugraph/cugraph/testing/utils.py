@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import os
+import pickle
 
 # Assume test environment has the following dependencies installed
 import pytest
@@ -31,6 +32,7 @@ import dask_cudf
 
 import cugraph
 from cugraph.dask.common.mg_utils import get_client
+# from cugraph.experimental.datasets import default_download_dir
 
 
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
@@ -412,3 +414,69 @@ def compare_mst(mst_cugraph, mst_nx):
     print(cg_sum)
     print(nx_sum)
     assert np.isclose(cg_sum, nx_sum)
+
+
+"""def convert_nx_view_to_dict(Gnx):
+    Gnx_dict = {}
+    for u in Gnx.nodes:
+        Gnx_dict[u] = {}
+        for v in Gnx[u]:
+            Gnx_dict[u][v] = Gnx[u][v]
+    return Gnx_dict"""
+
+default_results_download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
+
+class ResultSet:
+    """
+    A Resultset Object, which imports output data from networkX algs or cuGraph algs
+    with networkX inputs. This is to be used in the testing module, as to fully remove
+    nx as a dependency.
+    Parameters
+    ----------
+    local_file_name : str
+        The string path for the pickled results file, stored locally somewhere.
+    cloud_file_name : str
+        The string path for the pickled results file, stored on the cloud. (s3)
+    """
+
+    # unsure about naming of 'cloud_result_file'
+    def __init__(self, local_result_file=None, cloud_result_file=None):
+        self._path = None
+
+        # self._result_file = None
+        if cloud_result_file is not None and local_result_file is not None:
+            raise ValueError(
+                "only one of cloud_result_file or local_result_file can be specified"
+            )
+        elif cloud_result_file is not None:
+            raise NotImplementedError("results files are not yet on cloud bucket")
+            # self._path=Path("https://data.rapids.ai/cugraph/tsting/"+cloud_result_file)
+            # not right syntax but the overall process would be similar to below: vv
+        elif local_result_file is not None:
+            self._path = default_results_download_dir / local_result_file
+            # breakpoint()
+            if self._path.exists() is False:
+                # try to load results, if file doesn't exist raise pref. RuntimeError
+                raise FileNotFoundError(local_result_file)
+            else:
+                with open(default_results_download_dir / local_result_file, "rb") as file:
+                    self.results = pickle.load(file)
+        else:
+            raise ValueError(
+                "must specify either local_result_file or cloud_result_file"
+            )
+
+
+def load_all_results(force=False):
+    """
+    Fetches all pickled results files from s3 bucket, stores them locally..somewhere
+    Parameters
+    force : Boolean (default=False)
+        Overwrite any existing copies of datafiles
+    """
+    raise NotImplementedError("results files are not yet on cloud bucket")
+
+
+# Example of intended behavior:
+# bfs_results = ResultSet("bfs_results.pkl")
+# bfs_results["1,nonnative-nx"]
