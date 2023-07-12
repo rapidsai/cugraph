@@ -84,7 +84,13 @@ def _ensure_args_rmat(
                 "if 'include_edge_weights' is True"
             )
         if dtype not in [
-            np.float32, np.float64, cp.float32, cp.float64, "float32", "float64"]:
+            np.float32,
+            np.float64,
+            cp.float32,
+            cp.float64,
+            "float32",
+            "float64",
+        ]:
             raise ValueError(
                 "dtype must be either numpy or cupy 'float32' or 'float64' if "
                 "'include_edge_weights' is True."
@@ -479,7 +485,8 @@ def rmat(
         Maximum weight value to generate if 'include_edge_weights' is True
         otherwise, this parameter is ignored.
 
-    dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64, "float32", "float64"
+    dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64,
+    "float32", "float64"
         The type of weight to generate which is ignored unless
         include_weights is true.
 
@@ -687,7 +694,8 @@ def multi_rmat(
         Maximum edge type to generate if 'include_edge_types' is True
         otherwise, this paramter is ignored.
 
-    dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64, "float32", "float64"
+    dtype : numpy.float32, numpy.float64, cupy.float32, cupy.float64,
+    "float32", "float64"
         The type of weight to generate which is ignored unless
         include_weights is true.
 

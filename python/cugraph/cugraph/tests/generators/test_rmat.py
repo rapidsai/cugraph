@@ -128,8 +128,15 @@ def test_rmat_edge_weights(
         if (
             minimum_weight is None
             or maximum_weight is None
-            or dtype not in [
-                np.float32, np.float64, cp.float32, cp.float64, "float32", "float64"]
+            or dtype
+            not in [
+                np.float32,
+                np.float64,
+                cp.float32,
+                cp.float64,
+                "float32",
+                "float64",
+            ]
         ):
             with pytest.raises(ValueError):
                 _call_rmat(
