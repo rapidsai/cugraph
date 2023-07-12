@@ -39,8 +39,7 @@ _include_edge_weights = [False, True]
 _include_edge_weights_test_ids = [
     f"include_edge_weights={x}" for x in _include_edge_weights
 ]
-_dtype = [None, "FLOAT32", "FLOAT64", "INT32"]
-_dtype = [np.float32, cp.float32, None, "FLOAT64"]
+_dtype = [np.float32, cp.float32, None, "FLOAT64", "float32"]
 _dtype_test_ids = [f"_dtype={x}" for x in _dtype]
 _min_max_weight_values = [[None, None], [0, 1], [2, 5]]
 _min_max_weight_values_test_ids = [
@@ -129,7 +128,8 @@ def test_rmat_edge_weights(
         if (
             minimum_weight is None
             or maximum_weight is None
-            or dtype not in [np.float32, np.float64, cp.float32, cp.float64]
+            or dtype not in [
+                np.float32, np.float64, cp.float32, cp.float64, "float32", "float64"]
         ):
             with pytest.raises(ValueError):
                 _call_rmat(
