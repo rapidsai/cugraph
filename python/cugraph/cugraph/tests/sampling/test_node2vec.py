@@ -15,7 +15,7 @@ import gc
 import random
 import pytest
 
-from cugraph.testing import utils, DATASETS_SMALL
+from cugraph.testing import utils, SMALL_DATASETS
 import cugraph
 import cudf
 from cugraph.datasets import small_line, karate
@@ -144,7 +144,7 @@ def test_node2vec_line(graph_file, directed):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize(*_get_param_args("graph_file", DATASETS_SMALL))
+@pytest.mark.parametrize(*_get_param_args("graph_file", SMALL_DATASETS))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 @pytest.mark.parametrize(*_get_param_args("compress", COMPRESSED))
 def test_node2vec(

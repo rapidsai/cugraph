@@ -19,7 +19,7 @@ import pytest
 import cugraph
 import cupyx
 import cudf
-from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -82,7 +82,7 @@ def networkx_call(M):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_louvain(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -116,7 +116,7 @@ def test_louvain_directed_graph():
 @pytest.mark.sg
 @pytest.mark.parametrize("is_weighted", [True, False])
 def test_louvain_csr_graph(is_weighted):
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     df = karate.get_edgelist()
 
     M = cupyx.scipy.sparse.coo_matrix(

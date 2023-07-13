@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.testing import DATASETS_TESTING
+from cugraph.testing import DEFAULT_DATASETS
 
 
 @pytest.mark.sg
@@ -155,7 +155,7 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 
 @pytest.mark.sg
 @pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_symmetrize_unweighted(graph_file):
     gc.collect()
 
@@ -178,7 +178,7 @@ def test_symmetrize_unweighted(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_symmetrize_weighted(graph_file):
     gc.collect()
     cu_M = graph_file.get_edgelist()

@@ -21,7 +21,7 @@ import cudf
 from cudf.testing import assert_series_equal
 
 from cugraph.structure.number_map import NumberMap
-from cugraph.testing import utils, DATASETS_TESTING
+from cugraph.testing import utils, DEFAULT_DATASETS
 
 
 @pytest.mark.sg
@@ -107,7 +107,7 @@ def test_renumber_negative_col():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_renumber_files_col(graph_file):
     gc.collect()
     dataset_path = graph_file.get_path()
@@ -149,7 +149,7 @@ def test_renumber_files_col(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_renumber_files_multi_col(graph_file):
     gc.collect()
     dataset_path = graph_file.get_path()

@@ -23,8 +23,8 @@ from cugraph.structure import Graph
 from cugraph.testing import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
     ALL_DATASETS,
-    DATASETS_WEIGHTS,
-    DATASETS_SMALL,
+    WEIGHTED_DATASETS,
+    SMALL_DATASETS,
 )
 from cugraph import datasets
 
@@ -139,7 +139,7 @@ def test_get_path(dataset):
     tmpd.cleanup()
 
 
-@pytest.mark.parametrize("dataset", DATASETS_WEIGHTS)
+@pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
 def test_weights(dataset):
     G = dataset.get_graph(fetch=True)
     assert G.is_weighted()
@@ -147,7 +147,7 @@ def test_weights(dataset):
     assert not G.is_weighted()
 
 
-@pytest.mark.parametrize("dataset", DATASETS_SMALL)
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset):
     G = dataset.get_graph(fetch=True)
     assert not G.is_directed()

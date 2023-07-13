@@ -36,7 +36,7 @@ with warnings.catch_warnings():
 
 print("Networkx version : {} ".format(nx.__version__))
 
-DATASETS_UNDIRECTED_WEIGHTS = [netscience]
+UNDIRECTED_WEIGHTED_DATASET = [netscience]
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -57,7 +57,7 @@ def _get_param_args(param_name, param_values):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_WEIGHTED_DATASET)
 def test_minimum_spanning_tree_nx(graph_file):
     # cugraph
     G = graph_file.get_graph()
@@ -86,7 +86,7 @@ def test_minimum_spanning_tree_nx(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_WEIGHTED_DATASET)
 @pytest.mark.parametrize(*_get_param_args("use_adjlist", [True, False]))
 def test_minimum_spanning_tree_graph_repr_compat(graph_file, use_adjlist):
     G = graph_file.get_graph()

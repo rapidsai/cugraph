@@ -16,7 +16,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils, DATASETS_TESTING
+from cugraph.testing import utils, DEFAULT_DATASETS
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,7 +36,7 @@ RADIUS = [1, 2, 3]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_ego_graph_nx(graph_file, seed, radius):
@@ -57,7 +57,7 @@ def test_ego_graph_nx(graph_file, seed, radius):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seeds", [[0, 5, 13]])
 @pytest.mark.parametrize("radius", [1, 2, 3])
 def test_batched_ego_graphs(graph_file, seeds, radius):
@@ -82,7 +82,7 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_multi_column_ego_graph(graph_file, seed, radius):

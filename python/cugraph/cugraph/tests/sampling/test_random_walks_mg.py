@@ -23,7 +23,7 @@ import cugraph
 # from cugraph.dask.common.mg_utils import is_single_gpu
 import cugraph.dask as dcg
 from cugraph.datasets import karate_asymmetric
-from cugraph.testing import DATASETS_SMALL
+from cugraph.testing import SMALL_DATASETS
 
 
 # =============================================================================
@@ -42,7 +42,7 @@ IS_DIRECTED = [True, False]
 # Pytest fixtures
 # =============================================================================
 
-datasets = DATASETS_SMALL + [karate_asymmetric]
+datasets = SMALL_DATASETS + [karate_asymmetric]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),

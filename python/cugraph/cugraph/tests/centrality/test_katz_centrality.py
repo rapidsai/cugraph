@@ -19,8 +19,8 @@ import cudf
 import cugraph
 from cugraph.testing import (
     utils,
-    DATASETS_TESTING,
-    DATASETS_UNDIRECTED,
+    DEFAULT_DATASETS,
+    UNDIRECTED_DATASETS,
 )
 from cugraph.datasets import toy_graph_undirected, karate
 
@@ -74,7 +74,7 @@ def calc_katz(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_katz_centrality(graph_file):
     katz_scores = calc_katz(graph_file)
 
@@ -85,7 +85,7 @@ def test_katz_centrality(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_katz_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
@@ -117,7 +117,7 @@ def test_katz_centrality_nx(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_katz_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)

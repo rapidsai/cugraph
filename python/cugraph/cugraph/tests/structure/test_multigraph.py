@@ -18,7 +18,7 @@ import networkx as nx
 import numpy as np
 
 import cugraph
-from cugraph.testing import utils, DATASETS_TESTING
+from cugraph.testing import utils, DEFAULT_DATASETS
 
 
 # =============================================================================
@@ -29,7 +29,7 @@ def setup_function():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_multigraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
     G = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))
@@ -60,7 +60,7 @@ def test_multigraph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_Graph_from_MultiGraph(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
     GM = graph_file.get_graph(create_using=cugraph.MultiGraph())
@@ -91,7 +91,7 @@ def test_Graph_from_MultiGraph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_multigraph_sssp(graph_file):
     # FIXME: Migrate to new test fixtures for Graph setup once available
     G = graph_file.get_graph(create_using=cugraph.MultiGraph(directed=True))

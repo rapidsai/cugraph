@@ -19,7 +19,7 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
 
@@ -45,7 +45,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = DATASETS_UNDIRECTED
+datasets = UNDIRECTED_DATASETS
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     ([True, False], "edgevals"),

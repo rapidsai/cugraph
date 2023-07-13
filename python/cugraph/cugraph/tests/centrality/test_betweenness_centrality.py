@@ -17,7 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.datasets import karate_disjoint
-from cugraph.testing import utils, DATASETS_SMALL
+from cugraph.testing import utils, SMALL_DATASETS
 import random
 import numpy as np
 import cudf
@@ -306,7 +306,7 @@ def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
 # Tests
 # =============================================================================
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", [False, True])
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -341,7 +341,7 @@ def test_betweenness_centrality_0(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -425,7 +425,7 @@ def test_betweenness_centrality_fixed_sample(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -466,7 +466,7 @@ def test_betweenness_centrality_weight_except(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)

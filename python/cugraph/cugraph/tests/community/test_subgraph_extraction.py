@@ -19,7 +19,7 @@ import networkx as nx
 
 import cudf
 import cugraph
-from cugraph.testing import utils, DATASETS_TESTING
+from cugraph.testing import utils, DEFAULT_DATASETS
 from cugraph.datasets import karate
 
 
@@ -66,7 +66,7 @@ def nx_call(M, verts, directed=True):
 
 ###############################################################################
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -80,7 +80,7 @@ def test_subgraph_extraction_DiGraph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -94,7 +94,7 @@ def test_subgraph_extraction_Graph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DATASETS_TESTING[2]])
+@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
 def test_subgraph_extraction_Graph_nx(graph_file):
     directed = False
     verts = np.zeros(3, dtype=np.int32)
@@ -123,7 +123,7 @@ def test_subgraph_extraction_Graph_nx(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_subgraph_extraction_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)

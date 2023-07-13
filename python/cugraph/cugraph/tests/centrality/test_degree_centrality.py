@@ -17,7 +17,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 
 import networkx as nx
 
@@ -36,7 +36,7 @@ def topKVertices(degree, col, k):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_degree_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
@@ -68,7 +68,7 @@ def test_degree_centrality_nx(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_degree_centrality_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)

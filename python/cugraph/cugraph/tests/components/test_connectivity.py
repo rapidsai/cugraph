@@ -29,7 +29,7 @@ from cugraph.utilities import is_nx_graph_type
 
 import cudf
 import cugraph
-from cugraph.testing import utils, DATASETS_TESTING
+from cugraph.testing import utils, DEFAULT_DATASETS
 from cugraph.datasets import dolphins, netscience, email_Eu_core
 
 
@@ -273,12 +273,12 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=DATASETS_TESTING)
+@pytest.fixture(scope="module", params=DEFAULT_DATASETS)
 def dataset_nxresults_weak(request):
     return networkx_weak_call(request.param)
 
 
-@pytest.fixture(scope="module", params=[DATASETS_TESTING[0]])
+@pytest.fixture(scope="module", params=[DEFAULT_DATASETS[0]])
 def single_dataset_nxresults_weak(request):
     return networkx_weak_call(request.param)
 
@@ -445,7 +445,7 @@ def test_scipy_api_compat(connection_type):
     if connection_type == "strong":
         graph_file = DATASETS_BATCH[0]
     else:
-        graph_file = DATASETS_TESTING[0]
+        graph_file = DEFAULT_DATASETS[0]
 
     input_cugraph_graph = graph_file.get_graph()
 

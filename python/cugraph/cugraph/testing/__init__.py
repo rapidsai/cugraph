@@ -31,9 +31,9 @@ from cugraph.datasets import (
 # Moved Dataset Batches
 #
 
-DATASETS_UNDIRECTED = [karate, dolphins]
-DATASETS_SMALL = [karate, dolphins, polbooks]
-DATASETS_WEIGHTS = [
+UNDIRECTED_DATASETS = [karate, dolphins]
+SMALL_DATASETS = [karate, dolphins, polbooks]
+WEIGHTED_DATASETS = [
     dolphins,
     karate,
     karate_disjoint,
@@ -55,4 +55,4 @@ ALL_DATASETS = [
     toy_graph,
     toy_graph_undirected,
 ]
-DATASETS_TESTING = [dolphins, netscience, karate_disjoint]
+DEFAULT_DATASETS = [dolphins, netscience, karate_disjoint]

@@ -28,7 +28,7 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils, DATASETS_TESTING, DATASETS_SMALL
+from cugraph.testing import utils, DEFAULT_DATASETS, SMALL_DATASETS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -291,8 +291,8 @@ def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, 
 # =============================================================================
 SEEDS = [pytest.param(s) for s in SUBSET_SEED_OPTIONS]
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
-DATASETS = [pytest.param(d) for d in DATASETS_TESTING]
-DATASETS_SMALL = [pytest.param(d) for d in DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in DEFAULT_DATASETS]
+SMALL_DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
 # Call gen_fixture_params_product() to caluculate the cartesian product of
@@ -309,7 +309,7 @@ graph_fixture_params = gen_fixture_params_product(
 )
 
 small_graph_fixture_params = gen_fixture_params_product(
-    (DATASETS_SMALL, "ds"), (DIRECTED, "dirctd")
+    (SMALL_DATASETS, "ds"), (DIRECTED, "dirctd")
 )
 
 # The single param list variants are used when only 1 param combination is
@@ -320,7 +320,7 @@ single_algo_test_fixture_params = gen_fixture_params_product(
 )
 
 single_small_graph_fixture_params = gen_fixture_params_product(
-    ([DATASETS_SMALL[0]], "ds"), (DIRECTED, "dirctd")
+    ([SMALL_DATASETS[0]], "ds"), (DIRECTED, "dirctd")
 )
 
 
@@ -449,7 +449,7 @@ def test_bfs_invalid_start(
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    graph_file = DATASETS_TESTING[0]
+    graph_file = DEFAULT_DATASETS[0]
     dataset_path = graph_file.get_path()
 
     input_cugraph_graph = graph_file.get_graph(ignore_weights=True)

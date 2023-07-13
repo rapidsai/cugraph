@@ -20,7 +20,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 import cugraph
 from cugraph import uniform_neighbor_sample
 from cugraph.datasets import email_Eu_core, small_tree
-from cugraph.testing import DATASETS_UNDIRECTED
+from cugraph.testing import UNDIRECTED_DATASETS
 
 
 # =============================================================================
@@ -35,7 +35,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = UNDIRECTED_DATASETS + [email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),

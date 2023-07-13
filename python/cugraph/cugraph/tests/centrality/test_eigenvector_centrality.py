@@ -16,7 +16,7 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.testing import utils, DATASETS_UNDIRECTED, DATASETS_TESTING
+from cugraph.testing import utils, UNDIRECTED_DATASETS, DEFAULT_DATASETS
 from cugraph.datasets import toy_graph, karate
 
 import networkx as nx
@@ -57,7 +57,7 @@ def calc_eigenvector(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_TESTING)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_eigenvector_centrality(graph_file):
     eigen_scores = calc_eigenvector(graph_file)
 
@@ -68,7 +68,7 @@ def test_eigenvector_centrality(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_eigenvector_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)

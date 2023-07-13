@@ -16,7 +16,7 @@ import gc
 import pytest
 
 import cugraph
-from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -72,7 +72,7 @@ def compare_edges(cg, nxg):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_k_core_Graph(graph_file):
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
@@ -81,7 +81,7 @@ def test_k_core_Graph(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_k_core_Graph_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
@@ -93,7 +93,7 @@ def test_k_core_Graph_nx(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_k_core_corenumber_multicolumn(graph_file):
     dataset_path = graph_file.get_path()
     cu_M = utils.read_csv_file(dataset_path)
@@ -132,7 +132,7 @@ def test_k_core_corenumber_multicolumn(graph_file):
 
 @pytest.mark.sg
 def test_k_core_invalid_input():
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
     with pytest.raises(ValueError):
         cugraph.k_core(G)

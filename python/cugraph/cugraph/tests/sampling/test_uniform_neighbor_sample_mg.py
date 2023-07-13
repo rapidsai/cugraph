@@ -26,7 +26,7 @@ import cugraph
 
 from cugraph.dask import uniform_neighbor_sample
 from cugraph.datasets import email_Eu_core, small_tree
-from cugraph.testing import DATASETS_UNDIRECTED
+from cugraph.testing import UNDIRECTED_DATASETS
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -54,7 +54,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = UNDIRECTED_DATASETS + [email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),

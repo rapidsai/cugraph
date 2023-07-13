@@ -17,7 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.datasets import karate_disjoint
-from cugraph.testing import utils, DATASETS_SMALL
+from cugraph.testing import utils, SMALL_DATASETS
 import random
 import numpy as np
 import cupy
@@ -311,7 +311,7 @@ def generate_upper_triangle(dataframe):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -343,7 +343,7 @@ def test_edge_betweenness_centrality(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -422,7 +422,7 @@ def test_edge_betweenness_centrality_fixed_sample(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -461,7 +461,7 @@ def test_edge_betweenness_centrality_weight_except(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -496,7 +496,7 @@ def test_edge_betweenness_invalid_dtype(
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", SMALL_DATASETS)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals):

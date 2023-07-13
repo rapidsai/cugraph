@@ -29,7 +29,7 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils, DATASETS_UNDIRECTED, DATASETS_SMALL
+from cugraph.testing import utils, UNDIRECTED_DATASETS, SMALL_DATASETS
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -183,7 +183,7 @@ def networkx_call(graph_file, source, edgevals=True):
 # FIXME: tests with datasets like 'netscience' which has a weight column different
 # than than 1's fail because it looks like netwokX doesn't consider weights during
 # the computation.
-DATASETS = [pytest.param(d) for d in DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in SMALL_DATASETS]
 SOURCES = [pytest.param(1)]
 fixture_params = gen_fixture_params_product((DATASETS, "ds"), (SOURCES, "src"))
 fixture_params_single_dataset = gen_fixture_params_product(
@@ -393,7 +393,7 @@ def test_sssp_networkx_edge_attr():
 
 @pytest.mark.sg
 def test_scipy_api_compat():
-    graph_file = DATASETS_SMALL[0]
+    graph_file = SMALL_DATASETS[0]
     dataset_path = graph_file.get_path()
     input_cugraph_graph = graph_file.get_graph()
     input_coo_matrix = utils.create_obj_from_csv(
@@ -462,7 +462,7 @@ def test_scipy_api_compat():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_sssp_csr_graph(graph_file):
     df = graph_file.get_edgelist()
 
@@ -504,7 +504,7 @@ def test_sssp_csr_graph(graph_file):
 
 @pytest.mark.sg
 def test_sssp_unweighted_graph():
-    karate = DATASETS_SMALL[0]
+    karate = SMALL_DATASETS[0]
     G = karate.get_graph(ignore_weights=True)
 
     error_msg = (
