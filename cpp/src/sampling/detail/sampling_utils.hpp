@@ -134,8 +134,10 @@ sample_edges(raft::handle_t const& handle,
  * @param sampled_src_vertex_labels Optional labels for the vertices for the current sampling
  * @param sampled_dst_vertices Vertices for the next frontier
  * @param sampled_dst_vertex_labels Optional labels for the next frontier
- * @param vertex_used_as_source Span used for marking vertices that have already appeared as a
- * source (empty span if @p unique_sources is false)
+ * @param vertex_used_as_source Optional. If specified then we want to exclude vertices that
+ * were previously used as sources.  These vertices (and optional labels) will be updated based
+ * on the contents of sampled_src_vertices/sampled_src_vertex_labels and the update will be part
+ * of the return value.
  * @param vertex_partition Vertex partition view from the graph view
  * @param vertex_partition_range_lasts End of range information from graph view
  * @param prior_sources_behavior Identifies how to treat sources in each hop
@@ -145,7 +147,8 @@ sample_edges(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
  * @return A tuple of device vectors containing the vertices for the next frontier expansion and
- *  optional labels associated with the vertices.
+ *  optional labels associated with the vertices, along with the updated value for
+ *  @p vertex_used_as_sources
  */
 template <typename vertex_t, typename label_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,

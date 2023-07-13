@@ -50,6 +50,8 @@ prepare_next_frontier(
   std::optional<raft::device_span<label_t const>> sampled_dst_vertex_labels,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
+  // FIXME: vertex_partition_view_t should provide vertex_partition_range_lasts()
+  //        (and internally store this information in raft::host_span).
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
   std::vector<vertex_t> const& vertex_partition_range_lasts,
   prior_sources_behavior_t prior_sources_behavior,
@@ -69,29 +71,29 @@ prepare_next_frontier(
       ? std::make_optional<rmm::device_uvector<label_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
 
-  raft::copy(frontier_vertices.begin(),
-             sampled_dst_vertices.data(),
-             sampled_dst_vertices.size(),
-             handle.get_stream());
+  thrust::copy(handle.get_thrust_policy(),
+               sampled_dst_vertices.begin(),
+               sampled_dst_vertices.end(),
+               frontier_vertices.begin());
 
   if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
-    raft::copy(frontier_vertices.begin() + sampled_dst_vertices.size(),
-               sampled_src_vertices.data(),
-               sampled_src_vertices.size(),
-               handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 sampled_src_vertices.begin(),
+                 sampled_src_vertices.end(),
+                 frontier_vertices.begin() + sampled_dst_vertices.size());
   }
 
   if (frontier_vertex_labels) {
-    raft::copy(frontier_vertex_labels->begin(),
-               sampled_dst_vertex_labels->data(),
-               sampled_dst_vertex_labels->size(),
-               handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 sampled_dst_vertex_labels->begin(),
+                 sampled_dst_vertex_labels->end(),
+                 frontier_vertex_labels->begin());
 
     if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
-      raft::copy(frontier_vertex_labels->begin() + sampled_dst_vertices.size(),
-                 sampled_src_vertex_labels->data(),
-                 sampled_src_vertex_labels->size(),
-                 handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   sampled_src_vertex_labels->begin(),
+                   sampled_src_vertex_labels->end(),
+                   frontier_vertex_labels->begin() + sampled_dst_vertices.size());
     }
   }
 
@@ -126,19 +128,19 @@ prepare_next_frontier(
 
     verts.resize(new_verts_size, handle.get_stream());
 
-    raft::copy(verts.begin() + current_verts_size,
-               sampled_src_vertices.data(),
-               sampled_src_vertices.size(),
-               handle.get_stream());
+    thrust::copy(handle.get_thrust_polciy(),
+                 sampled_src_vertices.begin(),
+                 sampled_src_vertices.end(),
+                 verts.begin() + current_verts_size);
 
     // sort and unique the vertex_used_as_source structures
     if (sampled_src_vertex_labels) {
       labels->resize(new_verts_size, handle.get_stream());
 
-      raft::copy(labels->begin() + current_verts_size,
-                 sampled_src_vertex_labels->data(),
-                 sampled_src_vertex_labels->size(),
-                 handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   sampled_src_vertex_labels->begin(),
+                   sampled_src_vertex_labels->end(),
+                   labels->begin() + current_verts_size);
 
       auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin());
 

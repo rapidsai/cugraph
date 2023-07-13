@@ -1842,6 +1842,12 @@ k_core(raft::handle_t const& handle,
 
 /**
  * @brief Controls how we treat prior sources in sampling
+ *
+ * @param DEFAULT    Add vertices encounted while sampling to the new frontier
+ * @param CARRY_OVER In addition to newly encountered vertices, include vertices
+ *                   used as sources in any previous frontier in the new frontier
+ * @param EXCLUDE    Filter the new frontier to exclude any vertex that was
+ *                   used as a source in a previous frontier
  */
 enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
 
