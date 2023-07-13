@@ -14,7 +14,6 @@
 import gc
 import time
 from collections import defaultdict
-import warnings
 
 import pytest
 import cupy as cp
@@ -31,20 +30,9 @@ import cudf
 import cugraph
 from cugraph.testing import utils, DEFAULT_DATASETS
 from cugraph.datasets import dolphins, netscience, email_Eu_core
+import networkx as nx
 
-
-DATASETS_BATCH = [dolphins, netscience, email_Eu_core]
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-
+CUSTOM_DATASETS_BATCH = [dolphins, netscience, email_Eu_core]
 
 print("Networkx version : {} ".format(nx.__version__))
 
@@ -283,12 +271,12 @@ def single_dataset_nxresults_weak(request):
     return networkx_weak_call(request.param)
 
 
-@pytest.fixture(scope="module", params=DATASETS_BATCH)
+@pytest.fixture(scope="module", params=CUSTOM_DATASETS_BATCH)
 def dataset_nxresults_strong(request):
     return networkx_strong_call(request.param)
 
 
-@pytest.fixture(scope="module", params=[DATASETS_BATCH[0]])
+@pytest.fixture(scope="module", params=[CUSTOM_DATASETS_BATCH[0]])
 def single_dataset_nxresults_strong(request):
     return networkx_strong_call(request.param)
 
@@ -443,7 +431,7 @@ def test_scipy_api_compat_strong(single_dataset_nxresults_strong):
 @pytest.mark.parametrize("connection_type", ["strong", "weak"])
 def test_scipy_api_compat(connection_type):
     if connection_type == "strong":
-        graph_file = DATASETS_BATCH[0]
+        graph_file = CUSTOM_DATASETS_BATCH[0]
     else:
         graph_file = DEFAULT_DATASETS[0]
 
