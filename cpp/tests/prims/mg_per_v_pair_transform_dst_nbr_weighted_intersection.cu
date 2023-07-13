@@ -48,14 +48,16 @@
 
 #include <random>
 
-template <typename vertex_t, typename edge_t>
+template <typename vertex_t, typename edge_t, typename weight_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
     vertex_t v0,
     vertex_t v1,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
-    raft::device_span<vertex_t const> intersection) const
+    raft::device_span<vertex_t const> intersection,
+    raft::device_span<weight_t const> intersection_p0,
+    raft::device_span<weight_t const> intersection_p1) const
   {
     // printf("\n%d %d %d %d %d\n",
     //        static_cast<int>(v0),
@@ -326,7 +328,8 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
           std::cout << "(" << major_comm_size << minor_comm_size << ")" << std::endl;
 
-          std::cout << major_comm_rank << minor_comm.get_rank() << std::endl;
+          std::cout << "(major_rank, minor_rank): " << major_comm_rank << minor_comm.get_rank()
+                    << std::endl;
 
           raft::print_device_vector("vertex_partitions_range_lasts:",
                                     vertex_partitions_range_lasts.data(),
@@ -478,22 +481,35 @@ class Tests_MGPerVPairTransformDstNbrIntersection
               thrust::make_counting_iterator(edge_partition.major_range_first()),
               thrust::make_counting_iterator(edge_partition.major_range_last()),
               [edge_partition, edge_partition_weight_value_ptr] __device__(vertex_t major) {
+                printf("major -> %d\n", major);
+
                 vertex_t major_idx{};
                 auto major_hypersparse_first = edge_partition.major_hypersparse_first();
                 if (major_hypersparse_first) {
+                  printf("*major_hypersparse_first = %d\n",
+                         static_cast<int>(*major_hypersparse_first));
+
                   if (major < *major_hypersparse_first) {
                     major_idx = edge_partition.major_offset_from_major_nocheck(major);
                   } else {
                     auto major_hypersparse_idx =
                       edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-                    if (!major_hypersparse_idx) { return true; }
+                    if (!major_hypersparse_idx) {
+                      printf("No major_hypersparse_idx\n");
+                      return true;
+                    }
                     major_idx =
                       edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
                       *major_hypersparse_idx;
                   }
                 } else {
+                  printf("No major_hypersparse_first\n");
+
                   major_idx = edge_partition.major_offset_from_major_nocheck(major);
                 }
+
+                printf("==> major_idx = %d\n", major_idx);
+
                 vertex_t const* indices{nullptr};
                 edge_t edge_offset{};
                 edge_t local_degree{};
@@ -504,11 +520,12 @@ class Tests_MGPerVPairTransformDstNbrIntersection
 
                 auto number_of_edges = edge_partition.number_of_edges();
 
-                printf("vertex = %d offset_idx = %d  deg= %d number_of_edges=%d\n",
-                       major,
-                       edge_offset,
-                       local_degree,
-                       number_of_edges);
+                printf(
+                  "major = %d edge_offset = %d  local_degree= %d nr_edges_of_edge_partition=%d\n",
+                  major,
+                  edge_offset,
+                  local_degree,
+                  number_of_edges);
                 for (edge_t nbr_idx = 0; nbr_idx < local_degree; nbr_idx++) {
                   // printf("%d ", indices[nbr_idx]);
                   printf("%d %d %.2f \n",
@@ -561,6 +578,13 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         prims_usecase.num_vertex_pairs / comm_size +
           (static_cast<size_t>(comm_rank) < prims_usecase.num_vertex_pairs % comm_size ? 1 : 0),
         handle_->get_stream());
+
+    std::cout << "Rank: " << comm_rank
+              << " prims_usecase.num_vertex_pairs:" << prims_usecase.num_vertex_pairs << std::endl;
+
+    std::cout << "Rank: " << comm_rank << " cugraph::size_dataframe_buffer(mg_vertex_pair_buffer): "
+              << cugraph::size_dataframe_buffer(mg_vertex_pair_buffer) << std::endl;
+
     thrust::tabulate(
       handle_->get_thrust_policy(),
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
@@ -568,9 +592,12 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       [comm_rank, num_vertices = mg_graph_view.number_of_vertices()] __device__(size_t i) {
         cuco::detail::MurmurHash3_32<size_t>
           hash_func{};  // use hash_func to generate arbitrary vertex pairs
-        auto v0 = 2;    // static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
-        auto v1 =
-          3;  // static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
+        auto v0 = static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
+        auto v1 = static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
+        printf("comm_rank=%d v0= %d, v1=%d\n",
+               static_cast<int>(comm_rank),
+               static_cast<int>(v0),
+               static_cast<int>(v1));
         return thrust::make_tuple(v0, v1);
       });
 
@@ -628,11 +655,11 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     cugraph::per_v_pair_transform_dst_nbr_intersection(
       *handle_,
       mg_graph_view,
+      edge_weight_view,
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       mg_out_degrees.begin(),
-      edge_weight_view,
-      intersection_op_t<vertex_t, edge_t>{},
+      intersection_op_t<vertex_t, edge_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(mg_result_buffer));
 
     if (cugraph::test::g_perf) {
@@ -719,10 +746,11 @@ class Tests_MGPerVPairTransformDstNbrIntersection
         // cugraph::per_v_pair_transform_dst_nbr_intersection(
         //   *handle_,
         //   sg_graph_view,
+        //   edge_weight_view,
         //   cugraph::get_dataframe_buffer_begin(
         //     mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
         //   cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered
-        //   */), sg_out_degrees.begin(), edge_weight_view, intersection_op_t<vertex_t, edge_t>{},
+        //   */), sg_out_degrees.begin(),  intersection_op_t<vertex_t, edge_t, weight_t>{},
         //   cugraph::get_dataframe_buffer_begin(sg_result_buffer));
 
         // bool valid = thrust::equal(handle_->get_thrust_policy(),
@@ -814,7 +842,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1}, true}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{5}, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 // INSTANTIATE_TEST_SUITE_P(rmat_small_test,

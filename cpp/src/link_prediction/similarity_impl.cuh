@@ -58,7 +58,49 @@ rmm::device_uvector<weight_t> similarity(
     //        max weight((u,a), (a,v)).
     //    Use these to compute weighted score
     //
-    CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
+
+    rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
+
+    //
+    //  Compute vertex_degree for all vertices, then distribute to each GPU.
+    //  Need to use this instead of the dummy properties below
+    //
+    auto out_degrees = graph_view.compute_out_degrees(handle);
+
+    per_v_pair_transform_dst_nbr_intersection(
+      handle,
+      graph_view,
+      *edge_weight_view,
+      vertex_pairs_begin,
+      vertex_pairs_begin + num_vertex_pairs,
+      out_degrees.begin(),
+      [functor] __device__(auto v1,
+                           auto v2,
+                           auto v1_degree,
+                           auto v2_degree,
+                           auto intersection,
+                           auto properties0,
+                           auto properties1) {
+        for (size_t k = 0; k < intersection.size(); k++) {
+          printf("=> %d %f %f\n",
+                 static_cast<int>(intersection[k]),
+                 static_cast<float>(properties0[k]),
+                 static_cast<float>(properties1[k]));
+        }
+
+        weight_t weight_a                 = 1;
+        weight_t weight_b                 = 1;
+        weight_t min_weight_a_intersect_b = 1;
+        return functor.compute_score(static_cast<weight_t>(weight_a),
+                                     static_cast<weight_t>(weight_b),
+                                     static_cast<weight_t>(min_weight_a_intersect_b));
+      },
+      similarity_score.begin(),
+      do_expensive_check);
+
+    return similarity_score;
+
+    // CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
   } else {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
@@ -71,11 +113,12 @@ rmm::device_uvector<weight_t> similarity(
     per_v_pair_transform_dst_nbr_intersection(
       handle,
       graph_view,
+      cugraph::edge_dummy_property_t{}.view(),
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       out_degrees.begin(),
-      cugraph::edge_dummy_property_t{}.view(),
-      [functor] __device__(auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection) {
+      [functor] __device__(
+        auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
         return functor.compute_score(static_cast<weight_t>(v1_degree),
                                      static_cast<weight_t>(v2_degree),
                                      static_cast<weight_t>(intersection.size()));

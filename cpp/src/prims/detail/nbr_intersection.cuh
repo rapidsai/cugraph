@@ -171,6 +171,7 @@ struct update_rx_major_local_degree_t {
 
 template <typename vertex_t,
           typename edge_t,
+          typename EdgeProperty_t,
           typename edge_partition_e_input_device_view_t,
           bool multi_gpu>
 struct update_rx_major_local_nbrs_t {
@@ -190,10 +191,9 @@ struct update_rx_major_local_nbrs_t {
 
   raft::device_span<vertex_t> local_nbrs_for_rx_majors{};
 
-  raft::device_span<typename edge_partition_e_input_device_view_t::value_type>
-    local_nbrs_weights_for_rx_majors{};
+  raft::device_span<EdgeProperty_t> local_nbrs_properties_for_rx_majors{};
 
-  __device__ void operator()(size_t idx) const
+  __device__ void operator()(size_t idx)
   {
     auto it = thrust::upper_bound(
       thrust::seq, rx_reordered_group_lasts.begin(), rx_reordered_group_lasts.end(), idx);
@@ -222,28 +222,21 @@ struct update_rx_major_local_nbrs_t {
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
     // vertices in a single warp (better optimize if this becomes a performance
     // bottleneck)
-    thrust::copy(
-      thrust::seq,
-      indices,
-      indices + local_degree,
-      local_nbrs_for_rx_majors.begin() +
-        local_nbr_offsets_for_rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size +
-                                                        local_edge_partition_idx] +
-                                        offset_in_local_edge_partition]);
 
-    if constexpr (!std::is_same_v<typename edge_partition_e_input_device_view_t::value_type,
-                                  thrust::nullopt_t>) {
-      thrust::transform(
-        thrust::seq,
-        thrust::make_counting_iterator(0),
-        thrust::make_counting_iterator(local_degree),
-        local_nbrs_weights_for_rx_majors.begin() +
-          local_nbr_offsets_for_rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size +
-                                                          local_edge_partition_idx] +
-                                          offset_in_local_edge_partition],
-        [&] __device__(auto edge_weight_idx) {
-          return edge_partition_e_value_input.get(edge_offset + edge_weight_idx);
-        });
+    size_t pos = local_nbr_offsets_for_rx_majors[rx_group_firsts[major_comm_rank * minor_comm_size +
+                                                                 local_edge_partition_idx] +
+                                                 offset_in_local_edge_partition];
+    thrust::copy(
+      thrust::seq, indices, indices + local_degree, local_nbrs_for_rx_majors.begin() + pos);
+
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      auto nbrs_properties_start = local_nbrs_properties_for_rx_majors.begin() + pos;
+
+      auto eddge_property_start = edge_partition_e_value_input.value_first() + edge_offset;
+
+      for (size_t k = 0; k < local_degree; k++) {
+        nbrs_properties_start[k] = *(eddge_property_start + k);
+      }
     }
   }
 };
@@ -340,20 +333,19 @@ template <typename FirstElementToIdxMap,
           typename VertexPairIterator,
           typename vertex_t,
           typename edge_t,
+          typename EdgeProperty_t,
           typename edge_partition_e_input_device_view_t,
           bool multi_gpu>
 struct copy_intersecting_nbrs_and_update_intersection_size_t {
   FirstElementToIdxMap first_element_to_idx_map{};
   raft::device_span<size_t const> first_element_offsets{};
   raft::device_span<vertex_t const> first_element_indices{nullptr};
-  raft::device_span<typename edge_partition_e_input_device_view_t::value_type const>
-    first_element_weights{nullptr};
+  raft::device_span<EdgeProperty_t const> first_element_properties{nullptr};
 
   SecondElementToIdxMap second_element_to_idx_map{};
   raft::device_span<size_t const> second_element_offsets{};
   raft::device_span<vertex_t const> second_element_indices{nullptr};
-  raft::device_span<typename edge_partition_e_input_device_view_t::value_type const>
-    second_element_weights{nullptr};
+  raft::device_span<EdgeProperty_t const> second_element_properties{nullptr};
 
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition{};
   edge_partition_e_input_device_view_t edge_partition_e_value_input{};
@@ -361,20 +353,19 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
   VertexPairIterator vertex_pair_first;
   raft::device_span<size_t const> nbr_intersection_offsets{nullptr};
   raft::device_span<vertex_t> nbr_intersection_indices{nullptr};
-  raft::device_span<typename edge_partition_e_input_device_view_t::value_type>
-    nbr_intersection_weights{nullptr};
+  raft::device_span<EdgeProperty_t> nbr_intersection_properties0{nullptr};
+  raft::device_span<EdgeProperty_t> nbr_intersection_properties1{nullptr};
 
   vertex_t invalid_id{};
 
   int rank{1000};
   size_t edge_partition_idx{1000};
 
-  __device__ edge_t operator()(size_t i) const
+  __device__ edge_t operator()(size_t i)
   {
-    using weight_t = typename edge_partition_e_input_device_view_t::value_type;
-
     auto pair = *(vertex_pair_first + i);
 
+#if 1
     printf(
       "-----rank=%d, edge_partition_idx=%d------\n", rank, static_cast<int>(edge_partition_idx));
 
@@ -384,12 +375,18 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     if constexpr (!std::is_same_v<SecondElementToIdxMap, void*>) {
       printf("called with SecondElementToIdxMap---------\n");
     }
+#endif
 
     vertex_t const* indices0{nullptr};
+    EdgeProperty_t const* property0{nullptr};
+
     [[maybe_unused]] edge_t local_edge_offset0{0};
     edge_t local_degree0{0};
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
+#if 1
       printf("element0 from  edge_partition\n");
+#endif
+
       vertex_t major = thrust::get<0>(pair);
       if constexpr (multi_gpu) {
         if (edge_partition.major_hypersparse_first() &&
@@ -410,15 +407,35 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
           edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
       }
     } else {
+#if 1
       printf("element0  from  first_element_to_idx_map******\n");
+#endif
+
       auto idx = first_element_to_idx_map.find(thrust::get<0>(pair));
       local_degree0 =
         static_cast<edge_t>(first_element_offsets[idx + 1] - first_element_offsets[idx]);
-      indices0 = first_element_indices.begin() + first_element_offsets[idx];
-
+      indices0           = first_element_indices.begin() + first_element_offsets[idx];
       local_edge_offset0 = first_element_offsets[idx];
     }
 
+    if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        property0 = edge_partition_e_value_input.value_first() + local_edge_offset0;
+
+      } else {
+        // nothing
+      }
+
+    } else {
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        property0 = first_element_properties.begin() + local_edge_offset0;
+
+      } else {
+        // nothing
+      }
+    }
+
+#if 1
     vertex_t element0 = thrust::get<0>(pair);
     printf("element0 %d, local_degree0 %d local_edge_offset0 %d\n",
            static_cast<int>(element0),
@@ -427,31 +444,43 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
 
     for (edge_t k = 0; k < local_degree0; k++) {
       if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
-        if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-          weight_t ew{};
-          ew = edge_partition_e_value_input.get(local_edge_offset0 + k);
-          printf("(%d %.2f)* ", static_cast<int>(indices0[k]), static_cast<float>(ew));
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          EdgeProperty_t ep{};
+          ep = edge_partition_e_value_input.get(local_edge_offset0 + k);
+          printf("( %d %d %.2f %.2f)* ",
+                 static_cast<int>(k),
+                 static_cast<int>(indices0[k]),
+                 static_cast<float>(ep),
+                 static_cast<float>(property0[k]));
         } else {
-          printf("%d* ", static_cast<int>(indices0[k]));
+          printf("%d %d* ", static_cast<int>(k), static_cast<int>(indices0[k]));
         }
 
       } else {
-        if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-          weight_t ew = *(first_element_weights.begin() + local_edge_offset0 + k);
-          printf("(%d %.2f)* ", static_cast<int>(indices0[k]), static_cast<float>(ew));
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          EdgeProperty_t ep = *(first_element_properties.begin() + local_edge_offset0 + k);
+          printf("(%d %d %.2f %.2f)* ",
+                 static_cast<int>(k),
+                 static_cast<int>(indices0[k]),
+                 static_cast<float>(ep),
+                 static_cast<float>(property0[k]));
         } else {
-          printf("%d* ", static_cast<int>(indices0[k]));
+          printf("%d %d* ", static_cast<int>(k), static_cast<int>(indices0[k]));
         }
       }
     }
-
     printf("\n");
+#endif
 
     vertex_t const* indices1{nullptr};
+    EdgeProperty_t const* property1{nullptr};
     [[maybe_unused]] edge_t local_edge_offset1{0};
     edge_t local_degree1{0};
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
+#if 1
       printf("element1 from  edge_partition\n");
+#endif
+
       vertex_t major = thrust::get<1>(pair);
       if constexpr (multi_gpu) {
         if (edge_partition.major_hypersparse_first() &&
@@ -472,7 +501,10 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
           edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
       }
     } else {
+#if 1
       printf("element1 from second_element_to_idx_map----\n");
+#endif
+
       auto idx = second_element_to_idx_map.find(thrust::get<1>(pair));
       local_degree1 =
         static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
@@ -481,6 +513,24 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       local_edge_offset1 = second_element_offsets[idx];
     }
 
+    if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        property1 = edge_partition_e_value_input.value_first() + local_edge_offset1;
+
+      } else {
+        // nothing
+      }
+
+    } else {
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        property1 = second_element_properties.begin() + local_edge_offset1;
+
+      } else {
+        // nothing
+      }
+    }
+
+#if 1
     vertex_t element1 = thrust::get<1>(pair);
     printf("element1 %d, local_degree1 %d local_edge_offset1 %d\n",
            static_cast<int>(element1),
@@ -489,43 +539,154 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
 
     for (edge_t k = 0; k < local_degree1; k++) {
       if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
-        if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-          weight_t ew{};
-          ew = edge_partition_e_value_input.get(local_edge_offset1 + k);
-          printf("(%d %.2f)- ", static_cast<int>(indices1[k]), static_cast<float>(ew));
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          EdgeProperty_t ep{};
+          ep = edge_partition_e_value_input.get(local_edge_offset1 + k);
+          printf("(%d %d %.2f %.2f)- ",
+                 static_cast<int>(k),
+                 static_cast<int>(indices1[k]),
+                 static_cast<float>(ep),
+                 static_cast<float>(property1[k]));
         } else {
-          printf("%d- ", static_cast<int>(indices1[k]));
+          printf("%d %d- ", static_cast<int>(k), static_cast<int>(indices1[k]));
         }
 
       } else {
-        if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-          weight_t ew = *(second_element_weights.begin() + local_edge_offset1 + k);
-          printf("(%d %.2f)- ", static_cast<int>(indices1[k]), static_cast<float>(ew));
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          EdgeProperty_t ep = *(second_element_properties.begin() + local_edge_offset1 + k);
+          printf("(%d %d %.2f %.2f)- ",
+                 static_cast<int>(k),
+                 static_cast<int>(indices1[k]),
+                 static_cast<float>(ep),
+                 static_cast<float>(property1[k]));
         } else {
-          printf("%d- ", static_cast<int>(indices1[k]));
+          printf("%d %d- ", static_cast<int>(k), static_cast<int>(indices1[k]));
         }
       }
     }
     printf("\n");
+#endif
 
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
     // vertices in a single warp (better optimize if this becomes a performance
     // bottleneck)
 
-    auto it =
-      thrust::set_intersection(thrust::seq,
-                               indices0,
-                               indices0 + local_degree0,
-                               indices1,
-                               indices1 + local_degree1,
-                               nbr_intersection_indices.begin() + nbr_intersection_offsets[i]);
+    auto inbr_start = nbr_intersection_indices.begin() + nbr_intersection_offsets[i];
+
+    auto it = thrust::set_intersection(thrust::seq,
+                                       indices0,
+                                       indices0 + local_degree0,
+                                       indices1,
+                                       indices1 + local_degree1,
+                                       inbr_start);
     thrust::fill(thrust::seq,
                  it,
                  nbr_intersection_indices.begin() + nbr_intersection_offsets[i + 1],
                  invalid_id);
 
-    return static_cast<size_t>(
-      thrust::distance(nbr_intersection_indices.begin() + nbr_intersection_offsets[i], it));
+    //
+    auto insection_size = static_cast<size_t>(thrust::distance(inbr_start, it));
+
+    printf(
+      "rank = %d insection_size=%d\n", static_cast<int>(rank), static_cast<int>(insection_size));
+
+    printf("\n");
+    for (size_t k = 0; k < insection_size; k++) {
+      printf("k = %d inbr = %d ", static_cast<int>(k), static_cast<int>(inbr_start[k]));
+    }
+    printf("\n");
+
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      auto ip0_start = nbr_intersection_properties0.begin() + nbr_intersection_offsets[i];
+
+#if 1
+      printf("\n");
+      for (size_t k = 0; k < local_degree0; k++) {
+        printf("k = %d p0 = %d\n", static_cast<int>(k), static_cast<int>(property0[k]));
+      }
+
+      printf("\n");
+      for (size_t k = 0; k < local_degree1; k++) {
+        printf("k = %d p1 = %d\n", static_cast<int>(k), static_cast<int>(property1[k]));
+      }
+      printf("\n");
+
+#endif
+
+      // copy edge properties from first vertex to common neighbors
+      thrust::lower_bound(thrust::seq,
+                          indices0,
+                          indices0 + local_degree0,
+                          inbr_start,
+                          it,
+                          ip0_start,  // indices
+                          thrust::less<int>());
+
+      printf("\n");
+      for (size_t k = 0; k < insection_size; k++) {
+        printf("k = %d idx = %d ", static_cast<int>(k), static_cast<int>(ip0_start[k]));
+      }
+      printf("\n");
+
+      auto myrank = rank;
+      thrust::transform(thrust::seq,
+                        ip0_start,
+                        ip0_start + insection_size,
+                        ip0_start,
+                        [property0, myrank] __device__(auto idx) {
+                          printf(
+                            "myrank=%d idx=%d\n", static_cast<int>(myrank), static_cast<int>(idx));
+                          return property0[static_cast<int>(idx)];
+                        });
+
+      ///
+
+      printf("\n");
+      for (size_t k = 0; k < insection_size; k++) {
+        printf("rank = %d inbrp0 = %d ", static_cast<int>(rank), static_cast<int>(ip0_start[k]));
+      }
+      printf("\n");
+
+      ///
+
+      auto ip1_start = nbr_intersection_properties1.begin() + nbr_intersection_offsets[i];
+
+      // copy edge properties from second vertex to common neighbors
+      thrust::lower_bound(thrust::seq,
+                          indices1,
+                          indices1 + local_degree1,
+                          inbr_start,
+                          it,
+                          ip1_start,  // indices
+                          thrust::less<int>());
+
+      printf("\n");
+      for (size_t k = 0; k < insection_size; k++) {
+        printf("rank = %d inbrp1 = %d ", static_cast<int>(rank), static_cast<int>(ip1_start[k]));
+      }
+      printf("\n");
+
+      thrust::transform(thrust::seq,
+                        ip1_start,
+                        ip1_start + insection_size,
+                        ip1_start,
+                        [property1, myrank] __device__(auto idx) {
+                          printf(
+                            "myrank=%d idx=%d\n", static_cast<int>(myrank), static_cast<int>(idx));
+                          return property1[static_cast<int>(idx)];
+                        });
+
+      ///
+
+      printf("\n");
+      for (size_t k = 0; k < insection_size; k++) {
+        printf("rank = %d inbrp1 = %d ", static_cast<int>(rank), static_cast<int>(ip1_start[k]));
+      }
+      printf("\n");
+
+      ///
+    }
+    return static_cast<size_t>(thrust::distance(inbr_start, it));
   }
 };
 
@@ -545,7 +706,7 @@ struct strided_accumulate_t {
   }
 };
 
-template <typename vertex_t>
+template <typename vertex_t, typename EdgeProperty_t>
 struct gatherv_indices_t {
   size_t output_size{};
   int minor_comm_size{};
@@ -553,8 +714,17 @@ struct gatherv_indices_t {
   raft::device_span<size_t const> gathered_intersection_offsets{};
   raft::device_span<vertex_t const> gathered_intersection_indices{};
   raft::device_span<size_t const> combined_nbr_intersection_offsets{};
-
   raft::device_span<vertex_t> combined_nbr_intersection_indices{};
+
+  std::optional<raft::device_span<EdgeProperty_t const>> gathered_nbr_intersection_properties0{
+    std::nullopt};
+  std::optional<raft::device_span<EdgeProperty_t const>> gathered_nbr_intersection_properties1{
+    std::nullopt};
+
+  std::optional<raft::device_span<EdgeProperty_t>> combined_nbr_intersection_properties0{
+    std::nullopt};
+  std::optional<raft::device_span<EdgeProperty_t>> combined_nbr_intersection_properties1{
+    std::nullopt};
 
   __device__ void operator()(size_t i) const
   {
@@ -563,15 +733,36 @@ struct gatherv_indices_t {
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree vertices
     // in a single warp (better optimize if this becomes a performance bottleneck)
 
+    auto zipped_gathered_begin =
+      thrust::make_zip_iterator(thrust::make_tuple(gathered_intersection_indices.begin(),
+                                                   gathered_nbr_intersection_properties0->begin(),
+                                                   gathered_nbr_intersection_properties1->begin()));
+
+    auto zipped_combined_begin =
+      thrust::make_zip_iterator(thrust::make_tuple(combined_nbr_intersection_indices.begin(),
+                                                   combined_nbr_intersection_properties0->begin(),
+                                                   combined_nbr_intersection_properties1->begin()));
+
     for (int j = 0; j < minor_comm_size; ++j) {
-      thrust::copy(
-        thrust::seq,
-        gathered_intersection_indices.begin() + gathered_intersection_offsets[output_size * j + i],
-        gathered_intersection_indices.begin() +
-          gathered_intersection_offsets[output_size * j + i + 1],
-        combined_nbr_intersection_indices.begin() + output_offset);
-      output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
-                       gathered_intersection_offsets[output_size * j + i];
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        thrust::copy(thrust::seq,
+                     zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i],
+                     zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i + 1],
+                     zipped_combined_begin + output_offset);
+
+        output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
+                         gathered_intersection_offsets[output_size * j + i];
+
+      } else {
+        thrust::copy(thrust::seq,
+                     gathered_intersection_indices.begin() +
+                       gathered_intersection_offsets[output_size * j + i],
+                     gathered_intersection_indices.begin() +
+                       gathered_intersection_offsets[output_size * j + i + 1],
+                     combined_nbr_intersection_indices.begin() + output_offset);
+        output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
+                         gathered_intersection_offsets[output_size * j + i];
+      }
     }
   }
 };
@@ -663,12 +854,15 @@ size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
 // communicator. If we need to build the neighbor lists, grouping based on applying "vertex ID %
 // number of groups"  is recommended for load-balancing.
 template <typename GraphViewType, typename VertexPairIterator, typename EdgeValueInputWrapper>
-std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
+std::tuple<rmm::device_uvector<size_t>,
+           rmm::device_uvector<typename GraphViewType::vertex_type>,
+           std::optional<rmm::device_uvector<typename EdgeValueInputWrapper::value_type>>,
+           std::optional<rmm::device_uvector<typename EdgeValueInputWrapper::value_type>>>
 nbr_intersection(raft::handle_t const& handle,
                  GraphViewType const& graph_view,
+                 EdgeValueInputWrapper edge_value_input,
                  VertexPairIterator vertex_pair_first,
                  VertexPairIterator vertex_pair_last,
-                 EdgeValueInputWrapper edge_value_input,
                  std::array<bool, 2> intersect_dst_nbr,
                  bool do_expensive_check = false)
 {
@@ -683,7 +877,8 @@ nbr_intersection(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_iterator,
       typename EdgeValueInputWrapper::value_type>>;
 
-  using weight_t = typename edge_partition_e_input_device_view_t::value_type;
+  // using EdgeProperty_t = typename edge_partition_e_input_device_view_t::value_type;
+  using EdgeProperty_t = typename EdgeValueInputWrapper::value_type;
 
   static_assert(std::is_same_v<typename thrust::iterator_traits<VertexPairIterator>::value_type,
                                thrust::tuple<vertex_t, vertex_t>>);
@@ -721,7 +916,7 @@ nbr_intersection(raft::handle_t const& handle,
   std::optional<rmm::device_uvector<size_t>> major_nbr_offsets{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> major_nbr_indices{std::nullopt};
 
-  std::optional<rmm::device_uvector<weight_t>> major_nbr_weights{std::nullopt};
+  std::optional<rmm::device_uvector<EdgeProperty_t>> major_nbr_properties{std::nullopt};
 
   if constexpr (GraphViewType::is_multi_gpu) {
     if (intersect_minor_nbr[1]) {
@@ -896,8 +1091,15 @@ nbr_intersection(raft::handle_t const& handle,
 
       rmm::device_uvector<edge_t> local_degrees_for_rx_majors(size_t{0}, handle.get_stream());
       rmm::device_uvector<vertex_t> local_nbrs_for_rx_majors(size_t{0}, handle.get_stream());
-      rmm::device_uvector<weight_t> local_nbrs_weights_for_rx_majors(size_t{0},
-                                                                     handle.get_stream());
+
+      // rmm::device_uvector<EdgeProperty_t> local_nbrs_properties_for_rx_majors(size_t{0},
+      //                                                                         handle.get_stream());
+      std::optional<rmm::device_uvector<EdgeProperty_t>> local_nbrs_properties_for_rx_majors{
+        std::nullopt};
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        local_nbrs_properties_for_rx_majors =
+          std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+      }
 
       std::vector<size_t> local_nbr_counts{};
       {
@@ -1018,8 +1220,9 @@ nbr_intersection(raft::handle_t const& handle,
         local_nbrs_for_rx_majors.resize(
           local_nbr_offsets_for_rx_majors.back_element(handle.get_stream()), handle.get_stream());
 
-        local_nbrs_weights_for_rx_majors.resize(local_nbrs_for_rx_majors.size(),
-                                                handle.get_stream());
+        if (local_nbrs_properties_for_rx_majors)
+          (*local_nbrs_properties_for_rx_majors)
+            .resize(local_nbrs_for_rx_majors.size(), handle.get_stream());
 
         for (int k = 0; k < comm_size; k++) {
           comm.barrier();
@@ -1055,6 +1258,7 @@ nbr_intersection(raft::handle_t const& handle,
             thrust::make_counting_iterator(reordered_idx_last),
             update_rx_major_local_nbrs_t<vertex_t,
                                          edge_t,
+                                         EdgeProperty_t,
                                          edge_partition_e_input_device_view_t,
                                          GraphViewType::is_multi_gpu>{
               major_comm_size,
@@ -1071,8 +1275,8 @@ nbr_intersection(raft::handle_t const& handle,
                                               local_nbr_offsets_for_rx_majors.size()),
               raft::device_span<vertex_t>(local_nbrs_for_rx_majors.data(),
                                           local_nbrs_for_rx_majors.size()),
-              raft::device_span<weight_t>(local_nbrs_weights_for_rx_majors.data(),
-                                          local_nbrs_weights_for_rx_majors.size())});
+              raft::device_span<EdgeProperty_t>((*local_nbrs_properties_for_rx_majors).data(),
+                                                (*local_nbrs_properties_for_rx_majors).size())});
         }
 
         for (int k = 0; k < comm_size; k++) {
@@ -1166,10 +1370,10 @@ nbr_intersection(raft::handle_t const& handle,
       std::tie(*major_nbr_indices, std::ignore) = shuffle_values(
         major_comm, local_nbrs_for_rx_majors.begin(), local_nbr_counts, handle.get_stream());
 
-      if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-        std::tie(*major_nbr_weights, std::ignore) =
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        std::tie(*major_nbr_properties, std::ignore) =
           shuffle_values(major_comm,
-                         local_nbrs_weights_for_rx_majors.begin(),
+                         (*local_nbrs_properties_for_rx_majors).begin(),
                          local_nbr_counts,
                          handle.get_stream());
       }
@@ -1185,10 +1389,10 @@ nbr_intersection(raft::handle_t const& handle,
                                     (*major_nbr_indices).size(),
                                     std::cout);
 
-          if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-            raft::print_device_vector("(*major_nbr_weights)",
-                                      (*major_nbr_weights).data(),
-                                      (*major_nbr_weights).size(),
+          if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+            raft::print_device_vector("(*major_nbr_properties)",
+                                      (*major_nbr_properties).data(),
+                                      (*major_nbr_properties).size(),
                                       std::cout);
           }
 
@@ -1225,7 +1429,19 @@ nbr_intersection(raft::handle_t const& handle,
   rmm::device_uvector<size_t> nbr_intersection_offsets(size_t{0}, handle.get_stream());
   rmm::device_uvector<vertex_t> nbr_intersection_indices(size_t{0}, handle.get_stream());
 
-  rmm::device_uvector<weight_t> nbr_intersection_weights(size_t{0}, handle.get_stream());
+  // rmm::device_uvector<EdgeProperty_t> nbr_intersection_properties0(size_t{0},
+  // handle.get_stream()); rmm::device_uvector<EdgeProperty_t>
+  // nbr_intersection_properties1(size_t{0}, handle.get_stream());
+
+  std::optional<rmm::device_uvector<EdgeProperty_t>> nbr_intersection_properties0{std::nullopt};
+  std::optional<rmm::device_uvector<EdgeProperty_t>> nbr_intersection_properties1{std::nullopt};
+
+  if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+    nbr_intersection_properties0 =
+      std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+    nbr_intersection_properties1 =
+      std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+  }
 
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& minor_comm           = handle.get_subcomm(cugraph::partition_manager::minor_comm_name());
@@ -1269,6 +1485,17 @@ nbr_intersection(raft::handle_t const& handle,
     std::vector<rmm::device_uvector<vertex_t>> edge_partition_nbr_intersection_indices{};
     edge_partition_nbr_intersection_sizes.reserve(graph_view.number_of_local_edge_partitions());
     edge_partition_nbr_intersection_indices.reserve(graph_view.number_of_local_edge_partitions());
+
+    std::vector<rmm::device_uvector<EdgeProperty_t>> edge_partition_nbr_intersection_property0{};
+    std::vector<rmm::device_uvector<EdgeProperty_t>> edge_partition_nbr_intersection_property1{};
+
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      edge_partition_nbr_intersection_property0.reserve(
+        graph_view.number_of_local_edge_partitions());
+      edge_partition_nbr_intersection_property1.reserve(
+        graph_view.number_of_local_edge_partitions());
+    }
+
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
       auto rx_v_pair_counts =
         host_scalar_allgather(minor_comm, input_counts[i], handle.get_stream());
@@ -1285,8 +1512,23 @@ nbr_intersection(raft::handle_t const& handle,
       rmm::device_uvector<vertex_t> rx_v_pair_nbr_intersection_indices(size_t{0},
                                                                        handle.get_stream());
 
-      rmm::device_uvector<weight_t> rx_v_pair_nbr_intersection_weights(size_t{0},
-                                                                       handle.get_stream());
+      // rmm::device_uvector<EdgeProperty_t> (*rx_v_pair_nbr_intersection_properties0)(
+      //   size_t{0}, handle.get_stream());
+
+      // rmm::device_uvector<EdgeProperty_t> (*rx_v_pair_nbr_intersection_properties1)(
+      //   size_t{0}, handle.get_stream());
+
+      std::optional<rmm::device_uvector<EdgeProperty_t>> rx_v_pair_nbr_intersection_properties0{
+        std::nullopt};
+      std::optional<rmm::device_uvector<EdgeProperty_t>> rx_v_pair_nbr_intersection_properties1{
+        std::nullopt};
+
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        rx_v_pair_nbr_intersection_properties0 =
+          std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+        rx_v_pair_nbr_intersection_properties1 =
+          std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+      }
 
       std::vector<size_t> rx_v_pair_nbr_intersection_index_tx_counts(size_t{0});
       {
@@ -1351,9 +1593,12 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_offsets.back_element(handle.get_stream()),
           handle.get_stream());
 
-        rx_v_pair_nbr_intersection_weights.resize(rx_v_pair_nbr_intersection_indices.size(),
-                                                  handle.get_stream());
-
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          (*rx_v_pair_nbr_intersection_properties0)
+            .resize(rx_v_pair_nbr_intersection_indices.size(), handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties1)
+            .resize(rx_v_pair_nbr_intersection_indices.size(), handle.get_stream());
+        }
         if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
           auto& comm           = handle.get_comms();
           auto const comm_rank = comm.get_rank();
@@ -1370,10 +1615,10 @@ nbr_intersection(raft::handle_t const& handle,
                                         (*major_nbr_indices).size(),
                                         std::cout);
 
-              if constexpr (!std::is_same_v<weight_t, thrust::nullopt_t>) {
-                raft::print_device_vector("(*major_nbr_weights)",
-                                          (*major_nbr_weights).data(),
-                                          (*major_nbr_weights).size(),
+              if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+                raft::print_device_vector("(*major_nbr_properties)",
+                                          (*major_nbr_properties).data(),
+                                          (*major_nbr_properties).size(),
                                           std::cout);
               }
 
@@ -1394,42 +1639,145 @@ nbr_intersection(raft::handle_t const& handle,
               decltype(get_dataframe_buffer_begin(vertex_pair_buffer)),
               vertex_t,
               edge_t,
+              EdgeProperty_t,
               edge_partition_e_input_device_view_t,
-              true>{nullptr,
-                    raft::device_span<size_t const>(),
-                    raft::device_span<vertex_t const>(),
-                    raft::device_span<weight_t const>(),
-                    second_element_to_idx_map,
-                    raft::device_span<size_t const>((*major_nbr_offsets).data(),
-                                                    (*major_nbr_offsets).size()),
-                    raft::device_span<vertex_t const>((*major_nbr_indices).data(),
-                                                      (*major_nbr_indices).size()),
-                    raft::device_span<weight_t const>((*major_nbr_weights).data(),
-                                                      (*major_nbr_weights).size()),
-                    edge_partition,
-                    edge_partition_e_value_input,
-                    get_dataframe_buffer_begin(vertex_pair_buffer),
-                    raft::device_span<size_t const>(rx_v_pair_nbr_intersection_offsets.data(),
-                                                    rx_v_pair_nbr_intersection_offsets.size()),
-                    raft::device_span<vertex_t>(rx_v_pair_nbr_intersection_indices.data(),
-                                                rx_v_pair_nbr_intersection_indices.size()),
-                    raft::device_span<weight_t>(rx_v_pair_nbr_intersection_weights.data(),
-                                                rx_v_pair_nbr_intersection_weights.size()),
-                    invalid_vertex_id<vertex_t>::value,
-                    handle.get_comms().get_rank(),
-                    i});
+              true>{
+              nullptr,
+              raft::device_span<size_t const>(),
+              raft::device_span<vertex_t const>(),
+              raft::device_span<EdgeProperty_t const>(),
+              second_element_to_idx_map,
+              raft::device_span<size_t const>((*major_nbr_offsets).data(),
+                                              (*major_nbr_offsets).size()),
+              raft::device_span<vertex_t const>((*major_nbr_indices).data(),
+                                                (*major_nbr_indices).size()),
+              raft::device_span<EdgeProperty_t const>((*major_nbr_properties).data(),
+                                                      (*major_nbr_properties).size()),
+              edge_partition,
+              edge_partition_e_value_input,
+              get_dataframe_buffer_begin(vertex_pair_buffer),
+              raft::device_span<size_t const>(rx_v_pair_nbr_intersection_offsets.data(),
+                                              rx_v_pair_nbr_intersection_offsets.size()),
+              raft::device_span<vertex_t>(rx_v_pair_nbr_intersection_indices.data(),
+                                          rx_v_pair_nbr_intersection_indices.size()),
+              raft::device_span<EdgeProperty_t>((*rx_v_pair_nbr_intersection_properties0).data(),
+                                                (*rx_v_pair_nbr_intersection_properties0).size()),
+              raft::device_span<EdgeProperty_t>((*rx_v_pair_nbr_intersection_properties1).data(),
+                                                (*rx_v_pair_nbr_intersection_properties1).size()),
+              invalid_vertex_id<vertex_t>::value,
+              handle.get_comms().get_rank(),
+              i});
+
+          // {
+          //   auto& comm           = handle.get_comms();
+          //   auto const comm_rank = comm.get_rank();
+          //   auto const comm_size = comm.get_size();
+
+          for (int k = 0; k < comm_size; k++) {
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank (after-copy-tabulate) :" << comm_rank << " partition index:" << i
+                        << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+              raft::print_device_vector("rx_v_pair_nbr_intersection_indices",
+                                        rx_v_pair_nbr_intersection_indices.data(),
+                                        rx_v_pair_nbr_intersection_indices.size(),
+                                        std::cout);
+
+              if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+                raft::print_device_vector("(*rx_v_pair_nbr_intersection_properties0)",
+                                          (*rx_v_pair_nbr_intersection_properties0).data(),
+                                          (*rx_v_pair_nbr_intersection_properties0).size(),
+                                          std::cout);
+
+                raft::print_device_vector("(*rx_v_pair_nbr_intersection_properties1)",
+                                          (*rx_v_pair_nbr_intersection_properties1).data(),
+                                          (*rx_v_pair_nbr_intersection_properties1).size(),
+                                          std::cout);
+              }
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
+          }
+          // }
+
         } else {
           CUGRAPH_FAIL("unimplemented.");
         }
 
-        rx_v_pair_nbr_intersection_indices.resize(
-          thrust::distance(rx_v_pair_nbr_intersection_indices.begin(),
-                           thrust::remove(handle.get_thrust_policy(),
-                                          rx_v_pair_nbr_intersection_indices.begin(),
-                                          rx_v_pair_nbr_intersection_indices.end(),
-                                          invalid_vertex_id<vertex_t>::value)),
-          handle.get_stream());
-        rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
+        if constexpr (std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          rx_v_pair_nbr_intersection_indices.resize(
+            thrust::distance(rx_v_pair_nbr_intersection_indices.begin(),
+                             thrust::remove(handle.get_thrust_policy(),
+                                            rx_v_pair_nbr_intersection_indices.begin(),
+                                            rx_v_pair_nbr_intersection_indices.end(),
+                                            invalid_vertex_id<vertex_t>::value)),
+            handle.get_stream());
+          rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
+        } else {
+          auto common_nbr_and_properties_begin = thrust::make_zip_iterator(
+            thrust::make_tuple(rx_v_pair_nbr_intersection_indices.begin(),
+                               (*rx_v_pair_nbr_intersection_properties0).begin(),
+                               (*rx_v_pair_nbr_intersection_properties1).begin()));
+
+          auto last = thrust::remove_if(
+            handle.get_thrust_policy(),
+            common_nbr_and_properties_begin,
+            common_nbr_and_properties_begin + rx_v_pair_nbr_intersection_indices.size(),
+            [] __device__(auto nbr_p0_p1) {
+              return thrust::get<0>(nbr_p0_p1) == invalid_vertex_id<vertex_t>::value;
+            });
+
+          rx_v_pair_nbr_intersection_indices.resize(
+            thrust::distance(common_nbr_and_properties_begin, last), handle.get_stream());
+
+          rx_v_pair_nbr_intersection_indices.shrink_to_fit(handle.get_stream());
+
+          (*rx_v_pair_nbr_intersection_properties0)
+            .resize(rx_v_pair_nbr_intersection_indices.size(), handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties0).shrink_to_fit(handle.get_stream());
+
+          (*rx_v_pair_nbr_intersection_properties1)
+            .resize(rx_v_pair_nbr_intersection_indices.size(), handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties1).shrink_to_fit(handle.get_stream());
+        }
+
+        {
+          auto& comm           = handle.get_comms();
+          auto const comm_rank = comm.get_rank();
+          auto const comm_size = comm.get_size();
+
+          for (int k = 0; k < comm_size; k++) {
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank (after-copy-tabulate) :" << comm_rank << " partition index:" << i
+                        << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+              raft::print_device_vector("rx_v_pair_nbr_intersection_indices",
+                                        rx_v_pair_nbr_intersection_indices.data(),
+                                        rx_v_pair_nbr_intersection_indices.size(),
+                                        std::cout);
+
+              if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+                raft::print_device_vector("(*rx_v_pair_nbr_intersection_properties0)",
+                                          (*rx_v_pair_nbr_intersection_properties0).data(),
+                                          (*rx_v_pair_nbr_intersection_properties0).size(),
+                                          std::cout);
+
+                raft::print_device_vector("(*rx_v_pair_nbr_intersection_properties1)",
+                                          (*rx_v_pair_nbr_intersection_properties1).data(),
+                                          (*rx_v_pair_nbr_intersection_properties1).size(),
+                                          std::cout);
+              }
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
+          }
+        }
 
         thrust::inclusive_scan(handle.get_thrust_policy(),
                                rx_v_pair_nbr_intersection_sizes.begin(),
@@ -1546,6 +1894,24 @@ nbr_intersection(raft::handle_t const& handle,
 
       rmm::device_uvector<vertex_t> combined_nbr_intersection_indices(size_t{0},
                                                                       handle.get_stream());
+
+      // rmm::device_uvector<EdgeProperty_t> combined_nbr_intersection_properties0(
+      //   size_t{0}, handle.get_stream());
+      // rmm::device_uvector<EdgeProperty_t> combined_nbr_intersection_properties1(
+      //   size_t{0}, handle.get_stream());
+
+      std::optional<rmm::device_uvector<EdgeProperty_t>> combined_nbr_intersection_properties0{
+        std::nullopt};
+      std::optional<rmm::device_uvector<EdgeProperty_t>> combined_nbr_intersection_properties1{
+        std::nullopt};
+
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        combined_nbr_intersection_properties0 =
+          std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+        combined_nbr_intersection_properties1 =
+          std::make_optional(rmm::device_uvector<EdgeProperty_t>(size_t{0}, handle.get_stream()));
+      }
+
       {
         std::vector<int> ranks(minor_comm_size);
         std::iota(ranks.begin(), ranks.end(), int{0});
@@ -1581,26 +1947,192 @@ nbr_intersection(raft::handle_t const& handle,
         combined_nbr_intersection_indices.resize(gathered_nbr_intersection_indices.size(),
                                                  handle.get_stream());
 
-        thrust::for_each(
-          handle.get_thrust_policy(),
-          thrust::make_counting_iterator(size_t{0}),
-          thrust::make_counting_iterator(rx_v_pair_counts[minor_comm_rank]),
-          gatherv_indices_t<vertex_t>{
-            rx_v_pair_counts[minor_comm_rank],
-            minor_comm_size,
-            raft::device_span<size_t const>(gathered_nbr_intersection_offsets.data(),
-                                            gathered_nbr_intersection_offsets.size()),
-            raft::device_span<vertex_t const>(gathered_nbr_intersection_indices.data(),
-                                              gathered_nbr_intersection_indices.size()),
-            raft::device_span<size_t const>(combined_nbr_intersection_offsets.data(),
-                                            combined_nbr_intersection_offsets.size()),
-            raft::device_span<vertex_t>(combined_nbr_intersection_indices.data(),
-                                        combined_nbr_intersection_indices.size())});
+        // rmm::device_uvector<EdgeProperty_t> gathered_nbr_intersection_properties0(
+        //   rx_displacements.back() + gathered_nbr_intersection_index_rx_counts.back(),
+        //   handle.get_stream());
+
+        // rmm::device_uvector<EdgeProperty_t> gathered_nbr_intersection_properties1(
+        //   rx_displacements.back() + gathered_nbr_intersection_index_rx_counts.back(),
+        //   handle.get_stream());
+
+        std::optional<rmm::device_uvector<EdgeProperty_t>> gathered_nbr_intersection_properties0{
+          std::nullopt};
+        std::optional<rmm::device_uvector<EdgeProperty_t>> gathered_nbr_intersection_properties1{
+          std::nullopt};
+
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          gathered_nbr_intersection_properties0 =
+            std::make_optional(rmm::device_uvector<EdgeProperty_t>(
+              rx_displacements.back() + gathered_nbr_intersection_index_rx_counts.back(),
+              handle.get_stream()));
+          gathered_nbr_intersection_properties1 =
+            std::make_optional(rmm::device_uvector<EdgeProperty_t>(
+              rx_displacements.back() + gathered_nbr_intersection_index_rx_counts.back(),
+              handle.get_stream()));
+        }
+
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          device_multicast_sendrecv(minor_comm,
+                                    (*rx_v_pair_nbr_intersection_properties0).begin(),
+                                    rx_v_pair_nbr_intersection_index_tx_counts,
+                                    tx_displacements,
+                                    ranks,
+                                    (*gathered_nbr_intersection_properties0).begin(),
+                                    gathered_nbr_intersection_index_rx_counts,
+                                    rx_displacements,
+                                    ranks,
+                                    handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties0).resize(size_t{0}, handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties0).shrink_to_fit(handle.get_stream());
+
+          (*combined_nbr_intersection_properties0)
+            .resize((*gathered_nbr_intersection_properties0).size(), handle.get_stream());
+
+          device_multicast_sendrecv(minor_comm,
+                                    (*rx_v_pair_nbr_intersection_properties1).begin(),
+                                    rx_v_pair_nbr_intersection_index_tx_counts,
+                                    tx_displacements,
+                                    ranks,
+                                    (*gathered_nbr_intersection_properties1).begin(),
+                                    gathered_nbr_intersection_index_rx_counts,
+                                    rx_displacements,
+                                    ranks,
+                                    handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties1).resize(size_t{0}, handle.get_stream());
+          (*rx_v_pair_nbr_intersection_properties1).shrink_to_fit(handle.get_stream());
+          (*combined_nbr_intersection_properties1)
+            .resize((*gathered_nbr_intersection_properties1).size(), handle.get_stream());
+        }
+
+        {
+          auto& comm           = handle.get_comms();
+          auto const comm_rank = comm.get_rank();
+          auto const comm_size = comm.get_size();
+
+          for (int k = 0; k < comm_size; k++) {
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank (after-device_multicast_sendrecv) :" << comm_rank
+                        << " partition index:" << i << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+              raft::print_device_vector("gathered_nbr_intersection_indices",
+                                        gathered_nbr_intersection_indices.data(),
+                                        gathered_nbr_intersection_indices.size(),
+                                        std::cout);
+
+              if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+                raft::print_device_vector("(*gathered_nbr_intersection_properties0)",
+                                          (*gathered_nbr_intersection_properties0).data(),
+                                          (*gathered_nbr_intersection_properties0).size(),
+                                          std::cout);
+
+                raft::print_device_vector("(*gathered_nbr_intersection_properties1)",
+                                          (*gathered_nbr_intersection_properties1).data(),
+                                          (*gathered_nbr_intersection_properties1).size(),
+                                          std::cout);
+              }
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
+          }
+        }
+
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(rx_v_pair_counts[minor_comm_rank]),
+            gatherv_indices_t<vertex_t, EdgeProperty_t>{
+              rx_v_pair_counts[minor_comm_rank],
+              minor_comm_size,
+              raft::device_span<size_t const>(gathered_nbr_intersection_offsets.data(),
+                                              gathered_nbr_intersection_offsets.size()),
+              raft::device_span<vertex_t const>(gathered_nbr_intersection_indices.data(),
+                                                gathered_nbr_intersection_indices.size()),
+              raft::device_span<size_t const>(combined_nbr_intersection_offsets.data(),
+                                              combined_nbr_intersection_offsets.size()),
+              raft::device_span<vertex_t>(combined_nbr_intersection_indices.data(),
+                                          combined_nbr_intersection_indices.size()),
+
+              raft::device_span<EdgeProperty_t>((*gathered_nbr_intersection_properties0).data(),
+                                                (*gathered_nbr_intersection_properties0).size()),
+              raft::device_span<EdgeProperty_t>((*gathered_nbr_intersection_properties1).data(),
+                                                (*gathered_nbr_intersection_properties1).size()),
+
+              raft::device_span<EdgeProperty_t>((*combined_nbr_intersection_properties0).data(),
+                                                (*combined_nbr_intersection_properties0).size()),
+              raft::device_span<EdgeProperty_t>((*combined_nbr_intersection_properties1).data(),
+                                                (*combined_nbr_intersection_properties1).size())
+
+            });
+
+        } else {
+          thrust::for_each(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(size_t{0}),
+            thrust::make_counting_iterator(rx_v_pair_counts[minor_comm_rank]),
+            gatherv_indices_t<vertex_t, EdgeProperty_t>{
+              rx_v_pair_counts[minor_comm_rank],
+              minor_comm_size,
+              raft::device_span<size_t const>(gathered_nbr_intersection_offsets.data(),
+                                              gathered_nbr_intersection_offsets.size()),
+              raft::device_span<vertex_t const>(gathered_nbr_intersection_indices.data(),
+                                                gathered_nbr_intersection_indices.size()),
+              raft::device_span<size_t const>(combined_nbr_intersection_offsets.data(),
+                                              combined_nbr_intersection_offsets.size()),
+              raft::device_span<vertex_t>(combined_nbr_intersection_indices.data(),
+                                          combined_nbr_intersection_indices.size())
+
+            });
+        }
+
+        {
+          auto& comm           = handle.get_comms();
+          auto const comm_rank = comm.get_rank();
+          auto const comm_size = comm.get_size();
+
+          for (int k = 0; k < comm_size; k++) {
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank (after-gather) :" << comm_rank << " partition index:" << i
+                        << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+              raft::print_device_vector("combined_nbr_intersection_indices",
+                                        combined_nbr_intersection_indices.data(),
+                                        combined_nbr_intersection_indices.size(),
+                                        std::cout);
+
+              if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+                raft::print_device_vector("(*combined_nbr_intersection_properties0)",
+                                          (*combined_nbr_intersection_properties0).data(),
+                                          (*combined_nbr_intersection_properties0).size(),
+                                          std::cout);
+
+                raft::print_device_vector("(*combined_nbr_intersection_properties1)",
+                                          (*combined_nbr_intersection_properties1).data(),
+                                          (*combined_nbr_intersection_properties1).size(),
+                                          std::cout);
+              }
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
+          }
+        }
       }
 
       edge_partition_nbr_intersection_sizes.push_back(std::move(combined_nbr_intersection_sizes));
       edge_partition_nbr_intersection_indices.push_back(
         std::move(combined_nbr_intersection_indices));
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        edge_partition_nbr_intersection_property0.push_back(
+          std::move((*combined_nbr_intersection_properties0)));
+        edge_partition_nbr_intersection_property1.push_back(
+          std::move((*combined_nbr_intersection_properties1)));
+      }
     }
 
     rmm::device_uvector<edge_t> nbr_intersection_sizes(input_size, handle.get_stream());
@@ -1609,7 +2141,10 @@ nbr_intersection(raft::handle_t const& handle,
       num_nbr_intersection_indices += edge_partition_nbr_intersection_indices[i].size();
     }
     nbr_intersection_indices.resize(num_nbr_intersection_indices, handle.get_stream());
-    nbr_intersection_weights.resize(nbr_intersection_indices.size(), handle.get_stream());
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      (*nbr_intersection_properties0).resize(nbr_intersection_indices.size(), handle.get_stream());
+      (*nbr_intersection_properties1).resize(nbr_intersection_indices.size(), handle.get_stream());
+    }
     size_t size_offset{0};
     size_t index_offset{0};
     for (size_t i = 0; i < edge_partition_nbr_intersection_sizes.size(); ++i) {
@@ -1622,6 +2157,20 @@ nbr_intersection(raft::handle_t const& handle,
                    edge_partition_nbr_intersection_indices[i].begin(),
                    edge_partition_nbr_intersection_indices[i].end(),
                    nbr_intersection_indices.begin() + index_offset);
+
+      if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        thrust::copy(handle.get_thrust_policy(),
+                     edge_partition_nbr_intersection_property0[i].begin(),
+                     edge_partition_nbr_intersection_property0[i].end(),
+                     (*nbr_intersection_properties0).begin() + index_offset);
+
+        thrust::copy(handle.get_thrust_policy(),
+                     edge_partition_nbr_intersection_property1[i].begin(),
+                     edge_partition_nbr_intersection_property1[i].end(),
+                     (*nbr_intersection_properties1).begin() + index_offset);
+      }
+
+      // Need to copy to (*nbr_intersection_properties0)       and (*nbr_intersection_properties1)
       index_offset += edge_partition_nbr_intersection_indices[i].size();
     }
     nbr_intersection_offsets.resize(nbr_intersection_sizes.size() + size_t{1}, handle.get_stream());
@@ -1632,6 +2181,7 @@ nbr_intersection(raft::handle_t const& handle,
                            size_first,
                            size_first + nbr_intersection_sizes.size(),
                            nbr_intersection_offsets.begin() + 1);
+    ///<=========== to here
   } else {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
@@ -1667,7 +2217,12 @@ nbr_intersection(raft::handle_t const& handle,
 
     nbr_intersection_indices.resize(nbr_intersection_offsets.back_element(handle.get_stream()),
                                     handle.get_stream());
-    nbr_intersection_weights.resize(nbr_intersection_indices.size(), handle.get_stream());
+
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      (*nbr_intersection_properties0).resize(nbr_intersection_indices.size(), handle.get_stream());
+      (*nbr_intersection_properties1).resize(nbr_intersection_indices.size(), handle.get_stream());
+    }
+
     if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
       thrust::tabulate(
         handle.get_thrust_policy(),
@@ -1678,16 +2233,17 @@ nbr_intersection(raft::handle_t const& handle,
                                                               decltype(vertex_pair_first),
                                                               vertex_t,
                                                               edge_t,
+                                                              EdgeProperty_t,
                                                               edge_partition_e_input_device_view_t,
                                                               false>{
           nullptr,
           raft::device_span<size_t const>(),
           raft::device_span<vertex_t const>(),
-          raft::device_span<weight_t const>(),
+          raft::device_span<EdgeProperty_t const>(),
           nullptr,
           raft::device_span<size_t const>(),
           raft::device_span<vertex_t const>(),
-          raft::device_span<weight_t const>(),
+          raft::device_span<EdgeProperty_t const>(),
           edge_partition,
           edge_partition_e_value_input,
           vertex_pair_first,
@@ -1695,8 +2251,10 @@ nbr_intersection(raft::handle_t const& handle,
                                           nbr_intersection_offsets.size()),
           raft::device_span<vertex_t>(nbr_intersection_indices.data(),
                                       nbr_intersection_indices.size()),
-          raft::device_span<weight_t>(nbr_intersection_weights.data(),
-                                      nbr_intersection_weights.size()),
+          raft::device_span<EdgeProperty_t>((*nbr_intersection_properties0).data(),
+                                            (*nbr_intersection_properties0).size()),
+          raft::device_span<EdgeProperty_t>((*nbr_intersection_properties1).data(),
+                                            (*nbr_intersection_properties1).size()),
           invalid_vertex_id<vertex_t>::value,
           0,
           0});
@@ -1712,31 +2270,168 @@ nbr_intersection(raft::handle_t const& handle,
                        nbr_intersection_indices.end(),
                        detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value}),
       handle.get_stream());
+
+    // rmm::device_uvector<EdgeProperty_t> tmp_properties0(size_t{0}, handle.get_stream());
+    // rmm::device_uvector<EdgeProperty_t> tmp_properties1(size_t{0}, handle.get_stream());
+    // if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+    //   tmp_properties0.resize(tmp_indices.size(), handle.get_stream());
+    //   tmp_properties1.resize(tmp_indices.size(), handle.get_stream());
+    // }
+
+    std::optional<rmm::device_uvector<EdgeProperty_t>> tmp_properties0{std::nullopt};
+    std::optional<rmm::device_uvector<EdgeProperty_t>> tmp_properties1{std::nullopt};
+
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      tmp_properties0 = std::make_optional(
+        rmm::device_uvector<EdgeProperty_t>(tmp_indices.size(), handle.get_stream()));
+      tmp_properties1 = std::make_optional(
+        rmm::device_uvector<EdgeProperty_t>(tmp_indices.size(), handle.get_stream()));
+    }
+
+    auto zipped_itr_to_indices_and_properties_begin =
+      thrust::make_zip_iterator(thrust::make_tuple(nbr_intersection_indices.begin(),
+                                                   (*nbr_intersection_properties0).begin(),
+                                                   (*nbr_intersection_properties1).begin()));
+
+    auto zipped_itr_to_tmps_begin = thrust::make_zip_iterator(thrust::make_tuple(
+      tmp_indices.begin(), (*tmp_properties0).begin(), (*tmp_properties1).begin()));
+
     size_t num_copied{0};
     size_t num_scanned{0};
+
+    {
+      auto& comm           = handle.get_comms();
+      auto const comm_rank = comm.get_rank();
+      auto const comm_size = comm.get_size();
+
+      for (int k = 0; k < comm_size; k++) {
+        comm.barrier();
+        if (comm_rank == k) {
+          std::cout << "Rank (before while loop) :" << comm_rank << std::endl;
+          RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+          raft::print_device_vector("nbr_intersection_indices",
+                                    nbr_intersection_indices.data(),
+                                    nbr_intersection_indices.size(),
+                                    std::cout);
+
+          if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+            raft::print_device_vector("(*nbr_intersection_properties0)",
+                                      (*nbr_intersection_properties0).data(),
+                                      (*nbr_intersection_properties0).size(),
+                                      std::cout);
+
+            raft::print_device_vector("(*nbr_intersection_properties1)",
+                                      (*nbr_intersection_properties1).data(),
+                                      (*nbr_intersection_properties1).size(),
+                                      std::cout);
+          }
+
+          std::cout << "------------------" << std::endl;
+        }
+        comm.barrier();
+      }
+    }
+
     while (num_scanned < nbr_intersection_indices.size()) {
       size_t this_scan_size = std::min(
         size_t{1} << 30,
         static_cast<size_t>(thrust::distance(nbr_intersection_indices.begin() + num_scanned,
                                              nbr_intersection_indices.end())));
-      num_copied += static_cast<size_t>(thrust::distance(
-        tmp_indices.begin() + num_copied,
-        thrust::copy_if(handle.get_thrust_policy(),
-                        nbr_intersection_indices.begin() + num_scanned,
-                        nbr_intersection_indices.begin() + num_scanned + this_scan_size,
-                        tmp_indices.begin() + num_copied,
-                        detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
+      if constexpr (std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+        num_copied += static_cast<size_t>(thrust::distance(
+          tmp_indices.begin() + num_copied,
+          thrust::copy_if(handle.get_thrust_policy(),
+                          nbr_intersection_indices.begin() + num_scanned,
+                          nbr_intersection_indices.begin() + num_scanned + this_scan_size,
+                          tmp_indices.begin() + num_copied,
+                          detail::not_equal_t<vertex_t>{invalid_vertex_id<vertex_t>::value})));
+      } else {
+        num_copied += static_cast<size_t>(thrust::distance(
+          zipped_itr_to_tmps_begin + num_copied,
+          thrust::copy_if(handle.get_thrust_policy(),
+                          zipped_itr_to_indices_and_properties_begin + num_scanned,
+                          zipped_itr_to_indices_and_properties_begin + num_scanned + this_scan_size,
+                          zipped_itr_to_tmps_begin + num_copied,
+                          [] __device__(auto nbr_p0_p1) {
+                            auto nbr = thrust::get<0>(nbr_p0_p1);
+                            auto p0  = thrust::get<1>(nbr_p0_p1);
+                            auto p1  = thrust::get<2>(nbr_p0_p1);
+                            printf("%d %d %d\n",
+                                   static_cast<int>(nbr),
+                                   static_cast<int>(p0),
+                                   static_cast<int>(p1));
+                            return thrust::get<0>(nbr_p0_p1) != invalid_vertex_id<vertex_t>::value;
+                          })));
+      }
       num_scanned += this_scan_size;
     }
     nbr_intersection_indices = std::move(tmp_indices);
+    if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      nbr_intersection_properties0 = std::move(tmp_properties0);
+      nbr_intersection_properties1 = std::move(tmp_properties1);
+    }
+
+    {
+      auto& comm           = handle.get_comms();
+      auto const comm_rank = comm.get_rank();
+      auto const comm_size = comm.get_size();
+
+      for (int k = 0; k < comm_size; k++) {
+        comm.barrier();
+        if (comm_rank == k) {
+          std::cout << "Rank (after while loop) :" << comm_rank << std::endl;
+          RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+          raft::print_device_vector("nbr_intersection_indices",
+                                    nbr_intersection_indices.data(),
+                                    nbr_intersection_indices.size(),
+                                    std::cout);
+
+          if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+            raft::print_device_vector("(*nbr_intersection_properties0)",
+                                      (*nbr_intersection_properties0).data(),
+                                      (*nbr_intersection_properties0).size(),
+                                      std::cout);
+
+            raft::print_device_vector("(*nbr_intersection_properties1)",
+                                      (*nbr_intersection_properties1).data(),
+                                      (*nbr_intersection_properties1).size(),
+                                      std::cout);
+          }
+
+          std::cout << "------------------" << std::endl;
+        }
+        comm.barrier();
+      }
+    }
+
 #else
-    nbr_intersection_indices.resize(
-      thrust::distance(nbr_intersection_indices.begin(),
-                       thrust::remove(handle.get_thrust_policy(),
-                                      nbr_intersection_indices.begin(),
-                                      nbr_intersection_indices.end(),
-                                      invalid_vertex_id<vertex_t>::value)),
-      handle.get_stream());
+
+    if constexpr (std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+      nbr_intersection_indices.resize(
+        thrust::distance(nbr_intersection_indices.begin(),
+                         thrust::remove(handle.get_thrust_policy(),
+                                        nbr_intersection_indices.begin(),
+                                        nbr_intersection_indices.end(),
+                                        invalid_vertex_id<vertex_t>::value)),
+        handle.get_stream());
+    } else {
+      nbr_intersection_indices.resize(
+        thrust::distance(zipped_itr_to_indices_and_properties_begin,
+                         thrust::remove_if(handle.get_thrust_policy(),
+                                           zipped_itr_to_indices_and_properties_begin,
+                                           zipped_itr_to_indices_and_properties_begin +
+                                             nbr_intersection_indices.size(),
+                                           [] __device__(auto nbr_p0_p1) {
+                                             return thrust::get<0>(nbr_p0_p1) ==
+                                                    invalid_vertex_id<vertex_t>::value;
+                                           })),
+        handle.get_stream());
+
+      (*nbr_intersection_properties0).resize(nbr_intersection_indices.size(), handle.get_stream());
+      (*nbr_intersection_properties1).resize(nbr_intersection_indices.size(), handle.get_stream());
+    }
 #endif
 
     thrust::inclusive_scan(handle.get_thrust_policy(),
@@ -1745,9 +2440,45 @@ nbr_intersection(raft::handle_t const& handle,
                            nbr_intersection_offsets.begin() + 1);
   }
 
+  {
+    auto& comm           = handle.get_comms();
+    auto const comm_rank = comm.get_rank();
+    auto const comm_size = comm.get_size();
+    for (int k = 0; k < comm_size; k++) {
+      comm.barrier();
+      if (comm_rank == k) {
+        std::cout << "Rank :" << comm_rank << std::endl;
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+        raft::print_device_vector("nbr_intersection_indices",
+                                  nbr_intersection_indices.data(),
+                                  nbr_intersection_indices.size(),
+                                  std::cout);
+
+        if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
+          raft::print_device_vector("(*nbr_intersection_properties0)",
+                                    (*nbr_intersection_properties0).data(),
+                                    (*nbr_intersection_properties0).size(),
+                                    std::cout);
+
+          raft::print_device_vector("(*nbr_intersection_properties1)",
+                                    (*nbr_intersection_properties1).data(),
+                                    (*nbr_intersection_properties1).size(),
+                                    std::cout);
+        }
+
+        std::cout << "------------------" << std::endl;
+      }
+      comm.barrier();
+    }
+  }
+
   // 5. Return
 
-  return std::make_tuple(std::move(nbr_intersection_offsets), std::move(nbr_intersection_indices));
+  return std::make_tuple(std::move(nbr_intersection_offsets),
+                         std::move(nbr_intersection_indices),
+                         std::move(nbr_intersection_properties0),
+                         std::move(nbr_intersection_properties1));
 }
 
 }  // namespace detail
