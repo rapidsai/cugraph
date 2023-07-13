@@ -130,10 +130,10 @@ sample_edges(raft::handle_t const& handle,
  *
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
- * @param starting_vertices The source vertices for the current hop
- * @param starting_vertex_labels Optional labels for the source vertices for the current hop
- * @param new_frontier_vertices Vertices discovered in the current hop
- * @param new_frontier_vertex_labels Optional labels for each of the newly discovered vertices
+ * @param sampled_src_vertices The source vertices for the current sampling
+ * @param sampled_src_vertex_labels Optional labels for the vertices for the current sampling
+ * @param sampled_dst_vertices Vertices for the next frontier
+ * @param sampled_dst_vertex_labels Optional labels for the next frontier
  * @param vertex_used_as_source Span used for marking vertices that have already appeared as a
  * source (empty span if @p unique_sources is false)
  * @param vertex_partition Vertex partition view from the graph view
@@ -154,10 +154,10 @@ std::tuple<rmm::device_uvector<vertex_t>,
                                     std::optional<rmm::device_uvector<label_t>>>>>
 prepare_next_frontier(
   raft::handle_t const& handle,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
-  raft::device_span<vertex_t const> new_frontier_vertices,
-  std::optional<raft::device_span<label_t const>> new_frontier_vertex_labels,
+  raft::device_span<vertex_t const> sampled_src_vertices,
+  std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
+  raft::device_span<vertex_t const> sampled_dst_vertices,
+  std::optional<raft::device_span<label_t const>> sampled_dst_vertex_labels,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
@@ -184,13 +184,13 @@ prepare_next_frontier(
  * @return tuple containing the modified frontier_vertices and frontier_vertex_labels
  */
 template <typename vertex_t, typename label_t>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<label_t>>
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_t>>>
 remove_visited_vertices_from_frontier(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& frontier_vertices,
-  rmm::device_uvector<label_t>&& frontier_vertex_labels,
-  rmm::device_uvector<vertex_t> const& vertices_used_as_source,
-  rmm::device_uvector<label_t> const& vertex_labels_used_as_source);
+  std::optional<rmm::device_uvector<label_t>>&& frontier_vertex_labels,
+  raft::device_span<vertex_t const> vertices_used_as_source,
+  std::optional<raft::device_span<label_t const>> vertex_labels_used_as_source);
 
 // FIXME: Should this go in shuffle_wrappers.hpp?
 /**

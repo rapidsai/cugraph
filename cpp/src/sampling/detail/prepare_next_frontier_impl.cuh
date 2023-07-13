@@ -44,10 +44,10 @@ std::tuple<rmm::device_uvector<vertex_t>,
                                     std::optional<rmm::device_uvector<label_t>>>>>
 prepare_next_frontier(
   raft::handle_t const& handle,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
-  raft::device_span<vertex_t const> new_frontier_vertices,
-  std::optional<raft::device_span<label_t const>> new_frontier_vertex_labels,
+  raft::device_span<vertex_t const> sampled_src_vertices,
+  std::optional<raft::device_span<label_t const>> sampled_src_vertex_labels,
+  raft::device_span<vertex_t const> sampled_dst_vertices,
+  std::optional<raft::device_span<label_t const>> sampled_dst_vertex_labels,
   std::optional<std::tuple<rmm::device_uvector<vertex_t>,
                            std::optional<rmm::device_uvector<label_t>>>>&& vertex_used_as_source,
   vertex_partition_view_t<vertex_t, multi_gpu> vertex_partition,
@@ -58,85 +58,39 @@ prepare_next_frontier(
 {
   vertex_partition_device_view_t<vertex_t, multi_gpu> d_vertex_partition(vertex_partition);
 
-  if (vertex_used_as_source) {
-    auto& [verts, labels] = *vertex_used_as_source;
-
-    size_t current_size = verts.size();
-    verts.resize(current_size + starting_vertices.size(), handle.get_stream());
-    raft::copy(verts.begin() + current_size,
-               starting_vertices.data(),
-               starting_vertices.size(),
-               handle.get_stream());
-
-    if (starting_vertex_labels) {
-      labels->resize(current_size + starting_vertex_labels->size(), handle.get_stream());
-
-      raft::copy(labels->begin() + current_size,
-                 starting_vertex_labels->data(),
-                 starting_vertex_labels->size(),
-                 handle.get_stream());
-
-      auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin());
-
-      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + verts.size());
-
-      auto new_end =
-        thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + verts.size());
-
-      verts.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-      labels->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
-    } else {
-      thrust::sort(handle.get_thrust_policy(), verts.begin(), verts.end());
-
-      auto new_end = thrust::unique(handle.get_thrust_policy(), verts.begin(), verts.end());
-
-      verts.resize(thrust::distance(verts.begin(), new_end), handle.get_stream());
-    }
-  }
-
-  size_t frontier_size = new_frontier_vertices.size();
+  size_t frontier_size = sampled_dst_vertices.size();
   if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
-    frontier_size += starting_vertices.size();
+    frontier_size += sampled_src_vertices.size();
   }
 
   rmm::device_uvector<vertex_t> frontier_vertices(frontier_size, handle.get_stream());
   auto frontier_vertex_labels =
-    new_frontier_vertex_labels
+    sampled_dst_vertex_labels
       ? std::make_optional<rmm::device_uvector<label_t>>(frontier_size, handle.get_stream())
       : std::nullopt;
 
-  if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
-    raft::copy(frontier_vertices.begin(),
-               starting_vertices.data(),
-               starting_vertices.size(),
-               handle.get_stream());
+  raft::copy(frontier_vertices.begin(),
+             sampled_dst_vertices.data(),
+             sampled_dst_vertices.size(),
+             handle.get_stream());
 
-    raft::copy(frontier_vertices.begin() + starting_vertices.size(),
-               new_frontier_vertices.data(),
-               new_frontier_vertices.size(),
-               handle.get_stream());
-  } else {
-    raft::copy(frontier_vertices.begin(),
-               new_frontier_vertices.data(),
-               new_frontier_vertices.size(),
+  if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
+    raft::copy(frontier_vertices.begin() + sampled_dst_vertices.size(),
+               sampled_src_vertices.data(),
+               sampled_src_vertices.size(),
                handle.get_stream());
   }
 
   if (frontier_vertex_labels) {
-    if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
-      raft::copy(frontier_vertex_labels->begin(),
-                 starting_vertex_labels->data(),
-                 starting_vertex_labels->size(),
-                 handle.get_stream());
+    raft::copy(frontier_vertex_labels->begin(),
+               sampled_dst_vertex_labels->data(),
+               sampled_dst_vertex_labels->size(),
+               handle.get_stream());
 
-      raft::copy(frontier_vertex_labels->begin() + starting_vertices.size(),
-                 new_frontier_vertex_labels->data(),
-                 new_frontier_vertex_labels->size(),
-                 handle.get_stream());
-    } else {
-      raft::copy(frontier_vertex_labels->begin(),
-                 new_frontier_vertex_labels->data(),
-                 new_frontier_vertex_labels->size(),
+    if (prior_sources_behavior == prior_sources_behavior_t::CARRY_OVER) {
+      raft::copy(frontier_vertex_labels->begin() + sampled_dst_vertices.size(),
+                 sampled_src_vertex_labels->data(),
+                 sampled_src_vertex_labels->size(),
                  handle.get_stream());
     }
   }
@@ -155,29 +109,62 @@ prepare_next_frontier(
     }
   }
 
+  if (frontier_vertex_labels) {
+    auto begin_iter =
+      thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
+    thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
+  } else {
+    thrust::sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
+  }
+
   if (vertex_used_as_source) {
-    if (frontier_vertex_labels) {
-      std::tie(frontier_vertices, *frontier_vertex_labels) =
-        remove_visited_vertices_from_frontier(handle,
-                                              std::move(frontier_vertices),
-                                              std::move(*frontier_vertex_labels),
-                                              std::get<0>(*vertex_used_as_source),
-                                              *std::get<1>(*vertex_used_as_source));
+    auto& [verts, labels] = *vertex_used_as_source;
+
+    // add sources from this expansion to the vertex_used_as_source
+    size_t current_verts_size = verts.size();
+    size_t new_verts_size     = current_verts_size + sampled_src_vertices.size();
+
+    verts.resize(new_verts_size, handle.get_stream());
+
+    raft::copy(verts.begin() + current_verts_size,
+               sampled_src_vertices.data(),
+               sampled_src_vertices.size(),
+               handle.get_stream());
+
+    // sort and unique the vertex_used_as_source structures
+    if (sampled_src_vertex_labels) {
+      labels->resize(new_verts_size, handle.get_stream());
+
+      raft::copy(labels->begin() + current_verts_size,
+                 sampled_src_vertex_labels->data(),
+                 sampled_src_vertex_labels->size(),
+                 handle.get_stream());
+
+      auto begin_iter = thrust::make_zip_iterator(verts.begin(), labels->begin());
+
+      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+
+      auto end_iter =
+        thrust::unique(handle.get_thrust_policy(), begin_iter, begin_iter + new_verts_size);
+
+      verts.resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
+      labels->resize(thrust::distance(begin_iter, end_iter), handle.get_stream());
     } else {
-      auto new_end =
-        thrust::copy_if(handle.get_thrust_policy(),
-                        frontier_vertices.begin(),
-                        frontier_vertices.end(),
-                        frontier_vertices.begin(),
-                        [d_vertex_used = std::get<0>(*vertex_used_as_source).data(),
-                         d_vertex_size = std::get<0>(*vertex_used_as_source).size(),
-                         d_vertex_partition] __device__(vertex_t v) {
-                          return !thrust::binary_search(
-                            thrust::seq, d_vertex_used, d_vertex_used + d_vertex_size, v);
-                        });
-      frontier_vertices.resize(thrust::distance(frontier_vertices.begin(), new_end),
-                               handle.get_stream());
+      thrust::sort(handle.get_thrust_policy(), verts.begin(), verts.end());
+
+      auto end_iter = thrust::unique(handle.get_thrust_policy(), verts.begin(), verts.end());
+
+      verts.resize(thrust::distance(verts.begin(), end_iter), handle.get_stream());
     }
+
+    // Now with the updated verts/labels we can filter the next frontier
+    std::tie(frontier_vertices, frontier_vertex_labels) = remove_visited_vertices_from_frontier(
+      handle,
+      std::move(frontier_vertices),
+      std::move(frontier_vertex_labels),
+      raft::device_span<vertex_t const>{verts.data(), verts.size()},
+      labels ? std::make_optional(raft::device_span<label_t const>{labels->data(), labels->size()})
+             : std::nullopt);
   }
 
   if (dedupe_sources) {
@@ -185,16 +172,12 @@ prepare_next_frontier(
       auto begin_iter =
         thrust::make_zip_iterator(frontier_vertices.begin(), frontier_vertex_labels->begin());
 
-      thrust::sort(handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
-
       auto new_end = thrust::unique(
         handle.get_thrust_policy(), begin_iter, begin_iter + frontier_vertices.size());
 
       frontier_vertices.resize(thrust::distance(begin_iter, new_end), handle.get_stream());
       frontier_vertex_labels->resize(thrust::distance(begin_iter, new_end), handle.get_stream());
     } else {
-      thrust::sort(handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
-
       auto new_end = thrust::unique(
         handle.get_thrust_policy(), frontier_vertices.begin(), frontier_vertices.end());
 

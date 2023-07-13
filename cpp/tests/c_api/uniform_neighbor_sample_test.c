@@ -223,16 +223,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     M_edge_type[h_src[i]][h_dst[i]] = h_edge_types[i];
   }
 
-#if 0
-  printf("Result:\n");
-  for (int label_id = 0 ; label_id < (result_offsets_size - 1) ; ++label_id) {
-    printf(" label %d\n", (int) h_result_labels[label_id]);
-    for (int i = h_result_offsets[label_id]; (i < h_result_offsets[label_id+1]) ; ++i) {
-      printf("  (%d,%d,%g,%d,%d,%d)\n", (int) h_result_srcs[i], (int) h_result_dsts[i], (float) h_result_weight[i], (int) h_result_edge_id[i], (int) h_result_edge_types[i], (int) h_result_hops[i]);
-    }
-  }
-#endif
-
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 M_w[h_result_srcs[i]][h_result_dsts[i]] == h_result_weight[i],

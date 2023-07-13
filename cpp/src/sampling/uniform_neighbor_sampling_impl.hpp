@@ -51,8 +51,8 @@ uniform_neighbor_sample_impl(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<edge_property_view_t<edge_t, edge_t const*>> edge_id_view,
   std::optional<edge_property_view_t<edge_t, edge_type_t const*>> edge_type_view,
-  raft::device_span<vertex_t const> starting_vertices,
-  std::optional<raft::device_span<label_t const>> starting_vertex_labels,
+  raft::device_span<vertex_t const> this_frontier_vertices,
+  std::optional<raft::device_span<label_t const>> this_frontier_vertex_labels,
   std::optional<std::tuple<raft::device_span<label_t const>, raft::device_span<int32_t const>>>
     label_to_output_comm_rank,
   raft::host_span<int32_t const> fan_out,
@@ -79,8 +79,8 @@ uniform_neighbor_sample_impl(
   }
 
   CUGRAPH_EXPECTS(
-    !label_to_output_comm_rank || starting_vertex_labels,
-    "cannot specify output GPU mapping without also specifying starting_vertex_labels");
+    !label_to_output_comm_rank || this_frontier_vertex_labels,
+    "cannot specify output GPU mapping without also specifying this_frontier_vertex_labels");
 
   if (do_expensive_check) {
     if (label_to_output_comm_rank) {
@@ -100,8 +100,8 @@ uniform_neighbor_sample_impl(
     edge_type_view ? std::make_optional(std::vector<rmm::device_uvector<edge_type_t>>{})
                    : std::nullopt;
   auto level_result_label_vectors =
-    starting_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
-                           : std::nullopt;
+    this_frontier_vertex_labels ? std::make_optional(std::vector<rmm::device_uvector<label_t>>{})
+                                : std::nullopt;
 
   level_result_src_vectors.reserve(fan_out.size());
   level_result_dst_vectors.reserve(fan_out.size());
@@ -112,7 +112,7 @@ uniform_neighbor_sample_impl(
 
   rmm::device_uvector<vertex_t> frontier_vertices(0, handle.get_stream());
   auto frontier_vertex_labels =
-    starting_vertex_labels
+    this_frontier_vertex_labels
       ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
       : std::nullopt;
 
@@ -123,7 +123,7 @@ uniform_neighbor_sample_impl(
   if (prior_sources_behavior == prior_sources_behavior_t::EXCLUDE) {
     vertex_used_as_source = std::make_optional(
       std::make_tuple(rmm::device_uvector<vertex_t>{0, handle.get_stream()},
-                      starting_vertex_labels
+                      this_frontier_vertex_labels
                         ? std::make_optional(rmm::device_uvector<label_t>{0, handle.get_stream()})
                         : std::nullopt));
   }
@@ -146,8 +146,8 @@ uniform_neighbor_sample_impl(
                      edge_id_view,
                      edge_type_view,
                      rng_state,
-                     starting_vertices,
-                     starting_vertex_labels,
+                     this_frontier_vertices,
+                     this_frontier_vertex_labels,
                      static_cast<size_t>(k_level),
                      with_replacement);
     } else {
@@ -157,8 +157,8 @@ uniform_neighbor_sample_impl(
                                 edge_weight_view,
                                 edge_id_view,
                                 edge_type_view,
-                                starting_vertices,
-                                starting_vertex_labels);
+                                this_frontier_vertices,
+                                this_frontier_vertex_labels);
     }
 
     level_sizes.push_back(srcs.size());
@@ -178,8 +178,8 @@ uniform_neighbor_sample_impl(
       std::tie(frontier_vertices, frontier_vertex_labels, vertex_used_as_source) =
         prepare_next_frontier(
           handle,
-          starting_vertices,
-          starting_vertex_labels,
+          this_frontier_vertices,
+          this_frontier_vertex_labels,
           raft::device_span<vertex_t const>{level_result_dst_vectors.back().data(),
                                             level_result_dst_vectors.back().size()},
           frontier_vertex_labels ? std::make_optional(raft::device_span<label_t const>(
@@ -193,12 +193,12 @@ uniform_neighbor_sample_impl(
           dedupe_sources,
           do_expensive_check);
 
-      starting_vertices =
+      this_frontier_vertices =
         raft::device_span<vertex_t const>(frontier_vertices.data(), frontier_vertices.size());
 
       if (frontier_vertex_labels) {
-        starting_vertex_labels = raft::device_span<label_t const>(frontier_vertex_labels->data(),
-                                                                  frontier_vertex_labels->size());
+        this_frontier_vertex_labels = raft::device_span<label_t const>(
+          frontier_vertex_labels->data(), frontier_vertex_labels->size());
       }
     }
   }

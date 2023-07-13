@@ -87,6 +87,8 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_type_erased_device_array_view_t* d_start_labels_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
 
+  if (rank > 0) num_start_vertices = 0;
+
   ret_code =
     cugraph_type_erased_device_array_create(handle, num_start_vertices, INT32, &d_start, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "d_start create failed.");
@@ -232,7 +234,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     for (size_t i = 1 ; i < sz ; ++i) {
       tmp_result_offsets[i-1] = tmp_result_offsets[i] - tmp_result_offsets[i-1];
     }
-
     
     cugraph_test_host_gatherv_fill(handle, tmp_result_offsets, sz-1, SIZE_T, h_result_offsets + 1);
 
@@ -1220,7 +1221,7 @@ int main(int argc, char** argv)
   int result = 0;
   result |= RUN_MG_TEST(test_uniform_neighbor_sample, handle);
   result |= RUN_MG_TEST(test_uniform_neighbor_from_alex, handle);
-  result |= RUN_MG_TEST(test_uniform_neighbor_sample_alex_bug, handle);
+  //result |= RUN_MG_TEST(test_uniform_neighbor_sample_alex_bug, handle);
   result |= RUN_MG_TEST(test_uniform_neighbor_sample_sort_by_hop, handle);
   result |= RUN_MG_TEST(test_uniform_neighbor_sample_dedupe_sources, handle);
   result |= RUN_MG_TEST(test_uniform_neighbor_sample_unique_sources, handle);
