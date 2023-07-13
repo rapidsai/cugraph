@@ -324,10 +324,8 @@ if hasArg cugraph-service; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
-        cd ${REPODIR}/python/cugraph-service/client
-        python ${PYTHON_ARGS_FOR_INSTALL}
-        cd ${REPODIR}/python/cugraph-service/server
-        python ${PYTHON_ARGS_FOR_INSTALL}
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/client
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/server
     fi
 fi
 
@@ -336,8 +334,7 @@ if hasArg cugraph-pyg; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
-        cd ${REPODIR}/python/cugraph-pyg
-        python ${PYTHON_ARGS_FOR_INSTALL}
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-pyg
     fi
 fi
 
@@ -346,8 +343,7 @@ if hasArg cugraph-dgl; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
-        cd ${REPODIR}/python/cugraph-dgl
-        python ${PYTHON_ARGS_FOR_INSTALL}
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
     fi
 fi
 
