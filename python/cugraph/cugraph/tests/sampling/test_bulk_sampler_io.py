@@ -17,6 +17,7 @@ import os
 import shutil
 
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
+from cugraph.utilities.utils import create_directory_with_overwrite
 
 
 @pytest.mark.sg
@@ -35,9 +36,8 @@ def test_bulk_sampler_io(scratch_dir):
     offsets = cudf.DataFrame({"offsets": [0, 8], "batch_id": [0, 1]})
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_io")
-    if os.path.exists(samples_path):
-        shutil.rmtree(samples_path)
-    os.makedirs(samples_path)
+    create_directory_with_overwrite(samples_path)
+
     write_samples(results, offsets, 1, samples_path)
 
     assert len(os.listdir(samples_path)) == 2

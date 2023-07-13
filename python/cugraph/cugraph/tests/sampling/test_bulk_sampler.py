@@ -17,6 +17,7 @@ import cupy
 import cugraph
 from cugraph.experimental.datasets import karate
 from cugraph.experimental.gnn import BulkSampler
+from cugraph.utilities.utils import create_directory_with_overwrite
 
 import os
 import shutil
@@ -37,9 +38,8 @@ def test_bulk_sampler_simple(scratch_dir):
     )
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_simple")
-    if os.path.exists(samples_path):
-        shutil.rmtree(samples_path)
-    os.makedirs(samples_path)
+    create_directory_with_overwrite(samples_path)
+
     bs = BulkSampler(
         batch_size=2,
         output_path=samples_path,
@@ -81,9 +81,8 @@ def test_bulk_sampler_remainder(scratch_dir):
     )
 
     samples_path = os.path.join(scratch_dir, "test_bulk_sampler_remainder")
-    if os.path.exists(samples_path):
-        shutil.rmtree(samples_path)
-    os.makedirs(samples_path)
+    create_directory_with_overwrite(samples_path)
+
     bs = BulkSampler(
         batch_size=2,
         output_path=samples_path,
