@@ -23,7 +23,7 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <sampling/detail/graph_functions.hpp>
+#include <sampling/detail/sampling_utils.hpp>
 
 #include <raft/core/handle.hpp>
 

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <sampling/detail/graph_functions.hpp>
+#include <sampling/detail/sampling_utils.hpp>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
