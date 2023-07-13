@@ -529,7 +529,7 @@ def test_uniform_neighbor_sample_empty_start_list():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_unique_sources_basic():
+def test_uniform_neighbor_sample_exclude_sources_basic():
     df = cudf.DataFrame(
         {
             "src": [0, 4, 1, 2, 3, 5, 4, 1, 0],
@@ -554,7 +554,7 @@ def test_uniform_neighbor_sample_unique_sources_basic():
         with_edge_properties=True,
         with_batch_ids=True,
         random_state=62,
-        unique_sources=True,
+        prior_sources_behavior='exclude',
     ).sort_values(by="hop_id")
 
     expected_hop_0 = [1, 2, 1, 5, 2, 0]
@@ -578,13 +578,13 @@ def test_uniform_neighbor_sample_unique_sources_basic():
 
 
 @pytest.mark.sg
-def test_uniform_neighbor_sample_unique_sources_email_eu_core():
+def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = el.src.sample(frac=0.001).unique().sample(frac=1)
+    seeds = G.select_random_vertices(62, int(.001 * len(el)))
 
     sampling_results = cugraph.uniform_neighbor_sample(
         G,
@@ -593,7 +593,7 @@ def test_uniform_neighbor_sample_unique_sources_email_eu_core():
         with_replacement=False,
         with_edge_properties=True,
         with_batch_ids=False,
-        unique_sources=True,
+        prior_sources_behavior='exclude',
     )
 
     for hop in range(5):
@@ -636,7 +636,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic():
         with_edge_properties=True,
         with_batch_ids=True,
         random_state=62,
-        carry_over_sources=True,
+        prior_sources_behavior='carryover',
     ).sort_values(by="hop_id")[["sources", "destinations", "hop_id"]]
 
     assert (
@@ -671,7 +671,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = el.src.sample(frac=0.001).unique().sample(frac=1)
+    seeds = G.select_random_vertices(62, int(.001 * len(el)))
 
     sampling_results = cugraph.uniform_neighbor_sample(
         G,
@@ -680,7 +680,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
         with_replacement=False,
         with_edge_properties=True,
         with_batch_ids=False,
-        carry_over_sources=True,
+        prior_sources_behavior='carryover'
     )
 
     for hop in range(4):
@@ -706,7 +706,7 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = el.src.sample(frac=0.001).unique().sample(frac=1)
+    seeds = G.select_random_vertices(62, int(.001 * len(el)))
 
     sampling_results = cugraph.uniform_neighbor_sample(
         G,

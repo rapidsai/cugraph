@@ -64,6 +64,7 @@ def _uniform_neighbor_sample_legacy(
     batch_id_list: Sequence = None,
     random_state: int = None,
     return_offsets: bool = False,
+    return_hops: bool = True,
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
 
     warnings.warn(
@@ -112,6 +113,7 @@ def _uniform_neighbor_sample_legacy(
         do_expensive_check=False,
         with_edge_properties=with_edge_properties,
         batch_id_list=batch_id_list,
+        return_hops=return_hops,
         random_state=random_state,
     )
 
@@ -193,8 +195,8 @@ def uniform_neighbor_sample(
     with_batch_ids: bool = False,
     random_state: int = None,
     return_offsets: bool = False,
-    unique_sources: bool = False,
-    carry_over_sources: bool = False,
+    return_hops: bool = True,
+    prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
@@ -238,13 +240,19 @@ def uniform_neighbor_sample(
             included as one dataframe, or to instead return two
             dataframes, one with sampling results and one with
             batch ids and their start offsets.
+        
+        return_hops: bool, optional (default=True)
+            Whether to return the sampling results with hop ids
+            corresponding to the hop where the edge appeared.
+            Defaults to True.
 
-        unique_sources: bool, optional (default=False)
-            Whether to ensure that sources do not reappear as sources in
-            future hops.
-
-        carry_over_sources: bool, optional (default=False)
-            Whether to carry over previous sources into future hops.
+        prior_sources_behavior: str, optional (default=None)
+            Options are "carryover", and "exclude".
+            Default will leave the source list as-is.
+            Carryover will carry over sources from previous hops to the
+            current hop.
+            Exclude will exclude sources from previous hops from reappearing
+            as sources in future hops.
 
         deduplicate_sources: bool, optional (default=False)
             Whether to first deduplicate the list of possible sources
@@ -303,9 +311,9 @@ def uniform_neighbor_sample(
     """
 
     if batch_id_list is not None:
-        if unique_sources or deduplicate_sources or carry_over_sources:
+        if prior_sources_behavior or deduplicate_sources:
             raise ValueError(
-                "unique_sources, deduplicate_sources, and carry_over_sources"
+                "prior_sources_behavior and deduplicate_sources"
                 " are not supported with batch_id_list."
                 " Consider using with_batch_ids instead."
             )
@@ -318,6 +326,7 @@ def uniform_neighbor_sample(
             batch_id_list=batch_id_list,
             random_state=random_state,
             return_offsets=return_offsets,
+            return_hops=return_hops,
         )
 
     if isinstance(start_list, int):
@@ -382,9 +391,9 @@ def uniform_neighbor_sample(
         do_expensive_check=False,
         with_edge_properties=with_edge_properties,
         random_state=random_state,
-        unique_sources=unique_sources,
-        carry_over_sources=carry_over_sources,
+        prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
+        return_hops=return_hops,
     )
 
     df = cudf.DataFrame()
