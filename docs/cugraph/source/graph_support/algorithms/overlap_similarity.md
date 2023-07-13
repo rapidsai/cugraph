@@ -1,10 +1,9 @@
 # Overlap Similarity
 
-The Overlap Coefficient between two sets is defined as the ratio of the volume of their intersection divided by the volume of the smaller set.
+The Overlap Coefficient, also known as th Szymkiewicz–Simpson coefficient, between two sets is defined as the ratio of the volume of their intersection divided by the volume of the smaller set.
 The Overlap Coefficient can be defined as
 
-<a href="https://www.codecogs.com/eqnedit.php?latex=oc(A,B)&space;=&space;\frac{|A|&space;\cap&space;|B|}{min(|A|,&space;|B|)&space;}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?oc(A,B)&space;=&space;\frac{|A&space;\cap&space;B|}{min(|A|,&space;|B|)&space;}" title="oc(A,B) = \frac{|A \cap B|}{min(|A|, |B|) }" /></a>
-
+$overlap(A,B) = \frac{|A \cap B|}{min(|A|,|B|)}$
 
 [Learn more about Overlap Similarity](https://en.wikipedia.org/wiki/Overlap_coefficient)
 
