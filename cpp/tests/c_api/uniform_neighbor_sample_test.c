@@ -47,8 +47,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
                                          size_t fan_out_size,
                                          bool_t with_replacement,
                                          bool_t return_hops,
-                                         bool_t unique_sources,
-                                         bool_t carry_over_sources,
+                                         cugraph_prior_sources_behavior_t prior_sources_behavior,
                                          bool_t dedupe_sources)
 {
   // Create graph
@@ -118,8 +117,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
 
   cugraph_sampling_set_with_replacement(sampling_options, with_replacement);
   cugraph_sampling_set_return_hops(sampling_options, return_hops);
-  cugraph_sampling_set_unique_sources(sampling_options, unique_sources);
-  cugraph_sampling_set_carry_over_sources(sampling_options, carry_over_sources);
+  cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior);
   cugraph_sampling_set_dedupe_sources(sampling_options, dedupe_sources);
 
   ret_code = cugraph_uniform_neighbor_sample(handle,
@@ -225,16 +223,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     M_edge_type[h_src[i]][h_dst[i]] = h_edge_types[i];
   }
 
-#if 0
-  printf("Result:\n");
-  for (int label_id = 0 ; label_id < (result_offsets_size - 1) ; ++label_id) {
-    printf(" label %d\n", (int) h_result_labels[label_id]);
-    for (int i = h_result_offsets[label_id]; (i < h_result_offsets[label_id+1]) ; ++i) {
-      printf("  (%d,%d,%g,%d,%d,%d)\n", (int) h_result_srcs[i], (int) h_result_dsts[i], (float) h_result_weight[i], (int) h_result_edge_id[i], (int) h_result_edge_types[i], (int) h_result_hops[i]);
-    }
-  }
-#endif
-
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 M_w[h_result_srcs[i]][h_result_dsts[i]] == h_result_weight[i],
@@ -277,7 +265,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
     }
 
     for (int hop = 0 ; hop < fan_out_size ; ++hop) {
-      if (carry_over_sources) {
+      if (prior_sources_behavior == CARRY_OVER) {
         destinations_size = sources_size;
         for (size_t i = 0 ; i < sources_size ; ++i) {
           check_destinations[i] = check_sources[i];
@@ -294,7 +282,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
           TEST_ASSERT(test_ret_value, found, "encountered source vertex that was not part of previous frontier");
         }
 
-        if (carry_over_sources) {
+        if (prior_sources_behavior == CARRY_OVER) {
           // Make sure destination isn't already in the source list
           bool found = false;
           for (size_t j = 0 ; (!found) && (j < destinations_size) ; ++j) {
@@ -318,7 +306,7 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
       destinations_size = 0;
     }
 
-    if (unique_sources) {
+    if (prior_sources_behavior == EXCLUDE) {
       // Make sure vertex v only appears as source in the first hop after it is encountered
       for (size_t i = h_result_offsets[label_id]; (i < h_result_offsets[label_id+1]) && (test_ret_value == 0) ; ++i) {
         for (size_t j = i + 1 ; (j < h_result_offsets[label_id+1]) && (test_ret_value == 0) ; ++j) {
@@ -363,7 +351,6 @@ int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle
   cugraph_error_free(ret_error);
   return test_ret_value;
 }
-
 
 int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
                                     vertex_t* h_src,
@@ -855,14 +842,13 @@ int test_uniform_neighbor_sample_clean(const cugraph_resource_handle_t* handle)
 
   bool_t with_replacement = FALSE;
   bool_t return_hops = TRUE;
-  bool_t unique_sources = FALSE;
-  bool_t carry_over_sources = FALSE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
   bool_t dedupe_sources = FALSE;
 
   return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
                                               start, start_labels, num_starts,
                                               fan_out, fan_out_size, with_replacement,
-                                              return_hops, unique_sources, carry_over_sources, dedupe_sources);
+                                              return_hops, prior_sources_behavior, dedupe_sources);
 }
 
 int test_uniform_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t* handle)
@@ -893,14 +879,13 @@ int test_uniform_neighbor_sample_dedupe_sources(const cugraph_resource_handle_t*
 
   bool_t with_replacement = FALSE;
   bool_t return_hops = TRUE;
-  bool_t unique_sources = FALSE;
-  bool_t carry_over_sources = FALSE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = DEFAULT;
   bool_t dedupe_sources = TRUE;
 
   return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
                                               start, start_labels, num_starts,
                                               fan_out, fan_out_size, with_replacement,
-                                              return_hops, unique_sources, carry_over_sources, dedupe_sources);
+                                              return_hops, prior_sources_behavior, dedupe_sources);
 }
 
 int test_uniform_neighbor_sample_unique_sources(const cugraph_resource_handle_t* handle)
@@ -931,14 +916,13 @@ int test_uniform_neighbor_sample_unique_sources(const cugraph_resource_handle_t*
 
   bool_t with_replacement = FALSE;
   bool_t return_hops = TRUE;
-  bool_t unique_sources = TRUE;
-  bool_t carry_over_sources = FALSE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = EXCLUDE;
   bool_t dedupe_sources = FALSE;
 
   return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
                                               start, start_labels, num_starts,
                                               fan_out, fan_out_size, with_replacement,
-                                              return_hops, unique_sources, carry_over_sources, dedupe_sources);
+                                              return_hops, prior_sources_behavior, dedupe_sources);
 }
 
 int test_uniform_neighbor_sample_carry_over_sources(const cugraph_resource_handle_t* handle)
@@ -969,14 +953,13 @@ int test_uniform_neighbor_sample_carry_over_sources(const cugraph_resource_handl
 
   bool_t with_replacement = FALSE;
   bool_t return_hops = TRUE;
-  bool_t unique_sources = FALSE;
-  bool_t carry_over_sources = TRUE;
+  cugraph_prior_sources_behavior_t prior_sources_behavior = CARRY_OVER;
   bool_t dedupe_sources = FALSE;
 
   return generic_uniform_neighbor_sample_test(handle, src, dst, weight, edge_ids, edge_types, num_vertices, num_edges,
                                               start, start_labels, num_starts,
                                               fan_out, fan_out_size, with_replacement,
-                                              return_hops, unique_sources, carry_over_sources, dedupe_sources);
+                                              return_hops, prior_sources_behavior, dedupe_sources);
 }
 
 int main(int argc, char** argv)

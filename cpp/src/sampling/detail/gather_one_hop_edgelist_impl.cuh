@@ -44,6 +44,9 @@ struct return_edges_with_properties_e_op {
                                       thrust::nullopt_t,
                                       EdgeProperties edge_properties)
   {
+    static_assert(std::is_same_v<key_t, vertex_t> ||
+                  std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
+
     // FIXME: A solution using thrust_tuple_cat would be more flexible here
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       vertex_t src{optionally_tagged_src};
@@ -115,7 +118,7 @@ gather_one_hop_edgelist(
   rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
   rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
   std::optional<rmm::device_uvector<edge_t>> edge_ids{std::nullopt};
-  std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+  std::optional<rmm::device_uvector<weight_t>> edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<edge_type_t>> edge_types{std::nullopt};
   std::optional<rmm::device_uvector<label_t>> labels{std::nullopt};
 
@@ -123,7 +126,7 @@ gather_one_hop_edgelist(
     if (edge_id_view) {
       if (edge_type_view) {
         if constexpr (std::is_same_v<tag_t, int32_t>) {
-          std::tie(majors, minors, weights, edge_ids, edge_types, labels) =
+          std::tie(majors, minors, edge_weights, edge_ids, edge_types, labels) =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
               graph_view,
@@ -134,7 +137,7 @@ gather_one_hop_edgelist(
               return_edges_with_properties_e_op{},
               do_expensive_check);
         } else {
-          std::tie(majors, minors, weights, edge_ids, edge_types) =
+          std::tie(majors, minors, edge_weights, edge_ids, edge_types) =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
               graph_view,
@@ -147,7 +150,7 @@ gather_one_hop_edgelist(
         }
       } else {
         if constexpr (std::is_same_v<tag_t, int32_t>) {
-          std::tie(majors, minors, weights, edge_ids, labels) =
+          std::tie(majors, minors, edge_weights, edge_ids, labels) =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
               graph_view,
@@ -158,7 +161,7 @@ gather_one_hop_edgelist(
               return_edges_with_properties_e_op{},
               do_expensive_check);
         } else {
-          std::tie(majors, minors, weights, edge_ids) =
+          std::tie(majors, minors, edge_weights, edge_ids) =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
               graph_view,
@@ -173,7 +176,7 @@ gather_one_hop_edgelist(
     } else {
       if (edge_type_view) {
         if constexpr (std::is_same_v<tag_t, int32_t>) {
-          std::tie(majors, minors, weights, edge_types, labels) =
+          std::tie(majors, minors, edge_weights, edge_types, labels) =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
               graph_view,
@@ -184,7 +187,7 @@ gather_one_hop_edgelist(
               return_edges_with_properties_e_op{},
               do_expensive_check);
         } else {
-          std::tie(majors, minors, weights, edge_types) =
+          std::tie(majors, minors, edge_weights, edge_types) =
             cugraph::extract_transform_v_frontier_outgoing_e(
               handle,
               graph_view,
@@ -197,7 +200,7 @@ gather_one_hop_edgelist(
         }
       } else {
         if constexpr (std::is_same_v<tag_t, int32_t>) {
-          std::tie(majors, minors, weights, labels) =
+          std::tie(majors, minors, edge_weights, labels) =
             cugraph::extract_transform_v_frontier_outgoing_e(handle,
                                                              graph_view,
                                                              vertex_frontier.bucket(0),
@@ -207,7 +210,7 @@ gather_one_hop_edgelist(
                                                              return_edges_with_properties_e_op{},
                                                              do_expensive_check);
         } else {
-          std::tie(majors, minors, weights) =
+          std::tie(majors, minors, edge_weights) =
             cugraph::extract_transform_v_frontier_outgoing_e(handle,
                                                              graph_view,
                                                              vertex_frontier.bucket(0),
@@ -319,7 +322,7 @@ gather_one_hop_edgelist(
 
   return std::make_tuple(std::move(majors),
                          std::move(minors),
-                         std::move(weights),
+                         std::move(edge_weights),
                          std::move(edge_ids),
                          std::move(edge_types),
                          std::move(labels));

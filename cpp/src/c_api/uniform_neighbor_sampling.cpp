@@ -35,8 +35,7 @@ namespace c_api {
 struct cugraph_sampling_options_t {
   bool_t with_replacement_{FALSE};
   bool_t return_hops_{FALSE};
-  bool_t unique_sources_{FALSE};
-  bool_t carry_over_sources_{FALSE};
+  prior_sources_behavior_t prior_sources_behavior_{prior_sources_behavior_t::DEFAULT};
   bool_t dedupe_sources_{FALSE};
 };
 
@@ -207,8 +206,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           rng_state_->rng_state_,
           options_.return_hops_,
           options_.with_replacement_,
-          options_.unique_sources_,
-          options_.carry_over_sources_,
+          options_.prior_sources_behavior_,
           options_.dedupe_sources_,
           do_expensive_check_);
 
@@ -278,18 +276,21 @@ extern "C" void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* opt
   internal_pointer->return_hops_ = value;
 }
 
-extern "C" void cugraph_sampling_set_unique_sources(cugraph_sampling_options_t* options,
-                                                    bool_t value)
+extern "C" void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* options,
+                                                            cugraph_prior_sources_behavior_t value)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->unique_sources_ = value;
-}
-
-extern "C" void cugraph_sampling_set_carry_over_sources(cugraph_sampling_options_t* options,
-                                                        bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->carry_over_sources_ = value;
+  switch (value) {
+    case CARRY_OVER:
+      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::CARRY_OVER;
+      break;
+    case EXCLUDE:
+      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::EXCLUDE;
+      break;
+    default:
+      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::DEFAULT;
+      break;
+  }
 }
 
 extern "C" void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options,
