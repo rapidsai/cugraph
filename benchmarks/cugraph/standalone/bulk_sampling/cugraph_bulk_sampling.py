@@ -150,7 +150,7 @@ def _replicate_df(df: cudf.DataFrame, replication_factor: int, col_item_counts:D
 
     if replication_factor > 1:
         for r in range(1, replication_factor):
-            df_replicated = original_df
+            df_replicated = original_df.copy()
             for col, offset in col_item_counts.items():
                 df_replicated[col] += offset * r
         
@@ -327,6 +327,11 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
         if persist:
             edge_index_dict[can_edge_type] = edge_index_dict[can_edge_type].persist()
     
+        print('min src:', edge_index_dict[can_edge_type].src.min().compute())
+        print('max src:', edge_index_dict[can_edge_type].src.max().compute())
+        print('min dst:', edge_index_dict[can_edge_type].dst.min().compute())
+        print('max dst:', edge_index_dict[can_edge_type].dst.max().compute())
+
     # Assign numeric edge type ids based on lexicographic order
     edge_offsets = {}
     edge_count = 0
@@ -486,20 +491,25 @@ def benchmark_cugraph_bulk_sampling(
     os.makedirs(output_sample_path)
 
     batches_per_partition = 200_000 // batch_size
-    execution_time, allocation_counts = sample_graph(
-        G,
-        dask_label_df,
-        output_sample_path,
-        seed=seed,
-        batch_size=batch_size,
-        seeds_per_call=seeds_per_call,
-        batches_per_partition=batches_per_partition,
-        fanout=fanout,
-        unique_sources=unique_sources,
-        carry_over_sources=carry_over_sources,
-        deduplicate_sources=deduplicate_sources,
-        persist=persist,
-    )
+    mean_execution_time = 0.0
+    for _ in range(10):
+        execution_time, allocation_counts = sample_graph(
+            G,
+            dask_label_df,
+            output_sample_path,
+            seed=seed,
+            batch_size=batch_size,
+            seeds_per_call=seeds_per_call,
+            batches_per_partition=batches_per_partition,
+            fanout=fanout,
+            unique_sources=unique_sources,
+            carry_over_sources=carry_over_sources,
+            deduplicate_sources=deduplicate_sources,
+            persist=persist,
+        )
+        mean_execution_time += execution_time
+    mean_execution_time /= 10
+    execution_time = mean_execution_time
 
     output_meta = {
         'dataset': dataset,

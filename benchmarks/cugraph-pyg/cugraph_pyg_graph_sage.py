@@ -31,20 +31,30 @@ from typing import Union, List
 from models_cugraph import CuGraphSAGE
 from cugraph.testing.mg_utils import enable_spilling
 
+disk_features = {}
+
 def load_disk_features(meta: dict, node_type: str, replication_factor: int = 1):
     node_type_path = os.path.join(meta['dataset_dir'], meta['dataset'], 'npy', node_type)
     
     if replication_factor == 1:
-        return np.load(
-            os.path.join(node_type_path, 'node_feat.npy'),
-            mmap_mode='r'
+        full_path = os.path.join(node_type_path, 'node_feat.npy')
+        if full_path in disk_features:
+            return disk_features[full_path]
+        disk_features[full_path] = np.load(
+            full_path,
+            #mmap_mode='r'
         )
+        return disk_features[full_path]
 
     else:
-        return np.load(
-            os.path.join(node_type_path, f'node_feat_{replication_factor}x.npy'),
-            mmap_mode='r'
+        full_path = os.path.join(node_type_path, f'node_feat_{replication_factor}x.npy')
+        if full_path in disk_features:
+            return disk_features[full_path]
+        disk_features[full_path] = np.load(
+            full_path,
+            #mmap_mode='r'
         )
+        return disk_features[full_path]
 
 
 def init_pytorch_worker(device_id: int) -> None:
@@ -84,10 +94,14 @@ def train_epoch(model, loader, optimizer):
         data = data.to_homogeneous()
 
         num_batches += 1
-        if iter_i % 20 == 0:
+        if iter_i % 20 == 1:
             print(f"iteration {iter_i}")
             print(f"num sampled nodes: {num_sampled_nodes}")
             print(f"num sampled edges: {num_sampled_edges}")
+            print(f"time forward: {time_forward / num_batches}")
+            print(f"time backward: {time_backward / num_batches}")
+            print(f"total time: {(time.perf_counter() - start_time) / num_batches}")
+            print(f"loader time: {time.perf_counter() - end_time_backward}")
 
         # train
         y_true = data.y
@@ -159,6 +173,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
     hetero_data = HeteroData()
     num_input_features = 0
     num_output_features = 0
+    print('loading feature data...')
     for node_type in os.listdir(os.path.join(dataset_path, 'npy')):
         feature_data = load_disk_features(output_meta, node_type, replication_factor=replication_factor)
         hetero_data[node_type].x = torch.as_tensor(feature_data, device=features_device)
@@ -240,17 +255,21 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             ei['dst'] = ei['dst'].contiguous()
         gc.collect()
 
-        #print('converting to csc...')
+        print(f"# edges: {len(ei['src'])}")
+
+        print('converting to csc...')
         #from torch_geometric.nn.conv.cugraph.base import CuGraphModule            
         #ei = torch.stack([
         #    ei['src'],
         #    ei['dst'],
         #])
         #ei = CuGraphModule.to_csc(ei)[:-1]
+        from torch_geometric.utils.sparse import index2ptr
+        ei['dst'] = index2ptr(ei['dst'], num_nodes_dict[can_edge_type[2]])
 
         print('updating data structure...')
         hetero_data.put_edge_index(
-            layout='coo',
+            layout='csc',
             edge_index=list(ei.values()),
             edge_type=can_edge_type,
             size=(num_nodes_dict[can_edge_type[0]], num_nodes_dict[can_edge_type[2]]),
@@ -284,7 +303,7 @@ def train_native(bulk_samples_dir: str, device:int, features_device:Union[str, i
             num_neighbors={('paper','cites','paper'):output_meta['fanout']},
             replace=False,
             is_sorted=True,
-            disjoint=False,
+            disjoint=True,
         )
         print('done creating loader')
         # loader was patched to record the feature extraction time
@@ -334,8 +353,9 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
     num_output_features = 0
     for node_type in input_meta['num_nodes'].keys():
         feature_data = load_disk_features(output_meta, node_type, replication_factor=replication_factor)
+        print(f'features shape: {feature_data.shape}')
         fs.add_data(
-            torch.as_tensor(feature_data, device=features_device),
+            torch.as_tensor(feature_data, device=features_device).pin_memory(),
             node_type,
             "x",
         )
@@ -347,6 +367,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
             node_label = cudf.read_parquet(label_path)
             if replication_factor > 1:
                 base_num_nodes = input_meta['num_nodes'][node_type]
+                print('base num nodes:', base_num_nodes)
                 dfr = cudf.DataFrame({
                     'node': cudf.concat([node_label.node + (r * base_num_nodes) for r in range(1, replication_factor)]),
                     'label': cudf.concat([node_label.label for r in range(1, replication_factor)]),
@@ -360,8 +381,8 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
             del node_label
             gc.collect()
 
-            fs.add_data((node_label_tensor > -1), node_type, 'train')
-            fs.add_data(node_label_tensor, node_type, 'y')
+            fs.add_data((node_label_tensor > -1).contiguous(), node_type, 'train')
+            fs.add_data(node_label_tensor.contiguous(), node_type, 'y')
             num_classes = int(node_label_tensor.max()) + 1
             if num_classes > num_output_features:
                 num_output_features = num_classes
