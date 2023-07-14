@@ -51,8 +51,8 @@ def _write_samples_to_parquet(
         raise ValueError("Invalid value of partition_info")
 
     max_batch_id = offsets.batch_id.max()
-    results = results.dropna(axis=1, how='all')
-    results["hop_id"]=results["hop_id"].astype('uint8')
+    results.dropna(axis=1, how="all", inplace=True)
+    results["hop_id"] = results["hop_id"].astype("uint8")
 
     for p in range(0, len(offsets), batches_per_partition):
         offsets_p = offsets.iloc[p : p + batches_per_partition]
