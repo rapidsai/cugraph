@@ -102,6 +102,7 @@ function buildTcpArgs {
                 "
 
     WORKER_ARGS="--rmm-pool-size=$WORKER_RMM_POOL_SIZE
+             --rmm-async
              --local-directory=/tmp/$LOGNAME
              --scheduler-file=$SCHEDULER_FILE
              --memory-limit=$DASK_HOST_MEMORY_LIMIT

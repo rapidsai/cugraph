@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 from cugraph.utilities.utils import import_optional
 
@@ -20,13 +20,7 @@ torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
 
 try:  # pragma: no cover
-    from pylibcugraphops.pytorch import (
-        BipartiteCSC,
-        SampledCSC,
-        SampledHeteroCSC,
-        StaticCSC,
-        StaticHeteroCSC,
-    )
+    from pylibcugraphops.pytorch import CSC, HeteroCSC
 
     HAS_PYLIBCUGRAPHOPS = True
 except ImportError:
@@ -94,7 +88,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> Any:
+    ) -> CSC:
         r"""Constructs a :obj:`cugraph-ops` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
 
@@ -119,16 +113,16 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
                 f"based processing (got CPU tensor)"
             )
 
-        if bipartite:
-            return BipartiteCSC(colptr, row, num_src_nodes)
+        if max_num_neighbors is None:
+            max_num_neighbors = -1
 
-        if num_src_nodes != colptr.numel() - 1:
-            if max_num_neighbors is None:
-                max_num_neighbors = int((colptr[1:] - colptr[:-1]).max())
-
-            return SampledCSC(colptr, row, max_num_neighbors, num_src_nodes)
-
-        return StaticCSC(colptr, row)
+        return CSC(
+            offsets=colptr,
+            indices=row,
+            num_src_nodes=num_src_nodes,
+            dst_max_in_degree=max_num_neighbors,
+            is_bipartite=bipartite,
+        )
 
     def get_typed_cugraph(
         self,
@@ -137,7 +131,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         num_edge_types: Optional[int] = None,
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> Any:
+    ) -> HeteroCSC:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
         Supports both bipartite and non-bipartite graphs.
@@ -162,21 +156,21 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         if num_edge_types is None:
             num_edge_types = int(edge_type.max()) + 1
 
+        if max_num_neighbors is None:
+            max_num_neighbors = -1
+
         row, colptr, num_src_nodes = csc
         edge_type = edge_type.int()
 
-        if bipartite:
-            raise NotImplementedError
-
-        if num_src_nodes != colptr.numel() - 1:
-            if max_num_neighbors is None:
-                max_num_neighbors = int((colptr[1:] - colptr[:-1]).max())
-
-            return SampledHeteroCSC(
-                colptr, row, edge_type, max_num_neighbors, num_src_nodes, num_edge_types
-            )
-
-        return StaticHeteroCSC(colptr, row, edge_type, num_edge_types)
+        return HeteroCSC(
+            offsets=colptr,
+            indices=row,
+            edge_types=edge_type,
+            num_src_nodes=num_src_nodes,
+            num_edge_types=num_edge_types,
+            dst_max_in_degree=max_num_neighbors,
+            is_bipartite=bipartite,
+        )
 
     def forward(
         self,

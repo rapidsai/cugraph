@@ -33,8 +33,6 @@ from cugraph.experimental.gnn import BulkSampler
 
 import cugraph
 
-from datetime import datetime
-
 import json
 import re
 import os
@@ -50,6 +48,7 @@ import cudf
 import dask_cudf
 import dask.dataframe as ddf
 from dask.distributed import default_client
+from cugraph.dask import get_n_workers
 
 from typing import Optional, Union, Dict
 
@@ -173,6 +172,7 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         random_state=seed,
         seeds_per_call=seeds_per_call,
         batches_per_partition=batches_per_partition,
+        log_level = logging.INFO
     )
 
     n_workers = len(default_client().scheduler_info()['workers'])
@@ -182,10 +182,10 @@ def sample_graph(G, label_df, output_path,seed=42, batch_size=500, seeds_per_cal
         'batch': cudf.Series(dtype='int32')
     })
 
-    
     batch_df = label_df.map_partitions(_make_batch_ids, batch_size, n_workers, meta=meta)
+    #batch_df = batch_df.sort_values(by='node')
     
-    # should always persist the batch dataframe or performace may be suboptimal
+    # should always persist the batch dataframe or performance may be suboptimal
     batch_df = batch_df.persist()
 
     del label_df
@@ -278,6 +278,8 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
     path = Path(dataset_dir) / dataset
     parquet_path = path / 'parquet'
 
+    n_workers = get_n_workers()
+
     with open(os.path.join(path, 'meta.json')) as meta_file:
         meta = json.load(meta_file)
     
@@ -289,7 +291,9 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
         print(f'Loading edge index for edge type {edge_type}')
 
         can_edge_type = tuple(edge_type.split('__'))
-        edge_index_dict[can_edge_type] = dask_cudf.read_parquet(os.path.join(os.path.join(parquet_path, edge_type), 'edge_index.parquet'))
+        edge_index_dict[can_edge_type] = dask_cudf.read_parquet(
+            Path(parquet_path) / edge_type / 'edge_index.parquet'
+        ).repartition(n_workers*2)
 
         edge_index_dict[can_edge_type]['src'] += node_offsets_replicated[can_edge_type[0]]
         edge_index_dict[can_edge_type]['dst'] += node_offsets_replicated[can_edge_type[-1]]
@@ -344,7 +348,7 @@ def load_disk_dataset(dataset, dataset_dir='.', reverse_edges=True, replication_
         print(f'Loading node labels for node type {node_type} (offset={offset})')
         node_label_path = os.path.join(os.path.join(parquet_path, node_type), 'node_label.parquet')
         if os.path.exists(node_label_path):
-            node_labels[node_type] = dask_cudf.read_parquet(node_label_path).drop('label',axis=1).persist()
+            node_labels[node_type] = dask_cudf.read_parquet(node_label_path).repartition(n_workers).drop('label',axis=1).persist()
             node_labels[node_type]['node'] += offset
             node_labels[node_type] = node_labels[node_type].persist()
 
