@@ -432,3 +432,49 @@ def test_pagerank_transposed_false():
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G)
+
+
+@pytest.mark.sg
+def test_pagerank_non_convergence():
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+
+    # Not enough allowed iterations, should not converge
+    with pytest.raises(cugraph.exceptions.FailedToConvergeError):
+        df = cugraph.pagerank(G, max_iter=1, fail_on_nonconvergence=True)
+
+    # Not enough allowed iterations, should not converge but do not consider
+    # that an error
+    (df, converged) = cugraph.pagerank(G, max_iter=1, fail_on_nonconvergence=False)
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    # The default max_iter value should allow convergence for this graph
+    (df, converged) = cugraph.pagerank(G, fail_on_nonconvergence=False)
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True
+
+    # Test personalized pagerank the same way
+    personalization = cudf.DataFrame()
+    personalization["vertex"] = [17, 26]
+    personalization["values"] = [0.5, 0.75]
+
+    with pytest.raises(cugraph.exceptions.FailedToConvergeError):
+        df = cugraph.pagerank(
+            G, max_iter=1, personalization=personalization, fail_on_nonconvergence=True
+        )
+
+    (df, converged) = cugraph.pagerank(
+        G, max_iter=1, personalization=personalization, fail_on_nonconvergence=False
+    )
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is False
+
+    (df, converged) = cugraph.pagerank(
+        G, personalization=personalization, fail_on_nonconvergence=False
+    )
+    assert type(df) is cudf.DataFrame
+    assert type(converged) is bool
+    assert converged is True

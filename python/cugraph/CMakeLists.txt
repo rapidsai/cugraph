@@ -12,9 +12,9 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
-set(cugraph_version 23.06.00)
+set(cugraph_version 23.08.00)
 
 include(../../fetch_rapids.cmake)
 
