@@ -30,6 +30,10 @@ def sorensen(input_graph, vertex_pair=None):
     If first is specified but second is not, or vice versa, an exception will
     be thrown.
 
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
+
     cugraph.sorensen, in the absence of a specified vertex pair list, will
     use the edges of the graph to construct a vertex pair list and will
     return the sorensen coefficient for those vertex pairs.
@@ -97,6 +101,10 @@ def sorensen(input_graph, vertex_pair=None):
 def sorensen_coefficient(G, ebunch=None):
     """
     For NetworkX Compatability.  See `sorensen`
+
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
 
     Parameters
     ----------

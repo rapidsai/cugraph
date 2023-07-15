@@ -24,6 +24,10 @@ def overlap_coefficient(G, ebunch=None):
     """
     For NetworkX Compatability.  See `overlap`
 
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
+
     """
     vertex_pair = None
 
@@ -53,6 +57,10 @@ def overlap(input_graph, vertex_pair=None):
     connection between vertices based on the relative similarity of their
     neighbors. If first is specified but second is not, or vice versa, an
     exception will be thrown.
+
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
 
     Parameters
     ----------

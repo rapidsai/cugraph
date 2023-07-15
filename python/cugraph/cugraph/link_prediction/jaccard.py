@@ -36,6 +36,10 @@ def jaccard(input_graph, vertex_pair=None):
     of cugraph.jaccard is different from the behavior of
     networkx.jaccard_coefficient.
 
+    This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
+
     cugraph.jaccard, in the absence of a specified vertex pair list, will
     use the edges of the graph to construct a vertex pair list and will
     return the jaccard coefficient for those vertex pairs.
@@ -123,6 +127,10 @@ def jaccard(input_graph, vertex_pair=None):
 def jaccard_coefficient(G, ebunch=None):
     """
     For NetworkX Compatability.  See `jaccard`
+
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
 
     Parameters
     ----------

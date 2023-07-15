@@ -28,6 +28,10 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     neighbors. If first is specified but second is not, or vice versa, an
     exception will be thrown.
 
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
+
     Parameters
     ----------
     input_graph : cugraph.Graph

@@ -24,6 +24,10 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     the user. Sorensen coefficient is defined between two sets as the ratio of
     twice the volume of their intersection divided by the volume of each set.
 
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
+
     Parameters
     ----------
     input_graph : cugraph.Graph
