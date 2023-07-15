@@ -187,6 +187,7 @@ def test_nx_sorensen_time(gpubenchmark, read_csv):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [netscience])
+@pytest.mark.skip(reason="Skipping because this datasets is unrenumbered")
 def test_sorensen_edgevals(gpubenchmark, graph_file):
     dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
