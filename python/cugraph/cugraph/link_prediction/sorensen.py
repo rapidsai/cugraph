@@ -84,13 +84,17 @@ def sorensen(input_graph, vertex_pair=None, do_expensive_check=True):
         if not input_graph.renumbered:
             input_df = input_graph.edgelist.edgelist_df
             max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1 ,1)).astype(
-                input_df.dtypes[0])
-            nodes = cudf.concat(
-                    [input_df["src"], input_df["dst"]]
-                ).unique().sort_values().reset_index(drop=True)
+            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
+                input_df.dtypes[0]
+            )
+            nodes = (
+                cudf.concat([input_df["src"], input_df["dst"]])
+                .unique()
+                .sort_values()
+                .reset_index(drop=True)
+            )
             if not expected_nodes.equals(nodes):
-                raise RuntimeError("Unrenumbered vertices are not supported.")
+                raise ValueError("Unrenumbered vertices are not supported.")
 
     if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")

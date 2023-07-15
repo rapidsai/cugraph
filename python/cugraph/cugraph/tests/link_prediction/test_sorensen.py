@@ -288,3 +288,14 @@ def test_weighted_exp_sorensen():
     use_weight = True
     with pytest.raises(ValueError):
         exp_sorensen(G, use_weight=use_weight)
+
+
+@pytest.mark.sg
+def test_invalid_datasets_sorensen():
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.sorensen(G)
