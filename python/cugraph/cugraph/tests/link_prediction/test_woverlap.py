@@ -169,4 +169,4 @@ def test_invalid_datasets_overlap_w():
     G = cugraph.Graph(directed=False)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     with pytest.raises(ValueError):
-        cugraph.overlap_w(G)
+        cugraph.overlap_w(G, None)

@@ -190,4 +190,4 @@ def test_invalid_datasets_sorensen_w():
     G = cugraph.Graph(directed=False)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     with pytest.raises(ValueError):
-        cugraph.sorensen_w(G)
+        cugraph.sorensen_w(G, None)

@@ -186,4 +186,4 @@ def test_invalid_datasets_jaccard_w():
     G = cugraph.Graph(directed=False)
     G.from_cudf_edgelist(df, source="src", destination="dst")
     with pytest.raises(ValueError):
-        cugraph.jaccard_w(G)
+        cugraph.jaccard_w(G, None)
