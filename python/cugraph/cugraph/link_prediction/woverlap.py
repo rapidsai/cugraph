@@ -94,19 +94,16 @@ def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     """
     if do_expensive_check:
         if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df
+            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
             max_vertex = input_df.max().max()
-            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
-                input_df.dtypes[0]
-            )
-            nodes = (
-                cudf.concat([input_df["src"], input_df["dst"]])
-                .unique()
-                .sort_values()
-                .reset_index(drop=True)
-            )
+            expected_nodes = cudf.Series(range(0, max_vertex + 1 ,1)).astype(
+                input_df.dtypes[0])
+            nodes = cudf.concat(
+                    [input_df["src"], input_df["dst"]]
+                ).unique().sort_values().reset_index(drop=True)
             if not expected_nodes.equals(nodes):
                 raise ValueError("Unrenumbered vertices are not supported.")
+
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)

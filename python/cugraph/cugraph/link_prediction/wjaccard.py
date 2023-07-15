@@ -93,7 +93,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     """
     if do_expensive_check:
         if not input_graph.renumbered:
-            input_df = input_graph.edgelist.edgelist_df
+            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
             max_vertex = input_df.max().max()
             expected_nodes = cudf.Series(range(0, max_vertex + 1 ,1)).astype(
                 input_df.dtypes[0])
@@ -101,7 +101,8 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
                     [input_df["src"], input_df["dst"]]
                 ).unique().sort_values().reset_index(drop=True)
             if not expected_nodes.equals(nodes):
-                raise RuntimeError("Unrenumbered vertices are not supported.")
+                raise ValueError("Unrenumbered vertices are not supported.")
+
 
     if type(input_graph) is not Graph:
         raise TypeError("input graph must a Graph")
