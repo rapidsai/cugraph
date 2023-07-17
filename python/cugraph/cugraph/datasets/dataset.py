@@ -177,7 +177,7 @@ class Dataset:
                 else:
                     raise RuntimeError(
                         f"The datafile {full_path} does not"
-                        " exist. Try get_edgelist(fetch=True)"
+                        " exist. Try setting fetch=True"
                         " to download the datafile"
                     )
             header = None

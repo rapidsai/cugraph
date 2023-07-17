@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import gc
+import warnings
 
 import pytest
 
@@ -264,3 +265,33 @@ def test_is_directed(dataset):
     G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
 
     assert G.is_directed() == dataset.metadata["is_directed"]
+
+
+def test_experimental_dataset_import():
+    warnings.filterwarnings("default")
+
+    with pytest.deprecated_call() as record:
+        from cugraph.experimental.datasets import karate
+
+        karate.unload()
+
+    assert len(record) == 15
+
+
+def test_experimental_method_warnings():
+    from cugraph.experimental.datasets import (
+        load_all,
+        set_download_dir,
+        get_download_dir,
+    )
+
+    warnings.filterwarnings("default")
+    tmpd = TemporaryDirectory()
+    with pytest.deprecated_call() as record:
+        set_download_dir(tmpd.name)
+        load_all()
+        get_download_dir()
+
+    assert len(record) == 3
+
+    tmpd.cleanup()
