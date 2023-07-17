@@ -883,7 +883,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     sample_nbr_indices);  // neighbor index within an edge partition (note that each vertex's
                           // neighbors are distributed in minor_comm_size partitions)
   std::optional<rmm::device_uvector<size_t>> sample_key_indices{
-    std::nullopt};  // relevant only when (minor_comm_size > 1)
+    std::nullopt};        // relevant only when (minor_comm_size > 1)
   auto local_frontier_sample_counts        = std::vector<size_t>{};
   auto local_frontier_sample_displacements = std::vector<size_t>{};
   if (minor_comm_size > 1) {
