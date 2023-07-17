@@ -16,7 +16,7 @@
 
  /*
  * FIXME: This file is copied from cudf because CuCollections doesnt support concurrent
- *     insert/find for 8 byte key-value pair size. The plan is to migrate to 
+ *     insert/find for 8 byte key-value pair size. The plan is to migrate to
  *     using the cuco when the feature is supported. At that point this file can be deleted.
  */
 #pragma once
@@ -26,8 +26,8 @@
 #include <hash/managed.cuh>
 
 #include <cudf/detail/nvtx/ranges.hpp>
+#include <cudf/hashing/detail/default_hash.cuh>
 #include <cudf/detail/utilities/device_atomics.cuh>
-#include <cudf/detail/utilities/hash_functions.cuh>
 #include <cudf/utilities/error.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
@@ -118,7 +118,7 @@ union pair_packer<pair_type, std::enable_if_t<is_packable<pair_type>()>> {
  */
 template <typename Key,
           typename Element,
-          typename Hasher    = cudf::detail::default_hash<Key>,
+          typename Hasher    = cudf::hashing::detail::default_hash<Key>,
           typename Equality  = equal_to<Key>,
           typename Allocator = default_allocator<thrust::pair<Key, Element>>>
 class concurrent_unordered_map {
