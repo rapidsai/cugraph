@@ -933,10 +933,10 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * 4. If label_offsets.has_value() is ture, edge lists for different labels will be renumbered
  * separately.
  *
+ * This function is single-GPU only (we are not aware of any practical multi-GPU use cases).
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam label_t Type of labels. Needs to be an integral type.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs A vector storing original edgelist source vertices.
@@ -954,7 +954,7 @@ rmm::device_uvector<vertex_t> select_random_vertices(
  * renumber_map offsets (size = std::get<0>(*label_offsets).size() + 1, valid only if @p
  * label_offsets.has_value() is true).
  */
-template <typename vertex_t, typename label_t, bool multi_gpu>
+template <typename vertex_t, typename label_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
