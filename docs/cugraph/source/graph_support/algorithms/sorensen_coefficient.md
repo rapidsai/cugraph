@@ -6,6 +6,7 @@ It is defined as two times the size of the set intersection divided by the sum o
 
 Sørensen coefficient = $\left(2 * |A \cap B| \right) \over \left(|A| + |B| \right)$
 
+
 In graphs, the sets refer to the set of connected nodes or neighborhood of nodes A and B.
 
 [Learn more about Sørensen Coefficient](https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient)
