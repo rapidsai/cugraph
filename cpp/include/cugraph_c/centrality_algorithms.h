@@ -427,6 +427,15 @@ cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_dst_
   cugraph_edge_centrality_result_t* result);
 
 /**
+ * @brief     Get the edge ids from an edge centrality result
+ *
+ * @param [in]   result   The result from an edge centrality algorithm
+ * @return type erased array of edge ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_edge_centrality_result_get_edge_ids(
+  cugraph_edge_centrality_result_t* result);
+
+/**
  * @brief     Get the centrality values from an edge centrality algorithm result
  *
  * @param [in]   result   The result from an edge centrality algorithm
