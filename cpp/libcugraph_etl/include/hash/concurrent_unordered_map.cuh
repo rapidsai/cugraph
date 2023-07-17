@@ -27,7 +27,7 @@
 
 #include <cudf/detail/nvtx/ranges.hpp>
 #include <cudf/detail/utilities/device_atomics.cuh>
-#include <cudf/detail/utilities/hash_functions.cuh>
+#include <cudf/hashing/detail/hash_functions.cuh>
 #include <cudf/utilities/error.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
