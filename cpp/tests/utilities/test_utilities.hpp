@@ -486,6 +486,20 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool is_multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+graph_to_device_coo(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, store_transposed, is_multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view);
+
+// If multi-GPU, only the rank 0 GPU holds the valid data
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
 std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
 graph_to_host_csr(
   raft::handle_t const& handle,
