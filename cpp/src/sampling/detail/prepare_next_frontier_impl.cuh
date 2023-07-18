@@ -128,7 +128,7 @@ prepare_next_frontier(
 
     verts.resize(new_verts_size, handle.get_stream());
 
-    thrust::copy(handle.get_thrust_polciy(),
+    thrust::copy(handle.get_thrust_policy(),
                  sampled_src_vertices.begin(),
                  sampled_src_vertices.end(),
                  verts.begin() + current_verts_size);
