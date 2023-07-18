@@ -969,10 +969,8 @@ class EXPERIMENTAL__CuGraphStore:
                 t = t[-1]
 
             if isinstance(t, np.ndarray):
-                t = torch.as_tensor(t, device="cuda")
-            else:
-                t = t.cuda()
-
+                t = torch.as_tensor(t, device="cpu")
+            
             return t
 
         else:
@@ -989,7 +987,6 @@ class EXPERIMENTAL__CuGraphStore:
 
                 t = torch.concatenate([t, u])
 
-            t = t.cuda()
             return t
 
     def _multi_get_tensor(self, attrs: List[CuGraphTensorAttr]) -> List[TensorType]:

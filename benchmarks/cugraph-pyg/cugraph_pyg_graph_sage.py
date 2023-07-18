@@ -355,7 +355,7 @@ def train(bulk_samples_dir: str, output_dir:str, native_times:List[float], devic
         feature_data = load_disk_features(output_meta, node_type, replication_factor=replication_factor)
         print(f'features shape: {feature_data.shape}')
         fs.add_data(
-            torch.as_tensor(feature_data, device=features_device).pin_memory(),
+            torch.as_tensor(feature_data, device=features_device),
             node_type,
             "x",
         )
