@@ -57,13 +57,25 @@ struct pack_bool_t {
   }
 };
 
-template <typename Iterator>
+template <typename index_t, typename Iterator>
 struct indirection_t {
   Iterator first{};
 
-  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(size_t i) const
+  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(index_t i) const
   {
     return *(first + i);
+  }
+};
+
+template <typename index_t, typename Iterator>
+struct indirection_if_idx_valid_t {
+  Iterator first{};
+  index_t invalid_idx{};
+  typename thrust::iterator_traits<Iterator>::value_type invalid_value{};
+
+  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(index_t i) const
+  {
+    return (i != invalid_idx) ? *(first + i) : invalid_value;
   }
 };
 
