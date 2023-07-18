@@ -651,7 +651,7 @@ def uniform_neighbor_sample(
         included as one dataframe, or to instead return two
         dataframes, one with sampling results and one with
         batch ids and their start offsets per rank.
-    
+
     return_hops: bool, optional (default=True)
         Whether to return the sampling results with hop ids
         corresponding to the hop where the edge appeared.

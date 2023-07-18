@@ -773,7 +773,7 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
             with_edge_properties=True,
             with_batch_ids=True,
             random_state=62,
-            prior_sources_behavior='exclude',
+            prior_sources_behavior="exclude",
         )
         .sort_values(by="hop_id")
         .compute()
@@ -806,7 +806,7 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = G.select_random_vertices(62, int(.001 * len(el)))
+    seeds = G.select_random_vertices(62, int(0.001 * len(el)))
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
@@ -815,7 +815,7 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
         with_replacement=False,
         with_edge_properties=True,
         with_batch_ids=False,
-        prior_sources_behavior='exclude',
+        prior_sources_behavior="exclude",
     ).compute()
 
     for hop in range(5):
@@ -862,7 +862,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
             with_edge_properties=True,
             with_batch_ids=True,
             random_state=62,
-            prior_sources_behavior='carryover',
+            prior_sources_behavior="carryover",
         )
         .sort_values(by="hop_id")[["sources", "destinations", "hop_id"]]
         .compute()
@@ -900,7 +900,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = G.select_random_vertices(62, int(.001 * len(el)))
+    seeds = G.select_random_vertices(62, int(0.001 * len(el)))
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
@@ -909,7 +909,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
         with_replacement=False,
         with_edge_properties=True,
         with_batch_ids=False,
-        prior_sources_behavior='carryover',
+        prior_sources_behavior="carryover",
     ).compute()
 
     for hop in range(4):
@@ -935,7 +935,7 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
     G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
-    seeds = G.select_random_vertices(62, int(.001 * len(el)))
+    seeds = G.select_random_vertices(62, int(0.001 * len(el)))
 
     sampling_results = cugraph.dask.uniform_neighbor_sample(
         G,
