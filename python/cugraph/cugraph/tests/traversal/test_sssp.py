@@ -14,33 +14,24 @@
 import gc
 import time
 
-import numpy as np
 import pytest
+import numpy as np
 import pandas as pd
-import cupy as cp
+import networkx as nx
+
+import cudf
 import cupyx
+import cugraph
+import cupy as cp
 from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
-import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
-
-import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS, SMALL_DATASETS
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 print("Networkx version : {} ".format(nx.__version__))
 

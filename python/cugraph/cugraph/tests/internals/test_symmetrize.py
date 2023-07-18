@@ -14,8 +14,8 @@
 import gc
 
 import pytest
-
 import pandas as pd
+
 import cudf
 import cugraph
 from cugraph.testing import DEFAULT_DATASETS

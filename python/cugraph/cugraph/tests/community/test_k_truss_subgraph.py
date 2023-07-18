@@ -14,26 +14,14 @@
 import gc
 
 import pytest
-
+import networkx as nx
 import numpy as np
-from numba import cuda
 
 import cugraph
 from cugraph.testing import utils
 from cugraph.datasets import polbooks, ktruss_polbooks, karate_asymmetric
+from numba import cuda
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-
-print("Networkx version : {} ".format(nx.__version__))
 
 DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
 

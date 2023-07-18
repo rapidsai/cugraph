@@ -15,8 +15,8 @@ import gc
 import time
 
 import pytest
-
 import networkx as nx
+
 import cugraph
 import cudf
 from cugraph.testing import utils, UNDIRECTED_DATASETS

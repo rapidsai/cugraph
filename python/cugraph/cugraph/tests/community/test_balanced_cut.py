@@ -12,11 +12,12 @@
 # limitations under the License.
 
 import gc
-import random
 
+import random
 import pytest
 import networkx as nx
 import pandas as pd
+
 import cudf
 import cugraph
 from cugraph.testing import DEFAULT_DATASETS

@@ -15,11 +15,11 @@
 
 import gc
 
-import pandas as pd
 import pytest
+import pandas as pd
+
 import cudf
 from cudf.testing import assert_series_equal
-
 from cugraph.structure.number_map import NumberMap
 from cugraph.testing import utils, DEFAULT_DATASETS
 

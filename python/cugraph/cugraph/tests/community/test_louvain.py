@@ -12,9 +12,10 @@
 # limitations under the License.
 
 import gc
-import time
 
+import time
 import pytest
+import networkx as nx
 
 import cugraph
 import cupyx
@@ -22,16 +23,6 @@ import cudf
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 from cugraph.datasets import karate_asymmetric
 
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, these import community and import networkx need to be
-# relocated in the third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 try:
     import community

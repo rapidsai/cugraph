@@ -11,14 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import tempfile
+
 import pytest
 
 import cudf
 import dask_cudf
-
-import tempfile
-import os
-
 from cugraph.gnn.data_loading.bulk_sampler_io import write_samples
 
 

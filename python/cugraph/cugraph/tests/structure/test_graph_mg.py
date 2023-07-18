@@ -12,23 +12,24 @@
 # limitations under the License.
 import gc
 import random
-import copy
-import pytest
-import cupy
-from dask.distributed import wait
-import cudf
-import dask_cudf
-from pylibcugraph import bfs as pylibcugraph_bfs
-from pylibcugraph import ResourceHandle
-from pylibcugraph.testing.utils import gen_fixture_params_product
-from cudf.testing.testing import assert_frame_equal
 
+import pytest
+import copy
+
+import cupy
+import cudf
 import cugraph
+import dask_cudf
 import cugraph.dask as dcg
-from cugraph.testing import utils
-from cugraph.dask.traversal.bfs import convert_to_cudf
 import cugraph.dask.comms.comms as Comms
+from cugraph.testing import utils
+from dask.distributed import wait
+from pylibcugraph import ResourceHandle
+from pylibcugraph import bfs as pylibcugraph_bfs
+from cudf.testing.testing import assert_frame_equal
+from cugraph.dask.traversal.bfs import convert_to_cudf
 from cugraph.dask.common.input_utils import get_distributed_data
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================

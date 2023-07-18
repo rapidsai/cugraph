@@ -12,15 +12,14 @@
 # limitations under the License.
 
 import gc
+from pathlib import PurePath
 
 import pytest
 import networkx as nx
-import cugraph
 
+import cugraph
 from cugraph.testing import utils
 from cugraph.datasets import karate, dolphins, netscience
-
-from pathlib import PurePath
 
 
 def cugraph_call(G, min_weight, ensemble_size):

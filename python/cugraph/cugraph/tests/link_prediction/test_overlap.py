@@ -12,17 +12,16 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 import numpy as np
 import scipy
 
 import cudf
-from cudf.testing import assert_series_equal, assert_frame_equal
-
-from cugraph.experimental import overlap as exp_overlap
-
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.experimental import overlap as exp_overlap
+from cudf.testing import assert_series_equal, assert_frame_equal
 
 
 # =============================================================================

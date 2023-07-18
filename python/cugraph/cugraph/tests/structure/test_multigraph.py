@@ -14,8 +14,8 @@
 import gc
 
 import pytest
-import networkx as nx
 import numpy as np
+import networkx as nx
 
 import cugraph
 from cugraph.testing import utils, DEFAULT_DATASETS

@@ -12,13 +12,14 @@
 # limitations under the License.
 
 import gc
+
 import time
 from collections import defaultdict
-import warnings
 
 import pytest
 import cupy as cp
 import numpy as np
+import networkx as nx
 from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
 from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
 from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
@@ -34,16 +35,6 @@ from cugraph.datasets import dolphins, netscience, email_Eu_core
 
 
 DATASETS_BATCH = [dolphins, netscience, email_Eu_core]
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
 
 
 print("Networkx version : {} ".format(nx.__version__))

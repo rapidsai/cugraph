@@ -11,15 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import tempfile
+
 import pytest
+
 import cudf
 import cupy
 import cugraph
 from cugraph.datasets import karate
 from cugraph.experimental.gnn import BulkSampler
-
-import tempfile
-import os
 
 
 @pytest.mark.sg

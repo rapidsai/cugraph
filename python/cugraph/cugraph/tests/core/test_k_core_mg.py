@@ -14,14 +14,14 @@
 import gc
 
 import pytest
-import dask_cudf
-from cudf.testing.testing import assert_frame_equal
-from pylibcugraph.testing import gen_fixture_params_product
 
+import dask_cudf
 import cugraph
-from cugraph.testing import utils
 import cugraph.dask as dcg
+from cugraph.testing import utils
+from cudf.testing.testing import assert_frame_equal
 from cugraph.structure.symmetrize import symmetrize_df
+from pylibcugraph.testing import gen_fixture_params_product
 
 
 # =============================================================================

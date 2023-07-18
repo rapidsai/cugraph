@@ -15,33 +15,22 @@ import gc
 import random
 
 import pytest
-import pandas as pd
 import cupy as cp
 import numpy as np
-from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
-from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
-from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
+import pandas as pd
+import networkx as nx
+import networkx.algorithms.centrality.betweenness as nxacb
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
+
 import cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
-
 import cugraph
+from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
+from pylibcugraph.testing.utils import gen_fixture_params_product
 from cugraph.testing import utils, DEFAULT_DATASETS, SMALL_DATASETS
-
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-    import networkx.algorithms.centrality.betweenness as nxacb
 
 
 # =============================================================================

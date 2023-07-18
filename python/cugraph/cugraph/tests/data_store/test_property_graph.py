@@ -17,10 +17,15 @@ import gc
 import pytest
 import pandas as pd
 import numpy as np
+
 import cudf
 import cupy as cp
+import cugraph
+from cugraph.generators import rmat
+from cugraph.datasets import cyber
 from cudf.testing import assert_frame_equal, assert_series_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
+
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -43,10 +48,6 @@ except ImportError:
     from pandas.core.common import (
         SettingWithCopyWarning as pandas_SettingWithCopyWarning,
     )
-
-import cugraph
-from cugraph.generators import rmat
-from cugraph.datasets import cyber
 
 
 def type_is_categorical(pG):
