@@ -16,25 +16,23 @@ on:
 jobs:
   conda-cpp-tests:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@cuda-120
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@branch-23.08
     with:
-      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
   conda-python-tests:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@cuda-120
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@branch-23.08
     with:
-      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@cuda-120
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.08
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
@@ -46,7 +44,7 @@ jobs:
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets python -m pytest -v ./python/pylibcugraph/pylibcugraph/tests"
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@cuda-120
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.08
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
