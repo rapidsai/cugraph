@@ -170,12 +170,21 @@ files:
       # list is really minimal or if it is a superset.
       - test_python_common
       - test_python_cugraph
+  cugraph_dgl_dev:
+    matrix:
+      cuda: ["11.8"]
+    output: conda
+    conda_dir: python/cugraph-dgl/conda
+    includes:
+      - cugraph_dgl_dev
 channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
   - conda-forge
   - nvidia
+  - pytorch
+  - dglteam/label/cu118
 dependencies:
   checks:
     common:
@@ -434,3 +443,15 @@ dependencies:
       - output_types: [conda, pyproject]
         packages:
           - *cudf
+  cugraph_dgl_dev:
+    common:
+      - output_types: [conda]
+        packages:
+          - cugraph==23.8.*
+          - pylibcugraphops==23.8.*
+          - pytorch>=2.0
+          - pytorch-cuda==11.8
+          - dgl>=1.1.0.cu*
+          - setuptools
+          - pre-commit
+          - pytest
