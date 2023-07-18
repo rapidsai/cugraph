@@ -18,6 +18,7 @@
 #include <community/detail/common_methods.hpp>
 
 #include <detail/graph_partition_utils.cuh>
+#include <prims/kv_store.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_op.cuh>
@@ -42,6 +43,11 @@
 
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
+// FIXME: a temporary workaround for a compiler error, should be deleted once cuco gets patched.
+namespace cuco {
+template <>
+struct is_bitwise_comparable<cuco::pair<int32_t, float>> : std::true_type {};
+}  // namespace cuco
 
 namespace cugraph {
 namespace detail {
