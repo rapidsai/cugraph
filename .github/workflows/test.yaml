@@ -18,6 +18,7 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@cuda-120
     with:
+      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
@@ -26,6 +27,7 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@cuda-120
     with:
+      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
@@ -41,7 +43,7 @@ jobs:
       package-name: pylibcugraph
       # On arm also need to install cupy from the specific webpage.
       test-before-arm64: "pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets python -m pytest -v ./python/pylibcugraph/pylibcugraph/tests"
   wheel-tests-cugraph:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@cuda-120
@@ -52,7 +54,7 @@ jobs:
       sha: ${{ inputs.sha }}
       package-name: cugraph
       # Always want to test against latest dask/distributed.
-      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
+      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.08"
       # On arm also need to install cupy from the specific webpage.
-      test-before-arm64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -v -m sg ./python/cugraph/cugraph/tests"
+      test-before-arm64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.08"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets python -m pytest -v -m sg ./python/cugraph/cugraph/tests"

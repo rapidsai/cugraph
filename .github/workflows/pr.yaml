@@ -35,6 +35,7 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@cuda-120
     with:
+      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: pull-request
       node_type: cpu16
   conda-cpp-tests:
@@ -42,18 +43,21 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@cuda-120
     with:
+      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: pull-request
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-build.yaml@cuda-120
     with:
+      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: pull-request
   conda-python-tests:
     needs: conda-python-build
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@cuda-120
     with:
+      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: pull-request
   conda-notebook-tests:
     needs: conda-python-build
@@ -63,7 +67,7 @@ jobs:
       build_type: pull-request
       node_type: "gpu-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci:latest"
+      container_image: "rapidsai/ci:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/test_notebooks.sh"
   docs-build:
     needs: conda-python-build
@@ -73,7 +77,7 @@ jobs:
       build_type: pull-request
       node_type: "gpu-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci:latest"
+      container_image: "rapidsai/ci:cuda11.8.0-ubuntu22.04-py3.10"
       run_script: "ci/build_docs.sh"
   wheel-build-pylibcugraph:
     needs: checks
@@ -97,7 +101,7 @@ jobs:
       package-name: pylibcugraph
       # On arm also need to install cupy from the specific webpage.
       test-before-arm64: "pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets python -m pytest -v ./python/pylibcugraph/pylibcugraph/tests"
       test-smoketest: "python ci/wheel_smoke_test_pylibcugraph.py"
   wheel-build-cugraph:
     needs: wheel-tests-pylibcugraph
@@ -124,6 +128,6 @@ jobs:
       test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
       # Skip dataset downloads on arm to save CI time -- arm only runs smoke tests.
       # On arm also need to install cupy from the specific site.
-      test-before-arm64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_cu11 rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.06"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets pytest -v -m sg ./python/cugraph/cugraph/tests"
+      test-before-arm64: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_${{ '${PIP_CU_VERSION}' }} rapids-download-wheels-from-s3 ./local-pylibcugraph-dep && pip install --no-deps ./local-pylibcugraph-dep/*.whl && pip install 'cupy-cuda11x<12.0.0' -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.08"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets python -m pytest -v -m sg ./python/cugraph/cugraph/tests"
       test-smoketest: "python ci/wheel_smoke_test_cugraph.py"

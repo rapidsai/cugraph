@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,12 +61,17 @@ void check_correctness(
 
   EXPECT_EQ(error_count, 0) << "destination error count is non-zero";
 
-  auto [graph_src, graph_dst, graph_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt},
-                                    false);
+  rmm::device_uvector<vertex_t> graph_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> graph_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> graph_wgt{std::nullopt};
+
+  std::tie(graph_src, graph_dst, graph_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+    false);
 
   // Now we'll count how many edges should be in the subgraph
   auto expected_edge_count =

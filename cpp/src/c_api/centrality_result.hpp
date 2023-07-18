@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,14 @@ namespace c_api {
 struct cugraph_centrality_result_t {
   cugraph_type_erased_device_array_t* vertex_ids_{};
   cugraph_type_erased_device_array_t* values_{};
+  size_t num_iterations_{0};
+  bool converged_{false};
 };
 
 struct cugraph_edge_centrality_result_t {
   cugraph_type_erased_device_array_t* src_ids_{};
   cugraph_type_erased_device_array_t* dst_ids_{};
+  cugraph_type_erased_device_array_t* edge_ids_{};
   cugraph_type_erased_device_array_t* values_{};
 };
 

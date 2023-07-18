@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,11 +44,16 @@ egonet_reference(
   int radius)
 {
 #if 1
-  auto [d_coo_src, d_coo_dst, d_coo_wgt] =
-    cugraph::decompress_to_edgelist(handle,
-                                    graph_view,
-                                    edge_weight_view,
-                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  rmm::device_uvector<vertex_t> d_coo_src(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_coo_dst(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_coo_wgt{std::nullopt};
+
+  std::tie(d_coo_src, d_coo_dst, d_coo_wgt, std::ignore) = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    edge_weight_view,
+    std::optional<edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 #else
   // FIXME: This should be faster (smaller list of edges to operate on), but uniform_nbr_sample
   // doesn't preserve multi-edges (which is probably a bug)
