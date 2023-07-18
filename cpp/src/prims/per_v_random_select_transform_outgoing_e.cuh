@@ -399,11 +399,12 @@ rmm::device_uvector<edge_t> get_sampling_index_without_replacement(
         if (retry_segment_indices) {
           retry_degrees =
             rmm::device_uvector<edge_t>((*retry_segment_indices).size(), handle.get_stream());
-          thrust::transform(handle.get_thrust_policy(),
-                            (*retry_segment_indices).begin(),
-                            (*retry_segment_indices).end(),
-                            (*retry_degrees).begin(),
-                            indirection_t<decltype(segment_degree_first)>{segment_degree_first});
+          thrust::transform(
+            handle.get_thrust_policy(),
+            (*retry_segment_indices).begin(),
+            (*retry_segment_indices).end(),
+            (*retry_degrees).begin(),
+            indirection_t<size_t, decltype(segment_degree_first)>{segment_degree_first});
           retry_sample_nbr_indices = rmm::device_uvector<edge_t>(
             (*retry_segment_indices).size() * high_partition_over_sampling_K, handle.get_stream());
           retry_sample_indices = rmm::device_uvector<int32_t>(
