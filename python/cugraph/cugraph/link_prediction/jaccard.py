@@ -83,6 +83,10 @@ def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
+    
+    do_expensive_check: bool (default=True)
+        When set to True, check if the vertices in the graph are (re)numbered
+        from 0 to V-1 where V is the total number of vertices.
 
     Returns
     -------

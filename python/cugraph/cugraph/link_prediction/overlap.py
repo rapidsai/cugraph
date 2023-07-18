@@ -73,6 +73,10 @@ def overlap(input_graph, vertex_pair=None, do_expensive_check=True):
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
+    
+    do_expensive_check: bool (default=True)
+        When set to True, check if the vertices in the graph are (re)numbered
+        from 0 to V-1 where V is the total number of vertices.
 
     Returns
     -------
