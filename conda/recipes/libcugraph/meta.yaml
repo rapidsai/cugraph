@@ -59,6 +59,7 @@ requirements:
     - libcusparse {{ cuda11_libcusparse_host_version }}
     - libcusparse-dev {{ cuda11_libcusparse_host_version }}
     {% else %}
+    - cuda-nvtx-dev
     - cuda-profiler-api
     - cuda-cudart-dev
     - libcublas-dev
