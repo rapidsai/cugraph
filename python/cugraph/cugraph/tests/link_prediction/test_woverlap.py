@@ -159,3 +159,14 @@ def test_woverlap_multi_column(graph_file):
     actual = df_res.sort_values("0_first").reset_index()
     expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
+
+
+@pytest.mark.sg
+def test_invalid_datasets_overlap_w():
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.overlap_w(G, None)
