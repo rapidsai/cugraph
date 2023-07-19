@@ -140,8 +140,7 @@ def betweenness_centrality(
     To improve performance. rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
-    CuGraph does not currently support 'weight' parameters as seen in the
-    corresponding networkX call.
+    CuGraph does not currently support 'weight' parameters.
 
     Parameters
     ----------
@@ -167,6 +166,7 @@ def betweenness_centrality(
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
+        (Not Supported)
 
     endpoints : bool, optional (default=False)
         If true, include the endpoints in the shortest path counts.
@@ -288,8 +288,7 @@ def edge_betweenness_centrality(
     To improve performance. rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
-    CuGraph does not currently support 'weight' parameters as seen in the
-    corresponding networkX call.
+    CuGraph does not currently support 'weight' parameters.
 
     Parameters
     ----------
@@ -315,6 +314,7 @@ def edge_betweenness_centrality(
         Specifies the weights to be used for each edge.
         Should contain a mapping between
         edges and weights.
+        (Not Supported)
 
     random_state : int, optional (default=None)
         if k is specified and k is an integer, use random_state to initialize the
@@ -339,7 +339,7 @@ def edge_betweenness_centrality(
             Contains the betweenness centrality of edges
 
         ddf["edge_id"] : dask_cudf.Series
-            Contains the edge ids of edges if there are.
+            Contains the edge ids of edges if present.
 
     Examples
     --------
