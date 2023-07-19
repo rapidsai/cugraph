@@ -750,7 +750,7 @@ def test_create_sg_graph(graph_file):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_create_graph_with_edge_ids__(graph_file):
+def test_create_graph_with_edge_ids(graph_file):
     el = utils.read_csv_file(graph_file)
     el["id"] = cupy.random.permutation(len(el))
     el["id"] = el["id"].astype(el["1"].dtype)
