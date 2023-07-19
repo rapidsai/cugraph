@@ -101,9 +101,40 @@ def edge_betweenness_centrality(ResourceHandle resource_handle,
     
     Returns
     -------
+    A tuple of device arrays corresponding to the sources, destinations, edge
+    betweenness centrality scores and edge ids (if provided).
 
+    array containing the vertices and the second item in the tuple is a device
+    array containing the eigenvector centrality scores for the corresponding
+    vertices.
     Examples
     --------
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5],
+    ...     dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4],
+    ...     dtype=numpy.int32)
+    >>> edge_ids = cupy.asarray(
+    ...     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    ...     dtype=numpy.int32)
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, store_transposed=False,
+    ...     renumber=False, do_expensive_check=False, edge_id_array=edge_ids)
+    >>> (srcs, dsts, values, edge_ids) = pylibcugraph.edge_betweenness_centrality(
+            resource_handle, G, None, None, True, False)
+    >>> srcs
+    [0 0 1 1 1 1 2 2 2 3 3 3 4 4 5 5]
+    >>> dsts
+    [1 2 0 2 3 4 0 1 3 1 2 5 1 5 3 4]
+    >>> values
+    [0.10555556 0.06111111 0.10555556 0.06666667 0.09444445 0.14444445
+     0.06111111 0.06666667 0.09444445 0.09444445 0.09444445 0.12222222
+     0.14444445 0.07777778 0.12222222 0.07777778]
+    >>> edge_ids
+    [ 0 11  8 12  1  2  3  4  5  9 13  6 10  7 14 15]
 
     """
 
