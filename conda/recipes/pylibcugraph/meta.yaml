@@ -58,8 +58,6 @@ requirements:
     - libcugraph ={{ version }}
     - pylibraft ={{ minor_version }}
     - python
-    # TODO: Remove rmm once https://github.com/rapidsai/raft/pull/1656 is merged (fixes pylibraft use of rmm)
-    - rmm ={{ minor_version }}
     - scikit-build >=0.13.1
     - setuptools
   run:
