@@ -69,7 +69,6 @@ def edge_betweenness_centrality(ResourceHandle resource_handle,
     score has more paths passing over it and is therefore believed to be
     more important.
 
-
     Parameters
     ----------
     resource_handle : ResourceHandle
@@ -82,11 +81,10 @@ def edge_betweenness_centrality(ResourceHandle resource_handle,
     k : int or device array type or None, optional (default=None)
         If k is not None, use k node samples to estimate the edge betweenness.
         Higher values give better approximation.  If k is a device array type,
-        use the content of the list for estimation: the list should contain
-        vertex identifiers. If k is None (the default), all the vertices are
-        used to estimate the edge betweenness.  Vertices obtained through sampling or
-        defined as a list will be used as sources for traversals inside the
-        algorithm.
+        the contents are assumed to be vertex identifiers to be used for estimation.
+        If k is None (the default), all the vertices are used to estimate the edge
+        betweenness.  Vertices obtained through sampling or defined as a list will
+        be used as sources for traversals inside the algorithm.
 
     random_state : int, optional (default=None)
         if k is specified and k is an integer, use random_state to initialize the

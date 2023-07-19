@@ -45,7 +45,6 @@ NORMALIZED_OPTIONS = [False, True]
 DEFAULT_EPSILON = 0.0001
 
 SUBSET_SIZE_OPTIONS = [4, None]
-SUBSET_SEED_OPTIONS = [42]
 
 # NOTE: The following is not really being exploited in the tests as the
 # datasets that are used are too small to compare, but it ensures that both
@@ -316,7 +315,6 @@ def generate_upper_triangle(dataframe):
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality(
@@ -325,7 +323,6 @@ def test_edge_betweenness_centrality(
     subset_size,
     normalized,
     weight,
-    subset_seed,
     result_dtype,
     edgevals,
 ):
@@ -335,7 +332,7 @@ def test_edge_betweenness_centrality(
         normalized=normalized,
         k=subset_size,
         weight=weight,
-        seed=subset_seed,
+        seed=42,
         result_dtype=result_dtype,
         edgevals=edgevals,
     )
@@ -348,7 +345,6 @@ def test_edge_betweenness_centrality(
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("use_k_full", [True])
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
@@ -359,7 +355,6 @@ def test_edge_betweenness_centrality_k_full(
     subset_size,
     normalized,
     weight,
-    subset_seed,
     result_dtype,
     use_k_full,
     edgevals,
@@ -372,7 +367,7 @@ def test_edge_betweenness_centrality_k_full(
         normalized=normalized,
         k=subset_size,
         weight=weight,
-        seed=subset_seed,
+        seed=42,
         result_dtype=result_dtype,
         use_k_full=use_k_full,
         edgevals=edgevals,
@@ -390,7 +385,6 @@ def test_edge_betweenness_centrality_k_full(
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("subset_seed", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 @pytest.mark.skip(reason="Skipping large tests")
@@ -400,7 +394,6 @@ def test_edge_betweenness_centrality_fixed_sample(
     subset_size,
     normalized,
     weight,
-    subset_seed,
     result_dtype,
     edgevals,
 ):
@@ -414,7 +407,7 @@ def test_edge_betweenness_centrality_fixed_sample(
         k=subset_size,
         normalized=normalized,
         weight=weight,
-        seed=subset_seed,
+        seed=None,
         result_dtype=result_dtype,
         edgevals=edgevals,
     )
@@ -427,7 +420,6 @@ def test_edge_betweenness_centrality_fixed_sample(
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("weight", [[]])
-@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 @pytest.mark.skip(reason="Skipping large tests")
@@ -437,7 +429,6 @@ def test_edge_betweenness_centrality_weight_except(
     subset_size,
     normalized,
     weight,
-    subset_seed,
     result_dtype,
     edgevals,
 ):
@@ -453,7 +444,7 @@ def test_edge_betweenness_centrality_weight_except(
             k=subset_size,
             normalized=normalized,
             weight=weight,
-            seed=subset_seed,
+            seed=42,
             result_dtype=result_dtype,
             edgevals=edgevals,
         )
@@ -466,7 +457,6 @@ def test_edge_betweenness_centrality_weight_except(
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", [str])
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_invalid_dtype(
@@ -475,7 +465,6 @@ def test_edge_betweenness_invalid_dtype(
     subset_size,
     normalized,
     weight,
-    subset_seed,
     result_dtype,
     edgevals,
 ):
@@ -488,7 +477,7 @@ def test_edge_betweenness_invalid_dtype(
             k=subset_size,
             normalized=normalized,
             weight=weight,
-            seed=subset_seed,
+            seed=42,
             result_dtype=result_dtype,
             edgevals=edgevals,
         )
@@ -527,6 +516,6 @@ def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normaliz
                 type(networkx_bc[i][1]),
             )
             diff = abs(cugraph_bc[i][1] - networkx_bc[i][1])
-            print(f"{cugraph_bc[i][1]} and {networkx_bc[i][1]} ---- diff = {diff}")
+            # print(f"{cugraph_bc[i][1]} and {networkx_bc[i][1]} ---- diff = {diff}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_bc))

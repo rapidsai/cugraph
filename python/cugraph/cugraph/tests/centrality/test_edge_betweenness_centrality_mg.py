@@ -38,7 +38,6 @@ INCLUDE_WEIGHTS = [False, True]
 INCLUDE_EDGE_IDS = [False, True]
 NORMALIZED_OPTIONS = [False, True]
 SUBSET_SIZE_OPTIONS = [4, None]
-SUBSET_SEED_OPTIONS = [42]
 
 
 # FIXME: edge_bc fails on 8 GPUs when running the email_Eu_core datasets
@@ -60,7 +59,6 @@ fixture_params = gen_fixture_params_product(
     (INCLUDE_EDGE_IDS, "include_edgeids"),
     (NORMALIZED_OPTIONS, "normalized"),
     (SUBSET_SIZE_OPTIONS, "subset_size"),
-    (SUBSET_SEED_OPTIONS, "subset_seed"),
 )
 
 
@@ -99,7 +97,7 @@ def input_expected_output(input_combo):
     directed = input_combo["directed"]
     normalized = input_combo["normalized"]
     k = input_combo["subset_size"]
-    subset_seed = input_combo["subset_seed"]
+    subset_seed = 42
     edge_ids = input_combo["include_edge_ids"]
     weight = input_combo["include_weights"]
 
