@@ -20,7 +20,7 @@ import cudf
 from cudf.testing import assert_series_equal
 
 import cugraph
-from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.testing import utils, DATASETS_UNDIRECTED
 
 
 # =============================================================================
@@ -93,7 +93,7 @@ def cpu_call(M, first, second):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_woverlap(gpubenchmark, graph_file):
     dataset_path = graph_file.get_path()
     Mnx = utils.read_csv_for_nx(dataset_path)
@@ -121,7 +121,7 @@ def test_woverlap(gpubenchmark, graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_woverlap_multi_column(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)

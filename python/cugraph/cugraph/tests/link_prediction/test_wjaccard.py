@@ -20,7 +20,7 @@ import cudf
 from cudf.testing import assert_series_equal
 
 import cugraph
-from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.testing import utils, DATASETS_UNDIRECTED
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -96,7 +96,7 @@ def networkx_call(M, benchmark_callable=None):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
+@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
