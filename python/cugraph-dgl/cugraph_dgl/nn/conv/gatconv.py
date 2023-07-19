@@ -19,12 +19,10 @@ from typing import Optional, Tuple, Union
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
-from pylibcugraphops.pytorch import CSC
-from pylibcugraphops.pytorch.operators import mha_gat_n2n
-
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(BaseConv):
@@ -179,7 +177,7 @@ class GATConv(BaseConv):
         bipartite = not isinstance(nfeat, torch.Tensor)
         offsets, indices, _ = g.adj_tensors("csc")
 
-        graph = CSC(
+        graph = ops_torch.CSC(
             offsets=offsets,
             indices=indices,
             num_src_nodes=g.num_src_nodes(),
@@ -212,7 +210,7 @@ class GATConv(BaseConv):
                 )
             nfeat = self.fc(nfeat)
 
-        out = mha_gat_n2n(
+        out = ops_torch.operators.mha_gat_n2n(
             (nfeat_src, nfeat_dst) if bipartite else nfeat,
             self.attn_weights,
             graph,
