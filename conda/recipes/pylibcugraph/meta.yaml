@@ -45,6 +45,7 @@ requirements:
     {% else %}
     - {{ compiler('cuda') }}
     {% endif %}
+    - cuda-version ={{ cuda_version }}
     - cmake {{ cmake_version }}
     - ninja
     - sysroot_{{ target_platform }} {{ sysroot_version }}
