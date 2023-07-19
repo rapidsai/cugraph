@@ -202,6 +202,7 @@ def test_nx_jaccard_time(read_csv, gpubenchmark):
 
 @pytest.mark.sg
 @pytest.mark.parametrize("graph_file", [netscience])
+@pytest.mark.skip(reason="Skipping because this datasets is unrenumbered")
 def test_jaccard_edgevals(gpubenchmark, graph_file):
     dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
@@ -326,3 +327,14 @@ def test_weighted_exp_jaccard():
     use_weight = True
     with pytest.raises(ValueError):
         exp_jaccard(G, use_weight=use_weight)
+
+
+@pytest.mark.sg
+def test_invalid_datasets_jaccard():
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.jaccard(G)
