@@ -267,6 +267,7 @@ def test_is_directed(dataset):
     assert G.is_directed() == dataset.metadata["is_directed"]
 
 
+# Test experimental for DeprecationWarnings
 def test_experimental_dataset_import():
     warnings.filterwarnings("default")
 

@@ -12,8 +12,6 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-from pylibcugraphops.pytorch.operators import mha_gat_n2n
-
 from cugraph.utilities.utils import import_optional
 
 from .base import BaseConv
@@ -21,6 +19,7 @@ from .base import BaseConv
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 torch_geometric = import_optional("torch_geometric")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATConv(BaseConv):
@@ -211,7 +210,7 @@ class GATConv(BaseConv):
                 )
             x = self.lin(x)
 
-        out = mha_gat_n2n(
+        out = ops_torch.operators.mha_gat_n2n(
             (x_src, x_dst) if bipartite else x,
             self.att,
             graph,
