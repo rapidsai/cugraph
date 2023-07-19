@@ -18,43 +18,14 @@ set +u
 conda activate test
 set -u
 
-RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
-LIBRMM_CHANNEL=$(rapids-get-artifact ci/rmm/pull-request/1223/72e0c74/rmm_conda_cpp_cuda${RAPIDS_CUDA_MAJOR}_$(arch).tar.gz)
-LIBCUDF_CHANNEL=$(rapids-get-artifact ci/cudf/pull-request/12922/28442d2/cudf_conda_cpp_cuda${RAPIDS_CUDA_MAJOR}_$(arch).tar.gz)
-LIBRAFT_CHANNEL=$(rapids-get-artifact ci/raft/pull-request/1388/7bddaee/raft_conda_cpp_cuda${RAPIDS_CUDA_MAJOR}_$(arch).tar.gz)
-LIBCUGRAPHOPS_CHANNEL=$(rapids-get-artifact ci/cugraph-ops/pull-request/464/4fe9810/cugraph-ops_conda_cpp_cuda${RAPIDS_CUDA_MAJOR}_$(arch).tar.gz)
-
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 RAPIDS_TESTS_DIR=${RAPIDS_TESTS_DIR:-"${PWD}/test-results"}/
 mkdir -p "${RAPIDS_TESTS_DIR}"
-
-if [ "${RAPIDS_CUDA_MAJOR}" == 12 ]; then
-cat << EOF > /opt/conda/.condarc
-auto_update_conda: False
-channels:
-  - rapidsai
-  - rapidsai-nightly
-  - dask/label/dev
-  - pytorch
-  - nvidia
-  - conda-forge
-always_yes: true
-number_channel_notices: 0
-conda_build:
-  set_build_id: false
-  root_dir: /tmp/conda-bld-workspace
-  output_folder: /tmp/conda-bld-output
-EOF
-fi
 
 rapids-print-env
 
 rapids-mamba-retry install \
     --channel "${CPP_CHANNEL}" \
-    --channel "${LIBRMM_CHANNEL}" \
-    --channel "${LIBCUDF_CHANNEL}" \
-    --channel "${LIBRAFT_CHANNEL}" \
-    --channel "${LIBCUGRAPHOPS_CHANNEL}" \
     libcugraph libcugraph_etl libcugraph-tests
 
 rapids-logger "Check GPU usage"

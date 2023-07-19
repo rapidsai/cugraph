@@ -25,10 +25,9 @@ gtest_version:
 sysroot_version:
   - "2.17"
 
-# CUDA 11 versions
-
 # The CTK libraries below are missing from the conda-forge::cudatoolkit
-# package. The "*_host_*" version specifiers correspond to `11.8` packages.
+# package. The "*_host_*" version specifiers correspond to `11.8` packages
+# and the "*_run_*" version specifiers correspond to `11.x` packages.
 
 cuda11_libcublas_host_version:
   - "=11.11.3.6"
@@ -63,36 +62,3 @@ cuda11_cuda_profiler_api_host_version:
 
 cuda11_cuda_profiler_api_run_version:
   - ">=11.4.240,<12"
-
-
-# CUDA 12 versions
-
-libcublas_host_version:
-  - "=12.0.1.189"
-
-libcublas_run_version:
-  - ">=12.0.1.189"
-
-libcurand_host_version:
-  - "=10.3.1.50"
-
-libcurand_run_version:
-  - ">=10.3.1.50"
-
-libcusolver_host_version:
-  - "=11.4.2.57"
-
-libcusolver_run_version:
-  - ">=11.4.2.57"
-
-libcusparse_host_version:
-  - "=12.0.0.76"
-
-libcusparse_run_version:
-  - ">=12.0.0.76"
-
-cuda_profiler_api_host_version:
-  - "=12.0.76"
-
-cuda_profiler_api_run_version:
-  - ">=12.0.76"

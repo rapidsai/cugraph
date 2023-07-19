@@ -198,25 +198,27 @@ dependencies:
           - matrix:
               cuda: "12.0"
             packages:
-              - cuda-cudart=12.0
-              - cuda-cudart-dev=12.0
-              - cuda-cudart-static=12.0
+              - cuda-version=12.0
           - matrix:
               cuda: "11.8"
             packages:
-              - cudatoolkit=11.8
+              - cuda-version=11.8
+	      - cudatoolkit
           - matrix:
               cuda: "11.5"
             packages:
-              - cudatoolkit=11.5
+              - cuda-version=11.5
+	      - cudatoolkit
           - matrix:
               cuda: "11.4"
             packages:
-              - cudatoolkit=11.4
+              - cuda-version=11.4
+	      - cudatoolkit
           - matrix:
               cuda: "11.2"
             packages:
-              - cudatoolkit=11.2
+              - cuda-version=11.2
+	      - cudatoolkit
   common_build:
     common:
       - output_types: [conda, pyproject]
@@ -259,16 +261,11 @@ dependencies:
               cuda: "11.8"
             packages:
               - nvcc_linux-aarch64=11.8
-          - matrix:
-              arch: x86_64
-              cuda: "12.0"
-            packages:
-              - cuda-nvcc_linux-64=12.0
-          - matrix:
-              arch: aarch64
-              cuda: "12.0"
-            packages:
-              - cuda-nvcc_linux-aarch64=12.0
+	  - matrix:
+	      cuda: "12.0"
+	    packages:
+	      - cuda-version =12.0
+	      - cuda-nvcc
   docs:
     common:
       - output_types: [conda]
