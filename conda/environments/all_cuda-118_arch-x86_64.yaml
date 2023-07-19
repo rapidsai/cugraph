@@ -6,6 +6,8 @@ channels:
 - dask/label/dev
 - conda-forge
 - nvidia
+- pytorch
+- dglteam/label/cu118
 dependencies:
 - aiohttp
 - c-compiler
