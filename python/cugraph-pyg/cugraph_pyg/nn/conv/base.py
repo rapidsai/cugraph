@@ -18,25 +18,11 @@ from cugraph.utilities.utils import import_optional
 
 torch = import_optional("torch")
 torch_geometric = import_optional("torch_geometric")
-
-try:  # pragma: no cover
-    from pylibcugraphops.pytorch import CSC, HeteroCSC
-
-    HAS_PYLIBCUGRAPHOPS = True
-except ImportError:
-    HAS_PYLIBCUGRAPHOPS = False
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class BaseConv(torch.nn.Module):  # pragma: no cover
     r"""An abstract base class for implementing cugraph-ops message passing layers."""
-
-    def __init__(self):
-        super().__init__()
-
-        if HAS_PYLIBCUGRAPHOPS is False:
-            raise ModuleNotFoundError(
-                f"'{self.__class__.__name__}' requires " f"'pylibcugraphops>=23.04'"
-            )
 
     def reset_parameters(self):
         r"""Resets all learnable parameters of the module."""
@@ -88,7 +74,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         csc: Tuple[torch.Tensor, torch.Tensor, int],
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> CSC:
+    ) -> ops_torch.CSC:
         r"""Constructs a :obj:`cugraph-ops` graph object from CSC representation.
         Supports both bipartite and non-bipartite graphs.
 
@@ -116,7 +102,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         if max_num_neighbors is None:
             max_num_neighbors = -1
 
-        return CSC(
+        return ops_torch.CSC(
             offsets=colptr,
             indices=row,
             num_src_nodes=num_src_nodes,
@@ -131,7 +117,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         num_edge_types: Optional[int] = None,
         bipartite: bool = False,
         max_num_neighbors: Optional[int] = None,
-    ) -> HeteroCSC:
+    ) -> ops_torch.HeteroCSC:
         r"""Constructs a typed :obj:`cugraph` graph object from a CSC
         representation where each edge corresponds to a given edge type.
         Supports both bipartite and non-bipartite graphs.
@@ -162,7 +148,7 @@ class BaseConv(torch.nn.Module):  # pragma: no cover
         row, colptr, num_src_nodes = csc
         edge_type = edge_type.int()
 
-        return HeteroCSC(
+        return ops_torch.HeteroCSC(
             offsets=colptr,
             indices=row,
             edge_types=edge_type,
