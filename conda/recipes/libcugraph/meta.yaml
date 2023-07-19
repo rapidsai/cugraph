@@ -98,16 +98,13 @@ outputs:
         - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         {% if cuda_major == "11" %}
         - cuda-profiler-api {{ cuda11_cuda_profiler_api_run_version }}
-        - cudatoolkit ={{ cuda_version }}
+        - cudatoolkit
         - libcublas {{ cuda11_libcublas_run_version }}
         - libcurand {{ cuda11_libcurand_run_version }}
         - libcusolver {{ cuda11_libcusolver_run_version }}
         - libcusparse {{ cuda11_libcusparse_run_version }}
         {% else %}
         - cuda-profiler-api
-        - cuda-cudart {{ cuda_version }}
-        - cuda-cudart-dev {{ cuda_version }}
-        - cuda-cudart-static {{ cuda_version }}
         - libcublas
         - libcurand
         - libcusolver
@@ -140,8 +137,8 @@ outputs:
       host:
         - cuda-version ={{ cuda_version }}
       run:
-        - {{ pin_subpackage('libcugraph', exact=True) }}
         - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
+        - {{ pin_subpackage('libcugraph', exact=True) }}
         {% if cuda_major == "11" %}
         - cudatoolkit
         {% endif %}
@@ -165,15 +162,14 @@ outputs:
     requirements:
       build:
         - cmake {{ cmake_version }}
+      host:
+        - cuda-version ={{ cuda_version }}
       run:
+        - {{ pin_compatible('cuda-version', max_pin='x', min_pin='x') }}
         - {{ pin_subpackage('libcugraph_etl', exact=True) }}
         - {{ pin_subpackage('libcugraph', exact=True) }}
         {% if cuda_major == "11" %}
-        - cudatoolkit {{ cuda_spec }}
-        {% else %}
-        - cuda-cudart {{ cuda_spec }}
-        - cuda-cudart-dev {{ cuda_spec }}
-        - cuda-cudart-static {{ cuda_spec }}
+        - cudatoolkit
         {% endif %}
         - gmock {{ gtest_version }}
         - gtest {{ gtest_version }}
