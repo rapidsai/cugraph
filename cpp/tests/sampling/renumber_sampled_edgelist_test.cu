@@ -363,13 +363,13 @@ class Tests_RenumberSampledEdgelist
           auto this_label_num_unique_hops = static_cast<size_t>(
             thrust::distance(min_vertices.begin(),
                              thrust::get<1>(thrust::reduce_by_key(handle.get_thrust_policy(),
-                                                   (*unique_src_hops).begin(),
-                                                   (*unique_src_hops).end(),
-                                                   unique_srcs.begin(),
-                                                   thrust::make_discard_iterator(),
-                                                   min_vertices.begin(),
-                                                   thrust::equal_to<vertex_t>{},
-                                                   thrust::minimum<vertex_t>{}))));
+                                                                  (*unique_src_hops).begin(),
+                                                                  (*unique_src_hops).end(),
+                                                                  unique_srcs.begin(),
+                                                                  thrust::make_discard_iterator(),
+                                                                  min_vertices.begin(),
+                                                                  thrust::equal_to<vertex_t>{},
+                                                                  thrust::minimum<vertex_t>{}))));
           min_vertices.resize(this_label_num_unique_hops, handle.get_stream());
 
           thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -416,17 +416,17 @@ TEST_P(Tests_RenumberSampledEdgelist, CheckInt64)
 
 INSTANTIATE_TEST_SUITE_P(small_test,
                          Tests_RenumberSampledEdgelist,
-                         ::testing::Values(RenumberSampledEdgelist_Usecase{16, 64, 1, 1, true},
-                                           RenumberSampledEdgelist_Usecase{16, 64, 3, 1, true},
-                                           RenumberSampledEdgelist_Usecase{16, 512, 1, 8, true},
-                                           RenumberSampledEdgelist_Usecase{16, 512, 3, 8, true}));
+                         ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
+                                           RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
+                                           RenumberSampledEdgelist_Usecase{1024, 32768, 1, 256, true},
+                                           RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
 
 INSTANTIATE_TEST_SUITE_P(
   benchmark_test,
   Tests_RenumberSampledEdgelist,
-  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 1, 1, true},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 5, 1, true},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 28, 1, 1 << 20, true},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 28, 5, 1 << 20, true}));
+  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 1, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 5, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 28, 1, 1 << 20, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 28, 5, 1 << 20, false}));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
