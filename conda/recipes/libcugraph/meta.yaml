@@ -104,7 +104,7 @@ outputs:
         - libcusolver {{ cuda11_libcusolver_run_version }}
         - libcusparse {{ cuda11_libcusparse_run_version }}
         {% else %}
-        - cuda-profiler-api {{ cuda_profiler_api_run_version }}
+        - cuda-profiler-api
         - cuda-cudart {{ cuda_version }}
         - cuda-cudart-dev {{ cuda_version }}
         - cuda-cudart-static {{ cuda_version }}
