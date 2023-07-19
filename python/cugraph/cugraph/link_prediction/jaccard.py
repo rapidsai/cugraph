@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ from cugraph.utilities import (
 )
 
 
-def jaccard(input_graph, vertex_pair=None):
+def jaccard(input_graph, vertex_pair=None, do_expensive_check=True):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -35,6 +35,10 @@ def jaccard(input_graph, vertex_pair=None):
     NOTE: If the vertex_pair parameter is not specified then the behavior
     of cugraph.jaccard is different from the behavior of
     networkx.jaccard_coefficient.
+
+    This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
 
     cugraph.jaccard, in the absence of a specified vertex pair list, will
     use the edges of the graph to construct a vertex pair list and will
@@ -80,6 +84,10 @@ def jaccard(input_graph, vertex_pair=None):
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
 
+    do_expensive_check: bool (default=True)
+        When set to True, check if the vertices in the graph are (re)numbered
+        from 0 to V-1 where V is the total number of vertices.
+
     Returns
     -------
     df  : cudf.DataFrame
@@ -104,6 +112,22 @@ def jaccard(input_graph, vertex_pair=None):
     >>> df = cugraph.jaccard(G)
 
     """
+    if do_expensive_check:
+        if not input_graph.renumbered:
+            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
+            max_vertex = input_df.max().max()
+            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
+                input_df.dtypes[0]
+            )
+            nodes = (
+                cudf.concat([input_df["src"], input_df["dst"]])
+                .unique()
+                .sort_values()
+                .reset_index(drop=True)
+            )
+            if not expected_nodes.equals(nodes):
+                raise ValueError("Unrenumbered vertices are not supported.")
+
     if input_graph.is_directed():
         raise ValueError("Input must be an undirected Graph.")
     if type(vertex_pair) == cudf.DataFrame:
@@ -120,9 +144,13 @@ def jaccard(input_graph, vertex_pair=None):
     return df
 
 
-def jaccard_coefficient(G, ebunch=None):
+def jaccard_coefficient(G, ebunch=None, do_expensive_check=True):
     """
     For NetworkX Compatability.  See `jaccard`
+
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
 
     Parameters
     ----------
