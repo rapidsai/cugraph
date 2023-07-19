@@ -20,7 +20,7 @@ import cudf
 from cudf.testing import assert_series_equal
 
 import cugraph
-from cugraph.testing import utils, DATASETS_UNDIRECTED
+from cugraph.testing import utils, UNDIRECTED_DATASETS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -96,7 +96,7 @@ def networkx_call(M, benchmark_callable=None):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module", params=UNDIRECTED_DATASETS)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
@@ -179,7 +179,7 @@ def test_wjaccard_multi_column(read_csv):
 
 @pytest.mark.sg
 def test_invalid_datasets_jaccard_w():
-    karate = DATASETS_UNDIRECTED[0]
+    karate = UNDIRECTED_DATASETS[0]
     df = karate.get_edgelist()
     df = df.add(1)
     G = cugraph.Graph(directed=False)
