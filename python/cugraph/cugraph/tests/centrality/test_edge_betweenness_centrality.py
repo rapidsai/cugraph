@@ -515,7 +515,7 @@ def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals, normaliz
                 " type nx_bc = ",
                 type(networkx_bc[i][1]),
             )
-            diff = abs(cugraph_bc[i][1] - networkx_bc[i][1])
+            # diff = abs(cugraph_bc[i][1] - networkx_bc[i][1])
             # print(f"{cugraph_bc[i][1]} and {networkx_bc[i][1]} ---- diff = {diff}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_bc))
