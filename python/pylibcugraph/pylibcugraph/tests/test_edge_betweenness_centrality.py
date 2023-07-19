@@ -68,7 +68,8 @@ def _generic_edge_betweenness_centrality_test(
     )
 
     (_, _, values, edge_ids) = edge_betweenness_centrality(
-        resource_handle, G, k, random_state, normalized, do_expensive_check=False)
+        resource_handle, G, k, random_state, normalized, do_expensive_check=False
+    )
 
     result_score_arr = result_score_arr.get()
     result_edge_id_arr = result_edge_id_arr.get()
@@ -100,11 +101,29 @@ def test_edge_betweenness_centrality():
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
     edge_id = cp.array(
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], dtype=np.int32)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], dtype=np.int32
+    )
     result_score = cp.asarray(
-        [0.10555556, 0.06111111, 0.10555556, 0.06666667, 0.09444445, 0.14444445,
-         0.06111111, 0.06666667, 0.09444445, 0.09444445, 0.09444445, 0.12222222,
-         0.14444445, 0.07777778, 0.12222222, 0.07777778], dtype=np.float32)
+        [
+            0.10555556,
+            0.06111111,
+            0.10555556,
+            0.06666667,
+            0.09444445,
+            0.14444445,
+            0.06111111,
+            0.06666667,
+            0.09444445,
+            0.09444445,
+            0.09444445,
+            0.12222222,
+            0.14444445,
+            0.07777778,
+            0.12222222,
+            0.07777778,
+        ],
+        dtype=np.float32,
+    )
     result_edge_ids = cp.asarray([0, 11, 8, 12, 1, 2, 3, 4, 5, 9, 13, 6, 10, 7, 14, 15])
 
     store_transposed = False
@@ -113,6 +132,14 @@ def test_edge_betweenness_centrality():
     normalized = True
 
     _generic_edge_betweenness_centrality_test(
-        src, dst, edge_id, result_score, result_edge_ids,
-        num_edges, store_transposed, k, random_state, normalized
+        src,
+        dst,
+        edge_id,
+        result_score,
+        result_edge_ids,
+        num_edges,
+        store_transposed,
+        k,
+        random_state,
+        normalized,
     )
