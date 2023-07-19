@@ -161,8 +161,6 @@ outputs:
       ignore_run_exports_from:
         {% if cuda_major == "11" %}
         - {{ compiler('cuda11') }}
-        {% else %}
-        - {{ compiler('cuda') }}
         {% endif %}
     requirements:
       build:
