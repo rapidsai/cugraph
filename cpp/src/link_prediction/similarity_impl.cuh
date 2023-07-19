@@ -18,6 +18,7 @@
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/device_span.hpp>
@@ -65,35 +66,64 @@ rmm::device_uvector<weight_t> similarity(
     //  Compute vertex_degree for all vertices, then distribute to each GPU.
     //  Need to use this instead of the dummy properties below
     //
-    auto out_degrees = graph_view.compute_out_degrees(handle);
 
+    rmm::device_uvector<weight_t> weighted_out_degrees =
+      compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+
+    rmm::device_uvector<weight_t> vertex_weights =
+      compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+
+    std::cout << ">>>>>>> WITH WEIGHT .........." << std::endl;
     per_v_pair_transform_dst_nbr_intersection(
       handle,
       graph_view,
       *edge_weight_view,
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
-      out_degrees.begin(),
+      weighted_out_degrees.begin(),
       [functor] __device__(auto v1,
                            auto v2,
-                           auto v1_degree,
-                           auto v2_degree,
+                           auto weight_a,
+                           auto weight_b,
                            auto intersection,
-                           auto properties0,
-                           auto properties1) {
+                           auto intersected_properties_a,
+                           auto intersected_properties_b) {
         for (size_t k = 0; k < intersection.size(); k++) {
           printf("=> %d %f %f\n",
                  static_cast<int>(intersection[k]),
-                 static_cast<float>(properties0[k]),
-                 static_cast<float>(properties1[k]));
+                 static_cast<float>(intersected_properties_a[k]),
+                 static_cast<float>(intersected_properties_b[k]));
         }
 
-        weight_t weight_a                 = 1;
-        weight_t weight_b                 = 1;
-        weight_t min_weight_a_intersect_b = 1;
+        weight_t min_weight_a_intersect_b = weight_t{0};
+        weight_t max_weight_a_intersect_b = weight_t{0};
+        weight_t sum_of_intersected_a     = weight_t{0};
+        weight_t sum_of_intersected_b     = weight_t{0};
+
+        for (size_t k = 0; k < intersection.size(); k++) {
+          min_weight_a_intersect_b +=
+            std::min(intersected_properties_a[k], intersected_properties_b[k]);
+          max_weight_a_intersect_b +=
+            std::max(intersected_properties_a[k], intersected_properties_b[k]);
+          sum_of_intersected_a += intersected_properties_a[k];
+          sum_of_intersected_b += intersected_properties_b[k];
+        }
+
+        weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
+        weight_t sum_of_uniq_b = weight_b - sum_of_intersected_b;
+
+        max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
+
+        printf("=> v1= %d v2 = %d\n", static_cast<int>(v1), static_cast<int>(v2));
+        printf("=>weight_a = %f\n", static_cast<float>(weight_a));
+        printf("=>weight_b = %f\n", static_cast<float>(weight_b));
+        printf("=>min_weight_a_intersect_b = %f\n", static_cast<float>(min_weight_a_intersect_b));
+        printf("=>max_weight_a_intersect_b = %f\n", static_cast<float>(max_weight_a_intersect_b));
+
         return functor.compute_score(static_cast<weight_t>(weight_a),
                                      static_cast<weight_t>(weight_b),
-                                     static_cast<weight_t>(min_weight_a_intersect_b));
+                                     static_cast<weight_t>(min_weight_a_intersect_b),
+                                     static_cast<weight_t>(max_weight_a_intersect_b));
       },
       similarity_score.begin(),
       do_expensive_check);
@@ -102,6 +132,7 @@ rmm::device_uvector<weight_t> similarity(
 
     // CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
   } else {
+    std::cout << ">>>>>>> WITHOUT WEIGHT .........." << std::endl;
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
     //
@@ -119,9 +150,11 @@ rmm::device_uvector<weight_t> similarity(
       out_degrees.begin(),
       [functor] __device__(
         auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection, auto, auto) {
-        return functor.compute_score(static_cast<weight_t>(v1_degree),
-                                     static_cast<weight_t>(v2_degree),
-                                     static_cast<weight_t>(intersection.size()));
+        return functor.compute_score(
+          static_cast<weight_t>(v1_degree),
+          static_cast<weight_t>(v2_degree),
+          static_cast<weight_t>(intersection.size()),
+          static_cast<weight_t>(v1_degree + v2_degree - intersection.size()));
       },
       similarity_score.begin(),
       do_expensive_check);

@@ -166,6 +166,7 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
 
+    /*
     printf("(%d <-> %d) %d %d %d\n",
            static_cast<int>(src),
            static_cast<int>(dst),
@@ -177,6 +178,7 @@ struct call_intersection_op_t {
       printf("%d  ", static_cast<int>(*(intersection.data() + k)));
     }
     printf("\n");
+    */
 
     // if constexpr (std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
     *(major_minor_pair_value_output_first + index) =
@@ -244,6 +246,7 @@ void per_v_pair_transform_dst_nbr_intersection(
 {
   static_assert(!GraphViewType::is_storage_transposed);
 
+  bool DEBUG_CODE  = false;
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
@@ -345,16 +348,17 @@ void per_v_pair_transform_dst_nbr_intersection(
       auto const comm_rank = comm.get_rank();
       auto const comm_size = comm.get_size();
 
-      for (int k = 0; k < comm_size; k++) {
-        comm.barrier();
-        if (comm_rank == k) {
-          std::cout << "Rank :" << comm_rank << ", edge partittion idx = " << i << std::endl;
-          RAFT_CUDA_TRY(cudaDeviceSynchronize());
+      if (DEBUG_CODE)
+        for (int k = 0; k < comm_size; k++) {
+          comm.barrier();
+          if (comm_rank == k) {
+            std::cout << "Rank :" << comm_rank << ", edge partittion idx = " << i << std::endl;
+            RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-          std::cout << "------------------" << std::endl;
+            std::cout << "------------------" << std::endl;
+          }
+          comm.barrier();
         }
-        comm.barrier();
-      }
     }
 
     auto edge_partition =
@@ -424,40 +428,41 @@ void per_v_pair_transform_dst_nbr_intersection(
         auto const comm_rank = comm.get_rank();
         auto const comm_size = comm.get_size();
 
-        for (int k = 0; k < comm_size; k++) {
-          comm.barrier();
-          if (comm_rank == k) {
-            std::cout << "Rank :" << comm_rank << " partition index:" << i << std::endl;
-            RAFT_CUDA_TRY(cudaDeviceSynchronize());
+        if (DEBUG_CODE)
+          for (int k = 0; k < comm_size; k++) {
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank :" << comm_rank << " partition index:" << i << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-            raft::print_device_vector("intersection_offsets",
-                                      intersection_offsets.data(),
-                                      intersection_offsets.size(),
-                                      std::cout);
-
-            raft::print_device_vector("intersection_indices",
-                                      intersection_indices.data(),
-                                      intersection_indices.size(),
-                                      std::cout);
-
-            // if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
-            if (r_nbr_intersection_properties0) {
-              raft::print_device_vector("r_nbr_intersection_properties0",
-                                        r_nbr_intersection_properties0->data(),
-                                        r_nbr_intersection_properties0->size(),
+              raft::print_device_vector("intersection_offsets",
+                                        intersection_offsets.data(),
+                                        intersection_offsets.size(),
                                         std::cout);
-            }
-            if (r_nbr_intersection_properties1) {
-              raft::print_device_vector("r_nbr_intersection_properties1",
-                                        r_nbr_intersection_properties1->data(),
-                                        r_nbr_intersection_properties1->size(),
-                                        std::cout);
-            }
 
-            std::cout << "------------------" << std::endl;
+              raft::print_device_vector("intersection_indices",
+                                        intersection_indices.data(),
+                                        intersection_indices.size(),
+                                        std::cout);
+
+              // if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
+              if (r_nbr_intersection_properties0) {
+                raft::print_device_vector("r_nbr_intersection_properties0",
+                                          r_nbr_intersection_properties0->data(),
+                                          r_nbr_intersection_properties0->size(),
+                                          std::cout);
+              }
+              if (r_nbr_intersection_properties1) {
+                raft::print_device_vector("r_nbr_intersection_properties1",
+                                          r_nbr_intersection_properties1->data(),
+                                          r_nbr_intersection_properties1->size(),
+                                          std::cout);
+              }
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
           }
-          comm.barrier();
-        }
       }
 
       if (unique_vertices) {

@@ -144,6 +144,7 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     std::optional<rmm::device_uvector<weight_t>> weights{};
     std::optional<rmm::device_uvector<vertex_t>> vertices{};
     bool is_symmetric{};
+    std::cout << "graph_file_full_path_: " << graph_file_full_path_ << std::endl;
     auto extension = graph_file_full_path_.substr(graph_file_full_path_.find_last_of(".") + 1);
     if (extension == "mtx") {
       std::tie(srcs, dsts, weights, vertices, is_symmetric) =

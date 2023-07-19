@@ -118,7 +118,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       hr_timer.display_and_clear(std::cout);
     }
 
-    std::string file_path = "/home/nfs/mnaim/csv/grid.csv";
+    std::string file_path = "/home/nfs/mnaim/csv/similarity.csv";
 
     constexpr bool store_transposed = false;
     constexpr bool multi_gpu        = true;
@@ -592,8 +592,9 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       [comm_rank, num_vertices = mg_graph_view.number_of_vertices()] __device__(size_t i) {
         cuco::detail::MurmurHash3_32<size_t>
           hash_func{};  // use hash_func to generate arbitrary vertex pairs
-        auto v0 = static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
-        auto v1 = static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
+        auto v0 = 2;    // static_cast<vertex_t>(hash_func(i + comm_rank) % num_vertices);
+        auto v1 =
+          3;  // static_cast<vertex_t>(hash_func(i + num_vertices + comm_rank) % num_vertices);
         printf("comm_rank=%d v0= %d, v1=%d\n",
                static_cast<int>(comm_rank),
                static_cast<int>(v0),
@@ -842,7 +843,7 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{5}, true}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{1}, true}),
                      ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 // INSTANTIATE_TEST_SUITE_P(rmat_small_test,

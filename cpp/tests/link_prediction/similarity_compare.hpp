@@ -29,10 +29,12 @@ struct test_jaccard_t {
   std::string testname{"Jaccard"};
 
   template <typename weight_t>
-  weight_t compute_score(size_t u_size, size_t v_size, weight_t intersection_count) const
+  weight_t compute_score(weight_t weight_a,
+                         weight_t weight_b,
+                         weight_t a_intersect_b,
+                         weight_t a_union_b) const
   {
-    return static_cast<weight_t>(intersection_count) /
-           static_cast<weight_t>(u_size + v_size - intersection_count);
+    return a_intersect_b / a_union_b;
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -51,9 +53,12 @@ struct test_sorensen_t {
   std::string testname{"Sorensen"};
 
   template <typename weight_t>
-  weight_t compute_score(size_t u_size, size_t v_size, weight_t intersection_count) const
+  weight_t compute_score(weight_t weight_a,
+                         weight_t weight_b,
+                         weight_t a_intersect_b,
+                         weight_t a_union_b) const
   {
-    return static_cast<weight_t>(2 * intersection_count) / static_cast<weight_t>(u_size + v_size);
+    return (2 * a_intersect_b) / (weight_a + weight_b);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -72,10 +77,12 @@ struct test_overlap_t {
   std::string testname{"Overlap"};
 
   template <typename weight_t>
-  weight_t compute_score(size_t u_size, size_t v_size, weight_t intersection_count) const
+  weight_t compute_score(weight_t weight_a,
+                         weight_t weight_b,
+                         weight_t a_intersect_b,
+                         weight_t a_union_b) const
   {
-    return static_cast<weight_t>(intersection_count) /
-           static_cast<weight_t>(std::min(u_size, v_size));
+    return a_intersect_b / std::min(weight_a, weight_b);
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -99,5 +106,13 @@ void similarity_compare(
   std::vector<weight_t>& similarity_score,
   test_t const& test_functor);
 
+template <typename vertex_t, typename weight_t, typename test_t>
+void weighted_similarity_compare(
+  vertex_t num_vertices,
+  std::tuple<std::vector<vertex_t>&, std::vector<vertex_t>&, std::optional<std::vector<weight_t>>&>
+    edge_list,
+  std::tuple<std::vector<vertex_t>&, std::vector<vertex_t>&> vertex_pairs,
+  std::vector<weight_t>& similarity_score,
+  test_t const& test_functor);
 }  // namespace test
 }  // namespace cugraph

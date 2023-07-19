@@ -343,6 +343,10 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
 
 ###################################################################################################
+# - WEIGHTED_SIMILARITY tests ------------------------------------------------------------------------------
+ConfigureTest(WEIGHTED_SIMILARITY_TEST link_prediction/weighted_similarity_test.cpp)
+
+###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
@@ -591,6 +595,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+
+    ###############################################################################################
+    # - MG WEIGHTED_SIMILARITY tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_WEIGHTED_SIMILARITY_TEST link_prediction/mg_weighted_similarity_test.cpp)
 
     ###############################################################################################
     # - MG SIMILARITY tests -----------------------------------------------------------------------

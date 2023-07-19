@@ -27,19 +27,10 @@ struct sorensen_functor_t {
   template <typename weight_t>
   weight_t __device__ compute_score(weight_t cardinality_a,
                                     weight_t cardinality_b,
-                                    weight_t cardinality_a_intersect_b) const
+                                    weight_t cardinality_a_intersect_b,
+                                    weight_t cardinality_a_union_b) const
   {
     return (2 * cardinality_a_intersect_b) / (cardinality_a + cardinality_b);
-  }
-};
-
-struct weighted_sorensen_functor_t {
-  template <typename weight_t>
-  weight_t __device__ compute_score(weight_t weight_a,
-                                    weight_t weight_b,
-                                    weight_t min_weight_a_intersect_b) const
-  {
-    return (2 * min_weight_a_intersect_b) / (weight_a + weight_b);
   }
 };
 
@@ -55,20 +46,12 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
 {
   CUGRAPH_EXPECTS(!graph_view.has_edge_mask(), "unimplemented.");
 
-  if (!edge_weight_view)
-    return detail::similarity(handle,
-                              graph_view,
-                              edge_weight_view,
-                              vertex_pairs,
-                              detail::sorensen_functor_t{},
-                              do_expensive_check);
-  else
-    return detail::similarity(handle,
-                              graph_view,
-                              edge_weight_view,
-                              vertex_pairs,
-                              detail::weighted_sorensen_functor_t{},
-                              do_expensive_check);
+  return detail::similarity(handle,
+                            graph_view,
+                            edge_weight_view,
+                            vertex_pairs,
+                            detail::sorensen_functor_t{},
+                            do_expensive_check);
 }
 
 }  // namespace cugraph
