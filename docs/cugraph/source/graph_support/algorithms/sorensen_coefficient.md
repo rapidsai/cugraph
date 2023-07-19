@@ -24,3 +24,11 @@ In graphs, the sets refer to the set of connected nodes or neighborhood of nodes
 ## How computationally expensive is it?
 While cuGraph's parallelism mitigates run cost, [Big O notation](https://en.wikipedia.org/wiki/Big_O_notation) is still the standard to compare algorithm execution time.
 The cost to run O(n * m) where n is the number of nodes in the graph and m is the number of groups to test. 
+
+___
+Copyright (c) 2023, NVIDIA CORPORATION.
+
+Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+___

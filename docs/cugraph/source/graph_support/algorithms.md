@@ -59,7 +59,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | [Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb)                 | __Multi-GPU__      | Directed graph only                         |
 |                   | [Weighted Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb)        | Single-GPU          |                                                                 |
 |                   | [Overlap Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Overlap-Similarity.ipynb)                 | **Multi-GPU** |                                                   |
-|                   | Sorensen Coefficient - Coming Soon| **Multi-GPU** |                                                   |
+|                   | [Sorensen Coefficient](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Sorensen_coefficient.ipynb) | Single-GPU |                                                   |
 |                   | _Local Clustering Coefficient_   | ---                 |                                                                 |
 | Sampling          |                                    |                     |                                                                 |
 |                   | [Uniform Random Walks RW](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/sampling/RandomWalk.ipynb)          | __Multi-GPU__ |                                                                 |
@@ -83,3 +83,10 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | RMAT                               | __Multi-GPU__ |                                                                 |
 |                   | _Barabasi-Albert_                | ---                 |                                                                 |
 |                   |                                    |                     |                                                                 |
+___
+Copyright (c) 2023, NVIDIA CORPORATION.
+
+Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+___
