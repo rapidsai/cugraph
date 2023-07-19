@@ -235,8 +235,8 @@ def edge_betweenness_centrality(
 
     normalized : bool, optional (default=True)
         If true, the betweenness values are normalized by
-        2 / (n * (n - 1)) for undirected Graphs, and
-        1 / (n * (n - 1)) for directed Graphs
+        __2 / (n * (n - 1))__ for undirected Graphs, and
+        __1 / (n * (n - 1))__ for directed Graphs
         where n is the number of nodes in G.
         Normalization will ensure that values are in [0, 1],
         this normalization scales for the highest possible value where one

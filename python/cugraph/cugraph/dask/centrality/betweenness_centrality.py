@@ -160,7 +160,13 @@ def betweenness_centrality(
         the algorithm.
 
     normalized : bool, optional (default=True)
-        If True normalize the resulting betweenness centrality values
+        If True, normalize the resulting betweenness centrality values by
+        __2 / ((n - 1) * (n - 2))__ for undirected Graphs, and
+        __1 / ((n - 1) * (n - 2))__ for directed Graphs
+        where n is the number of nodes in G.
+        Normalization will ensure that values are in [0, 1],
+        this normalization scales for the highest possible value where one
+        node is crossed by every single shortest path.
 
     weight : (dask)cudf.DataFrame, optional (default=None)
         Specifies the weights to be used for each edge.
@@ -308,7 +314,13 @@ def edge_betweenness_centrality(
         the algorithm.
 
     normalized : bool, optional (default=True)
-        If True normalize the resulting betweenness centrality values
+        If True, normalize the resulting betweenness centrality values by
+        __2 / (n * (n - 1))__ for undirected Graphs, and
+        __1 / (n * (n - 1))__ for directed Graphs
+        where n is the number of nodes in G.
+        Normalization will ensure that values are in [0, 1],
+        this normalization scales for the highest possible value where one
+        edge is crossed by every single shortest path.
 
     weight : (dask)cudf.DataFrame, optional (default=None)
         Specifies the weights to be used for each edge.
