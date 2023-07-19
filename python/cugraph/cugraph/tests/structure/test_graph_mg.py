@@ -226,6 +226,9 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
         edge_attr=["2", "id", "etype"],
     )
 
+    with pytest.raises(ValueError):
+        G.to_undirected()
+
 
 @pytest.mark.mg
 @pytest.mark.parametrize("graph_file", utils.DATASETS)

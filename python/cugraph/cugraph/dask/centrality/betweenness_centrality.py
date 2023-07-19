@@ -429,9 +429,5 @@ def edge_betweenness_centrality(
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.
         ddf = ddf.groupby(by=["src", "dst"]).sum().reset_index()
-        if "edge_id" in ddf.columns:
-            edge_ids_type = ddf["edge_id"].dtype
-            ddf["edge_id"] = ddf["edge_id"] / 2
-            ddf["edge_id"] = ddf["edge_id"].astype(edge_ids_type)
 
     return ddf

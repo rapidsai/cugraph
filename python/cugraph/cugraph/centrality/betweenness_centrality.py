@@ -354,10 +354,6 @@ def edge_betweenness_centrality(
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
-        if edge_ids is not None:
-            edge_ids_type = df["edge_id"].dtype
-            df["edge_id"] = df["edge_id"] / 2
-            df["edge_id"] = df["edge_id"].astype(edge_ids_type)
 
     if isNx is True:
         return df_edge_score_to_dictionary(df, "betweenness_centrality")
