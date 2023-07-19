@@ -295,7 +295,7 @@ void transform_e(raft::handle_t const& handle,
         auto major_offset            = edge_partition.major_offset_from_major_nocheck(major);
         vertex_t major_idx{major_offset};
 
-        if ((major_hypersparse_first) && (*major_hypersparse_first < major)) {
+        if ((major_hypersparse_first) && (major >= *major_hypersparse_first)) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major);
           assert(major_hypersparse_idx);
