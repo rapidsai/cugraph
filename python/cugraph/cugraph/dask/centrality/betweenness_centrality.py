@@ -146,18 +146,18 @@ def betweenness_centrality(
     ----------
     input_graph: cuGraph.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses a parallel
-        variation of the Brandes Algorithm (2001) to compute exact or approximate
-        betweenness. If weights are provided in the edgelist, they will not be
-        used.
+        The current implementation uses a parallel variation of the Brandes
+        Algorithm (2001) to compute exact or approximate betweenness.
+        If weights are provided in the edgelist, they will not be used.
 
     k : int, list or (dask)cudf object or None, optional (default=None)
-        If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation.  If k is either a list or a (dask)cudf,
-        use its content for estimation: it contain vertex identifiers. If k is None
-        (the default), all the vertices are used to estimate betweenness.  Vertices
-        obtained through sampling or defined as a list will be used as sources for
-        traversals inside the algorithm.
+        If k is not None, use k node samples to estimate betweenness. Higher
+        values give better approximation.  If k is either a list, a cudf DataFrame,
+        or a dask_cudf DataFrame, then its contents are assumed to be vertex
+        identifiers to be used for estimation. If k is None (the default), all the
+        vertices are used to estimate betweenness. Vertices obtained through
+        sampling or defined as a list will be used as sources for traversals inside
+        the algorithm.
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values
@@ -288,24 +288,24 @@ def edge_betweenness_centrality(
     To improve performance. rather than doing an all-pair shortest path,
     a sample of k starting vertices can be used.
 
-    CuGraph does not currently support 'weight' parameters.
+    CuGraph does not currently support the 'weight' parameter.
 
     Parameters
     ----------
     input_graph: cuGraph.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses a parallel
-        variation of the Brandes Algorithm (2001) to compute exact or approximate
-        betweenness. If weights are provided in the edgelist, they will not be
-        used.
+        The current implementation uses a parallel variation of the Brandes
+        Algorithm (2001) to compute exact or approximate betweenness.
+        If weights are provided in the edgelist, they will not be used.
 
     k : int, list or (dask)cudf object or None, optional (default=None)
-        If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation.  If k is either a list or a (dask)cudf,
-        use its content for estimation: it contain vertex identifiers. If k is None
-        (the default), all the vertices are used to estimate betweenness.  Vertices
-        obtained through sampling or defined as a list will be used as sources for
-        traversals inside the algorithm.
+        If k is not None, use k node samples to estimate betweenness. Higher
+        values give better approximation.  If k is either a list, a cudf DataFrame,
+        or a dask_cudf DataFrame, then its contents are assumed to be vertex
+        identifiers to be used for estimation. If k is None (the default), all the
+        vertices are used to estimate betweenness. Vertices obtained through
+        sampling or defined as a list will be used as sources for traversals inside
+        the algorithm.
 
     normalized : bool, optional (default=True)
         If True normalize the resulting betweenness centrality values

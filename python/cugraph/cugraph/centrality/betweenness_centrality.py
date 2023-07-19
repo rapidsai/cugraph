@@ -54,18 +54,18 @@ def betweenness_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses a parallel
-        variation of the Brandes Algorithm (2001) to compute exact or approximate
-        betweenness. If weights are provided in the edgelist, they will not be
-        used.
+        The current implementation uses a parallel variation of the Brandes
+        Algorithm (2001) to compute exact or approximate betweenness.
+        If weights are provided in the edgelist, they will not be used.
 
     k : int, list or cudf object or None, optional (default=None)
-        If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation.  If k is either a list or a cudf, use its
-        content for estimation: it contain vertex identifiers. If k is None
-        (the default), all the vertices are used to estimate betweenness.  Vertices
-        obtained through sampling or defined as a list will be used as sources for
-        traversals inside the algorithm.
+        If k is not None, use k node samples to estimate betweenness. Higher
+        values give better approximation.  If k is either a list, a cudf DataFrame,
+        or a dask_cudf DataFrame, then its contents are assumed to be vertex
+        identifiers to be used for estimation. If k is None (the default), all the
+        vertices are used to estimate betweenness. Vertices obtained through
+        sampling or defined as a list will be used as sources for traversals inside
+        the algorithm.
 
     normalized : bool, optional (default=True)
         If true, the betweenness values are normalized by
@@ -221,17 +221,17 @@ def edge_betweenness_centrality(
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
-        Weights in the graph are ignored, the current implementation uses
-        BFS traversals. Use weight parameter if weights need to be considered
-        (currently not supported)
+        The current implementation uses BFS traversals. Use weight parameter
+        if weights need to be considered (currently not supported).
 
     k : int or list or None, optional (default=None)
-        If k is not None, use k node samples to estimate betweenness.  Higher
-        values give better approximation.
-        If k is a list, use the content of the list for estimation: the list
-        should contain vertices identifiers.
-        Vertices obtained through sampling or defined as a list will be used as
-        sources for traversals inside the algorithm.
+        If k is not None, use k node samples to estimate betweenness. Higher
+        values give better approximation.  If k is either a list, a cudf DataFrame,
+        or a dask_cudf DataFrame, then its contents are assumed to be vertex
+        identifiers to be used for estimation. If k is None (the default), all the
+        vertices are used to estimate betweenness. Vertices obtained through
+        sampling or defined as a list will be used as sources for traversals inside
+        the algorithm.
 
     normalized : bool, optional (default=True)
         If true, the betweenness values are normalized by
@@ -298,8 +298,6 @@ def edge_betweenness_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    # FIXME: Does the new implementation support weights
-    # 'test_edge_betweenness_centrality_weight_except'
     if not isinstance(k, (cudf.DataFrame, cudf.Series)):
         if isinstance(k, list):
             vertex_dtype = G.edgelist.edgelist_df.dtypes[0]
