@@ -390,6 +390,8 @@ renumber_sampled_edgelist(
     label_offsets,
   bool do_expensive_check)
 {
+  // 1. check input arguments
+
   CUGRAPH_EXPECTS(
     edgelist_srcs.size() == edgelist_dsts.size(),
     "Invalid input arguments: edgelist_srcs.size() and edgelist_dsts.size() should coincide.");
@@ -422,6 +424,8 @@ renumber_sampled_edgelist(
     }
   }
 
+  // 2. find label indices for each input edge
+
   std::optional<rmm::device_uvector<size_t>> edgelist_label_indices{std::nullopt};
   if (label_offsets) {
     edgelist_label_indices = rmm::device_uvector<size_t>(edgelist_srcs.size(), handle.get_stream());
@@ -438,6 +442,8 @@ renumber_sampled_edgelist(
       });
   }
 
+  // 3. compute renumber_map
+
   auto [renumber_map, renumber_map_label_indices] = compute_renumber_map(
     handle,
     raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
@@ -447,6 +453,8 @@ renumber_sampled_edgelist(
                                (*edgelist_label_indices).data(), (*edgelist_label_indices).size())
                            : std::nullopt,
     label_offsets);
+
+  // 4. compute renumber map offsets for each label
 
   std::optional<rmm::device_uvector<size_t>> renumber_map_label_offsets{};
   if (label_offsets) {
@@ -481,6 +489,8 @@ renumber_sampled_edgelist(
                            (*renumber_map_label_offsets).end(),
                            (*renumber_map_label_offsets).begin());
   }
+
+  // 5. renumber input edges
 
   if (label_offsets) {
     rmm::device_uvector<vertex_t> new_vertices(renumber_map.size(), handle.get_stream());

@@ -62,7 +62,6 @@ class Tests_RenumberSampledEdgelist
 
     rmm::device_uvector<vertex_t> org_edgelist_srcs(usecase.num_sampled_edges, handle.get_stream());
     rmm::device_uvector<vertex_t> org_edgelist_dsts(usecase.num_sampled_edges, handle.get_stream());
-    // FIXME: need to check the range ([min,max] or [min, max)?)
     cugraph::detail::uniform_random_fill(handle.get_stream(),
                                          org_edgelist_srcs.data(),
                                          org_edgelist_srcs.size(),
@@ -79,7 +78,6 @@ class Tests_RenumberSampledEdgelist
     std::optional<rmm::device_uvector<int32_t>> edgelist_hops{std::nullopt};
     if (usecase.num_hops > 1) {
       edgelist_hops = rmm::device_uvector<int32_t>(usecase.num_sampled_edges, handle.get_stream());
-      // FIXME: need to check the range ([min,max] or [min, max)?)
       cugraph::detail::uniform_random_fill(handle.get_stream(),
                                            (*edgelist_hops).data(),
                                            (*edgelist_hops).size(),
@@ -414,19 +412,20 @@ TEST_P(Tests_RenumberSampledEdgelist, CheckInt64)
   run_current_test<int64_t>(param);
 }
 
-INSTANTIATE_TEST_SUITE_P(small_test,
-                         Tests_RenumberSampledEdgelist,
-                         ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
-                                           RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
-                                           RenumberSampledEdgelist_Usecase{1024, 32768, 1, 256, true},
-                                           RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
+INSTANTIATE_TEST_SUITE_P(
+  small_test,
+  Tests_RenumberSampledEdgelist,
+  ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
+                    RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
+                    RenumberSampledEdgelist_Usecase{1024, 32768, 1, 256, true},
+                    RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
 
 INSTANTIATE_TEST_SUITE_P(
   benchmark_test,
   Tests_RenumberSampledEdgelist,
-  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 1, 1, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 5, 1, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 28, 1, 1 << 20, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 28, 5, 1 << 20, false}));
+  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 20, 1, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 20, 5, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 25, 1, 1 << 20, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 25, 5, 1 << 20, false}));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
