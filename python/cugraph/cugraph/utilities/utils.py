@@ -12,6 +12,8 @@
 # limitations under the License.
 
 import importlib
+import os
+import shutil
 
 from numba import cuda
 
@@ -529,3 +531,13 @@ def create_list_series_from_2d_ar(ar, index):
         children=(offset_col, data),
     )
     return cudf.Series(lc, index=index)
+
+
+def create_directory_with_overwrite(directory):
+    """
+    Creates the given directory.  If it already exists, the
+    existing directory is recursively deleted first.
+    """
+    if os.path.exists(directory):
+        shutil.rmtree(directory)
+    os.makedirs(directory)

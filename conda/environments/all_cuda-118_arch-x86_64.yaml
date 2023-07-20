@@ -4,13 +4,16 @@ channels:
 - rapidsai
 - rapidsai-nightly
 - dask/label/dev
+- pytorch
+- dglteam/label/cu118
 - conda-forge
 - nvidia
 dependencies:
 - aiohttp
 - c-compiler
 - cmake>=3.26.4
-- cudatoolkit=11.8
+- cuda-version=11.8
+- cudatoolkit
 - cudf==23.8.*
 - cupy>=12.0.0
 - cxx-compiler

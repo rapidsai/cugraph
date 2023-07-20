@@ -148,6 +148,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         PRIVATE
             cugraph::cugraph_c
             cugraph_c_testutil
+            cugraphmgtestutil
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
@@ -393,6 +394,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
                 utilities/mg_utilities.cpp
                 utilities/test_utilities_mg.cu
                 sampling/random_walks_check_mg.cu
+                c_api/mg_test_utils.cpp
                 )
 
     set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -601,29 +603,29 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------
-    ConfigureCTestMG(MG_CAPI_CREATE_GRAPH_TEST c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_GENERATE_RMAT_TEST c_api/mg_generate_rmat_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_PAGERANK_TEST c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_BFS_TEST c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_SSSP_TEST c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_KATZ_TEST c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_BETWEENNESS_CENTRALITY_TEST c_api/mg_betweenness_centrality_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_LEIDEN_TEST c_api/mg_leiden_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_CORE_NUMBER_TEST c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_SIMILARITY_TEST c_api/mg_similarity_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c c_api/mg_test_utils.cpp)
-    ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_CREATE_GRAPH_TEST c_api/mg_create_graph_test.c)
+    ConfigureCTestMG(MG_CAPI_GENERATE_RMAT_TEST c_api/mg_generate_rmat_test.c)
+    ConfigureCTestMG(MG_CAPI_PAGERANK_TEST c_api/mg_pagerank_test.c)
+    ConfigureCTestMG(MG_CAPI_BFS_TEST c_api/mg_bfs_test.c)
+    ConfigureCTestMG(MG_CAPI_SSSP_TEST c_api/mg_sssp_test.c)
+    ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS_TEST c_api/mg_weakly_connected_components_test.c)
+    ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS_TEST c_api/mg_strongly_connected_components_test.c)
+    ConfigureCTestMG(MG_CAPI_KATZ_TEST c_api/mg_katz_test.c)
+    ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/mg_eigenvector_centrality_test.c)
+    ConfigureCTestMG(MG_CAPI_BETWEENNESS_CENTRALITY_TEST c_api/mg_betweenness_centrality_test.c)
+    ConfigureCTestMG(MG_CAPI_EDGE_BETWEENNESS_CENTRALITY_TEST c_api/mg_edge_betweenness_centrality_test.c)
+    ConfigureCTestMG(MG_CAPI_HITS_TEST c_api/mg_hits_test.c)
+    ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_TEST c_api/mg_uniform_neighbor_sample_test.c)
+    ConfigureCTestMG(MG_CAPI_RANDOM_WALKS_TEST c_api/mg_random_walks_test.c)
+    ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT_TEST c_api/mg_triangle_count_test.c)
+    ConfigureCTestMG(MG_CAPI_LOUVAIN_TEST c_api/mg_louvain_test.c)
+    ConfigureCTestMG(MG_CAPI_LEIDEN_TEST c_api/mg_leiden_test.c)
+    ConfigureCTestMG(MG_CAPI_CORE_NUMBER_TEST c_api/mg_core_number_test.c)
+    ConfigureCTestMG(MG_CAPI_SIMILARITY_TEST c_api/mg_similarity_test.c)
+    ConfigureCTestMG(MG_CAPI_K_CORE_TEST c_api/mg_k_core_test.c)
+    ConfigureCTestMG(MG_CAPI_INDUCED_SUBGRAPH_TEST c_api/mg_induced_subgraph_test.c)
+    ConfigureCTestMG(MG_CAPI_EGONET_TEST c_api/mg_egonet_test.c)
+    ConfigureCTestMG(MG_CAPI_TWO_HOP_NEIGHBORS_TEST c_api/mg_two_hop_neighbors_test.c)
 endif()
 
 ###################################################################################################
