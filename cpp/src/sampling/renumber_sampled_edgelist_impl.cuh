@@ -45,7 +45,7 @@ namespace cugraph {
 
 namespace {
 
-template <typename vertex_t, typename label_t, typename label_index_t>
+template <typename vertex_t, typename label_index_t>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<label_index_t>>>
 compute_renumber_map(raft::handle_t const& handle,
                      raft::device_span<vertex_t const> edgelist_srcs,
@@ -183,8 +183,6 @@ compute_renumber_map(raft::handle_t const& handle,
                                               offset_first + 1,
                                               handle.get_stream());
         }
-        d_tmp_storage.resize(0, handle.get_stream());
-        d_tmp_storage.shrink_to_fit(handle.get_stream());
 
         unique_label_src_pair_vertices = std::move(segment_sorted_srcs);
       } else {
@@ -344,7 +342,6 @@ compute_renumber_map(raft::handle_t const& handle,
                                            offset_first + 1,
                                            handle.get_stream());
       }
-
       dsts.resize(0, handle.get_stream());
       d_tmp_storage.resize(0, handle.get_stream());
       dsts.shrink_to_fit(handle.get_stream());
@@ -515,7 +512,7 @@ renumber_sampled_edgelist(
   // 2. compute renumber_map
 
   auto [renumber_map, renumber_map_label_indices] =
-    compute_renumber_map<vertex_t, label_t, label_index_t>(
+    compute_renumber_map<vertex_t, label_index_t>(
       handle,
       raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
       edgelist_hops,
