@@ -78,7 +78,7 @@ compute_renumber_map(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> unique_label_src_pair_vertices(
     0, handle.get_stream());  // sorted by (label, hop, src)
   std::optional<rmm::device_uvector<vertex_t>> sorted_srcs{
-    std::nullopt};  // sorted by (label, src), relevant only when edgelist_hops is valid
+    std::nullopt};            // sorted by (label, src), relevant only when edgelist_hops is valid
   {
     if (label_offsets) {
       rmm::device_uvector<label_index_t> label_indices((*edgelist_label_indices).size(),
