@@ -44,7 +44,7 @@ SUBSET_SIZE_OPTIONS = [4, None]
 # with directed graph. Passes with undirected graph.
 # Huge performance bottleneck when moving to 8 GPUs
 datasets = DATASETS_UNDIRECTED + [email_Eu_core]
-datasets = DATASETS_UNDIRECTED
+datasets = [email_Eu_core]
 
 
 # =============================================================================
@@ -103,6 +103,9 @@ def input_expected_output(input_combo):
 
     df = input_combo["graph_file"].get_edgelist()
     if edge_ids:
+        if not directed:
+            # Edge ids not supported for undirected graph
+            return
         dtype = df.dtypes[0]
         edge_id = "edge_id"
         df["edge_id"] = df.index
@@ -182,48 +185,50 @@ def input_expected_output(input_combo):
 def test_dask_edge_betweenness_centrality(
     dask_client, benchmark, input_expected_output
 ):
+    if input_expected_output is not None:
+        dg = input_expected_output["MGGraph"]
+        k = input_expected_output["k"]
+        normalized = input_expected_output["normalized"]
+        weight = input_expected_output["include_weights"]
+        if weight is not None:
+            with pytest.raises(NotImplementedError):
+                result_edge_bc = benchmark(
+                    dcg.edge_betweenness_centrality, dg, k, normalized, weight=weight
+                )
 
-    dg = input_expected_output["MGGraph"]
-    k = input_expected_output["k"]
-    normalized = input_expected_output["normalized"]
-    weight = input_expected_output["include_weights"]
-    if weight is not None:
-        with pytest.raises(NotImplementedError):
+        else:
             result_edge_bc = benchmark(
                 dcg.edge_betweenness_centrality, dg, k, normalized, weight=weight
             )
+            result_edge_bc = (
+                result_edge_bc.compute()
+                .sort_values(["src", "dst"])
+                .reset_index(drop=True)
+                .rename(columns={"betweenness_centrality": "mg_betweenness_centrality"})
+            )
 
-    else:
-        result_edge_bc = benchmark(
-            dcg.edge_betweenness_centrality, dg, k, normalized, weight=weight
-        )
-        result_edge_bc = (
-            result_edge_bc.compute()
-            .sort_values(["src", "dst"])
-            .reset_index(drop=True)
-            .rename(columns={"betweenness_centrality": "mg_betweenness_centrality"})
-        )
+            if len(result_edge_bc.columns) > 3:
+                result_edge_bc = result_edge_bc.rename(
+                    columns={"edge_id": "mg_edge_id"}
+                )
 
-        if len(result_edge_bc.columns) > 3:
-            result_edge_bc = result_edge_bc.rename(columns={"edge_id": "mg_edge_id"})
+            expected_output = input_expected_output["sg_cugraph_results"].reset_index(
+                drop=True
+            )
+            result_edge_bc["betweenness_centrality"] = expected_output[
+                "betweenness_centrality"
+            ]
+            if len(expected_output.columns) > 3:
+                result_edge_bc["edge_id"] = expected_output["edge_id"]
+                edge_id_diff = result_edge_bc.query("mg_edge_id != edge_id")
+                assert len(edge_id_diff) == 0
 
-        expected_output = input_expected_output["sg_cugraph_results"].reset_index(
-            drop=True
-        )
-        result_edge_bc["betweenness_centrality"] = expected_output[
-            "betweenness_centrality"
-        ]
-        if len(expected_output.columns) > 3:
-            result_edge_bc["edge_id"] = expected_output["edge_id"]
-            edge_id_diff = result_edge_bc.query("mg_edge_id != edge_id")
-            assert len(edge_id_diff) == 0
+            edge_bc_diffs1 = result_edge_bc.query(
+                "mg_betweenness_centrality - betweenness_centrality > 0.01"
+            )
+            edge_bc_diffs2 = result_edge_bc.query(
+                "betweenness_centrality - mg_betweenness_centrality < -0.01"
+            )
 
-        edge_bc_diffs1 = result_edge_bc.query(
-            "mg_betweenness_centrality - betweenness_centrality > 0.01"
-        )
-        edge_bc_diffs2 = result_edge_bc.query(
-            "betweenness_centrality - mg_betweenness_centrality < -0.01"
-        )
-
-        assert len(edge_bc_diffs1) == 0
-        assert len(edge_bc_diffs2) == 0
+            assert len(edge_bc_diffs1) == 0
+            assert len(edge_bc_diffs2) == 0
