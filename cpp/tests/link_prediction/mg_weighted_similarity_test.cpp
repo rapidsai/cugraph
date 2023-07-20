@@ -66,7 +66,7 @@ class Tests_MGSimilarity
 
     auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        *handle_, input_usecase, true, true);
+        *handle_, input_usecase, true, true, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -142,8 +142,31 @@ class Tests_MGSimilarity
       std::fill(h_v1.begin() + h_offsets[i], h_v1.begin() + h_offsets[i + 1], h_start_vertices[i]);
     }
 
+    h_v1.resize(1);
+    two_hop_nbrs.resize(1, handle_->get_stream());
+    two_hop_nbrs.shrink_to_fit(handle_->get_stream());
+
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
+
+    /*
+          for (int k = 0; k < comm_size; k++) {
+          auto& comm = handle_->get_comms();
+
+          comm.barrier();
+          if (comm_rank == k) {
+            std::cout << "Rank :" << comm_rank << std::endl;
+            RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+            raft::print_device_vector("d_v1", d_v1.data(), d_v1.size(), std::cout);
+
+            raft::print_device_vector("d_v2", d_v2.data(), d_v2.size(), std::cout);
+
+            std::cout << "------------------" << std::endl;
+          }
+          comm.barrier();
+        }
+    */
 
     /*
         //////
@@ -207,22 +230,23 @@ class Tests_MGSimilarity
                  std::nullopt,
                  mg_graph_view.vertex_partition_range_lasts());
 
-    for (int k = 0; k < comm_size; k++) {
-      auto& comm = handle_->get_comms();
+    /*
+       for (int k = 0; k < comm_size; k++) {
+         auto& comm = handle_->get_comms();
 
-      comm.barrier();
-      if (comm_rank == k) {
-        std::cout << "Rank :" << comm_rank << std::endl;
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
+         comm.barrier();
+         if (comm_rank == k) {
+           std::cout << "Rank :" << comm_rank << std::endl;
+           RAFT_CUDA_TRY(cudaDeviceSynchronize());
 
-        raft::print_device_vector("d_v1", d_v1.data(), d_v1.size(), std::cout);
+           raft::print_device_vector("d_v1", d_v1.data(), d_v1.size(), std::cout);
 
-        raft::print_device_vector("d_v2", d_v2.data(), d_v2.size(), std::cout);
+           raft::print_device_vector("d_v2", d_v2.data(), d_v2.size(), std::cout);
 
-        std::cout << "------------------" << std::endl;
-      }
-      comm.barrier();
-    }
+           std::cout << "------------------" << std::endl;
+         }
+         comm.barrier();
+       }*/
 
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
@@ -249,10 +273,53 @@ class Tests_MGSimilarity
       auto [src, dst, wgt] =
         cugraph::test::graph_to_host_coo(*handle_, mg_graph_view, mg_edge_weight_view);
 
+      /*
+          for (int k = 0; k < comm_size; k++) {
+            auto& comm = handle_->get_comms();
+
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank :" << comm_rank << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+
+              std::cout << "mg_graph_view: " << mg_graph_view.number_of_vertices() << ", "<<
+         mg_graph_view.number_of_edges() << std::endl; raft::print_host_vector("src", src.data(),
+         src.size(), std::cout); raft::print_host_vector("dst", dst.data(), dst.size(), std::cout);
+              raft::print_host_vector("wgt", wgt->data(), wgt->size(), std::cout);
+
+
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
+          }
+
+      */
+
       d_v1 = cugraph::test::device_gatherv(*handle_, d_v1.data(), d_v1.size());
       d_v2 = cugraph::test::device_gatherv(*handle_, d_v2.data(), d_v2.size());
       result_score =
         cugraph::test::device_gatherv(*handle_, result_score.data(), result_score.size());
+
+      /*
+          for (int k = 0; k < comm_size; k++) {
+            auto& comm = handle_->get_comms();
+
+            comm.barrier();
+            if (comm_rank == k) {
+              std::cout << "Rank :" << comm_rank << std::endl;
+              RAFT_CUDA_TRY(cudaDeviceSynchronize());
+
+              raft::print_device_vector("gathered d_v1", d_v1.data(), d_v1.size(), std::cout);
+
+              raft::print_device_vector("gathered d_v2", d_v2.data(), d_v2.size(), std::cout);
+
+              std::cout << "------------------" << std::endl;
+            }
+            comm.barrier();
+          }
+      */
 
       if (d_v1.size() > 0) {
         auto h_vertex_pair1 = cugraph::test::to_host(*handle_, d_v1);
@@ -373,7 +440,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
                       // , cugraph::test::File_Usecase("test/datasets/netscience.mtx")
                       )));
-// #if 0
+
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGSimilarity_Rmat,
@@ -396,5 +463,5 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Similarity_Usecase{true, false, 20}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
-// #endif
+
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

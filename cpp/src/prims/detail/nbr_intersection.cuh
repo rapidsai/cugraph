@@ -1590,7 +1590,7 @@ nbr_intersection(raft::handle_t const& handle,
             .get_stream());  // initially store minimum degrees (upper bound for intersection sizes)
         if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
           auto second_element_to_idx_map =
-            detail::kv_cuco_store_device_view_t((*major_to_idx_map_ptr)->view());
+            detail::kv_cuco_store_find_device_view_t((*major_to_idx_map_ptr)->view());
           thrust::transform(
             handle.get_thrust_policy(),
             get_dataframe_buffer_begin(vertex_pair_buffer),
@@ -1656,7 +1656,7 @@ nbr_intersection(raft::handle_t const& handle,
             }
 
           auto second_element_to_idx_map =
-            detail::kv_cuco_store_device_view_t((*major_to_idx_map_ptr)->view());
+            detail::kv_cuco_store_find_device_view_t((*major_to_idx_map_ptr)->view());
           thrust::tabulate(
             handle.get_thrust_policy(),
             rx_v_pair_nbr_intersection_sizes.begin(),
@@ -2390,10 +2390,11 @@ nbr_intersection(raft::handle_t const& handle,
                             auto nbr = thrust::get<0>(nbr_p0_p1);
                             auto p0  = thrust::get<1>(nbr_p0_p1);
                             auto p1  = thrust::get<2>(nbr_p0_p1);
-                            printf("%d %d %d\n",
-                                   static_cast<int>(nbr),
-                                   static_cast<int>(p0),
-                                   static_cast<int>(p1));
+                            if (false)
+                              printf("%d %d %d\n",
+                                     static_cast<int>(nbr),
+                                     static_cast<int>(p0),
+                                     static_cast<int>(p1));
                             return thrust::get<0>(nbr_p0_p1) != invalid_vertex_id<vertex_t>::value;
                           })));
       }

@@ -261,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
                       // , cugraph::test::File_Usecase("test/datasets/netscience.mtx")
                       )));
-#if 0
+
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGSimilarity_Rmat,
@@ -284,5 +284,5 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Similarity_Usecase{false, false, 20}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
-#endif
+
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

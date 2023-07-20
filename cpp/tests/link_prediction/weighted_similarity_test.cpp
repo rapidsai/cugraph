@@ -65,7 +65,7 @@ class Tests_Similarity
 
     auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, similarity_usecase.use_weights, renumber);
+        handle, input_usecase, similarity_usecase.use_weights, renumber, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -193,17 +193,25 @@ class Tests_Similarity
       raft::update_host(
         h_result_score.data(), result_score.data(), check_size, handle.get_stream());
 
-      similarity_compare(graph_view.number_of_vertices(),
-                         std::tie(src, dst, wgt),
-                         std::tie(h_vertex_pair_1, h_vertex_pair_2),
-                         h_result_score,
-                         test_functor);
+      if (wgt && similarity_usecase.use_weights) {
+        weighted_similarity_compare(graph_view.number_of_vertices(),
+                                    std::tie(src, dst, wgt),
+                                    std::tie(h_vertex_pair_1, h_vertex_pair_2),
+                                    h_result_score,
+                                    test_functor);
+      } else {
+        similarity_compare(graph_view.number_of_vertices(),
+                           std::tie(src, dst, wgt),
+                           std::tie(h_vertex_pair_1, h_vertex_pair_2),
+                           h_result_score,
+                           test_functor);
+      }
     }
   }
 };
 
 using Tests_Similarity_File = Tests_Similarity<cugraph::test::File_Usecase>;
-// using Tests_Similarity_Rmat = Tests_Similarity<cugraph::test::Rmat_Usecase>;
+using Tests_Similarity_Rmat = Tests_Similarity<cugraph::test::Rmat_Usecase>;
 
 TEST_P(Tests_Similarity_File, CheckInt32Int32FloatJaccard)
 {
@@ -211,23 +219,23 @@ TEST_P(Tests_Similarity_File, CheckInt32Int32FloatJaccard)
     override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatJaccard)
-// {
-//   run_current_test<int32_t, int32_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatJaccard)
+{
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
+}
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatJaccard)
-// {
-//   run_current_test<int32_t, int64_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatJaccard)
+{
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
+}
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatJaccard)
-// {
-//   run_current_test<int64_t, int64_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatJaccard)
+{
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
+}
 
 TEST_P(Tests_Similarity_File, CheckInt32Int32FloatSorensen)
 {
@@ -235,23 +243,23 @@ TEST_P(Tests_Similarity_File, CheckInt32Int32FloatSorensen)
     override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatSorensen)
-// {
-//   run_current_test<int32_t, int32_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatSorensen)
+{
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
+}
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatSorensen)
-// {
-//   run_current_test<int32_t, int64_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatSorensen)
+{
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
+}
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatSorensen)
-// {
-//   run_current_test<int64_t, int64_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatSorensen)
+{
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
+}
 
 TEST_P(Tests_Similarity_File, CheckInt32Int32FloatOverlap)
 {
@@ -259,23 +267,23 @@ TEST_P(Tests_Similarity_File, CheckInt32Int32FloatOverlap)
     override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatOverlap)
-// {
-//   run_current_test<int32_t, int32_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int32FloatOverlap)
+{
+  run_current_test<int32_t, int32_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
+}
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatOverlap)
-// {
-//   run_current_test<int32_t, int64_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt32Int64FloatOverlap)
+{
+  run_current_test<int32_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
+}
 
-// TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatOverlap)
-// {
-//   run_current_test<int64_t, int64_t, float>(
-//     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
-// }
+TEST_P(Tests_Similarity_Rmat, CheckInt64Int64FloatOverlap)
+{
+  run_current_test<int64_t, int64_t, float>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
+}
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
@@ -284,50 +292,47 @@ INSTANTIATE_TEST_SUITE_P(
     // enable correctness checks
     // Disable weighted computation testing in 22.10
     //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
-    // 100}),
-    ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
-                      // ,
-                      //                   cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
+    //: 100}),
+    ::testing::Values(Similarity_Usecase{true, true, 20, 100}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   rmat_small_test,
-//   Tests_Similarity_Rmat,
-//   ::testing::Combine(
-//     // enable correctness checks
-//     // Disable weighted computation testing in 22.10
-//     //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true,
-//     20,
-//     // 100}),
-//     ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
-//     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_Similarity_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{true, true, 20, 100},
+    //: Similarity_Usecase{false,true,20,100}),
+    ::testing::Values(Similarity_Usecase{true, true, 20, 100}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
-//                           --gtest_filter to select only the file_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one File_Usecase that differ only in filename
-//                           (to avoid running same benchmarks more than once) */
-//   Tests_Similarity_File,
-//   ::testing::Combine(
-//     // disable correctness checks
-//     // Disable weighted computation testing in 22.10
-//     //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
-//     ::testing::Values(Similarity_Usecase{false, false}),
-//     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+INSTANTIATE_TEST_SUITE_P(
+  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
+                          --gtest_filter to select only the file_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one File_Usecase that differ only in filename
+                          (to avoid running same benchmarks more than once) */
+  Tests_Similarity_File,
+  ::testing::Combine(
+    // disable correctness checks
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
+    ::testing::Values(Similarity_Usecase{true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
-// INSTANTIATE_TEST_SUITE_P(
-//   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-//                           --gtest_filter to select only the rmat_benchmark_test with a specific
-//                           vertex & edge type combination) by command line arguments and do not
-//                           include more than one Rmat_Usecase that differ only in scale or edge
-//                           factor (to avoid running same benchmarks more than once) */
-//   Tests_Similarity_Rmat,
-//   ::testing::Combine(
-//     // disable correctness checks for large graphs
-//     //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
-//     ::testing::Values(Similarity_Usecase{false, false}),
-//     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+                          --gtest_filter to select only the rmat_benchmark_test with a specific
+                          vertex & edge type combination) by command line arguments and do not
+                          include more than one Rmat_Usecase that differ only in scale or edge
+                          factor (to avoid running same benchmarks more than once) */
+  Tests_Similarity_Rmat,
+  ::testing::Combine(
+    // disable correctness checks for large graphs
+    //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
+    ::testing::Values(Similarity_Usecase{true, false}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

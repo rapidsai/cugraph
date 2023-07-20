@@ -88,12 +88,14 @@ rmm::device_uvector<weight_t> similarity(
                            auto intersection,
                            auto intersected_properties_a,
                            auto intersected_properties_b) {
-        for (size_t k = 0; k < intersection.size(); k++) {
-          printf("=> %d %f %f\n",
-                 static_cast<int>(intersection[k]),
-                 static_cast<float>(intersected_properties_a[k]),
-                 static_cast<float>(intersected_properties_b[k]));
-        }
+        bool CODE_DEBUG = false;
+        if (CODE_DEBUG)
+          for (size_t k = 0; k < intersection.size(); k++) {
+            printf("=> %d %f %f\n",
+                   static_cast<int>(intersection[k]),
+                   static_cast<float>(intersected_properties_a[k]),
+                   static_cast<float>(intersected_properties_b[k]));
+          }
 
         weight_t min_weight_a_intersect_b = weight_t{0};
         weight_t max_weight_a_intersect_b = weight_t{0};
@@ -114,11 +116,12 @@ rmm::device_uvector<weight_t> similarity(
 
         max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
 
-        printf("=> v1= %d v2 = %d\n", static_cast<int>(v1), static_cast<int>(v2));
-        printf("=>weight_a = %f\n", static_cast<float>(weight_a));
-        printf("=>weight_b = %f\n", static_cast<float>(weight_b));
-        printf("=>min_weight_a_intersect_b = %f\n", static_cast<float>(min_weight_a_intersect_b));
-        printf("=>max_weight_a_intersect_b = %f\n", static_cast<float>(max_weight_a_intersect_b));
+        // printf("=> v1= %d v2 = %d\n", static_cast<int>(v1), static_cast<int>(v2));
+        // printf("=>weight_a = %f\n", static_cast<float>(weight_a));
+        // printf("=>weight_b = %f\n", static_cast<float>(weight_b));
+        // printf("=>min_weight_a_intersect_b = %f\n",
+        // static_cast<float>(min_weight_a_intersect_b)); printf("=>max_weight_a_intersect_b =
+        // %f\n", static_cast<float>(max_weight_a_intersect_b));
 
         return functor.compute_score(static_cast<weight_t>(weight_a),
                                      static_cast<weight_t>(weight_b),
