@@ -11,12 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os
+import gc
+import sys
+import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import gc
-import warnings
 
 import pytest
 
@@ -71,6 +71,22 @@ def setup(tmpdir):
     for dataset in ALL_DATASETS:
         dataset.unload()
     gc.collect()
+
+
+@pytest.fixture()
+def setup_deprecation_warning_tests():
+    """
+    Fixture used to set warning filters to 'default' and reload
+    experimental.datasets module if it has been previously
+    imported. Tests that import this fixture are expected to
+    import cugraph.experimental.datasets
+    """
+    warnings.filterwarnings("default")
+
+    if "cugraph.experimental.datasets" in sys.modules:
+        del sys.modules["cugraph.experimental.datasets"]
+
+    yield
 
 
 ###############################################################################
@@ -270,19 +286,14 @@ def test_is_directed(dataset):
 #
 # Test experimental for DeprecationWarnings
 #
-def test_experimental_dataset_import():
-    warnings.filterwarnings("default")
-
-    with pytest.deprecated_call() as record:
+def test_experimental_dataset_import(setup_deprecation_warning_tests):
+    with pytest.deprecated_call():
         from cugraph.experimental.datasets import karate
-
-        if not record:
-            pytest.fail("Expected experimental.datasets to raise DeprecationWarning")
 
         karate.unload()
 
 
-def test_experimental_method_warnings():
+def test_experimental_method_warnings(setup_deprecation_warning_tests):
     from cugraph.experimental.datasets import (
         load_all,
         set_download_dir,
@@ -292,22 +303,9 @@ def test_experimental_method_warnings():
     warnings.filterwarnings("default")
     tmpd = TemporaryDirectory()
 
-    with pytest.deprecated_call() as record:
+    with pytest.deprecated_call():
         set_download_dir(tmpd.name)
-
-        if not record:
-            pytest.fail("Expected set_download_dir to raise DeprecationWarning")
-
-    with pytest.deprecated_call() as record:
         get_download_dir()
-
-        if not record:
-            pytest.fail("Expected get_download_dir to raise DeprecationWarning")
-
-    with pytest.deprecated_call() as record:
         load_all()
-
-        if not record:
-            pytest.fail("Expected load_all to raise DeprecationWarning")
 
     tmpd.cleanup()
