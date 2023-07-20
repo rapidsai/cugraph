@@ -426,13 +426,13 @@ TEST_P(Tests_RenumberSampledEdgelist, CheckInt64)
   run_current_test<int64_t>(param);
 }
 
-INSTANTIATE_TEST_SUITE_P(small_test,
-                         Tests_RenumberSampledEdgelist,
-                         ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
-                                           RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
-                                           RenumberSampledEdgelist_Usecase{
-                                             1024, 32768, 1, 256, true},
-                                           RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
+INSTANTIATE_TEST_SUITE_P(
+  small_test,
+  Tests_RenumberSampledEdgelist,
+  ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
+                    RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
+                    RenumberSampledEdgelist_Usecase{1024, 32768, 1, 256, true},
+                    RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
 
 INSTANTIATE_TEST_SUITE_P(
   benchmark_test,

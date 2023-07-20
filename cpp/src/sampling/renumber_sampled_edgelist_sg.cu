@@ -20,11 +20,10 @@
 
 namespace cugraph {
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int32_t>&& edgelist_srcs,
@@ -34,11 +33,10 @@ renumber_sampled_edgelist(
     label_offsets,
   bool do_expensive_check);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           std::optional<rmm::device_uvector<size_t>>>
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<size_t>>>
 renumber_sampled_edgelist(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t>&& edgelist_srcs,

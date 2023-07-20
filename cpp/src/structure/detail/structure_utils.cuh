@@ -354,8 +354,8 @@ void sort_adjacency_list(raft::handle_t const& handle,
   if constexpr (std::is_arithmetic_v<edge_value_t>) {
     for (size_t i = 0; i < num_chunks; ++i) {
       size_t tmp_storage_bytes{0};
-      auto offset_first = thrust::make_transform_iterator(
-        offsets.data() + h_vertex_offsets[i], shift_left_t<edge_t>{h_edge_offsets[i]});
+      auto offset_first = thrust::make_transform_iterator(offsets.data() + h_vertex_offsets[i],
+                                                          shift_left_t<edge_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                           tmp_storage_bytes,
                                           index_first + h_edge_offsets[i],
@@ -402,8 +402,8 @@ void sort_adjacency_list(raft::handle_t const& handle,
                      edge_t{0});
     for (size_t i = 0; i < num_chunks; ++i) {
       size_t tmp_storage_bytes{0};
-      auto offset_first = thrust::make_transform_iterator(
-        offsets.data() + h_vertex_offsets[i], shift_left_t<edge_t>{h_edge_offsets[i]});
+      auto offset_first = thrust::make_transform_iterator(offsets.data() + h_vertex_offsets[i],
+                                                          shift_left_t<edge_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                           tmp_storage_bytes,
                                           index_first + h_edge_offsets[i],
