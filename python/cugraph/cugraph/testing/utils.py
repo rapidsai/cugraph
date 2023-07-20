@@ -430,19 +430,17 @@ default_results_download_dir = (
 )
 
 
+"""
 class ResultSet:
-    """
-    A Resultset Object, which imports output data from networkX algs or cuGraph algs
-    with networkX inputs. This is to be used in the testing module, as to fully remove
-    nx as a dependency.
-    Parameters
-    ----------
-    local_file_name : str
-        The string path for the pickled results file, stored locally somewhere.
-    cloud_file_name : str
-        The string path for the pickled results file, stored on the cloud. (s3)
-    """
-
+    # A Resultset Object, which imports output data from networkX algs or cuGraph algs
+    # with networkX inputs. This is to be used in the testing module, as to fully remove
+    # nx as a dependency.
+    # Parameters
+    # ----------
+    # local_file_name : str
+    #     The string path for the pickled results file, stored locally somewhere.
+    # cloud_file_name : str
+    #     The string path for the pickled results file, stored on the cloud. (s3)
     # unsure about naming of 'cloud_result_file'
     def __init__(self, local_result_file=None, cloud_result_file=None):
         self._path = None
@@ -457,32 +455,40 @@ class ResultSet:
             # self._path=Path("https://data.rapids.ai/cugraph/tsting/"+cloud_result_file)
             # not right syntax but the overall process would be similar to below: vv
         elif local_result_file is not None:
-            self._path = default_results_download_dir / local_result_file
+            # self._path = default_results_download_dir / local_result_file
             # breakpoint()
+            self._path = Path("testing") / local_result_file
             if self._path.exists() is False:
                 # try to load results, if file doesn't exist raise pref. RuntimeError
                 raise FileNotFoundError(local_result_file)
             else:
-                with open(
-                    default_results_download_dir / local_result_file, "rb"
-                ) as file:
+                # with open(
+                #     default_results_download_dir / local_result_file, "rb"
+                # ) as file:
+                # with open("testing/" + local_result_file, "rb") as file:
+                with open(self._path, "rb") as file:
                     self.results = pickle.load(file)
         else:
             raise ValueError(
                 "must specify either local_result_file or cloud_result_file"
             )
+"""
 
 
-def load_all_results(force=False):
-    """
-    Fetches all pickled results files from s3 bucket, stores them locally..somewhere
-    Parameters
-    force : Boolean (default=False)
-        Overwrite any existing copies of datafiles
-    """
-    raise NotImplementedError("results files are not yet on cloud bucket")
+"""
+class ResultSet:
+    # A Resultset Object which imports output data from networkX algs or cuGraph algs
+    # with networkX inputs. This will eventually remove nx as a dependency.
+    def __init__(self, lib=None, alg=None, graph=None, params=None):
+        self._path = None
 
+        if lib is not None:
+            self._path = Path(Path("testing/nxresults") / lib  / alg / graph / params).with_suffix(".csv")
+            if self._path.exists() is False:
+                raise FileNotFoundError(self._path)
+            else:
+                self.results = cudf.read_csv(self._path)
 
-# Example of intended behavior:
-# bfs_results = ResultSet("bfs_results.pkl")
-# bfs_results["1,nonnative-nx"]
+        else:
+            raise ValueError("must specify result_file")
+"""
