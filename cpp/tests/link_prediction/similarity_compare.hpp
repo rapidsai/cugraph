@@ -31,10 +31,15 @@ struct test_jaccard_t {
   template <typename weight_t>
   weight_t compute_score(weight_t weight_a,
                          weight_t weight_b,
-                         weight_t a_intersect_b,
-                         weight_t a_union_b) const
+                         weight_t weight_a_intersect_b,
+                         weight_t weight_a_union_b) const
   {
-    return a_intersect_b / a_union_b;
+    if (std::abs(static_cast<double>(weight_a_union_b) - double{0}) <
+        double{2} / std::numeric_limits<double>::max()) {
+      return weight_t{0};
+    } else {
+      return weight_a_intersect_b / weight_a_union_b;
+    }
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -55,10 +60,15 @@ struct test_sorensen_t {
   template <typename weight_t>
   weight_t compute_score(weight_t weight_a,
                          weight_t weight_b,
-                         weight_t a_intersect_b,
-                         weight_t a_union_b) const
+                         weight_t weight_a_intersect_b,
+                         weight_t weight_a_union_b) const
   {
-    return (2 * a_intersect_b) / (weight_a + weight_b);
+    if (std::abs(static_cast<double>(weight_a_union_b) - double{0}) <
+        double{2} / std::numeric_limits<double>::max()) {
+      return weight_t{0};
+    } else {
+      return (2 * weight_a_intersect_b) / (weight_a + weight_b);
+    }
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -79,10 +89,15 @@ struct test_overlap_t {
   template <typename weight_t>
   weight_t compute_score(weight_t weight_a,
                          weight_t weight_b,
-                         weight_t a_intersect_b,
-                         weight_t a_union_b) const
+                         weight_t weight_a_intersect_b,
+                         weight_t weight_a_union_b) const
   {
-    return a_intersect_b / std::min(weight_a, weight_b);
+    if (std::abs(static_cast<double>(weight_a_union_b) - double{0}) <
+        double{2} / std::numeric_limits<double>::max()) {
+      return weight_t{0};
+    } else {
+      return weight_a_intersect_b / std::min(weight_a, weight_b);
+    }
   }
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

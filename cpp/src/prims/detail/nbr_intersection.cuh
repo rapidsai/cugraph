@@ -365,16 +365,17 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
   {
     auto pair = *(vertex_pair_first + i);
 
+    bool debug = false;
 #if 1
-    if (false)
+    if (debug)
       printf(
         "-----rank=%d, edge_partition_idx=%d------\n", rank, static_cast<int>(edge_partition_idx));
 
     if constexpr (!std::is_same_v<FirstElementToIdxMap, void*>) {
-      if (false) printf("called with FirstElementToIdxMap********\n");
+      if (debug) printf("called with FirstElementToIdxMap********\n");
     }
     if constexpr (!std::is_same_v<SecondElementToIdxMap, void*>) {
-      if (false) printf("called with SecondElementToIdxMap---------\n");
+      if (debug) printf("called with SecondElementToIdxMap---------\n");
     }
 #endif
 
@@ -385,7 +386,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     edge_t local_degree0{0};
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
 #if 1
-      if (false) printf("element0 from  edge_partition\n");
+      if (debug) printf("element0 from  edge_partition\n");
 #endif
 
       vertex_t major = thrust::get<0>(pair);
@@ -409,7 +410,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       }
     } else {
 #if 1
-      if (false) printf("element0  from  first_element_to_idx_map******\n");
+      if (debug) printf("element0  from  first_element_to_idx_map******\n");
 #endif
 
       auto idx = first_element_to_idx_map.find(thrust::get<0>(pair));
@@ -438,7 +439,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
 
 #if 1
     vertex_t element0 = thrust::get<0>(pair);
-    if (false)
+    if (debug)
       printf("element0 %d, local_degree0 %d local_edge_offset0 %d\n",
              static_cast<int>(element0),
              static_cast<int>(local_degree0),
@@ -449,31 +450,31 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
           EdgeProperty_t ep{};
           ep = edge_partition_e_value_input.get(local_edge_offset0 + k);
-          if (false)
+          if (debug)
             printf("( %d %d %.2f %.2f)* ",
                    static_cast<int>(k),
                    static_cast<int>(indices0[k]),
                    static_cast<float>(ep),
                    static_cast<float>(property0[k]));
         } else {
-          if (false) printf("%d %d* ", static_cast<int>(k), static_cast<int>(indices0[k]));
+          if (debug) printf("%d %d* ", static_cast<int>(k), static_cast<int>(indices0[k]));
         }
 
       } else {
         if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
           EdgeProperty_t ep = *(first_element_properties.begin() + local_edge_offset0 + k);
-          if (false)
+          if (debug)
             printf("(%d %d %.2f %.2f)* ",
                    static_cast<int>(k),
                    static_cast<int>(indices0[k]),
                    static_cast<float>(ep),
                    static_cast<float>(property0[k]));
         } else {
-          if (false) printf("%d %d* ", static_cast<int>(k), static_cast<int>(indices0[k]));
+          if (debug) printf("%d %d* ", static_cast<int>(k), static_cast<int>(indices0[k]));
         }
       }
     }
-    if (false) printf("\n");
+    if (debug) printf("\n");
 #endif
 
     vertex_t const* indices1{nullptr};
@@ -482,7 +483,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     edge_t local_degree1{0};
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
 #if 1
-      if (false) printf("element1 from  edge_partition\n");
+      if (debug) printf("element1 from  edge_partition\n");
 #endif
 
       vertex_t major = thrust::get<1>(pair);
@@ -506,7 +507,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
       }
     } else {
 #if 1
-      if (false) printf("element1 from second_element_to_idx_map----\n");
+      if (debug) printf("element1 from second_element_to_idx_map----\n");
 #endif
 
       auto idx = second_element_to_idx_map.find(thrust::get<1>(pair));
@@ -536,7 +537,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
 
 #if 1
     vertex_t element1 = thrust::get<1>(pair);
-    if (false)
+    if (debug)
       printf("element1 %d, local_degree1 %d local_edge_offset1 %d\n",
              static_cast<int>(element1),
              static_cast<int>(local_degree1),
@@ -547,31 +548,31 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
         if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
           EdgeProperty_t ep{};
           ep = edge_partition_e_value_input.get(local_edge_offset1 + k);
-          if (false)
+          if (debug)
             printf("(%d %d %.2f %.2f)- ",
                    static_cast<int>(k),
                    static_cast<int>(indices1[k]),
                    static_cast<float>(ep),
                    static_cast<float>(property1[k]));
         } else {
-          if (false) printf("%d %d- ", static_cast<int>(k), static_cast<int>(indices1[k]));
+          if (debug) printf("%d %d- ", static_cast<int>(k), static_cast<int>(indices1[k]));
         }
 
       } else {
         if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
           EdgeProperty_t ep = *(second_element_properties.begin() + local_edge_offset1 + k);
-          if (false)
+          if (debug)
             printf("(%d %d %.2f %.2f)- ",
                    static_cast<int>(k),
                    static_cast<int>(indices1[k]),
                    static_cast<float>(ep),
                    static_cast<float>(property1[k]));
         } else {
-          if (false) printf("%d %d- ", static_cast<int>(k), static_cast<int>(indices1[k]));
+          if (debug) printf("%d %d- ", static_cast<int>(k), static_cast<int>(indices1[k]));
         }
       }
     }
-    if (false) printf("\n");
+    if (debug) printf("\n");
 #endif
 
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree
@@ -594,32 +595,68 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     //
     auto insection_size = static_cast<size_t>(thrust::distance(inbr_start, it));
 
-    if (false)
+    if (debug)
       printf(
         "rank = %d insection_size=%d\n", static_cast<int>(rank), static_cast<int>(insection_size));
 
-    if (false) printf("\n");
+    if (debug) printf("\n");
     for (size_t k = 0; k < insection_size; k++) {
-      if (false) printf("k = %d inbr = %d ", static_cast<int>(k), static_cast<int>(inbr_start[k]));
+      if (debug) printf("k = %d inbr = %d ", static_cast<int>(k), static_cast<int>(inbr_start[k]));
     }
-    if (false) printf("\n");
+    if (debug) printf("\n");
 
     if constexpr (!std::is_same_v<EdgeProperty_t, thrust::nullopt_t>) {
-      auto ip0_start = nbr_intersection_properties0.begin() + nbr_intersection_offsets[i];
-
 #if 1
-      if (false) printf("\n");
+      if (debug) printf("\n");
       for (size_t k = 0; k < local_degree0; k++) {
-        if (false) printf("k = %d p0 = %d\n", static_cast<int>(k), static_cast<int>(property0[k]));
+        if (debug) printf("k = %d p0 = %d\n", static_cast<int>(k), static_cast<int>(property0[k]));
       }
 
-      if (false) printf("\n");
+      if (debug) printf("\n");
       for (size_t k = 0; k < local_degree1; k++) {
-        if (false) printf("k = %d p1 = %d\n", static_cast<int>(k), static_cast<int>(property1[k]));
+        if (debug) printf("k = %d p1 = %d\n", static_cast<int>(k), static_cast<int>(property1[k]));
       }
-      if (false) printf("\n");
+      if (debug) printf("\n");
 
 #endif
+
+      auto ip0_start = nbr_intersection_properties0.begin() + nbr_intersection_offsets[i];
+
+      /*
+      //// new block
+      size_t multiedge_intersection_size0 = 0;
+
+      for (size_t k = 0; k < insection_size; k++) {
+        auto myrank = rank;
+
+        auto first_occurence = thrust::lower_bound(
+          thrust::seq, indices0, indices0 + local_degree0, inbr_start[k], thrust::less<int>());
+
+        auto last_occurence =
+          thrust::upper_bound(thrust::seq, indices0, indices0 + local_degree0, inbr_start[k]);
+
+        size_t nr_repeats = (last_occurence - first_occurence);
+
+        auto offset = thrust::distance(indices0, first_occurence);
+
+        printf("For vertex %d repeats = %d\n",
+               static_cast<int>(inbr_start[k]),
+               static_cast<int>(nr_repeats));
+
+        for (size_t m = 0; m < nr_repeats; m++) {
+          // ip0_start[multiedge_intersection_size0 + m] = property0[offset + m];
+
+          if (debug)
+            printf(">>myrank=%d offset+m=%d p=%f\n",
+                   static_cast<int>(myrank),
+                   static_cast<int>(offset + m),
+                   static_cast<float>(property0[offset + m]));
+        }
+        multiedge_intersection_size0 += nr_repeats;
+      }
+
+      ////
+    */
 
       // copy edge properties from first vertex to common neighbors
       thrust::lower_bound(thrust::seq,
@@ -630,36 +667,72 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
                           ip0_start,  // indices
                           thrust::less<int>());
 
-      if (false) printf("\n");
+      if (debug) printf("\n");
       for (size_t k = 0; k < insection_size; k++) {
-        if (false) printf("k = %d idx = %d ", static_cast<int>(k), static_cast<int>(ip0_start[k]));
+        if (debug) printf("k = %d idx = %d ", static_cast<int>(k), static_cast<int>(ip0_start[k]));
       }
-      if (false) printf("\n");
+      if (debug) printf("\n");
 
       auto myrank = rank;
-      thrust::transform(
-        thrust::seq,
-        ip0_start,
-        ip0_start + insection_size,
-        ip0_start,
-        [property0, myrank] __device__(auto idx) {
-          if (false) printf("myrank=%d idx=%d\n", static_cast<int>(myrank), static_cast<int>(idx));
-          return property0[static_cast<int>(idx)];
-        });
+      thrust::transform(thrust::seq,
+                        ip0_start,
+                        ip0_start + insection_size,
+                        ip0_start,
+                        [property0, myrank, debug] __device__(auto idx) {
+                          if (debug)
+                            printf("myrank=%d idx=%d p=%f\n",
+                                   static_cast<int>(myrank),
+                                   static_cast<int>(idx),
+                                   static_cast<float>(property0[static_cast<int>(idx)]));
+                          return property0[static_cast<int>(idx)];
+                        });
 
       ///
 
-      if (false) printf("\n");
+      if (debug) printf("\n");
       for (size_t k = 0; k < insection_size; k++) {
-        if (false)
+        if (debug)
           printf("rank = %d inbrp0 = %d ", static_cast<int>(rank), static_cast<int>(ip0_start[k]));
       }
-      if (false) printf("\n");
+      if (debug) printf("\n");
 
       ///
 
       auto ip1_start = nbr_intersection_properties1.begin() + nbr_intersection_offsets[i];
 
+      /*
+      //// new block
+      size_t multiedge_intersection_size_1 = 0;
+
+      for (size_t k = 0; k < insection_size; k++) {
+        auto myrank          = rank;
+        auto first_occurence = thrust::lower_bound(
+          thrust::seq, indices1, indices1 + local_degree1, inbr_start[k], thrust::less<int>());
+
+        auto last_occurence =
+          thrust::upper_bound(thrust::seq, indices1, indices1 + local_degree1, inbr_start[k]);
+
+        size_t nr_repeats = (last_occurence - first_occurence);
+
+        auto offset = thrust::distance(indices1, first_occurence);
+
+        printf("For vertex %d repeats = %d\n",
+               static_cast<int>(inbr_start[k]),
+               static_cast<int>(nr_repeats));
+
+        for (size_t m = 0; m < nr_repeats; m++) {
+          // ip1_start[multiedge_intersection_size_1 + m] = property1[offset + m];
+
+          if (debug)
+            printf(">>myrank=%d offset+m=%d p=%f\n",
+                   static_cast<int>(myrank),
+                   static_cast<int>(offset + m),
+                   static_cast<float>(property1[offset + m]));
+        }
+        multiedge_intersection_size_1 += nr_repeats;
+      }
+      ////
+      */
       // copy edge properties from second vertex to common neighbors
       thrust::lower_bound(thrust::seq,
                           indices1,
@@ -669,31 +742,34 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
                           ip1_start,  // indices
                           thrust::less<int>());
 
-      if (false) printf("\n");
+      if (debug) printf("\n");
       for (size_t k = 0; k < insection_size; k++) {
-        if (false)
+        if (debug)
           printf("rank = %d inbrp1 = %d ", static_cast<int>(rank), static_cast<int>(ip1_start[k]));
       }
-      if (false) printf("\n");
+      if (debug) printf("\n");
 
-      thrust::transform(
-        thrust::seq,
-        ip1_start,
-        ip1_start + insection_size,
-        ip1_start,
-        [property1, myrank] __device__(auto idx) {
-          if (false) printf("myrank=%d idx=%d\n", static_cast<int>(myrank), static_cast<int>(idx));
-          return property1[static_cast<int>(idx)];
-        });
+      thrust::transform(thrust::seq,
+                        ip1_start,
+                        ip1_start + insection_size,
+                        ip1_start,
+                        [property1, myrank, debug] __device__(auto idx) {
+                          if (debug)
+                            printf("myrank=%d idx=%d p=%f\n",
+                                   static_cast<int>(myrank),
+                                   static_cast<int>(idx),
+                                   static_cast<float>(property1[static_cast<int>(idx)]));
+                          return property1[static_cast<int>(idx)];
+                        });
 
       ///
 
-      if (false) printf("\n");
+      if (debug) printf("\n");
       for (size_t k = 0; k < insection_size; k++) {
-        if (false)
+        if (debug)
           printf("rank = %d inbrp1 = %d ", static_cast<int>(rank), static_cast<int>(ip1_start[k]));
       }
-      if (false) printf("\n");
+      if (debug) printf("\n");
 
       ///
     }

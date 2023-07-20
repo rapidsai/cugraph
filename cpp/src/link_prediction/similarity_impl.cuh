@@ -91,7 +91,11 @@ rmm::device_uvector<weight_t> similarity(
         bool CODE_DEBUG = false;
         if (CODE_DEBUG)
           for (size_t k = 0; k < intersection.size(); k++) {
-            printf("=> %d %f %f\n",
+            printf("=> (v1 = %d v2 = %d wdeg(v1) = %f wdeg(v2) = %f) %d %f %f\n",
+                   static_cast<int>(v1),
+                   static_cast<int>(v2),
+                   static_cast<float>(weight_a),
+                   static_cast<float>(weight_b),
                    static_cast<int>(intersection[k]),
                    static_cast<float>(intersected_properties_a[k]),
                    static_cast<float>(intersected_properties_b[k]));

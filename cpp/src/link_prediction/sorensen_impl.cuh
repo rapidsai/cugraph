@@ -30,7 +30,10 @@ struct sorensen_functor_t {
                                     weight_t cardinality_a_intersect_b,
                                     weight_t cardinality_a_union_b) const
   {
-    return (2 * cardinality_a_intersect_b) / (cardinality_a + cardinality_b);
+    return (fabs(static_cast<double>(cardinality_a_union_b) - double{0}) <
+            double{2} / double{1 << 30})
+             ? weight_t{0}
+             : (2 * cardinality_a_intersect_b) / (cardinality_a + cardinality_b);
   }
 };
 

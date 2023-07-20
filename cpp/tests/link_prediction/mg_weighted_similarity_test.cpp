@@ -142,9 +142,9 @@ class Tests_MGSimilarity
       std::fill(h_v1.begin() + h_offsets[i], h_v1.begin() + h_offsets[i + 1], h_start_vertices[i]);
     }
 
-    h_v1.resize(1);
-    two_hop_nbrs.resize(1, handle_->get_stream());
-    two_hop_nbrs.shrink_to_fit(handle_->get_stream());
+    // h_v1.resize(1);
+    // two_hop_nbrs.resize(1, handle_->get_stream());
+    // two_hop_nbrs.shrink_to_fit(handle_->get_stream());
 
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
@@ -325,6 +325,8 @@ class Tests_MGSimilarity
         auto h_vertex_pair1 = cugraph::test::to_host(*handle_, d_v1);
         auto h_vertex_pair2 = cugraph::test::to_host(*handle_, d_v2);
         auto h_result_score = cugraph::test::to_host(*handle_, result_score);
+
+        std::cout << "pari size: " << h_vertex_pair1.size() << " " << h_vertex_pair2.size() << std::endl;
 
         if (wgt && similarity_usecase.use_weights) {
           weighted_similarity_compare(mg_graph_view.number_of_vertices(),
