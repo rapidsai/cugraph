@@ -262,10 +262,12 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           : nullptr,
         (offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(offsets.value(), SIZE_T)
                   : nullptr,
-        (renumber_map) ? new cugraph::c_api::cugraph_type_erased_device_array_t(renumber_map.value(), graph_->vertex_type_)
-                  : nullptr,
-        (renumber_map_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(renumber_map_offsets.value(), SIZE_T)
-        : nullptr};
+        (renumber_map) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                           renumber_map.value(), graph_->vertex_type_)
+                       : nullptr,
+        (renumber_map_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                                   renumber_map_offsets.value(), SIZE_T)
+                               : nullptr};
     }
   }
 };
