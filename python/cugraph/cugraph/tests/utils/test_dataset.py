@@ -266,17 +266,19 @@ def test_is_directed(dataset):
 
     assert G.is_directed() == dataset.metadata["is_directed"]
 
-
+#
 # Test experimental for DeprecationWarnings
+#
 def test_experimental_dataset_import():
     warnings.filterwarnings("default")
 
     with pytest.deprecated_call() as record:
         from cugraph.experimental.datasets import karate
 
+        if not record:
+            pytest.fail("Expected experimental.datasets to raise DeprecationWarning")
+        
         karate.unload()
-
-    assert len(record) == 15
 
 
 def test_experimental_method_warnings():
@@ -288,11 +290,23 @@ def test_experimental_method_warnings():
 
     warnings.filterwarnings("default")
     tmpd = TemporaryDirectory()
+
     with pytest.deprecated_call() as record:
         set_download_dir(tmpd.name)
-        load_all()
+
+        if not record:
+            pytest.fail("Expected set_download_dir to raise DeprecationWarning")
+
+    with pytest.deprecated_call() as record:
         get_download_dir()
 
-    assert len(record) == 3
+        if not record:
+            pytest.fail("Expected get_download_dir to raise DeprecationWarning")
+    
+    with pytest.deprecated_call() as record:
+        load_all()
+
+        if not record:
+            pytest.fail("Expected load_all to raise DeprecationWarning")
 
     tmpd.cleanup()
