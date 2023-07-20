@@ -10,20 +10,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import gc
 
-import dask_cudf
 import pytest
 import pandas as pd
-import cudf
-import cupy as cp
 import numpy as np
-from cudf.testing import assert_frame_equal, assert_series_equal
+
+import cudf
+import cugraph
+import dask_cudf
+import cupy as cp
+import cugraph.dask as dcg
 from cupy.testing import assert_array_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
 from cugraph.dask.common.mg_utils import is_single_gpu
-
-import cugraph.dask as dcg
 from cugraph.datasets import cyber, netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
@@ -37,8 +39,6 @@ except ImportError:
     import pytest_benchmark
 
     gpubenchmark = pytest_benchmark.plugin.benchmark
-
-import cugraph
 
 
 def type_is_categorical(pG):

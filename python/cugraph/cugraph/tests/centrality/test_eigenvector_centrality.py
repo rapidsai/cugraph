@@ -14,12 +14,12 @@
 import gc
 
 import pytest
+import networkx as nx
 
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS, DEFAULT_DATASETS
 from cugraph.datasets import toy_graph, karate
 
-import networkx as nx
 
 # This toy graph is used in multiple tests throughout libcugraph_c and pylib.
 TOY = toy_graph

@@ -12,16 +12,15 @@
 # limitations under the License.
 
 import gc
-import random
 
+import random
 import pytest
+import networkx as nx
 
 import cudf
 import cugraph
 from cugraph.testing import utils, DEFAULT_DATASETS
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-
-import networkx as nx
 
 
 def cugraph_call(G, partitions):

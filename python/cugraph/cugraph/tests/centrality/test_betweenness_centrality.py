@@ -14,16 +14,15 @@
 import gc
 
 import pytest
+import random
+import numpy as np
+import networkx as nx
 
+import cudf
+import cupy
 import cugraph
 from cugraph.datasets import karate_disjoint
 from cugraph.testing import utils, SMALL_DATASETS
-import random
-import numpy as np
-import cudf
-import cupy
-
-import networkx as nx
 
 
 # =============================================================================

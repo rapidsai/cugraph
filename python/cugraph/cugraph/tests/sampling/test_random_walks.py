@@ -15,13 +15,14 @@ import gc
 import random
 
 import pytest
-from cudf.testing import assert_series_equal
-
-import cugraph
-import cudf
 import networkx as nx
+
+import cudf
+import cugraph
+from cudf.testing import assert_series_equal
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 from cugraph.testing import SMALL_DATASETS, DEFAULT_DATASETS
+
 
 # =============================================================================
 # Parameters

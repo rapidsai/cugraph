@@ -14,12 +14,12 @@
 import gc
 
 import pytest
-import cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
 import networkx as nx
 
+import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================

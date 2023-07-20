@@ -12,27 +12,17 @@
 # limitations under the License.
 
 import gc
+
 import pytest
+import networkx as nx
 
 import cudf
-from cudf.testing import assert_series_equal, assert_frame_equal
-
 import cugraph
-from cugraph.testing import utils, UNDIRECTED_DATASETS
-from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
-from cugraph.experimental import jaccard as exp_jaccard
 from cugraph.datasets import netscience
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+from cugraph.testing import utils, UNDIRECTED_DATASETS
+from cugraph.experimental import jaccard as exp_jaccard
+from cudf.testing import assert_series_equal, assert_frame_equal
+from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
 
 
 print("Networkx version : {} ".format(nx.__version__))

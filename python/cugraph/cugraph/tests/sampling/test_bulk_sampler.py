@@ -11,16 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
+
 import pytest
+
 import cudf
 import cupy
 import cugraph
 from cugraph.datasets import karate
 from cugraph.experimental.gnn import BulkSampler
 from cugraph.utilities.utils import create_directory_with_overwrite
-
-import os
-import shutil
 
 
 @pytest.mark.sg

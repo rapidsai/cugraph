@@ -16,10 +16,10 @@ import gc
 import pytest
 import scipy
 import numpy as np
-import cudf
-from cudf.testing import assert_series_equal
 
+import cudf
 import cugraph
+from cudf.testing import assert_series_equal
 from cugraph.testing import utils, UNDIRECTED_DATASETS
 
 

@@ -14,12 +14,11 @@
 import gc
 
 import pytest
+import networkx as nx
 
 import cudf
 import cugraph
 from cugraph.testing import utils, UNDIRECTED_DATASETS
-
-import networkx as nx
 
 
 # =============================================================================
