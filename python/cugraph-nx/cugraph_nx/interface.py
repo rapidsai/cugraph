@@ -12,28 +12,17 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import cugraph_nx as cnx
 
 from . import algorithms
-
-if TYPE_CHECKING:
-    import networkx as nx
 
 
 class Dispatcher:
     is_strongly_connected = algorithms.is_strongly_connected
 
-    @staticmethod
-    def convert_from_nx(graph: nx.Graph, weight=None, *, name=None) -> cnx.Graph:
-        return cnx.from_networkx(graph, edge_attr=weight)
-
-    @staticmethod
-    def convert_to_nx(obj, *, name=None):
-        if isinstance(obj, cnx.Graph):
-            return cnx.to_networkx(obj)
-        return obj
+    # Required conversions
+    convert_from_nx = cnx.convert.convert_from_nx
+    convert_to_nx = cnx.convert.convert_to_nx
 
     @staticmethod
     def on_start_tests(items):

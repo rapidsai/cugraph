@@ -13,14 +13,16 @@
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterator
-from typing import TYPE_CHECKING
+from copy import deepcopy
+from typing import TYPE_CHECKING, TypeVar
 
 import cugraph_nx as cnx
 
 if TYPE_CHECKING:
     import cupy as cp
 
-NodeType = Hashable
+NodeType = TypeVar("NodeType", bound=Hashable)
+AttrType = TypeVar("AttrType", bound=Hashable)
 
 
 __all__ = ["Graph"]
@@ -30,7 +32,10 @@ class Graph:
     indptr: cp.ndarray
     row_indices: cp.ndarray
     col_indices: cp.ndarray
-    edge_values: cp.ndarray | None
+    edge_values: dict[AttrType, cp.ndarray]
+    edge_masks: dict[AttrType, cp.ndarray]
+    node_values: dict[AttrType, cp.ndarray]
+    node_masks: dict[AttrType, cp.ndarray]
     key_to_id: dict[NodeType, int] | None
     _id_to_key: dict[int, NodeType] | None
     _N: int
@@ -46,6 +51,9 @@ class Graph:
         row_indices,
         col_indices,
         edge_values,
+        edge_masks,
+        node_values,
+        node_masks,
         *,
         key_to_id,
         id_to_key=None,
@@ -56,6 +64,9 @@ class Graph:
         self.row_indices = row_indices
         self.col_indices = col_indices
         self.edge_values = edge_values
+        self.edge_masks = edge_masks
+        self.node_values = node_values
+        self.node_masks = node_masks
         self.key_to_id = key_to_id
         self._id_to_key = id_to_key
         self._N = indptr.size - 1
@@ -111,23 +122,36 @@ class Graph:
         row_indices = self.row_indices
         col_indices = self.col_indices
         edge_values = self.edge_values
+        edge_masks = self.edge_masks
+        node_values = self.node_values
+        node_masks = self.node_masks
         key_to_id = self.key_to_id
         id_to_key = None if key_to_id is None else self._id_to_key
         if not as_view:
             indptr = indptr.copy()
             row_indices = row_indices.copy()
             col_indices = col_indices.copy()
-            if edge_values is not None:
-                edge_values = edge_values.copy()
+            edge_values = {key: val.copy() for key, val in edge_values.items()}
+            edge_masks = {key: val.copy() for key, val in edge_masks.items()}
+            node_values = {key: val.copy() for key, val in node_values.items()}
+            node_masks = {key: val.copy() for key, val in node_masks.items()}
             if key_to_id is not None:
                 key_to_id = key_to_id.copy()
                 if id_to_key is not None:
                     id_to_key = id_to_key.copy()
-        return cnx.DiGraph(
+        rv = cnx.DiGraph(
             indptr,
             row_indices,
             col_indices,
             edge_values,
+            edge_masks,
+            node_values,
+            node_masks,
             key_to_id=key_to_id,
             id_to_key=id_to_key,
         )
+        if as_view:
+            rv.graph = self.graph
+        else:
+            rv.graph.update(deepcopy(self.graph))
+        return rv
