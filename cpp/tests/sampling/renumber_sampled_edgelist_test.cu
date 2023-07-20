@@ -170,9 +170,9 @@ class Tests_RenumberSampledEdgelist
       for (size_t i = 0; i < usecase.num_labels; ++i) {
         size_t edgelist_start_offset =
           label_offsets ? std::get<1>(*label_offsets).element(i, handle.get_stream()) : size_t{0};
-        size_t edgelist_end_offset = label_offsets
-                                       ? std::get<1>(*label_offsets).element(i, handle.get_stream())
-                                       : usecase.num_sampled_edges;
+        size_t edgelist_end_offset =
+          label_offsets ? std::get<1>(*label_offsets).element(i + 1, handle.get_stream())
+                        : usecase.num_sampled_edges;
         auto this_label_org_edgelist_srcs =
           raft::device_span<vertex_t const>(org_edgelist_srcs.data() + edgelist_start_offset,
                                             edgelist_end_offset - edgelist_start_offset);
@@ -204,30 +204,29 @@ class Tests_RenumberSampledEdgelist
 
         // check un-renumbering recovers the original edge list
 
-        auto pair_first          = thrust::make_zip_iterator(this_label_org_edgelist_srcs.begin(),
+        auto pair_first = thrust::make_zip_iterator(this_label_org_edgelist_srcs.begin(),
                                                     this_label_renumbered_edgelist_srcs.begin());
-        auto num_renumber_errors = thrust::count_if(
-          handle.get_thrust_policy(),
-          pair_first,
-          pair_first + this_label_org_edgelist_srcs.size(),
-          [this_label_renumber_map] __device__(auto pair) {
-            auto org        = thrust::get<0>(pair);
-            auto renumbered = thrust::get<1>(pair);
-            return this_label_renumber_map[thrust::get<1>(pair)] != thrust::get<0>(pair);
-          });
+        auto num_renumber_errors =
+          thrust::count_if(handle.get_thrust_policy(),
+                           pair_first,
+                           pair_first + this_label_org_edgelist_srcs.size(),
+                           [this_label_renumber_map] __device__(auto pair) {
+                             auto org        = thrust::get<0>(pair);
+                             auto renumbered = thrust::get<1>(pair);
+                             return this_label_renumber_map[renumbered] != org;
+                           });
         ASSERT_TRUE(num_renumber_errors == 0) << "Renumber error in edge list sources.";
 
         pair_first          = thrust::make_zip_iterator(this_label_org_edgelist_dsts.begin(),
                                                this_label_renumbered_edgelist_dsts.begin());
-        num_renumber_errors = thrust::count_if(
-          handle.get_thrust_policy(),
-          pair_first,
-          pair_first + this_label_org_edgelist_dsts.size(),
-          [this_label_renumber_map] __device__(auto pair) {
-            auto org        = thrust::get<0>(pair);
-            auto renumbered = thrust::get<1>(pair);
-            return this_label_renumber_map[thrust::get<1>(pair)] != thrust::get<0>(pair);
-          });
+        num_renumber_errors = thrust::count_if(handle.get_thrust_policy(),
+                                               pair_first,
+                                               pair_first + this_label_org_edgelist_dsts.size(),
+                                               [this_label_renumber_map] __device__(auto pair) {
+                                                 auto org        = thrust::get<0>(pair);
+                                                 auto renumbered = thrust::get<1>(pair);
+                                                 return this_label_renumber_map[renumbered] != org;
+                                               });
         ASSERT_TRUE(num_renumber_errors == 0) << "Renumber error in edge list destinations.";
 
         // check the invariants in renumber_map (1. vertices appeared in edge list sources should
@@ -255,11 +254,13 @@ class Tests_RenumberSampledEdgelist
           auto pair_first =
             thrust::make_zip_iterator(unique_srcs.begin(), (*unique_src_hops).begin());
           thrust::sort(handle.get_thrust_policy(), pair_first, pair_first + unique_srcs.size());
-          unique_srcs.resize(thrust::distance(pair_first,
-                                              thrust::unique(handle.get_thrust_policy(),
-                                                             pair_first,
-                                                             pair_first + unique_srcs.size())),
-                             handle.get_stream());
+          unique_srcs.resize(
+            thrust::distance(unique_srcs.begin(),
+                             thrust::get<0>(thrust::unique_by_key(handle.get_thrust_policy(),
+                                                                  unique_srcs.begin(),
+                                                                  unique_srcs.end(),
+                                                                  (*unique_src_hops).begin()))),
+            handle.get_stream());
           (*unique_src_hops).resize(unique_srcs.size(), handle.get_stream());
         } else {
           thrust::sort(handle.get_thrust_policy(), unique_srcs.begin(), unique_srcs.end());
@@ -358,12 +359,25 @@ class Tests_RenumberSampledEdgelist
                               unique_srcs.begin());
           rmm::device_uvector<vertex_t> min_vertices(usecase.num_hops, handle.get_stream());
           rmm::device_uvector<vertex_t> max_vertices(usecase.num_hops, handle.get_stream());
+          auto unique_renumbered_src_first = thrust::make_transform_iterator(
+            unique_srcs.begin(),
+            [sorted_org_vertices = raft::device_span<vertex_t const>(sorted_org_vertices.data(),
+                                                                     sorted_org_vertices.size()),
+             matching_renumbered_vertices = raft::device_span<vertex_t const>(
+               matching_renumbered_vertices.data(),
+               matching_renumbered_vertices.size())] __device__(vertex_t src) {
+              auto it = thrust::lower_bound(
+                thrust::seq, sorted_org_vertices.begin(), sorted_org_vertices.end(), src);
+              return matching_renumbered_vertices[thrust::distance(sorted_org_vertices.begin(),
+                                                                   it)];
+            });
+
           auto this_label_num_unique_hops = static_cast<size_t>(
             thrust::distance(min_vertices.begin(),
                              thrust::get<1>(thrust::reduce_by_key(handle.get_thrust_policy(),
                                                                   (*unique_src_hops).begin(),
                                                                   (*unique_src_hops).end(),
-                                                                  unique_srcs.begin(),
+                                                                  unique_renumbered_src_first,
                                                                   thrust::make_discard_iterator(),
                                                                   min_vertices.begin(),
                                                                   thrust::equal_to<vertex_t>{},
@@ -373,9 +387,9 @@ class Tests_RenumberSampledEdgelist
           thrust::reduce_by_key(handle.get_thrust_policy(),
                                 (*unique_src_hops).begin(),
                                 (*unique_src_hops).end(),
-                                unique_srcs.begin(),
+                                unique_renumbered_src_first,
                                 thrust::make_discard_iterator(),
-                                min_vertices.begin(),
+                                max_vertices.begin(),
                                 thrust::equal_to<vertex_t>{},
                                 thrust::maximum<vertex_t>{});
           max_vertices.resize(this_label_num_unique_hops, handle.get_stream());
@@ -412,20 +426,20 @@ TEST_P(Tests_RenumberSampledEdgelist, CheckInt64)
   run_current_test<int64_t>(param);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  small_test,
-  Tests_RenumberSampledEdgelist,
-  ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
-                    RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
-                    RenumberSampledEdgelist_Usecase{1024, 32768, 1, 256, true},
-                    RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
+INSTANTIATE_TEST_SUITE_P(small_test,
+                         Tests_RenumberSampledEdgelist,
+                         ::testing::Values(RenumberSampledEdgelist_Usecase{1024, 4096, 1, 1, true},
+                                           RenumberSampledEdgelist_Usecase{1024, 4096, 3, 1, true},
+                                           RenumberSampledEdgelist_Usecase{
+                                             1024, 32768, 1, 256, true},
+                                           RenumberSampledEdgelist_Usecase{1024, 32768, 3, 256, true}));
 
 INSTANTIATE_TEST_SUITE_P(
   benchmark_test,
   Tests_RenumberSampledEdgelist,
-  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 1, 1, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 5, 1, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 29, 1, 1 << 20, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 29, 5, 1 << 20, false}));
+  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 20, 1, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 20, 5, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 1, 1 << 20, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 5, 1 << 20, false}));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
