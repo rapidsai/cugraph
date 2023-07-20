@@ -423,9 +423,9 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   benchmark_test,
   Tests_RenumberSampledEdgelist,
-  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 20, 1, 1, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 20, 5, 1, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 25, 1, 1 << 20, false},
-                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 25, 5, 1 << 20, false}));
+  ::testing::Values(RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 1, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 24, 5, 1, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 29, 1, 1 << 20, false},
+                    RenumberSampledEdgelist_Usecase{1 << 20, 1 << 29, 5, 1 << 20, false}));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
