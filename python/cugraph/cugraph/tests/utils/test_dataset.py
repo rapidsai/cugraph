@@ -277,7 +277,7 @@ def test_experimental_dataset_import():
 
         if not record:
             pytest.fail("Expected experimental.datasets to raise DeprecationWarning")
-        
+
         karate.unload()
 
 
@@ -302,7 +302,7 @@ def test_experimental_method_warnings():
 
         if not record:
             pytest.fail("Expected get_download_dir to raise DeprecationWarning")
-    
+
     with pytest.deprecated_call() as record:
         load_all()
 
