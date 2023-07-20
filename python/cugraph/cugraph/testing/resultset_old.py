@@ -16,9 +16,6 @@ import random
 import os
 from pathlib import Path
 
-# import json
-import pickle
-
 # import pandas as pd
 # import cupy as cp
 import numpy as np
@@ -38,8 +35,8 @@ from cugraph.testing import utils
 default_results_upload_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
 alt_results_dir = Path("testing/nxresults")
 
-# This script is intended to generate all results for each of the corresponding results files.
-# Currently, its location is in testing, but that won't be the final location 
+# This script is intended to generate all results for all results files.
+# Currently, its location is in testing, but that won't be the final location
 # =============================================================================
 # Parameters
 # =============================================================================
@@ -209,11 +206,11 @@ for graph in ["connected", "disconnected"]:
 res1 = nx.shortest_path_length(Gnx_DIS, source="1", weight="weight")
 test_paths_results["1,notarget,nx"] = res1
 # res1 = cudf.DataFrame.from_dict(res1, orient="index")
-# res1.to_csv(alt_results_dir / "nx/shortest_path_length/DISCONNECTEDnx/1.csv", index=True)
+# res1.to_csv(alt_results_dir / "nx/spl/DISCONNECTEDnx/1.csv", index=True)
 
 res2 = cugraph.shortest_path_length(Gnx_DIS, "1")
 test_paths_results["1,notarget,cu"] = res2
-# res2.to_csv(alt_results_dir / "cugraph/shortest_path_length/DISCONNECTEDnx/1.csv", index=False)
+# res2.to_csv(alt_results_dir / "cugraph/spl/DISCONNECTEDnx/1.csv", index=False)
 
 
 # serial_bfs_results = pickle.dumps(test_bfs_results)

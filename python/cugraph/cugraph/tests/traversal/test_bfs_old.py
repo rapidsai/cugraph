@@ -58,12 +58,13 @@ cupy_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 
 bfs_results = ResultSet(local_result_file="bfs_results.pkl")
 
-bfs_results2  = {'42,dolphins,starts': 16, '42,netscience,starts': 1237,
-                 '42,karate-disjoint,starts': 19, '42,karate,starts': 7}
-# Dicts that need to be converted to cudf.df then to csv:
-# '42,None,dolphins,True', '42,None,dolphins,False', '42,1,dolphins,True', '42,1,dolphins,False', '42,5,dolphins,True', '42,5,dolphins,False', '42,18,dolphins,True', '42,18,dolphins,False', '42,dolphins,starts', '42,None,netscience,True', '42,None,netscience,False', '42,1,netscience,True', '42,1,netscience,False', '42,5,netscience,True', '42,5,netscience,False', '42,18,netscience,True', '42,18,netscience,False', '42,netscience,starts', '42,None,karate-disjoint,True', '42,None,karate-disjoint,False', '42,1,karate-disjoint,True', '42,1,karate-disjoint,False', '42,5,karate-disjoint,True', '42,5,karate-disjoint,False', '42,18,karate-disjoint,True', '42,18,karate-disjoint,False', '42,karate-disjoint,starts', '42,None,karate,True', '42,None,karate,False', '42,1,karate,True', '42,1,karate,False', '42,5,karate,True', '42,5,karate,False', '42,18,karate,True', '42,18,karate,False', '42,karate,starts'
-# Can be converted to csv easily:
-# 'karate,True,nonnative-nx', 'karate,False,nonnative-nx'
+bfs_results2 = {
+    "42,dolphins,starts": 16,
+    "42,netscience,starts": 1237,
+    "42,karate-disjoint,starts": 19,
+    "42,karate,starts": 7,
+}
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function

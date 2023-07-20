@@ -13,6 +13,4 @@
 
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
-from cugraph.testing.resultset_pr import (
-    get_resultset
-)
+from cugraph.testing.resultset_current import get_resultset

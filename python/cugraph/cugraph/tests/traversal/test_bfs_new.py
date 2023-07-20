@@ -28,7 +28,7 @@ import cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph
-from cugraph.testing import utils, resultset_pr
+from cugraph.testing import utils, get_resultset
 from cugraph.experimental import datasets
 
 
@@ -39,7 +39,12 @@ DIRECTED_GRAPH_OPTIONS = [True, False]
 
 SUBSET_SEED_OPTIONS = [42]
 
-DATASET_STARTS = {"dolphins": 16, "karate": 7, "karate-disjoint": 19, "netscience": 1237}
+DATASET_STARTS = {
+    "dolphins": 16,
+    "karate": 7,
+    "karate-disjoint": 19,
+    "netscience": 1237,
+}
 
 DEFAULT_EPSILON = 1e-6
 
@@ -263,11 +268,13 @@ def get_cu_graph_nx_results_and_params(
     """
     start_vertex = DATASET_STARTS[dataset_name]
 
-    nx_values = resultset_pr.get_resultset(algo='nx.single_source_shortest_path_length',
-                                           cutoff=depth_limit,
-                                           graph_dataset=dataset_name,
-                                           graph_directed=directed,
-                                           start_vertex=start_vertex)
+    nx_values = get_resultset(
+        algo="nx.single_source_shortest_path_length",
+        cutoff=depth_limit,
+        graph_dataset=dataset_name,
+        graph_directed=directed,
+        start_vertex=start_vertex,
+    )
     nx_values = nx_values.drop(columns="Unnamed: 0")
     nx_values = cudf.Series(nx_values.distance.values, index=nx_values.vertex).to_dict()
 
@@ -404,11 +411,11 @@ def test_bfs_nonnative_inputs_matrix(
 ):
     test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
 
-#@pytest.mark.parametrize("cugraph_input_type", ["nx.Graph", "nx.DiGraph"])
 
 @pytest.mark.sg
 def test_bfs_nonnative_inputs_nx(
-    gpubenchmark, single_dataset_nxresults_startvertex_spc,
+    gpubenchmark,
+    single_dataset_nxresults_startvertex_spc,
 ):
     (
         _,
@@ -419,10 +426,12 @@ def test_bfs_nonnative_inputs_nx(
         _,
     ) = single_dataset_nxresults_startvertex_spc
 
-    cugraph_df = resultset_pr.get_resultset(algo='nx.bfs_edges',
-                                            graph_dataset='karate',
-                                            graph_directed=directed,
-                                            source=start_vertex)
+    cugraph_df = get_resultset(
+        algo="nx.bfs_edges",
+        graph_dataset="karate",
+        graph_directed=directed,
+        source=start_vertex,
+    )
     cugraph_df = cugraph_df.drop(columns="Unnamed: 0")
 
     compare_func = _compare_bfs

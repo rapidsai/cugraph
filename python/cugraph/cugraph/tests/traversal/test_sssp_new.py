@@ -29,7 +29,7 @@ from pylibcugraph.testing.utils import gen_fixture_params_product
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 import cugraph
-from cugraph.testing import utils, resultset_pr
+from cugraph.testing import utils, get_resultset
 from cugraph.experimental import datasets
 
 
@@ -133,19 +133,23 @@ def networkx_call(graph_file, source, edgevals=True):
         # FIXME: no test coverage if edgevals is False, this assertion is never reached
         assert False
         # nx_paths = sssp_results.results["{},{},ssspl".format(dataset_name, source)]
-        nx_paths = resultset_pr.get_resultset(algo="nx.single_source_shortest_path_length",
-                                              graph_dataset=dataset_name,
-                                              graph_directed=True,
-                                              source=source)
+        nx_paths = get_resultset(
+            algo="nx.single_source_shortest_path_length",
+            graph_dataset=dataset_name,
+            graph_directed=True,
+            source=source,
+        )
     else:
         # FIXME: The nx call below doesn't return accurate results as it seems to
         # not support 'weights'. It matches cuGraph result only if the weight column
         # is 1s.
         # nx_paths = sssp_results.results["{},{},ssdpl".format(dataset_name, source)]
-        nx_paths = resultset_pr.get_resultset(algo="nx.single_source_dijkstra_path_length",
-                                              graph_dataset=dataset_name,
-                                              graph_directed=True,
-                                              source=source)
+        nx_paths = get_resultset(
+            algo="nx.single_source_dijkstra_path_length",
+            graph_dataset=dataset_name,
+            graph_directed=True,
+            source=source,
+        )
     nx_paths = nx_paths.drop(columns="Unnamed: 0")
     nx_paths = cudf.Series(nx_paths.distance.values, index=nx_paths.vertex).to_dict()
     G = graph_file.get_graph(
@@ -267,10 +271,12 @@ def test_sssp_nonnative_inputs_nx(
     # result = sssp_results.results[
     #     "nonnative_input,{},{}".format(cugraph_input_type, source)
     # ]
-    result = resultset_pr.get_resultset(algo="cu.sssp_nonnative",
-                                        graph_dataset=dataset_name,
-                                        graph_directed=directed,
-                                        source=source)
+    result = get_resultset(
+        algo="cu.sssp_nonnative",
+        graph_dataset=dataset_name,
+        graph_directed=directed,
+        source=source,
+    )
     result = result.drop(columns="Unnamed: 0")
     if np.issubdtype(result["distance"].dtype, np.integer):
         max_val = np.iinfo(result["distance"].dtype).max
@@ -372,11 +378,13 @@ def test_sssp_data_type_conversion(graph_file, source):
     # nx_paths = sssp_results.results[
     #    "nx_paths,data_type_conversion,{}".format(dataset_name)
     # ]
-    nx_paths = resultset_pr.get_resultset(algo="nx.single_source_dijkstra_path_length",
-                                          graph_dataset=dataset_name,
-                                          graph_directed=True,
-                                          source=source,
-                                          test="data_type_conversion")
+    nx_paths = get_resultset(
+        algo="nx.single_source_dijkstra_path_length",
+        graph_dataset=dataset_name,
+        graph_directed=True,
+        source=source,
+        test="data_type_conversion",
+    )
     nx_paths = nx_paths.drop(columns="Unnamed: 0")
     nx_paths = cudf.Series(nx_paths.distance.values, index=nx_paths.vertex).to_dict()
 
@@ -407,8 +415,7 @@ def test_sssp_data_type_conversion(graph_file, source):
 @pytest.mark.sg
 def test_sssp_networkx_edge_attr():
     # df = sssp_results.results["network_edge_attr"]
-    df = resultset_pr.get_resultset(algo="cu.sssp_nonnative",
-                                    test="network_edge_attr")
+    df = get_resultset(algo="cu.sssp_nonnative", test="network_edge_attr")
     df = df.drop(columns="Unnamed: 0")
     df = df.set_index("vertex")
     assert df.loc[0, "distance"] == 0

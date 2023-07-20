@@ -57,17 +57,13 @@ connected_test_data = [
     ["1", "6", "nx", 2.0],
     ["1", "6", "cu", 2.0],
     ["-1", "1", "invalid", ValueError],
-    ["0", "42", "invalid", ValueError]
+    ["0", "42", "invalid", ValueError],
 ]
 disconnected_test_data = [
     ["1", "10", "invalid", ValueError],
-    ["1", "8", "invalid", 3.4028235e+38]
+    ["1", "8", "invalid", 3.4028235e38],
 ]
 
-# The above can be saved as a result within the same file, however dicts and dataframes can't
-# We would create results files within
-# '1,notarget,nx': {'1': 0, '4': 1.0, '2': 1.0, '6': 2.0, '7': 2.0, '5': 2.0, '3': 2.0}
-# '1,notarget,cu': {'1': 0, '4': 1.0, '2': 1.0, '6': 2.0, '7': 2.0, '5': 2.0, '3': 2.0}
 
 @pytest.fixture
 def graphs(request):
@@ -204,28 +200,28 @@ def test_shortest_path_length_no_target(graphs):
     cugraph_G, cupy_df = graphs
 
     cugraph_path_1_to_all = cugraph.shortest_path_length(cugraph_G, 1)
-    #nx_path_1_to_all = paths_results.results["1,notarget,nx"]
-    #nx_gpu_path_1_to_all = cudf.DataFrame.from_dict(
+    # nx_path_1_to_all = paths_results.results["1,notarget,nx"]
+    # nx_gpu_path_1_to_all = cudf.DataFrame.from_dict(
     #    paths_results.results["1,notarget,cu"]
-    #)
+    # )
     nx_path_1_to_all = ResultSet2(
         lib="nx", alg="shortest_path_length", graph="DISCONNECTEDnx", param="1"
     ).results
-    nx_path_1_to_all = nx_path_1_to_all.rename(columns={"Unnamed: 0": "vertex", "0": "distance"})
+    nx_path_1_to_all = nx_path_1_to_all.rename(
+        columns={"Unnamed: 0": "vertex", "0": "distance"}
+    )
     nx_path_1_to_all = nx_path_1_to_all.reset_index("vertex").to_dict()["distance"]
 
     nx_gpu_path_1_to_all = ResultSet2(
         lib="cugraph", alg="shortest_path_length", graph="DISCONNECTEDnx", param="1"
     ).results
     cupy_path_1_to_all = cugraph.shortest_path_length(cupy_df, 1)
-    #breakpoint()
 
     # Cast networkx graph on cugraph vertex column type from str to int.
     # SSSP preserves vertex type, convert for comparison
     nx_gpu_path_1_to_all["vertex"] = nx_gpu_path_1_to_all["vertex"].astype("int32")
     assert cugraph_path_1_to_all == nx_gpu_path_1_to_all
     assert cugraph_path_1_to_all == cupy_path_1_to_all
-    #breakpoint()
     # results for vertex 8 and 9 are not returned
     assert cugraph_path_1_to_all.shape[0] == len(nx_path_1_to_all) + 2
 
@@ -233,7 +229,6 @@ def test_shortest_path_length_no_target(graphs):
 
         vertex = str(cugraph_path_1_to_all["vertex"][index].item())
         distance = cugraph_path_1_to_all["distance"][index].item()
-        breakpoint()
         # verify cugraph against networkx
         if vertex in {"8", "9"}:
             # Networkx does not return distances for these vertexes.

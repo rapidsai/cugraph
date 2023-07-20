@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import os
-import pickle
 
 # Assume test environment has the following dependencies installed
 import pytest
@@ -483,7 +482,8 @@ class ResultSet:
         self._path = None
 
         if lib is not None:
-            self._path = Path(Path("testing/nxresults") / lib  / alg / graph / params).with_suffix(".csv")
+            self._path = Path(Path("testing/nxresults") / lib  / alg / graph / params)
+                         .with_suffix(".csv")
             if self._path.exists() is False:
                 raise FileNotFoundError(self._path)
             else:
@@ -492,3 +492,12 @@ class ResultSet:
         else:
             raise ValueError("must specify result_file")
 """
+
+
+class ResultSet:
+    def __init__(self, data_dictionary):
+        self._data_dictionary = data_dictionary
+
+    def get_cudf_dataframe(self):
+        # THIS IS CALLED IN RESULTS GENERATION BEFORE WRITING ALL RESULTS TO FILES
+        return cudf.DataFrame(self._data_dictionary)

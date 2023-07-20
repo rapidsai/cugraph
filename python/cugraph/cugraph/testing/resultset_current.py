@@ -13,11 +13,7 @@
 
 from tempfile import NamedTemporaryFile
 import random
-import os
 from pathlib import Path
-
-# import json
-import pickle
 
 import numpy as np
 
@@ -35,40 +31,26 @@ from cugraph.testing import utils
 
 results_dir = Path("testing/results")
 
-class ResultSet:
-    def __init__(self, data_dictionary):
-        self._data_dictionary = data_dictionary
-    
-    def get_cudf_dataframe(self):
-        # THIS IS CALLED IN RESULTS GENERATION BEFORE WRITING ALL RESULTS TO FILES
-        # cu algs on nx input (dict)
-        # nx algs on nx input (dict, but requires renaming,tweaking)
-        return cudf.DataFrame(self._data_dictionary)
-    
 _resultsets = {}
 
+
 def add_resultset(result_data_dictionary, **kwargs):
-    rs = ResultSet(result_data_dictionary)
+    rs = utils.ResultSet(result_data_dictionary)
     hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
     _resultsets[hashable_dict_repr] = rs
+
+
+"""def get_resultset(**kwargs):
+    hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
+    return _resultsets.get(hashable_dict_repr)"""
+
 
 def get_resultset(**kwargs):
     # THIS IS CALLED IN TESTS
     hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
-    return _resultsets.get(hashable_dict_repr)
-
-def get_resultset_dev(**kwargs):
-    hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
-    resultset_path = results_dir / (str(hashable_dict_repr) + ".csv")
-    return cudf.read_csv(resultset_path)
-
-"""
-def get_resultset(**kwargs):
-    hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
-    desired = results_dir / (str(hashable_dict_repr) + ".csv")
-    return cudf.read_csv(desired)
-"""
-
+    path = results_dir / (str(hashable_dict_repr) + ".csv")
+    # path = Path("https://data.rapids.ai/cugraph/results/" / path
+    return cudf.read_csv(path)
 
 
 # =============================================================================
@@ -101,17 +83,19 @@ for ds in DATASETS + [karate]:
                 nx_values = nx.single_source_shortest_path_length(
                     Gnx, start_vertex, cutoff=depth_limit
                 )
-                test_bfs_results[
+                """test_bfs_results[
                     "{},{},{},{},{}".format(seed, depth_limit, ds, dirctd, start_vertex)
-                ] = nx_values
+                ] = nx_values"""
                 vertices = cudf.Series(nx_values.keys())
                 distances = cudf.Series(nx_values.values())
-                add_resultset({"vertex": vertices, "distance": distances},
-                              graph_dataset=ds.metadata["name"],
-                              graph_directed=dirctd,
-                              algo="nx.single_source_shortest_path_length",
-                              start_vertex=start_vertex,
-                              cutoff=depth_limit)
+                add_resultset(
+                    {"vertex": vertices, "distance": distances},
+                    graph_dataset=ds.metadata["name"],
+                    graph_directed=dirctd,
+                    algo="nx.single_source_shortest_path_length",
+                    start_vertex=start_vertex,
+                    cutoff=depth_limit,
+                )
     # prob don't need to store in resultset
     # test_bfs_results["{},{},starts".format(seed, ds)] = start_vertex
 
@@ -120,12 +104,14 @@ for dirctd in DIRECTED_GRAPH_OPTIONS:
     Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd)
     result = cugraph.bfs_edges(Gnx, source=7)
     cugraph_df = cudf.from_pandas(result)
-    test_bfs_results["{},{},{}".format(ds, dirctd, "nonnative-nx")] = cugraph_df
-    add_resultset(cugraph_df,
-                  graph_dataset="karate",
-                  graph_directed=dirctd,
-                  algo="nx.bfs_edges",
-                  source=7)
+    # test_bfs_results["{},{},{}".format(ds, dirctd, "nonnative-nx")] = cugraph_df
+    add_resultset(
+        cugraph_df,
+        graph_dataset="karate",
+        graph_directed=dirctd,
+        algo="nx.bfs_edges",
+        source=7,
+    )
 
 
 # =============================================================================
@@ -139,14 +125,16 @@ for ds in DATASETS_SMALL:
     for source in SOURCES:
         Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=True)
         nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
-        test_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
+        # stest_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
         vertices = cudf.Series(nx_paths.keys())
         distances = cudf.Series(nx_paths.values())
-        add_resultset({"vertex": vertices, "distance": distances},
-                      graph_dataset=ds.metadata["name"],
-                      graph_directed=True,
-                      algo="nx.single_source_dijkstra_path_length",
-                      source=source)
+        add_resultset(
+            {"vertex": vertices, "distance": distances},
+            graph_dataset=ds.metadata["name"],
+            graph_directed=True,
+            algo="nx.single_source_dijkstra_path_length",
+            source=source,
+        )
 
         M = utils.read_csv_for_nx(ds.get_path(), read_weights_in_sp=True)
         edge_attr = "weight"
@@ -167,45 +155,47 @@ for ds in DATASETS_SMALL:
             create_using=nx.DiGraph(),
         )
         nx_paths_datatypeconv = nx.single_source_dijkstra_path_length(Gnx, source)
-        test_sssp_results[
+        """test_sssp_results[
             "nx_paths,data_type_conversion,{}".format(ds)
-        ] = nx_paths_datatypeconv
+        ] = nx_paths_datatypeconv"""
         vertices_datatypeconv = cudf.Series(nx_paths_datatypeconv.keys())
         distances_datatypeconv = cudf.Series(nx_paths_datatypeconv.values())
-        add_resultset({"vertex": vertices_datatypeconv, "distance": distances_datatypeconv},
-                      graph_dataset=ds.metadata["name"],
-                      graph_directed=True,
-                      algo="nx.single_source_dijkstra_path_length",
-                      test="data_type_conversion",
-                      source=source)
+        add_resultset(
+            {"vertex": vertices_datatypeconv, "distance": distances_datatypeconv},
+            graph_dataset=ds.metadata["name"],
+            graph_directed=True,
+            algo="nx.single_source_dijkstra_path_length",
+            test="data_type_conversion",
+            source=source,
+        )
 
 for dirctd in DIRECTED_GRAPH_OPTIONS:
     for source in SOURCES:
         Gnx = utils.generate_nx_graph_from_file(
             karate.get_path(), directed=dirctd, edgevals=True
         )
-        if dirctd:
+        """if dirctd:
             test_sssp_results[
                 "nonnative_input,nx.DiGraph,{}".format(source)
             ] = cugraph.sssp(Gnx, source)
         else:
             test_sssp_results[
                 "nonnative_input,nx.Graph,{}".format(source)
-            ] = cugraph.sssp(Gnx, source)
-        add_resultset(cugraph.sssp(Gnx, source),
-                      graph_dataset="karate",
-                      graph_directed=dirctd,
-                      algo="cu.sssp_nonnative",
-                      source=source)
+            ] = cugraph.sssp(Gnx, source)"""
+        add_resultset(
+            cugraph.sssp(Gnx, source),
+            graph_dataset="karate",
+            graph_directed=dirctd,
+            algo="cu.sssp_nonnative",
+            source=source,
+        )
 
 G = nx.Graph()
 G.add_edge(0, 1, other=10)
 G.add_edge(1, 2, other=20)
 df = cugraph.sssp(G, 0, edge_attr="other")
-test_sssp_results["network_edge_attr"] = df
-add_resultset(df,
-              algo="cu.sssp_nonnative",
-              test="network_edge_attr")
+# test_sssp_results["network_edge_attr"] = df
+add_resultset(df, algo="cu.sssp_nonnative", test="network_edge_attr")
 
 # =============================================================================
 # tests/traversal/test_paths.py
@@ -228,7 +218,7 @@ invalid_paths = {
     "disconnected": [("1", "10"), ("1", "8")],
 }
 
-test_paths_results = {}
+# test_paths_results = {}
 
 # CONNECTED_GRAPH
 with NamedTemporaryFile(mode="w+", suffix=".csv") as graph_tf:
@@ -237,27 +227,33 @@ with NamedTemporaryFile(mode="w+", suffix=".csv") as graph_tf:
     Gnx_DIS = nx.read_weighted_edgelist(graph_tf.name, delimiter=",")
 
 res1 = nx.shortest_path_length(Gnx_DIS, source="1", weight="weight")
-test_paths_results["1,notarget,nx"] = nx.shortest_path_length(Gnx_DIS, source="1", weight="weight")
+"""test_paths_results["1,notarget,nx"] = nx.shortest_path_length(
+    Gnx_DIS, source="1", weight="weight"
+)"""
 vertices = cudf.Series(res1.keys())
 distances = cudf.Series(res1.values())
-add_resultset({"vertex": vertices, "distance": distances},
-              algo="nx.shortest_path_length",
-              graph_dataset="DISCONNECTED",
-              graph_directed=True,
-              source="1",
-              weight="weight")
+add_resultset(
+    {"vertex": vertices, "distance": distances},
+    algo="nx.shortest_path_length",
+    graph_dataset="DISCONNECTED",
+    graph_directed=True,
+    source="1",
+    weight="weight",
+)
 
 res2 = cugraph.shortest_path_length(Gnx_DIS, "1")
-test_paths_results["1,notarget,cu"] = cugraph.shortest_path_length(Gnx_DIS, "1")
-add_resultset(res2,
-              algo="cu.shortest_path_length",
-              graph_dataset="DISCONNECTED",
-              graph_directed=True,
-              source="1",
-              weight="weight")
+# test_paths_results["1,notarget,cu"] = cugraph.shortest_path_length(Gnx_DIS, "1")
+add_resultset(
+    res2,
+    algo="cu.shortest_path_length",
+    graph_dataset="DISCONNECTED",
+    graph_directed=True,
+    source="1",
+    weight="weight",
+)
 
 # Generating ALL results files
 for temp in _resultsets:
     res = _resultsets[temp].get_cudf_dataframe()
     res.to_csv(results_dir / (str(temp) + ".csv"))
-    print(temp)
+    # print(temp)
