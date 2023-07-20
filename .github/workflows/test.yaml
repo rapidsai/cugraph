@@ -18,7 +18,6 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-tests.yaml@branch-23.08
     with:
-      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
@@ -27,7 +26,6 @@ jobs:
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-tests.yaml@branch-23.08
     with:
-      matrix_filter: map(select(.CUDA_VER | startswith("11")))
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
