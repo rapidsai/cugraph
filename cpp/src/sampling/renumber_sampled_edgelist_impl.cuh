@@ -511,15 +511,13 @@ renumber_sampled_edgelist(
 
   // 2. compute renumber_map
 
-  auto [renumber_map, renumber_map_label_indices] =
-    compute_renumber_map<vertex_t, label_index_t>(
-      handle,
-      raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
-      edgelist_hops,
-      raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
-      label_offsets
-        ? std::make_optional<raft::device_span<size_t const>>(std::get<1>(*label_offsets))
-        : std::nullopt);
+  auto [renumber_map, renumber_map_label_indices] = compute_renumber_map<vertex_t, label_index_t>(
+    handle,
+    raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+    edgelist_hops,
+    raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
+    label_offsets ? std::make_optional<raft::device_span<size_t const>>(std::get<1>(*label_offsets))
+                  : std::nullopt);
 
   // 3. compute renumber map offsets for each label
 
