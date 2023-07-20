@@ -168,11 +168,11 @@ void reference_rescale(result_t* result,
 
 template <typename result_t>
 void reference_edge_rescale(result_t* result,
-                           bool directed,
-                           bool normalize,
-                           size_t const number_of_vertices,
-                           size_t const number_of_edges,
-                           size_t const number_of_sources)
+                            bool directed,
+                            bool normalize,
+                            size_t const number_of_vertices,
+                            size_t const number_of_edges,
+                            size_t const number_of_sources)
 {
   result_t rescale_factor            = static_cast<result_t>(1);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
@@ -271,7 +271,8 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
     }
   }
 
-  reference_edge_rescale(result.data(), directed, normalize, offsets.size() - 1, indices.size(), seeds.size());
+  reference_edge_rescale(
+    result.data(), directed, normalize, offsets.size() - 1, indices.size(), seeds.size());
   return result;
 }
 }  // namespace
