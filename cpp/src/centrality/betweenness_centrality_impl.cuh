@@ -656,7 +656,7 @@ edge_betweenness_centrality(
     scale_factor = weight_t{2};
 
   if (scale_factor) {
-    if (graph_view.number_of_vertices() > 2) {
+    if (graph_view.number_of_edges() > 2) {
       //
       //  FIXME: When normalizing the result, we might not want to follow NetworkX
       //  as it doesn't account for sources.
