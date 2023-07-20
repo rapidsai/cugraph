@@ -1,7 +1,7 @@
 name: toy_graph_undirected
 file_type: .csv
 author: null
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/toy_graph_undirected.csv
+url: https://data.rapids.ai/cugraph/datasets/toy_graph_undirected.csv
 refs: null
 delim: " "
 header: None

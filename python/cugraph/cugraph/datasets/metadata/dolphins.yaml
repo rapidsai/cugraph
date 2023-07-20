@@ -1,7 +1,7 @@
 name: dolphins
 file_type: .csv
 author: D. Lusseau
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/dolphins.csv
+url: https://data.rapids.ai/cugraph/datasets/dolphins.csv
 refs:
   D. Lusseau, K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and S. M. Dawson,
   The bottlenose dolphin community of Doubtful Sound features a large proportion of

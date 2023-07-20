@@ -1,7 +1,7 @@
 name: karate-disjoint
 file_type: .csv
 author: null
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-disjoint.csv
+url: https://data.rapids.ai/cugraph/datasets/karate-disjoint.csv
 refs: null
 delim: " "
 header: None

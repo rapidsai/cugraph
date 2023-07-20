@@ -1,7 +1,7 @@
 name: cyber
 file_type: .csv
 author: N/A
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/cyber.csv
+url: https://data.rapids.ai/cugraph/datasets/cyber.csv
 refs: N/A
 col_names:
   - idx

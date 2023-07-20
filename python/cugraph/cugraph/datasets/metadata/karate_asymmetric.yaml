@@ -1,7 +1,7 @@
 name: karate-asymmetric
 file_type: .csv
 author: Zachary W.
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-asymmetric.csv
+url: https://data.rapids.ai/cugraph/datasets/karate-asymmetric.csv
 delim: " "
 header: None
 refs:
