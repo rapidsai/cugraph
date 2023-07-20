@@ -1,7 +1,7 @@
-name: ktruss_polbooks
+name: one_edge
 file_type: .csv
-author: null
-url: https://data.rapids.ai/cugraph/datasets/polbooks.csv
+author: Ralph Liu
+url: null
 refs: null
 delim: " "
 header: None
@@ -14,10 +14,9 @@ col_types:
   - int32
   - float32
 has_loop: false
-is_directed: true
+is_directed: false
 is_multigraph: false
 is_symmetric: false
-number_of_edges: 233
-number_of_nodes: 58
-number_of_lines: 233
-
+number_of_edges: 1
+number_of_nodes: 2
+number_of_lines: 0

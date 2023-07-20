@@ -1,7 +1,7 @@
 name: karate
 file_type: .csv
 author: Zachary W.
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate.csv
+url: https://data.rapids.ai/cugraph/datasets/karate.csv
 refs:
   W. W. Zachary, An information flow model for conflict and fission in small groups,
   Journal of Anthropological Research 33, 452-473 (1977).

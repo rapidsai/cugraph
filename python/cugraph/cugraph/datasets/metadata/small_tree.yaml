@@ -1,7 +1,7 @@
 name: small_tree
 file_type: .csv
 author: null
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/small_tree.csv
+url: https://data.rapids.ai/cugraph/datasets/small_tree.csv
 refs: null
 delim: " "
 header: None

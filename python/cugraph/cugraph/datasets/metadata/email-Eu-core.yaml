@@ -1,7 +1,7 @@
 name: email-Eu-core
 file_type: .csv
 author: null
-url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/email-Eu-core.csv
+url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv
 refs: null
 delim: " "
 header: None
