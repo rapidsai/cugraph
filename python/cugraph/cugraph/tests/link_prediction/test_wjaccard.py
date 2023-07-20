@@ -176,3 +176,14 @@ def test_wjaccard_multi_column(read_csv):
     actual = df_res.sort_values("0_first").reset_index()
     expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
+
+
+@pytest.mark.sg
+def test_invalid_datasets_jaccard_w():
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.jaccard_w(G, None)
