@@ -1,7 +1,7 @@
 name: ktruss_polbooks
 file_type: .csv
-author: null
-url: https://data.rapids.ai/cugraph/datasets/polbooks.csv
+author: V. Krebs
+url: https://data.rapids.ai/cugraph/datasets/ref/ktruss/polbooks.csv
 refs: null
 delim: " "
 header: None
