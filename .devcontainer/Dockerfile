@@ -12,6 +12,8 @@ FROM ${REPO}:${RAPIDS}-cpp-llvm${LLVM}-cuda${CUDA}-${DISTRO} as pip-base
 
 FROM ${REPO}:${RAPIDS}-cpp-mambaforge-${DISTRO} as conda-base
 
+COPY --from=pip-base /etc/skel/.config/clangd/config.yaml /etc/skel/.config/clangd/config.yaml
+
 FROM ${PYTHON_PACKAGE_MANAGER}-base
 
 ARG CUDA
