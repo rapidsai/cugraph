@@ -120,4 +120,4 @@ from cugraph import gnn
 
 from cugraph import exceptions
 
-__version__ = "23.08.00"
+__version__ = "23.10.00"

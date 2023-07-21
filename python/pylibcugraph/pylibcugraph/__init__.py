@@ -83,4 +83,4 @@ from pylibcugraph.select_random_vertices import select_random_vertices
 
 from pylibcugraph import exceptions
 
-__version__ = "23.08.00"
+__version__ = "23.10.00"
