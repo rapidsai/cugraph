@@ -4,10 +4,10 @@ channels:
 - rapidsai
 - rapidsai-nightly
 - dask/label/dev
-- conda-forge
-- nvidia
 - pytorch
 - dglteam/label/cu118
+- conda-forge
+- nvidia
 dependencies:
 - cugraph==23.8.*
 - dgl>=1.1.0.cu*

@@ -3,7 +3,7 @@ files:
   all:
     output: [conda]
     matrix:
-      cuda: ["11.8"]
+      cuda: ["11.8", "12.0"]
       arch: [x86_64]
     includes:
       - checks
@@ -181,10 +181,10 @@ channels:
   - rapidsai
   - rapidsai-nightly
   - dask/label/dev
-  - conda-forge
-  - nvidia
   - pytorch
   - dglteam/label/cu118
+  - conda-forge
+  - nvidia
 dependencies:
   checks:
     common:
@@ -196,21 +196,29 @@ dependencies:
       - output_types: [conda]
         matrices:
           - matrix:
+              cuda: "12.0"
+            packages:
+              - cuda-version=12.0
+          - matrix:
               cuda: "11.8"
             packages:
-              - cudatoolkit=11.8
+              - cuda-version=11.8
+              - cudatoolkit
           - matrix:
               cuda: "11.5"
             packages:
-              - cudatoolkit=11.5
+              - cuda-version=11.5
+              - cudatoolkit
           - matrix:
               cuda: "11.4"
             packages:
-              - cudatoolkit=11.4
+              - cuda-version=11.4
+              - cudatoolkit
           - matrix:
               cuda: "11.2"
             packages:
-              - cudatoolkit=11.2
+              - cuda-version=11.2
+              - cudatoolkit
   common_build:
     common:
       - output_types: [conda, pyproject]
@@ -253,6 +261,11 @@ dependencies:
               cuda: "11.8"
             packages:
               - nvcc_linux-aarch64=11.8
+          - matrix:
+              cuda: "12.0"
+            packages:
+              - cuda-version=12.0
+              - cuda-nvcc
   docs:
     common:
       - output_types: [conda]

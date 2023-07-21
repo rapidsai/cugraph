@@ -26,28 +26,36 @@ rapids-mamba-retry mambabuild \
   --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
   conda/recipes/cugraph
 
-rapids-mamba-retry mambabuild \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  conda/recipes/cugraph-service
+RAPIDS_CUDA_MAJOR="${RAPIDS_CUDA_VERSION%%.*}"
 
-rapids-mamba-retry mambabuild \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  --channel pyg \
-  --channel pytorch \
-  --channel pytorch-nightly \
-  conda/recipes/cugraph-pyg
+if [[ ${RAPIDS_CUDA_MAJOR} == "11" ]]; then
+  # Only one CUDA configuration is needed, so we choose CUDA 11 arbitrarily.
+  # Nothing in the cugraph-service packages is CUDA-specific.
+  rapids-mamba-retry mambabuild \
+    --no-test \
+    --channel "${CPP_CHANNEL}" \
+    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+    conda/recipes/cugraph-service
 
-rapids-mamba-retry mambabuild \
-  --no-test \
-  --channel "${CPP_CHANNEL}" \
-  --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
-  --channel dglteam \
-  --channel pytorch \
-  --channel pytorch-nightly \
-  conda/recipes/cugraph-dgl
+  # Only CUDA 11 is supported right now due to PyTorch requirement.
+  rapids-mamba-retry mambabuild \
+    --no-test \
+    --channel "${CPP_CHANNEL}" \
+    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+    --channel pyg \
+    --channel pytorch \
+    --channel pytorch-nightly \
+    conda/recipes/cugraph-pyg
+
+  # Only CUDA 11 is supported right now due to PyTorch requirement.
+  rapids-mamba-retry mambabuild \
+    --no-test \
+    --channel "${CPP_CHANNEL}" \
+    --channel "${RAPIDS_CONDA_BLD_OUTPUT_DIR}" \
+    --channel dglteam \
+    --channel pytorch \
+    --channel pytorch-nightly \
+    conda/recipes/cugraph-dgl
+fi
 
 rapids-upload-conda-to-s3 python
