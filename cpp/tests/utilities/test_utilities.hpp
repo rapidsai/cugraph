@@ -536,6 +536,7 @@ mg_graph_to_sg_graph(
   bool renumber);
 
 // Only the rank 0 GPU holds the valid data
+
 template <typename vertex_t, typename value_t>
 std::tuple<std::optional<rmm::device_uvector<vertex_t>>, rmm::device_uvector<value_t>>
 mg_vertex_property_values_to_sg_vertex_property_values(
