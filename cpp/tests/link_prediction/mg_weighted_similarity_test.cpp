@@ -326,7 +326,8 @@ class Tests_MGSimilarity
         auto h_vertex_pair2 = cugraph::test::to_host(*handle_, d_v2);
         auto h_result_score = cugraph::test::to_host(*handle_, result_score);
 
-        std::cout << "pari size: " << h_vertex_pair1.size() << " " << h_vertex_pair2.size() << std::endl;
+        std::cout << "pari size: " << h_vertex_pair1.size() << " " << h_vertex_pair2.size()
+                  << std::endl;
 
         if (wgt && similarity_usecase.use_weights) {
           weighted_similarity_compare(mg_graph_view.number_of_vertices(),

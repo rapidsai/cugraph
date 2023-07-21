@@ -73,7 +73,6 @@ rmm::device_uvector<weight_t> similarity(
     rmm::device_uvector<weight_t> vertex_weights =
       compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
-    std::cout << ">>>>>>> WITH WEIGHT .........." << std::endl;
     per_v_pair_transform_dst_nbr_intersection(
       handle,
       graph_view,
@@ -88,19 +87,6 @@ rmm::device_uvector<weight_t> similarity(
                            auto intersection,
                            auto intersected_properties_a,
                            auto intersected_properties_b) {
-        bool CODE_DEBUG = false;
-        if (CODE_DEBUG)
-          for (size_t k = 0; k < intersection.size(); k++) {
-            printf("=> (v1 = %d v2 = %d wdeg(v1) = %f wdeg(v2) = %f) %d %f %f\n",
-                   static_cast<int>(v1),
-                   static_cast<int>(v2),
-                   static_cast<float>(weight_a),
-                   static_cast<float>(weight_b),
-                   static_cast<int>(intersection[k]),
-                   static_cast<float>(intersected_properties_a[k]),
-                   static_cast<float>(intersected_properties_b[k]));
-          }
-
         weight_t min_weight_a_intersect_b = weight_t{0};
         weight_t max_weight_a_intersect_b = weight_t{0};
         weight_t sum_of_intersected_a     = weight_t{0};
@@ -120,13 +106,6 @@ rmm::device_uvector<weight_t> similarity(
 
         max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
 
-        // printf("=> v1= %d v2 = %d\n", static_cast<int>(v1), static_cast<int>(v2));
-        // printf("=>weight_a = %f\n", static_cast<float>(weight_a));
-        // printf("=>weight_b = %f\n", static_cast<float>(weight_b));
-        // printf("=>min_weight_a_intersect_b = %f\n",
-        // static_cast<float>(min_weight_a_intersect_b)); printf("=>max_weight_a_intersect_b =
-        // %f\n", static_cast<float>(max_weight_a_intersect_b));
-
         return functor.compute_score(static_cast<weight_t>(weight_a),
                                      static_cast<weight_t>(weight_b),
                                      static_cast<weight_t>(min_weight_a_intersect_b),
@@ -139,7 +118,6 @@ rmm::device_uvector<weight_t> similarity(
 
     // CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
   } else {
-    std::cout << ">>>>>>> WITHOUT WEIGHT .........." << std::endl;
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
     //
