@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <structure/detail/structure_utils.cuh>
 #include <structure/induced_subgraph_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
@@ -25,6 +24,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>
