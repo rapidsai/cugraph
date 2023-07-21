@@ -184,6 +184,9 @@ def _call_plc_uniform_neighbor_sample(
     with_edge_properties,
     random_state=None,
     return_offsets=False,
+    return_hops=True,
+    prior_sources_behavior=None,
+    deduplicate_sources=False,
 ):
     st_x = st_x[0]
     start_list_x = st_x[start_col_name]
@@ -209,6 +212,9 @@ def _call_plc_uniform_neighbor_sample(
         with_edge_properties=with_edge_properties,
         batch_id_list=batch_id_list_x,
         random_state=random_state,
+        prior_sources_behavior=prior_sources_behavior,
+        deduplicate_sources=deduplicate_sources,
+        return_hops=return_hops,
     )
     return convert_to_cudf(
         cp_arrays, weight_t, with_edge_properties, return_offsets=return_offsets
@@ -227,6 +233,7 @@ def _call_plc_uniform_neighbor_sample_legacy(
     with_edge_properties,
     random_state=None,
     return_offsets=False,
+    return_hops=True,
 ):
     start_list_x = st_x[start_col_name]
     batch_id_list_x = st_x[batch_col_name] if batch_col_name in st_x else None
@@ -242,6 +249,7 @@ def _call_plc_uniform_neighbor_sample_legacy(
         with_edge_properties=with_edge_properties,
         batch_id_list=batch_id_list_x,
         random_state=random_state,
+        return_hops=return_hops,
     )
     return convert_to_cudf(
         cp_arrays, weight_t, with_edge_properties, return_offsets=return_offsets
@@ -262,6 +270,7 @@ def _mg_call_plc_uniform_neighbor_sample_legacy(
     with_edge_properties,
     random_state,
     return_offsets=False,
+    return_hops=True,
 ):
     result = [
         client.submit(
@@ -281,6 +290,7 @@ def _mg_call_plc_uniform_neighbor_sample_legacy(
             allow_other_workers=False,
             pure=False,
             return_offsets=return_offsets,
+            return_hops=return_hops,
         )
         for i, w in enumerate(Comms.get_workers())
     ]
@@ -327,6 +337,9 @@ def _mg_call_plc_uniform_neighbor_sample(
     with_edge_properties,
     random_state,
     return_offsets=False,
+    return_hops=True,
+    prior_sources_behavior=None,
+    deduplicate_sources=False,
 ):
     n_workers = None
     if keep_batches_together:
@@ -354,6 +367,9 @@ def _mg_call_plc_uniform_neighbor_sample(
             # FIXME accept and properly transmute a numpy/cupy random state.
             random_state=hash((random_state, w)),
             return_offsets=return_offsets,
+            return_hops=return_hops,
+            prior_sources_behavior=prior_sources_behavior,
+            deduplicate_sources=deduplicate_sources,
             allow_other_workers=False,
             pure=False,
         )
@@ -408,6 +424,7 @@ def _uniform_neighbor_sample_legacy(
     label_to_output_comm_rank: bool = None,
     random_state: int = None,
     return_offsets: bool = False,
+    return_hops: bool = False,
     _multiple_clients: bool = False,
 ) -> Union[dask_cudf.DataFrame, Tuple[dask_cudf.DataFrame, dask_cudf.DataFrame]]:
     warnings.warn(
@@ -508,6 +525,7 @@ def _uniform_neighbor_sample_legacy(
                     with_edge_properties=with_edge_properties,
                     random_state=random_state,
                     return_offsets=return_offsets,
+                    return_hops=return_hops,
                 )
             finally:
                 lock.release()
@@ -530,6 +548,7 @@ def _uniform_neighbor_sample_legacy(
             with_edge_properties=with_edge_properties,
             random_state=random_state,
             return_offsets=return_offsets,
+            return_hops=return_hops,
         )
 
     if return_offsets:
@@ -564,6 +583,9 @@ def uniform_neighbor_sample(
     max_batch_id=None,
     random_state: int = None,
     return_offsets: bool = False,
+    return_hops: bool = True,
+    prior_sources_behavior: str = None,
+    deduplicate_sources: bool = False,
     _multiple_clients: bool = False,
 ) -> Union[dask_cudf.DataFrame, Tuple[dask_cudf.DataFrame, dask_cudf.DataFrame]]:
     """
@@ -630,6 +652,24 @@ def uniform_neighbor_sample(
         dataframes, one with sampling results and one with
         batch ids and their start offsets per rank.
 
+    return_hops: bool, optional (default=True)
+        Whether to return the sampling results with hop ids
+        corresponding to the hop where the edge appeared.
+        Defaults to True.
+
+    prior_sources_behavior: str (Optional)
+        Options are "carryover", and "exclude".
+        Default will leave the source list as-is.
+        Carryover will carry over sources from previous hops to the
+        current hop.
+        Exclude will exclude sources from previous hops from reappearing
+        as sources in future hops.
+
+    deduplicate_sources: bool, optional (default=False)
+        Whether to first deduplicate the list of possible sources
+        from the previous destinations before performing next
+        hop.
+
     _multiple_clients: bool, optional (default=False)
         internal flag to ensure sampling works with multiple dask clients
         set to True to prevent hangs in multi-client environment
@@ -690,6 +730,14 @@ def uniform_neighbor_sample(
         or label_list is not None
         or label_to_output_comm_rank is not None
     ):
+        if prior_sources_behavior or deduplicate_sources:
+            raise ValueError(
+                "unique sources, carry_over_sources, and deduplicate_sources"
+                " are not supported with batch_id_list, label_list, and"
+                " label_to_output_comm_rank.  Consider using with_batch_ids"
+                " and keep_batches_together instead."
+            )
+
         return uniform_neighbor_sample_legacy(
             input_graph,
             start_list,
@@ -701,6 +749,7 @@ def uniform_neighbor_sample(
             label_to_output_comm_rank=label_to_output_comm_rank,
             random_state=random_state,
             return_offsets=return_offsets,
+            return_hops=return_hops,
             _multiple_clients=_multiple_clients,
         )
 
@@ -719,7 +768,16 @@ def uniform_neighbor_sample(
             raise ValueError("expected 1d input for start list without batch ids")
 
         start_list = start_list.to_frame()
-        start_list[batch_id_n] = cudf.Series(cp.zeros(len(start_list), dtype="int32"))
+        if isinstance(start_list, dask_cudf.DataFrame):
+            start_list = start_list.map_partitions(
+                lambda df: df.assign(
+                    **{batch_id_n: cudf.Series(cp.zeros(len(df), dtype="int32"))}
+                )
+            ).persist()
+        else:
+            start_list = start_list.reset_index(drop=True).assign(
+                **{batch_id_n: cudf.Series(cp.zeros(len(start_list), dtype="int32"))}
+            )
 
     if keep_batches_together and min_batch_id is None:
         raise ValueError(
@@ -795,6 +853,9 @@ def uniform_neighbor_sample(
                     with_edge_properties=with_edge_properties,
                     random_state=random_state,
                     return_offsets=return_offsets,
+                    return_hops=return_hops,
+                    prior_sources_behavior=prior_sources_behavior,
+                    deduplicate_sources=deduplicate_sources,
                 )
             finally:
                 lock.release()
@@ -818,6 +879,9 @@ def uniform_neighbor_sample(
             with_edge_properties=with_edge_properties,
             random_state=random_state,
             return_offsets=return_offsets,
+            return_hops=return_hops,
+            prior_sources_behavior=prior_sources_behavior,
+            deduplicate_sources=deduplicate_sources,
         )
 
     if return_offsets:
