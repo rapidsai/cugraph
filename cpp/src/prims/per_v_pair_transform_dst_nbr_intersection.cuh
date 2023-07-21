@@ -166,14 +166,8 @@ struct call_intersection_op_t {
       dst_prop          = *(vertex_property_first + dst_offset);
     }
 
-    // if constexpr (std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
     *(major_minor_pair_value_output_first + index) =
       intersection_op(src, dst, src_prop, dst_prop, intersection, properties0, properties1);
-
-    // } else {
-    //   *(major_minor_pair_value_output_first + index) =
-    //     intersection_op(src, dst, src_prop, dst_prop, intersection.size());
-    // }
   }
 };
 

@@ -80,8 +80,8 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
       weighted_out_degrees.begin(),
-      [functor] __device__(auto v1,
-                           auto v2,
+      [functor] __device__(auto a,
+                           auto b,
                            auto weight_a,
                            auto weight_b,
                            auto intersection,
@@ -115,8 +115,6 @@ rmm::device_uvector<weight_t> similarity(
       do_expensive_check);
 
     return similarity_score;
-
-    // CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
   } else {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
