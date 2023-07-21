@@ -149,7 +149,6 @@ class key_bucket_t {
                                                                merged_vertices.begin(),
                                                                merged_vertices.end())),
                                handle_ptr_->get_stream());
-        merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
         vertices_ = std::move(merged_vertices);
       } else {
         auto cur_size = vertices_.size();
@@ -204,8 +203,6 @@ class key_bucket_t {
                                           merged_pair_first + merged_vertices.size())),
           handle_ptr_->get_stream());
         merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
-        merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
-        merged_tags.shrink_to_fit(handle_ptr_->get_stream());
         vertices_ = std::move(merged_vertices);
         tags_     = std::move(merged_tags);
       } else {
@@ -283,6 +280,22 @@ class key_bucket_t {
 
   auto end() { return begin() + vertices_.size(); }
 
+  auto const vertex_begin() const {
+    return vertices_.begin();
+  }
+
+  auto const vertex_end() const {
+    return vertices_.end();
+  }
+
+  auto vertex_begin() {
+    return vertices_.begin();
+  }
+
+  auto vertex_end() {
+    return vertices_.end();
+  }
+
  private:
   raft::handle_t const* handle_ptr_{nullptr};
   rmm::device_uvector<vertex_t> vertices_;
@@ -337,7 +350,10 @@ class vertex_frontier_t {
 
     // 1. apply split_op to each bucket element
 
-    assert(buckets_.size() <= std::numeric_limits<uint8_t>::max());
+    CUGRAPH_EXPECTS(buckets_.size() <= std::numeric_limits<uint8_t>::max(),
+                    "Invalid input arguments: the current implementation assumes that bucket "
+                    "indices can be represented with uint8_t.");
+
     rmm::device_uvector<uint8_t> bucket_indices(this_bucket.size(), handle_ptr_->get_stream());
     thrust::transform(
       handle_ptr_->get_thrust_policy(),
@@ -349,27 +365,9 @@ class vertex_frontier_t {
         return static_cast<uint8_t>(split_op_result ? *split_op_result : kInvalidBucketIdx);
       });
 
-    // 2. remove elements with the invalid bucket indices
+    // 2. separte the elements to stay in this bucket from the elements to be moved to other buckets
 
     auto pair_first =
-      thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
-    bucket_indices.resize(
-      thrust::distance(pair_first,
-                       thrust::remove_if(handle_ptr_->get_thrust_policy(),
-                                         pair_first,
-                                         pair_first + bucket_indices.size(),
-                                         [] __device__(auto pair) {
-                                           return thrust::get<0>(pair) ==
-                                                  static_cast<uint8_t>(kInvalidBucketIdx);
-                                         })),
-      handle_ptr_->get_stream());
-    this_bucket.resize(bucket_indices.size());
-    bucket_indices.shrink_to_fit(handle_ptr_->get_stream());
-    this_bucket.shrink_to_fit();
-
-    // 3. separte the elements to stay in this bucket from the elements to be moved to other buckets
-
-    pair_first =
       thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
     auto new_this_bucket_size = static_cast<size_t>(thrust::distance(
       pair_first,
@@ -380,6 +378,21 @@ class vertex_frontier_t {
         [this_bucket_idx = static_cast<uint8_t>(this_bucket_idx)] __device__(auto pair) {
           return thrust::get<0>(pair) == this_bucket_idx;
         })));
+
+    // 3. remove elements with the invalid bucket indices
+
+    bucket_indices.resize(
+      new_this_bucket_size +
+        thrust::distance(pair_first + new_this_bucket_size,
+                         thrust::remove_if(handle_ptr_->get_thrust_policy(),
+                                           pair_first + new_this_bucket_size,
+                                           pair_first + bucket_indices.size(),
+                                           [] __device__(auto pair) {
+                                             return thrust::get<0>(pair) ==
+                                                    static_cast<uint8_t>(kInvalidBucketIdx);
+                                           })),
+      handle_ptr_->get_stream());
+    this_bucket.resize(bucket_indices.size());
 
     // 4. insert to target buckets and resize this bucket
 
@@ -423,8 +436,8 @@ class vertex_frontier_t {
       insert_bucket_indices = to_bucket_indices;
       insert_offsets        = {0, next_bucket_size};
       insert_sizes          = {
-        next_bucket_size,
-        static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
+                 next_bucket_size,
+                 static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
     } else {
       thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
