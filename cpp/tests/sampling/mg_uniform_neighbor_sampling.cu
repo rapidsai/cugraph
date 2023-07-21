@@ -163,7 +163,6 @@ class Tests_MGUniform_Neighbor_Sampling
     EXPECT_THROW(
       cugraph::uniform_neighbor_sample(
         *handle_,
-        handle,
         mg_graph_view,
         mg_edge_weight_view,
         std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
