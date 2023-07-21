@@ -29,7 +29,6 @@ from test_edge_betweenness_centrality import (
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
     SUBSET_SIZE_OPTIONS,
-    SUBSET_SEED_OPTIONS,
 )
 
 from test_edge_betweenness_centrality import (
@@ -64,7 +63,6 @@ def setup_function():
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", [NORMALIZED_OPTIONS[0]])
 @pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 def test_mg_edge_betweenness_centrality(
     graph_file,
@@ -72,7 +70,6 @@ def test_mg_edge_betweenness_centrality(
     subset_size,
     normalized,
     weight,
-    subset_seed,
     result_dtype,
     dask_client,
 ):
@@ -82,7 +79,7 @@ def test_mg_edge_betweenness_centrality(
         normalized=normalized,
         k=subset_size,
         weight=weight,
-        seed=subset_seed,
+        seed=42,
         result_dtype=result_dtype,
         multi_gpu_batch=True,
     )

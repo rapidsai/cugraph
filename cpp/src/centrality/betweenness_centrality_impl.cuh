@@ -656,16 +656,12 @@ edge_betweenness_centrality(
     scale_factor = weight_t{2};
 
   if (scale_factor) {
-    if (graph_view.number_of_edges() > 2) {
-      //
-      //  FIXME: When normalizing the result, we might not want to follow NetworkX
-      //  as it doesn't account for sources.
-      //
-      //  if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
-      //    (*scale_factor) *= static_cast<weight_t>(num_sources) /
-      //                      static_cast<weight_t>(graph_view.number_of_vertices());
-      //  }
-      //
+    if (graph_view.number_of_vertices() > 1) {
+
+      if (static_cast<vertex_t>(num_sources) < graph_view.number_of_vertices()) {
+          (*scale_factor) *= static_cast<weight_t>(num_sources) /
+                          static_cast<weight_t>(graph_view.number_of_vertices());
+      }
 
       auto firsts         = centralities.view().value_firsts();
       auto counts         = centralities.view().edge_counts();

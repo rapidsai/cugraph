@@ -186,13 +186,9 @@ void reference_edge_rescale(result_t* result,
   }
 
   if (rescale_factor != result_t{1}) {
-    //
-    //  FIXME: When sources are passed to edge bc and normalize is set to True,
-    //  do we normalize the result the same way as bc?
-    //  if (number_of_sources > 0) {
-    //    rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
-    //  }
-    //
+    if (number_of_sources > 0) {
+      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
+    }
 
     for (auto idx = 0; idx < number_of_edges; ++idx) {
       result[idx] *= rescale_factor;
