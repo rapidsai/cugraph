@@ -13,7 +13,7 @@ python -m pip install git+https://github.com/dask/dask.git@main git+https://gith
 
 # Only download test data for x86
 arch=$(uname -m)
-if [[ "${arch}" == "x86" ]]; then
+if [[ "${arch}" == "x86_64" ]]; then
     pushd ./datasets
     bash ./get_test_data.sh
     popd
