@@ -193,45 +193,51 @@ size_t compute_kv_store_capacity(size_t new_min_size,
 
 int32_t constexpr multi_partition_copy_block_size = 512;  // tuning parameter
 
-template <size_t max_num_partitions, typename InputIterator, typename key_t, typename PartitionOp>
-__global__ void multi_partition_copy(InputIterator input_first,
-                                     InputIterator input_last,
-                                     raft::device_span<key_t*> output_buffer_ptrs,
-                                     PartitionOp partition_op,  // returns max_num_partitions to discard
-                                     raft::device_span<size_t> partition_counters)
+template <int32_t max_num_partitions, typename InputIterator, typename key_t, typename PartitionOp>
+__global__ void multi_partition_copy(
+  InputIterator input_first,
+  InputIterator input_last,
+  raft::device_span<key_t*> output_buffer_ptrs,
+  PartitionOp partition_op,  // returns max_num_partitions to discard
+  raft::device_span<size_t> partition_counters)
 {
-  static_assert(max_num_partitions <= static_cast<size_t>(std::numeric_limits<uint8_t>::max()));
+  static_assert(max_num_partitions <= static_cast<int32_t>(std::numeric_limits<uint8_t>::max()));
   assert(output_buffer_ptrs.size() == partition_counters.size());
-  size_t num_partitions = output_buffer_ptrs.size();
+  int32_t num_partitions = output_buffer_ptrs.size();
   assert(num_partitions <= max_num_partitions);
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
 
-  using BlockScan = cub::BlockScan<size_t, multi_partition_copy_block_size>;
+  int32_t constexpr tmp_buffer_size =
+    max_num_partitions;  // tuning parameter (trade-off between parallelism & memory vs # BlockScan
+                         // & atomic operations)
+  static_assert(
+    static_cast<size_t>(multi_partition_copy_block_size) * static_cast<size_t>(tmp_buffer_size) <=
+    static_cast<size_t>(
+      std::numeric_limits<int32_t>::max()));  // int32_t is sufficient to store the maximum possible
+                                              // number of updates per block
+
+  using BlockScan = cub::BlockScan<int32_t, multi_partition_copy_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
 
   __shared__ size_t block_start_offsets[max_num_partitions];
 
-  size_t constexpr tmp_buffer_size =
-    max_num_partitions;  // tuning parameter (trade-off between parallelism & memory vs # BlockScan
-                         // & atomic operations)
-  size_t tmp_counts[max_num_partitions];
-  size_t tmp_intra_block_offsets[max_num_partitions];
+  static_assert(tmp_buffer_size <= static_cast<int32_t>(std::numeric_limits<uint8_t>::max()));
+  uint8_t tmp_counts[max_num_partitions];
+  int32_t tmp_intra_block_offsets[max_num_partitions];
 
   uint8_t tmp_partitions[tmp_buffer_size];
-  size_t tmp_offsets[tmp_buffer_size];
+  uint8_t tmp_offsets[tmp_buffer_size];
 
   auto num_elems = static_cast<size_t>(thrust::distance(input_first, input_last));
   auto rounded_up_num_elems =
     ((num_elems + static_cast<size_t>(blockDim.x - 1)) / static_cast<size_t>(blockDim.x)) *
     static_cast<size_t>(blockDim.x);
   while (idx < rounded_up_num_elems) {
-    for (size_t i = 0; i < num_partitions; ++i) {
-      tmp_counts[i] = 0;
-    }
+    thrust::fill(thrust::seq, tmp_counts, tmp_counts + num_partitions, int32_t{0});
     auto tmp_idx = idx;
-   for (size_t i = 0; i < tmp_buffer_size; ++i) {
+    for (int32_t i = 0; i < tmp_buffer_size; ++i) {
       if (tmp_idx < num_elems) {
         auto partition    = partition_op(*(input_first + tmp_idx));
         tmp_partitions[i] = partition;
@@ -240,12 +246,13 @@ __global__ void multi_partition_copy(InputIterator input_first,
       }
       tmp_idx += gridDim.x * blockDim.x;
     }
-    for (size_t i = 0; i < num_partitions; ++i) {
-      BlockScan(temp_storage).ExclusiveSum(tmp_counts[i], tmp_intra_block_offsets[i]);
+    for (int32_t i = 0; i < num_partitions; ++i) {
+      BlockScan(temp_storage)
+        .ExclusiveSum(static_cast<int32_t>(tmp_counts[i]), tmp_intra_block_offsets[i]);
     }
     if (threadIdx.x == (blockDim.x - 1)) {
-      for (size_t i = 0; i < num_partitions; ++i) {
-        size_t increment = tmp_intra_block_offsets[i] + tmp_counts[i];
+      for (int32_t i = 0; i < num_partitions; ++i) {
+        auto increment = static_cast<size_t>(tmp_intra_block_offsets[i] + tmp_counts[i]);
         cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(partition_counters[i]);
         block_start_offsets[i] =
           atomic_counter.fetch_add(increment, cuda::std::memory_order_relaxed);
@@ -253,13 +260,13 @@ __global__ void multi_partition_copy(InputIterator input_first,
     }
     __syncthreads();
     tmp_idx = idx;
-    for (size_t i = 0; i < tmp_buffer_size; ++i) {
+    for (int32_t i = 0; i < tmp_buffer_size; ++i) {
       if (tmp_idx < num_elems) {
         auto partition = tmp_partitions[i];
-        if (partition != max_num_partitions) {
-        auto offset =
-          block_start_offsets[partition] + tmp_intra_block_offsets[partition] + tmp_offsets[i];
-        *(output_buffer_ptrs[partition] + offset) = thrust::get<0>(*(input_first + tmp_idx));
+        if (partition != static_cast<uint8_t>(max_num_partitions)) {
+          auto offset = block_start_offsets[partition] +
+                        static_cast<size_t>(tmp_intra_block_offsets[partition] + tmp_offsets[i]);
+          *(output_buffer_ptrs[partition] + offset) = thrust::get<0>(*(input_first + tmp_idx));
         }
       }
       tmp_idx += gridDim.x * blockDim.x;
@@ -624,10 +631,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
-        e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu> {
+        e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>{
           detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
-            static_cast<od_idx_t>(origins.size()), cutoff, invalid_distance
-        },
+          static_cast<od_idx_t>(origins.size()),
+          cutoff,
+          invalid_distance},
         reduce_op::minimum<weight_t>());
     vertex_frontier.bucket(bucket_idx_near).clear();
 
@@ -761,7 +769,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         raft::grid_1d_thread_t update_grid(this_loop_size,
                                            multi_partition_copy_block_size,
                                            handle.get_device_properties().maxGridSize[0]);
-        multi_partition_copy<1 /* near queue */ + num_far_buffers>
+        multi_partition_copy<static_cast<int32_t>(1 /* near queue */ + num_far_buffers)>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             input_first + num_copied,
             input_first + num_copied + this_loop_size,
@@ -921,31 +929,33 @@ rmm::device_uvector<weight_t> od_shortest_distances(
               if (tmp_buffer.size() > 0) {
                 auto distance_first = thrust::make_transform_iterator(
                   tmp_buffer.begin(),
-                  [key_to_dist_map =
-                     detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view())
-                ] __device__(auto key) { return key_to_dist_map.find(key); });
+                  [key_to_dist_map = detail::kv_cuco_store_find_device_view_t(
+                     key_to_dist_map.view())] __device__(auto key) {
+                    return key_to_dist_map.find(key);
+                  });
                 auto input_first = thrust::make_zip_iterator(tmp_buffer.begin(), distance_first);
                 raft::grid_1d_thread_t update_grid(tmp_buffer.size(),
                                                    multi_partition_copy_block_size,
                                                    handle.get_device_properties().maxGridSize[0]);
-                size_t constexpr max_num_partitions = 1 /* near queue */ + num_far_buffers;
+                auto constexpr max_num_partitions =
+                  static_cast<int32_t>(1 /* near queue */ + num_far_buffers);
                 multi_partition_copy<max_num_partitions>
                   <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
                     input_first,
                     input_first + tmp_buffer.size(),
                     raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
                     [split_thresholds = raft::device_span<weight_t const>(
-                       d_split_thresholds.data(),
-                       d_split_thresholds.size()), invalid_threshold] __device__(auto pair) {
+                       d_split_thresholds.data(), d_split_thresholds.size()),
+                     invalid_threshold] __device__(auto pair) {
                       auto dist = thrust::get<1>(pair);
                       return static_cast<uint8_t>(
-                        (dist < invalid_threshold) ?
-                        max_num_partitions /* discard */ :
-                        thrust::distance(split_thresholds.begin(),
-                                         thrust::upper_bound(thrust::seq,
-                                                             split_thresholds.begin(),
-                                                             split_thresholds.end(),
-                                                             dist)));
+                        (dist < invalid_threshold)
+                          ? max_num_partitions /* discard */
+                          : thrust::distance(split_thresholds.begin(),
+                                             thrust::upper_bound(thrust::seq,
+                                                                 split_thresholds.begin(),
+                                                                 split_thresholds.end(),
+                                                                 dist)));
                     },
                     raft::device_span<size_t>(d_counters.data(), d_counters.size()));
               }
@@ -969,10 +979,9 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                 far_buffers[i].begin(),
                 far_buffers[i].end(),
                 new_near_q_keys.begin() + old_size,
-                is_no_smaller_than_threshold_t<key_t, weight_t> {
+                is_no_smaller_than_threshold_t<key_t, weight_t>{
                   invalid_threshold,
-                    detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view())
-                });
+                  detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view())});
               new_near_q_keys.resize(thrust::distance(new_near_q_keys.begin(), last),
                                      handle.get_stream());
             } else {
