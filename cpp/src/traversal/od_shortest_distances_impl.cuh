@@ -127,38 +127,14 @@ struct e_op_t {
     auto src_val = key_to_dist_map.find(aggregator(tagged_src));
     assert(src_val != invalid_distance);
     auto origin_idx   = thrust::get<1>(tagged_src);
-    auto dst_val      = key_to_dist_map.find(aggregator(thrust::make_tuple(dst, origin_idx)));
     auto new_distance = src_val + w;
     auto threshold    = cutoff;
+    auto dst_val      = key_to_dist_map.find(aggregator(thrust::make_tuple(dst, origin_idx)));
     if (dst_val != invalid_distance) { threshold = dst_val < threshold ? dst_val : threshold; }
     return (new_distance < threshold)
              ? thrust::optional<thrust::tuple<tag_t, weight_t>>{thrust::make_tuple(origin_idx,
                                                                                    new_distance)}
              : thrust::nullopt;
-  }
-};
-
-template <typename key_t, typename weight_t>
-struct split_copy_t {
-  weight_t invalid_threshold{};
-  raft::device_span<weight_t const> split_thresholds{};
-  detail::kv_cuco_store_find_device_view_t<detail::kv_cuco_store_view_t<key_t, weight_t const*>>
-    key_to_dist_map{};
-  raft::device_span<key_t*> buffer_ptrs{};
-  raft::device_span<size_t> counters{};
-  uint8_t partition_invalid{};
-
-  __device__ void operator()(key_t key) const
-  {
-    auto dist = key_to_dist_map.find(key);
-    if (dist >= invalid_threshold) {
-      auto buffer_idx = thrust::distance(
-        split_thresholds.begin(),
-        thrust::upper_bound(thrust::seq, split_thresholds.begin(), split_thresholds.end(), dist));
-      cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(counters[buffer_idx]);
-      auto offset = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
-      *(buffer_ptrs[buffer_idx] + offset) = key;
-    }
   }
 };
 
@@ -202,10 +178,6 @@ struct is_no_smaller_than_threshold_t {
   __device__ bool operator()(key_t key) const { return key_to_dist_map.find(key) >= threshold; }
 };
 
-}  // namespace
-
-namespace detail {
-
 size_t compute_kv_store_capacity(size_t new_min_size,
                                  size_t old_capacity,
                                  size_t max_capacity_increment)
@@ -219,20 +191,19 @@ size_t compute_kv_store_capacity(size_t new_min_size,
   }
 }
 
-// FIXME: better refactor and move this function to another file
-#if 1
-int32_t constexpr multi_partition_copy_block_size = 512;
+int32_t constexpr multi_partition_copy_block_size = 512;  // tuning parameter
 
-template <size_t num_partitions, typename InputIterator, typename key_t, typename PartitionOp>
+template <size_t max_num_partitions, typename InputIterator, typename key_t, typename PartitionOp>
 __global__ void multi_partition_copy(InputIterator input_first,
                                      InputIterator input_last,
                                      raft::device_span<key_t*> output_buffer_ptrs,
-                                     PartitionOp partition_op,
+                                     PartitionOp partition_op,  // returns max_num_partitions to discard
                                      raft::device_span<size_t> partition_counters)
 {
-  static_assert(num_partitions <= static_cast<size_t>(std::numeric_limits<uint8_t>::max()));
-  assert(output_buffer_ptrs.size() == num_partitions);
-  assert(partition_counters.size() == num_partitions);
+  static_assert(max_num_partitions <= static_cast<size_t>(std::numeric_limits<uint8_t>::max()));
+  assert(output_buffer_ptrs.size() == partition_counters.size());
+  size_t num_partitions = output_buffer_ptrs.size();
+  assert(num_partitions <= max_num_partitions);
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
   auto idx       = static_cast<size_t>(tid);
@@ -240,25 +211,27 @@ __global__ void multi_partition_copy(InputIterator input_first,
   using BlockScan = cub::BlockScan<size_t, multi_partition_copy_block_size>;
   __shared__ typename BlockScan::TempStorage temp_storage;
 
-  __shared__ size_t block_start_offsets[num_partitions];
+  __shared__ size_t block_start_offsets[max_num_partitions];
 
   size_t constexpr tmp_buffer_size =
-    num_partitions;  // tuning parameter (trade-off between parallelism & memory vs # BlockScan &
-                     // atomic operations)
-  size_t tmp_counts[num_partitions];
-  size_t tmp_intra_block_offsets[num_partitions];
+    max_num_partitions;  // tuning parameter (trade-off between parallelism & memory vs # BlockScan
+                         // & atomic operations)
+  size_t tmp_counts[max_num_partitions];
+  size_t tmp_intra_block_offsets[max_num_partitions];
 
   uint8_t tmp_partitions[tmp_buffer_size];
   size_t tmp_offsets[tmp_buffer_size];
 
-  auto num_elems            = static_cast<size_t>(thrust::distance(input_first, input_last));
-  auto rounded_up_num_elems = ((num_elems + (blockDim.x - 1)) / blockDim.x) * blockDim.x;
+  auto num_elems = static_cast<size_t>(thrust::distance(input_first, input_last));
+  auto rounded_up_num_elems =
+    ((num_elems + static_cast<size_t>(blockDim.x - 1)) / static_cast<size_t>(blockDim.x)) *
+    static_cast<size_t>(blockDim.x);
   while (idx < rounded_up_num_elems) {
     for (size_t i = 0; i < num_partitions; ++i) {
       tmp_counts[i] = 0;
     }
     auto tmp_idx = idx;
-    for (size_t i = 0; i < tmp_buffer_size; ++i) {
+   for (size_t i = 0; i < tmp_buffer_size; ++i) {
       if (tmp_idx < num_elems) {
         auto partition    = partition_op(*(input_first + tmp_idx));
         tmp_partitions[i] = partition;
@@ -283,9 +256,11 @@ __global__ void multi_partition_copy(InputIterator input_first,
     for (size_t i = 0; i < tmp_buffer_size; ++i) {
       if (tmp_idx < num_elems) {
         auto partition = tmp_partitions[i];
+        if (partition != max_num_partitions) {
         auto offset =
           block_start_offsets[partition] + tmp_intra_block_offsets[partition] + tmp_offsets[i];
         *(output_buffer_ptrs[partition] + offset) = thrust::get<0>(*(input_first + tmp_idx));
+        }
       }
       tmp_idx += gridDim.x * blockDim.x;
     }
@@ -293,7 +268,6 @@ __global__ void multi_partition_copy(InputIterator input_first,
     idx += static_cast<size_t>(gridDim.x * blockDim.x) * tmp_buffer_size;
   }
 }
-#endif
 
 template <typename GraphViewType, typename tag_t, typename key_t, typename weight_t>
 kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_map(
@@ -353,7 +327,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                      insert_nbr_key_t<vertex_t, edge_t, tag_t, key_t>{
                        offsets,
                        indices,
-                       key_cuco_store_insert_device_view_t(key_set.view()),
+                       detail::key_cuco_store_insert_device_view_t(key_set.view()),
                        aggregate_vi_t<vertex_t, tag_t, key_t>{static_cast<tag_t>(num_origins)}});
 
     for (size_t i = 0; i < far_buffers.size(); ++i) {
@@ -366,7 +340,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
                        insert_nbr_key_t<vertex_t, edge_t, tag_t, key_t>{
                          offsets,
                          indices,
-                         key_cuco_store_insert_device_view_t(key_set.view()),
+                         detail::key_cuco_store_insert_device_view_t(key_set.view()),
                          aggregate_vi_t<vertex_t, tag_t, key_t>{static_cast<tag_t>(num_origins)}});
     }
 
@@ -378,7 +352,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
       old_kv_pair_first + old_key_buffer.size(),
       keep_flags.begin(),
       keep_t<key_t, weight_t>{old_near_far_threshold,
-                              key_cuco_store_contains_device_view_t(key_set.view())});
+                              detail::key_cuco_store_contains_device_view_t(key_set.view())});
 
     auto keep_count = thrust::count_if(
       handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), thrust::identity<bool>{});
@@ -498,7 +472,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                   static_cast<double>(sizeof(key_t) + sizeof(weight_t))) >>
               12)
                << 12,
-             size_t{1} << 12);
+             size_t{1} << 12);  // FIXME: better use round up?
   auto init_kv_store_size =
     std::min(static_cast<size_t>((static_cast<double>(num_vertices) * 0.001) *
                                  static_cast<double>(origins.size())),
@@ -568,10 +542,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   auto init_kv_store_capacity =
     compute_kv_store_capacity(init_kv_store_size, size_t{0}, kv_store_capacity_increment);
 
-  // FIXME: set is sufficient for vertices with distances less than near_far_threshold... but we
-  // need to make two cuco calls (if a query on set fails) in this case.
-  // it seems like 50% of the map contents are frontier and the remaining 50% can be stored in a
-  // set.
   kv_store_t<key_t, weight_t, false /* use_binary_search */> key_to_dist_map(
     init_kv_store_capacity, invalid_key, invalid_distance, handle.get_stream());
 
@@ -592,7 +562,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                            handle.get_stream());
 
     auto destination_idx_first = thrust::make_transform_iterator(
-      origins.begin(), indirection_t<vertex_t, od_idx_t const*>{v_to_destination_indices.data()});
+      origins.begin(),
+      detail::indirection_t<vertex_t, od_idx_t const*>{v_to_destination_indices.data()});
     thrust::transform_if(
       handle.get_thrust_policy(),
       thrust::make_constant_iterator(weight_t{0.0}),
@@ -605,7 +576,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                     thrust::make_counting_iterator(od_idx_t{0})),
           compute_od_matrix_index_t<od_idx_t>{static_cast<od_idx_t>(destinations.size())})),
       thrust::identity<weight_t>{},
-      not_equal_t<od_idx_t>{invalid_od_idx});
+      detail::not_equal_t<od_idx_t>{invalid_od_idx});
   }
 
   // 6. SSSP iteration
@@ -654,7 +625,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         edge_dst_dummy_property_t{}.view(),
         edge_weight_view,
         e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu> {
-          kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
+          detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
             static_cast<od_idx_t>(origins.size()), cutoff, invalid_distance
         },
         reduce_op::minimum<weight_t>());
@@ -713,7 +684,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     {
       auto destination_idx_first = thrust::make_transform_iterator(
         std::get<0>(new_frontier_tagged_vertex_buffer).begin(),
-        indirection_t<vertex_t, od_idx_t const*>{v_to_destination_indices.data()});
+        detail::indirection_t<vertex_t, od_idx_t const*>{v_to_destination_indices.data()});
       thrust::transform_if(
         handle.get_thrust_policy(),
         distance_buffer.begin(),
@@ -726,7 +697,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                       std::get<1>(new_frontier_tagged_vertex_buffer).begin()),
             compute_od_matrix_index_t<od_idx_t>{static_cast<od_idx_t>(destinations.size())})),
         thrust::identity<weight_t>{},
-        not_equal_t<od_idx_t>{invalid_od_idx});
+        detail::not_equal_t<od_idx_t>{invalid_od_idx});
     }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -735,7 +706,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     // 6-4. update the queues
 
     {
-#if 1
       std::vector<weight_t> h_split_thresholds(
         num_far_buffers);  // total # buffers = 1 (near queue) + num_far_buffers
       h_split_thresholds[0] = near_far_threshold;
@@ -756,6 +726,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       rmm::device_uvector<key_t> tmp_near_q_keys(0, handle.get_stream());
       tmp_near_q_keys.reserve(num_tagged_vertices, handle.get_stream());
 
+      std::vector<size_t> old_far_buffer_sizes(num_far_buffers);
+      for (size_t i = 0; i < num_far_buffers; ++i) {
+        old_far_buffer_sizes[i] = far_buffers[i].size();
+      }
+
       auto key_first = thrust::make_transform_iterator(
         get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
         aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
@@ -763,22 +738,20 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
       size_t num_copied{0};
       while (num_copied < num_tagged_vertices) {
-        auto this_loop_size = num_tagged_vertices;
+        auto this_loop_size =
+          std::min(key_buffer_capacity_increment, num_tagged_vertices - num_copied);
 
-        size_t old_near_q_size = tmp_near_q_keys.size();
-        std::vector<size_t> old_far_buffer_sizes(num_far_buffers);
         std::vector<key_t*> h_buffer_ptrs(d_counters.size());
-        tmp_near_q_keys.resize(old_near_q_size + this_loop_size, handle.get_stream());
-        h_buffer_ptrs[0] = tmp_near_q_keys.data() + old_near_q_size;
+        tmp_near_q_keys.resize(tmp_near_q_keys.size() + this_loop_size, handle.get_stream());
+        h_buffer_ptrs[0] = tmp_near_q_keys.data();
         for (size_t i = 0; i < num_far_buffers; ++i) {
-          old_far_buffer_sizes[i] = far_buffers[i].size();
-          if (old_far_buffer_sizes[i] + this_loop_size > far_buffers[i].capacity()) {
+          if (far_buffers[i].size() + this_loop_size > far_buffers[i].capacity()) {
             far_buffers[i].reserve(
               far_buffers[i].capacity() +
                 raft::round_up_safe(this_loop_size, key_buffer_capacity_increment),
               handle.get_stream());
           }
-          far_buffers[i].resize(old_far_buffer_sizes[i] + this_loop_size, handle.get_stream());
+          far_buffers[i].resize(far_buffers[i].size() + this_loop_size, handle.get_stream());
           h_buffer_ptrs[i + 1] = far_buffers[i].data() + old_far_buffer_sizes[i];
         }
         rmm::device_uvector<key_t*> d_buffer_ptrs(h_buffer_ptrs.size(), handle.get_stream());
@@ -809,7 +782,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
           h_counters.data(), d_counters.data(), d_counters.size(), handle.get_stream());
         handle.sync_stream();
 
-        tmp_near_q_keys.resize(old_near_q_size + h_counters[0], handle.get_stream());
+        tmp_near_q_keys.resize(h_counters[0], handle.get_stream());
         for (size_t i = 0; i < num_far_buffers; ++i) {
           far_buffers[i].resize(old_far_buffer_sizes[i] + h_counters[i + 1], handle.get_stream());
         }
@@ -828,57 +801,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         split_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
       vertex_frontier.bucket(bucket_idx_near)
         .insert(near_vi_first, near_vi_first + tmp_near_q_keys.size());
-#else
-      auto num_tagged_vertices = size_dataframe_buffer(new_frontier_tagged_vertex_buffer);
-      auto tagged_vertex_first = get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer);
-      auto pair_first = thrust::make_zip_iterator(tagged_vertex_first, distance_buffer.begin());
-      // stable_partition to maintain the results as sorted
-      // FIXME: maybe directly copy to two different buffers?
-      auto near_last = thrust::stable_partition(handle.get_thrust_policy(),
-                                                pair_first,
-                                                pair_first + num_tagged_vertices,
-                                                [near_far_threshold] __device__(auto pair) {
-                                                  return thrust::get<1>(pair) < near_far_threshold;
-                                                });
-      auto near_size = static_cast<size_t>(thrust::distance(pair_first, near_last));
-      vertex_frontier.bucket(bucket_idx_near)
-        .insert(tagged_vertex_first, tagged_vertex_first + near_size);
-
-      auto key_first = thrust::make_transform_iterator(
-        get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
-        aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
-      size_t offset = near_size;
-      for (size_t i = 0; i < num_far_buffers; ++i) {
-        auto far_buffer_size = far_buffers[i].size();
-        size_t num_far_inserts{0};
-        if (num_far_buffers == 1) {
-          num_far_inserts = num_tagged_vertices - offset;
-        } else {
-          auto far_last =
-            (i < next_far_thresholds.size())
-              ? thrust::partition(handle.get_thrust_policy(),
-                                  pair_first + offset,
-                                  pair_first + num_tagged_vertices,
-                                  [threshold = next_far_thresholds[i]] __device__(auto pair) {
-                                    return thrust::get<1>(pair) < threshold;
-                                  })
-              : (pair_first + num_tagged_vertices);
-          num_far_inserts = static_cast<size_t>(thrust::distance(pair_first + offset, far_last));
-        }
-        if (far_buffer_size + num_far_inserts > far_buffers[i].capacity()) {
-          far_buffers[i].reserve(
-            far_buffers[i].capacity() +
-              raft::round_up_safe(num_far_inserts, key_buffer_capacity_increment),
-            handle.get_stream());
-        }
-        far_buffers[i].resize(far_buffer_size + num_far_inserts, handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     key_first + offset,
-                     key_first + offset + num_far_inserts,
-                     far_buffers[i].begin() + far_buffer_size);
-        offset += num_far_inserts;
-      }
-#endif
     }
 
     resize_dataframe_buffer(new_frontier_tagged_vertex_buffer, 0, handle.get_stream());
@@ -953,8 +875,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             auto invalid_threshold = invalid_thresholds[i];
 
             if (i == (num_far_buffers - 1)) {
-              RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              auto iter0 = std::chrono::steady_clock::now();
               std::vector<weight_t> h_split_thresholds(num_near_q_insert_buffers);
               h_split_thresholds[0] =
                 (num_far_buffers == num_near_q_insert_buffers)
@@ -998,28 +918,41 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                      handle.get_stream());
               thrust::fill(
                 handle.get_thrust_policy(), d_counters.begin(), d_counters.end(), size_t{0});
-              RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              auto iter1 = std::chrono::steady_clock::now();
-              thrust::for_each(
-                handle.get_thrust_policy(),
-                tmp_buffer.begin(),
-                tmp_buffer.end(),
-                split_copy_t<key_t, weight_t> {
-                  invalid_threshold,
-                    raft::device_span<weight_t const>(d_split_thresholds.data(),
-                                                      d_split_thresholds.size()),
-                    kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
+              if (tmp_buffer.size() > 0) {
+                auto distance_first = thrust::make_transform_iterator(
+                  tmp_buffer.begin(),
+                  [key_to_dist_map =
+                     detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view())
+                ] __device__(auto key) { return key_to_dist_map.find(key); });
+                auto input_first = thrust::make_zip_iterator(tmp_buffer.begin(), distance_first);
+                raft::grid_1d_thread_t update_grid(tmp_buffer.size(),
+                                                   multi_partition_copy_block_size,
+                                                   handle.get_device_properties().maxGridSize[0]);
+                size_t constexpr max_num_partitions = 1 /* near queue */ + num_far_buffers;
+                multi_partition_copy<max_num_partitions>
+                  <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
+                    input_first,
+                    input_first + tmp_buffer.size(),
                     raft::device_span<key_t*>(d_buffer_ptrs.data(), d_buffer_ptrs.size()),
-                    raft::device_span<size_t>(d_counters.data(), d_counters.size())
-                });
-              RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              auto iter2 = std::chrono::steady_clock::now();
+                    [split_thresholds = raft::device_span<weight_t const>(
+                       d_split_thresholds.data(),
+                       d_split_thresholds.size()), invalid_threshold] __device__(auto pair) {
+                      auto dist = thrust::get<1>(pair);
+                      return static_cast<uint8_t>(
+                        (dist < invalid_threshold) ?
+                        max_num_partitions /* discard */ :
+                        thrust::distance(split_thresholds.begin(),
+                                         thrust::upper_bound(thrust::seq,
+                                                             split_thresholds.begin(),
+                                                             split_thresholds.end(),
+                                                             dist)));
+                    },
+                    raft::device_span<size_t>(d_counters.data(), d_counters.size()));
+              }
               std::vector<size_t> h_counters(d_counters.size());
               raft::update_host(
                 h_counters.data(), d_counters.data(), d_counters.size(), handle.get_stream());
               handle.sync_stream();
-              raft::print_host_vector(
-                "h_counters", h_counters.data(), h_counters.size(), std::cout);
               for (size_t j = 0; j < (num_near_q_insert_buffers + 1); ++j) {
                 if (j == 0 && (num_far_buffers == num_near_q_insert_buffers)) {
                   new_near_q_keys.resize(old_size + h_counters[j], handle.get_stream());
@@ -1028,13 +961,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                   far_buffers[buffer_idx].resize(h_counters[j], handle.get_stream());
                 }
               }
-              RAFT_CUDA_TRY(cudaDeviceSynchronize());
-              auto iter3                             = std::chrono::steady_clock::now();
-              std::chrono::duration<double> elapsed0 = iter1 - iter0;
-              std::chrono::duration<double> elapsed1 = iter2 - iter1;
-              std::chrono::duration<double> elapsed2 = iter3 - iter2;
-              std::cout << "last buffer split time=(" << elapsed0.count() << "," << elapsed1.count()
-                        << "," << elapsed2.count() << ").\n";
             } else if (i < num_near_q_insert_buffers) {
               auto old_size = new_near_q_keys.size();
               new_near_q_keys.resize(old_size + far_buffers[i].size(), handle.get_stream());
@@ -1045,7 +971,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                 new_near_q_keys.begin() + old_size,
                 is_no_smaller_than_threshold_t<key_t, weight_t> {
                   invalid_threshold,
-                    kv_cuco_store_find_device_view_t(key_to_dist_map.view())
+                    detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view())
                 });
               new_near_q_keys.resize(thrust::distance(new_near_q_keys.begin(), last),
                                      handle.get_stream());
@@ -1076,8 +1002,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
         auto iter_split = std::chrono::steady_clock::now();
 
-        // this assumes that # inserts with the previous near_far_threshold is a good estimate for #
-        // inserts with the next near_far_threshold
+        // this assumes that # inserts with the previous near_far_threshold is a good estimate for
+        // # inserts with the next near_far_threshold
         auto next_near_far_threshold_num_inserts_estimate =
           static_cast<size_t>(static_cast<double>(prev_near_far_threshold_num_inserts) * 1.05);
         prev_near_far_threshold_num_inserts = 0;
@@ -1150,7 +1076,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   return od_matrix;
 }
 
-}  // namespace detail
+}  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> od_shortest_distances(
@@ -1201,7 +1127,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             << " average_vertex_degree=" << average_vertex_degree << " delta=" << delta
             << "\n";  // DEBUG
 
-  return detail::od_shortest_distances<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(
+  return od_shortest_distances<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(
     handle,
     graph_view,
     edge_weight_view,
