@@ -112,7 +112,7 @@ def calc_betweenness_centrality(
         edge_attr = None
 
     G = graph_file.get_graph(
-        fetch=True,
+        download=True,
         create_using=cugraph.Graph(directed=directed),
         ignore_weights=not edgevals,
     )

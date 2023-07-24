@@ -151,7 +151,7 @@ def test_katz_centrality_multi_column(graph_file):
 @pytest.mark.parametrize("graph_file", [TOY])
 def test_katz_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True), fetch=True)
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True), download=True)
     alpha = 0.01
     beta = 1.0
     tol = 0.000001

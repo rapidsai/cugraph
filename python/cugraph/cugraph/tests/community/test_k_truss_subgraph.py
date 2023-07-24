@@ -83,7 +83,7 @@ def test_unsupported_cuda_version():
     k = 5
 
     graph_file = DATASETS_KTRUSS[0][0]
-    G = graph_file.get_graph(fetch=True)
+    G = graph_file.get_graph(download=True)
     if __cuda_version == __unsupported_cuda_version:
         with pytest.raises(NotImplementedError):
             cugraph.k_truss(G, k)
@@ -100,7 +100,7 @@ def test_unsupported_cuda_version():
 def test_ktruss_subgraph_Graph(_, nx_ground_truth):
 
     k = 5
-    G = polbooks.get_graph(fetch=True, create_using=cugraph.Graph(directed=False))
+    G = polbooks.get_graph(download=True, create_using=cugraph.Graph(directed=False))
     k_subgraph = cugraph.ktruss_subgraph(G, k)
 
     compare_k_truss(k_subgraph, k, nx_ground_truth)
@@ -136,7 +136,7 @@ def test_ktruss_subgraph_directed_Graph():
     k = 5
     edgevals = True
     G = karate_asymmetric.get_graph(
-        fetch=True,
+        download=True,
         create_using=cugraph.Graph(directed=True),
         ignore_weights=not edgevals,
     )
