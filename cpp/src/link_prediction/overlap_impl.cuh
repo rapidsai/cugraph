@@ -25,15 +25,14 @@ namespace detail {
 
 struct overlap_functor_t {
   template <typename weight_t>
-  weight_t __device__ compute_score(weight_t cardinality_a,
-                                    weight_t cardinality_b,
-                                    weight_t cardinality_a_intersect_b,
-                                    weight_t cardinality_a_union_b) const
+  weight_t __device__ compute_score(weight_t weight_a,
+                                    weight_t weight_b,
+                                    weight_t weight_a_intersect_b,
+                                    weight_t weight_a_union_b) const
   {
-    return (fabs(static_cast<double>(cardinality_a_union_b) - double{0}) <
-            double{2} / double{1 << 30})
+    return std::min(weight_a, weight_b) <= std::numeric_limits<weight_t>::min()
              ? weight_t{0}
-             : cardinality_a_intersect_b / std::min(cardinality_a, cardinality_b);
+             : weight_a_intersect_b / std::min(weight_a, weight_b);
   }
 };
 

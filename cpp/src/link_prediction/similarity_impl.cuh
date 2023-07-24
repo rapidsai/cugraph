@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <prims/count_if_e.cuh>
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
 
@@ -52,25 +53,29 @@ rmm::device_uvector<weight_t> similarity(
   auto vertex_pairs_begin =
     thrust::make_zip_iterator(std::get<0>(vertex_pairs).data(), std::get<1>(vertex_pairs).data());
 
+  if (do_expensive_check) {
+    auto num_invalids = detail::count_invalid_vertex_pairs(
+      handle, graph_view, vertex_pairs_begin, vertex_pairs_begin + num_vertex_pairs);
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input arguments: there are invalid input vertex pairs.");
+
+    if (edge_weight_view) {
+      auto num_negative_edge_weights =
+        count_if_e(handle,
+                   graph_view,
+                   edge_src_dummy_property_t{}.view(),
+                   edge_dst_dummy_property_t{}.view(),
+                   *edge_weight_view,
+                   [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w < 0.0; });
+      CUGRAPH_EXPECTS(
+        num_negative_edge_weights == 0,
+        "Invalid input argument: input edge weights should have non-negative values.");
+    }
+  }
+
   if (edge_weight_view) {
-    // FIXME: need implementation, similar to unweighted
-    //    Use compute_out_weight_sums instead of compute_out_degrees
-    //    Sum up for each common edge compute (u,a,v): min weight ((u,a), (a,v)) and
-    //        max weight((u,a), (a,v)).
-    //    Use these to compute weighted score
-    //
-
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
-
-    //
-    //  Compute vertex_degree for all vertices, then distribute to each GPU.
-    //  Need to use this instead of the dummy properties below
-    //
-
     rmm::device_uvector<weight_t> weighted_out_degrees =
-      compute_out_weight_sums(handle, graph_view, *edge_weight_view);
-
-    rmm::device_uvector<weight_t> vertex_weights =
       compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
     per_v_pair_transform_dst_nbr_intersection(
@@ -87,15 +92,15 @@ rmm::device_uvector<weight_t> similarity(
                            auto intersection,
                            auto intersected_properties_a,
                            auto intersected_properties_b) {
-        weight_t min_weight_a_intersect_b = weight_t{0};
-        weight_t max_weight_a_intersect_b = weight_t{0};
-        weight_t sum_of_intersected_a     = weight_t{0};
-        weight_t sum_of_intersected_b     = weight_t{0};
+        weight_t sum_of_min_weight_a_intersect_b = weight_t{0};
+        weight_t sum_of_max_weight_a_intersect_b = weight_t{0};
+        weight_t sum_of_intersected_a            = weight_t{0};
+        weight_t sum_of_intersected_b            = weight_t{0};
 
         for (size_t k = 0; k < intersection.size(); k++) {
-          min_weight_a_intersect_b +=
+          sum_of_min_weight_a_intersect_b +=
             std::min(intersected_properties_a[k], intersected_properties_b[k]);
-          max_weight_a_intersect_b +=
+          sum_of_max_weight_a_intersect_b +=
             std::max(intersected_properties_a[k], intersected_properties_b[k]);
           sum_of_intersected_a += intersected_properties_a[k];
           sum_of_intersected_b += intersected_properties_b[k];
@@ -104,12 +109,12 @@ rmm::device_uvector<weight_t> similarity(
         weight_t sum_of_uniq_a = weight_a - sum_of_intersected_a;
         weight_t sum_of_uniq_b = weight_b - sum_of_intersected_b;
 
-        max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
+        sum_of_max_weight_a_intersect_b += sum_of_uniq_a + sum_of_uniq_b;
 
         return functor.compute_score(static_cast<weight_t>(weight_a),
                                      static_cast<weight_t>(weight_b),
-                                     static_cast<weight_t>(min_weight_a_intersect_b),
-                                     static_cast<weight_t>(max_weight_a_intersect_b));
+                                     static_cast<weight_t>(sum_of_min_weight_a_intersect_b),
+                                     static_cast<weight_t>(sum_of_max_weight_a_intersect_b));
       },
       similarity_score.begin(),
       do_expensive_check);
@@ -118,10 +123,6 @@ rmm::device_uvector<weight_t> similarity(
   } else {
     rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
-    //
-    //  Compute vertex_degree for all vertices, then distribute to each GPU.
-    //  Need to use this instead of the dummy properties below
-    //
     auto out_degrees = graph_view.compute_out_degrees(handle);
 
     per_v_pair_transform_dst_nbr_intersection(
