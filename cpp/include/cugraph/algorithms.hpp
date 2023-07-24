@@ -1841,6 +1841,17 @@ k_core(raft::handle_t const& handle,
        bool do_expensive_check = false);
 
 /**
+ * @brief Controls how we treat prior sources in sampling
+ *
+ * @param DEFAULT    Add vertices encounted while sampling to the new frontier
+ * @param CARRY_OVER In addition to newly encountered vertices, include vertices
+ *                   used as sources in any previous frontier in the new frontier
+ * @param EXCLUDE    Filter the new frontier to exclude any vertex that was
+ *                   used as a source in a previous frontier
+ */
+enum class prior_sources_behavior_t { DEFAULT = 0, CARRY_OVER, EXCLUDE };
+
+/**
  * @brief Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -1893,6 +1904,11 @@ k_core(raft::handle_t const& handle,
  * level
  * @param rng_state A pre-initialized raft::RngState object for generating random numbers
  * @param return_hops boolean flag specifying if the hop information should be returned
+ * @param prior_sources_behavior Enum type defining how to handle prior sources, (defaults to
+ * DEFAULT)
+ * @param dedupe_sources boolean flag, if true then if a vertex v appears as a destination in hop X
+ * multiple times with the same label, it will only be passed once (for each label) as a source
+ * for the next hop.  Default is false.
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -1928,8 +1944,10 @@ uniform_neighbor_sample(
   raft::host_span<int32_t const> fan_out,
   raft::random::RngState& rng_state,
   bool return_hops,
-  bool with_replacement   = true,
-  bool do_expensive_check = false);
+  bool with_replacement                           = true,
+  prior_sources_behavior_t prior_sources_behavior = prior_sources_behavior_t::DEFAULT,
+  bool dedupe_sources                             = false,
+  bool do_expensive_check                         = false);
 
 /*
  * @brief Compute triangle counts.
