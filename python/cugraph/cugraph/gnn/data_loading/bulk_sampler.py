@@ -296,5 +296,9 @@ class EXPERIMENTAL__BulkSampler:
     ) -> None:
         os.makedirs(self.__output_path, exist_ok=True)
         write_samples(
-            samples, offsets, renumber_map, self.__batches_per_partition, self.__output_path
+            samples,
+            offsets,
+            renumber_map,
+            self.__batches_per_partition,
+            self.__output_path,
         )

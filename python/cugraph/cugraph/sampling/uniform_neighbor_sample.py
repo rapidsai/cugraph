@@ -259,7 +259,7 @@ def uniform_neighbor_sample(
         Whether to first deduplicate the list of possible sources
         from the previous destinations before performing next
         hop.
-    
+
     renumber: bool, optional (default=False)
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
@@ -320,7 +320,7 @@ def uniform_neighbor_sample(
                     Contains the batch ids from the sampling result
                 offsets_df['offsets']: cudf.Series
                     Contains the offsets of each batch in the sampling result
-                
+
                 If renumber=True:
                     (adds the following dataframe)
                     renumber_df['map']: cudf.Series
@@ -418,7 +418,7 @@ def uniform_neighbor_sample(
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
-        renumber=renumber
+        renumber=renumber,
     )
 
     df = cudf.DataFrame()
@@ -460,14 +460,16 @@ def uniform_neighbor_sample(
         if renumber:
             renumber_df = cudf.DataFrame(
                 {
-                    'map': renumber_map,
+                    "map": renumber_map,
                 }
             )
 
             if not return_offsets:
-                batch_ids_r = cudf.Series(batch_ids).repeat(cp.diff(renumber_map_offsets))
+                batch_ids_r = cudf.Series(batch_ids).repeat(
+                    cp.diff(renumber_map_offsets)
+                )
                 batch_ids_r.reset_index(drop=True, inplace=True)
-                renumber_df['batch_id'] = batch_ids_r
+                renumber_df["batch_id"] = batch_ids_r
 
         if return_offsets:
             offsets_df = cudf.DataFrame(
@@ -478,7 +480,7 @@ def uniform_neighbor_sample(
             )
 
             if renumber:
-                offsets_df['renumber_map_offsets'] = renumber_map_offsets[:-1]
+                offsets_df["renumber_map_offsets"] = renumber_map_offsets[:-1]
 
         else:
             if len(batch_ids) > 0:
@@ -513,8 +515,8 @@ def uniform_neighbor_sample(
             return df, offsets_df, renumber_df
         else:
             return df, offsets_df
-    
+
     if renumber:
         return df, renumber_df
-        
+
     return df

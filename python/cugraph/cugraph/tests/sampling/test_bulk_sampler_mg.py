@@ -64,8 +64,7 @@ def test_bulk_sampler_simple(dask_client, scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
-    recovered_map = recovered_samples.map
-    recovered_samples = recovered_samples.drop('map',axis=1).dropna()
+    recovered_samples = recovered_samples.drop("map", axis=1).dropna()
 
     for b in batches["batch"].unique().compute().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -107,10 +106,9 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
 
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
     bs.flush()
-    
+
     recovered_samples = cudf.read_parquet(samples_path)
-    recovered_map = recovered_samples.map
-    recovered_samples = recovered_samples.drop('map',axis=1).dropna()
+    recovered_samples = recovered_samples.drop("map", axis=1).dropna()
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -119,7 +117,7 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
 
 
 @pytest.mark.mg
-@pytest.mark.parametrize('mg_input', [True, False])
+@pytest.mark.parametrize("mg_input", [True, False])
 def test_bulk_sampler_partitions(dask_client, scratch_dir, mg_input):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
@@ -144,7 +142,7 @@ def test_bulk_sampler_partitions(dask_client, scratch_dir, mg_input):
         graph=G,
         fanout_vals=[2, 2],
         with_replacement=False,
-        batches_per_partition=2
+        batches_per_partition=2,
     )
 
     batches = cudf.DataFrame(
@@ -161,20 +159,26 @@ def test_bulk_sampler_partitions(dask_client, scratch_dir, mg_input):
     bs.flush()
 
     for file in os.listdir(samples_path):
-        start_batch_id, end_batch_id = [int(x) for x in re.match(r'batch=([0-9]+)-([0-9]+).parquet', file).groups()]
+        start_batch_id, end_batch_id = [
+            int(x) for x in re.match(r"batch=([0-9]+)-([0-9]+).parquet", file).groups()
+        ]
 
-        recovered_samples = cudf.read_parquet(
-            os.path.join(samples_path, file)
-        )
+        recovered_samples = cudf.read_parquet(os.path.join(samples_path, file))
         recovered_map = recovered_samples.map
-        recovered_samples = recovered_samples.drop('map',axis=1).dropna()
+        recovered_samples = recovered_samples.drop("map", axis=1).dropna()
 
         for current_batch_id in range(start_batch_id, end_batch_id + 1):
             map_start_ix = recovered_map.iloc[current_batch_id - start_batch_id]
             map_end_ix = recovered_map.iloc[current_batch_id - start_batch_id + 1]
-            map_current_batch = recovered_map.iloc[map_start_ix : map_end_ix]
-            n_unique = cudf.concat([
-                recovered_samples[recovered_samples.batch_id==current_batch_id].sources,
-                recovered_samples[recovered_samples.batch_id==current_batch_id].destinations,
-            ]).nunique()
-            assert(len(map_current_batch) == n_unique)
+            map_current_batch = recovered_map.iloc[map_start_ix:map_end_ix]
+            n_unique = cudf.concat(
+                [
+                    recovered_samples[
+                        recovered_samples.batch_id == current_batch_id
+                    ].sources,
+                    recovered_samples[
+                        recovered_samples.batch_id == current_batch_id
+                    ].destinations,
+                ]
+            ).nunique()
+            assert len(map_current_batch) == n_unique

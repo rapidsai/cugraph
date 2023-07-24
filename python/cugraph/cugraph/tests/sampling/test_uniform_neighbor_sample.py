@@ -729,12 +729,12 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize('hops', [[5], [5,5], [5,5,5]])
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_renumber(hops):
     el = email_Eu_core.get_edgelist()
 
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(el, source='src', destination='dst')
+    G.from_cudf_edgelist(el, source="src", destination="dst")
 
     seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
 
@@ -747,7 +747,7 @@ def test_uniform_neighbor_sample_renumber(hops):
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=False,
-        random_state=62
+        random_state=62,
     )
 
     sampling_results_renumbered, renumber_map = cugraph.uniform_neighbor_sample(
@@ -759,18 +759,21 @@ def test_uniform_neighbor_sample_renumber(hops):
         with_batch_ids=False,
         deduplicate_sources=True,
         renumber=True,
-        random_state=62
+        random_state=62,
     )
 
-    sources_hop_0 = sampling_results_unrenumbered[sampling_results_unrenumbered.hop_id==0].sources
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
     for hop in range(len(hops)):
-        destinations_hop = sampling_results_unrenumbered[sampling_results_unrenumbered.hop_id<=hop].destinations
-        expected_renumber_map = cudf.concat([
-            sources_hop_0,
-            destinations_hop
-        ]).unique()
-        
-        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(renumber_map.map[0:len(expected_renumber_map)].values_host.tolist())
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
     assert (renumber_map.batch_id == 0).all()
 
 

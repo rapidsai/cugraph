@@ -72,12 +72,16 @@ def create_empty_df(indices_t, weight_t):
     return df
 
 
-def create_empty_df_with_edge_props(indices_t, weight_t, return_offsets=False, renumber=False):
+def create_empty_df_with_edge_props(
+    indices_t, weight_t, return_offsets=False, renumber=False
+):
     if renumber:
-        empty_df_renumber = cudf.DataFrame({
-            map_n: numpy.empty(shape=0, dtype=indices_t),
-            map_offsets_n: numpy.empty(shape=0, dtype="int32"),
-        })
+        empty_df_renumber = cudf.DataFrame(
+            {
+                map_n: numpy.empty(shape=0, dtype=indices_t),
+                map_offsets_n: numpy.empty(shape=0, dtype="int32"),
+            }
+        )
 
     if return_offsets:
         df = cudf.DataFrame(
@@ -119,7 +123,9 @@ def create_empty_df_with_edge_props(indices_t, weight_t, return_offsets=False, r
             return df
 
 
-def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=False, renumber=False):
+def convert_to_cudf(
+    cp_arrays, weight_t, with_edge_properties, return_offsets=False, renumber=False
+):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
@@ -170,7 +176,7 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
 
             if renumber:
                 offsets_df[map_offsets_n] = renumber_map_offsets[:-1]
-            
+
             return_dfs.append(offsets_df)
         else:
             batch_ids_b = batch_ids
@@ -183,17 +189,19 @@ def convert_to_cudf(cp_arrays, weight_t, with_edge_properties, return_offsets=Fa
         if renumber:
             renumber_df = cudf.DataFrame(
                 {
-                    'map': renumber_map,
+                    "map": renumber_map,
                 }
             )
 
             if not return_offsets:
-                batch_ids_r = cudf.Series(batch_ids).repeat(cp.diff(renumber_map_offsets))
+                batch_ids_r = cudf.Series(batch_ids).repeat(
+                    cp.diff(renumber_map_offsets)
+                )
                 batch_ids_r.reset_index(drop=True, inplace=True)
-                renumber_df['batch_id'] = batch_ids_r
-            
+                renumber_df["batch_id"] = batch_ids_r
+
             return_dfs.append(renumber_df)
-        
+
         return tuple(return_dfs)
     else:
         cupy_sources, cupy_destinations, cupy_indices = cp_arrays
@@ -271,7 +279,11 @@ def _call_plc_uniform_neighbor_sample(
         renumber=renumber,
     )
     return convert_to_cudf(
-        cp_arrays, weight_t, with_edge_properties, return_offsets=return_offsets,renumber=renumber
+        cp_arrays,
+        weight_t,
+        with_edge_properties,
+        return_offsets=return_offsets,
+        renumber=renumber,
     )
 
 
@@ -435,12 +447,15 @@ def _mg_call_plc_uniform_neighbor_sample(
 
     empty_df = (
         create_empty_df_with_edge_props(
-            indices_t, weight_t, return_offsets=return_offsets, renumber=renumber,
+            indices_t,
+            weight_t,
+            return_offsets=return_offsets,
+            renumber=renumber,
         )
         if with_edge_properties
         else create_empty_df(indices_t, weight_t)
     )
-    if not isinstance(empty_df, (list,tuple)):
+    if not isinstance(empty_df, (list, tuple)):
         empty_df = [empty_df]
 
     wait(result)
@@ -452,18 +467,18 @@ def _mg_call_plc_uniform_neighbor_sample(
         nout += 1
 
     result_split = [delayed(lambda x: x, nout=nout)(r) for r in result]
-    
+
     ddf = dask_cudf.from_delayed(
-            [r[0] for r in result_split], meta=empty_df[0], verify_meta=False
-        ).persist()
+        [r[0] for r in result_split], meta=empty_df[0], verify_meta=False
+    ).persist()
     return_dfs = [ddf]
-    
+
     if return_offsets:
         ddf_offsets = dask_cudf.from_delayed(
             [r[1] for r in result_split], meta=empty_df[1], verify_meta=False
         ).persist()
         return_dfs.append(ddf_offsets)
-    
+
     if renumber:
         ddf_renumber = dask_cudf.from_delayed(
             [r[-1] for r in result_split], meta=empty_df[-1], verify_meta=False
@@ -738,7 +753,7 @@ def uniform_neighbor_sample(
         Whether to first deduplicate the list of possible sources
         from the previous destinations before performing next
         hop.
-    
+
     renumber: bool, optional (default=False)
         Whether to renumber on a per-batch basis.  If True,
         will return the renumber map and renumber map offsets
@@ -823,7 +838,7 @@ def uniform_neighbor_sample(
                 " label_to_output_comm_rank.  Consider using with_batch_ids"
                 " and keep_batches_together instead."
             )
-        
+
         if renumber:
             raise ValueError(
                 "renumber is not supported with batch_id_list, label_list, "
@@ -884,7 +899,7 @@ def uniform_neighbor_sample(
         raise ValueError(
             "mg uniform_neighbor_sample requires that keep_batches_together=True "
             "when performing renumbering."
-        )        
+        )
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -954,7 +969,7 @@ def uniform_neighbor_sample(
                     return_hops=return_hops,
                     prior_sources_behavior=prior_sources_behavior,
                     deduplicate_sources=deduplicate_sources,
-                    renumber=renumber
+                    renumber=renumber,
                 )
             finally:
                 lock.release()
@@ -981,7 +996,7 @@ def uniform_neighbor_sample(
             return_hops=return_hops,
             prior_sources_behavior=prior_sources_behavior,
             deduplicate_sources=deduplicate_sources,
-            renumber=renumber
+            renumber=renumber,
         )
 
     if return_offsets:

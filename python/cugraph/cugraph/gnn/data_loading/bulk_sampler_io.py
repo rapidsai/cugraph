@@ -81,20 +81,26 @@ def _write_samples_to_parquet(
         results_p["batch_id"] = offsets_p.batch_id.repeat(
             cupy.diff(offsets_p.offsets.values, append=end_ix)
         ).values
-        
-        print('\n-------------------------------------------------------')
+
+        print("\n-------------------------------------------------------")
         print(renumber_map_start_ix, renumber_map_end_ix)
         print(start_batch_id, end_batch_id)
-        renumber_map_p = renumber_map.map.iloc[renumber_map_start_ix:renumber_map_end_ix]
+        renumber_map_p = renumber_map.map.iloc[
+            renumber_map_start_ix:renumber_map_end_ix
+        ]
         print(renumber_map_p)
         print(offsets_p)
 
         # Add the length so no na-checking is required in the loading stage
-        map_offset = (end_batch_id - start_batch_id + 2) - offsets_p.renumber_map_offsets.iloc[0]
-        renumber_map_o = cudf.concat([
-            offsets_p.renumber_map_offsets + map_offset,
-            cudf.Series([len(renumber_map_p) + len(offsets_p) + 1], dtype='int32'),
-        ])
+        map_offset = (
+            end_batch_id - start_batch_id + 2
+        ) - offsets_p.renumber_map_offsets.iloc[0]
+        renumber_map_o = cudf.concat(
+            [
+                offsets_p.renumber_map_offsets + map_offset,
+                cudf.Series([len(renumber_map_p) + len(offsets_p) + 1], dtype="int32"),
+            ]
+        )
 
         renumber_offset_len = len(renumber_map_o)
         if renumber_offset_len != end_batch_id - start_batch_id + 2:
@@ -105,18 +111,20 @@ def _write_samples_to_parquet(
                 renumber_map_o,
                 renumber_map_p,
             ],
-            ignore_index=True
+            ignore_index=True,
         )
-        print('\nfinal map:\n', final_map_series)
+        print("\nfinal map:\n", final_map_series)
 
         if len(final_map_series) > len(results_p):
-            final_map_series.name = 'map'
-            results_p = results_p.join(final_map_series, how='outer').sort_index()
+            final_map_series.name = "map"
+            results_p = results_p.join(final_map_series, how="outer").sort_index()
         else:
             results_p["map"] = final_map_series
 
-        print('\nresults_p:\n',results_p)
-        results_p.to_parquet(full_output_path, compression=None, index=False, force_nullable_schema=True)
+        print("\nresults_p:\n", results_p)
+        results_p.to_parquet(
+            full_output_path, compression=None, index=False, force_nullable_schema=True
+        )
 
     return cudf.Series(dtype="int64")
 
@@ -156,5 +164,10 @@ def write_samples(
 
     else:
         _write_samples_to_parquet(
-            results, offsets, renumber_map, batches_per_partition, output_path, partition_info="sg"
+            results,
+            offsets,
+            renumber_map,
+            batches_per_partition,
+            output_path,
+            partition_info="sg",
         )

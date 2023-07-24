@@ -437,7 +437,6 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     ]
 
 
-
 @pytest.mark.mg
 def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
     df = dask_cudf.from_cudf(
@@ -501,7 +500,6 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
-
 @pytest.mark.mg
 def test_uniform_neighbor_sample_hop_id_order():
     df = dask_cudf.from_cudf(
@@ -531,7 +529,6 @@ def test_uniform_neighbor_sample_hop_id_order():
             sorted(sampling_results_p.hop_id.values_host.tolist())
             == sampling_results_p.hop_id.values_host.tolist()
         )
-
 
 
 @pytest.mark.mg
@@ -577,7 +574,6 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
                     sorted(sampling_results_pb.hop_id.values_host.tolist())
                     == sampling_results_pb.hop_id.values_host.tolist()
                 )
-
 
 
 @pytest.mark.mg
@@ -626,7 +622,6 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
         with_edge_properties=True,
         with_batch_ids=True,
     )
-
 
 
 @pytest.mark.mg
@@ -689,7 +684,6 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
-
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", datasets)
 @pytest.mark.parametrize("input_df", [cudf.DataFrame, dask_cudf.DataFrame])
@@ -749,7 +743,6 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
         assert output_starts_per_batch <= input_starts_per_batch
 
 
-
 @pytest.mark.mg
 def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
     df = dask_cudf.from_cudf(
@@ -806,7 +799,6 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
         assert v not in next_sources
 
 
-
 @pytest.mark.mg
 def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
@@ -838,7 +830,6 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
 
         for s in current_sources:
             assert s not in future_sources
-
 
 
 @pytest.mark.mg
@@ -902,7 +893,6 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
             assert s in sources_next_hop
 
 
-
 @pytest.mark.mg
 def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
@@ -938,7 +928,6 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
             assert s in sources_next_hop
 
 
-
 @pytest.mark.mg
 def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
@@ -969,12 +958,12 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.parametrize('hops', [[5],[5,5],[5,5,5]])
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
 def test_uniform_neighbor_sample_renumber(dask_client, hops):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=4)
 
     G = cugraph.Graph(directed=True)
-    G.from_dask_cudf_edgelist(el, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
 
     seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
 
@@ -990,7 +979,7 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
         random_state=62,
         keep_batches_together=True,
         min_batch_id=0,
-        max_batch_id=0
+        max_batch_id=0,
     ).compute()
 
     sampling_results_renumbered, renumber_map = cugraph.dask.uniform_neighbor_sample(
@@ -1010,18 +999,29 @@ def test_uniform_neighbor_sample_renumber(dask_client, hops):
     sampling_results_renumbered = sampling_results_renumbered.compute()
     renumber_map = renumber_map.compute()
 
-    print('\n\n', sampling_results_renumbered, '\n\n', renumber_map, '\n\n', sampling_results_unrenumbered)
+    print(
+        "\n\n",
+        sampling_results_renumbered,
+        "\n\n",
+        renumber_map,
+        "\n\n",
+        sampling_results_unrenumbered,
+    )
 
-    sources_hop_0 = sampling_results_unrenumbered[sampling_results_unrenumbered.hop_id==0].sources
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
     for hop in range(len(hops)):
-        destinations_hop = sampling_results_unrenumbered[sampling_results_unrenumbered.hop_id<=hop].destinations
-        expected_renumber_map = cudf.concat([
-            sources_hop_0,
-            destinations_hop
-        ]).unique()
-        
-        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(renumber_map.map[0:len(expected_renumber_map)].values_host.tolist())
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
     assert (renumber_map.batch_id == 0).all()
+
 
 # =============================================================================
 # Benchmarks
