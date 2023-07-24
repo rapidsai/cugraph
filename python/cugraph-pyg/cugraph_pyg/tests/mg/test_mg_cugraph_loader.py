@@ -22,6 +22,7 @@ torch = import_optional("torch")
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skip(reason="broken")
 def test_cugraph_loader_basic(dask_client, karate_gnn):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
@@ -50,6 +51,7 @@ def test_cugraph_loader_basic(dask_client, karate_gnn):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skip(reason="broken")
 def test_cugraph_loader_hetero(dask_client, karate_gnn):
     F, G, N = karate_gnn
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)

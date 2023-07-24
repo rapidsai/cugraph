@@ -107,10 +107,11 @@ def _write_samples_to_parquet(
             ],
             ignore_index=True
         )
+        print('\nfinal map:\n', final_map_series)
 
         if len(final_map_series) > len(results_p):
             final_map_series.name = 'map'
-            results_p = results_p.join(final_map_series, how='outer')
+            results_p = results_p.join(final_map_series, how='outer').sort_index()
         else:
             results_p["map"] = final_map_series
 

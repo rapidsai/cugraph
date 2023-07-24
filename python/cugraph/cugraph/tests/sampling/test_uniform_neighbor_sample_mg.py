@@ -969,7 +969,7 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
 
 
 @pytest.mark.mg
-@pytest.mark.parametrize('hops', [[5,5]])
+@pytest.mark.parametrize('hops', [[5],[5,5],[5,5,5]])
 def test_uniform_neighbor_sample_renumber(dask_client, hops):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=4)
 
