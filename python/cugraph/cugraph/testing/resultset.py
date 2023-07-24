@@ -13,10 +13,8 @@
 
 from tempfile import NamedTemporaryFile
 import random
-import os
 from pathlib import Path
 
-# import pandas as pd
 # import cupy as cp
 import numpy as np
 
@@ -32,11 +30,31 @@ from cugraph.experimental.datasets import (
 )
 from cugraph.testing import utils
 
-default_results_upload_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR")) / "results"
-alt_results_dir = Path("testing/nxresults")
+results_dir = Path("testing/results")
 
-# This script is intended to generate all results for all results files.
-# Currently, its location is in testing, but that won't be the final location
+_resultsets = {}
+
+
+def add_resultset(result_data_dictionary, **kwargs):
+    rs = utils.ResultSet(result_data_dictionary)
+    hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
+    _resultsets[hashable_dict_repr] = rs
+
+
+def get_resultset(category, **kwargs):
+    # THIS IS CALLED IN TESTS
+    hashable_dict_repr = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
+    mappings_path = results_dir / (category + "_mappings.csv")
+    mappings = cudf.read_csv(mappings_path)
+    results_filename = mappings[
+        mappings["hashable_dict_repr"] == str(hashable_dict_repr)
+    ]["filename"].iloc[0]
+    # The assumption is that results_filename already includes the algorithm category
+    path = results_dir / results_filename
+    # path = Path("https://data.rapids.ai/cugraph/results/" / path
+    return cudf.read_csv(path)
+
+
 # =============================================================================
 # Parameters
 # =============================================================================
@@ -51,12 +69,10 @@ DATASETS = [dolphins, netscience, karate_disjoint]
 
 DATASETS_SMALL = [karate, dolphins, polbooks]
 
-
 # =============================================================================
 # tests/traversal/test_bfs.py
 # =============================================================================
 test_bfs_results = {}
-
 
 for ds in DATASETS + [karate]:
     for seed in SEEDS:
@@ -64,23 +80,39 @@ for ds in DATASETS + [karate]:
             for dirctd in DIRECTED_GRAPH_OPTIONS:
                 # this does the work of get_cu_graph_nx_results_and_params
                 Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=dirctd)
-
                 random.seed(seed)
                 start_vertex = random.sample(list(Gnx.nodes()), 1)[0]
                 nx_values = nx.single_source_shortest_path_length(
                     Gnx, start_vertex, cutoff=depth_limit
                 )
+                """test_bfs_results[
+                    "{},{},{},{},{}".format(seed, depth_limit, ds, dirctd, start_vertex)
+                ] = nx_values"""
+                vertices = cudf.Series(nx_values.keys())
+                distances = cudf.Series(nx_values.values())
+                add_resultset(
+                    {"vertex": vertices, "distance": distances},
+                    graph_dataset=ds.metadata["name"],
+                    graph_directed=str(dirctd),
+                    algo="single_source_shortest_path_length",
+                    start_vertex=str(start_vertex),
+                    cutoff=str(depth_limit),
+                )
+    # test_bfs_results["{},{},starts".format(seed, ds)] = start_vertex
 
-                test_bfs_results[
-                    "{},{},{},{}".format(seed, depth_limit, ds, dirctd)
-                ] = nx_values
-    test_bfs_results["{},{},starts".format(seed, ds)] = start_vertex
-
+# these are pandas dataframes
 for dirctd in DIRECTED_GRAPH_OPTIONS:
     Gnx = utils.generate_nx_graph_from_file(karate.get_path(), directed=dirctd)
     result = cugraph.bfs_edges(Gnx, source=7)
     cugraph_df = cudf.from_pandas(result)
-    test_bfs_results["{},{},{}".format(ds, dirctd, "nonnative-nx")] = cugraph_df
+    # test_bfs_results["{},{},{}".format(ds, dirctd, "nonnative-nx")] = cugraph_df
+    add_resultset(
+        cugraph_df,
+        graph_dataset="karate",
+        graph_directed=str(dirctd),
+        algo="bfs_edges",
+        source="7",
+    )
 
 
 # =============================================================================
@@ -94,7 +126,16 @@ for ds in DATASETS_SMALL:
     for source in SOURCES:
         Gnx = utils.generate_nx_graph_from_file(ds.get_path(), directed=True)
         nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
-        test_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
+        # stest_sssp_results["{},{},ssdpl".format(ds, source)] = nx_paths
+        vertices = cudf.Series(nx_paths.keys())
+        distances = cudf.Series(nx_paths.values())
+        add_resultset(
+            {"vertex": vertices, "distance": distances},
+            graph_dataset=ds.metadata["name"],
+            graph_directed="True",
+            algo="single_source_dijkstra_path_length",
+            source=str(source),
+        )
 
         M = utils.read_csv_for_nx(ds.get_path(), read_weights_in_sp=True)
         edge_attr = "weight"
@@ -114,31 +155,48 @@ for ds in DATASETS_SMALL:
             edge_attr="weight",
             create_using=nx.DiGraph(),
         )
-        test_sssp_results[
+        nx_paths_datatypeconv = nx.single_source_dijkstra_path_length(Gnx, source)
+        """test_sssp_results[
             "nx_paths,data_type_conversion,{}".format(ds)
-        ] = nx.single_source_dijkstra_path_length(Gnx, source)
+        ] = nx_paths_datatypeconv"""
+        vertices_datatypeconv = cudf.Series(nx_paths_datatypeconv.keys())
+        distances_datatypeconv = cudf.Series(nx_paths_datatypeconv.values())
+        add_resultset(
+            {"vertex": vertices_datatypeconv, "distance": distances_datatypeconv},
+            graph_dataset=ds.metadata["name"],
+            graph_directed="True",
+            algo="single_source_dijkstra_path_length",
+            test="data_type_conversion",
+            source=str(source),
+        )
 
 for dirctd in DIRECTED_GRAPH_OPTIONS:
     for source in SOURCES:
         Gnx = utils.generate_nx_graph_from_file(
             karate.get_path(), directed=dirctd, edgevals=True
         )
-        if dirctd:
+        """if dirctd:
             test_sssp_results[
                 "nonnative_input,nx.DiGraph,{}".format(source)
             ] = cugraph.sssp(Gnx, source)
         else:
             test_sssp_results[
                 "nonnative_input,nx.Graph,{}".format(source)
-            ] = cugraph.sssp(Gnx, source)
-
+            ] = cugraph.sssp(Gnx, source)"""
+        add_resultset(
+            cugraph.sssp(Gnx, source),
+            graph_dataset="karate",
+            graph_directed=str(dirctd),
+            algo="sssp_nonnative",
+            source=str(source),
+        )
 
 G = nx.Graph()
 G.add_edge(0, 1, other=10)
 G.add_edge(1, 2, other=20)
 df = cugraph.sssp(G, 0, edge_attr="other")
-test_sssp_results["network_edge_attr"] = df
-
+# test_sssp_results["network_edge_attr"] = df
+add_resultset(df, algo="sssp_nonnative", test="network_edge_attr")
 
 # =============================================================================
 # tests/traversal/test_paths.py
@@ -161,91 +219,42 @@ invalid_paths = {
     "disconnected": [("1", "10"), ("1", "8")],
 }
 
-test_paths_results = {}
-
 # CONNECTED_GRAPH
 with NamedTemporaryFile(mode="w+", suffix=".csv") as graph_tf:
-    graph_tf.writelines(CONNECTED_GRAPH)
-    graph_tf.seek(0)
-    Gnx = nx.read_weighted_edgelist(graph_tf.name, delimiter=",")
-
     graph_tf.writelines(DISCONNECTED_GRAPH)
     graph_tf.seek(0)
     Gnx_DIS = nx.read_weighted_edgelist(graph_tf.name, delimiter=",")
 
-for path in paths:
-    nx_path_length = nx.shortest_path_length(
-        Gnx, path[0], target=path[1], weight="weight"
-    )
-    cu_path_length = cugraph.shortest_path_length(Gnx, path[0], target=path[1])
-    test_paths_results[
-        "{},{},{},nx".format(path[0], path[1], "connected")
-    ] = nx_path_length
-    test_paths_results[
-        "{},{},{},cu".format(path[0], path[1], "connected")
-    ] = cu_path_length
-
-# INVALID
-for graph in ["connected", "disconnected"]:
-    if graph == "connected":
-        G = Gnx
-    else:
-        G = Gnx_DIS
-    paths = invalid_paths[graph]
-    for path in paths:
-        try:
-            test_paths_results[
-                "{},{},{},invalid".format(path[0], path[1], graph)
-            ] = cugraph.shortest_path_length(G, path[0], path[1])
-        except ValueError:
-            test_paths_results[
-                "{},{},{},invalid".format(path[0], path[1], graph)
-            ] = "ValueError"
-
-# test_shortest_path_length_no_target
 res1 = nx.shortest_path_length(Gnx_DIS, source="1", weight="weight")
-test_paths_results["1,notarget,nx"] = res1
-# res1 = cudf.DataFrame.from_dict(res1, orient="index")
-# res1.to_csv(alt_results_dir / "nx/spl/DISCONNECTEDnx/1.csv", index=True)
-
-res2 = cugraph.shortest_path_length(Gnx_DIS, "1")
-test_paths_results["1,notarget,cu"] = res2
-# res2.to_csv(alt_results_dir / "cugraph/spl/DISCONNECTEDnx/1.csv", index=False)
-
-
-# serial_bfs_results = pickle.dumps(test_bfs_results)
-# serial_sssp_results = pickle.dumps(test_sssp_results)
-# serial_paths_results = pickle.dumps(test_paths_results)
-
-# One way of generating pkl files (NOW OUTDATED)
-# pickle.dump(test_bfs_results, open("testing/bfs_results.pkl", "wb"))
-# pickle.dump(test_sssp_results, open("testing/sssp_results.pkl", "wb"))
-# pickle.dump(test_paths_results, open("testing/paths_results.pkl", "wb"))
-
-# Another way of generating pkl files (NOW OUTDATED)
-"""pickle.dump(
-    test_bfs_results, open(default_results_upload_dir / "bfs_results.pkl", "wb")
+vertices = cudf.Series(res1.keys())
+distances = cudf.Series(res1.values())
+add_resultset(
+    {"vertex": vertices, "distance": distances},
+    algo="shortest_path_length",
+    graph_dataset="DISCONNECTED",
+    graph_directed="True",
+    source="1",
+    weight="weight",
 )
-pickle.dump(
-    test_sssp_results, open(default_results_upload_dir / "sssp_results.pkl", "wb")
-)
-pickle.dump(
-    test_paths_results, open(default_results_upload_dir / "paths_results.pkl", "wb")
-)"""
 
-# Example of how ResultSet is used in each individual testing script
-# my_bfs_results = ResultSet(local_result_file="bfs_results.pkl")
-# my_sssp_results = ResultSet(local_result_file="sssp_results.pkl")
-# my_paths_results = ResultSet(local_result_file="paths_results.pkl")
-
-# GETTERS (these are now unused and ready to be gone)
-"""def get_bfs_results(test_params):
-    return test_bfs_results[test_params]
+traversal_mappings = cudf.DataFrame(columns=["hashable_dict_repr", "filename"])
 
 
-def get_sssp_results(test_params):
-    return test_sssp_results[test_params]
+random.seed(24)
 
+# Generating ALL results files
+for temp in _resultsets:
+    res = _resultsets[temp].get_cudf_dataframe()
+    # Currently, only traversal results files are generated
+    temp_filename = "traversal-" + str(random.getrandbits(55)) + ".csv"
+    temp_mapping = cudf.DataFrame(
+        [[str(temp), temp_filename]], columns=["hashable_dict_repr", "filename"]
+    )
+    traversal_mappings = cudf.concat(
+        [traversal_mappings, temp_mapping], axis=0, ignore_index=True
+    )
+    print(temp_filename)
+    # print("traversal_" + temp_filename)
+    res.to_csv(results_dir / temp_filename, index=False)
 
-def get_paths_results(test_params):
-    return test_paths_results[test_params]"""
+traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)

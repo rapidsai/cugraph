@@ -267,15 +267,14 @@ def get_cu_graph_nx_results_and_params(
     Helper for fixtures returning Nx results and params.
     """
     start_vertex = DATASET_STARTS[dataset_name]
-
     nx_values = get_resultset(
-        algo="nx.single_source_shortest_path_length",
-        cutoff=depth_limit,
+        category="traversal",
+        algo="single_source_shortest_path_length",
+        cutoff=str(depth_limit),
         graph_dataset=dataset_name,
-        graph_directed=directed,
-        start_vertex=start_vertex,
+        graph_directed=str(directed),
+        start_vertex=str(start_vertex),
     )
-    nx_values = nx_values.drop(columns="Unnamed: 0")
     nx_values = cudf.Series(nx_values.distance.values, index=nx_values.vertex).to_dict()
 
     return (G, dataset_path, directed, nx_values, start_vertex, depth_limit)
@@ -414,7 +413,6 @@ def test_bfs_nonnative_inputs_matrix(
 
 @pytest.mark.sg
 def test_bfs_nonnative_inputs_nx(
-    gpubenchmark,
     single_dataset_nxresults_startvertex_spc,
 ):
     (
@@ -427,12 +425,12 @@ def test_bfs_nonnative_inputs_nx(
     ) = single_dataset_nxresults_startvertex_spc
 
     cugraph_df = get_resultset(
-        algo="nx.bfs_edges",
+        category="traversal",
+        algo="bfs_edges",
         graph_dataset="karate",
-        graph_directed=directed,
-        source=start_vertex,
+        graph_directed=str(directed),
+        source=str(start_vertex),
     )
-    cugraph_df = cugraph_df.drop(columns="Unnamed: 0")
 
     compare_func = _compare_bfs
     compare_func(cugraph_df, nx_values, start_vertex)
@@ -440,9 +438,7 @@ def test_bfs_nonnative_inputs_nx(
 
 @pytest.mark.sg
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs_invalid_start(
-    gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
-):
+def test_bfs_invalid_start(dataset_nxresults_startvertex_spc, cugraph_input_type):
     (G, _, _, _, start_vertex, depth_limit) = dataset_nxresults_startvertex_spc
 
     el = G.view_edge_list()

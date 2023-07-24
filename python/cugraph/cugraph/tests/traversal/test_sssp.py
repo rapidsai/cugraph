@@ -46,8 +46,6 @@ cuGraph_input_output_map = {
 }
 cupy_types = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 
-# sssp_results = ResultSet(local_result_file="sssp_results.pkl")
-
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -132,26 +130,27 @@ def networkx_call(graph_file, source, edgevals=True):
     if edgevals is False:
         # FIXME: no test coverage if edgevals is False, this assertion is never reached
         assert False
-        # nx_paths = sssp_results.results["{},{},ssspl".format(dataset_name, source)]
         nx_paths = get_resultset(
-            algo="nx.single_source_shortest_path_length",
+            category="traversal",
+            algo="single_source_shortest_path_length",
             graph_dataset=dataset_name,
-            graph_directed=True,
-            source=source,
+            graph_directed=str(True),
+            source=str(source),
         )
     else:
         # FIXME: The nx call below doesn't return accurate results as it seems to
         # not support 'weights'. It matches cuGraph result only if the weight column
         # is 1s.
-        # nx_paths = sssp_results.results["{},{},ssdpl".format(dataset_name, source)]
         nx_paths = get_resultset(
-            algo="nx.single_source_dijkstra_path_length",
+            category="traversal",
+            algo="single_source_dijkstra_path_length",
             graph_dataset=dataset_name,
-            graph_directed=True,
-            source=source,
+            graph_directed=str(True),
+            source=str(source),
         )
-    nx_paths = nx_paths.drop(columns="Unnamed: 0")
+    # nx_paths = nx_paths.drop(columns="Unnamed: 0")
     nx_paths = cudf.Series(nx_paths.distance.values, index=nx_paths.vertex).to_dict()
+
     G = graph_file.get_graph(
         create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
     )
@@ -261,23 +260,19 @@ def test_sssp_nonnative_inputs_matrix(
     test_sssp(gpubenchmark, single_dataset_source_nxresults, cugraph_input_type)
 
 
+# MARK
 @pytest.mark.sg
 @pytest.mark.parametrize("directed", [True, False])
-def test_sssp_nonnative_inputs_nx(
-    gpubenchmark, single_dataset_source_nxresults, directed
-):
+def test_sssp_nonnative_inputs_nx(single_dataset_source_nxresults, directed):
     (_, _, graph_file, source, nx_paths) = single_dataset_source_nxresults
     dataset_name = graph_file.metadata["name"]
-    # result = sssp_results.results[
-    #     "nonnative_input,{},{}".format(cugraph_input_type, source)
-    # ]
     result = get_resultset(
-        algo="cu.sssp_nonnative",
+        category="traversal",
+        algo="sssp_nonnative",
         graph_dataset=dataset_name,
-        graph_directed=directed,
-        source=source,
+        graph_directed=str(directed),
+        source=str(source),
     )
-    result = result.drop(columns="Unnamed: 0")
     if np.issubdtype(result["distance"].dtype, np.integer):
         max_val = np.iinfo(result["distance"].dtype).max
     else:
@@ -313,7 +308,7 @@ def test_sssp_edgevals(
     gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
 ):
     # Extract the params generated from the fixture
-    (G, _, dataset, source, nx_paths) = dataset_source_nxresults_weighted
+    (G, _, _, source, nx_paths) = dataset_source_nxresults_weighted
     input_G_or_matrix = G
 
     cu_paths, max_val = cugraph_call(
@@ -375,17 +370,14 @@ def test_sssp_data_type_conversion(graph_file, source):
     dist_np = df["distance"].to_numpy()
     pred_np = df["predecessor"].to_numpy()
     cu_paths = dict(zip(verts_np, zip(dist_np, pred_np)))
-    # nx_paths = sssp_results.results[
-    #    "nx_paths,data_type_conversion,{}".format(dataset_name)
-    # ]
     nx_paths = get_resultset(
-        algo="nx.single_source_dijkstra_path_length",
+        category="traversal",
+        algo="single_source_dijkstra_path_length",
         graph_dataset=dataset_name,
-        graph_directed=True,
-        source=source,
+        graph_directed=str(True),
+        source=str(source),
         test="data_type_conversion",
     )
-    nx_paths = nx_paths.drop(columns="Unnamed: 0")
     nx_paths = cudf.Series(nx_paths.distance.values, index=nx_paths.vertex).to_dict()
 
     # Calculating mismatch
@@ -414,9 +406,9 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 @pytest.mark.sg
 def test_sssp_networkx_edge_attr():
-    # df = sssp_results.results["network_edge_attr"]
-    df = get_resultset(algo="cu.sssp_nonnative", test="network_edge_attr")
-    df = df.drop(columns="Unnamed: 0")
+    df = get_resultset(
+        category="traversal", algo="sssp_nonnative", test="network_edge_attr"
+    )
     df = df.set_index("vertex")
     assert df.loc[0, "distance"] == 0
     assert df.loc[1, "distance"] == 10
