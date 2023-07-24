@@ -156,6 +156,14 @@ def calc_edge_betweenness_centrality(
     return sorted_df
 
 
+def _rescale_e(betweenness, num_nodes, k):
+
+    for e in betweenness:
+        betweenness[e] *= num_nodes / k
+
+    return betweenness
+
+
 def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
     # NOTE: Networkx API does not allow passing a list of vertices
     # And the sampling is operated on Gnx.nodes() directly
@@ -178,6 +186,10 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
     nx_bc_dict = nx.edge_betweenness_centrality(
         Gnx, k=k, normalized=normalized, weight=weight, seed=seed
     )
+
+    if normalized or not Gnx.is_directed():
+        if k is not None:
+            nx_bc_dict = _rescale_e(nx_bc_dict, len(Gnx.nodes()), k)
 
     nx_df = generate_nx_result(nx_bc_dict, type(Gnx) is nx.DiGraph).rename(
         columns={"betweenness_centrality": "ref_bc"}, copy=False
@@ -317,7 +329,7 @@ def generate_upper_triangle(dataframe):
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_edge_betweenness_centrality(
+def test_edge_betweenness_centrality_0(
     graph_file,
     directed,
     subset_size,
