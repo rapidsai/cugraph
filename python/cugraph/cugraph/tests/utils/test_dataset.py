@@ -287,10 +287,17 @@ def test_is_directed(dataset):
     assert G.is_directed() == dataset.metadata["is_directed"]
 
 
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_has_loop(dataset):
-    G = dataset.get_graph(download=True)
-    # check if it has a loop
+# TODO: test for loop
+# @pytest.mark.parametrize("dataset", ALL_DATASETS)
+# def test_has_loop(dataset):
+# G = dataset.get_graph(download=True)
+# check if it has a loop
+
+# TODO: test is symmetric
+# @pytest.mark.parametrize("dataset", ALL_DATASETS)
+# def test_is_symmetric(dataset):
+# G = dataset.get_graph(download=True)
+
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_multigraph(dataset):
@@ -298,6 +305,7 @@ def test_is_multigraph(dataset):
     G = dataset.get_graph(download=True)
 
     assert G.is_multigraph() == dataset_is_multigraph
+
 
 #
 # Test experimental for DeprecationWarnings
