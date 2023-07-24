@@ -3,7 +3,7 @@
 
 <img src="../../images/zachary_graph_centrality.png" width="35%"/>
 
-cuGraph Centrality folder contains a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify the importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
+The RAPIDS cuGraph Centrality folder contains a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify the importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
 
 * Which vertices have the highest degree (most direct links) ?
 * Which vertices are on the most efficient paths through the graph?
@@ -30,17 +30,7 @@ But which vertices are most important? The answer depends on which measure/algor
 
 ## Copyright
 
-Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0 
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
-
-![RAPIDS](../../img/rapids_logo.png)
-___
-Copyright (c) 2023, NVIDIA CORPORATION.
+Copyright (c) 2019 - 2023, NVIDIA CORPORATION.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
