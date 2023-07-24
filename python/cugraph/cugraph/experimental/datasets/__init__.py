@@ -25,7 +25,6 @@ from pathlib import Path
 from cugraph.utilities.api_tools import promoted_experimental_warning_wrapper
 
 
-# wrap the Dataset class in the promoted_wrapper
 Dataset = promoted_experimental_warning_wrapper(Dataset)
 load_all = promoted_experimental_warning_wrapper(load_all)
 set_download_dir = promoted_experimental_warning_wrapper(set_download_dir)

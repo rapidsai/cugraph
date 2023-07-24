@@ -287,6 +287,18 @@ def test_is_directed(dataset):
     assert G.is_directed() == dataset.metadata["is_directed"]
 
 
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_has_loop(dataset):
+    G = dataset.get_graph(download=True)
+    # check if it has a loop
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_multigraph(dataset):
+    dataset_is_multigraph = dataset.metadata["is_multigraph"]
+    G = dataset.get_graph(download=True)
+
+    assert G.is_multigraph() == dataset_is_multigraph
+
 #
 # Test experimental for DeprecationWarnings
 #

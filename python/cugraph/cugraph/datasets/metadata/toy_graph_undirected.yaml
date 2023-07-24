@@ -1,7 +1,9 @@
 name: toy_graph_undirected
 file_type: .csv
-description: null
-author: null
+description:
+  The `toy_graph_undirected` dataset was created by Nvidia for testing and
+  demonstration purposes.
+author: Nvidia
 refs: null
 delim: " "
 header: None

@@ -1,8 +1,13 @@
 name: ktruss_polbooks
 file_type: .csv
-description: null
+description:
+  A network of books about U.S. politics published close to the 2004 U.S.
+  presidential election, and sold by Amazon.com. Edges between books represent
+  frequent copurchasing of those books by the same buyers.
 author: V. Krebs
-refs: null
+refs:
+  V. Krebs, "The political books network", unpublished,
+  https://doi.org/10.2307/40124305 [@sci-hub]
 delim: " "
 header: None
 col_names:

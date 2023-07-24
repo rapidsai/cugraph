@@ -1,6 +1,8 @@
 name: netscience
 file_type: .csv
-description: null
+description:
+  The graph netscience contains a coauthorship network of scientists working
+  on network theory and experiment, as compiled by M. Newman in May 2006.
 author: Newman, Mark E.J.
 refs: Finding community structure in networks using the eigenvectors of matrices.
 delim: " "
@@ -18,5 +20,5 @@ is_directed: true
 is_multigraph: false
 is_symmetric: true
 number_of_edges: 5484
-number_of_nodes: 1461
+number_of_nodes: 1589
 url: https://data.rapids.ai/cugraph/datasets/netscience.csv

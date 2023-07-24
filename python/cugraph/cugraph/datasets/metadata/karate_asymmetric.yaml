@@ -1,10 +1,13 @@
 name: karate-asymmetric
 file_type: .csv
-description: null
+description:
+  This is the asymmetric variant of the Karate dataset. The graph "karate"
+  contains the network of friendships between the 34 members of a karate
+  club at a US university, as described by Wayne Zachary in 1977.
 author: Zachary W.
 refs:
-  W. W. Zachary, An information flow model for conflict and fission in small groups,
-  Journal of Anthropological Research 33, 452-473 (1977).
+  W. W. Zachary, An information flow model for conflict and fission in small
+  groups, Journal of Anthropological Research 33, 452-473 (1977).
 delim: " "
 header: None
 col_names:

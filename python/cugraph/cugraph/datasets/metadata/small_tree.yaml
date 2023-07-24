@@ -1,7 +1,8 @@
 name: small_tree
 file_type: .csv
-description: null
-author: null
+description:
+  The `small_tree` dataset was created by Nvidia for testing/demonstration purposes.
+author: Nvidia
 refs: null
 delim: " "
 header: None

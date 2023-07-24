@@ -1,6 +1,7 @@
 name: toy_graph
 file_type: .csv
-description: null
+description:
+  The `toy_graph` dataset was created by Nvidia for testing and demonstration purposes.
 author: null
 refs: null
 delim: " "

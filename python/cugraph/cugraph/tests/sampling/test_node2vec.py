@@ -136,7 +136,9 @@ def test_node2vec_invalid(graph_file):
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 def test_node2vec_line(graph_file, directed):
-    G = graph_file.get_graph(download=True, create_using=cugraph.Graph(directed=directed))
+    G = graph_file.get_graph(
+        download=True, create_using=cugraph.Graph(directed=directed)
+    )
     max_depth = 3
     start_vertices = cudf.Series([0, 3, 6], dtype="int32")
     df, seeds = calc_node2vec(

@@ -106,7 +106,6 @@ def test_ktruss_subgraph_Graph(_, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
-# FIXME: currently failing due to a FileNotFound error from cugraph build
 @pytest.mark.sg
 @pytest.mark.skipif(
     (__cuda_version == __unsupported_cuda_version),

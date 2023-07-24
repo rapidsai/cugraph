@@ -1,7 +1,8 @@
 name: small_line
 file_type: .csv
-description: null
-author: null
+description:
+  The `small_line` dataset was created by Nvidia for testing and demonstration purposes.
+author: Nvidia
 refs: null
 delim: " "
 header: None
