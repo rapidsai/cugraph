@@ -18,12 +18,14 @@ import cupy
 import cugraph
 from cugraph.experimental.datasets import karate
 from cugraph.experimental import BulkSampler
+from cugraph.utilities.utils import create_directory_with_overwrite
 
-import tempfile
+import os
+import shutil
 
 
 @pytest.mark.mg
-def test_bulk_sampler_simple(dask_client):
+def test_bulk_sampler_simple(dask_client, scratch_dir):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
     el["etp"] = cupy.int32(0)
@@ -36,10 +38,12 @@ def test_bulk_sampler_simple(dask_client):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    tempdir_object = tempfile.TemporaryDirectory()
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_simple")
+    create_directory_with_overwrite(samples_path)
+
     bs = BulkSampler(
         batch_size=2,
-        output_path=tempdir_object.name,
+        output_path=samples_path,
         graph=G,
         fanout_vals=[2, 2],
         with_replacement=False,
@@ -58,14 +62,16 @@ def test_bulk_sampler_simple(dask_client):
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
     bs.flush()
 
-    recovered_samples = cudf.read_parquet(tempdir_object.name)
+    recovered_samples = cudf.read_parquet(samples_path)
 
     for b in batches["batch"].unique().compute().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
 
+    shutil.rmtree(samples_path)
+
 
 @pytest.mark.mg
-def test_bulk_sampler_mg_graph_sg_input(dask_client):
+def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
     el["eid"] = el["eid"].astype("int32")
     el["etp"] = cupy.int32(0)
@@ -78,10 +84,12 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client):
         edge_attr=["wgt", "eid", "etp"],
     )
 
-    tempdir_object = tempfile.TemporaryDirectory()
+    samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_mg_graph_sg_input")
+    create_directory_with_overwrite(samples_path)
+
     bs = BulkSampler(
         batch_size=2,
-        output_path=tempdir_object.name,
+        output_path=samples_path,
         graph=G,
         fanout_vals=[2, 2],
         with_replacement=False,
@@ -97,7 +105,9 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client):
     bs.add_batches(batches, start_col_name="start", batch_col_name="batch")
     bs.flush()
 
-    recovered_samples = cudf.read_parquet(tempdir_object.name)
+    recovered_samples = cudf.read_parquet(samples_path)
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
+
+    shutil.rmtree(samples_path)

@@ -180,3 +180,14 @@ def test_wsorensen_multi_column(read_csv):
     actual = df_res.sort_values("0_first").reset_index()
     expected = df_exp.sort_values("first").reset_index()
     assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])
+
+
+@pytest.mark.sg
+def test_invalid_datasets_sorensen_w():
+    karate = DATASETS_UNDIRECTED[0]
+    df = karate.get_edgelist()
+    df = df.add(1)
+    G = cugraph.Graph(directed=False)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    with pytest.raises(ValueError):
+        cugraph.sorensen_w(G, None)

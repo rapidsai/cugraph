@@ -15,12 +15,10 @@ from typing import Optional, Tuple, Union
 from cugraph_dgl.nn.conv.base import BaseConv
 from cugraph.utilities.utils import import_optional
 
-from pylibcugraphops.pytorch import CSC
-from pylibcugraphops.pytorch.operators import mha_simple_n2n
-
 dgl = import_optional("dgl")
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class TransformerConv(BaseConv):
@@ -133,7 +131,7 @@ class TransformerConv(BaseConv):
             Edge feature tensor. Default: ``None``.
         """
         offsets, indices, _ = g.adj_tensors("csc")
-        graph = CSC(
+        graph = ops_torch.CSC(
             offsets=offsets,
             indices=indices,
             num_src_nodes=g.num_src_nodes(),
@@ -155,7 +153,7 @@ class TransformerConv(BaseConv):
                 )
             efeat = self.lin_edge(efeat)
 
-        out = mha_simple_n2n(
+        out = ops_torch.operators.mha_simple_n2n(
             key_emb=key,
             query_emb=query,
             value_emb=value,

@@ -60,7 +60,7 @@ HELP="$0 [<target> ...] [<flag> ...]
  and <flag> is:
    -v                         - verbose build mode
    -g                         - build for debug
-   -n                         - do not install after a successful build
+   -n                         - do not install after a successful build (does not affect Python packages)
    --pydevelop                - use setup.py develop instead of install
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
@@ -104,7 +104,7 @@ BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
-PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps ."
+PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps"
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -177,6 +177,12 @@ fi
 if hasArg --pydevelop; then
     PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e ."
 fi
+
+# Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
+SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}"
+  if [[ "${EXTRA_CMAKE_ARGS}" != *"DFIND_CUGRAPH_CPP"* ]]; then
+      SKBUILD_EXTRA_CMAKE_ARGS="${SKBUILD_EXTRA_CMAKE_ARGS} -DFIND_CUGRAPH_CPP=ON"
+  fi
 
 # If clean or uninstall targets given, run them prior to any other steps
 if hasArg uninstall; then
@@ -296,21 +302,9 @@ if buildAll || hasArg pylibcugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/pylibcugraph
     else
-        cd ${REPODIR}/python/pylibcugraph
-        # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
-        # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
-        CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-        python setup.py build_ext \
-	       --inplace \
-	       -- \
-	       -DFIND_CUGRAPH_CPP=ON \
-	       -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
-               -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
-	       -- \
-	       -j${PARALLEL_LEVEL:-1}
-        if [[ ${INSTALL_TARGET} != "" ]]; then
-            env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python ${PYTHON_ARGS_FOR_INSTALL}
-        fi
+        SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
+            SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+            python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/pylibcugraph
     fi
 fi
 
@@ -319,22 +313,9 @@ if buildAll || hasArg cugraph; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph
     else
-        cd ${REPODIR}/python/cugraph
-        # FIXME: this needs to eventually reference the pylibcugraph build
-        # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
-        # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
-        CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-        python setup.py build_ext \
-	       --inplace \
-	       -- \
-	       -DFIND_CUGRAPH_CPP=ON \
-	       -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
-               -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
-	       -- \
-	       -j${PARALLEL_LEVEL:-1}
-        if [[ ${INSTALL_TARGET} != "" ]]; then
-            env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python ${PYTHON_ARGS_FOR_INSTALL}
-        fi
+        SKBUILD_CONFIGURE_OPTIONS="${SKBUILD_EXTRA_CMAKE_ARGS} -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS}" \
+            SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+            python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph
     fi
 fi
 
@@ -343,12 +324,8 @@ if hasArg cugraph-service; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-service
     else
-        if [[ ${INSTALL_TARGET} != "" ]]; then
-            cd ${REPODIR}/python/cugraph-service/client
-            python ${PYTHON_ARGS_FOR_INSTALL}
-            cd ${REPODIR}/python/cugraph-service/server
-            python ${PYTHON_ARGS_FOR_INSTALL}
-        fi
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/client
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-service/server
     fi
 fi
 
@@ -357,10 +334,7 @@ if hasArg cugraph-pyg; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
-        if [[ ${INSTALL_TARGET} != "" ]]; then
-            cd ${REPODIR}/python/cugraph-pyg
-            python ${PYTHON_ARGS_FOR_INSTALL}
-        fi
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-pyg
     fi
 fi
 
@@ -369,10 +343,7 @@ if hasArg cugraph-dgl; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
-        if [[ ${INSTALL_TARGET} != "" ]]; then
-            cd ${REPODIR}/python/cugraph-dgl
-            python ${PYTHON_ARGS_FOR_INSTALL}
-        fi
+        python ${PYTHON_ARGS_FOR_INSTALL} ${REPODIR}/python/cugraph-dgl
     fi
 fi
 
