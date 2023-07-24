@@ -1,11 +1,13 @@
 name: dolphins
 file_type: .csv
+description: null
 author: D. Lusseau
-url: https://data.rapids.ai/cugraph/datasets/dolphins.csv
 refs:
   D. Lusseau, K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and S. M. Dawson,
   The bottlenose dolphin community of Doubtful Sound features a large proportion of
   long-lasting associations, Behavioral Ecology and Sociobiology 54, 396-405 (2003).
+delim: " "
+header: None
 col_names:
   - src
   - dst
@@ -14,12 +16,10 @@ col_types:
   - int32
   - int32
   - float32
-delim: " "
-header: None
 has_loop: false
 is_directed: true
 is_multigraph: false
 is_symmetric: false
 number_of_edges: 318
 number_of_nodes: 62
-number_of_lines: 318
+url: https://data.rapids.ai/cugraph/datasets/dolphins.csv

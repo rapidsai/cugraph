@@ -1,7 +1,7 @@
 name: email-Eu-core
 file_type: .csv
+description: null
 author: null
-url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv
 refs: null
 delim: " "
 header: None
@@ -19,4 +19,4 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 25571
 number_of_nodes: 1005
-number_of_lines: 25571
+url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv

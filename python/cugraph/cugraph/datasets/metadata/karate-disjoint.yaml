@@ -1,7 +1,7 @@
 name: karate-disjoint
 file_type: .csv
+description: null
 author: null
-url: https://data.rapids.ai/cugraph/datasets/karate-disjoint.csv
 refs: null
 delim: " "
 header: None
@@ -19,4 +19,4 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 312
 number_of_nodes: 68
-number_of_lines: 312
+url: https://data.rapids.ai/cugraph/datasets/karate-disjoint.csv

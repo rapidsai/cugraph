@@ -1,7 +1,7 @@
 name: small_line
 file_type: .csv
+description: null
 author: null
-url: https://data.rapids.ai/cugraph/datasets/small_line.csv
 refs: null
 delim: " "
 header: None
@@ -19,4 +19,4 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 9
 number_of_nodes: 10
-number_of_lines: 8
+url: https://data.rapids.ai/cugraph/datasets/small_line.csv
