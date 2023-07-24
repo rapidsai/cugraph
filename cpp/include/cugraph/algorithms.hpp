@@ -1193,8 +1193,10 @@ void sssp(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
  * @param edge_weight_view View object holding edge weights for @p graph_view.
- * @param origins An array of origins (starting vertices) to find shortest distances.
- * @param destinations An array of destinations (end vertices) to find shortest distances.
+ * @param origins An array of origins (starting vertices) to find shortest distances. There should
+ * be no duplicates in @p origins.
+ * @param destinations An array of destinations (end vertices) to find shortest distances. There
+ * should be no duplicates in @p destinations.
  * @param cutoff Any destinations farther than @p cutoff will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return A vector of size @p origins.size() * @p destinations.size(). The i'th element of the
