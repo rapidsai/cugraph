@@ -10,6 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import networkx as nx
+
 from .graph import Graph
 
 __all__ = ["DiGraph"]
@@ -18,3 +20,9 @@ __all__ = ["DiGraph"]
 class DiGraph(Graph):
     def is_directed(self) -> bool:
         return True
+
+    def to_networkx_class(self):
+        return nx.DiGraph
+
+    def number_of_edges(self) -> int:
+        return self.row_indices.size

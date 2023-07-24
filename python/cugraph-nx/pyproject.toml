@@ -32,7 +32,7 @@ classifiers = [
 dependencies = [
     "cupy-cuda11x>=12.0.0",
     "pylibcugraph==23.8.*",
-    "networkx >=3.2",
+    "networkx >=3.0",
 ]
 
 [project.optional-dependencies]

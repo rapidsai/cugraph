@@ -16,6 +16,8 @@ from collections.abc import Hashable, Iterator
 from copy import deepcopy
 from typing import TYPE_CHECKING, TypeVar
 
+import networkx as nx
+
 import cugraph_nx as cnx
 
 if TYPE_CHECKING:
@@ -29,7 +31,6 @@ __all__ = ["Graph"]
 
 
 class Graph:
-    indptr: cp.ndarray
     row_indices: cp.ndarray
     col_indices: cp.ndarray
     edge_values: dict[AttrType, cp.ndarray]
@@ -47,7 +48,7 @@ class Graph:
 
     def __init__(
         self,
-        indptr,
+        N,
         row_indices,
         col_indices,
         edge_values,
@@ -60,7 +61,6 @@ class Graph:
         **attr,
     ):
         # TODO: when should we make and wrap a plc.Graph? Can it own these arrays?
-        self.indptr = indptr
         self.row_indices = row_indices
         self.col_indices = col_indices
         self.edge_values = edge_values
@@ -69,7 +69,7 @@ class Graph:
         self.node_masks = node_masks
         self.key_to_id = key_to_id
         self._id_to_key = id_to_key
-        self._N = indptr.size - 1
+        self._N = N
         self.graph = self.graph_attr_dict_factory()
         self.graph.update(attr)
 
@@ -78,7 +78,7 @@ class Graph:
         if self.key_to_id is None:
             return None
         if self._id_to_key is None:
-            self._id_to_key = {val: key for key, val in self._key_to_id.items()}
+            self._id_to_key = {val: key for key, val in self.key_to_id.items()}
         return self._id_to_key
 
     def __iter__(self) -> Iterator:
@@ -102,6 +102,10 @@ class Graph:
     def number_of_nodes(self) -> int:
         return self._N
 
+    def number_of_edges(self) -> int:
+        # If no self-edges, then `self.row_indices.size // 2`
+        return int((self.row_indices <= self.col_indices).sum())
+
     def order(self) -> int:
         return self._N
 
@@ -116,6 +120,9 @@ class Graph:
 
     def to_undirected_class(self):
         return Graph
+
+    def to_networkx_class(self):
+        return nx.Graph
 
     def to_directed(self, as_view=False) -> cnx.DiGraph:
         indptr = self.indptr
