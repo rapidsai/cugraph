@@ -15,6 +15,7 @@
  */
 
 #include <c_api/capi_helper.hpp>
+#include <structure/detail/structure_utils.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
