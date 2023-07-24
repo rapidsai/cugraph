@@ -461,9 +461,13 @@ def uniform_neighbor_sample(
             renumber_df = cudf.DataFrame(
                 {
                     'map': renumber_map,
-                    'renumber_map_offsets': renumber_map_offsets,
                 }
             )
+
+            if not return_offsets:
+                batch_ids_r = cudf.Series(batch_ids).repeat(cp.diff(renumber_map_offsets))
+                batch_ids_r.reset_index(drop=True, inplace=True)
+                renumber_df['batch_id'] = batch_ids_r
 
         if return_offsets:
             offsets_df = cudf.DataFrame(
@@ -472,6 +476,9 @@ def uniform_neighbor_sample(
                     "offsets": offsets[:-1],
                 }
             )
+
+            if renumber:
+                offsets_df['renumber_map_offsets'] = renumber_map_offsets[:-1]
 
         else:
             if len(batch_ids) > 0:
@@ -508,6 +515,6 @@ def uniform_neighbor_sample(
             return df, offsets_df
     
     if renumber:
-        return df, offsets_df
+        return df, renumber_df
         
     return df
