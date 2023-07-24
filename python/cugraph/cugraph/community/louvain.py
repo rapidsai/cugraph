@@ -70,7 +70,7 @@ def louvain(G, max_iter=100, resolution=1.0):
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> parts = cugraph.louvain(G)
 
     """

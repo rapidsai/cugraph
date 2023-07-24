@@ -83,7 +83,7 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> KCoreGraph = cugraph.k_core(G)
 
     """

@@ -56,7 +56,7 @@ def core_number(G, degree_type="bidirectional"):
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.core_number(G)
 
     """

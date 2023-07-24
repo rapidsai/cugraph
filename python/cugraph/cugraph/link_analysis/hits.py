@@ -76,7 +76,7 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> hits = cugraph.hits(G, max_iter = 50)
 
     """

@@ -146,7 +146,7 @@ class EXPERIMENTAL__BulkSampler:
         >>> bulk_sampler = BulkSampler(
         ...     batch_size=3,
         ...     output_path=output_tempdir.name,
-        ...     graph=karate.get_graph(fetch=True))
+        ...     graph=karate.get_graph(download=True))
         >>> bulk_sampler.add_batches(
         ...     df,
         ...     start_col_name="start_vid",

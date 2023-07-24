@@ -82,7 +82,7 @@ def spectralBalancedCutClustering(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
 
     """
@@ -179,7 +179,7 @@ def spectralModularityMaximizationClustering(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
 
     """
@@ -255,7 +255,7 @@ def analyzeClustering_modularity(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
 
@@ -337,7 +337,7 @@ def analyzeClustering_edge_cut(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
 
@@ -417,7 +417,7 @@ def analyzeClustering_ratio_cut(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df, 'vertex',
     ...                                             'cluster')

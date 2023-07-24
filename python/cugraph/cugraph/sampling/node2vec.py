@@ -79,7 +79,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> start_vertices = cudf.Series([0, 2], dtype=np.int32)
     >>> paths, weights, path_sizes = cugraph.node2vec(G, start_vertices, 3,
     ...                                               True, 0.8, 0.5)

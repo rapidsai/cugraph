@@ -120,8 +120,8 @@ def test_set_download_dir():
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_fetch(dataset):
-    E = dataset.get_edgelist(fetch=True)
+def test_download(dataset):
+    E = dataset.get_edgelist(download=True)
 
     assert E is not None
     assert dataset.get_path().is_file()
@@ -129,13 +129,13 @@ def test_fetch(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
-    E = dataset.get_edgelist(fetch=True)
+    E = dataset.get_edgelist(download=True)
     assert E is not None
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
-    G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(download=True)
     assert G is not None
 
 
@@ -150,7 +150,7 @@ def test_metadata(dataset):
 def test_get_path(dataset):
     tmpd = TemporaryDirectory()
     datasets.set_download_dir(tmpd.name)
-    dataset.get_edgelist(fetch=True)
+    dataset.get_edgelist(download=True)
 
     assert dataset.get_path().is_file()
     tmpd.cleanup()
@@ -158,19 +158,19 @@ def test_get_path(dataset):
 
 @pytest.mark.parametrize("dataset", WEIGHTED_DATASETS)
 def test_weights(dataset):
-    G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(download=True)
     assert G.is_weighted()
-    G = dataset.get_graph(fetch=True, ignore_weights=True)
+    G = dataset.get_graph(download=True, ignore_weights=True)
     assert not G.is_weighted()
 
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_create_using(dataset):
-    G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(download=True)
     assert not G.is_directed()
-    G = dataset.get_graph(fetch=True, create_using=Graph)
+    G = dataset.get_graph(download=True, create_using=Graph)
     assert not G.is_directed()
-    G = dataset.get_graph(fetch=True, create_using=Graph(directed=True))
+    G = dataset.get_graph(download=True, create_using=Graph(directed=True))
     assert G.is_directed()
 
 
@@ -202,9 +202,9 @@ def test_ctor_with_datafile():
             csv_col_dtypes=["int32", "int32", "float32"],
         )
 
-    expected_karate_edgelist = karate.get_edgelist(fetch=True)
+    expected_karate_edgelist = karate.get_edgelist(download=True)
 
-    # test with file path as string, ensure fetch=True does not break
+    # test with file path as string, ensure download=True does not break
     ds = datasets.Dataset(
         csv_file=karate_csv.as_posix(),
         csv_col_names=["src", "dst", "wgt"],
@@ -261,7 +261,9 @@ def test_unload():
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_node_and_edge_count(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
-    G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
 
     # these are the values read directly from .yaml file
     meta_node_count = dataset.metadata["number_of_nodes"]
@@ -278,7 +280,9 @@ def test_node_and_edge_count(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_directed(dataset):
     dataset_is_directed = dataset.metadata["is_directed"]
-    G = dataset.get_graph(fetch=True, create_using=Graph(directed=dataset_is_directed))
+    G = dataset.get_graph(
+        download=True, create_using=Graph(directed=dataset_is_directed)
+    )
 
     assert G.is_directed() == dataset.metadata["is_directed"]
 
@@ -295,7 +299,7 @@ def test_experimental_dataset_import(setup_deprecation_warning_tests):
 
 def test_experimental_method_warnings(setup_deprecation_warning_tests):
     from cugraph.experimental.datasets import (
-        load_all,
+        download_all,
         set_download_dir,
         get_download_dir,
     )
@@ -306,6 +310,6 @@ def test_experimental_method_warnings(setup_deprecation_warning_tests):
     with pytest.deprecated_call():
         set_download_dir(tmpd.name)
         get_download_dir()
-        load_all()
+        download_all()
 
     tmpd.cleanup()

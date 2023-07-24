@@ -79,7 +79,7 @@ def jaccard_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     --------
     >>> import random
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> # Create a dataframe containing the vertices with their
     >>> # corresponding weight
     >>> weights = cudf.DataFrame()

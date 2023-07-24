@@ -124,7 +124,7 @@ def force_atlas2(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> pos = cugraph.force_atlas2(G)
 
     """

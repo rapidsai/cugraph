@@ -58,7 +58,7 @@ def subgraph(
     Examples
     --------
     >>> from cugraph.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(download=True)
     >>> verts = np.zeros(3, dtype=np.int32)
     >>> verts[0] = 0
     >>> verts[1] = 1
