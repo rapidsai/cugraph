@@ -176,6 +176,7 @@ void reference_edge_rescale(result_t* result,
 {
   result_t rescale_factor            = static_cast<result_t>(1);
   result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
 
   if (normalize) {
     if (number_of_edges > 2) {
