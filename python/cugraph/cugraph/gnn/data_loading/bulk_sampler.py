@@ -236,7 +236,7 @@ class EXPERIMENTAL__BulkSampler:
         start_time_sample_call = time.perf_counter()
 
         # Call uniform neighbor sample
-        samples, offsets = sample_fn(
+        samples, offsets, renumber_map = sample_fn(
             self.__graph,
             **self.__sample_call_args,
             start_list=self.__batches[[self.start_col_name, self.batch_col_name]][
@@ -245,6 +245,7 @@ class EXPERIMENTAL__BulkSampler:
             with_batch_ids=True,
             with_edge_properties=True,
             return_offsets=True,
+            renumber=True,
         )
 
         end_time_sample_call = time.perf_counter()
@@ -263,15 +264,17 @@ class EXPERIMENTAL__BulkSampler:
         start_time_write = time.perf_counter()
 
         # Write batches to parquet
-        self.__write(samples, offsets)
+        self.__write(samples, offsets, renumber_map)
         if isinstance(self.__batches, dask_cudf.DataFrame):
             wait(
                 [f.release() for f in futures_of(samples)]
                 + [f.release() for f in futures_of(offsets)]
+                + [f.release() for f in futures_of(renumber_map)]
             )
 
         del samples
         del offsets
+        del renumber_map
 
         end_time_write = time.perf_counter()
         write_runtime = end_time_write - start_time_write
@@ -289,8 +292,9 @@ class EXPERIMENTAL__BulkSampler:
         self,
         samples: Union[cudf.DataFrame, dask_cudf.DataFrame],
         offsets: Union[cudf.DataFrame, dask_cudf.DataFrame],
+        renumber_map: Union[cudf.DataFrame, dask_cudf.DataFrame],
     ) -> None:
         os.makedirs(self.__output_path, exist_ok=True)
         write_samples(
-            samples, offsets, self.__batches_per_partition, self.__output_path
+            samples, offsets, renumber_map, self.__batches_per_partition, self.__output_path
         )

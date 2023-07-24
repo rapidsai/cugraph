@@ -59,9 +59,21 @@ def test_bulk_sampler_simple(scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
+    recovered_map = recovered_samples.map
+    recovered_samples = recovered_samples.drop('map',axis=1).dropna()
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
+
+        map_start_ix = recovered_map.iloc[b]
+        map_end_ix = recovered_map.iloc[b+1]
+
+        map_current_batch = recovered_map.iloc[map_start_ix : map_end_ix]
+        n_unique = cudf.concat([
+            recovered_samples[recovered_samples.batch_id==b].sources,
+            recovered_samples[recovered_samples.batch_id==b].destinations,
+        ]).nunique()
+        assert(len(map_current_batch) == n_unique)
 
     shutil.rmtree(samples_path)
 
@@ -110,9 +122,20 @@ def test_bulk_sampler_remainder(scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
+    recovered_map = recovered_samples.map
+    recovered_samples = recovered_samples.drop('map',axis=1).dropna()
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
+
+        map_start_ix = recovered_map.iloc[b]
+        map_end_ix = recovered_map.iloc[b+1]
+        map_current_batch = recovered_map.iloc[map_start_ix : map_end_ix]
+        n_unique = cudf.concat([
+            recovered_samples[recovered_samples.batch_id==b].sources,
+            recovered_samples[recovered_samples.batch_id==b].destinations,
+        ]).nunique()
+        assert(len(map_current_batch) == n_unique)
 
     for x in range(0, 6, 2):
         subdir = f"{x}-{x+1}"
@@ -165,8 +188,19 @@ def test_bulk_sampler_large_batch_size(scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
+    recovered_map = recovered_samples.map
+    recovered_samples = recovered_samples.drop('map',axis=1).dropna()
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
+        
+        map_start_ix = recovered_map.iloc[b]
+        map_end_ix = recovered_map.iloc[b+1]
+        map_current_batch = recovered_map.iloc[map_start_ix : map_end_ix]
+        n_unique = cudf.concat([
+            recovered_samples[recovered_samples.batch_id==b].sources,
+            recovered_samples[recovered_samples.batch_id==b].destinations,
+        ]).nunique()
+        assert(len(map_current_batch) == n_unique)
 
     shutil.rmtree(samples_path)

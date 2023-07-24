@@ -21,6 +21,7 @@ from typing import Union, Optional
 def _write_samples_to_parquet(
     results: cudf.DataFrame,
     offsets: cudf.DataFrame,
+    renumber_map: cudf.DataFrame,
     batches_per_partition: int,
     output_path: str,
     partition_info: Optional[Union[dict, str]] = None,
@@ -32,6 +33,9 @@ def _write_samples_to_parquet(
     offsets: cudf.DataFrame
         The offsets dataframe indicating the start/end of each minibatch
         in the reuslts dataframe.
+    renumber_map: cudf.DataFrame
+        The renumber map containing the mapping of renumbered vertex ids
+        to original vertex ids.
     batches_per_partition: int
         The maximum number of minibatches allowed per written parquet partition.
     output_path: str
@@ -60,20 +64,58 @@ def _write_samples_to_parquet(
         end_batch_id = offsets_p.batch_id.iloc[-1]
 
         start_ix = offsets_p.offsets.iloc[0]
+        renumber_map_start_ix = offsets_p.renumber_map_offsets.iloc[0]
         if end_batch_id == max_batch_id:
             end_ix = len(results)
+            renumber_map_end_ix = len(renumber_map)
         else:
-            end_ix = offsets.offsets[offsets.batch_id == (end_batch_id + 1)].iloc[0]
+            offsets_z = offsets[offsets.batch_id == (end_batch_id + 1)]
+            end_ix = offsets_z.offsets.iloc[0]
+            renumber_map_end_ix = offsets_z.renumber_map_offsets.iloc[0]
 
         full_output_path = os.path.join(
             output_path, f"batch={start_batch_id}-{end_batch_id}.parquet"
         )
-        results_p = results.iloc[start_ix:end_ix]
+        results_p = results.iloc[start_ix:end_ix].reset_index(drop=True)
 
         results_p["batch_id"] = offsets_p.batch_id.repeat(
             cupy.diff(offsets_p.offsets.values, append=end_ix)
         ).values
-        results_p.to_parquet(full_output_path, compression=None, index=False)
+        
+        print('\n-------------------------------------------------------')
+        print(renumber_map_start_ix, renumber_map_end_ix)
+        print(start_batch_id, end_batch_id)
+        renumber_map_p = renumber_map.map.iloc[renumber_map_start_ix:renumber_map_end_ix]
+        print(renumber_map_p)
+        print(offsets_p)
+
+        # Add the length so no na-checking is required in the loading stage
+        map_offset = (end_batch_id - start_batch_id + 2) - offsets_p.renumber_map_offsets.iloc[0]
+        renumber_map_o = cudf.concat([
+            offsets_p.renumber_map_offsets + map_offset,
+            cudf.Series([len(renumber_map_p) + len(offsets_p) + 1], dtype='int32'),
+        ])
+
+        renumber_offset_len = len(renumber_map_o)
+        if renumber_offset_len != end_batch_id - start_batch_id + 2:
+            raise ValueError("Invalid batch id or renumber map")
+
+        final_map_series = cudf.concat(
+            [
+                renumber_map_o,
+                renumber_map_p,
+            ],
+            ignore_index=True
+        )
+
+        if len(final_map_series) > len(results_p):
+            final_map_series.name = 'map'
+            results_p = results_p.join(final_map_series, how='outer')
+        else:
+            results_p["map"] = final_map_series
+
+        print('\nresults_p:\n',results_p)
+        results_p.to_parquet(full_output_path, compression=None, index=False, force_nullable_schema=True)
 
     return cudf.Series(dtype="int64")
 
@@ -81,6 +123,7 @@ def _write_samples_to_parquet(
 def write_samples(
     results: cudf.DataFrame,
     offsets: cudf.DataFrame,
+    renumber_map: cudf.DataFrame,
     batches_per_partition: cudf.DataFrame,
     output_path: str,
 ):
@@ -91,6 +134,9 @@ def write_samples(
     offsets: cudf.DataFrame
         The offsets dataframe indicating the start/end of each minibatch
         in the reuslts dataframe.
+    renumber_map: cudf.DataFrame
+        The renumber map containing the mapping of renumbered vertex ids
+        to original vertex ids.
     batches_per_partition: int
         The maximum number of minibatches allowed per written parquet partition.
     output_path: str
@@ -100,6 +146,7 @@ def write_samples(
         results.map_partitions(
             _write_samples_to_parquet,
             offsets,
+            renumber_map,
             batches_per_partition,
             output_path,
             align_dataframes=False,
@@ -108,5 +155,5 @@ def write_samples(
 
     else:
         _write_samples_to_parquet(
-            results, offsets, batches_per_partition, output_path, partition_info="sg"
+            results, offsets, renumber_map, batches_per_partition, output_path, partition_info="sg"
         )

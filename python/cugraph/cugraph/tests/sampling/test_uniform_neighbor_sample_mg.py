@@ -126,7 +126,6 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
-@pytest.mark.skip("deleteme")
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
@@ -204,7 +203,6 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
             )
 
 
-@pytest.mark.skip("deleteme")
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
@@ -263,7 +261,6 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     assert set(start_list).issubset(set(result_nbr_vertices))
 
 
-@pytest.mark.skip("deleteme")
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.cugraph_ops
@@ -299,7 +296,6 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     assert sorted(actual_dst) == sorted(expected_dst)
 
 
-@pytest.mark.skip("deleteme")
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.cugraph_ops
@@ -327,7 +323,6 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     assert len(output_df.compute()) == 3
 
 
-@pytest.mark.skip("deleteme")
 @pytest.mark.mg
 @pytest.mark.cugraph_ops
 @pytest.mark.parametrize("return_offsets", [True, False])
@@ -442,7 +437,7 @@ def test_uniform_neighbor_sample_edge_properties(dask_client, return_offsets):
     ]
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
     df = dask_cudf.from_cudf(
@@ -506,7 +501,7 @@ def test_uniform_neighbor_sample_edge_properties_self_loops(dask_client):
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_hop_id_order():
     df = dask_cudf.from_cudf(
@@ -538,7 +533,7 @@ def test_uniform_neighbor_sample_hop_id_order():
         )
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_hop_id_order_multi_batch():
     df = dask_cudf.from_cudf(
@@ -584,7 +579,7 @@ def test_uniform_neighbor_sample_hop_id_order_multi_batch():
                 )
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 @pytest.mark.parametrize("with_replacement", [True, False])
 @pytest.mark.skipif(
@@ -633,7 +628,7 @@ def test_uniform_neighbor_edge_properties_sample_small_start_list(
     )
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
     df = dask_cudf.from_cudf(
@@ -694,7 +689,7 @@ def test_uniform_neighbor_sample_without_dask_inputs(dask_client):
     assert sorted(sampling_results.hop_id.values_host.tolist()) == [0, 0, 0, 1, 1, 1]
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 @pytest.mark.parametrize("dataset", datasets)
 @pytest.mark.parametrize("input_df", [cudf.DataFrame, dask_cudf.DataFrame])
@@ -754,7 +749,7 @@ def test_uniform_neighbor_sample_batched(dask_client, dataset, input_df, max_bat
         assert output_starts_per_batch <= input_starts_per_batch
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
     df = dask_cudf.from_cudf(
@@ -811,7 +806,7 @@ def test_uniform_neighbor_sample_exclude_sources_basic(dask_client):
         assert v not in next_sources
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
@@ -845,7 +840,7 @@ def test_uniform_neighbor_sample_exclude_sources_email_eu_core(dask_client):
             assert s not in future_sources
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
     df = dask_cudf.from_cudf(
@@ -907,7 +902,7 @@ def test_uniform_neighbor_sample_carry_over_sources_basic(dask_client):
             assert s in sources_next_hop
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
@@ -943,7 +938,7 @@ def test_uniform_neighbor_sample_carry_over_sources_email_eu_core(dask_client):
             assert s in sources_next_hop
 
 
-@pytest.mark.skip("deleteme")
+
 @pytest.mark.mg
 def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
     el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=8)
