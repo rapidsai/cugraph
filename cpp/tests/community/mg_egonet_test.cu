@@ -16,8 +16,6 @@
 
 #include "egonet_validate.hpp"
 
-#include <structure/detail/structure_utils.cuh>
-
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/mg_utilities.hpp>
@@ -27,6 +25,7 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/high_res_timer.hpp>
+#include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/core/comms.hpp>

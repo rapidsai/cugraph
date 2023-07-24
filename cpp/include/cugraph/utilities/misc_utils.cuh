@@ -88,6 +88,41 @@ thrust::optional<T> to_thrust_optional(std::optional<T> val)
   return ret;
 }
 
+template <typename idx_t, typename offset_t>
+rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
+                                                 idx_t base_idx,
+                                                 rmm::cuda_stream_view stream_view)
+{
+  assert(offsets.size() > 0);
+
+  offset_t num_entries{0};
+  raft::update_host(&num_entries, offsets.data() + offsets.size() - 1, 1, stream_view);
+
+  rmm::device_uvector<idx_t> results(num_entries, stream_view);
+
+  if (num_entries > 0) {
+    thrust::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
+
+    if (base_idx != idx_t{0}) { raft::update_device(results.data(), &base_idx, 1, stream_view); }
+
+    thrust::for_each(
+      rmm::exec_policy(stream_view),
+      offsets.begin() + 1,
+      offsets.end(),
+      [results =
+         raft::device_span<idx_t>(results.data(), results.size())] __device__(offset_t offset) {
+        if (offset < static_cast<offset_t>(results.size())) {
+          cuda::atomic_ref<idx_t, cuda::thread_scope_device> atomic_counter(results[offset]);
+          atomic_counter.fetch_add(idx_t{1}, cuda::std::memory_order_relaxed);
+        }
+      });
+    thrust::inclusive_scan(
+      rmm::exec_policy(stream_view), results.begin(), results.end(), results.begin());
+  }
+
+  return results;
+}
+
 }  // namespace detail
 
 }  // namespace cugraph
