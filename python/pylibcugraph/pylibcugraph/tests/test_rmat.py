@@ -98,7 +98,3 @@ def test_rmat(
         include_edge_weights,
         include_edge_types,
     )
-
-
-def test_rmat_invalid_dtype():
-    
