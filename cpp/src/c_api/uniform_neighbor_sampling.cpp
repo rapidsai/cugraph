@@ -232,7 +232,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
       std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
 
-#if 0
+
       std::tie(src, dst, renumber_map, renumber_map_offsets) =
         cugraph::renumber_sampled_edgelist(handle_,
                                            std::move(src),
@@ -242,8 +242,8 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                                                                                                edge_label->size()},
                                                raft::device_span<size_t const>{offsets->data(),
                                                                                offsets->size()}))
-                                           do_expensive_check);
-#endif
+                                           ,do_expensive_check_);
+
 
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(src, graph_->vertex_type_),

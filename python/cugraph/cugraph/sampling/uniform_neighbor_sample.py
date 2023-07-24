@@ -198,6 +198,7 @@ def uniform_neighbor_sample(
     return_hops: bool = True,
     prior_sources_behavior: str = None,
     deduplicate_sources: bool = False,
+    renumber: bool = False,
 ) -> Union[cudf.DataFrame, Tuple[cudf.DataFrame, cudf.DataFrame]]:
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -258,6 +259,11 @@ def uniform_neighbor_sample(
         Whether to first deduplicate the list of possible sources
         from the previous destinations before performing next
         hop.
+    
+    renumber: bool, optional (default=False)
+        Whether to renumber on a per-batch basis.  If True,
+        will return the renumber map and renumber map offsets
+        as an additional dataframe.
 
     Returns
     -------
@@ -289,6 +295,12 @@ def uniform_neighbor_sample(
                     Contains the batch ids from the sampling result
                 df['hop_id']: cudf.Series
                     Contains the hop ids from the sampling result
+                If renumber=True:
+                    (adds the following dataframe)
+                    renumber_df['map']: cudf.Series
+                        Contains the renumber maps for each batch
+                    renumber_df['offsets']: cudf.Series
+                        Contains the batch offsets for the renumber maps
 
             If return_offsets=True:
                 df['sources']: cudf.Series
@@ -308,6 +320,13 @@ def uniform_neighbor_sample(
                     Contains the batch ids from the sampling result
                 offsets_df['offsets']: cudf.Series
                     Contains the offsets of each batch in the sampling result
+                
+                If renumber=True:
+                    (adds the following dataframe)
+                    renumber_df['map']: cudf.Series
+                        Contains the renumber maps for each batch
+                    renumber_df['offsets']: cudf.Series
+                        Contains the batch offsets for the renumber maps
     """
 
     if batch_id_list is not None:
@@ -315,6 +334,11 @@ def uniform_neighbor_sample(
             raise ValueError(
                 "prior_sources_behavior and deduplicate_sources"
                 " are not supported with batch_id_list."
+                " Consider using with_batch_ids instead."
+            )
+        if renumber:
+            raise ValueError(
+                "renumber is not supported with batch_id_list."
                 " Consider using with_batch_ids instead."
             )
         return uniform_neighbor_sample_legacy(
@@ -394,21 +418,37 @@ def uniform_neighbor_sample(
         prior_sources_behavior=prior_sources_behavior,
         deduplicate_sources=deduplicate_sources,
         return_hops=return_hops,
+        renumber=renumber
     )
 
     df = cudf.DataFrame()
 
     if with_edge_properties:
-        (
-            sources,
-            destinations,
-            weights,
-            edge_ids,
-            edge_types,
-            batch_ids,
-            offsets,
-            hop_ids,
-        ) = sampling_result
+        # TODO use a dictionary at PLC w/o breaking users
+        if renumber:
+            (
+                sources,
+                destinations,
+                weights,
+                edge_ids,
+                edge_types,
+                batch_ids,
+                offsets,
+                hop_ids,
+            ) = sampling_result
+        else:
+            (
+                sources,
+                destinations,
+                weights,
+                edge_ids,
+                edge_types,
+                batch_ids,
+                offsets,
+                hop_ids,
+                renumber_map,
+                renumber_map_offsets,
+            ) = sampling_result
 
         df["sources"] = sources
         df["destinations"] = destinations
@@ -416,6 +456,14 @@ def uniform_neighbor_sample(
         df["edge_id"] = edge_ids
         df["edge_type"] = edge_types
         df["hop_id"] = hop_ids
+
+        if renumber:
+            renumber_df = cudf.DataFrame(
+                {
+                    'map': renumber_map,
+                    'renumber_map_offsets': renumber_map_offsets,
+                }
+            )
 
         if return_offsets:
             offsets_df = cudf.DataFrame(
@@ -449,11 +497,17 @@ def uniform_neighbor_sample(
             else:
                 df["indices"] = indices
 
-    if G.renumbered:
+    if G.renumbered and not renumber:
         df = G.unrenumber(df, "sources", preserve_order=True)
         df = G.unrenumber(df, "destinations", preserve_order=True)
 
     if return_offsets:
+        if renumber:
+            return df, offsets_df, renumber_df
+        else:
+            return df, offsets_df
+    
+    if renumber:
         return df, offsets_df
-
+        
     return df
