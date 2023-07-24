@@ -291,23 +291,16 @@ void transform_e(raft::handle_t const& handle,
         auto major = thrust::get<0>(edge);
         auto minor = thrust::get<1>(edge);
 
-        vertex_t major_offset{};
-        vertex_t major_idx{};
         auto major_hypersparse_first = edge_partition.major_hypersparse_first();
-        if (major_hypersparse_first) {
-          if (major < *major_hypersparse_first) {
-            major_offset = edge_partition.major_offset_from_major_nocheck(major);
-            major_idx    = major_offset;
-          } else {
-            auto major_hypersparse_idx =
-              edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-            assert(major_hypersparse_idx);
-            major_idx = edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
-                        *major_hypersparse_idx;
-          }
-        } else {
-          major_offset = edge_partition.major_offset_from_major_nocheck(major);
-          major_idx    = major_offset;
+        auto major_offset            = edge_partition.major_offset_from_major_nocheck(major);
+        vertex_t major_idx{major_offset};
+
+        if ((major_hypersparse_first) && (major >= *major_hypersparse_first)) {
+          auto major_hypersparse_idx =
+            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+          assert(major_hypersparse_idx);
+          major_idx = edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
+                      *major_hypersparse_idx;
         }
 
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
