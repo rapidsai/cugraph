@@ -435,6 +435,8 @@ def uniform_neighbor_sample(
                 batch_ids,
                 offsets,
                 hop_ids,
+                renumber_map,
+                renumber_map_offsets,
             ) = sampling_result
         else:
             (
@@ -446,8 +448,6 @@ def uniform_neighbor_sample(
                 batch_ids,
                 offsets,
                 hop_ids,
-                renumber_map,
-                renumber_map_offsets,
             ) = sampling_result
 
         df["sources"] = sources
