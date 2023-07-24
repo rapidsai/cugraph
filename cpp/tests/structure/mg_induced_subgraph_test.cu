@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <structure/detail/structure_utils.cuh>
 #include <structure/induced_subgraph_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
