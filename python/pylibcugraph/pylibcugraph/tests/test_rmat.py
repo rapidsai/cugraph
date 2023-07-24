@@ -14,7 +14,6 @@
 
 import pytest
 import cupy as cp
-import numpy as np
 
 from pylibcugraph import (
     ResourceHandle,
