@@ -40,11 +40,9 @@ NORMALIZED_OPTIONS = [False, True]
 SUBSET_SIZE_OPTIONS = [4, None]
 
 
-# FIXME: edge_bc fails on 8 GPUs when running the email_Eu_core datasets
-# with directed graph. Passes with undirected graph.
-# Huge performance bottleneck when moving to 8 GPUs
+# email_Eu_core is too expensive to test
 datasets = DATASETS_UNDIRECTED + [email_Eu_core]
-datasets = [email_Eu_core]
+
 
 
 # =============================================================================
