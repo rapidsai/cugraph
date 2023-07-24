@@ -142,7 +142,7 @@ void relabel(raft::handle_t const& handle,
           handle.get_stream());
 
         if (skip_missing_labels) {
-          auto device_view = detail::kv_cuco_store_device_view_t(relabel_map_view);
+          auto device_view = detail::kv_cuco_store_find_device_view_t(relabel_map_view);
           thrust::transform(
             handle.get_thrust_policy(),
             rx_unique_old_labels.begin(),
@@ -187,7 +187,7 @@ void relabel(raft::handle_t const& handle,
       handle.get_stream());
     auto relabel_map_view = relabel_map.view();
     if (skip_missing_labels) {
-      auto device_view = detail::kv_cuco_store_device_view_t(relabel_map_view);
+      auto device_view = detail::kv_cuco_store_find_device_view_t(relabel_map_view);
       thrust::transform(
         handle.get_thrust_policy(),
         labels,
