@@ -32,36 +32,6 @@ from pylibcugraph import generate_rmat_edgelist
 # =============================================================================
 
 
-def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
-    result_srcs, result_dsts, result_indices = result
-
-    h_src_arr = srcs
-    h_dst_arr = dsts
-    h_wgt_arr = weights
-
-    if isinstance(h_src_arr, cp.ndarray):
-        h_src_arr = h_src_arr.get()
-    if isinstance(h_dst_arr, cp.ndarray):
-        h_dst_arr = h_dst_arr.get()
-    if isinstance(h_wgt_arr, cp.ndarray):
-        h_wgt_arr = h_wgt_arr.get()
-
-    h_result_srcs = result_srcs.get()
-    h_result_dsts = result_dsts.get()
-    h_result_indices = result_indices.get()
-
-    # Following the C validation, we will check that all edges are part of the
-    # graph
-    M = np.zeros((num_verts, num_verts), dtype=np.float32)
-
-    # Construct the adjacency matrix
-    for idx in range(num_edges):
-        M[h_dst_arr[idx]][h_src_arr[idx]] = h_wgt_arr[idx]
-
-    for edge in range(len(h_result_indices)):
-        assert M[h_result_dsts[edge]][h_result_srcs[edge]] == h_result_indices[edge]
-
-
 def check_results(
     result, scale, num_edges, include_edge_ids, include_edge_weights, include_edge_types
 ):
@@ -74,6 +44,10 @@ def check_results(
         assert h_ids_arr is not None
     if include_edge_types:
         assert h_types_arr is not None
+
+    vertices = cp.union1d(h_src_arr, h_dst_arr)
+    assert len(h_src_arr) == len(h_dst_arr) == num_edges
+    assert len(vertices) <= 2**scale
 
 
 # TODO: Coverage for the MG implementation
@@ -124,3 +98,7 @@ def test_rmat(
         include_edge_weights,
         include_edge_types,
     )
+
+
+def test_rmat_invalid_dtype():
+    
