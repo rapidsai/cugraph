@@ -159,25 +159,25 @@ class Dataset:
         """
         self._edgelist = None
 
-    def get_edgelist(self, fetch=False):
+    def get_edgelist(self, download=False):
         """
         Return an Edgelist
 
         Parameters
         ----------
-        fetch : Boolean (default=False)
-            Automatically fetch for the dataset from the 'url' location within
+        download : Boolean (default=False)
+            Automatically download the dataset from the 'url' location within
             the YAML file.
         """
         if self._edgelist is None:
             full_path = self.get_path()
             if not full_path.is_file():
-                if fetch:
+                if download:
                     full_path = self.__download_csv(self.metadata["url"])
                 else:
                     raise RuntimeError(
                         f"The datafile {full_path} does not"
-                        " exist. Try setting fetch=True"
+                        " exist. Try setting download=True"
                         " to download the datafile"
                     )
             header = None
@@ -195,7 +195,7 @@ class Dataset:
 
     def get_graph(
         self,
-        fetch=False,
+        download=False,
         create_using=Graph,
         ignore_weights=False,
         store_transposed=False,
@@ -205,7 +205,7 @@ class Dataset:
 
         Parameters
         ----------
-        fetch : Boolean (default=False)
+        download : Boolean (default=False)
             Downloads the dataset from the web.
 
         create_using: cugraph.Graph (instance or class), optional
@@ -221,7 +221,7 @@ class Dataset:
             be unweighted regardless of ignore_weights.
         """
         if self._edgelist is None:
-            self.get_edgelist(fetch)
+            self.get_edgelist(download)
 
         if create_using is None:
             G = Graph()
@@ -267,9 +267,9 @@ class Dataset:
         return self._path.absolute()
 
 
-def load_all(force=False):
+def download_all(force=False):
     """
-    Looks in `metadata` directory and fetches all datafiles from the the URLs
+    Looks in `metadata` directory and downloads all datafiles from the the URLs
     provided in each YAML file.
 
     Parameters
@@ -295,7 +295,7 @@ def load_all(force=False):
 
 def set_download_dir(path):
     """
-    Set the download directory for fetching datasets
+    Set the download location fors datasets
 
     Parameters
     ----------

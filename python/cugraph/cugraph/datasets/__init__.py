@@ -16,7 +16,7 @@ from pathlib import Path
 # datasets module
 from cugraph.datasets.dataset import (
     Dataset,
-    load_all,
+    download_all,
     set_download_dir,
     get_download_dir,
     default_download_dir,
@@ -26,7 +26,6 @@ from cugraph.datasets import metadata
 # metadata path for .yaml files
 meta_path = Path(__file__).parent / "metadata"
 
-# invidual datasets
 cyber = Dataset(meta_path / "cyber.yaml")
 dolphins = Dataset(meta_path / "dolphins.yaml")
 email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
