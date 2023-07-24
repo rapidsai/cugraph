@@ -306,6 +306,7 @@ def test_experimental_dataset_import(setup_deprecation_warning_tests):
     with pytest.deprecated_call():
         from cugraph.experimental.datasets import karate
 
+        # unload() is called to pass flake8
         karate.unload()
 
 
