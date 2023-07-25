@@ -65,7 +65,7 @@ struct compute_chunk_id_t {
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
-          typename EdgeValueInputWrapper,
+          typename EdgeValueInputIterator,
           typename IntersectionOp,
           typename VertexPairIterator>
 struct call_intersection_op_t {
@@ -78,8 +78,8 @@ struct call_intersection_op_t {
   IntersectionOp intersection_op{};
   size_t const* nbr_offsets{nullptr};
   typename GraphViewType::vertex_type const* nbr_indices{nullptr};
-  EdgeValueInputWrapper nbr_intersection_properties0{nullptr};
-  EdgeValueInputWrapper nbr_intersection_properties1{nullptr};
+  EdgeValueInputIterator nbr_intersection_properties0{nullptr};
+  EdgeValueInputIterator nbr_intersection_properties1{nullptr};
   VertexPairIterator major_minor_pair_first{};
 
   __device__ auto operator()(size_t i) const
@@ -342,10 +342,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
         chunk_vertex_pair_first + this_chunk_size);  // detail::nbr_intersection() requires the
                                                      // input vertex pairs to be sorted.
 
-      auto [intersection_offsets,
-            intersection_indices,
-            nbr_intersection_properties0,
-            nbr_intersection_properties1] =
+      auto [intersection_offsets, intersection_indices] =
         detail::nbr_intersection(handle,
                                  graph_view,
                                  cugraph::edge_dummy_property_t{}.view(),
@@ -363,29 +360,24 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
         thrust::make_tuple(get_dataframe_buffer_begin(src_value_buffer),
                            get_dataframe_buffer_begin(dst_value_buffer),
                            get_dataframe_buffer_begin(intersection_value_buffer)));
-      thrust::tabulate(
-        handle.get_thrust_policy(),
-        triplet_first,
-        triplet_first + this_chunk_size,
-        detail::call_intersection_op_t<
-          GraphViewType,
-          edge_partition_src_input_device_view_t,
-          edge_partition_dst_input_device_view_t,
-          // typename decltype(nbr_intersection_properties0)::value_type::const_pointer,
-          std::nullptr_t,
-          IntersectionOp,
-          decltype(chunk_vertex_pair_first)>{
-          edge_partition,
-          edge_partition_src_value_input,
-          edge_partition_dst_value_input,
-          intersection_op,
-          intersection_offsets.data(),
-          intersection_indices.data(),
-          //  nbr_intersection_properties0? nbr_intersection_properties0->data(): nullptr,
-          //  nbr_intersection_properties1? nbr_intersection_properties1->data(): nullptr,
-          nullptr,
-          nullptr,
-          chunk_vertex_pair_first});
+      thrust::tabulate(handle.get_thrust_policy(),
+                       triplet_first,
+                       triplet_first + this_chunk_size,
+                       detail::call_intersection_op_t<GraphViewType,
+                                                      edge_partition_src_input_device_view_t,
+                                                      edge_partition_dst_input_device_view_t,
+                                                      std::nullptr_t,
+                                                      IntersectionOp,
+                                                      decltype(chunk_vertex_pair_first)>{
+                         edge_partition,
+                         edge_partition_src_value_input,
+                         edge_partition_dst_value_input,
+                         intersection_op,
+                         intersection_offsets.data(),
+                         intersection_indices.data(),
+                         nullptr,
+                         nullptr,
+                         chunk_vertex_pair_first});
 
       rmm::device_uvector<vertex_t> endpoint_vertices(size_t{0}, handle.get_stream());
       auto endpoint_value_buffer = allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream());

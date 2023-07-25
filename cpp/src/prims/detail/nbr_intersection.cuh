@@ -670,14 +670,17 @@ size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
 // thrust::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
 // communicator. If we need to build the neighbor lists, grouping based on applying "vertex ID %
 // number of groups"  is recommended for load-balancing.
-template <typename GraphViewType, typename VertexPairIterator, typename EdgeValueInputWrapper>
-std::tuple<rmm::device_uvector<size_t>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>,
-           std::optional<rmm::device_uvector<typename EdgeValueInputWrapper::value_type>>,
-           std::optional<rmm::device_uvector<typename EdgeValueInputWrapper::value_type>>>
+template <typename GraphViewType, typename VertexPairIterator, typename EdgeValueInputIterator>
+std::conditional_t<
+  !std::is_same_v<typename EdgeValueInputIterator::value_type, thrust::nullopt_t>,
+  std::tuple<rmm::device_uvector<size_t>,
+             rmm::device_uvector<typename GraphViewType::vertex_type>,
+             rmm::device_uvector<typename EdgeValueInputIterator::value_type>,
+             rmm::device_uvector<typename EdgeValueInputIterator::value_type>>,
+  std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>>
 nbr_intersection(raft::handle_t const& handle,
                  GraphViewType const& graph_view,
-                 EdgeValueInputWrapper edge_value_input,
+                 EdgeValueInputIterator edge_value_input,
                  VertexPairIterator vertex_pair_first,
                  VertexPairIterator vertex_pair_last,
                  std::array<bool, 2> intersect_dst_nbr,
@@ -687,14 +690,14 @@ nbr_intersection(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
 
   using edge_partition_e_input_device_view_t = std::conditional_t<
-    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    std::is_same_v<typename EdgeValueInputIterator::value_type, thrust::nullopt_t>,
     detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
     detail::edge_partition_edge_property_device_view_t<
       edge_t,
-      typename EdgeValueInputWrapper::value_iterator,
-      typename EdgeValueInputWrapper::value_type>>;
+      typename EdgeValueInputIterator::value_iterator,
+      typename EdgeValueInputIterator::value_type>>;
 
-  using edge_property_value_t = typename EdgeValueInputWrapper::value_type;
+  using edge_property_value_t = typename EdgeValueInputIterator::value_type;
 
   static_assert(std::is_same_v<typename thrust::iterator_traits<VertexPairIterator>::value_type,
                                thrust::tuple<vertex_t, vertex_t>>);
@@ -1826,10 +1829,16 @@ nbr_intersection(raft::handle_t const& handle,
 
   // 5. Return
 
-  return std::make_tuple(std::move(nbr_intersection_offsets),
-                         std::move(nbr_intersection_indices),
-                         std::move(nbr_intersection_properties0),
-                         std::move(nbr_intersection_properties1));
+  if constexpr (std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
+    return std::make_tuple(std::move(nbr_intersection_offsets),
+                           std::move(nbr_intersection_indices));
+
+  } else {
+    return std::make_tuple(std::move(nbr_intersection_offsets),
+                           std::move(nbr_intersection_indices),
+                           std::move((*nbr_intersection_properties0)),
+                           std::move((*nbr_intersection_properties1)));
+  }
 }
 
 }  // namespace detail
