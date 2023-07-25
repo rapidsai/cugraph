@@ -28,10 +28,10 @@ meta_path = Path(__file__).parent / "metadata"
 
 cyber = Dataset(meta_path / "cyber.yaml")
 dolphins = Dataset(meta_path / "dolphins.yaml")
-email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
+email_Eu_core = Dataset(meta_path / "email_Eu_core.yaml")
 karate = Dataset(meta_path / "karate.yaml")
 karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
-karate_disjoint = Dataset(meta_path / "karate-disjoint.yaml")
+karate_disjoint = Dataset(meta_path / "karate_disjoint.yaml")
 ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
 netscience = Dataset(meta_path / "netscience.yaml")
 polbooks = Dataset(meta_path / "polbooks.yaml")
