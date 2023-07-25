@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,6 +29,8 @@ cdef extern from "cugraph_c/resource_handle.h":
         FLOAT32
         FLOAT64
         SIZE_T
+    
+    ctypedef data_type_id_t cugraph_data_type_id_t
 
     ctypedef int8_t byte_t
 
