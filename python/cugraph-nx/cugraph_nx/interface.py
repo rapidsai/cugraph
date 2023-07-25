@@ -21,9 +21,12 @@ class Dispatcher:
     is_strongly_connected = algorithms.is_strongly_connected
 
     # Required conversions
-    convert_from_nx = cnx.convert.convert_from_nx
-    convert_to_nx = cnx.convert.convert_to_nx
+    convert_from_nx = cnx.from_networkx_propertygraph
 
-    @staticmethod
+    def convert_to_nx(obj, *, name: str | None = None):
+        if isinstance(obj, cnx.Graph):
+            return cnx.to_networkx(obj)
+        return obj
+
     def on_start_tests(items):
         pass

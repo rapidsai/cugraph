@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import collections
 import itertools
-import sys
 
 import cupy as cp
 import networkx as nx
@@ -25,6 +24,7 @@ import cugraph_nx as cnx
 
 __all__ = [
     "from_networkx",
+    "from_networkx_propertygraph",
     "to_networkx",
     "to_graph",
     "to_directed_graph",
@@ -33,61 +33,100 @@ __all__ = [
 
 concat = itertools.chain.from_iterable
 
-IS_TESTING = "pytest" in sys.argv[0] or "py.test" in sys.argv[0]  # Hacky...
 
-
-def convert_from_nx(
+def from_networkx_propertygraph(
     graph: nx.Graph,
     edge_attrs: dict | None = None,
     node_attrs: dict | None = None,
+    *,
+    preserve_all_attrs: bool = False,  # Custom
     preserve_edge_attrs: bool = False,
     preserve_node_attrs: bool = False,
     preserve_graph_attrs: bool = False,
     name: str | None = None,
     graph_name: str | None = None,
-    *,
-    weight=None,  # For nx.__version__ <= 3.1
+    weight=None,  # For `3.0 <= nx.__version__ < 3.2`
     # Custom arguments
     is_directed: bool | None = None,
     edge_dtypes: dict | None = None,
     node_dtypes: dict | None = None,
 ):
-    if IS_TESTING and name in {
-        # Raise if input graph changes
-        "lexicographical_topological_sort",
-        "topological_generations",
-        "topological_sort",
-        # Sensitive tests (iteration order matters)
-        "dfs_labeled_edges",
-    }:
-        return graph
+    """Convert a networkx graph to cugraph_nx graph; can convert all attributes.
 
+    Parameters
+    ----------
+    G : networkx.Graph
+    edge_attrs : dict, optional
+        Dict that maps edge attributes to default values if missing in ``G``.
+        If None, then no edge attributes will be converted.
+        If default value is None, then missing values are handled with a mask.
+    node_attrs : dict, optional
+        Dict that maps node attributes to default values if missing in ``G``.
+        If None, then no node attributes will be converted.
+        If default value is None, then missing values are handled with a mask.
+    preserve_edge_attrs : bool, default False
+        Whether to preserve all edge attributes.
+    preserve_node_attrs : bool, default False
+        Whether to preserve all node attributes.
+    preserve_graph_attrs : bool, default False
+        Whether to preserve all graph attributes.
+    name : str, optional
+        The name of the algorithm when dispatched from networkx.
+    graph_name : str, optional
+        The name of the graph argument geing converted when dispatched from networkx.
+    weight : str, optional
+        Equivalent to ``edge_attrs={weight: 1}``.
+        This is used to support the simpler dispatching in networkx 3.0 and 3.1.
+    is_directed : bool, optional
+        If True, then the returned graph will be directed regardless of input.
+        If False, then raise TypeError if the input graph is directed.
+    preserve_all_attrs : bool, default False
+        If True, then equivalent to setting preserve_edge_attrs, preserve_node_attrs,
+        and preserve_graph_attrs to True.
+    edge_dtypes : dict, optional
+    node_dtypes : dict, optional
+
+    Returns
+    -------
+    cugraph_nx.Graph
+
+    See Also
+    --------
+    from_networkx : Simpler conversion from networkx that handles a single attribute
+    to_networkx : The opposite; convert cugraph_nx graph to networkx graph
+    """
     # This uses `graph._adj` and `graph._node`, which are private attributes in NetworkX
-    if isinstance(graph, nx.classes.reportviews.NodeView):
-        # Convert to a Graph with only nodes (no edges)
-        G = nx.Graph()
-        G.add_nodes_from(graph.items())
-        graph = G
-    elif not isinstance(graph, nx.Graph):
-        raise TypeError(f"Expected networkx.Graph; got {type(graph)}")
-    elif graph.__class__ not in {nx.Graph, nx.DiGraph}:
-        if IS_TESTING:
-            return graph
-        if graph.is_multigraph():
-            raise NotImplementedError("MultiGraph support is not yet implemented")
-        raise NotImplementedError(
-            "Converting graph subclas is not yet implemented:", type(graph)
-        )
+    if not isinstance(graph, nx.Graph):
+        if isinstance(graph, nx.classes.reportviews.NodeView):
+            # Convert to a Graph with only nodes (no edges)
+            G = nx.Graph()
+            G.add_nodes_from(graph.items())
+            graph = G
+        else:
+            raise TypeError(f"Expected networkx.Graph; got {type(graph)}")
+    elif graph.is_multigraph():
+        raise NotImplementedError("MultiGraph support is not yet implemented")
+
+    if preserve_all_attrs:
+        preserve_edge_attrs = True
+        preserve_node_attrs = True
+        preserve_graph_attrs = True
 
     if weight is not None:
         # For networkx 3.0 and 3.1 compatibility
         if edge_attrs is not None:
-            raise TypeError("edge_attrs and weight arguments both given")
+            raise TypeError("edge_attrs and weight arguments should not both be given")
         edge_attrs = {weight: 1}
 
-    adj = graph._adj  # This is a NetworkX private attribute, but is much faster to use
+    if graph.__class__ in {nx.Graph, nx.DiGraph}:
+        # This is a NetworkX private attribute, but is much faster to use
+        adj = graph._adj
+    else:
+        adj = graph.adj
+        1 / 0
     if isinstance(adj, nx.classes.coreviews.FilterAdjacency):
         adj = {k: dict(v) for k, v in adj.items()}
+        1 / 0
 
     has_missing_edge_data = set()
     missing_edge_attrs = set()
@@ -147,7 +186,7 @@ def convert_from_nx(
                 key for key, val in counts.items() if val != len(attr_sets)
             )
 
-    get_edge_values = edge_attrs is not None
+    get_edge_values = edge_attrs is not None and graph.number_of_edges() > 0
     N = len(adj)
     key_to_id = dict(zip(adj, range(N)))
     do_remap = not all(k == v for k, v in key_to_id.items())
@@ -179,7 +218,7 @@ def convert_from_nx(
                     for edgedata in rowdata.values()
                 )
                 edge_masks[edge_attr] = cp.fromiter(iter_mask, bool)
-                vals = edge_values[edge_attr] = cp.array(vals, dtype)
+                edge_values[edge_attr] = cp.array(vals, dtype)
                 # if vals.ndim > 1: ...
             elif edge_attr not in missing_edge_attrs:
                 iter_values = (
@@ -188,14 +227,14 @@ def convert_from_nx(
                     for edgedata in rowdata.values()
                 )
                 if dtype is None:
-                    vals = edge_values[edge_attr] = cp.array(list(iter_values))
+                    edge_values[edge_attr] = cp.array(list(iter_values))
                 else:
-                    vals = edge_values[edge_attr] = cp.fromiter(iter_values, dtype)
+                    edge_values[edge_attr] = cp.fromiter(iter_values, dtype)
                 # if vals.ndim > 1: ...
 
     row_indices = cp.repeat(cp.arange(N, dtype=np.int32), list(map(len, adj.values())))
 
-    get_node_values = node_attrs is not None
+    get_node_values = node_attrs is not None and graph.number_of_nodes() > 0
     node_values = {}
     node_masks = {}
     nodes = graph._node
@@ -218,16 +257,16 @@ def convert_from_nx(
                     for node_id in adj
                 )
                 node_masks[node_attr] = cp.fromiter(iter_mask, bool)
-                vals = node_values[node_attr] = cp.array(vals, dtype)
+                node_values[node_attr] = cp.array(vals, dtype)
                 # if vals.ndim > 1: ...
             elif node_attr not in missing_node_attrs:
                 iter_values = (
                     nodes[node_id].get(node_attr, node_default) for node_id in adj
                 )
                 if dtype is None:
-                    vals = node_values[node_attr] = cp.array(list(iter_values))
+                    node_values[node_attr] = cp.array(list(iter_values))
                 else:
-                    vals = node_values[node_attr] = cp.fromiter(iter_values, dtype)
+                    node_values[node_attr] = cp.fromiter(iter_values, dtype)
                 # if vals.ndim > 1: ...
 
     if graph.is_directed() or is_directed:
@@ -249,12 +288,6 @@ def convert_from_nx(
     return rv
 
 
-def convert_to_nx(obj, *, name=None):
-    if isinstance(obj, cnx.Graph):
-        return to_networkx(obj)
-    return obj
-
-
 def from_networkx(
     G: nx.Graph,
     edge_attr=None,
@@ -266,6 +299,41 @@ def from_networkx(
     node_dtype=None,
     is_directed: bool | None = None,
 ) -> cnx.Graph:
+    """Convert a networkx graph to cugraph_nx graph with up to a single attribute.
+
+    Parameters
+    ----------
+    G : networkx.Graph
+    edge_attr : str, optional
+        The edge attribute to use for edge values. If None, then the graph will
+        be structure-only.
+    edge_default : numeric or None, optional
+        The default value to use when an edge does not have the edge attribute.
+        If None, then no default is used and missing values are handled with a mask.
+        Default is 1.0.
+    edge_dtype : dtype, optional
+        Dtype to use for the edge attributes; inferred if None.
+    node_attr : str, optional
+        Like ``edge_attr``, but indicate node attribute to use as node values.
+    node_default : numeric or None, optional
+        Like ``edge_default``, but for nodes. The default value when a node does not
+        have the node attribute. If None, then no default is used and missinv values
+        are handled with a mask.
+    node_dtype : dtype, optional
+        Like ``edge_dtype``. Dtype to use for the node attributes; inferred if None.
+    is_directed :  bool, optional
+        If True, then the returned graph will be directed regardless of input.
+        If False, then raise TypeError if the input graph is directed.
+
+    Returns
+    -------
+    cugraph_nx.Graph
+
+    See Also
+    --------
+    from_networkx_propertygraph : More flexible conversion from networkx
+    to_networkx : The opposite; convert cugraph_nx graph to networkx graph
+    """
     if edge_attr is not None:
         edge_attrs = {edge_attr: edge_default}
         edge_dtypes = {edge_attr: edge_dtype}
@@ -276,7 +344,7 @@ def from_networkx(
         node_dtypes = {node_attr: node_dtype}
     else:
         node_attrs = node_dtypes = None
-    return convert_from_nx(
+    return from_networkx_propertygraph(
         G,
         edge_attrs=edge_attrs,
         edge_dtypes=edge_dtypes,
