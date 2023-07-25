@@ -27,15 +27,15 @@
 
 #include <link_prediction/similarity_compare.hpp>
 
-struct Similarity_Usecase {
+struct Weighted_Similarity_Usecase {
   bool use_weights{true};
-  bool check_correctness{true};
   size_t max_seeds{std::numeric_limits<size_t>::max()};
+  bool check_correctness{true};
 };
 
 template <typename input_usecase_t>
 class Tests_MGSimilarity
-  : public ::testing::TestWithParam<std::tuple<Similarity_Usecase, input_usecase_t>> {
+  : public ::testing::TestWithParam<std::tuple<Weighted_Similarity_Usecase, input_usecase_t>> {
  public:
   Tests_MGSimilarity() {}
 
@@ -47,8 +47,9 @@ class Tests_MGSimilarity
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, typename test_functor_t>
-  void run_current_test(std::tuple<Similarity_Usecase const&, input_usecase_t const&> param,
-                        test_functor_t const& test_functor)
+  void run_current_test(
+    std::tuple<Weighted_Similarity_Usecase const&, input_usecase_t const&> param,
+    test_functor_t const& test_functor)
   {
     auto [similarity_usecase, input_usecase] = param;
     HighResTimer hr_timer{};
@@ -88,45 +89,8 @@ class Tests_MGSimilarity
           (static_cast<size_t>(comm_rank) < similarity_usecase.max_seeds % comm_size ? 1 : 0)),
       handle_->get_stream());
 
-    /*
-        for (int k = 0; k < comm_size; k++) {
-          auto& comm = handle_->get_comms();
-
-          comm.barrier();
-          if (comm_rank == k) {
-            std::cout << "Rank :" << comm_rank << std::endl;
-            RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-            raft::print_device_vector(
-              "d_start_vertices", d_start_vertices.data(), d_start_vertices.size(), std::cout);
-
-            std::cout << "------------------" << std::endl;
-          }
-          comm.barrier();
-        }
-
-        */
-
     cugraph::test::populate_vertex_ids(
       *handle_, d_start_vertices, mg_graph_view.local_vertex_partition_range_first());
-
-    /*
-        for (int k = 0; k < comm_size; k++) {
-          auto& comm = handle_->get_comms();
-
-          comm.barrier();
-          if (comm_rank == k) {
-            std::cout << "Rank :" << comm_rank << std::endl;
-            RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-            raft::print_device_vector(
-              "d_start_vertices", d_start_vertices.data(), d_start_vertices.size(), std::cout);
-
-            std::cout << "------------------" << std::endl;
-          }
-          comm.barrier();
-        }
-        */
 
     auto [d_offsets, two_hop_nbrs] = cugraph::k_hop_nbrs(
       *handle_,
@@ -142,81 +106,9 @@ class Tests_MGSimilarity
       std::fill(h_v1.begin() + h_offsets[i], h_v1.begin() + h_offsets[i + 1], h_start_vertices[i]);
     }
 
-    // h_v1.resize(1);
-    // two_hop_nbrs.resize(1, handle_->get_stream());
-    // two_hop_nbrs.shrink_to_fit(handle_->get_stream());
-
     auto d_v1 = cugraph::test::to_device(*handle_, h_v1);
     auto d_v2 = std::move(two_hop_nbrs);
 
-    /*
-          for (int k = 0; k < comm_size; k++) {
-          auto& comm = handle_->get_comms();
-
-          comm.barrier();
-          if (comm_rank == k) {
-            std::cout << "Rank :" << comm_rank << std::endl;
-            RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-            raft::print_device_vector("d_v1", d_v1.data(), d_v1.size(), std::cout);
-
-            raft::print_device_vector("d_v2", d_v2.data(), d_v2.size(), std::cout);
-
-            std::cout << "------------------" << std::endl;
-          }
-          comm.barrier();
-        }
-    */
-
-    /*
-        //////
-
-        bool test_weighted    = true;
-        bool renumber         = true;
-        std::string file_path = "/home/nfs/mnaim/csv/similarity.csv";
-        std::tie(mg_graph, mg_edge_weights, d_mg_renumber_map_labels) =
-          cugraph::test::read_graph_from_csv_file<vertex_t, edge_t, weight_t, false, true>(
-            *handle_, file_path, test_weighted, renumber);
-
-        std::tie(mg_graph, mg_edge_weights, d_mg_renumber_map_labels) = cugraph::symmetrize_graph(
-          *handle_,
-          std::move(mg_graph),
-          std::move(mg_edge_weights),
-          d_mg_renumber_map_labels
-            ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*d_mg_renumber_map_labels))
-            : std::nullopt,
-          false);
-
-        mg_graph_view       = mg_graph.view();
-        mg_edge_weight_view = (*mg_edge_weights).view();
-
-        ////
-
-        std::vector<vertex_t> h_v1 = {};
-        if (comm_rank==0){h_v1.push_back(2);}
-        auto d_v1                  = cugraph::test::to_device(*handle_, h_v1);
-
-        std::vector<vertex_t> h_v2 = {};
-        if (comm_rank==0){h_v2.push_back(3);}
-        auto d_v2                  = cugraph::test::to_device(*handle_, h_v2);
-
-        for (int k = 0; k < comm_size; k++) {
-          auto& comm = handle_->get_comms();
-
-          comm.barrier();
-          if (comm_rank == k) {
-            std::cout << "Rank :" << comm_rank << std::endl;
-            RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-            raft::print_device_vector("d_v1", d_v1.data(), d_v1.size(), std::cout);
-
-            raft::print_device_vector("d_v2", d_v2.data(), d_v2.size(), std::cout);
-
-            std::cout << "------------------" << std::endl;
-          }
-          comm.barrier();
-        }
-    */
     std::tie(d_v1, d_v2, std::ignore, std::ignore, std::ignore) =
       cugraph::detail::shuffle_int_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning<
         vertex_t,
@@ -229,24 +121,6 @@ class Tests_MGSimilarity
                  std::nullopt,
                  std::nullopt,
                  mg_graph_view.vertex_partition_range_lasts());
-
-    /*
-       for (int k = 0; k < comm_size; k++) {
-         auto& comm = handle_->get_comms();
-
-         comm.barrier();
-         if (comm_rank == k) {
-           std::cout << "Rank :" << comm_rank << std::endl;
-           RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-           raft::print_device_vector("d_v1", d_v1.data(), d_v1.size(), std::cout);
-
-           raft::print_device_vector("d_v2", d_v2.data(), d_v2.size(), std::cout);
-
-           std::cout << "------------------" << std::endl;
-         }
-         comm.barrier();
-       }*/
 
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
@@ -273,61 +147,15 @@ class Tests_MGSimilarity
       auto [src, dst, wgt] =
         cugraph::test::graph_to_host_coo(*handle_, mg_graph_view, mg_edge_weight_view);
 
-      /*
-          for (int k = 0; k < comm_size; k++) {
-            auto& comm = handle_->get_comms();
-
-            comm.barrier();
-            if (comm_rank == k) {
-              std::cout << "Rank :" << comm_rank << std::endl;
-              RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-
-              std::cout << "mg_graph_view: " << mg_graph_view.number_of_vertices() << ", "<<
-         mg_graph_view.number_of_edges() << std::endl; raft::print_host_vector("src", src.data(),
-         src.size(), std::cout); raft::print_host_vector("dst", dst.data(), dst.size(), std::cout);
-              raft::print_host_vector("wgt", wgt->data(), wgt->size(), std::cout);
-
-
-
-              std::cout << "------------------" << std::endl;
-            }
-            comm.barrier();
-          }
-
-      */
-
       d_v1 = cugraph::test::device_gatherv(*handle_, d_v1.data(), d_v1.size());
       d_v2 = cugraph::test::device_gatherv(*handle_, d_v2.data(), d_v2.size());
       result_score =
         cugraph::test::device_gatherv(*handle_, result_score.data(), result_score.size());
 
-      /*
-          for (int k = 0; k < comm_size; k++) {
-            auto& comm = handle_->get_comms();
-
-            comm.barrier();
-            if (comm_rank == k) {
-              std::cout << "Rank :" << comm_rank << std::endl;
-              RAFT_CUDA_TRY(cudaDeviceSynchronize());
-
-              raft::print_device_vector("gathered d_v1", d_v1.data(), d_v1.size(), std::cout);
-
-              raft::print_device_vector("gathered d_v2", d_v2.data(), d_v2.size(), std::cout);
-
-              std::cout << "------------------" << std::endl;
-            }
-            comm.barrier();
-          }
-      */
-
       if (d_v1.size() > 0) {
         auto h_vertex_pair1 = cugraph::test::to_host(*handle_, d_v1);
         auto h_vertex_pair2 = cugraph::test::to_host(*handle_, d_v2);
         auto h_result_score = cugraph::test::to_host(*handle_, result_score);
-
-        std::cout << "pari size: " << h_vertex_pair1.size() << " " << h_vertex_pair2.size()
-                  << std::endl;
 
         if (wgt && similarity_usecase.use_weights) {
           weighted_similarity_compare(mg_graph_view.number_of_vertices(),
@@ -353,80 +181,80 @@ class Tests_MGSimilarity
 template <typename input_usecase_t>
 std::unique_ptr<raft::handle_t> Tests_MGSimilarity<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MGSimilarity_File = Tests_MGSimilarity<cugraph::test::File_Usecase>;
-using Tests_MGSimilarity_Rmat = Tests_MGSimilarity<cugraph::test::Rmat_Usecase>;
+using Tests_MGWeightedSimilarity_File = Tests_MGSimilarity<cugraph::test::File_Usecase>;
+using Tests_MGWeightedSimilarity_Rmat = Tests_MGSimilarity<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_MGSimilarity_File, CheckInt32Int32FloatFloatJaccard)
+TEST_P(Tests_MGWeightedSimilarity_File, CheckInt32Int32FloatFloatJaccard)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatFloatJaccard)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt32Int32FloatFloatJaccard)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatFloatJaccard)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt32Int64FloatFloatJaccard)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatFloatJaccard)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt64Int64FloatFloatJaccard)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_jaccard_t{});
 }
 
-TEST_P(Tests_MGSimilarity_File, CheckInt32Int32FloatSorensen)
+TEST_P(Tests_MGWeightedSimilarity_File, CheckInt32Int32FloatSorensen)
 {
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatSorensen)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt32Int32FloatSorensen)
 {
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatSorensen)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt32Int64FloatSorensen)
 {
   run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatSorensen)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt64Int64FloatSorensen)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_sorensen_t{});
 }
 
-TEST_P(Tests_MGSimilarity_File, CheckInt32Int32FloatOverlap)
+TEST_P(Tests_MGWeightedSimilarity_File, CheckInt32Int32FloatOverlap)
 {
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int32FloatOverlap)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt32Int32FloatOverlap)
 {
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt32Int64FloatOverlap)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt32Int64FloatOverlap)
 {
   run_current_test<int32_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
 
-TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatOverlap)
+TEST_P(Tests_MGWeightedSimilarity_Rmat, CheckInt64Int64FloatOverlap)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
@@ -434,25 +262,25 @@ TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatOverlap)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MGSimilarity_File,
+  Tests_MGWeightedSimilarity_File,
   ::testing::Combine(
     // enable correctness checks
     // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 20}, Similarity_Usecase{false, true, 20}),
-    ::testing::Values(Similarity_Usecase{true, true, 20}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
-                      // , cugraph::test::File_Usecase("test/datasets/netscience.mtx")
-                      )));
+    //::testing::Values(Weighted_Similarity_Usecase{true, 20, true},
+    //: Weighted_Similarity_Usecase{false, 20, true}),
+    ::testing::Values(Weighted_Similarity_Usecase{true, 20, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MGSimilarity_Rmat,
+  Tests_MGWeightedSimilarity_Rmat,
   ::testing::Combine(
     // enable correctness checks
     // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 20},
-    // Similarity_Usecase{false, true, 20}),
-    ::testing::Values(Similarity_Usecase{true, true, 20}),
+    //::testing::Values(Weighted_Similarity_Usecase{true, 20, true},
+    // Weighted_Similarity_Usecase{false, 20, true}),
+    ::testing::Values(Weighted_Similarity_Usecase{true, 20, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -461,10 +289,10 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MGSimilarity_Rmat,
+  Tests_MGWeightedSimilarity_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Similarity_Usecase{true, false, 20}),
+    ::testing::Values(Weighted_Similarity_Usecase{true, 20, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()

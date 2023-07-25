@@ -133,8 +133,15 @@ struct call_intersection_op_t {
     auto intersection = raft::device_span<typename GraphViewType::vertex_type const>(
       nbr_indices + nbr_offsets[i], nbr_indices + nbr_offsets[i + 1]);
 
-    auto properties0 = raft::device_span<edge_property_value_t const>();
-    auto properties1 = raft::device_span<edge_property_value_t const>();
+    std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
+                       raft::device_span<edge_property_value_t const>,
+                       std::byte>
+      properties0{};
+
+    std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
+                       raft::device_span<edge_property_value_t const>,
+                       std::byte>
+      properties1{};
 
     if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
       properties0 = raft::device_span<edge_property_value_t const>(
@@ -144,6 +151,7 @@ struct call_intersection_op_t {
         nbr_intersection_properties1 + nbr_offsets[i],
         nbr_intersection_properties1 + +nbr_offsets[i + 1]);
     }
+
     property_t src_prop{};
     property_t dst_prop{};
     if (unique_vertices) {

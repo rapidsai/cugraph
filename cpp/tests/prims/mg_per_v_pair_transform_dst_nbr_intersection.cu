@@ -43,7 +43,7 @@
 
 #include <random>
 
-template <typename vertex_t, typename edge_t, typename edge_property_value_t>
+template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
     vertex_t v0,
@@ -51,8 +51,9 @@ struct intersection_op_t {
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
     raft::device_span<vertex_t const> intersection,
-    raft::device_span<edge_property_value_t const> intersection_p0,
-    raft::device_span<edge_property_value_t const> intersection_p1) const
+    std::byte, /* dummy */
+    std::byte  /* dummy */
+  ) const
   {
     return thrust::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
   }
@@ -166,7 +167,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
       cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       mg_out_degrees.begin(),
-      intersection_op_t<vertex_t, edge_t, typename cugraph::edge_dummy_property_t::value_type>{},
+      intersection_op_t<vertex_t, edge_t>{},
       cugraph::get_dataframe_buffer_begin(mg_result_buffer));
 
     if (cugraph::test::g_perf) {
@@ -235,9 +236,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
             mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
           cugraph::get_dataframe_buffer_end(mg_aggregate_vertex_pair_buffer /* now unrenumbered */),
           sg_out_degrees.begin(),
-          intersection_op_t<vertex_t,
-                            edge_t,
-                            typename cugraph::edge_dummy_property_t::value_type>{},
+          intersection_op_t<vertex_t, edge_t>{},
           cugraph::get_dataframe_buffer_begin(sg_result_buffer));
 
         bool valid = thrust::equal(handle_->get_thrust_policy(),

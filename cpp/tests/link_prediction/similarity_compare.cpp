@@ -60,7 +60,6 @@ void weighted_similarity_compare(
             thrust::make_zip_iterator(graph_src.end(), graph_dst.end(), (*graph_wgt).end()),
             compare_pairs);
 
-  // FIXME: This only tests unweighted, weighted implementation needs to be different
   std::vector<size_t> vertex_degrees(static_cast<size_t>(num_vertices), size_t{0});
   std::vector<weight_t> weighted_vertex_degrees(static_cast<size_t>(num_vertices), weight_t{0});
 
@@ -89,11 +88,6 @@ void weighted_similarity_compare(
   }
 
   auto graph_wgt_first = (*graph_wgt).begin();
-
-  // std::for_each(graph_wgt_first, graph_wgt_first + (*graph_wgt).size(), [](auto val) {
-  //   std::cout << "w: " << val << std::endl;
-  // });
-
   std::for_each(
     thrust::make_zip_iterator(v1.begin(), v2.begin(), similarity_score.begin()),
     thrust::make_zip_iterator(v1.end(), v2.end(), similarity_score.end()),
@@ -163,12 +157,6 @@ void weighted_similarity_compare(
           intersected_weights_v2[intersected_weight_idx] =
             static_cast<weight_t>(graph_wgt_first[v2_begin + offset]);
 
-          // std::cout << "intersected_weights_v1: " <<
-          // intersected_weights_v1[intersected_weight_idx]
-          //           << std::endl;
-          // std::cout << "intersected_weights_v2: " <<
-          // intersected_weights_v2[intersected_weight_idx]
-          //           << std::endl;
           ++intersected_weight_idx;
         });
 
@@ -193,20 +181,10 @@ void weighted_similarity_compare(
         });
 
       max_weight_v1_intersect_v2 += (sum_of_uniq_weights_v1 + sum_of_uniq_weights_v2);
-
-      // std::cout << "wdegs: " << weighted_vertex_degrees[v1] << " " << weighted_vertex_degrees[v2]
-      //           << std::endl;
-      // std::cout << "min_i, max:" << min_weight_v1_intersect_v2 << " " <<
-      // max_weight_v1_intersect_v2
-      //           << std::endl;
-
       auto expected_score = test_functor.compute_score(weighted_vertex_degrees[v1],
                                                        weighted_vertex_degrees[v2],
                                                        min_weight_v1_intersect_v2,
                                                        max_weight_v1_intersect_v2);
-
-      // std::cout << "score: " << score << " expected_score: " << expected_score << std::endl;
-
       EXPECT_TRUE(compare_functor(score, expected_score))
         << "score mismatch, got " << score << ", expected " << expected_score;
     });
@@ -276,8 +254,6 @@ void similarity_compare(
         static_cast<weight_t>(std::distance(intersection.begin(), intersection_end)),
         static_cast<weight_t>(vertex_degrees[v1] + vertex_degrees[v2] -
                               std::distance(intersection.begin(), intersection_end)));
-
-      // std::cout << "score: " << score << " expected_score: " << expected_score << std::endl;
 
       EXPECT_TRUE(compare_functor(score, expected_score))
         << "score mismatch, got " << score << ", expected " << expected_score;
