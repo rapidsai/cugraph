@@ -317,11 +317,11 @@ def _call_plc_uniform_neighbor_sample_legacy(
         random_state=random_state,
         return_hops=return_hops,
     )
-    
+
     output = convert_to_cudf(
         cp_arrays, weight_t, with_edge_properties, return_offsets=return_offsets
     )
-    
+
     if isinstance(output, (list, tuple)) and len(output) == 1:
         return output[0]
     return output

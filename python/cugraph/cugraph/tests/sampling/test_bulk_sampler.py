@@ -60,7 +60,7 @@ def test_bulk_sampler_simple(scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
-    assert 'map' not in recovered_samples.columns
+    assert "map" not in recovered_samples.columns
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -112,7 +112,7 @@ def test_bulk_sampler_remainder(scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
-    assert 'map' not in recovered_samples.columns
+    assert "map" not in recovered_samples.columns
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -168,7 +168,7 @@ def test_bulk_sampler_large_batch_size(scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
-    assert 'map' not in recovered_samples.columns
+    assert "map" not in recovered_samples.columns
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()

@@ -42,7 +42,7 @@ class EXPERIMENTAL__BulkSampler:
         graph,
         seeds_per_call: int = 200_000,
         batches_per_partition: int = 100,
-        renumber: bool=False,
+        renumber: bool = False,
         log_level: int = None,
         **kwargs,
     ):
@@ -107,7 +107,7 @@ class EXPERIMENTAL__BulkSampler:
     @property
     def batches_per_partition(self) -> int:
         return self.__batches_per_partition
-    
+
     @property
     def renumber(self) -> bool:
         return self.__renumber
@@ -254,7 +254,7 @@ class EXPERIMENTAL__BulkSampler:
             with_batch_ids=True,
             with_edge_properties=True,
             return_offsets=True,
-            renumber=self.__renumber
+            renumber=self.__renumber,
         )
 
         if self.__renumber:
@@ -281,7 +281,9 @@ class EXPERIMENTAL__BulkSampler:
         # Write batches to parquet
         self.__write(samples, offsets, renumber_map)
         if isinstance(self.__batches, dask_cudf.DataFrame):
-            futures = [f.release() for f in futures_of(samples)] + [f.release() for f in futures_of(offsets)]
+            futures = [f.release() for f in futures_of(samples)] + [
+                f.release() for f in futures_of(offsets)
+            ]
             if renumber_map is not None:
                 futures += [f.release() for f in futures_of(renumber_map)]
             wait(futures)

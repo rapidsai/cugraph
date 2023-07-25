@@ -103,7 +103,9 @@ def _write_samples_to_parquet(
             renumber_map_o = cudf.concat(
                 [
                     offsets_p.renumber_map_offsets + map_offset,
-                    cudf.Series([len(renumber_map_p) + len(offsets_p) + 1], dtype="int32"),
+                    cudf.Series(
+                        [len(renumber_map_p) + len(offsets_p) + 1], dtype="int32"
+                    ),
                 ]
             )
 
