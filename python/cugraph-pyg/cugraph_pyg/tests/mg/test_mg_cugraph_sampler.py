@@ -29,7 +29,6 @@ torch = import_optional("torch")
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip(reason="broken")
 def test_neighbor_sample(dask_client, basic_graph_1):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N, multi_gpu=True)
@@ -44,9 +43,10 @@ def test_neighbor_sample(dask_client, basic_graph_1):
             batch_id_list=cudf.Series(cupy.zeros(5, dtype="int32")),
             random_state=62,
             return_offsets=False,
+            return_hops=True,
         )
-        .sort_values(by=["sources", "destinations"])
         .compute()
+        .sort_values(by=["sources", "destinations"])
     )
 
     out = _sampler_output_from_sampling_results(
@@ -76,7 +76,7 @@ def test_neighbor_sample(dask_client, basic_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 1
-    assert out.num_sampled_nodes["vt1"].tolist() == [4, 4]
+    assert out.num_sampled_nodes["vt1"].tolist() == [4, 1]
 
     assert len(out.num_sampled_edges) == 1
     assert out.num_sampled_edges[("vt1", "pig", "vt1")].tolist() == [6]
@@ -128,8 +128,8 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 2
-    assert out.num_sampled_nodes["black"].tolist() == [2, 2]
-    assert out.num_sampled_nodes["brown"].tolist() == [3, 2]
+    assert out.num_sampled_nodes["black"].tolist() == [2, 0]
+    assert out.num_sampled_nodes["brown"].tolist() == [3, 0]
 
     assert len(out.num_sampled_edges) == 5
     assert out.num_sampled_edges[("brown", "horse", "brown")].tolist() == [2]
@@ -140,7 +140,6 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip(reason="broken")
 def test_neighbor_sample_mock_sampling_results(dask_client):
     N = {
         "A": 2,  # 0, 1
@@ -203,11 +202,17 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
     assert out.col[("B", "ba", "A")].tolist() == [1, 1]
 
     assert len(out.num_sampled_nodes) == 3
-    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 1, 0, 1]
-    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 1, 0]
-    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 2]
+    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 0, 0, 0]
+    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 0, 0]
+    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 1]
 
     assert len(out.num_sampled_edges) == 3
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skip("needs to be written")
+def test_neighbor_sample_renumbered(dask_client):
+    pass

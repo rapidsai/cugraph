@@ -42,6 +42,7 @@ class EXPERIMENTAL__BulkSampler:
         graph,
         seeds_per_call: int = 200_000,
         batches_per_partition: int = 100,
+        renumber: bool = False,
         log_level: int = None,
         **kwargs,
     ):
@@ -61,6 +62,9 @@ class EXPERIMENTAL__BulkSampler:
             a single sampling call.
         batches_per_partition: int (optional, default=100)
             The number of batches outputted to a single parquet partition.
+        renumber: bool (optional, default=False)
+            Whether to renumber vertices.  Currently only supported for
+            homogeneous graphs.
         log_level: int (optional, default=None)
             Whether to enable logging for this sampler. Supports 3 levels
             of logging if enabled (INFO, WARNING, ERROR).  If not provided,
@@ -88,6 +92,7 @@ class EXPERIMENTAL__BulkSampler:
         self.__graph = graph
         self.__seeds_per_call = seeds_per_call
         self.__batches_per_partition = batches_per_partition
+        self.__renumber = renumber
         self.__batches = None
         self.__sample_call_args = kwargs
 
@@ -102,6 +107,10 @@ class EXPERIMENTAL__BulkSampler:
     @property
     def batches_per_partition(self) -> int:
         return self.__batches_per_partition
+
+    @property
+    def renumber(self) -> bool:
+        return self.__renumber
 
     @property
     def size(self) -> int:
@@ -236,7 +245,7 @@ class EXPERIMENTAL__BulkSampler:
         start_time_sample_call = time.perf_counter()
 
         # Call uniform neighbor sample
-        samples, offsets, renumber_map = sample_fn(
+        output = sample_fn(
             self.__graph,
             **self.__sample_call_args,
             start_list=self.__batches[[self.start_col_name, self.batch_col_name]][
@@ -245,8 +254,14 @@ class EXPERIMENTAL__BulkSampler:
             with_batch_ids=True,
             with_edge_properties=True,
             return_offsets=True,
-            renumber=True,
+            renumber=self.__renumber,
         )
+
+        if self.__renumber:
+            samples, offsets, renumber_map = output
+        else:
+            samples, offsets = output
+            renumber_map = None
 
         end_time_sample_call = time.perf_counter()
         sample_runtime = end_time_sample_call - start_time_sample_call
@@ -266,15 +281,17 @@ class EXPERIMENTAL__BulkSampler:
         # Write batches to parquet
         self.__write(samples, offsets, renumber_map)
         if isinstance(self.__batches, dask_cudf.DataFrame):
-            wait(
-                [f.release() for f in futures_of(samples)]
-                + [f.release() for f in futures_of(offsets)]
-                + [f.release() for f in futures_of(renumber_map)]
-            )
+            futures = [f.release() for f in futures_of(samples)] + [
+                f.release() for f in futures_of(offsets)
+            ]
+            if renumber_map is not None:
+                futures += [f.release() for f in futures_of(renumber_map)]
+            wait(futures)
 
         del samples
         del offsets
-        del renumber_map
+        if renumber_map is not None:
+            del renumber_map
 
         end_time_write = time.perf_counter()
         write_runtime = end_time_write - start_time_write

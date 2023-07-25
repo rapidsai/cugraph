@@ -64,14 +64,11 @@ def _write_samples_to_parquet(
         end_batch_id = offsets_p.batch_id.iloc[-1]
 
         start_ix = offsets_p.offsets.iloc[0]
-        renumber_map_start_ix = offsets_p.renumber_map_offsets.iloc[0]
         if end_batch_id == max_batch_id:
             end_ix = len(results)
-            renumber_map_end_ix = len(renumber_map)
         else:
             offsets_z = offsets[offsets.batch_id == (end_batch_id + 1)]
             end_ix = offsets_z.offsets.iloc[0]
-            renumber_map_end_ix = offsets_z.renumber_map_offsets.iloc[0]
 
         full_output_path = os.path.join(
             output_path, f"batch={start_batch_id}-{end_batch_id}.parquet"
@@ -82,46 +79,50 @@ def _write_samples_to_parquet(
             cupy.diff(offsets_p.offsets.values, append=end_ix)
         ).values
 
-        print("\n-------------------------------------------------------")
-        print(renumber_map_start_ix, renumber_map_end_ix)
-        print(start_batch_id, end_batch_id)
-        renumber_map_p = renumber_map.map.iloc[
-            renumber_map_start_ix:renumber_map_end_ix
-        ]
-        print(renumber_map_p)
-        print(offsets_p)
+        if renumber_map is not None:
+            renumber_map_start_ix = offsets_p.renumber_map_offsets.iloc[0]
 
-        # Add the length so no na-checking is required in the loading stage
-        map_offset = (
-            end_batch_id - start_batch_id + 2
-        ) - offsets_p.renumber_map_offsets.iloc[0]
-        renumber_map_o = cudf.concat(
-            [
-                offsets_p.renumber_map_offsets + map_offset,
-                cudf.Series([len(renumber_map_p) + len(offsets_p) + 1], dtype="int32"),
+            if end_batch_id == max_batch_id:
+                renumber_map_end_ix = len(renumber_map)
+            else:
+                renumber_map_end_ix = offsets_z.renumber_map_offsets.iloc[0]
+
+            renumber_map_p = renumber_map.map.iloc[
+                renumber_map_start_ix:renumber_map_end_ix
             ]
-        )
 
-        renumber_offset_len = len(renumber_map_o)
-        if renumber_offset_len != end_batch_id - start_batch_id + 2:
-            raise ValueError("Invalid batch id or renumber map")
+            # Add the length so no na-checking is required in the loading stage
+            map_offset = (
+                end_batch_id - start_batch_id + 2
+            ) - offsets_p.renumber_map_offsets.iloc[0]
+            renumber_map_o = cudf.concat(
+                [
+                    offsets_p.renumber_map_offsets + map_offset,
+                    cudf.Series(
+                        [len(renumber_map_p) + len(offsets_p) + 1], dtype="int32"
+                    ),
+                ]
+            )
 
-        final_map_series = cudf.concat(
-            [
-                renumber_map_o,
-                renumber_map_p,
-            ],
-            ignore_index=True,
-        )
-        print("\nfinal map:\n", final_map_series)
+            renumber_offset_len = len(renumber_map_o)
+            if renumber_offset_len != end_batch_id - start_batch_id + 2:
+                raise ValueError("Invalid batch id or renumber map")
 
-        if len(final_map_series) > len(results_p):
-            final_map_series.name = "map"
-            results_p = results_p.join(final_map_series, how="outer").sort_index()
-        else:
-            results_p["map"] = final_map_series
+            final_map_series = cudf.concat(
+                [
+                    renumber_map_o,
+                    renumber_map_p,
+                ],
+                ignore_index=True,
+            )
 
-        print("\nresults_p:\n", results_p)
+            if len(final_map_series) > len(results_p):
+                # this should rarely happen and only occurs on small graphs/samples
+                final_map_series.name = "map"
+                results_p = results_p.join(final_map_series, how="outer").sort_index()
+            else:
+                results_p["map"] = final_map_series
+
         results_p.to_parquet(
             full_output_path, compression=None, index=False, force_nullable_schema=True
         )

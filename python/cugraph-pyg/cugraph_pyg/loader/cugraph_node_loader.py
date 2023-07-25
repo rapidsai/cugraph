@@ -154,6 +154,15 @@ class EXPERIMENTAL__BulkSampleLoader:
         if isinstance(num_neighbors, dict):
             raise ValueError("num_neighbors dict is currently unsupported!")
 
+        renumber = (
+            True
+            if (
+                (len(self.__graph_store.node_types) == 1)
+                and (len(self.__graph_store.edge_types) == 1)
+            )
+            else False
+        )
+
         bulk_sampler = BulkSampler(
             batch_size,
             self.__directory.name,
@@ -161,7 +170,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             fanout_vals=num_neighbors,
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
-            **kwargs,
+            renumber=renumber**kwargs,
         )
 
         # Make sure indices are in cupy
@@ -223,7 +232,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             if m is None:
                 raise ValueError(f"Invalid parquet filename {fname}")
 
-            self.__next_batch, end_inclusive = [int(g) for g in m.groups()]
+            self.__start_inclusive, end_inclusive = [int(g) for g in m.groups()]
+            self.__next_batch = self.__start_inclusive
             self.__end_exclusive = end_inclusive + 1
 
             parquet_path = os.path.join(
@@ -239,14 +249,31 @@ class EXPERIMENTAL__BulkSampleLoader:
                 "batch_id": "int32",
                 "hop_id": "int32",
             }
-            self.__data = cudf.read_parquet(parquet_path)
-            self.__data = self.__data[list(columns.keys())].astype(columns)
+
+            raw_sample_data = cudf.read_parquet(parquet_path)
+            if "map" in raw_sample_data.columns:
+                self.__renumber_map = raw_sample_data["map"]
+                raw_sample_data = raw_sample_data.drop("map", axis=1)
+            else:
+                self.__renumber_map = None
+
+            self.__data = raw_sample_data[list(columns.keys())].astype(columns)
+            self.__data.dropna(inplace=True)
 
         # Pull the next set of sampling results out of the dataframe in memory
         f = self.__data["batch_id"] == self.__next_batch
+        if self.__renumber_map is not None:
+            i = self.__next_batch - self.__start_inclusive
+            ix = self.__renumber_map.iloc[[i, i + 1]]
+            ix_start, ix_end = ix.iloc[0], ix.iloc[1]
+            current_renumber_map = self.__renumber_map.iloc[ix_start:ix_end]
+            if len(current_renumber_map) != ix_end - ix_start:
+                raise ValueError("invalid renumber map")
+        else:
+            current_renumber_map = None
 
         sampler_output = _sampler_output_from_sampling_results(
-            self.__data[f], self.__graph_store
+            self.__data[f], current_renumber_map, self.__graph_store
         )
 
         # Get ready for next iteration

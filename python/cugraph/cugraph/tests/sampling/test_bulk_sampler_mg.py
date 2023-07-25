@@ -64,7 +64,7 @@ def test_bulk_sampler_simple(dask_client, scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
-    recovered_samples = recovered_samples.drop("map", axis=1).dropna()
+    assert "map" not in recovered_samples.columns
 
     for b in batches["batch"].unique().compute().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -108,7 +108,7 @@ def test_bulk_sampler_mg_graph_sg_input(dask_client, scratch_dir):
     bs.flush()
 
     recovered_samples = cudf.read_parquet(samples_path)
-    recovered_samples = recovered_samples.drop("map", axis=1).dropna()
+    assert "map" not in recovered_samples.columns
 
     for b in batches["batch"].unique().values_host.tolist():
         assert b in recovered_samples["batch_id"].values_host.tolist()
@@ -143,6 +143,7 @@ def test_bulk_sampler_partitions(dask_client, scratch_dir, mg_input):
         fanout_vals=[2, 2],
         with_replacement=False,
         batches_per_partition=2,
+        renumber=True,
     )
 
     batches = cudf.DataFrame(
