@@ -118,6 +118,7 @@ def _write_samples_to_parquet(
 
             if len(final_map_series) > len(results_p):
                 # this should rarely happen and only occurs on small graphs/samples
+                # TODO remove the sort_index to improve performance on small graphs
                 final_map_series.name = "map"
                 results_p = results_p.join(final_map_series, how="outer").sort_index()
             else:
