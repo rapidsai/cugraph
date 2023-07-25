@@ -210,7 +210,7 @@ class Tests_ODShortestDistances
       auto h_cugraph_od_matrix = cugraph::test::to_host(handle, od_matrix);
 
       auto max_weight_element = std::max_element(h_weights.begin(), h_weights.end());
-      auto epsilon            = *max_weight_element * weight_t{1e-6};
+      auto epsilon            = (*max_weight_element) * weight_t{1e-6};
       auto nearly_equal = [epsilon](auto lhs, auto rhs) { return std::fabs(lhs - rhs) < epsilon; };
 
       ASSERT_TRUE(std::equal(h_reference_od_matrix.begin(),

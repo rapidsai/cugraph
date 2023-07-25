@@ -441,7 +441,8 @@ class key_store_t {
   }
 
   template <bool binary_search = use_binary_search>
-  std::enable_if_t<!binary_search, key_t> invalid_key() const {
+  std::enable_if_t<!binary_search, key_t> invalid_key() const
+  {
     return store_.invalid_key();
   }
 
