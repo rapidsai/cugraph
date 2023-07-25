@@ -1182,6 +1182,11 @@ void sssp(raft::handle_t const& handle,
 /*
  * @brief Compute the shortest distances from the given origins to all the given destinations.
  *
+ * This algorithm is designed for large diameter graphs. For small diameter graphs, running the
+ * cugraph::sssp function in a sequentially executed loop might be faster. This algorithms currently
+ * works only for single-GPU (we are not aware of large diameter graphs that won't fit in a single
+ * GPU).
+ *
  * @throws cugraph::logic_error on erroneous input arguments.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
