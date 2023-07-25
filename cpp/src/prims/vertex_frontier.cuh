@@ -280,21 +280,13 @@ class key_bucket_t {
 
   auto end() { return begin() + vertices_.size(); }
 
-  auto const vertex_begin() const {
-    return vertices_.begin();
-  }
+  auto const vertex_begin() const { return vertices_.begin(); }
 
-  auto const vertex_end() const {
-    return vertices_.end();
-  }
+  auto const vertex_end() const { return vertices_.end(); }
 
-  auto vertex_begin() {
-    return vertices_.begin();
-  }
+  auto vertex_begin() { return vertices_.begin(); }
 
-  auto vertex_end() {
-    return vertices_.end();
-  }
+  auto vertex_end() { return vertices_.end(); }
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
@@ -436,8 +428,8 @@ class vertex_frontier_t {
       insert_bucket_indices = to_bucket_indices;
       insert_offsets        = {0, next_bucket_size};
       insert_sizes          = {
-                 next_bucket_size,
-                 static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
+        next_bucket_size,
+        static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
     } else {
       thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
