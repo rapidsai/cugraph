@@ -154,6 +154,8 @@ class EXPERIMENTAL__BulkSampleLoader:
         if isinstance(num_neighbors, dict):
             raise ValueError("num_neighbors dict is currently unsupported!")
 
+        renumber = True if (len(self.__graph_store.node_types) == 1 and len(self.__graph_store.edge_types) == 1) else False
+
         bulk_sampler = BulkSampler(
             batch_size,
             self.__directory.name,
@@ -161,6 +163,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             fanout_vals=num_neighbors,
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
+            renumber=renumber
             **kwargs,
         )
 
