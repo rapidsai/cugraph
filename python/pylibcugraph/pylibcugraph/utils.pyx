@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -124,13 +124,14 @@ cdef get_numpy_type_from_c_type(data_type_id_t c_type):
 
 
 cdef get_c_type_from_numpy_type(numpy_type):
-    if numpy_type == numpy.int32:
+    dt = numpy.dtype(numpy_type)
+    if dt == numpy.int32:
         return data_type_id_t.INT32
-    elif numpy_type == numpy.int64:
+    elif dt == numpy.int64:
         return data_type_id_t.INT64
-    elif numpy_type == numpy.float32:
+    elif dt == numpy.float32:
         return data_type_id_t.FLOAT32
-    elif numpy_type == numpy.float64:
+    elif dt == numpy.float64:
         return data_type_id_t.FLOAT64
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "

@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,8 +17,6 @@
 from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
-    bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -29,9 +27,6 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
-    cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_host_array_view_create,
-    cugraph_type_erased_host_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -41,7 +36,6 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_random_walk_result_t,
     cugraph_random_walk_result_get_paths,
     cugraph_random_walk_result_get_weights,
-    cugraph_random_walk_result_get_path_sizes,
     cugraph_random_walk_result_get_max_path_length,
     cugraph_random_walk_result_free,
 )
@@ -50,13 +44,11 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
-    MGGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
     assert_CAI_type,
-    assert_AI_type,
     get_c_type_from_numpy_type,
 )
 

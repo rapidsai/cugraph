@@ -32,24 +32,19 @@ jobs:
       sha: ${{ inputs.sha }}
   wheel-tests-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.10
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-test.yaml@branch-23.10
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
-      package-name: pylibcugraph
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=./datasets python -m pytest ./python/pylibcugraph/pylibcugraph/tests"
+      script: ci/test_wheel_pylibcugraph.sh
   wheel-tests-cugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-test.yml@branch-23.10
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-test.yaml@branch-23.10
     with:
       build_type: nightly
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
-      package-name: cugraph
-      # Always want to test against latest dask/distributed.
-      test-before-amd64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.10"
-      test-before-arm64: "cd ./datasets && bash ./get_test_data.sh && cd - && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-23.10"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=/__w/cugraph/cugraph/datasets python -m pytest -m sg ./python/cugraph/cugraph/tests"
+      script: ci/test_wheel_cugraph.sh
