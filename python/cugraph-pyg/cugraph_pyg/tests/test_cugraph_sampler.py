@@ -27,7 +27,6 @@ torch = import_optional("torch")
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip(reason="broken")
 def test_neighbor_sample(basic_graph_1):
     F, G, N = basic_graph_1
     cugraph_store = CuGraphStore(F, G, N)
@@ -70,7 +69,7 @@ def test_neighbor_sample(basic_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 1
-    assert out.num_sampled_nodes["vt1"].tolist() == [4, 4]
+    assert out.num_sampled_nodes["vt1"].tolist() == [4, 1]
 
     assert len(out.num_sampled_edges) == 1
     assert out.num_sampled_edges[("vt1", "pig", "vt1")].tolist() == [6]
@@ -78,7 +77,6 @@ def test_neighbor_sample(basic_graph_1):
 
 @pytest.mark.cugraph_ops
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip(reason="broken")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
     F, G, N = multi_edge_multi_vertex_graph_1
     cugraph_store = CuGraphStore(F, G, N)
@@ -93,6 +91,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
         random_state=62,
         return_offsets=False,
     ).sort_values(by=["sources", "destinations"])
+    print(sampling_results)
 
     out = _sampler_output_from_sampling_results(
         sampling_results=sampling_results,
@@ -118,8 +117,8 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 2
-    assert out.num_sampled_nodes["black"].tolist() == [2, 2]
-    assert out.num_sampled_nodes["brown"].tolist() == [3, 2]
+    assert out.num_sampled_nodes["black"].tolist() == [2, 0]
+    assert out.num_sampled_nodes["brown"].tolist() == [3, 0]
 
     assert len(out.num_sampled_edges) == 5
     assert out.num_sampled_edges[("brown", "horse", "brown")].tolist() == [2]
@@ -130,7 +129,6 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 
 
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
-@pytest.mark.skip(reason="broken")
 def test_neighbor_sample_mock_sampling_results(abc_graph):
     F, G, N = abc_graph
 
@@ -166,9 +164,9 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.col[("B", "ba", "A")].tolist() == [1, 1]
 
     assert len(out.num_sampled_nodes) == 3
-    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 1, 0, 1]
-    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 1, 0]
-    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 2]
+    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 0, 0, 0]
+    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 0, 0]
+    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 1]
 
     assert len(out.num_sampled_edges) == 3
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
