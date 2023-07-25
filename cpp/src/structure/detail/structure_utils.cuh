@@ -18,6 +18,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 
@@ -76,43 +77,6 @@ struct update_edge_t {
     }
   }
 };
-
-template <typename edge_t>
-struct rebase_offset_t {
-  edge_t base_offset{};
-  __device__ edge_t operator()(edge_t offset) const { return offset - base_offset; }
-};
-
-template <typename idx_t, typename offset_t>
-rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
-                                                 idx_t base_idx,
-                                                 rmm::cuda_stream_view stream_view)
-{
-  assert(offsets.size() > 0);
-
-  offset_t num_entries{0};
-  raft::update_host(&num_entries, offsets.data() + offsets.size() - 1, 1, stream_view);
-
-  rmm::device_uvector<idx_t> results(num_entries, stream_view);
-
-  if (num_entries > 0) {
-    thrust::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
-
-    raft::update_device(results.data(), &base_idx, 1, stream_view);
-
-    thrust::for_each(
-      rmm::exec_policy(stream_view),
-      offsets.begin() + 1,
-      offsets.end(),
-      [d_results = results.data(), n_results = results.size()] __device__(auto offset) {
-        if (offset < n_results) { atomicAdd(&d_results[offset], idx_t{1}); }
-      });
-    thrust::inclusive_scan(
-      rmm::exec_policy(stream_view), results.begin(), results.end(), results.begin());
-  }
-
-  return results;
-}
 
 template <typename edge_t, typename VertexIterator>
 rmm::device_uvector<edge_t> compute_sparse_offsets(
@@ -359,8 +323,8 @@ void sort_adjacency_list(raft::handle_t const& handle,
   if constexpr (std::is_arithmetic_v<edge_value_t>) {
     for (size_t i = 0; i < num_chunks; ++i) {
       size_t tmp_storage_bytes{0};
-      auto offset_first = thrust::make_transform_iterator(
-        offsets.data() + h_vertex_offsets[i], rebase_offset_t<edge_t>{h_edge_offsets[i]});
+      auto offset_first = thrust::make_transform_iterator(offsets.data() + h_vertex_offsets[i],
+                                                          shift_left_t<edge_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                           tmp_storage_bytes,
                                           index_first + h_edge_offsets[i],
@@ -407,8 +371,8 @@ void sort_adjacency_list(raft::handle_t const& handle,
                      edge_t{0});
     for (size_t i = 0; i < num_chunks; ++i) {
       size_t tmp_storage_bytes{0};
-      auto offset_first = thrust::make_transform_iterator(
-        offsets.data() + h_vertex_offsets[i], rebase_offset_t<edge_t>{h_edge_offsets[i]});
+      auto offset_first = thrust::make_transform_iterator(offsets.data() + h_vertex_offsets[i],
+                                                          shift_left_t<edge_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                           tmp_storage_bytes,
                                           index_first + h_edge_offsets[i],
@@ -492,7 +456,7 @@ void sort_adjacency_list(raft::handle_t const& handle,
   for (size_t i = 0; i < num_chunks; ++i) {
     size_t tmp_storage_bytes{0};
     auto offset_first = thrust::make_transform_iterator(offsets.data() + h_vertex_offsets[i],
-                                                        rebase_offset_t<edge_t>{h_edge_offsets[i]});
+                                                        shift_left_t<edge_t>{h_edge_offsets[i]});
     cub::DeviceSegmentedSort::SortKeys(static_cast<void*>(nullptr),
                                        tmp_storage_bytes,
                                        index_first + h_edge_offsets[i],

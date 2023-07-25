@@ -29,6 +29,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 #ifdef TIMING
 #include <cugraph/utilities/high_res_timer.hpp>
