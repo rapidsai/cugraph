@@ -157,8 +157,8 @@ class EXPERIMENTAL__BulkSampleLoader:
         renumber = (
             True
             if (
-                len(self.__graph_store.node_types) == 1
-                and len(self.__graph_store.edge_types) == 1
+                (len(self.__graph_store.node_types) == 1)
+                and (len(self.__graph_store.edge_types) == 1)
             )
             else False
         )
