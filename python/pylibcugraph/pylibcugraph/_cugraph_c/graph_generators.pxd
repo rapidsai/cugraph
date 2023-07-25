@@ -16,6 +16,7 @@
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
+    cugraph_data_type_id_t,
     bool_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -82,7 +83,7 @@ cdef extern from "cugraph_c/graph_generators.h":
         )
 
     cdef void \
-        cugraph_list_coo_free(
+        cugraph_coo_list_free(
             cugraph_coo_list_t* coo_list
         )
 
@@ -95,7 +96,8 @@ cdef extern from "cugraph_c/graph_generators.h":
             double a,
             double b,
             double c,
-            bool clip_and_flip,
+            bool_t clip_and_flip,
+            bool_t scramble_vertex_ids,
             cugraph_coo_t** result,
             cugraph_error_t** error
         )
@@ -111,6 +113,7 @@ cdef extern from "cugraph_c/graph_generators.h":
             cugraph_generator_distribution_t size_distribution,
             cugraph_generator_distribution_t edge_distribution,
             bool_t clip_and_flip,
+            bool_t scramble_vertex_ids,
             cugraph_coo_list_t** result,
             cugraph_error_t** error
         )
@@ -139,7 +142,7 @@ cdef extern from "cugraph_c/graph_generators.h":
             const cugraph_resource_handle_t* handle,
             cugraph_rng_state_t* rng_state,
             cugraph_coo_t* coo,
-            int32_t min_edge_type,
-            int32_t max_edge_type,
+            int min_edge_type,
+            int max_edge_type,
             cugraph_error_t** error
         )
