@@ -509,6 +509,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     std::min(static_cast<size_t>((static_cast<double>(num_vertices) * 0.001) *
                                  static_cast<double>(origins.size())),
              kv_store_capacity_increment * 25);
+  init_kv_store_size = std::max(init_kv_store_size, origins.size());
 
   auto target_near_q_size =
     static_cast<size_t>(handle.get_device_properties().multiProcessorCount) *
@@ -855,8 +856,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             ++num_near_q_insert_buffers;
           } while ((max_near_q_inserts < target_near_q_size) &&
                    (num_near_q_insert_buffers < num_far_buffers));
-          std::cout << "old_near_far_threshold=" << old_near_far_threshold
-                    << " near_far_threshold=" << near_far_threshold << " delta=" << delta << "\n";
 
           rmm::device_uvector<key_t> new_near_q_keys(0, handle.get_stream());
           new_near_q_keys.reserve(max_near_q_inserts, handle.get_stream());
