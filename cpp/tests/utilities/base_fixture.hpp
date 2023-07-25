@@ -69,7 +69,14 @@ inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_res
 
 inline auto make_pool()
 {
-  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda());
+  // Reduce the default pool allocation to 1/6th of the GPU memory so that we can
+  // run more than 2 tests in parallel at the same time. Changes to this value could
+  // effect the maximum amount of parallel tests, and therefore `tests/CMakeLists.txt`
+  // `_CUGRAPH_TEST_PERCENT` default value will need to be audited.
+  auto const [free, total] = rmm::detail::available_device_memory();
+  auto const min_alloc =
+    rmm::detail::align_down(std::min(free, total / 6), rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
+  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), min_alloc);
 }
 
 inline auto make_binning()
