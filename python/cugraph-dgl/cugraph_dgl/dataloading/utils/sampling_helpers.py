@@ -187,8 +187,8 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
 def _create_homogeneous_dgl_block_from_tensor_d(
     tensor_d,
 ):
-    rs = tensor_d["sources"].clone()
-    rd = tensor_d["destinations"].clone()
+    rs = tensor_d["sources"]
+    rd = tensor_d["destinations"]
     block = dgl.create_block((rs, rd))
     if "edge_id" in tensor_d:
         block.edata[dgl.EID] = tensor_d["edge_id"]
