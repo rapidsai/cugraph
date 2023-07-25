@@ -356,6 +356,7 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy_to_ho
                       reinterpret_cast<byte_t const*>(internal_pointer->data_),
                       internal_pointer->num_bytes(),
                       p_handle->handle_->get_stream());
+    p_handle->handle_->sync_stream();
 
     return CUGRAPH_SUCCESS;
   } catch (std::exception const& ex) {
