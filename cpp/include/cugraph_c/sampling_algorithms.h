@@ -218,6 +218,14 @@ cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t*
                                                      cugraph_error_t** error);
 
 /**
+ * @brief   Set flag to renumber results
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, bool_t value);
+
+/**
  * @brief   Set flag to sample with_replacement
  *
  * @param options - opaque pointer to the sampling options
@@ -444,6 +452,24 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
  * @return type erased array pointing to the result offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the renumber map
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the renumber map
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the renumber map offsets
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the renumber map offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_offsets(
   const cugraph_sample_result_t* result);
 
 /**

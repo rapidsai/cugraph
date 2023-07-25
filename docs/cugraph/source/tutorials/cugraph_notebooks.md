@@ -6,7 +6,7 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 
 ## Summary
 
-| Folder          | Notebook                                                     | Description                                                  |
+| Folder                | Notebook                         | Description                            |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
 |                 | [Centrality](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Centrality.ipynb)         | Compute and compare multiple (currently 5) centrality scores |
@@ -14,8 +14,8 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [Betweenness](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Betweenness.ipynb)       | Compute both Edge and Vertex Betweenness centrality          |
 |                 | [Degree](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Degree.ipynb)                 | Compute Degree Centraility for each vertex                   |
 |                 | [Eigenvector](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/centrality/Eigenvector.ipynb)       | Compute Eigenvector for every vertex                         |
-| Community       |                                                              |                                                              |
-|                 | [Louvain](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
+| Community       |                      |                                       |
+|                 | [Louvain and Leiden](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Louvain.ipynb)                           | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
 |                 | [ECG](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
 |                 | [K-Truss](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 |                 | [Spectral-Clustering](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
@@ -28,11 +28,11 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [Core Number](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/cores/core-number.ipynb)                       | Computer the Core number for each vertex in a graph          |
 Layout            |                                                              |                                                              |
 |                 | [Force-Atlas2](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
-| Link Analysis   |                                                              |                                                              |
+| Link Analysis   |                          |                                 |
 |                 | [Pagerank](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
-| Link Prediction |                                                              |                                                              |
-|                 | [Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
+| Link Prediction |                  |                                 |
+|               | [Jaccard Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
 | Sampling        |
 |                 | [Random Walk](https://github.com/rapidsai/cugraph/blob/main/notebooks/algorithms/sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
@@ -60,9 +60,9 @@ Running the example in these notebooks requires:
 * CUDA 11.4+
 * NVIDIA driver 450.51+
 
-#### Copyright
+## Copyright
 
-Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
@@ -70,8 +70,4 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
 
-
-
-
-
-![RAPIDS](https://github.com/rapidsai/cugraph/blob/main/img/rapids_logo.png)
+---
