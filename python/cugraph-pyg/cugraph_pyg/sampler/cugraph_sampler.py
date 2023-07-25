@@ -139,24 +139,28 @@ def _sampler_output_from_sampling_results(
                 "Precomputing the renumber map is currently "
                 "unsupported for heterogeneous graphs."
             )
-        
+
         node_type = graph_store.node_types[0]
         if not isinstance(node_type, str):
             raise ValueError("Node types must be strings")
-        noi_index = {
-            node_type: torch.as_tensor(renumber_map.values, device='cuda')
-        }
+        noi_index = {node_type: torch.as_tensor(renumber_map.values, device="cuda")}
 
         edge_type = graph_store.edge_types[0]
-        if not isinstance(edge_type, tuple) or not isinstance(edge_type[0], str) or len(edge_type) != 3:
+        if (
+            not isinstance(edge_type, tuple)
+            or not isinstance(edge_type[0], str)
+            or len(edge_type) != 3
+        ):
             raise ValueError("Edge types must be 3-tuples of strings")
         if edge_type[0] != node_type or edge_type[2] != node_type:
             raise ValueError("Edge src/dst type must match for homogeneous graphs")
         row_dict = {
-            edge_type: torch.as_tensor(sampling_results.sources.values, device='cuda'),
+            edge_type: torch.as_tensor(sampling_results.sources.values, device="cuda"),
         }
         col_dict = {
-            edge_type: torch.as_tensor(sampling_results.destinations.values, device='cuda'),
+            edge_type: torch.as_tensor(
+                sampling_results.destinations.values, device="cuda"
+            ),
         }
     else:
         # Calculate nodes of interest based on unique nodes in order of appearance

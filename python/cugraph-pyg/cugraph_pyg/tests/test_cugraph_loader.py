@@ -185,8 +185,8 @@ def test_cugraph_loader_from_disk_subset_renumbered():
         }
     )
 
-    map = cudf.Series([2, 9, 0, 2, 1, 3, 4, 6, 5], name='map')
-    bogus_samples = bogus_samples.join(map, how='outer').sort_index()
+    map = cudf.Series([2, 9, 0, 2, 1, 3, 4, 6, 5], name="map")
+    bogus_samples = bogus_samples.join(map, how="outer").sort_index()
 
     tempdir = tempfile.TemporaryDirectory()
     for s in range(256):
@@ -209,7 +209,13 @@ def test_cugraph_loader_from_disk_subset_renumbered():
 
         edge_index = sample[("t0", "knows", "t0")]["edge_index"]
         assert list(edge_index.shape) == [2, 7]
-        assert edge_index[0].tolist() == bogus_samples.sources.dropna().values_host.tolist()
-        assert edge_index[1].tolist() == bogus_samples.destinations.dropna().values_host.tolist()
+        assert (
+            edge_index[0].tolist()
+            == bogus_samples.sources.dropna().values_host.tolist()
+        )
+        assert (
+            edge_index[1].tolist()
+            == bogus_samples.destinations.dropna().values_host.tolist()
+        )
 
     assert num_samples == 100

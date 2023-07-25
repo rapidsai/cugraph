@@ -240,14 +240,14 @@ class EXPERIMENTAL__BulkSampleLoader:
                 "batch_id": "int32",
                 "hop_id": "int32",
             }
-            
+
             raw_sample_data = cudf.read_parquet(parquet_path)
-            if 'map' in raw_sample_data.columns:
-                self.__renumber_map = raw_sample_data['map']
-                raw_sample_data = raw_sample_data.drop('map', axis=1)
+            if "map" in raw_sample_data.columns:
+                self.__renumber_map = raw_sample_data["map"]
+                raw_sample_data = raw_sample_data.drop("map", axis=1)
             else:
                 self.__renumber_map = None
-            
+
             self.__data = raw_sample_data[list(columns.keys())].astype(columns)
             self.__data.dropna(inplace=True)
 

@@ -211,6 +211,7 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
 
+
 @pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
 @pytest.mark.skip("needs to be written")
 def test_neighbor_sample_renumbered(dask_client):
