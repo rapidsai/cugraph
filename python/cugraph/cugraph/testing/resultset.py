@@ -237,12 +237,9 @@ add_resultset(
     weight="weight",
 )
 
-traversal_mappings = cudf.DataFrame(columns=["hashable_dict_repr", "filename"])
-
-
-random.seed(24)
 
 # Generating ALL results files
+"""random.seed(24)
 for temp in _resultsets:
     res = _resultsets[temp].get_cudf_dataframe()
     # Currently, only traversal results files are generated
@@ -253,8 +250,25 @@ for temp in _resultsets:
     traversal_mappings = cudf.concat(
         [traversal_mappings, temp_mapping], axis=0, ignore_index=True
     )
-    print(temp_filename)
+    # print(temp_filename)
     # print("traversal_" + temp_filename)
     res.to_csv(results_dir / temp_filename, index=False)
+traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)"""
 
-traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)
+
+def generate_results():
+    random.seed(24)
+    traversal_mappings = cudf.DataFrame(columns=["hashable_dict_repr", "filename"])
+    # Generating ALL results files
+    for temp in _resultsets:
+        res = _resultsets[temp].get_cudf_dataframe()
+        # Currently, only traversal results files are generated
+        temp_filename = "traversal-" + str(random.getrandbits(55)) + ".csv"
+        temp_mapping = cudf.DataFrame(
+            [[str(temp), temp_filename]], columns=["hashable_dict_repr", "filename"]
+        )
+        traversal_mappings = cudf.concat(
+            [traversal_mappings, temp_mapping], axis=0, ignore_index=True
+        )
+        res.to_csv(results_dir / temp_filename, index=False)
+    traversal_mappings.to_csv(results_dir / "traversal_mappings.csv", index=False)
