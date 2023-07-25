@@ -18,7 +18,6 @@ from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -38,7 +37,6 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
-
     cugraph_prior_sources_behavior_t,
     cugraph_sampling_options_t,
     cugraph_sampling_options_create,
@@ -59,11 +57,9 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
-    MGGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    copy_to_cupy_array,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,
