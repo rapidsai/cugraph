@@ -87,14 +87,9 @@ def _write_samples_to_parquet(
             else:
                 renumber_map_end_ix = offsets_z.renumber_map_offsets.iloc[0]
 
-            print("\n-------------------------------------------------------")
-            print(renumber_map_start_ix, renumber_map_end_ix)
-            print(start_batch_id, end_batch_id)
             renumber_map_p = renumber_map.map.iloc[
                 renumber_map_start_ix:renumber_map_end_ix
             ]
-            print(renumber_map_p)
-            print(offsets_p)
 
             # Add the length so no na-checking is required in the loading stage
             map_offset = (
@@ -120,7 +115,6 @@ def _write_samples_to_parquet(
                 ],
                 ignore_index=True,
             )
-            print("\nfinal map:\n", final_map_series)
 
             if len(final_map_series) > len(results_p):
                 # this should rarely happen and only occurs on small graphs/samples
@@ -129,7 +123,6 @@ def _write_samples_to_parquet(
             else:
                 results_p["map"] = final_map_series
 
-        print("\nresults_p:\n", results_p)
         results_p.to_parquet(
             full_output_path, compression=None, index=False, force_nullable_schema=True
         )
