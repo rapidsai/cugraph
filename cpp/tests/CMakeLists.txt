@@ -315,6 +315,10 @@ ConfigureTest(MSBFS_TEST traversal/ms_bfs_test.cu)
 ConfigureTest(SSSP_TEST traversal/sssp_test.cpp)
 
 ###################################################################################################
+# - OD_SHORTEST_DISTANCES tests -------------------------------------------------------------------
+ConfigureTest(OD_SHORTEST_DISTANCES_TEST traversal/od_shortest_distances_test.cpp)
+
+###################################################################################################
 # - HITS tests ------------------------------------------------------------------------------------
 ConfigureTest(HITS_TEST link_analysis/hits_test.cpp)
 
