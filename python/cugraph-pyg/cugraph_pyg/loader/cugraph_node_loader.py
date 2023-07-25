@@ -170,7 +170,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             fanout_vals=num_neighbors,
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
-            renumber=renumber**kwargs,
+            renumber=renumber,
+            **kwargs,
         )
 
         # Make sure indices are in cupy
