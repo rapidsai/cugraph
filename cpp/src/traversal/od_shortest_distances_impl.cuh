@@ -396,13 +396,12 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   using edge_t   = typename GraphViewType::edge_type;
   using key_t    = uint64_t;
   using od_idx_t = uint32_t;  // origin/destination idx
-  std::cout << "graph_view.number_of_vertices()=" << graph_view.number_of_vertices()
-            << " number_of_edges=" << graph_view.number_of_edges() << std::endl;
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
+  static_assert(!GraphViewType::is_multi_gpu, "We currently do not support multi-GPU.");
 
   // concurrently runs multiple instances of the Near-Far Pile method in
   // A. Davidson, S. Baxter, M. Garland, and J. D. Owens, "Work-efficient parallel GPU methods for
@@ -440,9 +439,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input edge weights should have non-negative values.");
 
-    // FIXME: also need to check origins and destinations are unique
-    // FIXME: origins & destinations should follow edge partitioning?
-
     auto num_invalid_origins = thrust::count_if(
       handle.get_thrust_policy(),
       origins.begin(),
@@ -453,16 +449,29 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       destinations.begin(),
       destinations.end(),
       [num_vertices] __device__(auto v) { return !is_valid_vertex(num_vertices, v); });
-    if constexpr (GraphViewType::is_multi_gpu) {
-      num_invalid_origins = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_origins, raft::comms::op_t::SUM, handle.get_stream());
-      num_invalid_destinations = host_scalar_allreduce(
-        handle.get_comms(), num_invalid_destinations, raft::comms::op_t::SUM, handle.get_stream());
-    }
     CUGRAPH_EXPECTS(num_invalid_origins == 0,
                     "Invalid input arguments: origins contains invalid vertex IDs.");
     CUGRAPH_EXPECTS(num_invalid_destinations == 0,
                     "Invalid input arguments: destinations contains invalid vertex IDs.");
+
+    rmm::device_uvector<vertex_t> tmp_origins(origins.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(), origins.begin(), origins.end(), tmp_origins.begin());
+    thrust::sort(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end());
+    CUGRAPH_EXPECTS(
+      thrust::unique(handle.get_thrust_policy(), tmp_origins.begin(), tmp_origins.end()) ==
+        tmp_origins.end(),
+      "Invalid input arguments: origins should not have duplicates.");
+
+    rmm::device_uvector<vertex_t> tmp_destinations(destinations.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 destinations.begin(),
+                 destinations.end(),
+                 tmp_destinations.begin());
+    thrust::sort(handle.get_thrust_policy(), tmp_destinations.begin(), tmp_destinations.end());
+    CUGRAPH_EXPECTS(thrust::unique(handle.get_thrust_policy(),
+                                   tmp_destinations.begin(),
+                                   tmp_destinations.end()) == tmp_destinations.end(),
+                    "Invalid input arguments: destinations should not have duplicates.");
   }
 
   // 2. set performance tuning parameters
@@ -475,11 +484,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   size_t init_far_buffer_size          = origins.size() * size_t{1024};
 
   size_t kv_store_capacity_increment =
-    std::max((static_cast<size_t>((static_cast<double>(total_global_mem) * 0.01) /
-                                  static_cast<double>(sizeof(key_t) + sizeof(weight_t))) >>
-              12)
-               << 12,
-             size_t{1} << 12);  // FIXME: better use round up?
+    raft::round_up_safe(std::max(static_cast<size_t>((static_cast<double>(total_global_mem) * 0.01) /
+                                  static_cast<double>(sizeof(key_t) + sizeof(weight_t))), size_t{1}), size_t{1} << 12);
   auto init_kv_store_size =
     std::min(static_cast<size_t>((static_cast<double>(num_vertices) * 0.001) *
                                  static_cast<double>(origins.size())),
@@ -505,7 +511,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   auto constexpr invalid_key    = std::numeric_limits<key_t>::max();
 
   auto od_matrix_size = origins.size() * destinations.size();
-  if constexpr (GraphViewType::is_multi_gpu) { CUGRAPH_FAIL("unimplemented."); }
   rmm::device_uvector<weight_t> od_matrix(od_matrix_size, handle.get_stream());
   thrust::fill(handle.get_thrust_policy(),
                od_matrix.begin(),
@@ -667,21 +672,16 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                old_value_buffer.begin(),
                                handle.get_stream());
       }
-      if constexpr (GraphViewType::is_multi_gpu) {
-        CUGRAPH_FAIL(
-          "unimplemented.");  // need to ensure that we have values for all the local src vertices
-      } else {
-        auto key_first = thrust::make_transform_iterator(
-          get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
-          aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
-        key_to_dist_map.insert_and_assign(
-          key_first,
-          key_first + size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
-          distance_buffer.begin(),
-          handle.get_stream());
-        prev_near_far_threshold_num_inserts +=
-          size_dataframe_buffer(new_frontier_tagged_vertex_buffer);
-      }
+      auto key_first = thrust::make_transform_iterator(
+        get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
+        aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
+      key_to_dist_map.insert_and_assign(
+        key_first,
+        key_first + size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
+        distance_buffer.begin(),
+        handle.get_stream());
+      prev_near_far_threshold_num_inserts +=
+        size_dataframe_buffer(new_frontier_tagged_vertex_buffer);
     }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -844,7 +844,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       for (size_t i = 1; i < num_far_buffers; ++i) {
         num_aggregate_far_keys += far_buffers[i].size();
       }
-      if constexpr (GraphViewType::is_multi_gpu) { CUGRAPH_FAIL("unimplemented."); }
 
       if (num_aggregate_far_keys > 0) {  // near queue is empty, split the far queue
         RAFT_CUDA_TRY(cudaDeviceSynchronize());
