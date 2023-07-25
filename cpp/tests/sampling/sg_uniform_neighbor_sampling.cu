@@ -128,25 +128,29 @@ class Tests_Uniform_Neighbor_Sampling
                random_sources.size(),
                handle.get_stream());
 
-#ifdef NO_CUGRAPH_OPS
-    EXPECT_THROW(cugraph::uniform_neighbor_sample(
-                   handle,
-                   graph_view,
-                   edge_weight_view,
-                   std::nullopt,
-                   std::nullopt,
-                   std::move(random_sources_copy),
-                   std::move(batch_number),
-                   raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
-                                                  uniform_neighbor_sampling_usecase.fanout.size()),
-                   rng_state,
-                   true,
-                   uniform_neighbor_sampling_usecase.flag_replacement),
-                 std::exception);
-#else
     std::optional<std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>>>
       label_to_output_comm_rank_mapping{std::nullopt};
 
+#ifdef NO_CUGRAPH_OPS
+    EXPECT_THROW(
+      cugraph::uniform_neighbor_sample(
+        handle,
+        graph_view,
+        edge_weight_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, edge_t const*>>{std::nullopt},
+        std::optional<cugraph::edge_property_view_t<edge_t, int32_t const*>>{std::nullopt},
+        raft::device_span<vertex_t const>{random_sources_copy.data(), random_sources.size()},
+        batch_number ? std::make_optional(raft::device_span<int32_t const>{batch_number->data(),
+                                                                           batch_number->size()})
+                     : std::nullopt,
+        label_to_output_comm_rank_mapping,
+        raft::host_span<int32_t const>(uniform_neighbor_sampling_usecase.fanout.data(),
+                                       uniform_neighbor_sampling_usecase.fanout.size()),
+        rng_state,
+        true,
+        uniform_neighbor_sampling_usecase.flag_replacement),
+      std::exception);
+#else
     auto&& [src_out, dst_out, wgt_out, edge_id, edge_type, hop, labels, offsets] =
       cugraph::uniform_neighbor_sample(
         handle,
