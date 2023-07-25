@@ -96,14 +96,31 @@ struct update_v_to_destination_index_t {
   __device__ void operator()(od_idx_t i) const { v_to_destination_indices[destinations[i]] = i; }
 };
 
-template <typename od_idx_t>
+template <typename vertex_t, typename tag_t, typename key_t>
 struct compute_od_matrix_index_t {
-  od_idx_t num_destinations{};
+  raft::device_span<tag_t const> v_to_destination_indices{};
+  tag_t num_origins{};
+  tag_t num_destinations{};
 
-  __device__ size_t operator()(thrust::tuple<od_idx_t, od_idx_t> pair) const
+  __device__ size_t operator()(key_t aggregated_vi) const
   {
-    return static_cast<size_t>(thrust::get<1>(pair)) * static_cast<size_t>(num_destinations) +
-           static_cast<size_t>(thrust::get<0>(pair));
+    auto v   = static_cast<vertex_t>(aggregated_vi / static_cast<key_t>(num_origins));
+    auto tag = static_cast<size_t>(aggregated_vi % static_cast<key_t>(num_origins));
+    return (tag * static_cast<size_t>(num_destinations)) +
+           static_cast<size_t>(v_to_destination_indices[v]);
+  }
+};
+
+template <typename vertex_t, typename tag_t, typename key_t>
+struct check_destination_index_t {
+  raft::device_span<tag_t const> v_to_destination_indices{};
+  tag_t num_origins{};
+  tag_t invalid_od_idx{};
+
+  __device__ bool operator()(key_t aggregated_vi) const
+  {
+    auto v = static_cast<vertex_t>(aggregated_vi / static_cast<key_t>(num_origins));
+    return (v_to_destination_indices[v] != invalid_od_idx);
   }
 };
 
@@ -483,9 +500,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
   size_t key_buffer_capacity_increment = origins.size() * size_t{1024};
   size_t init_far_buffer_size          = origins.size() * size_t{1024};
 
-  size_t kv_store_capacity_increment =
-    raft::round_up_safe(std::max(static_cast<size_t>((static_cast<double>(total_global_mem) * 0.01) /
-                                  static_cast<double>(sizeof(key_t) + sizeof(weight_t))), size_t{1}), size_t{1} << 12);
+  size_t kv_store_capacity_increment = raft::round_up_safe(
+    std::max(static_cast<size_t>((static_cast<double>(total_global_mem) * 0.01) /
+                                 static_cast<double>(sizeof(key_t) + sizeof(weight_t))),
+             size_t{1}),
+    size_t{1} << 12);
   auto init_kv_store_size =
     std::min(static_cast<size_t>((static_cast<double>(num_vertices) * 0.001) *
                                  static_cast<double>(origins.size())),
@@ -573,22 +592,25 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                            thrust::make_constant_iterator(weight_t{0.0}),
                            handle.get_stream());
 
-    auto destination_idx_first = thrust::make_transform_iterator(
-      origins.begin(),
-      detail::indirection_t<vertex_t, od_idx_t const*>{v_to_destination_indices.data()});
-    thrust::transform_if(
-      handle.get_thrust_policy(),
-      thrust::make_constant_iterator(weight_t{0.0}),
-      thrust::make_constant_iterator(weight_t{0.0}) + origins.size(),
-      destination_idx_first,
-      thrust::make_permutation_iterator(
-        od_matrix.begin(),
-        thrust::make_transform_iterator(
-          thrust::make_zip_iterator(destination_idx_first,
-                                    thrust::make_counting_iterator(od_idx_t{0})),
-          compute_od_matrix_index_t<od_idx_t>{static_cast<od_idx_t>(destinations.size())})),
-      thrust::identity<weight_t>{},
-      detail::not_equal_t<od_idx_t>{invalid_od_idx});
+    thrust::transform_if(handle.get_thrust_policy(),
+                         thrust::make_constant_iterator(weight_t{0.0}),
+                         thrust::make_constant_iterator(weight_t{0.0}) + origins.size(),
+                         key_first,
+                         thrust::make_permutation_iterator(
+                           od_matrix.begin(),
+                           thrust::make_transform_iterator(
+                             key_first,
+                             compute_od_matrix_index_t<vertex_t, od_idx_t, key_t>{
+                               raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
+                                                                 v_to_destination_indices.size()),
+                               static_cast<od_idx_t>(origins.size()),
+                               static_cast<od_idx_t>(destinations.size())})),
+                         thrust::identity<weight_t>{},
+                         check_destination_index_t<vertex_t, od_idx_t, key_t>{
+                           raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
+                                                             v_to_destination_indices.size()),
+                           static_cast<od_idx_t>(origins.size()),
+                           invalid_od_idx});
   }
 
   // 6. SSSP iteration
@@ -628,20 +650,52 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     max_key_to_dist_map_size  = std::max(key_to_dist_map_size, max_key_to_dist_map_size);
 #endif
 
-    auto [new_frontier_tagged_vertex_buffer, distance_buffer] =
-      transform_reduce_v_frontier_outgoing_e_by_dst(
-        handle,
-        graph_view,
-        vertex_frontier.bucket(bucket_idx_near),
-        edge_src_dummy_property_t{}.view(),
-        edge_dst_dummy_property_t{}.view(),
-        edge_weight_view,
-        e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>{
-          detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
-          static_cast<od_idx_t>(origins.size()),
-          cutoff,
-          invalid_distance},
-        reduce_op::minimum<weight_t>());
+    rmm::device_uvector<key_t> new_frontier_keys(0, handle.get_stream());
+    rmm::device_uvector<weight_t> distance_buffer(0, handle.get_stream());
+    {
+      auto e_op = e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>{
+        detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
+        static_cast<od_idx_t>(origins.size()),
+        cutoff,
+        invalid_distance};
+      detail::call_e_op_t<thrust::tuple<vertex_t, od_idx_t>,
+                          weight_t,
+                          vertex_t,
+                          thrust::nullopt_t,
+                          thrust::nullopt_t,
+                          weight_t,
+                          e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>>
+        e_op_wrapper{e_op};
+
+      auto new_frontier_tagged_vertex_buffer =
+        allocate_dataframe_buffer<thrust::tuple<vertex_t, od_idx_t>>(0, handle.get_stream());
+      std::tie(new_frontier_tagged_vertex_buffer, distance_buffer) =
+        detail::extract_transform_v_frontier_e<false, thrust::tuple<vertex_t, od_idx_t>, weight_t>(
+          handle,
+          graph_view,
+          vertex_frontier.bucket(bucket_idx_near),
+          edge_src_dummy_property_t{}.view(),
+          edge_dst_dummy_property_t{}.view(),
+          edge_weight_view,
+          e_op_wrapper);
+
+      new_frontier_keys.resize(size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
+                               handle.get_stream());
+      auto key_first = thrust::make_transform_iterator(
+        get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
+        aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
+      thrust::copy(handle.get_thrust_policy(),
+                   key_first,
+                   key_first + size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
+                   new_frontier_keys.begin());
+
+      std::tie(new_frontier_keys, distance_buffer) =
+        detail::sort_and_reduce_buffer_elements<key_t, weight_t, reduce_op::minimum<weight_t>>(
+          handle,
+          std::move(new_frontier_keys),
+          std::move(distance_buffer),
+          reduce_op::minimum<weight_t>());
+    }
     vertex_frontier.bucket(bucket_idx_near).clear();
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -650,21 +704,13 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     // 6-2. update key_to_dist_map
 
     {
-      auto new_min_capacity =
-        key_to_dist_map.size() + size_dataframe_buffer(new_frontier_tagged_vertex_buffer);
+      auto new_min_capacity = key_to_dist_map.size() + new_frontier_keys.size();
       if (key_to_dist_map.capacity() <
           new_min_capacity) {  // note that this is conservative as some keys may already exist in
                                // key_to_dist_map
-        std::cout << "key_to_dist_map.size()=" << key_to_dist_map.size()
-                  << " key_to_dist_map.capacity()=" << key_to_dist_map.capacity()
-                  << " new_min_capacity=" << new_min_capacity << std::endl;
         auto new_kv_store_capacity = compute_kv_store_capacity(
           new_min_capacity, key_to_dist_map.capacity(), kv_store_capacity_increment);
         auto [old_key_buffer, old_value_buffer] = key_to_dist_map.release(handle.get_stream());
-        std::cout << "INCREASE CAPACITY TO INESRT new_capacity=" << new_kv_store_capacity
-                  << " initial insert_size=" << old_key_buffer.size()
-                  << " new_insert_size=" << size_dataframe_buffer(new_frontier_tagged_vertex_buffer)
-                  << std::endl;  // DEBUG
         key_to_dist_map = kv_store_t<key_t, weight_t, false /* use_binary_search */>(
           new_kv_store_capacity, invalid_key, invalid_distance, handle.get_stream());
         key_to_dist_map.insert(get_dataframe_buffer_begin(old_key_buffer),
@@ -672,16 +718,11 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                old_value_buffer.begin(),
                                handle.get_stream());
       }
-      auto key_first = thrust::make_transform_iterator(
-        get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
-        aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
-      key_to_dist_map.insert_and_assign(
-        key_first,
-        key_first + size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
-        distance_buffer.begin(),
-        handle.get_stream());
-      prev_near_far_threshold_num_inserts +=
-        size_dataframe_buffer(new_frontier_tagged_vertex_buffer);
+      key_to_dist_map.insert_and_assign(new_frontier_keys.begin(),
+                                        new_frontier_keys.end(),
+                                        distance_buffer.begin(),
+                                        handle.get_stream());
+      prev_near_far_threshold_num_inserts += new_frontier_keys.size();
     }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -690,22 +731,25 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     // 6-3. update od_matrix
 
     {
-      auto destination_idx_first = thrust::make_transform_iterator(
-        std::get<0>(new_frontier_tagged_vertex_buffer).begin(),
-        detail::indirection_t<vertex_t, od_idx_t const*>{v_to_destination_indices.data()});
-      thrust::transform_if(
-        handle.get_thrust_policy(),
-        distance_buffer.begin(),
-        distance_buffer.end(),
-        destination_idx_first,
-        thrust::make_permutation_iterator(
-          od_matrix.begin(),
-          thrust::make_transform_iterator(
-            thrust::make_zip_iterator(destination_idx_first,
-                                      std::get<1>(new_frontier_tagged_vertex_buffer).begin()),
-            compute_od_matrix_index_t<od_idx_t>{static_cast<od_idx_t>(destinations.size())})),
-        thrust::identity<weight_t>{},
-        detail::not_equal_t<od_idx_t>{invalid_od_idx});
+      thrust::transform_if(handle.get_thrust_policy(),
+                           distance_buffer.begin(),
+                           distance_buffer.end(),
+                           new_frontier_keys.begin(),
+                           thrust::make_permutation_iterator(
+                             od_matrix.begin(),
+                             thrust::make_transform_iterator(
+                               new_frontier_keys.begin(),
+                               compute_od_matrix_index_t<vertex_t, od_idx_t, key_t>{
+                                 raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
+                                                                   v_to_destination_indices.size()),
+                                 static_cast<od_idx_t>(origins.size()),
+                                 static_cast<od_idx_t>(destinations.size())})),
+                           thrust::identity<weight_t>{},
+                           check_destination_index_t<vertex_t, od_idx_t, key_t>{
+                             raft::device_span<od_idx_t const>(v_to_destination_indices.data(),
+                                                               v_to_destination_indices.size()),
+                             static_cast<od_idx_t>(origins.size()),
+                             invalid_od_idx});
     }
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -730,7 +774,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       rmm::device_uvector<size_t> d_counters(d_split_thresholds.size() + 1, handle.get_stream());
       thrust::fill(handle.get_thrust_policy(), d_counters.begin(), d_counters.end(), size_t{0});
 
-      auto num_tagged_vertices = size_dataframe_buffer(new_frontier_tagged_vertex_buffer);
+      auto num_tagged_vertices = new_frontier_keys.size();
       rmm::device_uvector<key_t> tmp_near_q_keys(0, handle.get_stream());
       tmp_near_q_keys.reserve(num_tagged_vertices, handle.get_stream());
 
@@ -739,10 +783,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         old_far_buffer_sizes[i] = far_buffers[i].size();
       }
 
-      auto key_first = thrust::make_transform_iterator(
-        get_dataframe_buffer_begin(new_frontier_tagged_vertex_buffer),
-        aggregate_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
-      auto input_first = thrust::make_zip_iterator(key_first, distance_buffer.begin());
+      auto input_first =
+        thrust::make_zip_iterator(new_frontier_keys.begin(), distance_buffer.begin());
 
       size_t num_copied{0};
       while (num_copied < num_tagged_vertices) {
@@ -811,9 +853,9 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         .insert(near_vi_first, near_vi_first + tmp_near_q_keys.size());
     }
 
-    resize_dataframe_buffer(new_frontier_tagged_vertex_buffer, 0, handle.get_stream());
+    new_frontier_keys.resize(0, handle.get_stream());
     distance_buffer.resize(0, handle.get_stream());
-    shrink_to_fit_dataframe_buffer(new_frontier_tagged_vertex_buffer, handle.get_stream());
+    new_frontier_keys.shrink_to_fit(handle.get_stream());
     distance_buffer.shrink_to_fit(handle.get_stream());
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());
@@ -1019,20 +1061,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         if (key_to_dist_map.size() + next_near_far_threshold_num_inserts_estimate >=
             key_to_dist_map.capacity()) {  // if resize is likely to be necessary before reaching
                                            // this check again
-          std::cout << "resizing key_to_dist_map cur_size=" << key_to_dist_map.size()
-                    << " next_estimate=" << next_near_far_threshold_num_inserts_estimate
-                    << " key_to_dist_map.capacity()=" << key_to_dist_map.capacity() << "\n";
-#if 0
-          // FIXME: we may free far_buffers here and reallocate after this to
-          // free-up some memory for temporary space
-          thrust::sort(handle.get_thrust_policy(), far_buffers[0].begin(), far_buffers[0].end());
-          far_buffers[0].resize(
-            thrust::distance(
-              far_buffers[0].begin(),
-              thrust::unique(handle.get_thrust_policy(), far_buffers[0].begin(), far_buffers[0].end())),
-            handle.get_stream());
-#endif
-
           std::vector<raft::device_span<key_t const>> far_buffer_spans(num_far_buffers);
           for (size_t i = 0; i < num_far_buffers; ++i) {
             far_buffer_spans[i] =
