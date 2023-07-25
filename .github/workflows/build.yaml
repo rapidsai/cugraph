@@ -28,7 +28,7 @@ concurrency:
 jobs:
   cpp-build:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -37,7 +37,7 @@ jobs:
   python-build:
     needs: [cpp-build]
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-build.yaml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-python-build.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -46,46 +46,42 @@ jobs:
   upload-conda:
     needs: [cpp-build, python-build]
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/conda-upload-packages.yaml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/conda-upload-packages.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
   docs-build:
-    if: github.ref_type == 'branch' && github.event_name == 'push'
+    if: github.ref_type == 'branch'
     needs: python-build
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@branch-23.06
+    uses: rapidsai/shared-action-workflows/.github/workflows/custom-job.yaml@branch-23.08
     with:
-      build_type: branch
-      node_type: "gpu-v100-latest-1"
       arch: "amd64"
+      branch: ${{ inputs.branch }}
+      build_type: ${{ inputs.build_type || 'branch' }}
       container_image: "rapidsai/ci:latest"
+      date: ${{ inputs.date }}
+      node_type: "gpu-v100-latest-1"
       run_script: "ci/build_docs.sh"
+      sha: ${{ inputs.sha }}
   wheel-build-pylibcugraph:
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@cuda-120-pip
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-build.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
-      package-name: pylibcugraph
-      package-dir: python/pylibcugraph
-
-      # Note that this approach to cloning repos obviates any modification to
-      # the CMake variables in get_cumlprims_mg.cmake since CMake will just use
-      # the clone as is.
+      script: ci/build_wheel_pylibcugraph.sh
       extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: branch-23.06
+      extra-repo-sha: branch-23.08
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
-
-      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/pylibcugraph/cugraph-ops/"
   wheel-publish-pylibcugraph:
     needs: wheel-build-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@cuda-120-pip
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-publish.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -95,28 +91,20 @@ jobs:
   wheel-build-cugraph:
     needs: wheel-publish-pylibcugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@cuda-120-pip
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-build.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
-      package-name: cugraph
-      package-dir: python/cugraph
-
-      # Note that this approach to cloning repos obviates any modification to
-      # the CMake variables in get_cumlprims_mg.cmake since CMake will just use
-      # the clone as is.
+      script: ci/build_wheel_cugraph.sh
       extra-repo: rapidsai/cugraph-ops
-      extra-repo-sha: branch-23.06
+      extra-repo-sha: branch-23.08
       extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
-
-      before-wheel: "RAPIDS_PY_WHEEL_NAME=pylibcugraph_${{ '${PIP_CU_VERSION}' }} rapids-download-wheels-from-s3 /local-wheelhouse"
-      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DFIND_CUGRAPH_CPP=OFF -DCPM_cugraph-ops_SOURCE=${GITHUB_WORKSPACE}/python/cugraph/cugraph-ops/"
   wheel-publish-cugraph:
     needs: wheel-build-cugraph
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-publish.yml@cuda-120-pip
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-publish.yaml@branch-23.08
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}

@@ -12,8 +12,6 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-from pylibcugraphops.pytorch.operators import mha_gat_v2_n2n, mha_gat_v2_n2n_bipartite
-
 from cugraph.utilities.utils import import_optional
 
 from .base import BaseConv
@@ -21,6 +19,7 @@ from .base import BaseConv
 torch = import_optional("torch")
 nn = import_optional("torch.nn")
 torch_geometric = import_optional("torch_geometric")
+ops_torch = import_optional("pylibcugraphops.pytorch")
 
 
 class GATv2Conv(BaseConv):
@@ -187,8 +186,8 @@ class GATv2Conv(BaseConv):
                 representation to the desired format.
             edge_attr: (torch.Tensor, optional) The edge features.
         """
-        bipartite = not isinstance(x, torch.Tensor)
-        graph = self.get_cugraph(csc, bipartite=bipartite or not self.share_weights)
+        bipartite = not isinstance(x, torch.Tensor) or not self.share_weights
+        graph = self.get_cugraph(csc, bipartite=bipartite)
 
         if edge_attr is not None:
             if self.lin_edge is None:
@@ -200,38 +199,24 @@ class GATv2Conv(BaseConv):
                 edge_attr = edge_attr.view(-1, 1)
             edge_attr = self.lin_edge(edge_attr)
 
-        if not bipartite and self.share_weights:
+        if bipartite:
+            if isinstance(x, torch.Tensor):
+                x = (x, x)
+            x_src = self.lin_src(x[0])
+            x_dst = self.lin_dst(x[1])
+        else:
             x = self.lin_src(x)
 
-            out = mha_gat_v2_n2n(
-                x,
-                self.att,
-                graph,
-                num_heads=self.heads,
-                activation="LeakyReLU",
-                negative_slope=self.negative_slope,
-                concat_heads=self.concat,
-                edge_feat=edge_attr,
-            )
-        else:
-            if bipartite:
-                x_src = self.lin_src(x[0])
-                x_dst = self.lin_dst(x[1])
-            else:
-                x_src = self.lin_src(x)
-                x_dst = self.lin_dst(x)
-
-            out = mha_gat_v2_n2n_bipartite(
-                x_src,
-                x_dst,
-                self.att,
-                graph,
-                num_heads=self.heads,
-                activation="LeakyReLU",
-                negative_slope=self.negative_slope,
-                concat_heads=self.concat,
-                edge_feat=edge_attr,
-            )
+        out = ops_torch.operators.mha_gat_v2_n2n(
+            (x_src, x_dst) if bipartite else x,
+            self.att,
+            graph,
+            num_heads=self.heads,
+            activation="LeakyReLU",
+            negative_slope=self.negative_slope,
+            concat_heads=self.concat,
+            edge_feat=edge_attr,
+        )
 
         if self.bias is not None:
             out = out + self.bias

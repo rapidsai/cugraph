@@ -77,6 +77,14 @@ from pylibcugraph.analyze_clustering_ratio_cut import analyze_clustering_ratio_c
 
 from pylibcugraph.random import CuGraphRandomState
 
+from pylibcugraph.leiden import leiden
+
 from pylibcugraph.select_random_vertices import select_random_vertices
 
-__version__ = "23.06.00"
+from pylibcugraph.generate_rmat_edgelist import generate_rmat_edgelist
+
+from pylibcugraph.generate_rmat_edgelists import generate_rmat_edgelists
+
+from pylibcugraph import exceptions
+
+__version__ = "23.08.00"

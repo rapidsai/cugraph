@@ -56,6 +56,7 @@ int test_rmat_generation()
                                             0.19,
                                             0.19,
                                             FALSE,
+                                            FALSE,
                                             &coo,
                                             &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "generate_rmat_edgelist failed.");
@@ -142,6 +143,7 @@ int test_rmat_list_generation()
                                              4,
                                              UNIFORM,
                                              POWER_LAW,
+                                             FALSE,
                                              FALSE,
                                              &coo_list,
                                              &ret_error);

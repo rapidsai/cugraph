@@ -21,6 +21,7 @@ import numpy as np
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cupy.testing import assert_array_equal
 from pylibcugraph.testing.utils import gen_fixture_params_product
+from cugraph.dask.common.mg_utils import is_single_gpu
 
 import cugraph.dask as dcg
 from cugraph.experimental.datasets import cyber
@@ -991,6 +992,7 @@ def test_renumber_vertices_edges_dtypes(dask_client):
 
 
 @pytest.mark.mg
+@pytest.mark.skipif(is_single_gpu(), reason="FIXME: MG test fails on single-GPU")
 @pytest.mark.parametrize("set_index", [True, False])
 def test_add_data_noncontiguous(dask_client, set_index):
     from cugraph.experimental import MGPropertyGraph

@@ -12,10 +12,13 @@
 # limitations under the License.
 
 import pytest
-from cugraph.dask.common.mg_utils import (
-    setup_local_dask_cluster,
-    teardown_local_dask_cluster,
+from cugraph.testing.mg_utils import (
+    start_dask_client,
+    stop_dask_client,
 )
+
+import os
+import tempfile
 
 # module-wide fixtures
 
@@ -34,7 +37,27 @@ if "gpubenchmark" not in globals():
 
 @pytest.fixture(scope="module")
 def dask_client():
-    cluster, client = setup_local_dask_cluster()
-    yield client
+    # start_dask_client will check for the SCHEDULER_FILE and
+    # DASK_WORKER_DEVICES env vars and use them when creating a client if
+    # set. start_dask_client will also initialize the Comms singleton.
+    dask_client, dask_cluster = start_dask_client()
 
-    teardown_local_dask_cluster(cluster, client)
+    yield dask_client
+
+    stop_dask_client(dask_client, dask_cluster)
+
+
+@pytest.fixture(scope="module")
+def scratch_dir():
+    # This should always be set if doing MG testing, since temporary
+    # directories are only accessible from the current process.
+    tempdir_object = os.getenv(
+        "RAPIDS_PYTEST_SCRATCH_DIR", tempfile.TemporaryDirectory()
+    )
+
+    if isinstance(tempdir_object, tempfile.TemporaryDirectory):
+        yield tempdir_object.name
+    else:
+        yield tempdir_object
+
+    del tempdir_object
