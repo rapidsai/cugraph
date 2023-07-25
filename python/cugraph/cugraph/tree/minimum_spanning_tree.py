@@ -92,7 +92,7 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     Examples
     --------
     >>> from cugraph.datasets import netscience
-    >>> G = netscience.get_graph(fetch=True)
+    >>> G = netscience.get_graph(download=True)
     >>> G_mst = cugraph.minimum_spanning_tree(G)
 
     """
@@ -135,7 +135,7 @@ def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
     Examples
     --------
     >>> from cugraph.datasets import netscience
-    >>> G = netscience.get_graph(fetch=True)
+    >>> G = netscience.get_graph(download=True)
     >>> G_mst = cugraph.maximum_spanning_tree(G)
 
     """
