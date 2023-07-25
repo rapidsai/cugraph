@@ -18,7 +18,6 @@ from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
-    data_type_id_t,
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -38,19 +37,14 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
-    cugraph_sample_result_get_sources,
-    cugraph_sample_result_get_destinations,
-    cugraph_sample_result_get_index,
-    cugraph_sample_result_free,
-
+    cugraph_prior_sources_behavior_t,
     cugraph_sampling_options_t,
     cugraph_sampling_options_create,
     cugraph_sampling_options_free,
     cugraph_sampling_set_with_replacement,
     cugraph_sampling_set_return_hops,
-    cugraph_sampling_set_unique_sources,
+    cugraph_sampling_set_prior_sources_behavior,
     cugraph_sampling_set_dedupe_sources,
-    cugraph_sampling_set_carry_over_sources,
 
 )
 from pylibcugraph._cugraph_c.sampling_algorithms cimport (
@@ -62,11 +56,9 @@ from pylibcugraph.resource_handle cimport (
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
-    MGGraph,
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    copy_to_cupy_array,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,
@@ -93,9 +85,9 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
                             batch_id_list=None,
                             label_list=None,
                             label_to_output_comm_rank=None,
-                            bool_t unique_sources=<bool_t>False,
-                            bool_t carry_over_sources=<bool_t>False,
+                            prior_sources_behavior=None,
                             bool_t deduplicate_sources=<bool_t>False,
+                            bool_t return_hops=<bool_t>False,
                             random_state=None):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -143,18 +135,17 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         worker that should hold results for that batch id.
         Defaults to NULL (does nothing)
     
-    unique_sources: bool (Optional)
-        Whether to ensure that sources do not reappear as sources in
-        future hops.  Defaults to False.
-    
-    carry_over_sources: bool (Optional)
-        Whether to carry over previous sources into future hops.
-        Defaults to False.
+    prior_sources_behavior: str (Optional)
+        Options are "carryover", and "exclude".
+        Default will leave the source list as-is.
+        Carryover will carry over sources from previous hops to the
+        current hop.
+        Exclude will exclude sources from previous hops from reappearing
+        as sources in future hops.
     
     deduplicate_sources: bool (Optional)
-        Whether to first deduplicate the list of possible sources
-        from the previous destinations before performing next
-        hop.  Defaults to False.
+        If True, will deduplicate the source list before sampling.
+        Defaults to False.
 
     random_state: int (Optional)
         Random state to use when generating samples.  Optional argument,
@@ -250,15 +241,27 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cdef cugraph_rng_state_t* rng_state_ptr = \
         cg_rng_state.rng_state_ptr
 
+    cdef cugraph_prior_sources_behavior_t prior_sources_behavior_e
+    if prior_sources_behavior is None:
+        prior_sources_behavior_e = cugraph_prior_sources_behavior_t.DEFAULT
+    elif prior_sources_behavior == 'carryover':
+        prior_sources_behavior_e = cugraph_prior_sources_behavior_t.CARRY_OVER
+    elif prior_sources_behavior == 'exclude':
+        prior_sources_behavior_e = cugraph_prior_sources_behavior_t.EXCLUDE
+    else:
+        raise ValueError(
+            f'Invalid option {prior_sources_behavior}'
+            ' for prior sources behavior'
+        )
+
     cdef cugraph_sampling_options_t* sampling_options
     error_code = cugraph_sampling_options_create(&sampling_options, &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_sampling_options_create")
 
     cugraph_sampling_set_with_replacement(sampling_options, with_replacement)
-    cugraph_sampling_set_return_hops(sampling_options, <bool_t>True)
+    cugraph_sampling_set_return_hops(sampling_options, return_hops)
     cugraph_sampling_set_dedupe_sources(sampling_options, deduplicate_sources)
-    cugraph_sampling_set_carry_over_sources(sampling_options, carry_over_sources)
-    cugraph_sampling_set_unique_sources(sampling_options, unique_sources)
+    cugraph_sampling_set_prior_sources_behavior(sampling_options, prior_sources_behavior_e)
 
     error_code = cugraph_uniform_neighbor_sample(
         c_resource_handle_ptr,

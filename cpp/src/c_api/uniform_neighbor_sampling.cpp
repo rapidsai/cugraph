@@ -35,9 +35,9 @@ namespace c_api {
 struct cugraph_sampling_options_t {
   bool_t with_replacement_{FALSE};
   bool_t return_hops_{FALSE};
-  bool_t unique_sources_{FALSE};
-  bool_t carry_over_sources_{FALSE};
+  prior_sources_behavior_t prior_sources_behavior_{prior_sources_behavior_t::DEFAULT};
   bool_t dedupe_sources_{FALSE};
+  bool_t renumber_results_{FALSE};
 };
 
 struct cugraph_sample_result_t {
@@ -49,6 +49,8 @@ struct cugraph_sample_result_t {
   cugraph_type_erased_device_array_t* hop_{nullptr};
   cugraph_type_erased_device_array_t* label_{nullptr};
   cugraph_type_erased_device_array_t* offsets_{nullptr};
+  cugraph_type_erased_device_array_t* renumber_map_{nullptr};
+  cugraph_type_erased_device_array_t* renumber_map_offsets_{nullptr};
 };
 
 }  // namespace c_api
@@ -207,8 +209,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           rng_state_->rng_state_,
           options_.return_hops_,
           options_.with_replacement_,
-          options_.unique_sources_,
-          options_.carry_over_sources_,
+          options_.prior_sources_behavior_,
           options_.dedupe_sources_,
           do_expensive_check_);
 
@@ -228,6 +229,22 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
                                                             vertex_partition_lasts,
                                                             do_expensive_check_);
 
+      std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+      std::optional<rmm::device_uvector<size_t>> renumber_map_offsets{std::nullopt};
+
+      if (options_.renumber_results_) {
+        std::tie(src, dst, renumber_map, renumber_map_offsets) = cugraph::renumber_sampled_edgelist(
+          handle_,
+          std::move(src),
+          hop ? std::make_optional(raft::device_span<int32_t const>{hop->data(), hop->size()})
+              : std::nullopt,
+          std::move(dst),
+          std::make_optional(std::make_tuple(
+            raft::device_span<label_t const>{edge_label->data(), edge_label->size()},
+            raft::device_span<size_t const>{offsets->data(), offsets->size()})),
+          do_expensive_check_);
+      }
+
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(src, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst, graph_->vertex_type_),
@@ -244,7 +261,13 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
           ? new cugraph::c_api::cugraph_type_erased_device_array_t(edge_label.value(), INT32)
           : nullptr,
         (offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(offsets.value(), SIZE_T)
-                  : nullptr};
+                  : nullptr,
+        (renumber_map) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                           renumber_map.value(), graph_->vertex_type_)
+                       : nullptr,
+        (renumber_map_offsets) ? new cugraph::c_api::cugraph_type_erased_device_array_t(
+                                   renumber_map_offsets.value(), SIZE_T)
+                               : nullptr};
     }
   }
 };
@@ -265,6 +288,13 @@ extern "C" cugraph_error_code_t cugraph_sampling_options_create(
   return CUGRAPH_SUCCESS;
 }
 
+extern "C" void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options,
+                                                      bool_t value)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
+  internal_pointer->renumber_results_ = value;
+}
+
 extern "C" void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options,
                                                       bool_t value)
 {
@@ -278,18 +308,21 @@ extern "C" void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* opt
   internal_pointer->return_hops_ = value;
 }
 
-extern "C" void cugraph_sampling_set_unique_sources(cugraph_sampling_options_t* options,
-                                                    bool_t value)
+extern "C" void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* options,
+                                                            cugraph_prior_sources_behavior_t value)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->unique_sources_ = value;
-}
-
-extern "C" void cugraph_sampling_set_carry_over_sources(cugraph_sampling_options_t* options,
-                                                        bool_t value)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sampling_options_t*>(options);
-  internal_pointer->carry_over_sources_ = value;
+  switch (value) {
+    case CARRY_OVER:
+      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::CARRY_OVER;
+      break;
+    case EXCLUDE:
+      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::EXCLUDE;
+      break;
+    default:
+      internal_pointer->prior_sources_behavior_ = cugraph::prior_sources_behavior_t::DEFAULT;
+      break;
+  }
 }
 
 extern "C" void cugraph_sampling_set_dedupe_sources(cugraph_sampling_options_t* options,
@@ -383,6 +416,26 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_of
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
     internal_pointer->offsets_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->renumber_map_ == nullptr
+           ? NULL
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->renumber_map_->view());
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_offsets(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->renumber_map_ == nullptr
+           ? NULL
+           : reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->renumber_map_offsets_->view());
 }
 
 extern "C" cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(

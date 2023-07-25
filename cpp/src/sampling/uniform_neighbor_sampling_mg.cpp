@@ -42,8 +42,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 
@@ -69,8 +68,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 
@@ -96,8 +94,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 
@@ -123,8 +120,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 
@@ -150,8 +146,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 
@@ -177,8 +172,7 @@ uniform_neighbor_sample(
   raft::random::RngState& rng_state,
   bool return_hops,
   bool with_replacement,
-  bool unique_sources,
-  bool carry_over_sources,
+  prior_sources_behavior_t prior_sources_behavior,
   bool dedupe_sources,
   bool do_expensive_check);
 

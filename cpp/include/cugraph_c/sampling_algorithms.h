@@ -195,6 +195,17 @@ typedef struct {
 } cugraph_sampling_options_t;
 
 /**
+ * @brief     Enumeration for prior sources behavior
+ */
+typedef enum cugraph_prior_sources_behavior_t {
+  DEFAULT = 0, /** Construct sources for hop k from destination vertices from hop k-1 */
+  CARRY_OVER,  /** Construct sources for hop k from destination vertices from hop k-1
+                   and sources from hop k-1 */
+  EXCLUDE      /** Construct sources for hop k from destination vertices form hop k-1,
+                   but exclude any vertex that has already been used as a source */
+} cugraph_prior_sources_behavior_t;
+
+/**
  * @brief   Create sampling options object
  *
  * All sampling options set to FALSE
@@ -205,6 +216,14 @@ typedef struct {
  */
 cugraph_error_code_t cugraph_sampling_options_create(cugraph_sampling_options_t** options,
                                                      cugraph_error_t** error);
+
+/**
+ * @brief   Set flag to renumber results
+ *
+ * @param options - opaque pointer to the sampling options
+ * @param value - Boolean value to assign to the option
+ */
+void cugraph_sampling_set_renumber_results(cugraph_sampling_options_t* options, bool_t value);
 
 /**
  * @brief   Set flag to sample with_replacement
@@ -223,23 +242,16 @@ void cugraph_sampling_set_with_replacement(cugraph_sampling_options_t* options, 
 void cugraph_sampling_set_return_hops(cugraph_sampling_options_t* options, bool_t value);
 
 /**
- * @brief   Set flag to sample unique_sources
+ * @brief   Set prior sources behavior
  *
  * @param options - opaque pointer to the sampling options
- * @param value - Boolean value to assign to the option
+ * @param value - Enum defining prior sources behavior
  */
-void cugraph_sampling_set_unique_sources(cugraph_sampling_options_t* options, bool_t value);
+void cugraph_sampling_set_prior_sources_behavior(cugraph_sampling_options_t* options,
+                                                 cugraph_prior_sources_behavior_t value);
 
 /**
- * @brief   Set flag to sample carry_over_sources
- *
- * @param options - opaque pointer to the sampling options
- * @param value - Boolean value to assign to the option
- */
-void cugraph_sampling_set_carry_over_sources(cugraph_sampling_options_t* options, bool_t value);
-
-/**
- * @brief   Set flag to sample dedupe_sources
+ * @brief   Set flag to sample dedupe_sources prior to sampling
  *
  * @param options - opaque pointer to the sampling options
  * @param value - Boolean value to assign to the option
@@ -332,7 +344,8 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
  * must be sorted in ascending order.
  * @param [in]  label_to_comm_rank Device array identifying which comm rank the output for a
  * particular label should be shuffled in the output.  If not specifed the data is not organized in
- * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p
+ * output.  If specified then the all data from @p label_list[i] will be shuffled to rank @p.  This
+ * cannot be specified unless @p start_vertex_labels is also specified
  * label_to_comm_rank[i].  If not specified then the output data will not be shuffled between ranks.
  * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
  *                           We only support fanout values of type INT32
@@ -439,6 +452,24 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(
  * @return type erased array pointing to the result offsets
  */
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_offsets(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the renumber map
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the renumber map
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the renumber map offsets
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the renumber map offsets
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_renumber_map_offsets(
   const cugraph_sample_result_t* result);
 
 /**

@@ -235,6 +235,11 @@ cdef extern from "cugraph_c/algorithms.h":
     ctypedef struct cugraph_sampling_options_t:
         pass
     
+    ctypedef enum cugraph_prior_sources_behavior_t:
+        DEFAULT
+        CARRY_OVER
+        EXCLUDE
+    
     cdef cugraph_error_code_t \
         cugraph_sampling_options_create(
             cugraph_sampling_options_t** options,
@@ -252,19 +257,13 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sampling_options_t* options,
             bool_t value,
         )
-    
+
     cdef void \
-        cugraph_sampling_set_unique_sources(
+        cugraph_sampling_set_prior_sources_behavior(
             cugraph_sampling_options_t* options,
-            bool_t value,
+            cugraph_prior_sources_behavior_t value
         )
-    
-    cdef void \
-        cugraph_sampling_set_carry_over_sources(
-            cugraph_sampling_options_t* options,
-            bool_t value,
-        )
-    
+
     cdef void \
         cugraph_sampling_set_dedupe_sources(
             cugraph_sampling_options_t* options,

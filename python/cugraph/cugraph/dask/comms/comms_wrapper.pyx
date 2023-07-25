@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,10 +18,10 @@
 
 
 from pylibraft.common.handle cimport *
-from cugraph.dask.comms.comms cimport init_subcomms as c_init_subcomms
+from cugraph.dask.comms.comms cimport init_subcomm as c_init_subcomm
 
 
 def init_subcomms(handle, row_comm_size):
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <handle_t*>handle_size_t
-    c_init_subcomms(handle_[0], row_comm_size)
+    c_init_subcomm(handle_[0], row_comm_size)
