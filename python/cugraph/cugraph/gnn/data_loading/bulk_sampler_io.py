@@ -123,6 +123,7 @@ def _write_samples_to_parquet(
             print("\nfinal map:\n", final_map_series)
 
             if len(final_map_series) > len(results_p):
+                # this should rarely happen and only occurs on small graphs/samples
                 final_map_series.name = "map"
                 results_p = results_p.join(final_map_series, how="outer").sort_index()
             else:

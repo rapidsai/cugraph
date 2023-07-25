@@ -134,7 +134,7 @@ def _sampler_output_from_sampling_results(
             num_nodes_per_hop_dict[node_type][0] = num_unique_nodes
 
     if renumber_map is not None:
-        if len(graph_store.node_types) > 1 or len(graph_store.edge_types > 1):
+        if len(graph_store.node_types) > 1 or len(graph_store.edge_types) > 1:
             raise ValueError(
                 "Precomputing the renumber map is currently "
                 "unsupported for heterogeneous graphs."
@@ -148,9 +148,9 @@ def _sampler_output_from_sampling_results(
         }
 
         edge_type = graph_store.edge_types[0]
-        if not isinstance(edge_type, tuple) or not isinstance(edge_type, str) or len(edge_type) != 3:
+        if not isinstance(edge_type, tuple) or not isinstance(edge_type[0], str) or len(edge_type) != 3:
             raise ValueError("Edge types must be 3-tuples of strings")
-        if edge_type[0] != node_type or edge_type[1] != node_type:
+        if edge_type[0] != node_type or edge_type[2] != node_type:
             raise ValueError("Edge src/dst type must match for homogeneous graphs")
         row_dict = {
             edge_type: torch.as_tensor(sampling_results.sources.values, device='cuda'),
