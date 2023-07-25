@@ -391,6 +391,11 @@ ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampli
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
 ###################################################################################################
+# - RENUMBER SAMPLED EDGE LIST tests --------------------------------------------------------------
+ConfigureTest(RENUMBER_SAMPLED_EDGELIST_TEST sampling/renumber_sampled_edgelist_test.cu)
+target_link_libraries(RENUMBER_SAMPLED_EDGELIST_TEST PRIVATE cuco::cuco)
+
+###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 ConfigureTest(RENUMBERING_TEST structure/renumbering_test.cpp)
 

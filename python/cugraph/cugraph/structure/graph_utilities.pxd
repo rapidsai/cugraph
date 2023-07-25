@@ -26,12 +26,6 @@ from rmm._lib.device_buffer cimport device_buffer
 from pylibraft.common.handle cimport handle_t
 
 
-# C++ graph utilities
-cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
-    cdef cppclass graph_generator_t:
-        unique_ptr[device_buffer] d_source
-        unique_ptr[device_buffer] d_destination
-
 cdef extern from "<utility>" namespace "std" nogil:
     cdef device_buffer move(device_buffer)
     cdef unique_ptr[device_buffer] move(unique_ptr[device_buffer])
