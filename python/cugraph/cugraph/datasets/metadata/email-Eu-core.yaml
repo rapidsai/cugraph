@@ -21,7 +21,7 @@ col_types:
   - int32
   - int32
   - float32
-has_loop: false
+has_loop: true
 is_directed: true
 is_multigraph: false
 is_symmetric: true

@@ -90,6 +90,17 @@ def setup_deprecation_warning_tests():
 
 
 ###############################################################################
+# Helper
+
+# check if there is a row where src == dst
+def has_loop(df):
+    df.rename(columns={df.columns[0]: "src", df.columns[1]: "dst"}, inplace=True)
+    res = df.where(df["src"] == df["dst"])
+
+    return res.notnull().values.any()
+
+
+###############################################################################
 # Tests
 
 # setting download_dir to None effectively re-initialized the default
@@ -287,11 +298,13 @@ def test_is_directed(dataset):
     assert G.is_directed() == dataset.metadata["is_directed"]
 
 
-# TODO: test for loop
-# @pytest.mark.parametrize("dataset", ALL_DATASETS)
-# def test_has_loop(dataset):
-# G = dataset.get_graph(download=True)
-# check if it has a loop
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_has_loop(dataset):
+    df = dataset.get_edgelist(download=True)
+    metadata_has_loop = dataset.metadata["has_loop"]
+
+    assert has_loop(df) == metadata_has_loop
+
 
 # TODO: test is symmetric
 # @pytest.mark.parametrize("dataset", ALL_DATASETS)

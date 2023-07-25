@@ -15,8 +15,8 @@ col_types:
   - int32
   - int32
   - float32
-is_directed: true
 has_loop: false
+is_directed: true
 is_multigraph: false
 is_symmetric: true
 number_of_edges: 882
