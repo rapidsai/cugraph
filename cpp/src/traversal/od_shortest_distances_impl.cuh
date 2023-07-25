@@ -515,12 +515,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     size_t{32 * 1024};  // increase the step size if the near queue size is smaller than the target
                         // size (up to num_far_buffers * delta)
 
-  std::cout << "key_buffer_capacity_increment=" << key_buffer_capacity_increment
-            << " init_far_buffer_size=" << init_far_buffer_size
-            << " kv_store_capacity_increment=" << kv_store_capacity_increment
-            << " init_kv_store_size=" << init_kv_store_size
-            << " target_near_q_size=" << target_near_q_size << "\n";
-
   // 3. initialize od_matrix & v_to_destination_indices
 
   auto constexpr invalid_distance =
@@ -615,17 +609,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
 
   // 6. SSSP iteration
 
-#if 1  // DEBUG
-  size_t iter{0};
-  double enum_total{0.0};
-  double key_to_dist_map_total{0.0};
-  double od_matrix_total{0.0};
-  double frontier_total{0.0};
-  double far_split_total{0.0};
-  double key_to_dist_map_filter_total{0.0};
-  size_t key_to_dist_map_filter_count{0};
-  size_t max_key_to_dist_map_size{0};
-#endif
   auto old_near_far_threshold = weight_t{0.0};
   auto near_far_threshold     = delta;
   std::vector<weight_t> next_far_thresholds(num_far_buffers - 1);
@@ -634,25 +617,16 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       (i == 0) ? (near_far_threshold + delta) : next_far_thresholds[i - 1] + delta;
   }
   size_t prev_near_far_threshold_num_inserts{0};
-  auto while_start_time = std::chrono::steady_clock::now();
   while (true) {
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto iter_start = std::chrono::steady_clock::now();  // DEBUG
-
     // 6-1. enumerate next frontier candidates
-#if 1  // DEBUG
-    auto log_near_size = vertex_frontier.bucket(bucket_idx_near).size();
-    auto log_far_size  = far_buffers[0].size();
-    for (size_t i = 1; i < num_far_buffers; ++i) {
-      log_far_size += far_buffers[i].size();
-    }
-    auto key_to_dist_map_size = key_to_dist_map.size();
-    max_key_to_dist_map_size  = std::max(key_to_dist_map_size, max_key_to_dist_map_size);
-#endif
 
     rmm::device_uvector<key_t> new_frontier_keys(0, handle.get_stream());
     rmm::device_uvector<weight_t> distance_buffer(0, handle.get_stream());
     {
+      // use detail space functions as sort_by_key with key = key_t is faster than key =
+      // thrust::tuple<vertex_t, od_idx_t> and we need to convert thrust::tuple<vertex_t, od_idx_t>
+      // to key_t anyways for post processing
+
       auto e_op = e_op_t<vertex_t, od_idx_t, key_t, weight_t, GraphViewType::is_multi_gpu>{
         detail::kv_cuco_store_find_device_view_t(key_to_dist_map.view()),
         static_cast<od_idx_t>(origins.size()),
@@ -698,9 +672,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     }
     vertex_frontier.bucket(bucket_idx_near).clear();
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto iter_enum = std::chrono::steady_clock::now();  // DEBUG
-
     // 6-2. update key_to_dist_map
 
     {
@@ -725,9 +696,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       prev_near_far_threshold_num_inserts += new_frontier_keys.size();
     }
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto iter_key_to_dist_map = std::chrono::steady_clock::now();  // DEBUG
-
     // 6-3. update od_matrix
 
     {
@@ -751,9 +719,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                              static_cast<od_idx_t>(origins.size()),
                              invalid_od_idx});
     }
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto iter_od_matrix = std::chrono::steady_clock::now();  // DEBUG
 
     // 6-4. update the queues
 
@@ -858,27 +823,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     new_frontier_keys.shrink_to_fit(handle.get_stream());
     distance_buffer.shrink_to_fit(handle.get_stream());
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
-    auto iter_frontier = std::chrono::steady_clock::now();  // DEBUG
-#if 1                                                       // DEBUG
-    std::chrono::duration<double> elapsed_enum            = iter_enum - iter_start;
-    std::chrono::duration<double> elapsed_key_to_dist_map = iter_key_to_dist_map - iter_enum;
-    std::chrono::duration<double> elapsed_od_matrix       = iter_od_matrix - iter_key_to_dist_map;
-    std::chrono::duration<double> elapsed_frontier        = iter_frontier - iter_od_matrix;
-    std::chrono::duration<double> elapsed                 = iter_frontier - iter_start;
-    std::chrono::duration<double> elapsed_tot             = iter_frontier - while_start_time;
-    std::cout << "iter=" << iter << " tot=" << elapsed_tot.count() << " sum=" << elapsed.count()
-              << " (" << elapsed_enum.count() << "," << elapsed_key_to_dist_map.count() << ","
-              << elapsed_od_matrix.count() << "," << elapsed_frontier.count() << ") sizes=("
-              << log_near_size << "," << log_far_size << ") map_size=" << key_to_dist_map_size
-              << "\n";
-    enum_total += elapsed_enum.count();
-    key_to_dist_map_total += elapsed_key_to_dist_map.count();
-    od_matrix_total += elapsed_od_matrix.count();
-    frontier_total += elapsed_frontier.count();
-#endif
-    ++iter;  // DEBUG
-
     if (vertex_frontier.bucket(bucket_idx_near).aggregate_size() > 0) {
       /* nothing to do */
     } else {
@@ -888,9 +832,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       }
 
       if (num_aggregate_far_keys > 0) {  // near queue is empty, split the far queue
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto iter_post = std::chrono::steady_clock::now();
-
         std::vector<weight_t> invalid_thresholds(num_far_buffers);
         for (size_t i = 0; i < invalid_thresholds.size(); ++i) {
           invalid_thresholds[i] = (i == 0) ? near_far_threshold : next_far_thresholds[i - 1];
@@ -1049,8 +990,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
             tot_far_size += far_buffers[i].size();
           }
         } while ((near_size == 0) && (tot_far_size > 0));
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto iter_split = std::chrono::steady_clock::now();
 
         // this assumes that # inserts with the previous near_far_threshold is a good estimate for
         // # inserts with the next near_far_threshold
@@ -1075,39 +1014,13 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                                                    next_near_far_threshold_num_inserts_estimate,
                                                    kv_store_capacity_increment,
                                                    origins.size());
-          ++key_to_dist_map_filter_count;  // DEBUG
         }
-        RAFT_CUDA_TRY(cudaDeviceSynchronize());
-        auto iter_key_to_dist_map = std::chrono::steady_clock::now();  // DEBUG
-#if 1
-        std::chrono::duration<double> elapsed_far_split = iter_split - iter_post;
-        std::chrono::duration<double> elapsed_key_to_dist_map_filter =
-          iter_key_to_dist_map - iter_split;
-        far_split_total += elapsed_far_split.count();
-        key_to_dist_map_filter_total += elapsed_key_to_dist_map_filter.count();
-        std::cout << "\tkey_to_dist_map_filter_count=" << key_to_dist_map_filter_count
-                  << " enum_total=" << enum_total
-                  << " key_to_dist_map_total=" << key_to_dist_map_total
-                  << " od_matrix_total=" << od_matrix_total << " frontier_total=" << frontier_total
-                  << " far_split_total=" << far_split_total
-                  << " key_to_dist_map_filter_total=" << key_to_dist_map_filter_total
-                  << " far_split=" << elapsed_far_split.count()
-                  << " key_to_dist_map_filter=" << elapsed_key_to_dist_map_filter.count()
-                  << " near_far_threshold=" << near_far_threshold << std::endl;
-#endif
         if ((near_size == 0) && (tot_far_size == 0)) { break; }
       } else {
         break;
       }
     }
   }
-#if 1  // DEBUG
-  std::cout << "enum=" << enum_total << " key_to_dist_map=" << key_to_dist_map_total
-            << " od_matrix=" << od_matrix_total << " frontier=" << frontier_total
-            << " far_split_total=" << far_split_total
-            << " key_to_dist_map_filter_total=" << key_to_dist_map_filter_total
-            << " max_key_to_dist_map_size=" << max_key_to_dist_map_size << "\n";
-#endif
 
   return od_matrix;
 }
@@ -1153,15 +1066,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     average_edge_weight = ldexp(significand, exponent);
   }
   average_edge_weight /= static_cast<weight_t>(num_edges);
-#if 0
-  auto delta =
-    (static_cast<weight_t>(raft::warp_size()) * average_edge_weight) / average_vertex_degree;
-#else
+  // FIXME: requires additional tuning
   auto delta = average_edge_weight * 0.5;
-#endif
-  std::cout << "average edge weight=" << average_edge_weight
-            << " average_vertex_degree=" << average_vertex_degree << " delta=" << delta
-            << "\n";  // DEBUG
 
   return od_shortest_distances<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(
     handle,
