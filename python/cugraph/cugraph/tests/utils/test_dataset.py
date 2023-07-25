@@ -320,7 +320,7 @@ def test_experimental_dataset_import(setup_deprecation_warning_tests):
 
 def test_experimental_method_warnings(setup_deprecation_warning_tests):
     from cugraph.experimental.datasets import (
-        download_all,
+        load_all,
         set_download_dir,
         get_download_dir,
     )
@@ -331,6 +331,6 @@ def test_experimental_method_warnings(setup_deprecation_warning_tests):
     with pytest.deprecated_call():
         set_download_dir(tmpd.name)
         get_download_dir()
-        download_all()
+        load_all()
 
     tmpd.cleanup()

@@ -20,5 +20,5 @@ is_directed: true
 is_multigraph: false
 is_symmetric: true
 number_of_edges: 5484
-number_of_nodes: 1589
+number_of_nodes: 1461
 url: https://data.rapids.ai/cugraph/datasets/netscience.csv
