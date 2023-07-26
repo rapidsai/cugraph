@@ -24,6 +24,7 @@ import os
 import shutil
 import re
 
+
 @pytest.mark.sg
 def test_bulk_sampler_simple(scratch_dir):
     el = karate.get_edgelist().reset_index().rename(columns={"index": "eid"})
