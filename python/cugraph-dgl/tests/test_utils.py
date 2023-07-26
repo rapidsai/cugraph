@@ -13,9 +13,11 @@
 
 import cudf
 import cupy as cp
+import numpy as np
 import torch
 
 from cugraph_dgl.dataloading.utils.sampling_helpers import cast_to_tensor
+from cugraph_dgl.dataloading.utils.sampling_helpers import _get_renumber_map
 
 
 def test_casting_empty_array():
@@ -23,3 +25,35 @@ def test_casting_empty_array():
     ser = cudf.Series(ar)
     output_tensor = cast_to_tensor(ser)
     assert output_tensor.dtype == torch.int32
+
+
+def get_dummy_sampled_df():
+    df = cudf.DataFrame()
+    df["sources"] = [0, 0, 0, 0, 0, 0, np.nan, np.nan, np.nan]
+    df["destinations"] = [1, 2, 1, 2, 1, 2, np.nan, np.nan, np.nan]
+    df["batch_id"] = [0, 0, 1, 1, 2, 2, np.nan, np.nan, np.nan]
+    df["hop_id"] = [0, 1, 0, 1, 0, 1, np.nan, np.nan, np.nan]
+
+    df["map"] = [3, 6, 9, 10, 11, 12, 13, 14, 15]
+    df = df.astype("int32")
+    df["hop_id"] = df["hop_id"].astype("uint8")
+    return df
+
+
+def test_get_renumber_map():
+    sampled_df = get_dummy_sampled_df()
+
+    df, renumber_map, renumber_map_batch_indices = _get_renumber_map(sampled_df)
+    # Ensure that map was dropped
+    assert "map" not in df.columns
+
+    expected_map = torch.as_tensor(
+        [10, 11, 12, 13, 14, 15], dtype=torch.int32, device="cuda"
+    )
+    assert torch.equal(renumber_map, expected_map)
+
+    expected_batch_indices = torch.as_tensor([3, 6], dtype=torch.int32, device="cuda")
+    assert torch.equal(renumber_map_batch_indices, expected_batch_indices)
+
+    # Ensure we dropped the Nans for rows  corresponding to the renumber_map
+    assert len(df) == 6
