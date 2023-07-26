@@ -329,7 +329,7 @@ def generate_upper_triangle(dataframe):
 @pytest.mark.parametrize("weight", [None])
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_edge_betweenness_centrality_0(
+def test_edge_betweenness_centrality(
     graph_file,
     directed,
     subset_size,

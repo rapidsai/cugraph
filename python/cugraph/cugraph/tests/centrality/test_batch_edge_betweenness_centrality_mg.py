@@ -18,7 +18,7 @@ import numpy as np
 
 from cugraph.dask.common.mg_utils import is_single_gpu
 
-from cugraph.experimental.datasets import karate
+from cugraph.experimental.datasets import karate, netscience
 
 # Get parameters from standard betwenness_centrality_test
 # As tests directory is not a module, we need to add it to the path
@@ -39,11 +39,11 @@ from test_edge_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = [karate]
+DATASETS = [karate, netscience]
 
 # FIXME: The "preset_gpu_count" from 21.08 and below are not supported and have
 # been removed
-RESULT_DTYPE_OPTIONS = [np.float64]
+RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 
 
 # =============================================================================
@@ -59,17 +59,15 @@ def setup_function():
 @pytest.mark.parametrize(
     "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
 )
-@pytest.mark.parametrize("directed", [DIRECTED_GRAPH_OPTIONS[1]])
+@pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
-@pytest.mark.parametrize("normalized", [NORMALIZED_OPTIONS[0]])
-@pytest.mark.parametrize("weight", [None])
+@pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 def test_mg_edge_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
     normalized,
-    weight,
     result_dtype,
     dask_client,
 ):
@@ -78,7 +76,7 @@ def test_mg_edge_betweenness_centrality(
         directed=directed,
         normalized=normalized,
         k=subset_size,
-        weight=weight,
+        weight=None,
         seed=42,
         result_dtype=result_dtype,
         multi_gpu_batch=True,
