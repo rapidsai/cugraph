@@ -550,15 +550,19 @@ struct gatherv_indices_t {
     // FIXME: this can lead to thread-divergence with a mix of high-degree and low-degree vertices
     // in a single warp (better optimize if this becomes a performance bottleneck)
 
-    auto zipped_gathered_begin =
-      thrust::make_zip_iterator(thrust::make_tuple(gathered_intersection_indices.begin(),
-                                                   gathered_nbr_intersection_properties0->begin(),
-                                                   gathered_nbr_intersection_properties1->begin()));
+    auto zipped_gathered_begin = thrust::make_zip_iterator(thrust::make_tuple(
+      gathered_intersection_indices.begin(),
+      gathered_nbr_intersection_properties0 ? (*gathered_nbr_intersection_properties0).begin()
+                                            : nullptr,
+      gathered_nbr_intersection_properties1 ? (*gathered_nbr_intersection_properties1).begin()
+                                            : nullptr));
 
-    auto zipped_combined_begin =
-      thrust::make_zip_iterator(thrust::make_tuple(combined_nbr_intersection_indices.begin(),
-                                                   combined_nbr_intersection_properties0->begin(),
-                                                   combined_nbr_intersection_properties1->begin()));
+    auto zipped_combined_begin = thrust::make_zip_iterator(thrust::make_tuple(
+      combined_nbr_intersection_indices.begin(),
+      combined_nbr_intersection_properties0 ? (*combined_nbr_intersection_properties0).begin()
+                                            : nullptr,
+      combined_nbr_intersection_properties1 ? (*combined_nbr_intersection_properties1).begin()
+                                            : nullptr));
 
     for (int j = 0; j < minor_comm_size; ++j) {
       if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
