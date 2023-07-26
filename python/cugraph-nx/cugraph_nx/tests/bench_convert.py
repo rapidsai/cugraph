@@ -10,9 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pytest
 import random
+
 import networkx as nx
+import pytest
+
 import cugraph_nx as cnx
 
 try:
@@ -37,25 +39,25 @@ def _bench_helper(gpubenchmark, N, attr_kind, create_using, method):
     G = method(N, create_using=create_using)
     if attr_kind:
         skip = True
-        for *ids, edgedict in G.edges(data=True):
+        for *_ids, edgedict in G.edges(data=True):
             skip = not skip
             if skip and attr_kind is not True:
                 continue
             edgedict["x"] = random.randint(0, 100000)
         if attr_kind == "preserve":
-            gpubenchmark(cnx.from_networkx_propertygraph, G, preserve_edge_attrs=True)
+            gpubenchmark(cnx.from_networkx, G, preserve_edge_attrs=True)
         elif attr_kind == "half_missing":
-            gpubenchmark(cnx.from_networkx_propertygraph, G, edge_attrs={"x": None})
+            gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": None})
         else:
-            gpubenchmark(cnx.from_networkx_propertygraph, G, edge_attrs={"x": 0})
+            gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": 0})
     else:
-        gpubenchmark(cnx.from_networkx_propertygraph, G)
+        gpubenchmark(cnx.from_networkx, G)
 
 
 def _bench_helper_cugraph(gpubenchmark, N, attr_kind, create_using, method):
     G = method(N, create_using=create_using)
     if attr_kind:
-        for *ids, edgedict in G.edges(data=True):
+        for *_ids, edgedict in G.edges(data=True):
             edgedict["x"] = random.randint(0, 100000)
         gpubenchmark(cugraph.utilities.convert_from_nx, G, "x")
     else:

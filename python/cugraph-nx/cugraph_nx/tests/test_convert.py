@@ -10,9 +10,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pytest
 import cupy as cp
 import networkx as nx
+import pytest
+
 import cugraph_nx as cnx
 
 
@@ -26,14 +27,16 @@ import cugraph_nx as cnx
         {"preserve_all_attrs": True},
         {"edge_attrs": {"x": 0}},
         {"edge_attrs": {"x": None}},
+        {"edge_attrs": "x"},
         {"node_attrs": {"x": 0}},
         {"node_attrs": {"x": None}},
+        {"node_attrs": "x"},
         {"weight": "x"},
     ],
 )
-def test_convert_empty_propertygraph(graph_class, kwargs):
+def test_convert_empty(graph_class, kwargs):
     G = graph_class()
-    cG = cnx.from_networkx_propertygraph(G, **kwargs)
+    cG = cnx.from_networkx(G, **kwargs)
     H = cnx.to_networkx(cG)
     assert G.number_of_nodes() == cG.number_of_nodes() == H.number_of_nodes() == 0
     assert G.number_of_edges() == cG.number_of_edges() == H.number_of_edges() == 0
@@ -41,7 +44,7 @@ def test_convert_empty_propertygraph(graph_class, kwargs):
     assert G.graph == cG.graph == H.graph == {}
 
 
-def test_convert_propertygraph():
+def test_convert():
     G = nx.Graph()
     G.add_edge(0, 1, x=2)
     G.add_node(0, foo=10)
@@ -51,9 +54,10 @@ def test_convert_propertygraph():
         {"preserve_all_attrs": True},
         {"edge_attrs": {"x": 0}},
         {"edge_attrs": {"x": None}},
+        {"edge_attrs": "x", "edge_dtypes": int},
     ]:
         # All edges have "x" attribute, so all kwargs are equivalent
-        cG = cnx.from_networkx_propertygraph(G, **kwargs)
+        cG = cnx.from_networkx(G, **kwargs)
         cp.testing.assert_array_equal(cG.row_indices, [0, 1])
         cp.testing.assert_array_equal(cG.col_indices, [1, 0])
         cp.testing.assert_array_equal(cG.edge_values["x"], [2, 2])
@@ -65,7 +69,7 @@ def test_convert_propertygraph():
         assert G.adj == H.adj
 
     # Structure-only graph (no edge attributes)
-    cG = cnx.from_networkx_propertygraph(G, preserve_node_attrs=True)
+    cG = cnx.from_networkx(G, preserve_node_attrs=True)
     cp.testing.assert_array_equal(cG.row_indices, [0, 1])
     cp.testing.assert_array_equal(cG.col_indices, [1, 0])
     cp.testing.assert_array_equal(cG.node_values["foo"], [10, 20])
@@ -75,7 +79,7 @@ def test_convert_propertygraph():
     assert G.nodes == H.nodes
 
     # Fill completely missing attribute with default value
-    cG = cnx.from_networkx_propertygraph(G, edge_attrs={"y": 0})
+    cG = cnx.from_networkx(G, edge_attrs={"y": 0})
     cp.testing.assert_array_equal(cG.row_indices, [0, 1])
     cp.testing.assert_array_equal(cG.col_indices, [1, 0])
     cp.testing.assert_array_equal(cG.edge_values["y"], [0, 0])
@@ -85,7 +89,7 @@ def test_convert_propertygraph():
     assert list(H.edges(data=True)) == [(0, 1, {"y": 0})]
 
     # If attribute is completely missing (and no default), then just ignore it
-    cG = cnx.from_networkx_propertygraph(G, edge_attrs={"y": None})
+    cG = cnx.from_networkx(G, edge_attrs={"y": None})
     cp.testing.assert_array_equal(cG.row_indices, [0, 1])
     cp.testing.assert_array_equal(cG.col_indices, [1, 0])
     assert sorted(cG.edge_values) == sorted(cG.edge_masks) == []
@@ -95,7 +99,7 @@ def test_convert_propertygraph():
     G.add_edge(0, 2)
     # Some edges are missing 'x' attribute; need to use a mask
     for kwargs in [{"preserve_edge_attrs": True}, {"edge_attrs": {"x": None}}]:
-        cG = cnx.from_networkx_propertygraph(G, **kwargs)
+        cG = cnx.from_networkx(G, **kwargs)
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
         assert sorted(cG.edge_values) == sorted(cG.edge_masks) == ["x"]
@@ -119,8 +123,8 @@ def test_convert_propertygraph():
         {"edge_attrs": {"x": 0, "y": None}},
         {"edge_attrs": {"x": 0, "y": None}, "edge_dtypes": {"x": int, "y": float}},
     ]:
-        cG = cnx.from_networkx_propertygraph(G, **kwargs)
-        cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
+        cG = cnx.from_networkx(G, **kwargs)
+        assert cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
         cp.testing.assert_array_equal(cG.edge_values["x"], [1, 2, 1, 2])
@@ -139,8 +143,8 @@ def test_convert_propertygraph():
         {"node_attrs": {"foo": None, "bar": None}},
         {"node_attrs": {"foo": 0, "bar": None, "missing": None}},
     ]:
-        cG = cnx.from_networkx_propertygraph(G, **kwargs)
-        cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
+        cG = cnx.from_networkx(G, **kwargs)
+        assert cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
         cp.testing.assert_array_equal(cG.node_values["foo"], [100, 200, 300])
@@ -157,9 +161,10 @@ def test_convert_propertygraph():
         {"node_attrs": {"foo": None, "bar": 0}},
         {"node_attrs": {"bar": 0}},
         {"node_attrs": {"bar": 0}, "node_dtypes": {"bar": int}},
+        {"node_attrs": {"bar": 0, "foo": None}, "node_dtypes": int},
     ]:
-        cG = cnx.from_networkx_propertygraph(G, **kwargs)
-        cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
+        cG = cnx.from_networkx(G, **kwargs)
+        assert cG.id_to_key == {0: 10, 1: 20, 2: 30}  # Remap node IDs to 0, 1, ...
         cp.testing.assert_array_equal(cG.row_indices, [0, 0, 1, 2])
         cp.testing.assert_array_equal(cG.col_indices, [1, 2, 0, 0])
         cp.testing.assert_array_equal(cG.node_values["bar"], [0, 1000, 0])
@@ -168,6 +173,6 @@ def test_convert_propertygraph():
     with pytest.raises(
         TypeError, match="edge_attrs and weight arguments should not both be given"
     ):
-        cnx.from_networkx_propertygraph(G, edge_attrs={"x": 1}, weight="x")
+        cnx.from_networkx(G, edge_attrs={"x": 1}, weight="x")
     with pytest.raises(TypeError, match="Expected networkx.Graph"):
-        cnx.from_networkx_propertygraph({})
+        cnx.from_networkx({})

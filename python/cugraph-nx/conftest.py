@@ -10,25 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
-
-import cugraph_nx as cnx
-
-from . import algorithms
 
 
-class Dispatcher:
-    is_strongly_connected = algorithms.is_strongly_connected
-
-    # Required conversions
-    convert_from_nx = cnx.from_networkx
-
-    @staticmethod
-    def convert_to_nx(obj, *, name: str | None = None):
-        if isinstance(obj, cnx.Graph):
-            return cnx.to_networkx(obj)
-        return obj
-
-    @staticmethod
-    def on_start_tests(items):
-        pass
+def pytest_addoption(parser):
+    parser.addoption(
+        "--bench",
+        action="store_true",
+        default=False,
+        help="Run benchmarks (sugar for --benchmark-enable) and skip other tests",
+    )

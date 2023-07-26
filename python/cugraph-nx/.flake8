@@ -9,5 +9,5 @@ extend-ignore =
     SIM401,
 # E203 whitespace before ':' (to be compatible with black)
 per-file-ignores =
-    cugraph_pg/tests/*.py:T201,
+    cugraph_nx/tests/*.py:T201,
     __init__.py:F401,F403,

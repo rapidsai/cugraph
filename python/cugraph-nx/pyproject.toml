@@ -37,7 +37,6 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pandas",
     "pytest",
     "pytest-benchmark",
 ]
@@ -189,15 +188,17 @@ ignore = [
     "SLF",  # flake8-self (We can use our own private variables--sheesh!)
     "TID",  # flake8-tidy-imports (Rely on isort and our own judgement)
     # "TCH",  # flake8-type-checking
-    # "ARG",  # flake8-unused-arguments (Sometimes helpful, but too strict)
+    "ARG",  # flake8-unused-arguments (Sometimes helpful, but too strict)
     "TD",  # flake8-todos (Maybe okay to add some of these)
+    "FIX",  # flake8-fixme (like flake8-todos)
     "ERA",  # eradicate (We like code in comments!)
     "PD",  # pandas-vet (Intended for scripts that use pandas, not libraries)
 ]
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports (w/o defining `__all__`)
-"cugraph_nx/**/tests/*py" = ["S101", "T201", "D103", "D100"]  # Allow assert, print, and no docstring
+# Allow assert, print, RNG, and no docstring
+"cugraph_nx/**/tests/*py" = ["S101", "S311", "T201", "D103", "D100"]
 
 [tool.ruff.flake8-annotations]
 mypy-init-return = true

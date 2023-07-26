@@ -12,23 +12,12 @@
 # limitations under the License.
 from __future__ import annotations
 
-import cugraph_nx as cnx
+from collections.abc import Hashable
+from typing import TypeVar
 
-from . import algorithms
-
-
-class Dispatcher:
-    is_strongly_connected = algorithms.is_strongly_connected
-
-    # Required conversions
-    convert_from_nx = cnx.from_networkx
-
-    @staticmethod
-    def convert_to_nx(obj, *, name: str | None = None):
-        if isinstance(obj, cnx.Graph):
-            return cnx.to_networkx(obj)
-        return obj
-
-    @staticmethod
-    def on_start_tests(items):
-        pass
+EdgeType = TypeVar("EdgeType", bound=Hashable)
+NodeType = TypeVar("NodeType", bound=Hashable)
+AttrType = TypeVar("AttrType", bound=Hashable)
+EdgeValue = TypeVar("EdgeValue")
+NodeValue = TypeVar("NodeValue")
+Dtype = TypeVar("Dtype")

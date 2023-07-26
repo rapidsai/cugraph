@@ -1,3 +1,7 @@
+from functools import partial
+
+import networkx as nx
+
 # Copyright (c) 2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,4 +16,23 @@
 # limitations under the License.
 from networkx.utils.decorators import not_implemented_for
 
-__all__ = ["not_implemented_for"]
+__all__ = ["not_implemented_for", "networkx_api"]
+
+
+def networkx_api(func=None, api=None, *, doc=None, name=None):
+    if func is None:
+        return partial(networkx_api, api=api, doc=doc, name=name)
+    if doc is not None:
+        if isinstance(doc, str):
+            # We got a docstring? Weird, but okay ;)
+            func.__doc__ = doc
+        else:
+            # Get the docstring from a function
+            func.__doc__ = doc.__doc__
+    elif api is not None:
+        # Get the doctring from a class or module with the same function
+        func.__doc__ = getattr(api, name or func.__name__).__doc__
+    else:
+        # Get the doctring from the main networkx namespace
+        func.__doc__ = getattr(nx, name or func.__name__).__doc__
+    return func
