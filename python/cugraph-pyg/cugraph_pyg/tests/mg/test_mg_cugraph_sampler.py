@@ -51,6 +51,7 @@ def test_neighbor_sample(dask_client, basic_graph_1):
 
     out = _sampler_output_from_sampling_results(
         sampling_results=sampling_results,
+        renumber_map=None,
         graph_store=cugraph_store,
         metadata=torch.arange(6, dtype=torch.int64),
     )
@@ -76,7 +77,7 @@ def test_neighbor_sample(dask_client, basic_graph_1):
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 1
-    assert out.num_sampled_nodes["vt1"].tolist() == [4, 1]
+    assert out.num_sampled_nodes["vt1"].tolist() == [4, 4]
 
     assert len(out.num_sampled_edges) == 1
     assert out.num_sampled_edges[("vt1", "pig", "vt1")].tolist() == [6]
@@ -106,6 +107,7 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
 
     out = _sampler_output_from_sampling_results(
         sampling_results=sampling_results,
+        renumber_map=None,
         graph_store=cugraph_store,
         metadata=torch.arange(6, dtype=torch.int64),
     )
@@ -128,8 +130,8 @@ def test_neighbor_sample_multi_vertex(dask_client, multi_edge_multi_vertex_graph
 
     # check the hop dictionaries
     assert len(out.num_sampled_nodes) == 2
-    assert out.num_sampled_nodes["black"].tolist() == [2, 0]
-    assert out.num_sampled_nodes["brown"].tolist() == [3, 0]
+    assert out.num_sampled_nodes["black"].tolist() == [2, 2]
+    assert out.num_sampled_nodes["brown"].tolist() == [3, 2]
 
     assert len(out.num_sampled_edges) == 5
     assert out.num_sampled_edges[("brown", "horse", "brown")].tolist() == [2]
@@ -183,7 +185,7 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
     )
 
     out = _sampler_output_from_sampling_results(
-        mock_sampling_results, graph_store, None
+        mock_sampling_results, None, graph_store, None
     )
 
     assert out.metadata is None
@@ -202,9 +204,9 @@ def test_neighbor_sample_mock_sampling_results(dask_client):
     assert out.col[("B", "ba", "A")].tolist() == [1, 1]
 
     assert len(out.num_sampled_nodes) == 3
-    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 0, 0, 0]
-    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 0, 0]
-    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 1]
+    assert out.num_sampled_nodes["A"].tolist() == [2, 0, 1, 0, 1]
+    assert out.num_sampled_nodes["B"].tolist() == [0, 2, 0, 1, 0]
+    assert out.num_sampled_nodes["C"].tolist() == [0, 0, 2, 0, 2]
 
     assert len(out.num_sampled_edges) == 3
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
