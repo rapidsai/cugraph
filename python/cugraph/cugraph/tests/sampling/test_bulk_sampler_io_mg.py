@@ -45,7 +45,7 @@ def test_bulk_sampler_io(scratch_dir):
     samples_path = os.path.join(scratch_dir, "mg_test_bulk_sampler_io")
     create_directory_with_overwrite(samples_path)
 
-    write_samples(results, offsets, 1, samples_path)
+    write_samples(results, offsets, None, 1, samples_path)
 
     assert len(os.listdir(samples_path)) == 2
 
