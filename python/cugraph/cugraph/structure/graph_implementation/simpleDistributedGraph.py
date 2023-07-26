@@ -202,7 +202,7 @@ class simpleDistributedGraphImpl:
             elif len(edge_attr) == 3:
                 weight_col, id_col, type_col = edge_attr
                 df = df[[weight_col, id_col, type_col]]
-                df.columns = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
+                df.columns = ddf.columns + [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
                 value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
             else:
                 raise ValueError("Only 1 or 3 values may be provided" "for edge_attr")
