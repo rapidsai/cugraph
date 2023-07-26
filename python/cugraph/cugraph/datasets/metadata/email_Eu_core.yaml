@@ -24,7 +24,7 @@ col_types:
 has_loop: true
 is_directed: true
 is_multigraph: false
-is_symmetric: true
+is_symmetric: false
 number_of_edges: 25571
 number_of_nodes: 1005
 url: https://data.rapids.ai/cugraph/datasets/email-Eu-core.csv

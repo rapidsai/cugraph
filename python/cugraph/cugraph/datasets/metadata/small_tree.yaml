@@ -17,7 +17,7 @@ col_types:
 has_loop: false
 is_directed: true
 is_multigraph: false
-is_symmetric: true
+is_symmetric: false
 number_of_edges: 11
 number_of_nodes: 9
 url: https://data.rapids.ai/cugraph/datasets/small_tree.csv

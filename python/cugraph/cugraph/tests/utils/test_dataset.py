@@ -20,6 +20,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
+import cudf
 from cugraph.structure import Graph
 from cugraph.testing import (
     RAPIDS_DATASET_ROOT_DIR_PATH,
@@ -90,7 +91,7 @@ def setup_deprecation_warning_tests():
 
 
 ###############################################################################
-# Helper
+# Helpers
 
 # check if there is a row where src == dst
 def has_loop(df):
@@ -98,6 +99,24 @@ def has_loop(df):
     res = df.where(df["src"] == df["dst"])
 
     return res.notnull().values.any()
+
+
+# check if dataset object is symmetric
+def is_symmetric(dataset):
+    # undirected graphs are symmetric
+    if not dataset.metadata["is_directed"]:
+        return True
+    else:
+        df = dataset.get_edgelist(download=True)
+        df_a = df.sort_values("src")
+        df_b = df_a[["dst", "src", "wgt"]]
+        df_b.rename(columns={"dst": "src", "src": "dst"}, inplace=True)
+        # created a df by appending the two
+        res = cudf.concat([df_a, df_b])
+        # sort/unique
+        res = res.drop_duplicates().sort_values("src")
+
+        return len(df_a) == len(res)
 
 
 ###############################################################################
@@ -276,16 +295,8 @@ def test_node_and_edge_count(dataset):
         download=True, create_using=Graph(directed=dataset_is_directed)
     )
 
-    # these are the values read directly from .yaml file
-    meta_node_count = dataset.metadata["number_of_nodes"]
-    meta_edge_count = dataset.metadata["number_of_edges"]
-
-    # value from the cugraph.Graph object
-    obj_node_count = G.number_of_nodes()
-    obj_edge_count = G.number_of_edges()
-
-    assert obj_node_count == meta_node_count
-    assert obj_edge_count == meta_edge_count
+    assert G.number_of_nodes() == dataset.metadata["number_of_nodes"]
+    assert G.number_of_edges() == dataset.metadata["number_of_edges"]
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -301,23 +312,20 @@ def test_is_directed(dataset):
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_has_loop(dataset):
     df = dataset.get_edgelist(download=True)
-    metadata_has_loop = dataset.metadata["has_loop"]
 
-    assert has_loop(df) == metadata_has_loop
+    assert has_loop(df) == dataset.metadata["has_loop"]
 
 
-# TODO: test is symmetric
-# @pytest.mark.parametrize("dataset", ALL_DATASETS)
-# def test_is_symmetric(dataset):
-# G = dataset.get_graph(download=True)
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_is_symmetric(dataset):
+    assert is_symmetric(dataset) == dataset.metadata["is_symmetric"]
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_is_multigraph(dataset):
-    dataset_is_multigraph = dataset.metadata["is_multigraph"]
     G = dataset.get_graph(download=True)
 
-    assert G.is_multigraph() == dataset_is_multigraph
+    assert G.is_multigraph() == dataset.metadata["is_multigraph"]
 
 
 #

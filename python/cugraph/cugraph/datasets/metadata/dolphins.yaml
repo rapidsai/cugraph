@@ -19,7 +19,7 @@ col_types:
 has_loop: false
 is_directed: false
 is_multigraph: false
-is_symmetric: false
+is_symmetric: true
 number_of_edges: 159
 number_of_nodes: 62
 url: https://data.rapids.ai/cugraph/datasets/dolphins.csv

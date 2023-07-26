@@ -20,7 +20,7 @@ col_types:
 has_loop: false
 is_directed: false
 is_multigraph: false
-is_symmetric: false
+is_symmetric: true
 number_of_edges: 78
 number_of_nodes: 34
 url: https://data.rapids.ai/cugraph/datasets/karate-asymmetric.csv
