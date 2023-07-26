@@ -124,18 +124,28 @@ def _get_tensor_d_from_sampled_df(df):
 
 def create_homogeneous_sampled_graphs_from_dataframe(
     sampled_df: cudf.DataFrame,
-    total_number_of_nodes: int,
     edge_dir: str = "in",
 ):
     """
     This helper function creates DGL MFGS  for
     homogeneous graphs from cugraph sampled dataframe
+
+    Args:
+        sampled_df (cudf.DataFrame): The sampled cuDF DataFrame containing
+            columns `sources`, `destinations`, `edge_id`, `batch_id` and
+            `hop_id`.
+        edge_dir (str): Direction of edges from samples
+    Returns:
+        list: A list containing three elements:
+            - input_nodes: The input nodes for the batch.
+            - output_nodes: The output nodes for the batch.
+            - graph_per_hop_ls: A list of DGL MFGS for each hop.
     """
     result_tensor_d = _get_tensor_d_from_sampled_df(sampled_df)
     del sampled_df
     result_mfgs = [
         _create_homogeneous_sampled_graphs_from_tensors_perhop(
-            tensors_batch_d, total_number_of_nodes, edge_dir
+            tensors_batch_d, edge_dir
         )
         for tensors_batch_d in result_tensor_d.values()
     ]
@@ -143,9 +153,21 @@ def create_homogeneous_sampled_graphs_from_dataframe(
     return result_mfgs
 
 
-def _create_homogeneous_sampled_graphs_from_tensors_perhop(
-    tensors_batch_d, total_number_of_nodes, edge_dir
-):
+def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge_dir):
+    """
+    This helper function creates sampled DGL MFGS for
+    homogeneous graphs from tensors per hop for a single
+    batch
+
+    Args:
+        tensors_batch_d (dict): A dictionary of tensors, keyed by hop_id.
+        edge_dir (str): Direction of edges from samples
+    Returns:
+        tuple: A tuple of three elements:
+            - input_nodes: The input nodes for the batch.
+            - output_nodes: The output nodes for the batch.
+            - graph_per_hop_ls: A list of DGL MFGS for each hop.
+    """
     if edge_dir not in ["in", "out"]:
         raise ValueError(f"Invalid edge_dir {edge_dir} provided")
     if edge_dir == "out":
@@ -160,7 +182,7 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(
     if edge_dir == "in":
         graph_per_hop_ls.reverse()
 
-    input_nodes = graph_per_hop_ls[-1].srcnodes()
+    input_nodes = graph_per_hop_ls[0].srcnodes()
     output_nodes = graph_per_hop_ls[-1].dstnodes()
     original_input_nodes = tensors_batch_d["map"][input_nodes]
     original_output_nodes = tensors_batch_d["map"][output_nodes]

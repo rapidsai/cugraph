@@ -71,7 +71,7 @@ def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
         df_ls.append(df)
     df = cudf.concat(df_ls, ignore_index=True)
     df["batch_id"] = 0
-    return create_homogeneous_sampled_graphs_from_dataframe(df, g.num_nodes())[0]
+    return create_homogeneous_sampled_graphs_from_dataframe(df)[0]
 
 
 @pytest.mark.parametrize("seed_node", [3, 4, 5])

@@ -14,14 +14,17 @@
 import cudf
 import cupy as cp
 import numpy as np
-import torch
-
 from cugraph_dgl.dataloading.utils.sampling_helpers import (
     cast_to_tensor,
     _get_renumber_map,
     _split_tensor,
     _get_tensor_d_from_sampled_df,
+    create_homogeneous_sampled_graphs_from_dataframe,
 )
+from cugraph.utilities.utils import import_optional
+
+dgl = import_optional("dgl")
+torch = import_optional("torch")
 
 
 def test_casting_empty_array():
@@ -96,3 +99,44 @@ def test_get_tensor_d_from_sampled_df():
                 )
 
         assert torch.equal(batch_td["map"], expected_maps[batch_id])
+
+
+def test_create_homogeneous_sampled_graphs_from_dataframe():
+    sampler = dgl.dataloading.MultiLayerNeighborSampler([2, 2])
+    g = dgl.graph(([0, 10, 20], [0, 0, 10])).to("cuda")
+    dgl_input_nodes, dgl_output_nodes, dgl_blocks = sampler.sample_blocks(
+        g, torch.as_tensor([0]).to("cuda")
+    )
+
+    # Directions are reversed in dgl
+    s1, d1 = dgl_blocks[0].edges()
+    s0, d0 = dgl_blocks[1].edges()
+    srcs = cp.concatenate([cp.asarray(s0), cp.asarray(s1)])
+    dsts = cp.concatenate([cp.asarray(d0), cp.asarray(d1)])
+
+    nids = dgl_blocks[0].srcdata[dgl.NID]
+    nids = cp.concatenate(
+        [cp.asarray([2]), cp.asarray([len(nids) + 2]), cp.asarray(nids)]
+    )
+
+    df = cudf.DataFrame()
+    df["sources"] = srcs
+    df["destinations"] = dsts
+    df["hop_id"] = [0] * len(s0) + [1] * len(s1)
+    df["batch_id"] = 0
+    df["map"] = nids
+
+    (
+        cugraph_input_nodes,
+        cugraph_output_nodes,
+        cugraph_blocks,
+    ) = create_homogeneous_sampled_graphs_from_dataframe(df)[0]
+
+    assert torch.equal(dgl_input_nodes, cugraph_input_nodes)
+    assert torch.equal(dgl_output_nodes, cugraph_output_nodes)
+
+    for c_block, d_block in zip(cugraph_blocks, dgl_blocks):
+        ce, cd = c_block.edges()
+        de, dd = d_block.edges()
+        assert torch.equal(ce, de)
+        assert torch.equal(cd, dd)
