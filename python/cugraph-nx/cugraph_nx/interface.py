@@ -21,7 +21,16 @@ class Dispatcher:
     is_strongly_connected = algorithms.is_strongly_connected
 
     # Required conversions
-    convert_from_nx = cnx.from_networkx
+    @staticmethod
+    def convert_from_nx(*args, edge_attrs=None, weight=None, **kwargs):
+        if weight is not None:
+            # For networkx 3.0 and 3.1 compatibility
+            if edge_attrs is not None:
+                raise TypeError(
+                    "edge_attrs and weight arguments should not both be given"
+                )
+            edge_attrs = {weight: 1}
+        return cnx.from_networkx(*args, edge_attrs=edge_attrs, **kwargs)
 
     @staticmethod
     def convert_to_nx(obj, *, name: str | None = None):

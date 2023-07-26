@@ -15,6 +15,7 @@ import networkx as nx
 import pytest
 
 import cugraph_nx as cnx
+from cugraph_nx import interface
 
 
 @pytest.mark.parametrize("graph_class", [nx.Graph, nx.DiGraph])
@@ -31,7 +32,6 @@ import cugraph_nx as cnx
         {"node_attrs": {"x": 0}},
         {"node_attrs": {"x": None}},
         {"node_attrs": "x"},
-        {"weight": "x"},
     ],
 )
 def test_convert_empty(graph_class, kwargs):
@@ -173,6 +173,6 @@ def test_convert():
     with pytest.raises(
         TypeError, match="edge_attrs and weight arguments should not both be given"
     ):
-        cnx.from_networkx(G, edge_attrs={"x": 1}, weight="x")
+        interface.Dispatcher.convert_from_nx(G, edge_attrs={"x": 1}, weight="x")
     with pytest.raises(TypeError, match="Expected networkx.Graph"):
         cnx.from_networkx({})

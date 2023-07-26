@@ -43,7 +43,7 @@ def from_networkx(
     edge_dtypes: Dtype | dict[AttrKey, Dtype] | None = None,
     *,
     node_attrs: AttrKey | dict[AttrKey, NodeValue | None] | None = None,
-    node_dtypes: Dtype | dict[AttrKey, Dtype] | None = None,
+    node_dtypes: Dtype | dict[AttrKey, Dtype | None] | None = None,
     preserve_all_attrs: bool = False,
     preserve_edge_attrs: bool = False,
     preserve_node_attrs: bool = False,
@@ -51,7 +51,6 @@ def from_networkx(
     as_directed: bool = False,
     name: str | None = None,
     graph_name: str | None = None,
-    weight: AttrKey | None = None,  # For `3.0 <= nx.__version__ < 3.2`
 ) -> cnx.Graph:
     """Convert a networkx graph to cugraph_nx graph; can convert all attributes.
 
@@ -86,9 +85,6 @@ def from_networkx(
         The name of the algorithm when dispatched from networkx.
     graph_name : str, optional
         The name of the graph argument geing converted when dispatched from networkx.
-    weight : str, optional
-        Equivalent to ``edge_attrs={weight: 1}``.
-        This is used to support the simpler dispatching in networkx 3.0 and 3.1.
 
     Returns
     -------
@@ -115,12 +111,7 @@ def from_networkx(
         preserve_node_attrs = True
         preserve_graph_attrs = True
 
-    if weight is not None:
-        # For networkx 3.0 and 3.1 compatibility
-        if edge_attrs is not None:
-            raise TypeError("edge_attrs and weight arguments should not both be given")
-        edge_attrs = {weight: 1}
-    elif edge_attrs is not None and not isinstance(edge_attrs, Mapping):
+    if edge_attrs is not None and not isinstance(edge_attrs, Mapping):
         edge_attrs = {edge_attrs: 1}
 
     if node_attrs is not None and not isinstance(node_attrs, Mapping):
