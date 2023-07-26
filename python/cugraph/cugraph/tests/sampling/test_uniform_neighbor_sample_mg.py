@@ -958,6 +958,53 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core(dask_client):
             assert c <= 5 - hop
 
 
+@pytest.mark.mg
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
+@pytest.mark.tags("runme")
+def test_uniform_neighbor_sample_renumber(dask_client, hops):
+    # FIXME This test is not very good because there is a lot of
+    # non-deterministic behavior that still exists despite passing
+    # a random seed. Right now, there are tests in cuGraph-DGL and
+    # cuGraph-PyG that provide better coverage, but a better test
+    # should eventually be written to augment or replace this one.
+
+    el = dask_cudf.from_cudf(email_Eu_core.get_edgelist(), npartitions=4)
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+
+    sampling_results_renumbered, renumber_map = cugraph.dask.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=True,
+        random_state=62,
+        keep_batches_together=True,
+        min_batch_id=0,
+        max_batch_id=0,
+    )
+    sampling_results_renumbered = sampling_results_renumbered.compute()
+    renumber_map = renumber_map.compute()
+
+    sources_hop_0 = sampling_results_renumbered[
+        sampling_results_renumbered.hop_id == 0
+    ].sources
+
+    assert (renumber_map.batch_id == 0).all()
+    assert (
+        renumber_map.map.nunique()
+        == cudf.concat(
+            [sources_hop_0, sampling_results_renumbered.destinations]
+        ).nunique()
+    )
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
