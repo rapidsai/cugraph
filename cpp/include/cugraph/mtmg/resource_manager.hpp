@@ -19,8 +19,12 @@
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/mtmg/instance_manager.hpp>
 
+#include <raft/comms/std_comms.hpp>
+
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
+
+#include <execution>
 
 namespace cugraph {
 namespace mtmg {
@@ -62,9 +66,6 @@ class resource_manager_t {
 
     CUGRAPH_EXPECTS(local_rank_map_.find(rank) == local_rank_map_.end(),
                     "cannot register same rank multiple times");
-#if 0
-    CUGRAPH_EXPECTS(remote_rank_map_.find(rank) == remote_rank_map_.end(), "cannot register same rank multiple times");
-#endif
 
     int num_gpus_this_node;
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_this_node));
@@ -93,13 +94,16 @@ class resource_manager_t {
    * ranks will be renumbered into the range [0, @p ranks_to_use.size()), making
    * it a proper configuration.
    *
-   * @param ranks_to_use   a vector containing the ranks to include in the instance.
+   * @param ranks_to_use        a vector containing the ranks to include in the instance.
    *   Must be a subset of the entire set of available ranks.
+   * @param instance_manager_id a ncclUniqueId that is shared by all processes participating
+   *   in this instance.  All processes must use the same ID in this call, it is up
+   *   to the calling code to share this ID properly before the call.
    *
    * @return unique pointer to instance manager
    */
   std::unique_ptr<instance_manager_t> create_instance_manager(
-    std::vector<int> ranks_to_include) const
+    std::vector<int> ranks_to_include, ncclUniqueId instance_manager_id) const
   {
     std::for_each(
       ranks_to_include.begin(), ranks_to_include.end(), [local_ranks = local_rank_map_](int rank) {
@@ -107,34 +111,58 @@ class resource_manager_t {
                         "requesting inclusion of an invalid rank");
       });
 
+    ncclGroupStart();
+
+    std::vector<std::shared_ptr<ncclComm_t>> nccl_comms(ranks_to_include.size());
     std::vector<std::shared_ptr<raft::handle_t>> handles(ranks_to_include.size());
+    std::vector<int> device_ids(ranks_to_include.size());
 
-    std::transform(ranks_to_include.begin(),
-                   ranks_to_include.end(),
-                   handles.begin(),
-                   [local_ranks = local_rank_map_](int rank) {
-                     // FIXME: I should pass in RMM parameters here?
-                     auto handle = std::make_shared<raft::handle_t>();
+    std::vector<std::thread> running_threads;
 
-#if 0
-                     // FIXME: I don't have MPI, I need some sort of analog for this
-                     raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
-#endif
-                     auto& comm           = handle->get_comms();
-                     auto const comm_size = comm.get_size();
+    for (size_t i = 0; i < ranks_to_include.size(); ++i) {
+      running_threads.emplace_back([instance_manager_id,
+                                    idx = i,
+                                    this,
+                                    &ranks_to_include,
+                                    &local_ranks = local_rank_map_,
+                                    &nccl_comms,
+                                    &handles,
+                                    &device_ids]() {
+        int rank = ranks_to_include[idx];
 
-                     auto gpu_row_comm_size =
-                       static_cast<int>(sqrt(static_cast<double>(comm_size)));
-                     while (comm_size % gpu_row_comm_size != 0) {
-                       --gpu_row_comm_size;
-                     }
+        // FIXME: not quite right for multi-node
+        auto nccl_comm = std::make_shared<ncclComm_t>();
+        auto pos       = local_ranks.find(rank);
+        cudaSetDevice(pos->second);
+        ncclCommInitRank(nccl_comm.get(), local_ranks.size(), instance_manager_id, rank);
 
-                     cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
+        // FIXME: I should pass in RMM parameters here?
+        auto handle = std::make_shared<raft::handle_t>();
 
-                     return handle;
-                   });
+        raft::comms::build_comms_nccl_only(handle.get(), *nccl_comm, local_ranks.size(), rank);
 
-    return std::make_unique<instance_manager_t>(std::move(handles));
+        auto& comm           = handle->get_comms();
+        auto const comm_size = comm.get_size();
+
+        auto gpu_row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+        while (comm_size % gpu_row_comm_size != 0) {
+          --gpu_row_comm_size;
+        }
+
+        cugraph::partition_manager::init_subcomm(*handle, gpu_row_comm_size);
+
+        nccl_comms[idx] = nccl_comm;
+        handles[idx]    = handle;
+        device_ids[idx] = pos->second;
+      });
+    }
+
+    std::for_each(running_threads.begin(), running_threads.end(), [](auto& t) { t.join(); });
+
+    ncclGroupEnd();
+
+    return std::make_unique<instance_manager_t>(
+      std::move(handles), std::move(nccl_comms), std::move(device_ids));
   }
 
   /**
@@ -157,6 +185,7 @@ class resource_manager_t {
       local_rank_map_.begin(), local_rank_map_.end(), registered_ranks.begin(), [](auto pair) {
         return pair.first;
       });
+
     return registered_ranks;
   }
 

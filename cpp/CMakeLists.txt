@@ -166,6 +166,7 @@ endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
+include(cmake/thirdparty/get_ucp.cmake)
 
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
@@ -292,6 +293,7 @@ set(CUGRAPH_SOURCES
     src/community/triangle_count_mg.cu
     src/traversal/k_hop_nbrs_sg.cu
     src/traversal/k_hop_nbrs_mg.cu
+    src/mtmg/vertex_result.cu
 )
 
 if(USE_CUGRAPH_OPS)

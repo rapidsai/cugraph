@@ -156,6 +156,7 @@ class thread_edgelist_t {
       edge_type_
         ? std::make_optional(raft::host_span<edge_type_t const>{edge_type_->data(), current_pos_})
         : std::nullopt);
+
     current_pos_ = 0;
   }
 

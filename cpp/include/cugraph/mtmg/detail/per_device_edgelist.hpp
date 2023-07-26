@@ -118,11 +118,26 @@ class per_device_edgelist_t {
                             copy_count,
                             handle.raft_handle().get_stream());
 
-      if (current_pos_ == src_.size()) { create_new_buffers(handle); }
-
       count -= copy_count;
       pos += copy_count;
+      current_pos_ += copy_count;
+
+      if (current_pos_ == src_.size()) { create_new_buffers(handle); }
     }
+  }
+
+  /**
+   * @brief  Mark the edgelist as ready for reading (all writes are complete)
+   *
+   * @param handle     The resource handle
+   */
+  void finalize_buffer(handle_t const& handle)
+  {
+    src_.back().resize(current_pos_, handle.get_stream());
+    dst_.back().resize(current_pos_, handle.get_stream());
+    if (wgt_) wgt_->back().resize(current_pos_, handle.get_stream());
+    if (edge_id_) edge_id_->back().resize(current_pos_, handle.get_stream());
+    if (edge_type_) edge_type_->back().resize(current_pos_, handle.get_stream());
   }
 
   bool use_weight() const { return wgt_.has_value(); }
@@ -140,7 +155,65 @@ class per_device_edgelist_t {
     return edge_type_;
   }
 
+  /**
+   * @brief Consolidate edgelists (if necessary) and shuffle to the proper GPU
+   *
+   * @param handle    The resource handle
+   */
+  void consolidate_and_shuffle(cugraph::mtmg::handle_t const& handle, bool store_transposed)
+  {
+    if (src_.size() > 1) {
+      size_t total_size = std::transform_reduce(
+        src_.begin(), src_.end(), size_t{0}, std::plus<size_t>(), [](auto& d_vector) {
+          return d_vector.size();
+        });
+
+      resize_and_copy_buffers(handle.get_stream(), src_, total_size);
+      resize_and_copy_buffers(handle.get_stream(), dst_, total_size);
+      if (wgt_) resize_and_copy_buffers(handle.get_stream(), *wgt_, total_size);
+      if (edge_id_) resize_and_copy_buffers(handle.get_stream(), *edge_id_, total_size);
+      if (edge_type_) resize_and_copy_buffers(handle.get_stream(), *edge_type_, total_size);
+    }
+
+    auto tmp_wgt     = wgt_ ? std::make_optional(std::move((*wgt_)[0])) : std::nullopt;
+    auto tmp_edge_id = edge_id_ ? std::make_optional(std::move((*edge_id_)[0])) : std::nullopt;
+    auto tmp_edge_type =
+      edge_type_ ? std::make_optional(std::move((*edge_type_)[0])) : std::nullopt;
+
+    std::tie(store_transposed ? dst_[0] : src_[0],
+             store_transposed ? src_[0] : dst_[0],
+             tmp_wgt,
+             tmp_edge_id,
+             tmp_edge_type) =
+      cugraph::detail::shuffle_ext_vertex_pairs_with_values_to_local_gpu_by_edge_partitioning(
+        handle.raft_handle(),
+        store_transposed ? std::move(dst_[0]) : std::move(src_[0]),
+        store_transposed ? std::move(src_[0]) : std::move(dst_[0]),
+        std::move(tmp_wgt),
+        std::move(tmp_edge_id),
+        std::move(tmp_edge_type));
+
+    if (tmp_wgt) ((*wgt_)[0]) = std::move(*tmp_wgt);
+    if (tmp_edge_id) ((*edge_id_)[0]) = std::move(*tmp_edge_id);
+    if (tmp_edge_type) ((*edge_type_)[0]) = std::move(*tmp_edge_type);
+  }
+
  private:
+  template <typename T>
+  void resize_and_copy_buffers(rmm::cuda_stream_view stream,
+                               std::vector<rmm::device_uvector<T>>& buffer,
+                               size_t total_size)
+  {
+    buffer[0].resize(total_size, stream);
+    size_t pos = buffer[0].size();
+
+    for (size_t i = 1; i < buffer.size(); ++i) {
+      raft::copy(buffer[0].data() + pos, buffer[i].data(), buffer[i].size(), stream);
+      pos += buffer[i].size();
+      buffer[i].resize(0, stream);
+    }
+  }
+
   void create_new_buffers(cugraph::mtmg::handle_t const& handle)
   {
     src_.emplace_back(device_buffer_size_, handle.raft_handle().get_stream());

@@ -37,8 +37,8 @@ class handle_t {
    * @param raft_handle   Raft handle for the resources
    * @param thread_rank   Rank for this thread
    */
-  handle_t(std::shared_ptr<raft::handle_t>& raft_handle, int thread_rank)
-    : raft_handle_(raft_handle), thread_rank_(thread_rank)
+  handle_t(std::shared_ptr<raft::handle_t>& raft_handle, int thread_rank, size_t device_id)
+    : raft_handle_(raft_handle), thread_rank_(thread_rank), device_id_(device_id)
   {
   }
 
@@ -48,6 +48,18 @@ class handle_t {
    * @return const reference to a raft handle
    */
   raft::handle_t const& raft_handle() const { return *raft_handle_; }
+
+  /**
+   * @brief Get cuda stream
+   *
+   * @return cuda stream
+   */
+  rmm::cuda_stream_view get_stream() const
+  {
+    return raft_handle_->is_stream_pool_initialized()
+             ? raft_handle_->get_stream_from_stream_pool(device_id_)
+             : raft_handle_->get_stream();
+  }
 
   /**
    * @brief Get thread rank
@@ -73,6 +85,7 @@ class handle_t {
  private:
   std::shared_ptr<raft::handle_t> raft_handle_;
   int thread_rank_;
+  size_t device_id_;
 };
 
 }  // namespace mtmg

@@ -46,6 +46,10 @@
 #include <random>
 #include <vector>
 
+#include <cugraph/utilities/device_functors.cuh>
+#include <detail/graph_partition_utils.cuh>
+#include <thrust/count.h>
+
 struct Multithreaded_Usecase {
   bool test_weighted{false};
   bool check_correctness{true};
@@ -217,7 +221,7 @@ class Tests_Multithreaded
                                     &edgelist,
                                     &renumber_map,
                                     &pageranks,
-                                    is_symmetric,
+                                    is_symmetric = is_symmetric,
                                     renumber,
                                     do_expensive_check]() {
         auto thread_handle = instance_manager->get_handle();
@@ -245,9 +249,6 @@ class Tests_Multithreaded
         edgelist.get_pointer(thread_handle)->finalize_buffer(thread_handle);
         edgelist.get_pointer(thread_handle)->consolidate_and_shuffle(thread_handle, true);
 
-        std::cout << "calling cugraph::mtmg::create_graph_from_edgelist, rank = "
-                  << thread_handle.get_rank() << std::endl;
-
         cugraph::mtmg::
           create_graph_from_edgelist<vertex_t, edge_t, weight_t, edge_t, int32_t, true, multi_gpu>(
             thread_handle,
@@ -260,8 +261,8 @@ class Tests_Multithreaded
             edge_types,
             renumber_map,
             do_expensive_check);
-        graph.set_view(thread_handle, graph_view);
 
+        graph.set_view(thread_handle, graph_view);
         pageranks.initialize_pointer(
           thread_handle,
           graph_view.get_pointer(thread_handle)->local_vertex_partition_range_size(),

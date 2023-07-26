@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cugraph/graph_view.hpp>
 #include <cugraph/mtmg/detail/device_shared_wrapper.hpp>
 #include <cugraph/mtmg/handle.hpp>
 

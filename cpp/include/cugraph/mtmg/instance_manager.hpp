@@ -18,6 +18,8 @@
 
 #include <cugraph/mtmg/handle.hpp>
 
+#include <nccl.h>
+
 #include <vector>
 
 namespace cugraph {
@@ -33,8 +35,10 @@ class instance_manager_t {
    *
    * @param handles   Vector of RAFT handles, one for each device on this node
    */
-  instance_manager_t(std::vector<std::shared_ptr<raft::handle_t>>&& handles)
-    : thread_counter_{0}, raft_handle_{handles}
+  instance_manager_t(std::vector<std::shared_ptr<raft::handle_t>>&& handles,
+                     std::vector<std::shared_ptr<ncclComm_t>>&& nccl_comms,
+                     std::vector<int>&& device_ids)
+    : thread_counter_{0}, raft_handle_{handles}, nccl_comms_{nccl_comms}, device_ids_{device_ids}
   {
   }
 
@@ -51,9 +55,12 @@ class instance_manager_t {
    */
   handle_t get_handle()
   {
-    int local_id = ++thread_counter_;
+    int local_id = thread_counter_++;
 
-    return handle_t(raft_handle_[local_id % raft_handle_.size()], local_id / raft_handle_.size());
+    cudaSetDevice(device_ids_[local_id % raft_handle_.size()]);
+    return handle_t(raft_handle_[local_id % raft_handle_.size()],
+                    local_id / raft_handle_.size(),
+                    static_cast<size_t>(local_id % raft_handle_.size()));
   }
 
   /**
@@ -66,7 +73,14 @@ class instance_manager_t {
 
  private:
   std::atomic<int> thread_counter_{0};
+
+  // FIXME: Should this be an std::map<> where the key is the rank?
+  //        On a multi-node system we might have nodes with fewer
+  //        (or no) GPUs, so mapping rank to a handle might be a challenge
+  //
   std::vector<std::shared_ptr<raft::handle_t>> raft_handle_{};
+  std::vector<std::shared_ptr<ncclComm_t>> nccl_comms_{};
+  std::vector<int> device_ids_{};
 };
 
 }  // namespace mtmg

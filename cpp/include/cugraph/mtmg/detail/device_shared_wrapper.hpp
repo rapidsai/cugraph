@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <raft/core/handle.hpp>
+#include <cugraph/mtmg/handle.hpp>
 
 namespace cugraph {
 namespace mtmg {
@@ -42,7 +42,7 @@ class device_shared_wrapper_t {
    * @param args    Parameter pack passed to the constructor of T
    */
   template <class... Args>
-  void initialize_pointer(handle_t const& handle, Args&&... args)
+  void initialize_pointer(cugraph::mtmg::handle_t const& handle, Args&&... args)
   {
     std::lock_guard<std::mutex> lock(lock_);
 
@@ -57,7 +57,7 @@ class device_shared_wrapper_t {
    * @param handle  Handle is used to identify the GPU we associated this object with
    * @param ptr     Pointer to the object to add
    */
-  void set_pointer(handle_t const& handle, std::unique_ptr<wrapped_t>&& ptr)
+  void set_pointer(cugraph::mtmg::handle_t const& handle, std::unique_ptr<wrapped_t>&& ptr)
   {
     std::lock_guard<std::mutex> lock(lock_);
 
@@ -72,7 +72,7 @@ class device_shared_wrapper_t {
    * @param handle  Handle is used to identify the GPU we associated this object with
    * @return Shared pointer the wrapped object
    */
-  std::shared_ptr<wrapped_t> get_pointer(handle_t const& handle)
+  std::shared_ptr<wrapped_t> get_pointer(cugraph::mtmg::handle_t const& handle)
   {
     std::lock_guard<std::mutex> lock(lock_);
 
@@ -85,11 +85,13 @@ class device_shared_wrapper_t {
    * @param handle  Handle is used to identify the GPU we associated this object with
    * @return Shared pointer the wrapped object
    */
-  std::shared_ptr<wrapped_t> const get_pointer(handle_t const& handle) const
+  std::shared_ptr<wrapped_t const> const get_pointer(cugraph::mtmg::handle_t const& handle) const
   {
     std::lock_guard<std::mutex> lock(lock_);
 
-    return pointers_[handle.get_rank()];
+    auto pos = pointers_.find(handle.get_rank());
+
+    return std::const_pointer_cast<wrapped_t const>(pos->second);
   }
 
  private:

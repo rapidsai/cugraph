@@ -22,6 +22,11 @@
 #include <cugraph/mtmg/handle.hpp>
 #include <cugraph/mtmg/renumber_map.hpp>
 
+// DEBUGGING
+#include <cugraph/utilities/device_functors.cuh>
+#include <detail/graph_partition_utils.cuh>
+// END DEBUGGING
+
 namespace cugraph {
 namespace mtmg {
 
@@ -96,6 +101,62 @@ void create_graph_from_edgelist(
   CUGRAPH_EXPECTS(my_edgelist->get_src().size() == 1,
                   "Must consolidate edges into a single list before creating graph");
 
+  // DEBUGGING... pulled the error check out of graph construction to experiment a bit...
+  if constexpr (multi_gpu) {
+    auto& comm           = handle.raft_handle().get_comms();
+    auto const comm_size = comm.get_size();
+    auto const comm_rank = comm.get_rank();
+    auto& major_comm =
+      handle.raft_handle().get_subcomm(cugraph::partition_manager::major_comm_name());
+    auto const major_comm_size = major_comm.get_size();
+    auto& minor_comm =
+      handle.raft_handle().get_subcomm(cugraph::partition_manager::minor_comm_name());
+    auto const minor_comm_size = minor_comm.get_size();
+
+    std::cout << "in expensive_check_edgelist, multi_gpu block, rank = " << comm_rank
+              << ", size = " << comm_size << std::endl;
+
+    std::cout << " checking edges, rank = " << comm_rank
+              << ", majors size = " << my_edgelist->get_dst()[0].size() << std::endl;
+    raft::print_device_vector(" edgelist_majors",
+                              my_edgelist->get_dst()[0].data(),
+                              my_edgelist->get_dst()[0].size(),
+                              std::cout);
+    raft::print_device_vector(" edgelist_minors",
+                              my_edgelist->get_src()[0].data(),
+                              my_edgelist->get_src()[0].size(),
+                              std::cout);
+    handle.raft_handle().sync_stream();
+    std::cout << "after sync" << std::endl;
+    int xxx;
+    RAFT_CUDA_TRY(cudaGetDevice(&xxx));
+    std::cout << "   device = " << xxx << std::endl;
+    std::cout << "   stream = " << handle.raft_handle().get_stream() << std::endl;
+
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(my_edgelist->get_dst()[0].begin(), my_edgelist->get_src()[0].begin()));
+    CUGRAPH_EXPECTS(
+      thrust::count_if(handle.raft_handle().get_thrust_policy(),
+                       edge_first,
+                       edge_first + my_edgelist->get_src()[0].size(),
+                       [comm_rank,
+                        gpu_id_key_func =
+                          cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+                            comm_size, major_comm_size, minor_comm_size}] __device__(auto e) {
+                         printf("(%d,%d) on rank %d, expected %d\n",
+                                (int)thrust::get<0>(e),
+                                (int)thrust::get<1>(e),
+                                comm_rank,
+                                gpu_id_key_func(e));
+
+                         return (gpu_id_key_func(e) != comm_rank);
+                       }) == 0,
+      "Invalid input argument: edgelist_majors & edgelist_minors should be pre-shuffled.");
+  }
+
+  sleep(10);
+  // END DEBUGGING
+
   auto [local_graph, local_edge_weights, local_edge_ids, local_edge_types, local_renumber_map] =
     cugraph::create_graph_from_edgelist<vertex_t,
                                         edge_t,
@@ -103,16 +164,26 @@ void create_graph_from_edgelist(
                                         edge_id_t,
                                         edge_type_t,
                                         store_transposed,
-                                        multi_gpu>(handle.raft_handle(),
-                                                   std::nullopt,
-                                                   std::move(my_edgelist->get_src()[0]),
-                                                   std::move(my_edgelist->get_dst()[0]),
-                                                   std::move((*my_edgelist->get_wgt())[0]),
-                                                   std::move((*my_edgelist->get_edge_id())[0]),
-                                                   std::move((*my_edgelist->get_edge_type())[0]),
-                                                   graph_properties,
-                                                   renumber,
-                                                   do_expensive_check);
+                                        multi_gpu>(
+      handle.raft_handle(),
+      std::nullopt,
+      std::move(my_edgelist->get_src()[0]),
+      std::move(my_edgelist->get_dst()[0]),
+      my_edgelist->get_wgt() ? std::make_optional(std::move((*my_edgelist->get_wgt())[0]))
+                             : std::nullopt,
+      my_edgelist->get_edge_id() ? std::make_optional(std::move((*my_edgelist->get_edge_id())[0]))
+                                 : std::nullopt,
+      my_edgelist->get_edge_type()
+        ? std::make_optional(std::move((*my_edgelist->get_edge_type())[0]))
+        : std::nullopt,
+      graph_properties,
+      renumber,
+      // DEBUGGING... force this to true
+      true);
+  // do_expensive_check);
+
+  std::cout << "after cugraph::create_graph_from_edgelist call, rank = " << handle.get_rank()
+            << std::endl;
 
   (*graph.get_pointer(handle)) = std::move(local_graph);
   if (edge_weights) (*edge_weights->get_pointer(handle)) = std::move(*local_edge_weights);
