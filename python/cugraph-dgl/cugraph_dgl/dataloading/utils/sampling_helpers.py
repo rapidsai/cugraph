@@ -46,7 +46,7 @@ def _get_renumber_map(df):
 
     map_starting_offset = map.iloc[0]
     renumber_map = map[map_starting_offset:].dropna().reset_index(drop=True)
-    renumber_map_batch_indices = map[1:map_starting_offset].reset_index(drop=True)
+    renumber_map_batch_indices = map[1 : map_starting_offset - 1].reset_index(drop=True)
     renumber_map_batch_indices = renumber_map_batch_indices - map_starting_offset
 
     # Drop all rows with NaN values
