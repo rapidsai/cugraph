@@ -170,7 +170,8 @@ class EXPERIMENTAL__BulkSampleLoader:
             fanout_vals=num_neighbors,
             with_replacement=replace,
             batches_per_partition=self.__batches_per_partition,
-            renumber=renumber**kwargs,
+            renumber=renumber,
+            **kwargs,
         )
 
         # Make sure indices are in cupy
@@ -253,7 +254,7 @@ class EXPERIMENTAL__BulkSampleLoader:
             raw_sample_data = cudf.read_parquet(parquet_path)
             if "map" in raw_sample_data.columns:
                 self.__renumber_map = raw_sample_data["map"]
-                raw_sample_data = raw_sample_data.drop("map", axis=1)
+                raw_sample_data.drop("map", axis=1, inplace=True)
             else:
                 self.__renumber_map = None
 
