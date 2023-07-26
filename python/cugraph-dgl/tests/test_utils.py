@@ -45,6 +45,7 @@ def get_dummy_sampled_df():
 
 
 def test_get_renumber_map():
+
     sampled_df = get_dummy_sampled_df()
 
     df, renumber_map, renumber_map_batch_indices = _get_renumber_map(sampled_df)
