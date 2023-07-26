@@ -1,4 +1,4 @@
-name: email_Eu_core
+name: email-Eu-core
 file_type: .csv
 description:
   The network was generated using email data from a large European research institution.

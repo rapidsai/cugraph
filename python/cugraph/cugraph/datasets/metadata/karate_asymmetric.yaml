@@ -1,4 +1,4 @@
-name: karate_asymmetric
+name: karate-asymmetric
 file_type: .csv
 description:
   This is an undirected and asymmetric variant of the Karate dataset.

@@ -1,4 +1,4 @@
-name: karate_disjoint
+name: karate-disjoint
 file_type: .csv
 description:
   This is disjoint variant of the Karate dataset.
