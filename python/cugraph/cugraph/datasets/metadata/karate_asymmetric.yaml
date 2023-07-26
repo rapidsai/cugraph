@@ -1,7 +1,7 @@
 name: karate-asymmetric
 file_type: .csv
 description:
-  This is an undirected and asymmetric variant of the Karate dataset.
+  This is an undirected, asymmetric variant of the Karate dataset.
   The original dataset was created by Wayne Zachary in 1977.
 author: Nvidia
 refs:
