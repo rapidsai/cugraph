@@ -65,11 +65,7 @@ def _get_tensor_d_from_sampled_df(df):
     Returns:
         dict: A dictionary of tensors, keyed by batch_id and hop_id.
     """
-    if "map" in df.columns:
-        df, renumber_map, renumber_map_batch_indices = _get_renumber_map(df)
-    else:
-        renumber_map, renumber_map_batch_indices = None, None
-
+    df, renumber_map, renumber_map_batch_indices = _get_renumber_map(df)
     batch_id_tensor = cast_to_tensor(df["batch_id"])
     batch_id_min = batch_id_tensor.min()
     batch_id_max = batch_id_tensor.max()
@@ -90,10 +86,9 @@ def _get_tensor_d_from_sampled_df(df):
             for bid, batch_t in zip(split_d.keys(), split_t):
                 split_d[bid][column] = batch_t
 
-    if renumber_map is not None:
-        split_t = _split_tensor(renumber_map, renumber_map_batch_indices)
-        for bid, batch_t in zip(split_d.keys(), split_t):
-            split_d[bid]["map"] = batch_t
+    split_t = _split_tensor(renumber_map, renumber_map_batch_indices)
+    for bid, batch_t in zip(split_d.keys(), split_t):
+        split_d[bid]["map"] = batch_t
     del df
     result_tensor_d = {}
     for batch_id, batch_d in split_d.items():
@@ -175,29 +170,28 @@ def _create_homogeneous_sampled_graphs_from_tensors_perhop(tensors_batch_d, edge
     graph_per_hop_ls = []
     for hop_id, tensor_per_hop_d in tensors_batch_d.items():
         if hop_id != "map":
-            block = _create_homogeneous_dgl_block_from_tensor_d(tensor_per_hop_d)
+            block = _create_homogeneous_dgl_block_from_tensor_d(
+                tensor_per_hop_d, tensors_batch_d["map"]
+            )
             graph_per_hop_ls.append(block)
 
     # default DGL behavior
     if edge_dir == "in":
         graph_per_hop_ls.reverse()
 
-    input_nodes = graph_per_hop_ls[0].srcnodes()
-    output_nodes = graph_per_hop_ls[-1].dstnodes()
-    original_input_nodes = tensors_batch_d["map"][input_nodes]
-    original_output_nodes = tensors_batch_d["map"][output_nodes]
-    return original_input_nodes, original_output_nodes, graph_per_hop_ls
+    input_nodes = graph_per_hop_ls[0].srcdata[dgl.NID]
+    output_nodes = graph_per_hop_ls[-1].dstdata[dgl.NID]
+    return input_nodes, output_nodes, graph_per_hop_ls
 
 
-def _create_homogeneous_dgl_block_from_tensor_d(
-    tensor_d,
-):
+def _create_homogeneous_dgl_block_from_tensor_d(tensor_d, renumber_map):
     rs = tensor_d["sources"]
     rd = tensor_d["destinations"]
     block = dgl.create_block((rs, rd))
     if "edge_id" in tensor_d:
         block.edata[dgl.EID] = tensor_d["edge_id"]
-
+    block.srcdata[dgl.NID] = renumber_map[block.srcnodes()]
+    block.dstdata[dgl.NID] = renumber_map[block.dstnodes()]
     return block
 
 
