@@ -86,6 +86,7 @@ def _get_unique_nodes(
 
 def _sampler_output_from_sampling_results(
     sampling_results: cudf.DataFrame,
+    renumber_map: cudf.Series,
     graph_store: CuGraphStore,
     metadata: Sequence = None,
 ) -> HeteroSamplerOutput:
@@ -94,6 +95,9 @@ def _sampler_output_from_sampling_results(
     ----------
     sampling_results: cudf.DataFrame
         The dataframe containing sampling results.
+    renumber_map: cudf.Series
+        The series containing the renumber map, or None if there
+        is no renumber map.
     graph_store: CuGraphStore
         The graph store containing the structure of the sampled graph.
     metadata: Tensor
@@ -135,44 +139,69 @@ def _sampler_output_from_sampling_results(
             num_nodes_per_hop_dict[node_type][0] = num_unique_nodes
     #print(f'calc hop 0: {perf_counter() - time_calc_hop_0_start} s')
 
-    # Calculate nodes of interest based on unique nodes in order of appearance
-    # Use hop 0 sources since those are the only ones not included in destinations
-    # Use torch.concat based on benchmark performance (vs. cudf.concat)
-    time_noi_start = perf_counter()
-    import cupy
-    nodes_of_interest = (
-        cudf.Series(cupy.asarray(torch.concat([
-            torch.as_tensor(sampling_results_hop_0.sources, device="cuda"),
-            torch.as_tensor(sampling_results.destinations, device="cuda"),
-        ])))
-        .drop_duplicates()
-        .sort_index()
-    )
-    nodes_of_interest.name = "nodes_of_interest"
-    #print(f'calc noi: {perf_counter() - time_noi_start} s')
+    if renumber_map is not None:
+        if len(graph_store.node_types) > 1 or len(graph_store.edge_types) > 1:
+            raise ValueError(
+                "Precomputing the renumber map is currently "
+                "unsupported for heterogeneous graphs."
+            )
 
-    # del sampling_results_hop_0
+        node_type = graph_store.node_types[0]
+        if not isinstance(node_type, str):
+            raise ValueError("Node types must be strings")
+        noi_index = {node_type: torch.as_tensor(renumber_map.values, device="cuda")}
 
-    #print('hops:', hops)
-    #print(sampling_results_hop_0.destinations.sort_values())
-    #print(sampling_results.sources.loc[sampling_results.hop_id==1].sort_values())
-    #print((sampling_results.sources.loc[sampling_results.hop_id==1].isin(sampling_results[sampling_results.hop_id==0].destinations)).sum())
-    #assert len(nodes_of_interest) == cudf.concat([sampling_results.sources, sampling_results.destinations]).nunique()
+        edge_type = graph_store.edge_types[0]
+        if (
+            not isinstance(edge_type, tuple)
+            or not isinstance(edge_type[0], str)
+            or len(edge_type) != 3
+        ):
+            raise ValueError("Edge types must be 3-tuples of strings")
+        if edge_type[0] != node_type or edge_type[2] != node_type:
+            raise ValueError("Edge src/dst type must match for homogeneous graphs")
+        row_dict = {
+            edge_type: torch.as_tensor(sampling_results.sources.values, device="cuda"),
+        }
+        col_dict = {
+            edge_type: torch.as_tensor(
+                sampling_results.destinations.values, device="cuda"
+            ),
+        }
+    else:
+        # Calculate nodes of interest based on unique nodes in order of appearance
+        # Use hop 0 sources since those are the only ones not included in destinations
+        # Use torch.concat based on benchmark performance (vs. cudf.concat)
+        nodes_of_interest = (
+            cudf.Series(
+                torch.concat(
+                    [
+                        torch.as_tensor(
+                            sampling_results_hop_0.sources.values, device="cuda"
+                        ),
+                        torch.as_tensor(
+                            sampling_results.destinations.values, device="cuda"
+                        ),
+                    ]
+                ),
+                name="nodes_of_interest",
+            )
+            .drop_duplicates()
+            .sort_index()
+        )
+        del sampling_results_hop_0
 
-    # Get the grouped node index (for creating the renumbered grouped edge index)
-    time_vertex_groups_start = perf_counter()
-    noi_index = graph_store._get_vertex_groups_from_sample(
-        torch.as_tensor(nodes_of_interest.values, device="cuda")
-    )
-    #print(f'vertex groups: {perf_counter() - time_vertex_groups_start} s')
-    del nodes_of_interest
+        # Get the grouped node index (for creating the renumbered grouped edge index)
+        noi_index = graph_store._get_vertex_groups_from_sample(
+            torch.as_tensor(nodes_of_interest.values, device="cuda")
+        )
+        del nodes_of_interest
 
-    # Get the new edge index (by type as expected for HeteroData)
-    time_edge_groups_start = perf_counter()
-    row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
-        sampling_results, noi_index
-    )
-    #print(f'edge groups: {perf_counter() - time_edge_groups_start} s')
+        # Get the new edge index (by type as expected for HeteroData)
+        # FIXME handle edge ids/types after the C++ updates
+        row_dict, col_dict = graph_store._get_renumbered_edge_groups_from_sample(
+            sampling_results, noi_index
+        )
 
     time_nodes_per_hop_start = perf_counter()
     for hop in range(len(hops)):

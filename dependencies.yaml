@@ -35,6 +35,7 @@ files:
     output: none
     includes:
       - cudatoolkit
+      - test_cpp
   test_notebooks:
     output: none
     includes:
@@ -223,7 +224,7 @@ dependencies:
     common:
       - output_types: [conda, pyproject]
         packages:
-          - cmake>=3.26.4
+          - &cmake_ver cmake>=3.26.4
           - ninja
   cpp_build:
     common:
@@ -406,6 +407,11 @@ dependencies:
           - sphinx-markdown-tables
           - sphinx-copybutton
           - pylibcugraphops==23.8.*
+  test_cpp:
+    common:
+      - output_types: conda
+        packages:
+          - *cmake_ver
   test_notebook:
     common:
       - output_types: [conda, requirements]
