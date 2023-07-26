@@ -40,37 +40,19 @@ def _split_tensor(t, split_indices):
     return torch.tensor_split(t, split_indices)
 
 
-def _get_id_tensor_boundaries(id_tensor):
-    """
-    Get the indices where the id_tensor changes values.
-    """
-    offset_indices = (id_tensor[1:] != id_tensor[:-1]).nonzero(as_tuple=True)[0] + 1
-    offset_indices = torch.cat(
-        [torch.tensor([0], device=id_tensor.device), offset_indices]
-    )
-    if id_tensor[-1] != id_tensor[-2]:
-        offset_indices = torch.cat(
-            [
-                offset_indices,
-                torch.tensor([len(id_tensor)], device=offset_indices.device),
-            ]
-        )
-    return offset_indices
-
-
 def _get_renumber_map(df):
     map = df["map"]
     df.drop(columns=["map"], inplace=True)
 
     map_starting_offset = map.iloc[0]
     renumber_map = map[map_starting_offset:].dropna().reset_index(drop=True)
-    offsets_per_batch = map[1:map_starting_offset].reset_index(drop=True)
+    renumber_map_batch_indices = map[1:map_starting_offset].reset_index(drop=True)
 
     # Drop all rows with NaN values
     df.dropna(axis=0, how="all", inplace=True)
     df.reset_index(drop=True, inplace=True)
 
-    return df, cast_to_tensor(renumber_map), cast_to_tensor(offsets_per_batch)
+    return df, cast_to_tensor(renumber_map), cast_to_tensor(renumber_map_batch_indices)
 
 
 def _get_tensor_d_from_sampled_df(df):
@@ -83,9 +65,9 @@ def _get_tensor_d_from_sampled_df(df):
         dict: A dictionary of tensors, keyed by batch_id and hop_id.
     """
     if "map" in df.columns:
-        df, renumber_map, offsets_per_batch = _get_renumber_map(df)
+        df, renumber_map, renumber_map_batch_indices = _get_renumber_map(df)
     else:
-        renumber_map, offsets_per_batch = None, None
+        renumber_map, renumber_map_batch_indices = None, None
 
     batch_id_tensor = cast_to_tensor(df["batch_id"])
     batch_id_min = batch_id_tensor.min()
@@ -108,7 +90,7 @@ def _get_tensor_d_from_sampled_df(df):
                 split_d[bid][column] = batch_t
 
     if renumber_map is not None:
-        split_t = _split_tensor(renumber_map, offsets_per_batch)
+        split_t = _split_tensor(renumber_map, renumber_map_batch_indices)
         for bid, batch_t in zip(split_d.keys(), split_t):
             split_d[bid]["map"] = batch_t
     del df
