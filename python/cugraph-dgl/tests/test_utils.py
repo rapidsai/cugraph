@@ -20,6 +20,7 @@ from cugraph_dgl.dataloading.utils.sampling_helpers import (
     cast_to_tensor,
     _get_renumber_map,
     _split_tensor,
+    _get_tensor_d_from_sampled_df,
 )
 
 
@@ -32,11 +33,10 @@ def test_casting_empty_array():
 
 def get_dummy_sampled_df():
     df = cudf.DataFrame()
-    df["sources"] = [0, 0, 0, 0, 0, 0] + [np.nan] * 7
-    df["destinations"] = [1, 2, 1, 2, 1, 2] + [np.nan] * 7
-    df["batch_id"] = [0, 0, 1, 1, 2, 2] + [np.nan] * 7
-    df["hop_id"] = [0, 1, 0, 1, 0, 1] + [np.nan] * 7
-    print(len(df))
+    df["sources"] = [0, 0, 1, 0, 0, 1, 0, 0, 2] + [np.nan] * 4
+    df["destinations"] = [1, 2, 0, 1, 2, 1, 2, 0, 1] + [np.nan] * 4
+    df["batch_id"] = [0, 0, 0, 1, 1, 1, 2, 2, 2] + [np.nan] * 4
+    df["hop_id"] = [0, 1, 1, 0, 1, 1, 0, 1, 1] + [np.nan] * 4
     df["map"] = [4, 7, 10, 13, 10, 11, 12, 13, 14, 15, 16, 17, 18]
     df = df.astype("int32")
     df["hop_id"] = df["hop_id"].astype("uint8")
@@ -62,15 +62,37 @@ def test_get_renumber_map():
     assert torch.equal(renumber_map_batch_indices, expected_batch_indices)
 
     # Ensure we dropped the Nans for rows  corresponding to the renumber_map
-    assert len(df) == 6
+    assert len(df) == 9
 
     t_ls = _split_tensor(renumber_map, renumber_map_batch_indices)
     assert torch.equal(
-        t_ls[0], torch.as_tensor([10, 11, 12], dtype=torch.int32, device="cuda")
+        t_ls[0], torch.as_tensor([10, 11, 12], dtype=torch.int64, device="cuda")
     )
     assert torch.equal(
-        t_ls[1], torch.as_tensor([13, 14, 15], dtype=torch.int32, device="cuda")
+        t_ls[1], torch.as_tensor([13, 14, 15], dtype=torch.int64, device="cuda")
     )
     assert torch.equal(
-        t_ls[2], torch.as_tensor([16, 17, 18], dtype=torch.int32, device="cuda")
+        t_ls[2], torch.as_tensor([16, 17, 18], dtype=torch.int64, device="cuda")
     )
+
+
+def test_get_tensor_d_from_sampled_df():
+    df = get_dummy_sampled_df()
+    tensor_d = _get_tensor_d_from_sampled_df(df)
+
+    expected_maps = {}
+    expected_maps[0] = torch.as_tensor([10, 11, 12], dtype=torch.int64, device="cuda")
+    expected_maps[1] = torch.as_tensor([13, 14, 15], dtype=torch.int64, device="cuda")
+    expected_maps[2] = torch.as_tensor([16, 17, 18], dtype=torch.int64, device="cuda")
+
+    for batch_id, batch_td in tensor_d.items():
+        batch_df = df[df["batch_id"] == batch_id]
+        for hop_id, hop_t in batch_td.items():
+            if hop_id != "map":
+                hop_df = batch_df[batch_df["hop_id"] == hop_id]
+                assert torch.equal(hop_t["sources"], cast_to_tensor(hop_df["sources"]))
+                assert torch.equal(
+                    hop_t["destinations"], cast_to_tensor(hop_df["destinations"])
+                )
+
+        assert torch.equal(batch_td["map"], expected_maps[batch_id])
