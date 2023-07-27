@@ -17,7 +17,6 @@ import pytest
 import numpy as np
 
 from cugraph.dask.common.mg_utils import is_single_gpu
-
 from cugraph.datasets import karate
 
 # Get parameters from standard betwenness_centrality_test
@@ -29,7 +28,6 @@ from test_edge_betweenness_centrality import (
     NORMALIZED_OPTIONS,
     DEFAULT_EPSILON,
     SUBSET_SIZE_OPTIONS,
-    SUBSET_SEED_OPTIONS,
 )
 
 from test_edge_betweenness_centrality import (
@@ -40,11 +38,11 @@ from test_edge_betweenness_centrality import (
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = [karate]
+DATASETS = [karate, netscience]
 
 # FIXME: The "preset_gpu_count" from 21.08 and below are not supported and have
 # been removed
-RESULT_DTYPE_OPTIONS = [np.float64]
+RESULT_DTYPE_OPTIONS = [np.float32, np.float64]
 
 
 # =============================================================================
@@ -54,6 +52,7 @@ def setup_function():
     gc.collect()
 
 
+# FIXME: Fails for directed = False(bc score twice as much) and normalized = True.
 @pytest.mark.mg
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize(
@@ -62,16 +61,12 @@ def setup_function():
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
-@pytest.mark.parametrize("weight", [None])
-@pytest.mark.parametrize("subset_seed", SUBSET_SEED_OPTIONS)
 @pytest.mark.parametrize("result_dtype", RESULT_DTYPE_OPTIONS)
 def test_mg_edge_betweenness_centrality(
     graph_file,
     directed,
     subset_size,
     normalized,
-    weight,
-    subset_seed,
     result_dtype,
     dask_client,
 ):
@@ -80,8 +75,8 @@ def test_mg_edge_betweenness_centrality(
         directed=directed,
         normalized=normalized,
         k=subset_size,
-        weight=weight,
-        seed=subset_seed,
+        weight=None,
+        seed=42,
         result_dtype=result_dtype,
         multi_gpu_batch=True,
     )
