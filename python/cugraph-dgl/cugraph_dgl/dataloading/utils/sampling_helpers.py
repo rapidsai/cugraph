@@ -205,8 +205,6 @@ def _create_homogeneous_dgl_block_from_tensor_d(tensor_d, renumber_map, seednode
     data_dict = {("_N", "_E", "_N"): (rs, rd)}
     num_src_nodes = {"_N": max_src_nodes.item() + 1}
     num_dst_nodes = {"_N": max_dst_nodes.item() + 1}
-    print("num_src_nodes", num_src_nodes)
-    print("num_dst_nodes", num_dst_nodes)
     block = dgl.create_block(
         data_dict=data_dict, num_src_nodes=num_src_nodes, num_dst_nodes=num_dst_nodes
     )
