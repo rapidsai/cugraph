@@ -216,10 +216,11 @@ class simpleDistributedGraphImpl:
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
-            if len(edge_attr) == 3:
+            # FIXME: Drop the check in symmetrize.py as it is redundant
+            if len(edge_attr) == 3 or edge_id is not None or edge_type is not None:
                 if not self.properties.directed:
                     raise ValueError(
-                        "User-provided edge ids and edge "
+                        "User-provided edge ids and/or edge "
                         "types are not permitted for an "
                         "undirected graph."
                     )
@@ -318,7 +319,6 @@ class simpleDistributedGraphImpl:
         ddf = ddf.map_partitions(lambda df: df.copy())
         ddf = persist_dask_df_equal_parts_per_worker(ddf, _client)
         num_edges = len(ddf)
-        self._number_of_edges = num_edges
         ddf = get_persisted_df_worker_map(ddf, _client)
         delayed_tasks_d = {
             w: delayed(simpleDistributedGraphImpl._make_plc_graph)(
@@ -358,6 +358,8 @@ class simpleDistributedGraphImpl:
 
     def view_edge_list(self):
         """
+        FIXME: For undirected graph, is it trully returning the upper triangular
+        matrix of the symmetrized edgelist?
         Display the edge list. Compute it if needed.
         NOTE: If the graph is of type Graph() then the displayed undirected
         edges are the same as displayed by networkx Graph(), but the direction
@@ -388,7 +390,34 @@ class simpleDistributedGraphImpl:
         """
         if self.edgelist is None:
             raise RuntimeError("Graph has no Edgelist.")
-        return self.edgelist.edgelist_df
+        
+        edgelist_df = self.input_df
+        is_string_dtype = False
+        if not self.properties.directed:
+            srcCol = self.source_columns
+            dstCol = self.destination_columns
+            if self.renumber_map.unrenumbered_id_type == "object":
+                # FIXME: Use the renumbered vertices instead and then un-renumber.
+                # This operation can be expensive.
+                is_string_dtype = True
+                edgelist_df = self.edgelist.edgelist_df
+                srcCol = self.renumber_map.renumbered_src_col_name
+                dstCol = self.renumber_map.renumbered_dst_col_name
+
+            edgelist_df[srcCol], edgelist_df[dstCol] = \
+                edgelist_df[[srcCol, dstCol]].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
+
+            edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
+            wgtCol = simpleDistributedGraphImpl.edgeWeightCol
+            if wgtCol in edgelist_df.columns:
+                edgelist_df[wgtCol] /= 2
+
+        if is_string_dtype:
+            # unrenumber the vertices
+            edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
+            edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
+        self.properties.edge_count = len(edgelist_df)
+        return edgelist_df
 
     def delete_edge_list(self):
         """
@@ -407,23 +436,7 @@ class simpleDistributedGraphImpl:
         Get the number of nodes in the graph.
         """
         if self.properties.node_count is None:
-            if self.edgelist is not None:
-                if self.renumbered is True:
-                    src_col_name = self.renumber_map.renumbered_src_col_name
-                    dst_col_name = self.renumber_map.renumbered_dst_col_name
-                # FIXME: from_dask_cudf_edgelist() currently requires
-                # renumber=True for MG, so this else block will not be
-                # used. Should this else block be removed and added back when
-                # the restriction is removed?
-                else:
-                    src_col_name = "src"
-                    dst_col_name = "dst"
-
-                ddf = self.edgelist.edgelist_df[[src_col_name, dst_col_name]]
-                # ddf = self.edgelist.edgelist_df[["src", "dst"]]
-                self.properties.node_count = ddf.max().max().compute() + 1
-            else:
-                raise RuntimeError("Graph is Empty")
+            self.properties.node_count = len(self.nodes())
         return self.properties.node_count
 
     def number_of_nodes(self):
@@ -436,10 +449,17 @@ class simpleDistributedGraphImpl:
         """
         Get the number of edges in the graph.
         """
-        if self.edgelist is not None:
-            return self._number_of_edges
-        else:
-            raise RuntimeError("Graph is Empty")
+
+        if directed_edges and self.edgelist is not None:
+            return len(self.edgelist.edgelist_df)
+        # FIXME: set 'self.properties.edge_count' when viewing the edgelist
+        # Update the view of edgelist for undirected graph in MG here (return only lower)
+        if self.properties.edge_count is None:
+            if self.edgelist is not None:
+                self.view_edge_list()
+            else:
+                raise RuntimeError("Graph is Empty")
+        return self.properties.edge_count
 
     def in_degree(self, vertex_subset=None):
         """
@@ -1031,10 +1051,9 @@ class simpleDistributedGraphImpl:
             # used. Should this else block be removed and added back when
             # the restriction is removed?
         else:
-            src_col_name = "src"
-            dst_col_name = "dst"
+            src_col_name = self.source_columns
+            dst_col_name = self.destination_columns
 
-        # return self.view_edge_list()[["src", "dst"]]
         return self.view_edge_list()[[src_col_name, dst_col_name]]
 
     def nodes(self):
@@ -1047,23 +1066,27 @@ class simpleDistributedGraphImpl:
         a dataframe and do 'renumber_map.unrenumber' or 'G.unrenumber'
         """
 
-        if self.renumbered:
-            # FIXME: This relies on current implementation
-            #        of NumberMap, should not really expose
-            #        this, perhaps add a method to NumberMap
+        if self.edgelist is not None:
+            if self.renumbered:
+                # FIXME: This relies on current implementation
+                #        of NumberMap, should not really expose
+                #        this, perhaps add a method to NumberMap
 
-            df = self.renumber_map.implementation.ddf.drop(columns="global_id")
+                df = self.renumber_map.implementation.ddf.drop(columns="global_id")
 
-            if len(df.columns) > 1:
-                return df
+                if len(df.columns) > 1:
+                    return df
+                else:
+                    return df[df.columns[0]]
+
             else:
-                return df[df.columns[0]]
-
+                df = self.input_df
+                return dask_cudf.concat(
+                    [df[self.source_columns], df[self.destination_columns]]
+                ).drop_duplicates()
         else:
-            df = self.input_df
-            return dask_cudf.concat(
-                [df[self.source_columns], df[self.destination_columns]]
-            ).drop_duplicates()
+            raise RuntimeError("Graph is Empty")
+
 
     def neighbors(self, n):
         if self.edgelist is None:

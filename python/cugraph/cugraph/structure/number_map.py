@@ -480,7 +480,15 @@ class NumberMap:
 
         # For columns with mismatch dtypes, set the renumbered
         # id_type to either 'int32' or 'int64'
-        if df.dtypes.nunique() > 1:
+        if isinstance(src_col_names, list):
+            vertex_col_names = src_col_names
+        else:
+            vertex_col_names = [src_col_names]
+        if isinstance(dst_col_names, list):
+            vertex_col_names += dst_col_names
+        else:
+            vertex_col_names += [dst_col_names]
+        if df[vertex_col_names].dtypes.nunique() > 1:
             # can't determine the edgelist input type
             unrenumbered_id_type = None
         else:

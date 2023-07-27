@@ -370,6 +370,8 @@ class simpleGraphImpl:
 
     def view_edge_list(self):
         """
+        FIXME: For undirected graph, is it trully returning the upper triangular
+        matrix of the symmetrized edgelist?
         Display the edge list. Compute it if needed.
         NOTE: If the graph is of type Graph() then the displayed undirected
         edges are the same as displayed by networkx Graph(), but the direction
@@ -407,6 +409,7 @@ class simpleGraphImpl:
 
         edgelist_df = self.edgelist.edgelist_df
 
+        # FIXME: No need to un-renumber as it is expensive.
         if self.properties.renumbered:
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.srcCol
@@ -422,7 +425,8 @@ class simpleGraphImpl:
                 <= edgelist_df[simpleGraphImpl.dstCol]
             ]
             edgelist_df = edgelist_df.reset_index(drop=True)
-            self.properties.edge_count = len(edgelist_df)
+        
+        self.properties.edge_count = len(edgelist_df)
 
         return edgelist_df
 
