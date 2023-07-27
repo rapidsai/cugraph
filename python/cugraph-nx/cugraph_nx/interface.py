@@ -19,6 +19,7 @@ from . import algorithms
 
 class Dispatcher:
     betweenness_centrality = algorithms.betweenness_centrality
+    edge_betweenness_centrality = algorithms.edge_betweenness_centrality
 
     # Required conversions
     @staticmethod

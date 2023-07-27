@@ -484,8 +484,19 @@ class Graph:
             do_expensive_check=False,
         )
 
-    def _nodeids_to_dict(self, node_ids: cp.ndarray, values: cp.ndarray):
+    def _nodes_to_dict(self, node_ids: cp.ndarray, values: cp.ndarray):
         it = zip(node_ids.tolist(), values.tolist())
         if (id_to_key := self.id_to_key) is not None:
             return {id_to_key[key]: val for key, val in it}
+        return dict(it)
+
+    def _edges_to_dict(
+        self, src_ids: cp.ndarray, dst_ids: cp.ndarray, values: cp.ndarray
+    ):
+        it = zip(zip(src_ids.tolist(), dst_ids.tolist()), values.tolist())
+        if (id_to_key := self.id_to_key) is not None:
+            return {
+                (id_to_key[src_id], id_to_key[dst_id]): val
+                for (src_id, dst_id), val in it
+            }
         return dict(it)
