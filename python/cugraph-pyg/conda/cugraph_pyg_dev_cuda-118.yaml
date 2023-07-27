@@ -11,11 +11,11 @@ channels:
 - nvidia
 dependencies:
 - cugraph==23.10.*
-- dgl>=1.1.0.cu*
 - networkx>=2.5.1
 - numpy>=1.21
 - pandas
 - pre-commit
+- pyg=2.3.0=*torch_2.0.0*cu118*
 - pylibcugraphops==23.10.*
 - pytest
 - pytest-benchmark
@@ -24,4 +24,4 @@ dependencies:
 - pytorch-cuda==11.8
 - pytorch>=2.0
 - scipy
-name: cugraph_dgl_dev_cuda-118
+name: cugraph_pyg_dev_cuda-118
