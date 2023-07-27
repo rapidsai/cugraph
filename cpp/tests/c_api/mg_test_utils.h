@@ -106,6 +106,40 @@ int create_mg_test_graph_with_properties(const cugraph_resource_handle_t* p_hand
                                          cugraph_graph_t** p_graph,
                                          cugraph_error_t** ret_error);
 
+int create_mg_test_graph_new(const cugraph_resource_handle_t* handle,
+                             data_type_id_t vertex_tid,
+                             data_type_id_t edge_tid,
+                             void* h_src,
+                             void* h_dst,
+                             data_type_id_t weight_tid,
+                             void* h_wgt,
+                             data_type_id_t edge_type_tid,
+                             void* h_edge_type,
+                             data_type_id_t edge_id_tid,
+                             void* h_edge_id,
+                             size_t num_edges,
+                             bool_t store_transposed,
+                             bool_t renumber,
+                             bool_t is_symmetric,
+                             bool_t is_multigraph,
+                             cugraph_graph_t** graph,
+                             cugraph_error_t** ret_error);
+
+size_t cugraph_test_device_gatherv_size(const cugraph_resource_handle_t* handle,
+                                        const cugraph_type_erased_device_array_view_t *array);
+
+int cugraph_test_device_gatherv_fill(const cugraph_resource_handle_t* handle,
+                                     const cugraph_type_erased_device_array_view_t *array,
+                                     void *fill_array);
+
+size_t cugraph_test_scalar_reduce(const cugraph_resource_handle_t* handle, size_t value);
+
+int cugraph_test_host_gatherv_fill(const cugraph_resource_handle_t* handle,
+                                   void *input,
+                                   size_t input_size,
+                                   cugraph_data_type_id_t input_type,
+                                   void *output);
+
 #ifdef __cplusplus
 }
 #endif

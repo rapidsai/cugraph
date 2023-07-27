@@ -16,7 +16,7 @@ import cudf
 from cugraph.utilities import renumber_vertex_pair
 
 
-def overlap_w(input_graph, weights, vertex_pair=None):
+def overlap_w(input_graph, weights, vertex_pair=None, do_expensive_check=True):
     """
     Compute the weighted Overlap Coefficient between each pair of vertices
     connected by an edge, or between arbitrary pairs of vertices specified by
@@ -27,6 +27,10 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     connection between vertices based on the relative similarity of their
     neighbors. If first is specified but second is not, or vice versa, an
     exception will be thrown.
+
+    NOTE: This algorithm doesn't currently support datasets with vertices that
+    are not (re)numebred vertices from 0 to V-1 where V is the total number of
+    vertices as this creates isolated vertices.
 
     Parameters
     ----------
@@ -50,6 +54,10 @@ def overlap_w(input_graph, weights, vertex_pair=None):
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
+
+    do_expensive_check: bool (default=True)
+        When set to True, check if the vertices in the graph are (re)numbered
+        from 0 to V-1 where V is the total number of vertices.
 
     Returns
     -------
@@ -88,6 +96,21 @@ def overlap_w(input_graph, weights, vertex_pair=None):
     ...                      len(weights['vertex']))]
     >>> df = cugraph.overlap_w(G, weights)
     """
+    if do_expensive_check:
+        if not input_graph.renumbered:
+            input_df = input_graph.edgelist.edgelist_df[["src", "dst"]]
+            max_vertex = input_df.max().max()
+            expected_nodes = cudf.Series(range(0, max_vertex + 1, 1)).astype(
+                input_df.dtypes[0]
+            )
+            nodes = (
+                cudf.concat([input_df["src"], input_df["dst"]])
+                .unique()
+                .sort_values()
+                .reset_index(drop=True)
+            )
+            if not expected_nodes.equals(nodes):
+                raise ValueError("Unrenumbered vertices are not supported.")
 
     if type(vertex_pair) == cudf.DataFrame:
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)

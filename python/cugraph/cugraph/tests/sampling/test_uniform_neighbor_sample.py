@@ -529,6 +529,255 @@ def test_uniform_neighbor_sample_empty_start_list():
 
 
 @pytest.mark.sg
+def test_uniform_neighbor_sample_exclude_sources_basic():
+    df = cudf.DataFrame(
+        {
+            "src": [0, 4, 1, 2, 3, 5, 4, 1, 0],
+            "dst": [1, 1, 2, 4, 3, 1, 5, 0, 2],
+            "eid": [9, 8, 7, 6, 5, 4, 3, 2, 1],
+        }
+    )
+
+    G = cugraph.MultiGraph(directed=True)
+    G.from_cudf_edgelist(df, source="src", destination="dst", edge_id="eid")
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        cudf.DataFrame(
+            {
+                "seed": cudf.Series([0, 4, 1], dtype="int64"),
+                "batch": cudf.Series([1, 1, 1], dtype="int32"),
+            }
+        ),
+        [2, 3, 3],
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=True,
+        random_state=62,
+        prior_sources_behavior="exclude",
+    ).sort_values(by="hop_id")
+
+    expected_hop_0 = [1, 2, 1, 5, 2, 0]
+    assert sorted(
+        sampling_results[sampling_results.hop_id == 0].destinations.values_host.tolist()
+    ) == sorted(expected_hop_0)
+
+    next_sources = set(
+        sampling_results[sampling_results.hop_id > 0].sources.values_host.tolist()
+    )
+    for v in [0, 4, 1]:
+        assert v not in next_sources
+
+    next_sources = set(
+        sampling_results[sampling_results.hop_id > 1].sources.values_host.tolist()
+    )
+    for v in sampling_results[
+        sampling_results.hop_id == 1
+    ].sources.values_host.tolist():
+        assert v not in next_sources
+
+
+@pytest.mark.sg
+def test_uniform_neighbor_sample_exclude_sources_email_eu_core():
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.001 * len(el)))
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        [5, 4, 3, 2, 1],
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        prior_sources_behavior="exclude",
+    )
+
+    for hop in range(5):
+        current_sources = set(
+            sampling_results[
+                sampling_results.hop_id == hop
+            ].sources.values_host.tolist()
+        )
+        future_sources = set(
+            sampling_results[sampling_results.hop_id > hop].sources.values_host.tolist()
+        )
+
+        for s in current_sources:
+            assert s not in future_sources
+
+
+@pytest.mark.sg
+def test_uniform_neighbor_sample_carry_over_sources_basic():
+    df = cudf.DataFrame(
+        {
+            "src": [0, 4, 1, 2, 3, 5, 4, 1, 0, 6],
+            "dst": [1, 1, 2, 4, 6, 1, 5, 0, 2, 2],
+            "eid": [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+        }
+    )
+
+    G = cugraph.MultiGraph(directed=True)
+    G.from_cudf_edgelist(df, source="src", destination="dst", edge_id="eid")
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        cudf.DataFrame(
+            {
+                "seed": cudf.Series([0, 4, 3], dtype="int64"),
+                "batch": cudf.Series([1, 1, 1], dtype="int32"),
+            }
+        ),
+        [2, 3, 3],
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=True,
+        random_state=62,
+        prior_sources_behavior="carryover",
+    ).sort_values(by="hop_id")[["sources", "destinations", "hop_id"]]
+
+    assert (
+        len(
+            sampling_results[
+                (sampling_results.hop_id == 2) & (sampling_results.sources == 6)
+            ]
+        )
+        == 2
+    )
+
+    for hop in range(2):
+        sources_current_hop = set(
+            sampling_results[
+                sampling_results.hop_id == hop
+            ].sources.values_host.tolist()
+        )
+        sources_next_hop = set(
+            sampling_results[
+                sampling_results.hop_id == (hop + 1)
+            ].sources.values_host.tolist()
+        )
+
+        for s in sources_current_hop:
+            assert s in sources_next_hop
+
+
+@pytest.mark.sg
+def test_uniform_neighbor_sample_carry_over_sources_email_eu_core():
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.001 * len(el)))
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        [5, 4, 3, 2, 1],
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        prior_sources_behavior="carryover",
+    )
+
+    for hop in range(4):
+        sources_current_hop = set(
+            sampling_results[
+                sampling_results.hop_id == hop
+            ].sources.values_host.tolist()
+        )
+        sources_next_hop = set(
+            sampling_results[
+                sampling_results.hop_id == (hop + 1)
+            ].sources.values_host.tolist()
+        )
+
+        for s in sources_current_hop:
+            assert s in sources_next_hop
+
+
+@pytest.mark.sg
+def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.001 * len(el)))
+
+    sampling_results = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        [5, 4, 3, 2, 1],
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+    )
+
+    for hop in range(5):
+        counts_current_hop = (
+            sampling_results[sampling_results.hop_id == hop]
+            .sources.value_counts()
+            .values_host.tolist()
+        )
+        for c in counts_current_hop:
+            assert c <= 5 - hop
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
+def test_uniform_neighbor_sample_renumber(hops):
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+
+    sampling_results_unrenumbered = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=False,
+        random_state=62,
+    )
+
+    sampling_results_renumbered, renumber_map = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=True,
+        random_state=62,
+    )
+
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
+    for hop in range(len(hops)):
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
+    assert (renumber_map.batch_id == 0).all()
+
+
+@pytest.mark.sg
 @pytest.mark.skip(reason="needs to be written!")
 def test_multi_client_sampling():
     # See gist for example test to write
