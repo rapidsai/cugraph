@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   cpp-build:
+    node_type: cpu32
     secrets: inherit
     uses: rapidsai/shared-action-workflows/.github/workflows/conda-cpp-build.yaml@branch-23.08
     with:
