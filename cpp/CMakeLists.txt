@@ -192,7 +192,6 @@ set(CUGRAPH_SOURCES
     src/community/detail/mis_mg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
-    src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
@@ -229,6 +228,7 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/shuffle_and_organize_output_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
+    src/sampling/renumber_sampled_edgelist_sg.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
