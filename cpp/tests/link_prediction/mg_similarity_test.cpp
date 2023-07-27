@@ -258,9 +258,8 @@ INSTANTIATE_TEST_SUITE_P(
     // Disable weighted computation testing in 22.10
     //::testing::Values(Similarity_Usecase{true, true, 20}, Similarity_Usecase{false, true, 20}),
     ::testing::Values(Similarity_Usecase{false, true, 20}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx")
-                      // , cugraph::test::File_Usecase("test/datasets/netscience.mtx")
-                      )));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

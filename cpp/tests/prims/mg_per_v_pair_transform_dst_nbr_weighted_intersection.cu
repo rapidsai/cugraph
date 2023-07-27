@@ -377,8 +377,10 @@ TEST_P(Tests_MGPerVPairTransformDstNbrIntersection_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVPairTransformDstNbrIntersection_File,
-  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{10}, true}),
-                     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+  ::testing::Combine(
+    ::testing::Values(Prims_Usecase{size_t{10}, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_MGPerVPairTransformDstNbrIntersection_Rmat,
