@@ -1,7 +1,8 @@
 name: small_line
 file_type: .csv
 description:
-  The `small_line` dataset was created by Nvidia for testing and demonstration purposes.
+  The `small_line` dataset was created by Nvidia for testing and demonstration
+  purposes, and consists of a small (10 nodes) path/linear graph.
 author: Nvidia
 refs: null
 delim: " "

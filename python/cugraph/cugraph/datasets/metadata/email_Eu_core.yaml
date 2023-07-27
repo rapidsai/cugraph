@@ -1,10 +1,9 @@
 name: email-Eu-core
 file_type: .csv
 description:
-  The network was generated using email data from a large European research institution.
-  We have anonymized information about all incoming and outgoing email between members
-  of the research institution. There is an edge (u, v) in the network if person u
-  sent person v at least one email. The e-mails only represent communication between
+  The network was generated using anonymized email data from a large European
+  research institution. There is an edge (u, v) in the network if person u sent
+  person v at least one email. The e-mails only represent communication between
   institution members (the core), and the dataset does not contain incoming messages
   from or outgoing messages to the rest of the world.
 author: Jure Leskovec

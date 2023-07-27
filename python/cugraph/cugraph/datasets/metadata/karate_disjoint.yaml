@@ -1,8 +1,8 @@
 name: karate-disjoint
 file_type: .csv
 description:
-  This is disjoint variant of the Karate dataset.
-  The original dataset was created by Wayne Zachary in 1977.
+  This is disjoint variant of the Karate dataset. The original dataset, which
+  this is based on, was created by Wayne Zachary in 1977.
 author: Nvidia
 refs:
   W. W. Zachary, An information flow model for conflict and fission in small groups,

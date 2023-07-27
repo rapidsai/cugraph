@@ -1,7 +1,8 @@
 name: small_tree
 file_type: .csv
 description:
-  The `small_tree` dataset was created by Nvidia for testing/demonstration purposes.
+  The `small_tree` dataset was created by Nvidia for testing/demonstration
+  purposes, and consists of a small (9 nodes) directed tree.
 author: Nvidia
 refs: null
 delim: " "

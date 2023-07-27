@@ -2,7 +2,7 @@ name: toy_graph_undirected
 file_type: .csv
 description:
   The `toy_graph_undirected` dataset was created by Nvidia for testing and
-  demonstration purposes.
+  demonstration purposes, and consists of a small (6 nodes) undirected graph.
 author: Nvidia
 refs: null
 delim: " "
