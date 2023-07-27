@@ -175,7 +175,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
 fi
 if hasArg --pydevelop; then
-    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e ."
+    PYTHON_ARGS_FOR_INSTALL="-m pip install --no-build-isolation --no-deps -e"
 fi
 
 # Append `-DFIND_RAFT_CPP=ON` to EXTRA_CMAKE_ARGS unless a user specified the option.
