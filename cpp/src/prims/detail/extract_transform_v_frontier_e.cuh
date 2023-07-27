@@ -877,9 +877,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
     auto max_pushes      = edge_partition.compute_number_of_edges(
-      raft::device_span<vertex_t const>(edge_partition_frontier_major_first,
-                                        edge_partition_frontier_major_last),
-      handle.get_stream());
+      edge_partition_frontier_major_first, edge_partition_frontier_major_last, handle.get_stream());
 
     auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
     resize_optional_dataframe_buffer<output_key_t>(
