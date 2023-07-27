@@ -378,7 +378,7 @@ kv_store_t<key_t, weight_t, false /* use_binary_search */> filter_key_to_dist_ma
       keep_t<key_t, weight_t>{old_near_far_threshold,
                               detail::key_cuco_store_contains_device_view_t(key_set.view())});
 
-    auto keep_count = thrust::count_if(
+    keep_count = thrust::count_if(
       handle.get_thrust_policy(), keep_flags.begin(), keep_flags.end(), thrust::identity<bool>{});
   }
 
@@ -618,6 +618,7 @@ rmm::device_uvector<weight_t> od_shortest_distances(
       (i == 0) ? (near_far_threshold + delta) : next_far_thresholds[i - 1] + delta;
   }
   size_t prev_near_far_threshold_num_inserts{0};
+  size_t prev_num_near_q_insert_buffers{1};
   while (true) {
     // 6-1. enumerate next frontier candidates
 
@@ -663,6 +664,8 @@ rmm::device_uvector<weight_t> od_shortest_distances(
                    key_first,
                    key_first + size_dataframe_buffer(new_frontier_tagged_vertex_buffer),
                    new_frontier_keys.begin());
+      resize_dataframe_buffer(new_frontier_tagged_vertex_buffer, 0, handle.get_stream());
+      shrink_to_fit_dataframe_buffer(new_frontier_tagged_vertex_buffer, handle.get_stream());
 
       std::tie(new_frontier_keys, distance_buffer) =
         detail::sort_and_reduce_buffer_elements<key_t, weight_t, reduce_op::minimum<weight_t>>(
@@ -838,11 +841,12 @@ rmm::device_uvector<weight_t> od_shortest_distances(
           invalid_thresholds[i] = (i == 0) ? near_far_threshold : next_far_thresholds[i - 1];
         }
 
+        size_t num_near_q_insert_buffers{0};
         size_t near_size{0};
         size_t tot_far_size{0};
         do {
+          num_near_q_insert_buffers = 0;
           size_t max_near_q_inserts{0};
-          size_t num_near_q_insert_buffers{0};
           old_near_far_threshold = near_far_threshold;
           do {
             near_far_threshold =
@@ -979,7 +983,6 @@ rmm::device_uvector<weight_t> od_shortest_distances(
           auto near_vi_first = thrust::make_transform_iterator(
             new_near_q_keys.begin(),
             split_vi_t<vertex_t, od_idx_t, key_t>{static_cast<od_idx_t>(origins.size())});
-          // FIXME: insert_if might be more performant
           vertex_frontier.bucket(bucket_idx_near)
             .insert(near_vi_first, near_vi_first + new_near_q_keys.size());
 
@@ -993,8 +996,13 @@ rmm::device_uvector<weight_t> od_shortest_distances(
         // this assumes that # inserts with the previous near_far_threshold is a good estimate for
         // # inserts with the next near_far_threshold
         auto next_near_far_threshold_num_inserts_estimate =
-          static_cast<size_t>(static_cast<double>(prev_near_far_threshold_num_inserts) * 1.05);
+          static_cast<size_t>(static_cast<double>(prev_near_far_threshold_num_inserts) *
+                              std::max(static_cast<double>(num_near_q_insert_buffers) /
+                                         static_cast<double>(prev_num_near_q_insert_buffers),
+                                       1.0) *
+                              1.2);
         prev_near_far_threshold_num_inserts = 0;
+        prev_num_near_q_insert_buffers      = num_near_q_insert_buffers;
 
         if (key_to_dist_map.size() + next_near_far_threshold_num_inserts_estimate >=
             key_to_dist_map.capacity()) {  // if resize is likely to be necessary before reaching
@@ -1065,8 +1073,10 @@ rmm::device_uvector<weight_t> od_shortest_distances(
     average_edge_weight = ldexp(significand, exponent);
   }
   average_edge_weight /= static_cast<weight_t>(num_edges);
-  // FIXME: requires additional tuning
-  auto delta = average_edge_weight * 0.5;
+  // FIXME: better use min_edge_weight instead of std::numeric_limits<weight_t>::min() * 1e3 for
+  // forward progress guarantee transform_reduce_e should better be updated to support min
+  // reduction.
+  auto delta = std::max(average_edge_weight * 0.5, std::numeric_limits<weight_t>::min() * 1e3);
 
   return od_shortest_distances<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(
     handle,
