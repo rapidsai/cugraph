@@ -166,6 +166,37 @@ void reference_rescale(result_t* result,
   }
 }
 
+template <typename result_t>
+void reference_edge_rescale(result_t* result,
+                            bool directed,
+                            bool normalize,
+                            size_t const number_of_vertices,
+                            size_t const number_of_edges,
+                            size_t const number_of_sources)
+{
+  result_t rescale_factor            = static_cast<result_t>(1);
+  result_t casted_number_of_vertices = static_cast<result_t>(number_of_vertices);
+  result_t casted_number_of_sources  = static_cast<result_t>(number_of_sources);
+
+  if (normalize) {
+    if (number_of_edges > 2) {
+      rescale_factor /= ((casted_number_of_vertices) * (casted_number_of_vertices - 1));
+    }
+  } else {
+    if (!directed) { rescale_factor /= static_cast<result_t>(2); }
+  }
+
+  if (rescale_factor != result_t{1}) {
+    if (number_of_sources > 0) {
+      rescale_factor *= (casted_number_of_vertices / casted_number_of_sources);
+    }
+
+    for (auto idx = 0; idx < number_of_edges; ++idx) {
+      result[idx] *= rescale_factor;
+    }
+  }
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::vector<weight_t> betweenness_centrality_reference(
   std::vector<edge_t> const& offsets,
@@ -213,7 +244,9 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
   std::vector<edge_t> const& offsets,
   std::vector<vertex_t> const& indices,
   std::optional<std::vector<weight_t>> const& wgt,
-  std::vector<vertex_t> const& seeds)
+  std::vector<vertex_t> const& seeds,
+  bool directed,
+  bool normalize)
 {
   std::vector<weight_t> result;
   if (indices.size() > 0) {
@@ -234,6 +267,9 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
       ref_edge_accumulation(result, offsets, indices, S, pred, sigmas, deltas, s);
     }
   }
+
+  reference_edge_rescale(
+    result.data(), directed, normalize, offsets.size() - 1, indices.size(), seeds.size());
   return result;
 }
 }  // namespace
