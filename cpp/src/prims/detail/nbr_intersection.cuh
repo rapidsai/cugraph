@@ -15,9 +15,8 @@
  */
 #pragma once
 
+#include <prims/detail/optional_dataframe_buffer.hpp>
 #include <prims/kv_store.cuh>
-
-#include <prims/detail/extract_transform_v_frontier_e.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_edge_property_device_view.cuh>
