@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, ClassVar
 import cupy as cp
 import networkx as nx
 import numpy as np
+import pylibcugraph as plc
 
 import cugraph_nx as cnx
 
@@ -452,3 +453,39 @@ class Graph:
         else:
             rv.graph.update(deepcopy(self.graph))
         return rv
+
+    def _get_plc_graph(
+        self, edge_attr: AttrKey = None, *, store_transposed: bool = False
+    ):
+        if edge_attr is None:
+            edge_array = None
+        elif edge_attr not in self.edge_values:
+            raise KeyError("Graph has no edge attribute {edge_attr!r}")
+        elif edge_attr not in self.edge_masks:
+            edge_array = self.edge_values[edge_attr]
+        elif not self.edge_masks[edge_attr].all():
+            raise NotImplementedError("Missing edge attributes is not yet implemented")
+        else:
+            # Mask is all True; don't need anymore
+            del self.edge_masks[edge_attr]
+            edge_array = self.edge_values[edge_attr]
+        # Should we cache PLC graph?
+        return plc.SGGraph(
+            resource_handle=plc.ResourceHandle(),
+            graph_properties=plc.GraphProperties(
+                is_multigraph=self.is_multigraph(),
+                is_symmetric=not self.is_directed(),
+            ),
+            src_or_offset_array=self.row_indices,
+            dst_or_index_array=self.col_indices,
+            weight_array=edge_array,
+            store_transposed=store_transposed,
+            renumber=False,
+            do_expensive_check=False,
+        )
+
+    def _nodeids_to_dict(self, node_ids: cp.ndarray, values: cp.ndarray):
+        it = zip(node_ids.tolist(), values.tolist())
+        if (id_to_key := self.id_to_key) is not None:
+            return {id_to_key[key]: val for key, val in it}
+        return dict(it)

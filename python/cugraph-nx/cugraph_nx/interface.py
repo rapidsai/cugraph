@@ -18,7 +18,7 @@ from . import algorithms
 
 
 class Dispatcher:
-    is_strongly_connected = algorithms.is_strongly_connected
+    betweenness_centrality = algorithms.betweenness_centrality
 
     # Required conversions
     @staticmethod

@@ -130,6 +130,7 @@ def from_networkx(
     if graph.number_of_edges() == 0:
         pass
     elif preserve_edge_attrs:
+        # Using comprehensions should be just as fast starting in Python 3.11
         attr_sets = set(map(frozenset, concat(map(dict.values, adj.values()))))
         attrs = set().union(*attr_sets)
         edge_attrs = dict.fromkeys(attrs)
@@ -144,16 +145,36 @@ def from_networkx(
         required = frozenset(
             attr for attr, default in edge_attrs.items() if default is None
         )
-        attr_sets = set(
-            map(required.intersection, concat(map(dict.values, adj.values())))
-        )
-        missing_edge_attrs = required - set().union(*attr_sets)
-        if len(attr_sets) != 1:
-            # Required attributes are missing _some_ data
-            counts = Counter(concat(attr_sets))
-            has_missing_edge_data.update(
-                key for key, val in counts.items() if val != len(attr_sets)
+        if len(required) == 1:
+            # Fast path for the common case of a single attribute with no default
+            [attr] = required
+            it = (
+                attr in edgedata
+                for rowdata in adj.values()
+                for edgedata in rowdata.values()
             )
+            if not next(it):
+                if any(it):
+                    # Some edges have attribute
+                    has_missing_edge_data.add(attr)
+                else:
+                    # No edges have attribute
+                    missing_edge_attrs.add(attr)
+            elif not all(it):
+                # Some edges have attribute
+                has_missing_edge_data.add(attr)
+            # Else all edges have data
+        else:
+            attr_sets = set(
+                map(required.intersection, concat(map(dict.values, adj.values())))
+            )
+            missing_edge_attrs = required - set().union(*attr_sets)
+            if len(attr_sets) != 1:
+                # Required attributes are missing _some_ data
+                counts = Counter(concat(attr_sets))
+                has_missing_edge_data.update(
+                    key for key, val in counts.items() if val != len(attr_sets)
+                )
 
     has_missing_node_data = set()
     missing_node_attrs = set()
@@ -174,14 +195,30 @@ def from_networkx(
         required = frozenset(
             attr for attr, default in node_attrs.items() if default is None
         )
-        attr_sets = set(map(required.intersection, graph._node.values()))
-        missing_node_attrs = required - set().union(*attr_sets)
-        if len(attr_sets) != 1:
-            # Required attributes are missing _some_ data
-            counts = Counter(concat(attr_sets))
-            has_missing_node_data.update(
-                key for key, val in counts.items() if val != len(attr_sets)
-            )
+        if len(required) == 1:
+            # Fast path for the common case of a single attribute with no default
+            [attr] = required
+            it = (attr in nodedata for nodedata in graph._node.values())
+            if not next(it):
+                if any(it):
+                    # Some nodes have attribute
+                    has_missing_node_data.add(attr)
+                else:
+                    # No nodes have attribute
+                    missing_node_attrs.add(attr)
+            elif not all(it):
+                # Some nodes have attribute
+                has_missing_node_data.add(attr)
+            # Else all nodes have data
+        else:
+            attr_sets = set(map(required.intersection, graph._node.values()))
+            missing_node_attrs = required - set().union(*attr_sets)
+            if len(attr_sets) != 1:
+                # Required attributes are missing _some_ data
+                counts = Counter(concat(attr_sets))
+                has_missing_node_data.update(
+                    key for key, val in counts.items() if val != len(attr_sets)
+                )
 
     get_edge_values = edge_attrs is not None and graph.number_of_edges() > 0
     N = len(adj)

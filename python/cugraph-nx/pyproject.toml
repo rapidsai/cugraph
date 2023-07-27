@@ -71,11 +71,13 @@ known_first_party = "cugraph_nx"
 line_length = 88
 
 [tool.pytest.ini_options]
+minversion = "6.0"
 testpaths = "cugraph_nx/tests"
 xfail_strict = true
 markers = [
     "slow: Skipped unless --runslow passed",
 ]
+log_cli_level = "info"
 filterwarnings = [
     # See: https://docs.python.org/3/library/warnings.html#describing-warning-filters
     # and: https://docs.pytest.org/en/7.2.x/how-to/capture-warnings.html#controlling-warnings
@@ -136,6 +138,7 @@ ignore = [
     "D104",  # Missing docstring in public package
     "D105",  # Missing docstring in magic method
     # "D107",  # Missing docstring in `__init__`
+    "D205",  # 1 blank line required between summary line and description
     "D401",  # First line of docstring should be in imperative mood:
     # "D417",  # Missing argument description in the docstring:
     "PLE0605",  # Invalid format for `__all__`, must be `tuple` or `list` (Note: broken in v0.0.237)

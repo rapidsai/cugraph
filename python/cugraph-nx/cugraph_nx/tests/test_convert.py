@@ -53,7 +53,7 @@ def test_convert():
         {"preserve_edge_attrs": True},
         {"preserve_all_attrs": True},
         {"edge_attrs": {"x": 0}},
-        {"edge_attrs": {"x": None}},
+        {"edge_attrs": {"x": None}, "node_attrs": {"bar": None}},
         {"edge_attrs": "x", "edge_dtypes": int},
     ]:
         # All edges have "x" attribute, so all kwargs are equivalent
@@ -121,6 +121,7 @@ def test_convert():
         {"preserve_all_attrs": True},
         {"edge_attrs": {"x": None, "y": None}},
         {"edge_attrs": {"x": 0, "y": None}},
+        {"edge_attrs": {"x": 0, "y": None}},
         {"edge_attrs": {"x": 0, "y": None}, "edge_dtypes": {"x": int, "y": float}},
     ]:
         cG = cnx.from_networkx(G, **kwargs)
@@ -141,6 +142,7 @@ def test_convert():
         {"preserve_node_attrs": True},
         {"preserve_all_attrs": True},
         {"node_attrs": {"foo": None, "bar": None}},
+        {"node_attrs": {"foo": None, "bar": None}},
         {"node_attrs": {"foo": 0, "bar": None, "missing": None}},
     ]:
         cG = cnx.from_networkx(G, **kwargs)
@@ -159,6 +161,7 @@ def test_convert():
     # Check default values for nodes
     for kwargs in [
         {"node_attrs": {"foo": None, "bar": 0}},
+        {"node_attrs": {"foo": None, "bar": 0, "missing": None}},
         {"node_attrs": {"bar": 0}},
         {"node_attrs": {"bar": 0}, "node_dtypes": {"bar": int}},
         {"node_attrs": {"bar": 0, "foo": None}, "node_dtypes": int},
