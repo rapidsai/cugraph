@@ -230,6 +230,9 @@ def symmetrize(
 
     """
 
+    if "edge_id" in input_df.columns and symmetrize:
+        raise ValueError("Edge IDs are not supported on undirected graphs")
+
     csg.null_check(input_df[source_col_name])
     csg.null_check(input_df[dest_col_name])
 
