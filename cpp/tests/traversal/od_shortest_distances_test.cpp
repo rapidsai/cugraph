@@ -257,9 +257,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_ODShortestDistances_File,
   // enable correctness checks
   ::testing::Values(std::make_tuple(ODShortestDistances_Usecase{5, 5},
-                                    cugraph::test::File_Usecase("test/datasets/karate_weight.mtx")),
+                                    cugraph::test::File_Usecase("test/datasets/karate.mtx")),
                     std::make_tuple(ODShortestDistances_Usecase{10, 20},
-                                    cugraph::test::File_Usecase("test/datasets/dblp.mtx")),
+                                    cugraph::test::File_Usecase("test/datasets/netscience.mtx")),
                     std::make_tuple(ODShortestDistances_Usecase{50, 100},
                                     cugraph::test::File_Usecase("test/datasets/wiki2003.mtx"))));
 
