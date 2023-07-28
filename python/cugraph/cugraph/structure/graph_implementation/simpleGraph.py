@@ -113,7 +113,6 @@ class simpleGraphImpl:
         self.detination_columns = None
         self.vertex_columns = None
         self.weight_column = None
-        
 
     # Functions
     # FIXME: Change to public function
@@ -435,12 +434,13 @@ class simpleGraphImpl:
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.dstCol
             )
-        
+
         self.properties.edge_count = len(edgelist_df)
 
         edgelist_df = edgelist_df.rename(
-            columns=self.renumber_map.internal_to_external_col_names)
-        
+            columns=self.renumber_map.internal_to_external_col_names
+        )
+
         # If there is no 'wgt' column, nothing will happen
         wgtCol = simpleGraphImpl.edgeWeightCol
         edgelist_df = edgelist_df.rename(columns={wgtCol: self.weight_column})

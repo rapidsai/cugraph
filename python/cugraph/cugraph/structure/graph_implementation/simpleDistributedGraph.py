@@ -177,7 +177,7 @@ class simpleDistributedGraphImpl:
                 "and destination parameters"
             )
         ddf_columns = s_col + d_col
-        self.vertex_columns = ddf_columns.copy() 
+        self.vertex_columns = ddf_columns.copy()
         _client = default_client()
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
@@ -392,7 +392,7 @@ class simpleDistributedGraphImpl:
         """
         if self.edgelist is None:
             raise RuntimeError("Graph has no Edgelist.")
-        
+
         edgelist_df = self.input_df
         is_string_dtype = False
         if not self.properties.directed:
@@ -406,8 +406,9 @@ class simpleDistributedGraphImpl:
                 srcCol = self.renumber_map.renumbered_src_col_name
                 dstCol = self.renumber_map.renumbered_dst_col_name
 
-            edgelist_df[srcCol], edgelist_df[dstCol] = \
-                edgelist_df[[srcCol, dstCol]].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
+            edgelist_df[srcCol], edgelist_df[dstCol] = edgelist_df[
+                [srcCol, dstCol]
+            ].min(axis=1), edgelist_df[[srcCol, dstCol]].max(axis=1)
 
             edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
             wgtCol = simpleDistributedGraphImpl.edgeWeightCol
@@ -417,15 +418,15 @@ class simpleDistributedGraphImpl:
                 # will be halved.
                 edgelist_df[wgtCol] /= 2
 
-
         if is_string_dtype:
             # unrenumber the vertices
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
 
         edgelist_df = edgelist_df.rename(
-            columns=self.renumber_map.internal_to_external_col_names)
-        
+            columns=self.renumber_map.internal_to_external_col_names
+        )
+
         # If there is no 'wgt' column, nothing will happen
         edgelist_df = edgelist_df.rename(columns={wgtCol: self.weight_column})
 
@@ -465,8 +466,7 @@ class simpleDistributedGraphImpl:
 
         if directed_edges and self.edgelist is not None:
             return len(self.edgelist.edgelist_df)
-        # FIXME: set 'self.properties.edge_count' when viewing the edgelist
-        # Update the view of edgelist for undirected graph in MG here (return only lower)
+
         if self.properties.edge_count is None:
             if self.edgelist is not None:
                 self.view_edge_list()
@@ -1056,9 +1056,8 @@ class simpleDistributedGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-            
-        return self.view_edge_list()[self.vertex_columns]
 
+        return self.view_edge_list()[self.vertex_columns]
 
     def nodes(self):
         """
@@ -1090,7 +1089,6 @@ class simpleDistributedGraphImpl:
                 ).drop_duplicates()
         else:
             raise RuntimeError("Graph is Empty")
-
 
     def neighbors(self, n):
         if self.edgelist is None:

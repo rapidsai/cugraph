@@ -668,11 +668,13 @@ class NumberMap:
             # FIXME: instead of hardcoded value, it should be 'simpleGraphImpl.srcCol'
             # but there is no way to retrieve it with the current API
             if column_name in [self.renumbered_src_col_name, "src"]:
-                self.internal_to_external_col_names.update(dict(zip(
-                    col_names, self.input_src_col_names)))
+                self.internal_to_external_col_names.update(
+                    dict(zip(col_names, self.input_src_col_names))
+                )
             elif column_name in [self.renumbered_dst_col_name, "dst"]:
-                self.internal_to_external_col_names.update(dict(zip(
-                    col_names, self.input_dst_col_names)))
+                self.internal_to_external_col_names.update(
+                    dict(zip(col_names, self.input_dst_col_names))
+                )
 
         if preserve_order:
             index_name = NumberMap.generate_unused_column_name(df)

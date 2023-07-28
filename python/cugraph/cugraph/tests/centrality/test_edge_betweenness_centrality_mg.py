@@ -16,7 +16,7 @@ import pytest
 
 import dask_cudf
 from pylibcugraph.testing.utils import gen_fixture_params_product
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 import cugraph
 import cugraph.dask as dcg
