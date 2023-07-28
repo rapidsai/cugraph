@@ -135,12 +135,12 @@ struct call_intersection_op_t {
 
     std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
                        raft::device_span<edge_property_value_t const>,
-                       std::byte>
+                       std::byte /* dummy */>
       properties0{};
 
     std::conditional_t<!std::is_same_v<edge_property_value_t, thrust::nullopt_t>,
                        raft::device_span<edge_property_value_t const>,
-                       std::byte>
+                       std::byte /* dummy */>
       properties1{};
 
     if constexpr (!std::is_same_v<edge_property_value_t, thrust::nullopt_t>) {
