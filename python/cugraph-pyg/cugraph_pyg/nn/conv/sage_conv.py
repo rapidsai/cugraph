@@ -47,8 +47,8 @@ class SAGEConv(BaseConv):
             :obj:`"max"`. (default: :obj:`"mean"`)
         normalize (bool, optional): If set to :obj:`True`, output features
             will be :math:`\ell_2`-normalized, *i.e.*,
-            :math:`\frac{\mathbf{x}^{\prime}_i}
-            {\| \mathbf{x}^{\prime}_i \|_2}`.
+            :math:`\frac{\mathbf{h}_i^{k+1}}
+            {\| \mathbf{h}_i^{k+1} \|_2}`.
             (default: :obj:`False`)
         root_weight (bool, optional): If set to :obj:`False`, the layer will
             not add transformed root node features to the output.
@@ -69,7 +69,6 @@ class SAGEConv(BaseConv):
         normalize: bool = False,
         root_weight: bool = True,
         project: bool = False,
-        edge_dim: Optional[int] = None,
         bias: bool = True,
     ):
         super().__init__()
@@ -117,7 +116,6 @@ class SAGEConv(BaseConv):
         self,
         x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
         csc: Tuple[torch.Tensor, torch.Tensor, int],
-        edge_attr: Optional[torch.Tensor] = None,
         max_num_neighbors: Optional[int] = None,
     ) -> torch.Tensor:
         bipartite = isinstance(x, Tuple)
