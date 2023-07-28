@@ -109,6 +109,12 @@ class simpleGraphImpl:
         self.batch_adjlists = None
         self.batch_transposed_adjlists = None
 
+        self.source_columns = None
+        self.detination_columns = None
+        self.vertex_columns = None
+        self.weight_column = None
+        
+
     # Functions
     # FIXME: Change to public function
     # FIXME: Make function more modular
@@ -149,6 +155,7 @@ class simpleGraphImpl:
                 "destination parameters"
             )
         df_columns = s_col + d_col
+        self.vertex_columns = df_columns.copy()
 
         if edge_attr is not None:
             if weight is not None or edge_id is not None or edge_type is not None:
@@ -215,6 +222,9 @@ class simpleGraphImpl:
 
         # Original, unmodified input dataframe.
         self.input_df = elist
+        self.weight_column = weight
+        self.source_columns = source
+        self.destination_columns = source
 
         # Renumbering
         self.renumber_map = None
@@ -370,8 +380,6 @@ class simpleGraphImpl:
 
     def view_edge_list(self):
         """
-        FIXME: For undirected graph, is it trully returning the upper triangular
-        matrix of the symmetrized edgelist?
         Display the edge list. Compute it if needed.
         NOTE: If the graph is of type Graph() then the displayed undirected
         edges are the same as displayed by networkx Graph(), but the direction
@@ -409,6 +417,16 @@ class simpleGraphImpl:
 
         edgelist_df = self.edgelist.edgelist_df
 
+        # FIXME: When renumbered, the MG API uses renumbered col names which
+        # is not consistant with the SG API.
+        if not self.properties.directed:
+            # Extract the upper triangular matrix from the renumebred edges
+            edgelist_df = edgelist_df[
+                edgelist_df[simpleGraphImpl.srcCol]
+                <= edgelist_df[simpleGraphImpl.dstCol]
+            ]
+            edgelist_df = edgelist_df.reset_index(drop=True)
+
         # FIXME: No need to un-renumber as it is expensive.
         if self.properties.renumbered:
             edgelist_df = self.renumber_map.unrenumber(
@@ -417,16 +435,15 @@ class simpleGraphImpl:
             edgelist_df = self.renumber_map.unrenumber(
                 edgelist_df, simpleGraphImpl.dstCol
             )
-
-        # FIXME: revisit this approach
-        if not self.properties.directed:
-            edgelist_df = edgelist_df[
-                edgelist_df[simpleGraphImpl.srcCol]
-                <= edgelist_df[simpleGraphImpl.dstCol]
-            ]
-            edgelist_df = edgelist_df.reset_index(drop=True)
         
         self.properties.edge_count = len(edgelist_df)
+
+        edgelist_df = edgelist_df.rename(
+            columns=self.renumber_map.internal_to_external_col_names)
+        
+        # If there is no 'wgt' column, nothing will happen
+        wgtCol = simpleGraphImpl.edgeWeightCol
+        edgelist_df = edgelist_df.rename(columns={wgtCol: self.weight_column})
 
         return edgelist_df
 
@@ -1179,7 +1196,8 @@ class simpleGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        return self.view_edge_list()[[simpleGraphImpl.srcCol, simpleGraphImpl.dstCol]]
+        # FIXME: The user needs to get the edges with original column names
+        return self.view_edge_list()[self.vertex_columns]
 
     def nodes(self):
         """

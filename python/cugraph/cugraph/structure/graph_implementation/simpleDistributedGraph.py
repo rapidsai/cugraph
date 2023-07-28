@@ -79,6 +79,8 @@ class simpleDistributedGraphImpl:
         self.properties = simpleDistributedGraphImpl.Properties(properties)
         self.source_columns = None
         self.destination_columns = None
+        self.weight_column = None
+        self.vertex_columns = None
 
     def _make_plc_graph(
         sID,
@@ -175,6 +177,7 @@ class simpleDistributedGraphImpl:
                 "and destination parameters"
             )
         ddf_columns = s_col + d_col
+        self.vertex_columns = ddf_columns.copy() 
         _client = default_client()
         workers = _client.scheduler_info()["workers"]
         # Repartition to 2 partitions per GPU for memory efficient process
@@ -215,7 +218,7 @@ class simpleDistributedGraphImpl:
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
             # FIXME: Drop the check in symmetrize.py as it is redundant
-            if len(edge_attr) == 3 or edge_id is not None or edge_type is not None:
+            if len(edge_attr) == 3:
                 if not self.properties.directed:
                     raise ValueError(
                         "User-provided edge ids and/or edge "
@@ -286,6 +289,7 @@ class simpleDistributedGraphImpl:
         self.properties.renumber = renumber
         self.source_columns = source
         self.destination_columns = destination
+        self.weight_column = weight
 
         # If renumbering is not enabled, this function will only create
         # the edgelist_df and not do any renumbering.
@@ -356,8 +360,8 @@ class simpleDistributedGraphImpl:
 
     def view_edge_list(self):
         """
-        FIXME: For undirected graph, is it trully returning the upper triangular
-        matrix of the symmetrized edgelist?
+        FIXME: Should this also return the edge ids and types?
+
         Display the edge list. Compute it if needed.
         NOTE: If the graph is of type Graph() then the displayed undirected
         edges are the same as displayed by networkx Graph(), but the direction
@@ -408,12 +412,23 @@ class simpleDistributedGraphImpl:
             edgelist_df = edgelist_df.groupby(by=[srcCol, dstCol]).sum().reset_index()
             wgtCol = simpleDistributedGraphImpl.edgeWeightCol
             if wgtCol in edgelist_df.columns:
+                # FIXME: This breaks if there are are multi edges as those will
+                # be dropped during the symmetrization step and the original 'weight'
+                # will be halved.
                 edgelist_df[wgtCol] /= 2
+
 
         if is_string_dtype:
             # unrenumber the vertices
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, srcCol)
             edgelist_df = self.renumber_map.unrenumber(edgelist_df, dstCol)
+
+        edgelist_df = edgelist_df.rename(
+            columns=self.renumber_map.internal_to_external_col_names)
+        
+        # If there is no 'wgt' column, nothing will happen
+        edgelist_df = edgelist_df.rename(columns={wgtCol: self.weight_column})
+
         self.properties.edge_count = len(edgelist_df)
         return edgelist_df
 
@@ -1041,18 +1056,9 @@ class simpleDistributedGraphImpl:
         sources and destinations. It does not return the edge weights.
         For viewing edges with weights use view_edge_list()
         """
-        if self.renumbered is True:
-            src_col_name = self.renumber_map.renumbered_src_col_name
-            dst_col_name = self.renumber_map.renumbered_dst_col_name
-            # FIXME: from_dask_cudf_edgelist() currently requires
-            # renumber=True for MG, so this else block will not be
-            # used. Should this else block be removed and added back when
-            # the restriction is removed?
-        else:
-            src_col_name = self.source_columns
-            dst_col_name = self.destination_columns
+            
+        return self.view_edge_list()[self.vertex_columns]
 
-        return self.view_edge_list()[[src_col_name, dst_col_name]]
 
     def nodes(self):
         """
