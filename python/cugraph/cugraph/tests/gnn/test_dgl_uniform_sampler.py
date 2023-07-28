@@ -11,12 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
+import pytest
 import pandas as pd
 import numpy as np
-import cupy as cp
-import pytest
 
+import cudf
+import cupy as cp
 from cugraph.gnn.dgl_extensions.dgl_uniform_sampler import DGLUniformSampler
 
 

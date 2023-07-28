@@ -12,16 +12,16 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 
-import dask_cudf
-from cudf.testing.testing import assert_frame_equal, assert_series_equal
-from pylibcugraph.testing import gen_fixture_params_product
-
 import cugraph
+import dask_cudf
 import cugraph.dask as dcg
 from cugraph.testing import utils
 from cugraph.dask.common.mg_utils import is_single_gpu
+from pylibcugraph.testing import gen_fixture_params_product
+from cudf.testing.testing import assert_frame_equal, assert_series_equal
 
 
 # =============================================================================

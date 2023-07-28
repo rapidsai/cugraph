@@ -17,8 +17,7 @@ import pytest
 import numpy as np
 
 from cugraph.dask.common.mg_utils import is_single_gpu
-
-from cugraph.experimental.datasets import karate, netscience
+from cugraph.datasets import karate, netscience
 
 # Get parameters from standard betwenness_centrality_test
 # As tests directory is not a module, we need to add it to the path

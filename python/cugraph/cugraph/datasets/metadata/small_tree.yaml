@@ -1,0 +1,24 @@
+name: small_tree
+file_type: .csv
+description:
+  The `small_tree` dataset was created by Nvidia for testing/demonstration
+  purposes, and consists of a small (9 nodes) directed tree.
+author: Nvidia
+refs: null
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: false
+is_directed: true
+is_multigraph: false
+is_symmetric: false
+number_of_edges: 11
+number_of_nodes: 9
+url: https://data.rapids.ai/cugraph/datasets/small_tree.csv

@@ -22,10 +22,10 @@ import importlib
 
 import pytest
 import numpy as np
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
 from cugraph.testing import utils
 from cugraph.experimental.datasets import karate
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 MAX_ITERATIONS = [100, 200]
