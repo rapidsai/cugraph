@@ -14,12 +14,13 @@ import gc
 import random
 
 import pytest
-import cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
+import cudf
 import cugraph
 from cugraph import uniform_neighbor_sample
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
+from cugraph.testing import UNDIRECTED_DATASETS
+from cugraph.datasets import email_Eu_core, small_tree
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================
@@ -34,7 +35,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = UNDIRECTED_DATASETS + [email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),

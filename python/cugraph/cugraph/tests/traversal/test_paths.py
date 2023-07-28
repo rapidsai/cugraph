@@ -15,13 +15,13 @@ import sys
 from tempfile import NamedTemporaryFile
 import math
 
-import cudf
-from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
-import cupy
-import networkx as nx
 import pytest
+import networkx as nx
 
+import cudf
+import cupy
 import cugraph
+from cupyx.scipy.sparse import coo_matrix as cupy_coo_matrix
 
 
 CONNECTED_GRAPH = """1,5,3

@@ -13,19 +13,13 @@
 
 import time
 import pytest
+import scipy.io
+from sklearn.manifold import trustworthiness
 
 import cudf
 import cugraph
 from cugraph.internals import GraphBasedDimRedCallback
-from sklearn.manifold import trustworthiness
-import scipy.io
-from cugraph.experimental.datasets import karate, polbooks, dolphins, netscience
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, these import fa2 and import networkx need to be
-# relocated in the third-party group once this gets fixed.
+from cugraph.datasets import karate, polbooks, dolphins, netscience
 
 
 def cugraph_call(

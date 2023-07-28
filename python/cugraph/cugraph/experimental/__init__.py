@@ -48,8 +48,6 @@ find_bicliques = deprecated_warning_wrapper(
     experimental_warning_wrapper(EXPERIMENTAL__find_bicliques)
 )
 
-from cugraph.experimental.datasets.dataset import Dataset
-
 from cugraph.experimental.link_prediction.jaccard import (
     EXPERIMENTAL__jaccard,
     EXPERIMENTAL__jaccard_coefficient,

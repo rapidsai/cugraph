@@ -109,7 +109,8 @@ struct kv_cuco_insert_and_increment_t {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
       auto idx       = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
       using ref_type = typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag>;
-      cuda::atomic_ref<typename ref_type::mapped_type, ref_type::thread_scope> ref((*iter).second);
+      cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
+        (*iter).second);
       ref.store(idx, cuda::std::memory_order_relaxed);
       return idx;
     } else {
@@ -148,7 +149,8 @@ struct kv_cuco_insert_if_and_increment_t {
       cuda::atomic_ref<size_t, cuda::thread_scope_device> atomic_counter(*counter);
       auto idx       = atomic_counter.fetch_add(size_t{1}, cuda::std::memory_order_relaxed);
       using ref_type = typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag>;
-      cuda::atomic_ref<typename ref_type::mapped_type, ref_type::thread_scope> ref((*iter).second);
+      cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
+        (*iter).second);
       ref.store(idx, cuda::std::memory_order_relaxed);
       return idx;
     } else {
@@ -176,7 +178,8 @@ struct kv_cuco_insert_and_assign_t {
     auto [iter, inserted] = device_ref.insert_and_find(pair);
     if (!inserted) {
       using ref_type = typename cuco_store_type::ref_type<cuco::experimental::insert_and_find_tag>;
-      cuda::atomic_ref<typename ref_type::mapped_type, ref_type::thread_scope> ref((*iter).second);
+      cuda::atomic_ref<typename ref_type::mapped_type, cuda::thread_scope_device> ref(
+        (*iter).second);
       ref.store(thrust::get<1>(pair), cuda::std::memory_order_relaxed);
     }
   }
