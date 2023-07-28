@@ -100,6 +100,22 @@ auto allocate_dataframe_buffer(size_t buffer_size, rmm::cuda_stream_view stream_
 }
 
 template <typename BufferType>
+void reserve_dataframe_buffer(BufferType& buffer,
+                              size_t new_buffer_capacity,
+                              rmm::cuda_stream_view stream_view)
+{
+  static_assert(is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value ||
+                is_arithmetic_vector<std::remove_cv_t<BufferType>, rmm::device_uvector>::value);
+  if constexpr (is_std_tuple_of_arithmetic_vectors<std::remove_cv_t<BufferType>>::value) {
+    std::apply([new_buffer_capacity, stream_view](
+                 auto&&... args) { (args.reserve(new_buffer_capacity, stream_view), ...); },
+               buffer);
+  } else {
+    buffer.reserve(new_buffer_capacity, stream_view);
+  }
+}
+
+template <typename BufferType>
 void resize_dataframe_buffer(BufferType& buffer,
                              size_t new_buffer_size,
                              rmm::cuda_stream_view stream_view)

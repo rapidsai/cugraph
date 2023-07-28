@@ -14,12 +14,13 @@ import gc
 import random
 
 import pytest
-import cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
 
+import cudf
 import cugraph
 from cugraph import uniform_neighbor_sample
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
+from cugraph.testing import UNDIRECTED_DATASETS
+from cugraph.datasets import email_Eu_core, small_tree
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================
@@ -34,7 +35,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+datasets = UNDIRECTED_DATASETS + [email_Eu_core]
 
 fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
@@ -726,6 +727,55 @@ def test_uniform_neighbor_sample_deduplicate_sources_email_eu_core():
         )
         for c in counts_current_hop:
             assert c <= 5 - hop
+
+
+@pytest.mark.sg
+@pytest.mark.parametrize("hops", [[5], [5, 5], [5, 5, 5]])
+def test_uniform_neighbor_sample_renumber(hops):
+    el = email_Eu_core.get_edgelist()
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(el, source="src", destination="dst")
+
+    seeds = G.select_random_vertices(62, int(0.0001 * len(el)))
+
+    sampling_results_unrenumbered = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=False,
+        random_state=62,
+    )
+
+    sampling_results_renumbered, renumber_map = cugraph.uniform_neighbor_sample(
+        G,
+        seeds,
+        hops,
+        with_replacement=False,
+        with_edge_properties=True,
+        with_batch_ids=False,
+        deduplicate_sources=True,
+        renumber=True,
+        random_state=62,
+    )
+
+    sources_hop_0 = sampling_results_unrenumbered[
+        sampling_results_unrenumbered.hop_id == 0
+    ].sources
+    for hop in range(len(hops)):
+        destinations_hop = sampling_results_unrenumbered[
+            sampling_results_unrenumbered.hop_id <= hop
+        ].destinations
+        expected_renumber_map = cudf.concat([sources_hop_0, destinations_hop]).unique()
+
+        assert sorted(expected_renumber_map.values_host.tolist()) == sorted(
+            renumber_map.map[0 : len(expected_renumber_map)].values_host.tolist()
+        )
+    assert (renumber_map.batch_id == 0).all()
 
 
 @pytest.mark.sg

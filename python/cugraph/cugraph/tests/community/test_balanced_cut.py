@@ -12,14 +12,15 @@
 # limitations under the License.
 
 import gc
-import random
 
+import random
 import pytest
 import networkx as nx
 import pandas as pd
+
 import cudf
 import cugraph
-from cugraph.experimental.datasets import DATASETS
+from cugraph.testing import DEFAULT_DATASETS
 
 
 def cugraph_call(G, partitions):
@@ -57,7 +58,7 @@ PARTITIONS = [2, 4, 8]
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering(graph_file, partitions):
     gc.collect()
@@ -78,7 +79,7 @@ def test_edge_cut_clustering(graph_file, partitions):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
     gc.collect()
@@ -101,7 +102,7 @@ def test_edge_cut_clustering_with_edgevals(graph_file, partitions):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", [DATASETS[2]])
+@pytest.mark.parametrize("graph_file", [DEFAULT_DATASETS[2]])
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     gc.collect()
