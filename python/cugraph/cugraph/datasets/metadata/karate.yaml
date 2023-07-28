@@ -1,0 +1,26 @@
+name: karate
+file_type: .csv
+description:
+  The graph "karate" contains the network of friendships between the 34 members
+  of a karate club at a US university, as described by Wayne Zachary in 1977.
+author: Zachary W.
+refs:
+  W. W. Zachary, An information flow model for conflict and fission in small groups,
+  Journal of Anthropological Research 33, 452-473 (1977).
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: false
+is_directed: true
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 156
+number_of_nodes: 34
+url: https://data.rapids.ai/cugraph/datasets/karate.csv

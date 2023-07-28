@@ -12,16 +12,14 @@
 # limitations under the License.
 
 import gc
+
 import pytest
 
 import dask_cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
-
 import cugraph
 import cugraph.dask as dcg
-
-# from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing import utils
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================

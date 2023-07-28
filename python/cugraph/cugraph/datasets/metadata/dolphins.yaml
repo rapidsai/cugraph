@@ -1,0 +1,31 @@
+name: dolphins
+file_type: .csv
+description:  An undirected social network of frequent associations between 62 dolphins in a community living off Doubtful Sound, New Zealand, as compiled by Lusseau et al. (2003). 
+author:
+  - D. Lusseau
+  - K. Schneider
+  - O. J. Boisseau
+  - P. Haase
+  - E. Slooten
+  - S. M. Dawson
+refs:
+  D. Lusseau, K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and S. M. Dawson,
+  The bottlenose dolphin community of Doubtful Sound features a large proportion of
+  long-lasting associations, Behavioral Ecology and Sociobiology 54, 396-405 (2003).
+delim: " "
+header: None
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: false
+is_directed: false
+is_multigraph: false
+is_symmetric: true
+number_of_edges: 159
+number_of_nodes: 62
+url: https://data.rapids.ai/cugraph/datasets/dolphins.csv

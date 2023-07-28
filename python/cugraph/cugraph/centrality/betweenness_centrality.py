@@ -120,8 +120,8 @@ def betweenness_centrality(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> bc = cugraph.betweenness_centrality(G)
 
     """
@@ -283,8 +283,8 @@ def edge_betweenness_centrality(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.datasets import karate
+    >>> G = karate.get_graph(download=True)
     >>> bc = cugraph.edge_betweenness_centrality(G)
 
     """
