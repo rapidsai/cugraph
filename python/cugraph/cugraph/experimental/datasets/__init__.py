@@ -22,9 +22,18 @@ from cugraph.experimental.datasets.dataset import (
 from cugraph.experimental.datasets import metadata
 from pathlib import Path
 
+from cugraph.utilities.api_tools import promoted_experimental_warning_wrapper
+
+
+Dataset = promoted_experimental_warning_wrapper(Dataset)
+load_all = promoted_experimental_warning_wrapper(load_all)
+set_download_dir = promoted_experimental_warning_wrapper(set_download_dir)
+get_download_dir = promoted_experimental_warning_wrapper(get_download_dir)
 
 meta_path = Path(__file__).parent / "metadata"
 
+
+# individual dataset objects
 karate = Dataset(meta_path / "karate.yaml")
 karate_data = Dataset(meta_path / "karate_data.yaml")
 karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
@@ -41,6 +50,8 @@ toy_graph_undirected = Dataset(meta_path / "toy_graph_undirected.yaml")
 email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
 ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
 
+
+# batches of datasets
 DATASETS_UNDIRECTED = [karate, dolphins]
 
 DATASETS_UNDIRECTED_WEIGHTS = [netscience]

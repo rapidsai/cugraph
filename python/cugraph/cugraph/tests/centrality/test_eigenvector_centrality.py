@@ -14,17 +14,12 @@
 import gc
 
 import pytest
+import networkx as nx
 
 import cugraph
-from cugraph.testing import utils
-from cugraph.experimental.datasets import (
-    toy_graph,
-    karate,
-    DATASETS_UNDIRECTED,
-    DATASETS,
-)
+from cugraph.testing import utils, UNDIRECTED_DATASETS, DEFAULT_DATASETS
+from cugraph.datasets import toy_graph, karate
 
-import networkx as nx
 
 # This toy graph is used in multiple tests throughout libcugraph_c and pylib.
 TOY = toy_graph
@@ -46,7 +41,7 @@ def topKVertices(eigen, col, k):
 def calc_eigenvector(graph_file):
     dataset_path = graph_file.get_path()
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=True
+        download=True, create_using=cugraph.Graph(directed=True), ignore_weights=True
     )
 
     k_df = cugraph.eigenvector_centrality(G, max_iter=1000)
@@ -62,7 +57,7 @@ def calc_eigenvector(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("graph_file", DEFAULT_DATASETS)
 def test_eigenvector_centrality(graph_file):
     eigen_scores = calc_eigenvector(graph_file)
 
@@ -73,7 +68,7 @@ def test_eigenvector_centrality(graph_file):
 
 
 @pytest.mark.sg
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", UNDIRECTED_DATASETS)
 def test_eigenvector_centrality_nx(graph_file):
     dataset_path = graph_file.get_path()
     NM = utils.read_csv_for_nx(dataset_path)
@@ -141,7 +136,7 @@ def test_eigenvector_centrality_multi_column(graph_file):
 @pytest.mark.parametrize("graph_file", [TOY])
 def test_eigenvector_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
-    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    G = graph_file.get_graph(download=True, create_using=cugraph.Graph(directed=True))
 
     tol = 1e-6
     max_iter = 200

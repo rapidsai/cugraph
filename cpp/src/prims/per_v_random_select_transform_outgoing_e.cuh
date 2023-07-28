@@ -810,8 +810,8 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     }
 
     auto edge_partition_frontier_local_degrees = edge_partition.compute_local_degrees(
-      raft::device_span<vertex_t const>(edge_partition_frontier_major_first,
-                                        local_frontier_sizes[i]),
+      edge_partition_frontier_major_first,
+      edge_partition_frontier_major_first + local_frontier_sizes[i],
       handle.get_stream());
 
     if (minor_comm_size > 1) {
