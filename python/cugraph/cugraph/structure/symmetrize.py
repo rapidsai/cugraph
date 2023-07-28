@@ -230,6 +230,7 @@ def symmetrize(
 
     """
 
+    # FIXME: Redundant check that should be done at the graph creation
     if "edge_id" in input_df.columns and symmetrize:
         raise ValueError("Edge IDs are not supported on undirected graphs")
 
