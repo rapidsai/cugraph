@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,7 +25,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
@@ -46,9 +45,7 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
     copy_to_cupy_array,
-    get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
 

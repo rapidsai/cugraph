@@ -44,6 +44,7 @@ def test_neighbor_sample(basic_graph_1):
 
     out = _sampler_output_from_sampling_results(
         sampling_results=sampling_results,
+        renumber_map=None,
         graph_store=cugraph_store,
         metadata=torch.arange(6, dtype=torch.int64),
     )
@@ -94,6 +95,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_graph_1):
 
     out = _sampler_output_from_sampling_results(
         sampling_results=sampling_results,
+        renumber_map=None,
         graph_store=cugraph_store,
         metadata=torch.arange(6, dtype=torch.int64),
     )
@@ -144,7 +146,7 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     )
 
     out = _sampler_output_from_sampling_results(
-        mock_sampling_results, graph_store, None
+        mock_sampling_results, None, graph_store, None
     )
 
     assert out.metadata is None
@@ -171,3 +173,9 @@ def test_neighbor_sample_mock_sampling_results(abc_graph):
     assert out.num_sampled_edges[("A", "ab", "B")].tolist() == [3, 0, 1, 0]
     assert out.num_sampled_edges[("B", "ba", "A")].tolist() == [0, 1, 0, 1]
     assert out.num_sampled_edges[("B", "bc", "C")].tolist() == [0, 2, 0, 2]
+
+
+@pytest.mark.skipif(isinstance(torch, MissingModule), reason="torch not available")
+@pytest.mark.skip("needs to be written")
+def test_neighbor_sample_renumbered():
+    pass

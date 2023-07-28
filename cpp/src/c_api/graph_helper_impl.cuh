@@ -16,7 +16,8 @@
 #pragma once
 
 #include <prims/fill_edge_property.cuh>
-#include <structure/detail/structure_utils.cuh>
+
+#include <cugraph/utilities/misc_utils.cuh>
 
 namespace cugraph {
 namespace c_api {
