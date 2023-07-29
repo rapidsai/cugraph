@@ -558,10 +558,6 @@ struct gatherv_indices_t {
                      zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i],
                      zipped_gathered_begin + gathered_intersection_offsets[output_size * j + i + 1],
                      zipped_combined_begin + output_offset);
-
-        output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
-                         gathered_intersection_offsets[output_size * j + i];
-
       } else {
         thrust::copy(thrust::seq,
                      gathered_intersection_indices.begin() +
@@ -569,9 +565,9 @@ struct gatherv_indices_t {
                      gathered_intersection_indices.begin() +
                        gathered_intersection_offsets[output_size * j + i + 1],
                      combined_nbr_intersection_indices.begin() + output_offset);
-        output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
-                         gathered_intersection_offsets[output_size * j + i];
       }
+      output_offset += gathered_intersection_offsets[output_size * j + i + 1] -
+                       gathered_intersection_offsets[output_size * j + i];
     }
   }
 };
