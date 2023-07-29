@@ -3,10 +3,10 @@
 # https://pre-commit.com/
 #
 # Before first use: `pre-commit install`
-# To run: `pre-commit run --all-files`
-# To update: `pre-commit autoupdate`
+# To run: `make lint`
+# To update: `make lint-update`
 #  - &flake8_dependencies below needs updated manually
-fail_fast: true
+fail_fast: false
 default_language_version:
     python: python3
 repos:
@@ -74,8 +74,13 @@ repos:
       - id: codespell
         types_or: [python, rst, markdown]
         additional_dependencies: [tomli]
-        files: ^(cugraph_pg|docs)/
+        files: ^(cugraph_nx|docs)/
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.0.280
     hooks:
       - id: ruff
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: no-commit-to-branch
+        args: [-p, "^branch-2....$"]

@@ -15,9 +15,10 @@ from __future__ import annotations
 from collections.abc import Hashable
 from typing import TypeVar
 
-EdgeType = TypeVar("EdgeType", bound=Hashable)
-NodeType = TypeVar("NodeType", bound=Hashable)
-AttrType = TypeVar("AttrType", bound=Hashable)
+AttrKey = TypeVar("AttrKey", bound=Hashable)
+EdgeKey = TypeVar("EdgeKey", bound=Hashable)
+NodeKey = TypeVar("NodeKey", bound=Hashable)
+EdgeTuple = tuple[NodeKey, NodeKey]
 EdgeValue = TypeVar("EdgeValue")
 NodeValue = TypeVar("NodeValue")
 Dtype = TypeVar("Dtype")

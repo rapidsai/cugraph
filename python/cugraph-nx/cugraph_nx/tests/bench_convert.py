@@ -41,14 +41,14 @@ def _bench_helper(gpubenchmark, N, attr_kind, create_using, method):
         skip = True
         for *_ids, edgedict in G.edges(data=True):
             skip = not skip
-            if skip and attr_kind is not True:
+            if skip and attr_kind != "full":
                 continue
             edgedict["x"] = random.randint(0, 100000)
         if attr_kind == "preserve":
             gpubenchmark(cnx.from_networkx, G, preserve_edge_attrs=True)
         elif attr_kind == "half_missing":
             gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": None})
-        else:
+        else:  # full, half_default
             gpubenchmark(cnx.from_networkx, G, edge_attrs={"x": 0})
     else:
         gpubenchmark(cnx.from_networkx, G)
@@ -64,7 +64,7 @@ def _bench_helper_cugraph(gpubenchmark, N, attr_kind, create_using, method):
         gpubenchmark(cugraph.utilities.convert_from_nx, G)
 
 
-@pytest.mark.parametrize("N", [1, 10**2, 10**4])
+@pytest.mark.parametrize("N", [1, 10**6])
 @pytest.mark.parametrize(
     "attr_kind", ["full", "half_missing", "half_default", "preserve", None]
 )
@@ -74,23 +74,31 @@ def bench_cycle_graph(gpubenchmark, N, attr_kind, create_using):
 
 
 @pytest.mark.skipif("not cugraph")
-@pytest.mark.parametrize("N", [1, 10**2, 10**4])
+@pytest.mark.parametrize("N", [1, 10**6])
 @pytest.mark.parametrize("attr_kind", ["full", None])
 @pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
 def bench_cycle_graph_cugraph(gpubenchmark, N, attr_kind, create_using):
     _bench_helper_cugraph(gpubenchmark, N, attr_kind, create_using, nx.cycle_graph)
 
 
-@pytest.mark.parametrize("N", [1, 30, 1000])
+@pytest.mark.parametrize("N", [1, 1500])
 @pytest.mark.parametrize(
     "attr_kind", ["full", "half_missing", "half_default", "preserve", None]
 )
 @pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
-def bench_complete_graph(gpubenchmark, N, attr_kind, create_using):
+def bench_complete_graph_edgedata(gpubenchmark, N, attr_kind, create_using):
     _bench_helper(gpubenchmark, N, attr_kind, create_using, nx.complete_graph)
 
 
-@pytest.mark.parametrize("N", [1, 30, 1000])
+@pytest.mark.parametrize("N", [3000])
+@pytest.mark.parametrize("attr_kind", [None])
+@pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
+def bench_complete_graph_noedgedata(gpubenchmark, N, attr_kind, create_using):
+    _bench_helper(gpubenchmark, N, attr_kind, create_using, nx.complete_graph)
+
+
+@pytest.mark.skipif("not cugraph")
+@pytest.mark.parametrize("N", [1, 1500])
 @pytest.mark.parametrize("attr_kind", ["full", None])
 @pytest.mark.parametrize("create_using", [nx.Graph, nx.DiGraph])
 def bench_complete_graph_cugraph(gpubenchmark, N, attr_kind, create_using):

@@ -39,7 +39,7 @@ class DiGraph(Graph):
         return True
 
     @classmethod
-    def to_networkx_class(cls):
+    def to_networkx_class(cls) -> type[nx.DiGraph]:
         return nx.DiGraph
 
     @networkx_api

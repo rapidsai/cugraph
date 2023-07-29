@@ -25,7 +25,14 @@ import cugraph_nx as cnx
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from cugraph_nx.typing import AttrKey, EdgeValue, NodeKey
+    from cugraph_nx.typing import (
+        AttrKey,
+        Dtype,
+        EdgeTuple,
+        EdgeValue,
+        NodeKey,
+        NodeValue,
+    )
 
 __all__ = ["Graph"]
 
@@ -114,7 +121,10 @@ class Graph:
         **attr,
     ) -> Graph:
         N = indptr.size - 1
-        row_indices = cp.repeat(cp.arange(N, dtype=np.int32), cp.diff(indptr).tolist())
+        row_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+        )
         return cls.from_coo(
             N,
             row_indices,
@@ -143,7 +153,10 @@ class Graph:
         **attr,
     ) -> Graph:
         N = indptr.size - 1
-        col_indices = cp.repeat(cp.arange(N, dtype=np.int32), cp.diff(indptr).tolist())
+        col_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(np.arange(N, dtype=np.int32), cp.diff(indptr).get())
+        )
         return cls.from_coo(
             N,
             row_indices,
@@ -173,7 +186,10 @@ class Graph:
         id_to_key: dict[int, NodeKey] | None = None,
         **attr,
     ) -> Graph:
-        row_indices = cp.repeat(compressed_rows, cp.diff(indptr).tolist())
+        row_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(compressed_rows.get(), cp.diff(indptr).get())
+        )
         return cls.from_coo(
             N,
             row_indices,
@@ -203,7 +219,10 @@ class Graph:
         id_to_key: dict[int, NodeKey] | None = None,
         **attr,
     ) -> Graph:
-        col_indices = cp.repeat(compressed_cols, cp.diff(indptr).tolist())
+        col_indices = cp.array(
+            # cp.repeat is slow to use here, so use numpy instead
+            np.repeat(compressed_cols.get(), cp.diff(indptr).get())
+        )
         return cls.from_coo(
             N,
             row_indices,
@@ -245,21 +264,29 @@ class Graph:
 
     @classmethod
     @networkx_api
-    def to_directed_class(cls):
+    def to_directed_class(cls) -> type[cnx.DiGraph]:
         return cnx.DiGraph
 
     @classmethod
-    def to_networkx_class(cls):
+    def to_networkx_class(cls) -> type[nx.Graph]:
         return nx.Graph
 
     @classmethod
     @networkx_api
-    def to_undirected_class(cls):
+    def to_undirected_class(cls) -> type[Graph]:
         return Graph
 
     ##############
     # Properties #
     ##############
+
+    @property
+    def edge_dtypes(self) -> dict[AttrKey, Dtype]:
+        return {key: val.dtype for key, val in self.edge_values.items()}
+
+    @property
+    def node_dtypes(self) -> dict[AttrKey, Dtype]:
+        return {key: val.dtype for key, val in self.node_values.items()}
 
     @property
     def id_to_key(self) -> dict[int, NodeKey] | None:
@@ -413,7 +440,7 @@ class Graph:
     # Private methods #
     ###################
 
-    def _copy(self, as_view, cls, reverse=False):
+    def _copy(self, as_view: bool, cls: type[Graph], reverse: bool = False):
         indptr = self.indptr
         row_indices = self.row_indices
         col_indices = self.col_indices
@@ -484,7 +511,9 @@ class Graph:
             do_expensive_check=False,
         )
 
-    def _nodes_to_dict(self, node_ids: cp.ndarray, values: cp.ndarray):
+    def _nodes_to_dict(
+        self, node_ids: cp.ndarray, values: cp.ndarray
+    ) -> dict[NodeKey, NodeValue]:
         it = zip(node_ids.tolist(), values.tolist())
         if (id_to_key := self.id_to_key) is not None:
             return {id_to_key[key]: val for key, val in it}
@@ -492,7 +521,7 @@ class Graph:
 
     def _edges_to_dict(
         self, src_ids: cp.ndarray, dst_ids: cp.ndarray, values: cp.ndarray
-    ):
+    ) -> dict[EdgeTuple, EdgeValue]:
         it = zip(zip(src_ids.tolist(), dst_ids.tolist()), values.tolist())
         if (id_to_key := self.id_to_key) is not None:
             return {

@@ -29,9 +29,6 @@ if TYPE_CHECKING:
 __all__ = [
     "from_networkx",
     "to_networkx",
-    "to_graph",
-    "to_directed_graph",
-    "to_undirected_graph",
 ]
 
 concat = itertools.chain.from_iterable
@@ -40,7 +37,7 @@ concat = itertools.chain.from_iterable
 def from_networkx(
     graph: nx.Graph,
     edge_attrs: AttrKey | dict[AttrKey, EdgeValue | None] | None = None,
-    edge_dtypes: Dtype | dict[AttrKey, Dtype] | None = None,
+    edge_dtypes: Dtype | dict[AttrKey, Dtype | None] | None = None,
     *,
     node_attrs: AttrKey | dict[AttrKey, NodeValue | None] | None = None,
     node_dtypes: Dtype | dict[AttrKey, Dtype | None] | None = None,
@@ -125,10 +122,16 @@ def from_networkx(
     if isinstance(adj, nx.classes.coreviews.FilterAdjacency):
         adj = {k: dict(v) for k, v in adj.items()}
 
+    N = len(adj)
     has_missing_edge_data = set()
     missing_edge_attrs = set()
-    if graph.number_of_edges() == 0:
-        pass
+    if (
+        not preserve_edge_attrs
+        and not edge_attrs
+        # Faster than graph.number_of_edges() == 0
+        or next(concat(rowdata.values() for rowdata in adj.values()), None) is None
+    ):
+        edge_attrs = None
     elif preserve_edge_attrs:
         # Using comprehensions should be just as fast starting in Python 3.11
         attr_sets = set(map(frozenset, concat(map(dict.values, adj.values()))))
@@ -139,7 +142,7 @@ def from_networkx(
             has_missing_edge_data = {
                 key for key, val in counts.items() if val != len(attr_sets)
             }
-    elif edge_attrs is not None and None in edge_attrs.values():
+    elif None in edge_attrs.values():
         # Required edge attributes have a default of None in `edge_attrs`
         # Verify all edge attributes are present!
         required = frozenset(
@@ -157,6 +160,9 @@ def from_networkx(
                 if any(it):
                     # Some edges have attribute
                     has_missing_edge_data.add(attr)
+                elif len(edge_attrs) == 1:
+                    # No edges have attribute
+                    edge_attrs = None
                 else:
                     # No edges have attribute
                     missing_edge_attrs.add(attr)
@@ -175,11 +181,13 @@ def from_networkx(
                 has_missing_edge_data.update(
                     key for key, val in counts.items() if val != len(attr_sets)
                 )
+            elif len(missing_edge_attrs) == len(edge_attrs):
+                edge_attrs = None
 
     has_missing_node_data = set()
     missing_node_attrs = set()
-    if graph.number_of_nodes() == 0:
-        pass
+    if N == 0:
+        node_attrs = None
     elif preserve_node_attrs:
         attr_sets = set(map(frozenset, graph._node.values()))
         attrs = set().union(*attr_sets)
@@ -189,7 +197,7 @@ def from_networkx(
             has_missing_node_data = {
                 key for key, val in counts.items() if val != len(attr_sets)
             }
-    elif node_attrs is not None and None in node_attrs.values():
+    elif node_attrs and None in node_attrs.values():
         # Required node attributes have a default of None in `node_attrs`
         # Verify all node attributes are present!
         required = frozenset(
@@ -203,6 +211,9 @@ def from_networkx(
                 if any(it):
                     # Some nodes have attribute
                     has_missing_node_data.add(attr)
+                elif len(node_attrs) == 1:
+                    # No nodes have attribute
+                    node_attrs = None
                 else:
                     # No nodes have attribute
                     missing_node_attrs.add(attr)
@@ -219,21 +230,20 @@ def from_networkx(
                 has_missing_node_data.update(
                     key for key, val in counts.items() if val != len(attr_sets)
                 )
+            elif len(missing_node_attrs) == len(node_attrs):
+                node_attrs = None
 
-    get_edge_values = edge_attrs is not None and graph.number_of_edges() > 0
-    N = len(adj)
     key_to_id = dict(zip(adj, range(N)))
-    do_remap = not all(k == v for k, v in key_to_id.items())
-    col_iter = itertools.chain.from_iterable(adj.values())
-    if do_remap:
-        col_iter = map(key_to_id.__getitem__, col_iter)
-    else:
+    col_iter = concat(adj.values())
+    if all(k == v for k, v in key_to_id.items()):
         key_to_id = None
+    else:
+        col_iter = map(key_to_id.__getitem__, col_iter)
     col_indices = cp.fromiter(col_iter, np.int32)
 
     edge_values = {}
     edge_masks = {}
-    if get_edge_values:
+    if edge_attrs:
         if edge_dtypes is None:
             edge_dtypes = {}
         elif not isinstance(edge_dtypes, Mapping):
@@ -277,13 +287,18 @@ def from_networkx(
                     edge_values[edge_attr] = cp.fromiter(iter_values, dtype)
                 # if vals.ndim > 1: ...
 
-    row_indices = cp.repeat(cp.arange(N, dtype=np.int32), list(map(len, adj.values())))
+    row_indices = cp.array(
+        # cp.repeat is slow to use here, so use numpy instead
+        np.repeat(
+            np.arange(N, dtype=np.int32),
+            np.fromiter(map(len, adj.values()), np.int32),
+        )
+    )
 
-    get_node_values = node_attrs is not None and graph.number_of_nodes() > 0
     node_values = {}
     node_masks = {}
-    nodes = graph._node
-    if get_node_values:
+    if node_attrs:
+        nodes = graph._node
         if node_dtypes is None:
             node_dtypes = {}
         elif not isinstance(node_dtypes, Mapping):
@@ -326,7 +341,7 @@ def from_networkx(
     else:
         klass = cnx.Graph
     rv = klass.from_coo(
-        len(graph),
+        N,
         row_indices,
         col_indices,
         edge_values,
@@ -340,7 +355,9 @@ def from_networkx(
     return rv
 
 
-def _iter_attr_dicts(values, masks):
+def _iter_attr_dicts(
+    values: dict[AttrKey, cp.ndarray], masks: dict[AttrKey, cp.ndarray]
+):
     full_attrs = list(values.keys() - masks.keys())
     if full_attrs:
         full_dicts = (

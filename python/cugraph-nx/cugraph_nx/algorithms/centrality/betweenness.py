@@ -13,6 +13,7 @@
 
 import pylibcugraph as plc
 
+from cugraph_nx.convert import to_graph
 from cugraph_nx.utils import networkx_api
 
 __all__ = ["betweenness_centrality", "edge_betweenness_centrality"]
@@ -26,6 +27,7 @@ def betweenness_centrality(
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
         )
+    G = to_graph(G, weight)
     node_ids, values = plc.betweenness_centrality(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),
@@ -44,6 +46,7 @@ def edge_betweenness_centrality(G, k=None, normalized=True, weight=None, seed=No
         raise NotImplementedError(
             "Weighted implementation of betweenness centrality not currently supported"
         )
+    G = to_graph(G, weight)
     src_ids, dst_ids, values, _edge_ids = plc.edge_betweenness_centrality(
         resource_handle=plc.ResourceHandle(),
         graph=G._get_plc_graph(),

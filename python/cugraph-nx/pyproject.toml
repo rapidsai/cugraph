@@ -130,18 +130,12 @@ external = [
 ]
 ignore = [
     # Would be nice to fix these
-    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in ...
     "D100",  # Missing docstring in public module
     "D101",  # Missing docstring in public class
     "D102",  # Missing docstring in public method
     "D103",  # Missing docstring in public function
     "D104",  # Missing docstring in public package
     "D105",  # Missing docstring in magic method
-    # "D107",  # Missing docstring in `__init__`
-    "D205",  # 1 blank line required between summary line and description
-    "D401",  # First line of docstring should be in imperative mood:
-    # "D417",  # Missing argument description in the docstring:
-    "PLE0605",  # Invalid format for `__all__`, must be `tuple` or `list` (Note: broken in v0.0.237)
 
     # Maybe consider
     # "SIM300",  # Yoda conditions are discouraged, use ... instead (Note: we're not this picky)
