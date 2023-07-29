@@ -15,9 +15,8 @@
 import pytest
 
 import cudf
-
-from cugraph.generators import rmat
 import cugraph
+from cugraph.generators import rmat
 from cupy.sparse import coo_matrix, triu, tril
 import numpy as np
 import cupy as cp

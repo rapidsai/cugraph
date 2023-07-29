@@ -11,17 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import gc
 
+import random
 import pytest
+
 import cudf
 import dask_cudf
-from pylibcugraph.testing.utils import gen_fixture_params_product
-
 import cugraph
-from cugraph.testing import utils
 import cugraph.dask as dcg
+from cugraph.testing import utils
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 
 # =============================================================================

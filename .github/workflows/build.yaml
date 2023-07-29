@@ -34,6 +34,7 @@ jobs:
       branch: ${{ inputs.branch }}
       date: ${{ inputs.date }}
       sha: ${{ inputs.sha }}
+      node_type: cpu32
   python-build:
     needs: [cpp-build]
     secrets: inherit

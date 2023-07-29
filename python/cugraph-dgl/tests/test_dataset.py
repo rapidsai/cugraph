@@ -49,6 +49,7 @@ def create_dgl_mfgs(g, seed_nodes, fanout):
 
 def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
     df_ls = []
+    unique_vertices_ls = []
     for hop_id, fanout in enumerate(reversed(fanout)):
         frontier = g.sample_neighbors(seed_nodes, fanout)
         # Set include_dst_in_src to match cugraph behavior
@@ -57,9 +58,11 @@ def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
         seed_nodes = block.srcdata[dgl.NID]
         block = block.to("cpu")
         src, dst, eid = block.edges("all")
-        src = block.srcdata[dgl.NID][src]
-        dst = block.dstdata[dgl.NID][dst]
         eid = block.edata[dgl.EID][eid]
+        unique_vertices = pd.concat(
+            [pd.Series(dst.numpy()), pd.Series(src.numpy())]
+        ).drop_duplicates(keep="first")
+        unique_vertices_ls.append(unique_vertices)
         df = cudf.DataFrame(
             {
                 "sources": cp.asarray(src),
@@ -71,7 +74,17 @@ def create_cugraph_dgl_homogenous_mfgs(g, seed_nodes, fanout):
         df_ls.append(df)
     df = cudf.concat(df_ls, ignore_index=True)
     df["batch_id"] = 0
-    return create_homogeneous_sampled_graphs_from_dataframe(df, g.num_nodes())[0]
+
+    # Add map column
+    # to the dataframe
+    renumberd_map = pd.concat(unique_vertices_ls).drop_duplicates(keep="first").values
+    offsets = np.asarray([2, 2 + len(renumberd_map)])
+    map_ar = np.concatenate([offsets, renumberd_map])
+    map_ser = cudf.Series(map_ar)
+    # Have to reindex cause map_ser can be of larger length than df
+    df = df.reindex(df.index.union(map_ser.index))
+    df["map"] = map_ser
+    return create_homogeneous_sampled_graphs_from_dataframe(df)[0]
 
 
 @pytest.mark.parametrize("seed_node", [3, 4, 5])
